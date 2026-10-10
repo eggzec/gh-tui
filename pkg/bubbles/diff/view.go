@@ -64,9 +64,29 @@ func (m Model) View() string {
 	}
 	if m.height >= 3 {
 		b.WriteByte('\n')
-		b.WriteString(fit(m.wrap.Status.on(fit(m.Status(), m.width)), m.width))
+		b.WriteString(m.statusLine())
 	}
 	return b.String()
+}
+
+// statusLine renders the line under the rows: the search input while it is
+// open, and otherwise where the cursor is, and what the search shown found.
+func (m Model) statusLine() string {
+	if m.searching {
+		return fit(m.input.View(), m.width)
+	}
+	text, none := m.searchStatus()
+	if text == "" {
+		return fit(m.wrap.Status.on(fit(m.Status(), m.width)), m.width)
+	}
+	sep, style := "", m.wrap.Status
+	if m.Status() != "" {
+		sep = m.styles.Separator
+	}
+	if none {
+		style = m.wrap.Error
+	}
+	return fit(m.wrap.Status.on(m.Status()+sep)+style.on(termtext.OneLine(text)), m.width)
 }
 
 // Status says where the cursor is, such as "hunk 2/5 · file 3/10": the
@@ -174,7 +194,13 @@ func (m Model) line(v visible, numW int) string {
 	}
 	numbers := m.numbers(row, numW)
 	width := max(m.textWidth(numW)+1-len(marker), 0)
-	if spans := m.rowSpans(row, v.index); spans != nil {
+	hits := m.rowHits(row, v.index)
+	spans := m.rowSpans(row, v.index)
+	if spans == nil && hits != nil {
+		// The line shows plain, in the style of its marker.
+		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, nil, tokenStyles{text: style}, width, hits), m.width)
+	}
+	if spans != nil {
 		code := m.wrap.code[codeContext]
 		switch row.Kind {
 		case KindAdded:
@@ -183,7 +209,7 @@ func (m Model) line(v visible, numW int) string {
 			code = m.wrap.code[codeDeleted]
 		case KindFileHeader, KindHunkHeader, KindContext, KindNoNewline, KindNote, KindRaw:
 		}
-		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width), m.width)
+		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width, hits), m.width)
 	}
 	return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker+m.text(row, width)), m.width)
 }
@@ -227,11 +253,11 @@ func (m Model) text(row Row, width int) string {
 
 // coloured is the text of a line in the colors of its spans, cleaned and
 // scrolled sideways like [Model.text], and padded to width cells in the
-// style of the line.
-func (m Model) coloured(row Row, spans []syntax.Span, code tokenStyles, width int) string {
+// style of the line, with the matches of a search in hits over them.
+func (m Model) coloured(row Row, spans []syntax.Span, code tokenStyles, width int, hits []hit) string {
 	s := termtext.Clean(row.Text, m.tabs)
 	sw := ansi.StringWidth(s)
-	out := code.coloured(s, spans)
+	out := code.paint(s, spans, hits, m.wrap.match, m.wrap.current)
 	if m.left > 0 || sw > width {
 		out = ansi.Cut(out, m.left, m.left+width)
 		sw = ansi.StringWidth(out)

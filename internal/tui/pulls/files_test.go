@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 )
 
 // hunk returns a hunk of a patch that starts at old and new, whose header
@@ -700,4 +701,83 @@ func mustPos(t *testing.T, m *detailModal) string {
 		t.Fatal("the cursor is in no file")
 	}
 	return cur.Path
+}
+
+// / searches the lines of the diff, and what is typed there stays out of
+// the modal's keys; n and N go through the matches, and esc clears the
+// search before it closes the modal.
+func TestSearchTheDiff(t *testing.T) {
+	h, m := filed(t, newFakeService(), 100, 30)
+	press(t, h, "[")
+	press(t, h, "2")
+	press(t, h, "/")
+	if !m.files.diff.Capturing() {
+		t.Fatal("/ didn't open the search")
+	}
+	layers := m.KeyLayers()
+	if len(layers) != 1 || !layers[0].Typing || layers[0].Context != "search_prompt" {
+		t.Fatalf("the layers while typing are %+v, want the prompt's alone", layers)
+	}
+	// C, M, ] and q are keys of the modal when nothing is typed.
+	for _, k := range []string{"C", "M", "]", "q", "X"} {
+		press(t, h, k)
+	}
+	if m.tab != filesTab || m.ask != nil || m.closed {
+		t.Fatalf("a typed key did something: tab %v, ask %v, closed %v", m.tab, m.ask, m.closed)
+	}
+	press(t, h, "esc")
+	if m.files.diff.Capturing() || h.modal() != m {
+		t.Fatal("esc did not close the input alone")
+	}
+
+	press(t, h, "/")
+	for _, k := range []string{"d", "i", "s", "k"} {
+		press(t, h, k)
+	}
+	press(t, h, "enter")
+	d := &m.files.diff
+	if d.Query() != "disk" || d.Matches() < 3 {
+		t.Fatalf("query %q found %d matches, want several across files", d.Query(), d.Matches())
+	}
+	first, _ := d.CurrentFile()
+	var last diff.File
+	for range d.Matches() {
+		press(t, h, "n")
+		last, _ = d.CurrentFile()
+		if last.Path != first.Path {
+			break
+		}
+	}
+	if last.Path == first.Path {
+		t.Error("n stayed in one file")
+	}
+	press(t, h, "N")
+	if cur, _ := d.CurrentFile(); cur.Path != first.Path {
+		t.Errorf("N went to %q, want back in %q", cur.Path, first.Path)
+	}
+	if !strings.Contains(strings.Join(plain(m), "\n"), "match ") {
+		t.Error("the view doesn't say which match it is on")
+	}
+
+	press(t, h, "esc")
+	if d.Query() != "" || h.modal() != m || m.closed {
+		t.Fatalf("esc: query %q, modal open %v; want the search cleared and the modal open", d.Query(), h.modal() == m)
+	}
+	press(t, h, "esc")
+	if h.modal() == m {
+		t.Error("a second esc did not close the modal")
+	}
+}
+
+// With the tree focused, esc still clears a search of the diff first.
+func TestSearchClearedFromTheTree(t *testing.T) {
+	h, m := filed(t, newFakeService(), 100, 30)
+	press(t, h, "[")
+	press(t, h, "2")
+	for _, k := range []string{"/", "d", "i", "s", "k", "enter", "1", "esc"} {
+		press(t, h, k)
+	}
+	if m.files.diff.Query() != "" || h.modal() != m {
+		t.Error("esc did not clear the search first")
+	}
 }

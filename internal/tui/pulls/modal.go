@@ -413,6 +413,10 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.onChecks() && m.checks.TakesKeys() {
 		return m.checks.Update(msg)
 	}
+	if m.searchingDiff() {
+		// The search of the diff types every key.
+		return m.pressDiff(msg)
+	}
 	k := m.keys
 	switch {
 	case key.Matches(msg, k.References) && m.newRefs != nil:
@@ -570,6 +574,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return m.refs.KeyLayers()
 	case m.onChecks() && m.checks.TakesKeys():
 		return m.checks.KeyLayers()
+	case m.searchingDiff():
+		return []keyhelp.Layer{ui.ContextHelp("search_prompt", m.files.diff, true)}
 	}
 	k := m.keys.withChanges(m.gate(), m.mergeMethod, m.detail.PullRequest, m.loaded)
 	switch {

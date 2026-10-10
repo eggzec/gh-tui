@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -411,4 +412,34 @@ func TestHelpKeyReachesWaitingPager(t *testing.T) {
 			t.Errorf("%s then ?: help open %v, pager got %q", first, m.helpOpen(), mod.keys())
 		}
 	}
+}
+
+// A pull request opened from the links of another modal has a modal to
+// return to, and the help lists the back key on its Files tab, where it is
+// on: no binding of the tab's own, such as the one that closes an empty
+// search line with the same key, may hide it.
+func TestHelpListsBackOnPullDiff(t *testing.T) {
+	var diffCtx keyContext
+	for _, c := range keyContexts() {
+		if c.name == "pull request: diff" {
+			diffCtx = c
+		}
+	}
+	synctest.Test(t, func(t *testing.T) {
+		m, _ := diffCtx.reach(t)
+		// Another modal stands behind the one on view.
+		m.back = []place{{modal: m.modal}}
+		m.backOwner = m.modal
+		if !m.modalBack() {
+			t.Fatal("the modal has no modal to return to")
+		}
+		for _, l := range m.layersNow() {
+			for _, b := range l.Bindings {
+				if b.Enabled() && slices.Equal(b.Keys(), m.keys.Back.Keys()) {
+					return
+				}
+			}
+		}
+		t.Errorf("the help does not list the back key %v as on", m.keys.Back.Keys())
+	})
 }

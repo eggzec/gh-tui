@@ -46,3 +46,8 @@ Diff
   prev hunk | { | { | on
   fold | enter | ↵ | on
   retry | r | r | off
+  search | / | / | on
+  search | enter | ↵ | off
+  cancel | esc | esc | off
+  next match | n | n | off
+  prev match | N | N | off

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -60,6 +61,11 @@ type Model struct {
 	cursor int
 	top    int
 	left   int
+	// searching is set while the search input is open, input is that
+	// input, and search is the search shown.
+	searching bool
+	input     textinput.Model
+	search    search
 	// dirty asks the next Update to fetch what a new size or a seek shows.
 	dirty bool
 
@@ -78,6 +84,7 @@ func New(fetch Fetch, opts ...Option) Model {
 		fetch:    fetch,
 		pg:       &paging{},
 		hl:       newHighlights(),
+		input:    newInput(),
 	}
 	for _, o := range opts {
 		o(&m.settings)
@@ -187,6 +194,7 @@ func (m *Model) moveTo(row int) {
 // Pages that the new window shows are fetched on the next Update.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.input.SetWidth(max(m.width-2, 1))
 	m.scroll()
 	m.dirty = true
 }
@@ -206,8 +214,11 @@ func (m Model) Height() int { return m.height }
 // Focus makes the view react to keys.
 func (m *Model) Focus() { m.focused = true }
 
-// Blur makes the view ignore keys.
-func (m *Model) Blur() { m.focused = false }
+// Blur makes the view ignore keys, and closes the search input.
+func (m *Model) Blur() {
+	m.focused = false
+	m.closeSearch()
+}
 
 // Focused reports whether the view reacts to keys.
 func (m Model) Focused() bool { return m.focused }
@@ -221,15 +232,45 @@ func (m *Model) SetKeyMap(k KeyMap) {
 // KeyMap returns the key bindings.
 func (m Model) KeyMap() KeyMap { return m.keyMap }
 
-// ShortHelp returns the bindings for the short help view.
-func (m Model) ShortHelp() []key.Binding { return m.keyMap.ShortHelp() }
+// ShortHelp returns the bindings for the short help view. While the search
+// input is open, they are the keys that close it.
+func (m Model) ShortHelp() []key.Binding {
+	if m.searching {
+		return []key.Binding{m.keyMap.Confirm, m.keyMap.Cancel, m.keyMap.CancelEmpty}
+	}
+	return m.keyMap.ShortHelp()
+}
 
 // FullHelp returns every binding with the state of the view applied: the
-// retry key is enabled only after a failed fetch.
-func (m Model) FullHelp() [][]key.Binding { return m.keyMap.FullHelp() }
+// retry key is enabled only after a failed fetch, the keys of the search
+// while it is open or shown, and only those that close the input while it
+// is open, which takes the rest.
+func (m Model) FullHelp() [][]key.Binding {
+	k := m.keyMap
+	if m.searching {
+		for _, b := range []*key.Binding{
+			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
+			&k.Left, &k.Right, &k.NextFile, &k.PrevFile, &k.NextHunk, &k.PrevHunk, &k.Fold,
+			&k.Search, &k.Next, &k.Prev, &k.Retry,
+		} {
+			b.SetEnabled(false)
+		}
+	}
+	return k.FullHelp()
+}
 
-// syncKeys enables the retry key while a fetch has failed.
-func (m *Model) syncKeys() { keymap.Enable(&m.keyMap.Retry, m.pg.err != nil) }
+// syncKeys enables the retry key while a fetch has failed, the keys that
+// move between matches while there are some, and those that run and close
+// the search while its input is open, or close it while a search is shown.
+func (m *Model) syncKeys() {
+	keymap.Enable(&m.keyMap.Retry, m.pg.err != nil)
+	found := len(m.search.matches) > 0
+	keymap.Enable(&m.keyMap.Next, found)
+	keymap.Enable(&m.keyMap.Prev, found)
+	keymap.Enable(&m.keyMap.Confirm, m.searching)
+	keymap.Enable(&m.keyMap.CancelEmpty, m.searching)
+	keymap.Enable(&m.keyMap.Cancel, m.searching || m.search.query != "")
+}
 
 // SetStyles sets the styles and renders the fragments that depend on them.
 func (m *Model) SetStyles(s Styles) {
@@ -238,6 +279,17 @@ func (m *Model) SetStyles(s Styles) {
 	m.gutterFocused = s.Cursor.Render(cursor) + " "
 	m.gutterBlurred = s.BlurredCursor.Render(cursor) + " "
 	m.wrap = newWraps(s)
+	st := textinput.StyleState{
+		Text:        s.Context,
+		Placeholder: s.Status,
+		Suggestion:  s.Status,
+		Prompt:      s.Prompt,
+	}
+	m.input.SetStyles(textinput.Styles{
+		Focused: st,
+		Blurred: st,
+		Cursor:  textinput.CursorStyle{Color: s.InputCursor.GetForeground(), Shape: tea.CursorBlock},
+	})
 }
 
 // Styles returns the styles.

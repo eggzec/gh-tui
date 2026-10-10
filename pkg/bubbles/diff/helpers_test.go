@@ -35,6 +35,13 @@ var testKeys = map[string][]string{
 	"prev_hunk":      {"{"},
 	"global.select":  {"enter"},
 	"global.refresh": {"r"},
+
+	"find":                       {"/"},
+	"next_match":                 {"n"},
+	"prev_match":                 {"N"},
+	"search_prompt.run":          {"enter"},
+	"search_prompt.cancel":       {"esc"},
+	"search_prompt.cancel_empty": {"backspace", "ctrl+h"},
 }
 
 var testKeyMap = NewKeyMap(keytest.Table(testKeys))
@@ -59,6 +66,10 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnd}
 	case "enter":
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	case "backspace":
+		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
 	case "space":
 		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	}

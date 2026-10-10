@@ -88,6 +88,7 @@ func (m *Model) SetTabWidth(n int) {
 	m.hl.gen++
 	clear(m.hl.asked)
 	clear(m.hl.spans)
+	m.rebuildSearch()
 	m.dirty = true
 }
 

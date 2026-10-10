@@ -1115,6 +1115,10 @@ keys:
     prev_file: [K]
     next_hunk: ["}"]
     prev_hunk: ["{"]
+    # Search the lines of every file of the diff, and move between matches.
+    find: [/]
+    next_match: [n]
+    prev_match: [N]
   # The modal of a release.
   release_modal:
     up: [up, k]
