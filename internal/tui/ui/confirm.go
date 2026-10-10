@@ -135,6 +135,8 @@ type ConfirmStyles struct {
 	Question, Keys lipgloss.Style
 	// Ellipsis ends a question cut to its room; empty, it is "…".
 	Ellipsis string
+	// Separator goes between the keys that answer; empty, it is " · ".
+	Separator string
 }
 
 // ellipsis is the ellipsis of st, or the Unicode set's while it has none.
@@ -142,10 +144,16 @@ func (st ConfirmStyles) ellipsis() string {
 	return Icons{Ellipsis: st.Ellipsis}.OrUnicode().Ellipsis
 }
 
+// separator is the separator of st, or the Unicode set's while it has none.
+func (st ConfirmStyles) separator() string {
+	return Icons{Separator: st.Separator}.OrUnicode().Separator
+}
+
 // Confirm returns the styles of a confirmation: the question in the
-// accent, and the keys that answer it muted, cut with the ellipsis of ic.
+// accent, and the keys that answer it muted, cut with the ellipsis of ic
+// and set apart by its separator.
 func (t Theme) Confirm(ic Icons) ConfirmStyles {
-	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis}
+	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis, Separator: ic.Separator}
 }
 
 // ConfirmLines is the most lines a question wraps to, so that a long one,
@@ -156,7 +164,7 @@ const ConfirmLines = 2
 // and the keys that answer it against the right edge.
 func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
 	k = k.For(c)
-	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w, st.ellipsis())
+	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers(st.separator())), w, st.ellipsis())
 }
 
 // Lines renders c on at most n lines of w cells: the question, wrapped at
@@ -165,7 +173,7 @@ func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
 // or a word longer than a line, such as a branch name, is cut.
 func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
 	k = k.For(c)
-	keys := k.answers()
+	keys := k.answers(st.separator())
 	room := w - ansi.StringWidth(keys) - 1
 	if n <= 1 || room < 1 {
 		return []string{c.Line(st, k, w)}
@@ -210,8 +218,9 @@ func wrapWords(s string, w int) []string {
 }
 
 // answers names the keys that answer, such as "y/n", after the key that
-// steps through the choices, if there are any: "tab method · y/n".
-func (k ConfirmKeys) answers() string {
+// steps through the choices, if there are any: "tab method · y/n", with sep
+// between them.
+func (k ConfirmKeys) answers(sep string) string {
 	var keys []string
 	for _, b := range []key.Binding{k.Yes, k.No} {
 		if h := b.Help().Key; h != "" {
@@ -220,7 +229,7 @@ func (k ConfirmKeys) answers() string {
 	}
 	yn := strings.Join(keys, "/")
 	if h := k.Method.Help(); k.Method.Enabled() && h.Key != "" {
-		return h.Key + " " + h.Desc + " · " + yn
+		return h.Key + " " + h.Desc + sep + yn
 	}
 	return yn
 }
@@ -299,7 +308,7 @@ func (m *ConfirmModal) SetSize(width, height int) {
 // Fit implements Fitter: as wide as the question and its keys, or as wide
 // as there is room for and on as many lines as the question wraps to.
 func (m *ConfirmModal) Fit(maxWidth, maxHeight int) (width, height int) {
-	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(m.keys.For(m.ask).answers()))
+	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(m.keys.For(m.ask).answers(m.st.separator())))
 	return w, min(maxHeight, len(m.ask.Lines(m.st, m.keys, w, ConfirmLines)))
 }
 

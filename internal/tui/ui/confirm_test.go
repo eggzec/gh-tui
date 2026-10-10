@@ -273,6 +273,10 @@ func TestConfirmChoices(t *testing.T) {
 	if got := ansi.Strip(q.Line(st, keys, 60)); !strings.HasSuffix(got, "tab method · y/n") {
 		t.Errorf("a question with choices reads %q, want the key for the method", got)
 	}
+	ascii := ConfirmStyles{Separator: NewIcons(config.IconsASCII).Separator}
+	if got := ansi.Strip(q.Line(ascii, keys, 60)); !strings.HasSuffix(got, "tab method - y/n") {
+		t.Errorf("with the ASCII icons a question with choices reads %q, want the ASCII separator", got)
+	}
 
 	// Help lists the key for the method for a question that has choices
 	// alone.
