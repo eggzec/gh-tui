@@ -125,6 +125,10 @@ func TestRevalidateReadsACurrentDetail(t *testing.T) {
 		t.Fatalf("Revalidate = queue %d, %v; want position 2", d.Merge.Queue.Position, err)
 	}
 	wantCalls(t, api, 2, 1)
+	// The list still vouches for the pull request, and so for its comments.
+	if _, ok := s.seen.Get(detailKey(repo, 1)); !ok {
+		t.Error("Revalidate dropped the list's mark of the pull request")
+	}
 	// The detail it read is current again: one read per open, no more.
 	if _, err := s.Get(t.Context(), repo, 1); err != nil {
 		t.Fatal(err)
@@ -132,16 +136,23 @@ func TestRevalidateReadsACurrentDetail(t *testing.T) {
 	wantCalls(t, api, 2, 1)
 }
 
-// TestRevalidateServesKeptDetailMeanwhile checks that a detail an earlier
-// session kept is read again by Revalidate, and is served by CachedGet
-// before it answers.
+// TestRevalidateOfKeptDetail checks that a detail an earlier session kept is
+// read again by Revalidate, and is served by CachedGet before it answers.
 func TestRevalidateOfKeptDetail(t *testing.T) {
 	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
 	store := openStore(t)
 	firstSession(t, v, store)
 
 	api := v.api()
-	s := New(api, WithStore(store))
+	var s *Service
+	read := api.get
+	api.get = func(ctx context.Context, r core.RepoRef, n int) (core.PullRequestDetail, error) {
+		if _, ok := s.CachedGet(repo, 1); !ok {
+			t.Error("CachedGet found no kept detail before the read answered")
+		}
+		return read(ctx, r, n)
+	}
+	s = New(api, WithStore(store))
 	if _, err := s.Revalidate(t.Context(), repo, 1); err != nil {
 		t.Fatalf("Revalidate: %v", err)
 	}
