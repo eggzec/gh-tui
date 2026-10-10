@@ -69,6 +69,11 @@ func readFirstFiles(ctx context.Context, svc Service, q pulls.FilesQuery) error 
 // has not sent when the tab changes, the head moves or the modal closes.
 // A read in flight when the user opens the Files tab goes on, for the tab
 // to join. Call it whenever the tab, the head or the modal may have changed.
+//
+// The rest starts when the head to read changes, which is when the modal
+// leaves the Files tab or the detail shows a new head. Keys that move
+// within a tab leave the same window and so don't start it again: unlike a
+// list's cursor, the user is not moving between items.
 func (m *detailModal) readFilesAhead() tea.Cmd {
 	if m.ahead == nil {
 		return nil

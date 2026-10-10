@@ -179,6 +179,39 @@ func TestFilesAheadWaitsForRest(t *testing.T) {
 	})
 }
 
+// TestFilesAheadSettingsOffThenOn checks that turning the read ahead off
+// while the modal is open reads nothing, though a push moves the head, and
+// that turning it on again waits for the rest, as at the start, before it
+// reads the head's page.
+func TestFilesAheadSettingsOffThenOn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		h, _ := filedWith(t, svc, 100, 30, readingFiles(nil))
+		reads := svc.fileReadCount()
+		if reads != 1 {
+			t.Fatalf("%d pages read ahead at the start, want the first", reads)
+		}
+
+		off := prefetchConfig(t, "prefetch.pulls.files.enabled=false")
+		drain(t, h, h.Update(ui.SettingsMsg{Config: off}))
+		newHead(t, h, svc, "b2c3d4e")
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if got := svc.fileReadCount(); got != reads {
+			t.Fatalf("%d pages read while the setting was off, want none", got-reads)
+		}
+
+		start := time.Now()
+		drain(t, h, h.Update(ui.SettingsMsg{Config: config.Default()}))
+		if got := time.Since(start); got < 300*time.Millisecond {
+			t.Errorf("read again after %v, want the rest of 300ms first", got)
+		}
+		if got := svc.fileReadCount(); got != reads+1 || svc.fileReads[reads].Head != "b2c3d4e" {
+			t.Errorf("reads %+v, want the new head's first page once turned on", svc.fileReads)
+		}
+	})
+}
+
 func TestFilesAheadOff(t *testing.T) {
 	quick := func(l *config.Layer) { l.Rest = new(5 * time.Millisecond) }
 	tests := []struct {
