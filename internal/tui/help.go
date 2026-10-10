@@ -235,13 +235,10 @@ func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
 	return keymap.Matches(msg, m.helpKey(inner))
 }
 
-// listsKey reports whether a binding of layers has a key of b.
+// listsKey reports whether an enabled binding of layers has a key of b. A
+// disabled one doesn't answer the key, so it doesn't hide b.
 func listsKey(layers []keyhelp.Layer, b key.Binding) bool {
-	return slices.ContainsFunc(layers, func(l keyhelp.Layer) bool {
-		return slices.ContainsFunc(l.Bindings, func(o key.Binding) bool {
-			return slices.ContainsFunc(o.Keys(), func(k string) bool { return slices.Contains(b.Keys(), k) })
-		})
-	})
+	return slices.ContainsFunc(layers, func(l keyhelp.Layer) bool { return takesKey(l, b) })
 }
 
 // capturing reports whether l is the keys of what takes every key while

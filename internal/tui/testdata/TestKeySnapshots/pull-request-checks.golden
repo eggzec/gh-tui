@@ -4,6 +4,7 @@ global
   quit | ctrl+c | ^c | on
   command | : | : | on
   maximize | Z | Z | on
+  back | backspace | backspace | off
   dashboard | 0 | 0 | off
   notifications | I | I | off
   search | S | S | off
