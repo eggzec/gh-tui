@@ -1,25 +1,25 @@
 package releases
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // press handles the modal's keys, and passes the others to the thread.
 func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &m.keys
 	switch {
-	case key.Matches(msg, k.Dismiss):
+	case keymap.Matches(msg, k.Dismiss):
 		return m.close()
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		url := m.Link()
 		if url == "" {
 			return nil
 		}
 		return ui.Open(url)
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		if !m.failed() {
 			return nil
 		}

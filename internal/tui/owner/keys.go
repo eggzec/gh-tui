@@ -96,7 +96,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 // pane returns the pane that msg focuses, or -1.
 func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 	for i, b := range k.Panes {
-		if key.Matches(msg, b) {
+		if keymap.Matches(msg, b) {
 			return paneID(i)
 		}
 	}

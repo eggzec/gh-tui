@@ -1,9 +1,10 @@
 package tree
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys while focused, and the tree's own load results and
@@ -41,34 +42,34 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.height, 1)
 	// The user took over from a Reveal.
 	m.goal = nil
-	if key.Matches(msg, m.keyMap.Expand, m.keyMap.Collapse, m.keyMap.Open) {
+	if keymap.Matches(msg, m.keyMap.Expand, m.keyMap.Collapse, m.keyMap.Open) {
 		m.capped = false
 	}
 	var cmd tea.Cmd
 	switch {
-	case key.Matches(msg, m.keyMap.Up):
+	case keymap.Matches(msg, m.keyMap.Up):
 		m.sel--
-	case key.Matches(msg, m.keyMap.Down):
+	case keymap.Matches(msg, m.keyMap.Down):
 		m.sel++
-	case key.Matches(msg, m.keyMap.PageUp):
+	case keymap.Matches(msg, m.keyMap.PageUp):
 		m.sel -= page
-	case key.Matches(msg, m.keyMap.PageDown):
+	case keymap.Matches(msg, m.keyMap.PageDown):
 		m.sel += page
-	case key.Matches(msg, m.keyMap.HalfPageUp):
+	case keymap.Matches(msg, m.keyMap.HalfPageUp):
 		m.sel -= max(page/2, 1)
-	case key.Matches(msg, m.keyMap.HalfPageDown):
+	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.sel += max(page/2, 1)
-	case key.Matches(msg, m.keyMap.Home):
+	case keymap.Matches(msg, m.keyMap.Home):
 		m.sel = 0
-	case key.Matches(msg, m.keyMap.End):
+	case keymap.Matches(msg, m.keyMap.End):
 		m.sel = len(m.rows) - 1
-	case key.Matches(msg, m.keyMap.Expand):
+	case keymap.Matches(msg, m.keyMap.Expand):
 		cmd = m.right()
-	case key.Matches(msg, m.keyMap.Collapse):
+	case keymap.Matches(msg, m.keyMap.Collapse):
 		m.collapse()
-	case key.Matches(msg, m.keyMap.ToggleAll):
+	case keymap.Matches(msg, m.keyMap.ToggleAll):
 		cmd = m.toggleAll()
-	case key.Matches(msg, m.keyMap.Open):
+	case keymap.Matches(msg, m.keyMap.Open):
 		cmd = m.open()
 	default:
 		return nil

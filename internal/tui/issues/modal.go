@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -407,24 +407,24 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := m.keys
 	switch {
-	case key.Matches(msg, k.References) && m.newRefs != nil:
+	case keymap.Matches(msg, k.References) && m.newRefs != nil:
 		return m.openRefs()
-	case key.Matches(msg, k.Back):
+	case keymap.Matches(msg, k.Back):
 		return m.close()
-	case key.Matches(msg, k.owner) && ui.Author(m.issue.Author) != "":
+	case keymap.Matches(msg, k.owner) && ui.Author(m.issue.Author) != "":
 		return m.author()
-	case key.Matches(msg, k.Comment):
+	case keymap.Matches(msg, k.Comment):
 		return m.compose(composeComment, ui.ActComment)
-	case key.Matches(msg, k.Label):
+	case keymap.Matches(msg, k.Label):
 		return m.compose(composeLabels, ui.ActLabel)
-	case key.Matches(msg, k.Close):
+	case keymap.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
-	case key.Matches(msg, k.Reopen):
+	case keymap.Matches(msg, k.Reopen):
 		return m.setState(core.StateOpen)
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.thread.Reload(), m.get())
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		if m.issue.URL != "" {
 			return ui.Open(m.issue.URL)
 		}

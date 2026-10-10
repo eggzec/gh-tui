@@ -228,11 +228,11 @@ func (m *Model) helpKey(layers []keyhelp.Layer) key.Binding {
 
 // opensHelp reports whether msg opens the help from where the keys are.
 func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
-	if !key.Matches(msg, m.keys.Help) {
+	if !keymap.Matches(msg, m.keys.Help) {
 		return false
 	}
 	inner, _ := m.innerLayers()
-	return key.Matches(msg, m.helpKey(inner))
+	return keymap.Matches(msg, m.helpKey(inner))
 }
 
 // listsKey reports whether a binding of layers has a key of b.

@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -55,43 +54,21 @@ const (
 	overNamed
 )
 
-// commands are those of the command line, in the order they complete.
+// commands are the built-in ones of the command line, in the order they
+// complete. Every action of the config that has no name here is a command
+// too (see actionCommand).
 var commands = []command{
 	{name: ui.AuthCommand, detail: "show what the token may do, and grant it more", run: (*Model).authCommand},
 	{name: "config", detail: "show the config, or with defaults, default.yaml", args: true, over: overAny, run: (*Model).configCommand, complete: completeConfig},
 	{name: ui.CommandCopy, detail: "copy the url, ref, sha or path of what is selected", args: true, over: overNamed, run: (*Model).copyCommand, complete: completeCopy},
-	{name: "filter", detail: "filter the focused list", run: filtering(filterform.FiltersTab)},
 	{name: "goto", detail: "open a repository, issue, pull request, profile or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
-	{name: "help", detail: "list the keys", over: overAny, run: pressing(config.ActionHelp)},
 	{name: "images", detail: "show whether images are drawn here, and why", over: overAny, run: (*Model).imagesCommand},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
-	{name: "refresh", detail: "read the focused view again", run: pressing(config.ActionRefresh)},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
-	{name: "sort", detail: "sort the focused list", run: filtering(filterform.SortTab)},
-}
-
-// pressing returns the run of a command that presses the key of action.
-func pressing(action string) func(m *Model, arg string) tea.Cmd {
-	return func(m *Model, _ string) tea.Cmd { return m.press(action) }
-}
-
-// filtering returns the run of a command that opens the filter modal of
-// the focused view on tab, as the filter and sort keys do. Where the key
-// would go on to a view that has no such tab, the command says so.
-func filtering(tab filterform.Tab) func(m *Model, arg string) tea.Cmd {
-	return func(m *Model, _ string) tea.Cmd {
-		if p := m.focused(); p != nil && m.openFilter(p.section, tab) {
-			return nil
-		}
-		if tab == filterform.SortTab {
-			return m.toast.Push(toast.Warning, "Nothing here to sort.")
-		}
-		return m.toast.Push(toast.Warning, "Nothing here to filter.")
-	}
 }
 
 // referencesCommand shows the issues and pull requests linked to the one
@@ -207,7 +184,7 @@ func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	c, ok := findCommand(name)
 	switch {
 	case !ok:
-		return tea.Batch(save, m.toast.Push(toast.Warning, "Unknown command: "+name+"."))
+		return tea.Batch(save, m.actionCommand(name, arg))
 	case !m.runsOver(c):
 		return tea.Batch(save, m.toast.Push(toast.Warning, "Close "+m.modalName(m.topModal())+" first to use "+c.name+"."))
 	case !c.args && arg != "":

@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -23,6 +22,7 @@ import (
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
@@ -289,11 +289,11 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	switch {
-	case key.Matches(msg, s.keys.Refresh):
+	case keymap.Matches(msg, s.keys.Refresh):
 		return s.refresh(), true
-	case key.Matches(msg, s.keys.Open):
+	case keymap.Matches(msg, s.keys.Open):
 		return ui.Open(webURL(s.host, s.repo, s.ref, s.selected())), true
-	case s.ref != "" && key.Matches(msg, s.keys.ResetBase):
+	case s.ref != "" && keymap.Matches(msg, s.keys.ResetBase):
 		return ui.ResetBase(s.repo), true
 	}
 	return nil, false

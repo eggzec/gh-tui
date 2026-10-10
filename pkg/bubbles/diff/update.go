@@ -1,10 +1,10 @@
 package diff
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -104,45 +104,45 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	m.search.waiting = false
 	h := m.bodyHeight()
 	switch {
-	case key.Matches(msg, m.keyMap.Up):
+	case keymap.Matches(msg, m.keyMap.Up):
 		m.cursor--
-	case key.Matches(msg, m.keyMap.Down):
+	case keymap.Matches(msg, m.keyMap.Down):
 		m.cursor++
-	case key.Matches(msg, m.keyMap.PageUp):
+	case keymap.Matches(msg, m.keyMap.PageUp):
 		m.cursor -= h
-	case key.Matches(msg, m.keyMap.PageDown):
+	case keymap.Matches(msg, m.keyMap.PageDown):
 		m.cursor += h
-	case key.Matches(msg, m.keyMap.HalfPageUp):
+	case keymap.Matches(msg, m.keyMap.HalfPageUp):
 		m.cursor -= max(h/2, 1)
-	case key.Matches(msg, m.keyMap.HalfPageDown):
+	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.cursor += max(h/2, 1)
-	case key.Matches(msg, m.keyMap.Home):
+	case keymap.Matches(msg, m.keyMap.Home):
 		m.cursor = 0
-	case key.Matches(msg, m.keyMap.End):
+	case keymap.Matches(msg, m.keyMap.End):
 		m.cursor = m.layout.Len() - 1
-	case key.Matches(msg, m.keyMap.Left):
+	case keymap.Matches(msg, m.keyMap.Left):
 		m.left = max(m.left-sideStep, 0)
-	case key.Matches(msg, m.keyMap.Right):
+	case keymap.Matches(msg, m.keyMap.Right):
 		m.left = min(m.left+sideStep, m.maxLeft())
-	case key.Matches(msg, m.keyMap.NextFile):
+	case keymap.Matches(msg, m.keyMap.NextFile):
 		m.nextFile()
-	case key.Matches(msg, m.keyMap.PrevFile):
+	case keymap.Matches(msg, m.keyMap.PrevFile):
 		m.prevFile()
-	case key.Matches(msg, m.keyMap.NextHunk):
+	case keymap.Matches(msg, m.keyMap.NextHunk):
 		m.nextHunk()
-	case key.Matches(msg, m.keyMap.PrevHunk):
+	case keymap.Matches(msg, m.keyMap.PrevHunk):
 		m.prevHunk()
-	case key.Matches(msg, m.keyMap.Fold):
+	case keymap.Matches(msg, m.keyMap.Fold):
 		m.fold()
-	case key.Matches(msg, m.keyMap.Search):
+	case keymap.Matches(msg, m.keyMap.Search):
 		return m.openSearch()
-	case key.Matches(msg, m.keyMap.Next):
+	case keymap.Matches(msg, m.keyMap.Next):
 		m.step(1)
-	case key.Matches(msg, m.keyMap.Prev):
+	case keymap.Matches(msg, m.keyMap.Prev):
 		m.step(-1)
-	case m.search.query != "" && key.Matches(msg, m.keyMap.Cancel):
+	case m.search.query != "" && keymap.Matches(msg, m.keyMap.Cancel):
 		m.clearSearch()
-	case key.Matches(msg, m.keyMap.Retry):
+	case keymap.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
 	default:
 		return nil

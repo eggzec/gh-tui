@@ -4,12 +4,12 @@ import (
 	"cmp"
 	"strconv"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -29,20 +29,20 @@ func canDraft(pr core.PullRequest) bool  { return pr.State == core.StateOpen }
 
 // isChange reports whether msg is one of the change keys.
 func (k keyMap) isChange(msg tea.KeyPressMsg) bool {
-	return key.Matches(msg, k.Merge, k.Close, k.Reopen, k.ToggleDraft)
+	return keymap.Matches(msg, k.Merge, k.Close, k.Reopen, k.ToggleDraft)
 }
 
 // action returns the change that msg asks of pr, if it applies to the
 // state of pr. Close and reopen may share a key, which then toggles.
 func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, bool) {
 	switch {
-	case key.Matches(msg, k.Merge) && pr.State == core.StateOpen:
+	case keymap.Matches(msg, k.Merge) && pr.State == core.StateOpen:
 		return ui.ActMerge, true
-	case key.Matches(msg, k.Close) && canClose(pr):
+	case keymap.Matches(msg, k.Close) && canClose(pr):
 		return ui.ActClose, true
-	case key.Matches(msg, k.Reopen) && canReopen(pr):
+	case keymap.Matches(msg, k.Reopen) && canReopen(pr):
 		return ui.ActReopen, true
-	case key.Matches(msg, k.ToggleDraft) && canDraft(pr):
+	case keymap.Matches(msg, k.ToggleDraft) && canDraft(pr):
 		return ui.ActDraft, true
 	}
 	return 0, false

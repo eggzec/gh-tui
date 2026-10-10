@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 )
@@ -230,17 +230,17 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := s.keys
 	switch {
-	case key.Matches(msg, k.Filter):
+	case keymap.Matches(msg, k.Filter):
 		return s.openPrompt()
-	case key.Matches(msg, k.Dismiss):
+	case keymap.Matches(msg, k.Dismiss):
 		if s.filter == "" {
 			id := s.id
 			return func() tea.Msg { return CloseMsg{ID: id} }
 		}
 		return s.setFilter("")
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return tea.Batch(s.refresh(), s.tree.Retry())
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		return s.openInBrowser()
 	}
 	if !s.loaded {
@@ -315,11 +315,11 @@ func (s *Step) openPrompt() tea.Cmd {
 func (s *Step) updatePrompt(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
-		case key.Matches(k, s.keys.prompt.run):
+		case keymap.Matches(k, s.keys.prompt.run):
 			s.prompt.Blur()
 			s.layout()
 			return nil
-		case key.Matches(k, s.keys.prompt.cancel):
+		case keymap.Matches(k, s.keys.prompt.cancel):
 			s.prompt.Blur()
 			return s.setFilter("")
 		}

@@ -15,6 +15,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // filterSection is a fake section with a filter and chips, which opens the
@@ -38,13 +40,18 @@ type filterSection struct {
 func (s *filterSection) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
-		case s.ready && key.Matches(k, s.filter):
+		case s.ready && keymap.Matches(k, s.filter):
 			return ui.OpenFilter(filterform.FiltersTab)
-		case s.ready && s.sorts && key.Matches(k, s.sort):
+		case s.ready && s.sorts && keymap.Matches(k, s.sort):
 			return ui.OpenFilter(filterform.SortTab)
 		}
 	}
 	return s.fakeSection.Update(msg)
+}
+
+// KeyLayers lists the keys of the context that the section stands for.
+func (s *filterSection) KeyLayers() []keyhelp.Layer {
+	return append(s.fakeSection.KeyLayers(), ui.ContextLayer("pulls", []key.Binding{s.filter, s.sort}, nil))
 }
 
 func (s *filterSection) Filter() (ui.Filter, bool) {

@@ -71,7 +71,7 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 			// The placeholder says what to type.
 			return nil
 		}
-		return m.completeCommand(name, start, end, end == len(line))
+		return m.actionCandidates(name, start, end, end == len(line))
 	}
 	c, ok := findCommand(name)
 	if !ok || c.complete == nil || !m.runsOver(c) {
@@ -122,25 +122,6 @@ func wordLen(s string) int {
 		return i
 	}
 	return len(s)
-}
-
-// completeCommand completes the name of a command from prefix, which
-// spans start to end of the line, of those that run now: over the open
-// modal, if there is one. A command that takes an argument gets a space after
-// it at the end of the line, ready for the argument.
-func (m *Model) completeCommand(prefix string, start, end int, atEnd bool) []cmdline.Candidate {
-	var out []cmdline.Candidate
-	for _, c := range commands {
-		if !strings.HasPrefix(c.name, prefix) || !m.runsOver(c) {
-			continue
-		}
-		text := c.name
-		if c.args && atEnd {
-			text += " "
-		}
-		out = append(out, cmdline.Candidate{Text: text, Label: c.name, Detail: c.detail, Start: start, End: end})
-	}
-	return out
 }
 
 // completeRepo completes the name of a repository from word: first those

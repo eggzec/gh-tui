@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles the section's keys, sync events and finished changes, and
@@ -89,36 +89,36 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	k := &s.keys
 	switch {
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		s.svc.Invalidate()
 		s.opener.Resume()
 		return s.reload(), true
-	case key.Matches(msg, k.ClearFilter):
+	case keymap.Matches(msg, k.ClearFilter):
 		if !s.filtered() {
 			return nil, true
 		}
 		return s.setFilter(defaultQuery), true
-	case key.Matches(msg, k.Filter):
+	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab), true
-	case key.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Select):
 		return s.open(), true
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		if n, ok := s.feed.Selected(); ok {
 			return ui.Open(n.Subject.WebURL), true
 		}
 		return nil, true
-	case key.Matches(msg, k.MarkRead, k.MarkDone, k.MarkAllRead):
+	case keymap.Matches(msg, k.MarkRead, k.MarkDone, k.MarkAllRead):
 		if cmd, refused := s.gate().Refuse(ui.ActMarkRead, nil); refused {
 			return cmd, true
 		}
 		switch {
-		case key.Matches(msg, k.MarkRead) && s.feed.Marks() > 0:
+		case keymap.Matches(msg, k.MarkRead) && s.feed.Marks() > 0:
 			return s.bulk(true), true
-		case key.Matches(msg, k.MarkDone) && s.feed.Marks() > 0:
+		case keymap.Matches(msg, k.MarkDone) && s.feed.Marks() > 0:
 			return s.bulk(false), true
-		case key.Matches(msg, k.MarkRead):
+		case keymap.Matches(msg, k.MarkRead):
 			return s.ask(s.markRead), true
-		case key.Matches(msg, k.MarkDone):
+		case keymap.Matches(msg, k.MarkDone):
 			return s.ask(s.markDone), true
 		}
 		// Reading everything is not about the marks: the question says so.

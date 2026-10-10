@@ -3,9 +3,10 @@ package thread
 import (
 	"math"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys when focused, mouse wheel scrolling, the spinner and
@@ -49,25 +50,25 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 func (m *Model[T]) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	k := &m.keys
 	switch {
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		m.vp.ScrollDown(1)
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		m.vp.ScrollUp(1)
-	case key.Matches(msg, k.PageDown):
+	case keymap.Matches(msg, k.PageDown):
 		m.vp.PageDown()
-	case key.Matches(msg, k.PageUp):
+	case keymap.Matches(msg, k.PageUp):
 		m.vp.PageUp()
-	case key.Matches(msg, k.HalfPageDown):
+	case keymap.Matches(msg, k.HalfPageDown):
 		m.vp.HalfPageDown()
-	case key.Matches(msg, k.HalfPageUp):
+	case keymap.Matches(msg, k.HalfPageUp):
 		m.vp.HalfPageUp()
-	case key.Matches(msg, k.Top):
+	case keymap.Matches(msg, k.Top):
 		m.vp.SetYOffset(0)
-	case key.Matches(msg, k.Bottom):
+	case keymap.Matches(msg, k.Bottom):
 		m.vp.SetYOffset(math.MaxInt)
-	case key.Matches(msg, k.Retry):
+	case keymap.Matches(msg, k.Retry):
 		return m.Retry()
-	case key.Matches(msg, k.Toggle):
+	case keymap.Matches(msg, k.Toggle):
 		m.toggle()
 	}
 	return nil

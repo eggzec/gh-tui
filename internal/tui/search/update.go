@@ -4,7 +4,6 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles the page's keys, the waits after typing and the
@@ -127,23 +127,23 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case k.focusOf(msg) >= 0:
 		s.focusArea(k.focusOf(msg))
 		return nil
-	case key.Matches(msg, k.Insert):
+	case keymap.Matches(msg, k.Insert):
 		s.startTyping()
 		return nil
-	case key.Matches(msg, k.NextTab):
+	case keymap.Matches(msg, k.NextTab):
 		return s.moveKind(1)
-	case key.Matches(msg, k.PrevTab):
+	case keymap.Matches(msg, k.PrevTab):
 		return s.moveKind(-1)
-	case key.Matches(msg, k.Next), key.Matches(msg, k.Prev):
+	case keymap.Matches(msg, k.Next), keymap.Matches(msg, k.Prev):
 		// There are two panes, so either direction goes to the other.
 		s.focusArea(numAreas - 1 - s.area)
 		return nil
 	}
 	if s.area == inputArea {
 		switch {
-		case key.Matches(msg, k.Select):
+		case keymap.Matches(msg, k.Select):
 			return s.submit()
-		case key.Matches(msg, k.Refresh):
+		case keymap.Matches(msg, k.Refresh):
 			return s.refresh()
 		}
 		return nil
@@ -158,10 +158,10 @@ func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
 	// A printable key is typed before any key that holds it.
 	switch {
 	case keyhelp.Printable(msg.String()):
-	case key.Matches(msg, k.query.Cancel):
+	case keymap.Matches(msg, k.query.Cancel):
 		s.focusArea(resultsArea)
 		return s.settleNow()
-	case key.Matches(msg, k.query.Submit):
+	case keymap.Matches(msg, k.query.Submit):
 		return s.submit()
 	}
 	before := s.input.Value()
@@ -195,24 +195,24 @@ func (s *Section) moveKind(delta int) tea.Cmd {
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
-	case key.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Select):
 		return s.open(false)
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		return s.open(true)
-	case key.Matches(msg, k.Checks):
+	case keymap.Matches(msg, k.Checks):
 		return s.openChecks()
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
-	case key.Matches(msg, k.Filter):
+	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab)
-	case key.Matches(msg, k.Sort):
+	case keymap.Matches(msg, k.Sort):
 		return ui.OpenFilter(filterform.SortTab)
 	}
 	if s.text == "" {
 		switch {
-		case key.Matches(msg, k.feed.Up):
+		case keymap.Matches(msg, k.feed.Up):
 			s.starts.move(-1)
-		case key.Matches(msg, k.feed.Down):
+		case keymap.Matches(msg, k.feed.Down):
 			s.starts.move(1)
 		}
 		return nil

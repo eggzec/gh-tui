@@ -21,6 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -476,17 +477,17 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := m.keys
 	switch {
-	case key.Matches(msg, k.References) && m.newRefs != nil:
+	case keymap.Matches(msg, k.References) && m.newRefs != nil:
 		return m.openRefs()
-	case key.Matches(msg, k.FindFile) && m.canReadFiles():
+	case keymap.Matches(msg, k.FindFile) && m.canReadFiles():
 		return m.openFind()
-	case m.hasTabs() && key.Matches(msg, k.NextTab):
+	case m.hasTabs() && keymap.Matches(msg, k.NextTab):
 		return m.cycle(1)
-	case m.hasTabs() && key.Matches(msg, k.PrevTab):
+	case m.hasTabs() && keymap.Matches(msg, k.PrevTab):
 		return m.cycle(-1)
-	case key.Matches(msg, k.owner) && ui.Author(m.detail.Author) != "":
+	case keymap.Matches(msg, k.owner) && ui.Author(m.detail.Author) != "":
 		return m.author()
-	case key.Matches(msg, k.Checks) && m.tab != checksTab && m.hasChecks():
+	case keymap.Matches(msg, k.Checks) && m.tab != checksTab && m.hasChecks():
 		return m.switchTo(checksTab)
 	case k.isChange(msg):
 		return m.change(msg)
@@ -498,12 +499,12 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.pressFiles(msg)
 	}
 	switch {
-	case key.Matches(msg, k.Back):
+	case keymap.Matches(msg, k.Back):
 		return m.close()
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.get(), m.thread.Reload())
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		if m.detail.URL != "" {
 			return ui.Open(m.detail.URL)
 		}

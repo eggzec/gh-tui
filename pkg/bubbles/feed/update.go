@@ -3,9 +3,10 @@ package feed
 import (
 	"errors"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys while focused, and the feed's own fetch results and
@@ -61,36 +62,36 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := m.slots()
 	before := m.sel
 	switch {
-	case key.Matches(msg, m.keyMap.Up):
+	case keymap.Matches(msg, m.keyMap.Up):
 		m.sel--
-	case key.Matches(msg, m.keyMap.Down):
+	case keymap.Matches(msg, m.keyMap.Down):
 		m.sel++
-	case key.Matches(msg, m.keyMap.PageUp):
+	case keymap.Matches(msg, m.keyMap.PageUp):
 		m.sel -= page
-	case key.Matches(msg, m.keyMap.PageDown):
+	case keymap.Matches(msg, m.keyMap.PageDown):
 		m.sel += page
-	case key.Matches(msg, m.keyMap.HalfPageUp):
+	case keymap.Matches(msg, m.keyMap.HalfPageUp):
 		m.sel -= max(page/2, 1)
-	case key.Matches(msg, m.keyMap.HalfPageDown):
+	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.sel += max(page/2, 1)
-	case key.Matches(msg, m.keyMap.Home):
+	case keymap.Matches(msg, m.keyMap.Home):
 		m.sel = 0
-	case key.Matches(msg, m.keyMap.End):
+	case keymap.Matches(msg, m.keyMap.End):
 		m.sel = m.shown() - 1
-	case key.Matches(msg, m.keyMap.Retry):
+	case keymap.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
-	case key.Matches(msg, m.keyMap.Find):
+	case keymap.Matches(msg, m.keyMap.Find):
 		return m.openPrompt(promptFind)
-	case key.Matches(msg, m.keyMap.QuickFilter):
+	case keymap.Matches(msg, m.keyMap.QuickFilter):
 		return m.openPrompt(promptFilter)
-	case key.Matches(msg, m.keyMap.Next):
+	case keymap.Matches(msg, m.keyMap.Next):
 		return m.step(1)
-	case key.Matches(msg, m.keyMap.Prev):
+	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
-	case key.Matches(msg, m.markKeys.Mark) && m.canMark():
+	case keymap.Matches(msg, m.markKeys.Mark) && m.canMark():
 		m.toggleMark()
 		return nil
-	case key.Matches(msg, m.promptKeys.Cancel):
+	case keymap.Matches(msg, m.promptKeys.Cancel):
 		// Esc peels one layer at a time: the find, then the filter, then
 		// the marks. The prompt, which comes before them all, takes its
 		// own cancel key while it is open.

@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -147,7 +148,7 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if len(n.items) == 0 || m.view.Capturing() {
 		return nil, false
 	}
-	if key.Matches(msg, k.annotations(m.onNotes)) {
+	if keymap.Matches(msg, k.annotations(m.onNotes)) {
 		m.focusLog(m.onNotes)
 		return nil, true
 	}
@@ -156,7 +157,7 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	// The keys that change how the whole log shows need none of its
 	// cursor, so they work from here too.
-	if key.Matches(msg, m.wholeLog()...) {
+	if keymap.Matches(msg, m.wholeLog()...) {
 		m.view.Focus()
 		var cmd tea.Cmd
 		m.view, cmd = m.view.Update(msg)
@@ -168,11 +169,11 @@ func (m *Model) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return cmd, true
 	}
 	switch {
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		n.cursor = max(n.cursor-1, 0)
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		n.cursor = min(n.cursor+1, len(n.items)-1)
-	case key.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Select):
 		return m.openNote(), true
 	}
 	n.scroll(m.noteRows())

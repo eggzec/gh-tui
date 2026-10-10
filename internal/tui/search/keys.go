@@ -66,7 +66,7 @@ var areaTitles = [numAreas]string{"query", "results"}
 // focusOf returns the part of the page that msg focuses, or -1.
 func (k KeyMap) focusOf(msg tea.KeyPressMsg) area {
 	for i, b := range k.Panes {
-		if key.Matches(msg, b) {
+		if keymap.Matches(msg, b) {
 			return area(i)
 		}
 	}

@@ -483,27 +483,27 @@ func TestKeyPress(t *testing.T) {
 	}
 }
 
-// TestPressingCommands checks that a command that does what a key does
-// presses that key, as the config binds it, where the key would go.
-func TestPressingCommands(t *testing.T) {
+// TestActionCommandsPress checks that a command that is an action does
+// what its key does, where the key goes, with the key bound or not.
+func TestActionCommandsPress(t *testing.T) {
 	t.Parallel()
 	t.Run("refresh", func(t *testing.T) {
 		m, fakes := newTestApp(t)
 		drive(m, m.key(press("2")))
 		runCommand(t, m, "refresh")
-		if !fakes[1].got(isKey("r")) || fakes[0].got(isKey("r")) {
-			t.Error("refresh didn't press r in the focused pane alone")
+		if !fakes[1].got(isActionPress(config.ActionRefresh)) || fakes[0].got(isActionPress(config.ActionRefresh)) {
+			t.Error("refresh didn't reach the focused pane alone")
 		}
 	})
-	t.Run("refresh bound elsewhere", func(t *testing.T) {
+	t.Run("refresh unbound", func(t *testing.T) {
 		cfg := config.Default()
-		cfg.Keys.Set(config.ActionRefresh, []string{"nosuch+key", "ctrl+r"})
+		cfg.Keys.Set(config.ActionRefresh, []string{})
 		fakes := []*fakeSection{{title: "Files"}}
 		m := New(t.Context(), cfg, Layout{Files: fakes[0]}, WithRepo(testRepo))
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		runCommand(t, m, "refresh")
-		if !fakes[0].got(isKey("ctrl+r")) {
-			t.Error("refresh didn't press the key the config binds")
+		if !fakes[0].got(isActionPress(config.ActionRefresh)) {
+			t.Error("refresh didn't reach the pane with its key unbound")
 		}
 	})
 	t.Run("help", func(t *testing.T) {
@@ -512,14 +512,24 @@ func TestPressingCommands(t *testing.T) {
 		if !m.helpOpen() || m.keyhelp.Title() != "Help · Files" {
 			t.Fatalf("help didn't open the help of the focused pane: open %v, title %q", m.helpOpen(), m.keyhelp.Title())
 		}
-		if fakes[0].got(isKey("?")) {
-			t.Error("the key reached the section")
+		if fakes[0].got(isActionPress(config.ActionHelp)) {
+			t.Error("the press reached the section")
+		}
+	})
+	t.Run("help unbound", func(t *testing.T) {
+		cfg := config.Default()
+		cfg.Keys.Set(config.ActionHelp, []string{})
+		m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+		runCommand(t, m, "help")
+		if !m.helpOpen() {
+			t.Error("help didn't open with its key unbound")
 		}
 	})
 	t.Run("no argument", func(t *testing.T) {
 		m, fakes := newTestApp(t)
 		runCommand(t, m, "refresh now")
-		if !hasToast(m, "The refresh command takes no argument.") || fakes[0].got(isKey("r")) {
+		if !hasToast(m, "The refresh command takes no argument.") || fakes[0].got(isActionPress(config.ActionRefresh)) {
 			t.Errorf("refresh with an argument ran: %s", toasted(m))
 		}
 	})

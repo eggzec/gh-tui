@@ -1,9 +1,10 @@
 package logview
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update scrolls, folds and searches on keys while the view is focused,
@@ -45,55 +46,55 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	h := max(m.bodyHeight(), 1)
 	switch {
-	case key.Matches(k, m.keys.Down):
+	case keymap.Matches(k, m.keys.Down):
 		m.move(1)
-	case key.Matches(k, m.keys.Up):
+	case keymap.Matches(k, m.keys.Up):
 		m.move(-1)
-	case key.Matches(k, m.keys.PageDown):
+	case keymap.Matches(k, m.keys.PageDown):
 		m.page(h)
-	case key.Matches(k, m.keys.PageUp):
+	case keymap.Matches(k, m.keys.PageUp):
 		m.page(-h)
-	case key.Matches(k, m.keys.HalfPageDown):
+	case keymap.Matches(k, m.keys.HalfPageDown):
 		m.page(max(h/2, 1))
-	case key.Matches(k, m.keys.HalfPageUp):
+	case keymap.Matches(k, m.keys.HalfPageUp):
 		m.page(-max(h/2, 1))
-	case key.Matches(k, m.keys.Home):
+	case keymap.Matches(k, m.keys.Home):
 		m.home()
-	case key.Matches(k, m.keys.End):
+	case keymap.Matches(k, m.keys.End):
 		m.end()
-	case key.Matches(k, m.keys.Right):
+	case keymap.Matches(k, m.keys.Right):
 		if !m.wrap {
 			m.scrollRight(m.hStep())
 		}
-	case key.Matches(k, m.keys.Left):
+	case keymap.Matches(k, m.keys.Left):
 		m.left = max(m.left-m.hStep(), 0)
-	case key.Matches(k, m.keys.Toggle):
+	case keymap.Matches(k, m.keys.Toggle):
 		m.toggle()
-	case key.Matches(k, m.keys.ToggleAll):
+	case keymap.Matches(k, m.keys.ToggleAll):
 		m.ToggleAll()
-	case key.Matches(k, m.keys.NextError):
+	case keymap.Matches(k, m.keys.NextError):
 		m.stepIssue(Error, 1)
-	case key.Matches(k, m.keys.PrevError):
+	case keymap.Matches(k, m.keys.PrevError):
 		m.stepIssue(Error, -1)
-	case key.Matches(k, m.keys.NextWarning):
+	case keymap.Matches(k, m.keys.NextWarning):
 		m.stepIssue(Warning, 1)
-	case key.Matches(k, m.keys.PrevWarning):
+	case keymap.Matches(k, m.keys.PrevWarning):
 		m.stepIssue(Warning, -1)
-	case key.Matches(k, m.keys.Option):
+	case keymap.Matches(k, m.keys.Option):
 		m.opt = true
 		m.enableKeys()
-	case key.Matches(k, m.keys.Follow):
+	case keymap.Matches(k, m.keys.Follow):
 		m.SetFollow(!m.follow)
-	case key.Matches(k, m.keys.Search):
+	case keymap.Matches(k, m.keys.Search):
 		cmd := m.openSearch()
 		return m, cmd
-	case key.Matches(k, m.keys.Next):
+	case keymap.Matches(k, m.keys.Next):
 		m.step(1)
-	case key.Matches(k, m.keys.Prev):
+	case keymap.Matches(k, m.keys.Prev):
 		m.step(-1)
-	case m.search.query != "" && key.Matches(k, m.keys.Cancel):
+	case m.search.query != "" && keymap.Matches(k, m.keys.Cancel):
 		m.clearSearch()
-	case key.Matches(k, m.keys.Quit, m.keys.Dismiss):
+	case keymap.Matches(k, m.keys.Quit, m.keys.Dismiss):
 		return m, m.close()
 	}
 	return m, nil
@@ -101,12 +102,12 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 
 func (m Model) updateSearch(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
-	case key.Matches(k, m.keys.Confirm):
+	case keymap.Matches(k, m.keys.Confirm):
 		query := m.input.Value()
 		m.closeSearch()
 		m.runSearch(query)
 		return m, nil
-	case key.Matches(k, m.keys.Cancel):
+	case keymap.Matches(k, m.keys.Cancel):
 		m.closeSearch()
 		return m, nil
 	}

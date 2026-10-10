@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -200,9 +201,9 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		return actor.Act(action)
 	}
 	switch {
-	case key.Matches(msg, m.keys.Quit):
+	case keymap.Matches(msg, m.keys.Quit):
 		return act(ui.ActQuit)
-	case key.Matches(msg, m.keys.Back):
+	case keymap.Matches(msg, m.keys.Back):
 		// The modal steps back inside itself first; otherwise the key
 		// returns to the modal it replaced, if there is one, and else
 		// reaches the modal as a key.
@@ -213,11 +214,11 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 			return m.goModalBack(mod), true
 		}
 		return nil, false
-	case key.Matches(msg, m.keys.Dismiss):
+	case keymap.Matches(msg, m.keys.Dismiss):
 		return act(ui.ActDismiss)
 	}
 	for _, o := range m.overModals() {
-		if !key.Matches(msg, o.binding) {
+		if !keymap.Matches(msg, o.binding) {
 			continue
 		}
 		if cmd, ok := act(o.action); ok {

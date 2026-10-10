@@ -528,8 +528,8 @@ type keyContext struct {
 	// repo opens the app on testRepo; otherwise it opens on the dashboard.
 	repo bool
 	// steps are pressed in turn to reach the context, and then, if set,
-	// msg is sent, and after is pressed in turn. Each is pressed as
-	// press does: an action by its key in the config, so that a new
+	// msg is sent, and after is pressed in turn. An action is pressed
+	// by its key in the config, so that a new
 	// default key needs no change here. An action is named by its context
 	// and its name, such as "pulls.merge" or "global.select".
 	steps []string
@@ -578,11 +578,20 @@ func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 // reach returns the app in the context, and the layers of keys it has.
 func (c keyContext) reach(t *testing.T) (*Model, []keyhelp.Layer) {
 	t.Helper()
-	m := newKeysApp(t, c.repo)
+	return c.reachWith(t, func(*config.Config) {})
+}
+
+// reachWith is reach in the app of the config that edit changes. The steps
+// still press the keys of the default config, so that an edit that
+// unbinds an action doesn't keep the context from being reached.
+func (c keyContext) reachWith(t *testing.T, edit func(*config.Config)) (*Model, []keyhelp.Layer) {
+	t.Helper()
+	m := newKeysAppWith(t, c.repo, edit)
+	keys := config.Default().Keys
 	var pressed []string
 	press := func(steps []string) {
 		for _, s := range steps {
-			names := c.press(t, m.cfg.Keys, s)
+			names := c.press(t, keys, s)
 			pressed = append(pressed, s+"="+strings.Join(names, " "))
 			for _, name := range names {
 				if strings.HasPrefix(s, typedStep) {
@@ -626,9 +635,8 @@ func boundKey(layers []keyhelp.Layer, name string) string {
 }
 
 // press returns the names of the keys a step of c presses. An action
-// presses the first of its keys in keys that can be pressed, as
-// Model.press does; typed text presses a key for
-// each of its characters. No action is named as a key is
+// presses the first of its keys in keys that can be pressed; typed text
+// presses a key for each of its characters. No action is named as a key is
 // (TestStepsAreUnambiguous).
 func (c keyContext) press(t *testing.T, keys config.Keymap, step string) []string {
 	t.Helper()

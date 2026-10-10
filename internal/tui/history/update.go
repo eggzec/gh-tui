@@ -3,7 +3,6 @@ package history
 import (
 	"cmp"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -11,6 +10,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
@@ -126,33 +126,33 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.updatePager(msg)
 	}
 	switch {
-	case key.Matches(msg, m.keys.Next):
+	case keymap.Matches(msg, m.keys.Next):
 		m.setFocus((m.focus + 1) % numPanes)
 		return m.focused()
-	case key.Matches(msg, m.keys.Prev):
+	case keymap.Matches(msg, m.keys.Prev):
 		m.setFocus((m.focus + numPanes - 1) % numPanes)
 		return m.focused()
 	case m.keys.focusOf(msg) >= 0:
 		m.setFocus(m.keys.focusOf(msg))
 		return m.focused()
-	case key.Matches(msg, m.keys.Open):
+	case keymap.Matches(msg, m.keys.Open):
 		return m.open()
-	case key.Matches(msg, m.keys.ResetBase):
+	case keymap.Matches(msg, m.keys.ResetBase):
 		if m.base.Ref == "" {
 			return nil
 		}
 		return m.useBase(ui.BaseMsg{Repo: m.repo})
-	case !m.narrow() && key.Matches(msg, m.keys.Zoom):
+	case !m.narrow() && keymap.Matches(msg, m.keys.Zoom):
 		m.zoom = !m.zoom
 		m.layout()
 		return nil
-	case key.Matches(msg, m.keys.Dismiss):
+	case keymap.Matches(msg, m.keys.Dismiss):
 		return m.dismiss()
-	case key.Matches(msg, m.keys.Back):
+	case keymap.Matches(msg, m.keys.Back):
 		return m.back()
 	case patch:
 		return m.updatePager(msg)
-	case key.Matches(msg, m.keys.base(m.focus)):
+	case keymap.Matches(msg, m.keys.base(m.focus)):
 		return m.useSelected()
 	}
 	switch m.focus {

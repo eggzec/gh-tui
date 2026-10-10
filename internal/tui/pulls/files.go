@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -382,11 +383,11 @@ func (f *filesState) setFocus(p filesPane) {
 func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	k, f := m.keys, m.files
 	switch {
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return m.refreshFiles()
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		return m.openFiles()
-	case key.Matches(msg, k.Back):
+	case keymap.Matches(msg, k.Back):
 		// The search of the diff is cleared first, then the modal closes.
 		if f != nil && f.diff.ClearSearch() {
 			return nil
@@ -394,15 +395,15 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 		return m.close()
 	case f == nil:
 		return nil
-	case key.Matches(msg, k.nextPane):
+	case keymap.Matches(msg, k.nextPane):
 		return m.focusFiles(f.focus + 1)
-	case key.Matches(msg, k.prevPane):
+	case keymap.Matches(msg, k.prevPane):
 		return m.focusFiles(f.focus - 1)
-	case key.Matches(msg, k.panes[0]):
+	case keymap.Matches(msg, k.panes[0]):
 		return m.focusFiles(treePane)
-	case key.Matches(msg, k.panes[1]):
+	case keymap.Matches(msg, k.panes[1]):
 		return m.focusFiles(diffPane)
-	case !m.filesNarrow() && key.Matches(msg, k.zoom):
+	case !m.filesNarrow() && keymap.Matches(msg, k.zoom):
 		f.zoom = !f.zoom
 		m.layoutFiles()
 		return nil
@@ -411,7 +412,7 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	f.settling = ""
 	var cmd tea.Cmd
 	if f.focus == treePane {
-		if key.Matches(msg, k.tree.Collapse, k.tree.ToggleAll) {
+		if keymap.Matches(msg, k.tree.Collapse, k.tree.ToggleAll) {
 			f.folded = true
 		}
 		f.tree, cmd = f.tree.Update(msg)
