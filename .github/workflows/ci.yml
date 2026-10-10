@@ -1,9 +1,12 @@
 name: ci
 
+# Changes that can't affect the build, tests or schema skip the run.
 on:
   pull_request:
+    paths-ignore: ["**.md", ".agents/**", ".claude/**", "LICENSE"]
   push:
     branches: [main]
+    paths-ignore: ["**.md", ".agents/**", ".claude/**", "LICENSE"]
 
 permissions:
   contents: read
