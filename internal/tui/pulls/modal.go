@@ -449,8 +449,10 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, m.refs.Update(msg))
 	}
 	if m.find != nil && m.detail.HeadSHA != m.findHead {
-		// The files it lists are those of a head the pull request left.
+		// The files it lists are those of a head the pull request left, and
+		// the query typed is lost, so say why.
 		m.dropFind()
+		cmds = append(cmds, ui.Notify(toast.Warning, "The pull request changed; find again."))
 	}
 	if m.find != nil {
 		var cmd tea.Cmd
