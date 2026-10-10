@@ -33,6 +33,7 @@ func newDashApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 }
 
 func TestStartScreen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		repo  core.RepoRef
@@ -60,6 +61,7 @@ func TestStartScreen(t *testing.T) {
 }
 
 func TestDashboardFillsTheScreen(t *testing.T) {
+	t.Parallel()
 	m, fakes := newDashApp(t, core.RepoRef{})
 	// Only the header and the help line are the app's.
 	if d := fakes[4]; d.width != 80 || d.height != 22 {
@@ -72,6 +74,7 @@ func TestDashboardFillsTheScreen(t *testing.T) {
 }
 
 func TestDashboardKey(t *testing.T) {
+	t.Parallel()
 	m, fakes := newDashApp(t, testRepo)
 	run(m, m.key(press("2")))
 	run(m, m.key(press("0")))
@@ -95,6 +98,7 @@ func TestDashboardKey(t *testing.T) {
 }
 
 func TestDashboardTakesPaneKeys(t *testing.T) {
+	t.Parallel()
 	m, fakes := newDashApp(t, core.RepoRef{})
 	for _, k := range []string{"tab", "shift+tab", "1", "2", "3"} {
 		run(m, m.key(press(k)))
@@ -108,6 +112,7 @@ func TestDashboardTakesPaneKeys(t *testing.T) {
 }
 
 func TestNotificationsFromDashboard(t *testing.T) {
+	t.Parallel()
 	m, fakes := newDashApp(t, core.RepoRef{})
 	run(m, m.key(press("I")))
 	if m.screen != notifScreen {
@@ -138,6 +143,7 @@ func TestNotificationsFromDashboard(t *testing.T) {
 }
 
 func TestRepoFromDashboard(t *testing.T) {
+	t.Parallel()
 	m, fakes := newDashApp(t, core.RepoRef{})
 	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	if m.screen != repoScreen || !fakes[0].focused || fakes[0].inits != 1 {
@@ -153,6 +159,7 @@ func TestRepoFromDashboard(t *testing.T) {
 }
 
 func TestNoDashboard(t *testing.T) {
+	t.Parallel()
 	m, fakes := newApp(t, core.RepoRef{})
 	run(m, m.key(press("0")))
 	if m.screen != notifScreen || !slices.Equal(focusedTitles(fakes), []string{"Notifications"}) {
@@ -164,6 +171,7 @@ func TestNoDashboard(t *testing.T) {
 }
 
 func TestProgramOpensOnDashboard(t *testing.T) {
+	t.Parallel()
 	dash := &fakeSection{title: ui.DashboardTitle}
 	files := &fakeSection{title: "Files"}
 	app := New(t.Context(), config.Default(), Layout{Files: files, Notifications: &fakeSection{title: "Notifications"}, Dashboard: dash})
@@ -208,6 +216,7 @@ func (s *revisitSection) Revisit() tea.Cmd {
 // Coming back to the dashboard from another screen revisits it, and runs
 // what that returns; showing it the first time only starts it.
 func TestDashboardRevisitedOnReturn(t *testing.T) {
+	t.Parallel()
 	dash := &revisitSection{title: ui.DashboardTitle}
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: dash})

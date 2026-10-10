@@ -80,6 +80,7 @@ func chain(m *Model, titles ...string) []*backModal {
 // that another replaced, and through a chain of them to the first, and
 // that it does nothing where the chain begins.
 func TestBackReturnsToModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mods := chain(m, "A", "B", "C")
 	if !backKey(t, m) {
@@ -108,6 +109,7 @@ func TestBackReturnsToModal(t *testing.T) {
 // TestBackKeepsScroll checks that a pull request returned to is the one
 // that was left, read down to where it was.
 func TestBackKeepsScroll(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
@@ -149,6 +151,7 @@ func TestBackKeepsScroll(t *testing.T) {
 // TestBackCap checks that the history keeps the newest modals, and drops
 // the oldest, discarded, beyond the bound.
 func TestBackCap(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	titles := make([]string, maxBackModals+3)
 	for i := range titles {
@@ -183,6 +186,7 @@ func TestBackCap(t *testing.T) {
 // TestBackNeedsTheOpenModal checks that a modal opened in place of one that
 // isn't open keeps nothing, and that opening a modal again keeps nothing.
 func TestBackNeedsTheOpenModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	a, stale := &backModal{}, &backModal{}
 	run(m, ui.OpenModal(a))
@@ -201,6 +205,7 @@ func TestBackNeedsTheOpenModal(t *testing.T) {
 // TestCloseDropsBack checks that closing the modal, with esc or q, ends the
 // chain: every modal it kept is discarded.
 func TestCloseDropsBack(t *testing.T) {
+	t.Parallel()
 	for _, k := range []string{"esc", "q"} {
 		t.Run(k, func(t *testing.T) {
 			m, _ := newTestApp(t)
@@ -222,6 +227,7 @@ func TestCloseDropsBack(t *testing.T) {
 // TestBackSurvivesPreview checks that a modal opened from the one on view,
 // and closed to return to it, keeps the way back.
 func TestBackSurvivesPreview(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mods := chain(m, "A", "B")
 	preview := &fakeModal{title: "Preview"}
@@ -240,6 +246,7 @@ func TestBackSurvivesPreview(t *testing.T) {
 // after a chain of modals ended, and that a chain's places don't get in its
 // way.
 func TestBackAfterChainEnds(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.showScreen(notifScreen, 0))
 	mods := chain(m, "A", "B")
@@ -260,6 +267,7 @@ func TestBackAfterChainEnds(t *testing.T) {
 // the comment on an issue, which was opened from another modal, instead of
 // returning.
 func TestBackTypesInPrompt(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
@@ -296,6 +304,7 @@ func (p *pauses) Pause() func() {
 // go on, as they do when it closes. The quit key reaches the modal as an
 // intent, and esc as its own key.
 func TestChainDropDiscardsRealModals(t *testing.T) {
+	t.Parallel()
 	for _, k := range []string{"esc", "q"} {
 		for _, kind := range []string{"pull", "issue"} {
 			t.Run(kind+" "+k, func(t *testing.T) {
@@ -333,6 +342,7 @@ func TestChainDropDiscardsRealModals(t *testing.T) {
 // on the Checks tab of a pull request to the list of checks, and only then
 // returns to the modal that the pull request replaced, if it replaced one.
 func TestBackStepsOutOfTheChecks(t *testing.T) {
+	t.Parallel()
 	for _, chained := range []bool{true, false} {
 		name := "alone"
 		if chained {

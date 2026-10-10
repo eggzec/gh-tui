@@ -35,6 +35,7 @@ func (s *sourceModal) SetRaw(raw bool) tea.Cmd {
 }
 
 func TestRawCommand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		line    string
@@ -70,6 +71,7 @@ func TestRawCommand(t *testing.T) {
 }
 
 func TestRawCommandWithoutAFile(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	runCommand(t, m, "raw on")
 	if want := "The open file has no rendered view."; !hasToast(m, want) {
@@ -80,6 +82,7 @@ func TestRawCommandWithoutAFile(t *testing.T) {
 // The command key opens the line over a modal that takes commands, and
 // only while it doesn't type into an input; the help names it then.
 func TestCommandKeyOverAModalThatTakesCommands(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &sourceModal{title: "README.md", renders: true}
 	m.openModal(mod)
@@ -113,6 +116,7 @@ func TestCommandKeyOverAModalThatTakesCommands(t *testing.T) {
 
 // files.markdown sets how the next markdown file shows, for the session.
 func TestSetMarkdown(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	runCommand(t, m, "set files.markdown=raw")
 	if m.cfg.Files.Markdown != "raw" || !hasToast(m, "files.markdown is raw for this session.") {
@@ -139,6 +143,7 @@ func pressKeys(t *testing.T, m *Model, keys ...string) {
 // The command key opens the line over the file preview, except while its
 // pager types, and the finder and the other modals type it.
 func TestCommandKeyOverTheFilePreview(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		keys []string
@@ -174,6 +179,7 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 // Over the file preview, raw and the commands that don't touch what is
 // behind it run; the rest say to close the file first.
 func TestCommandsOverTheFilePreview(t *testing.T) {
+	t.Parallel()
 	m := newKeysApp(t, true)
 	pressKeys(t, m, "down", "enter")
 	mod := m.topModal()
@@ -216,6 +222,7 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 // On a short terminal, the frame of a modal leaves the command line and
 // its candidates below it.
 func TestFrameLeavesTheCommandLine(t *testing.T) {
+	t.Parallel()
 	m := newKeysApp(t, true)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 16})
 	pressKeys(t, m, "down", "enter", ":")

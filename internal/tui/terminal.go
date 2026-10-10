@@ -12,8 +12,9 @@ import (
 )
 
 // terminalWait is how long the terminal record waits for the terminal to
-// say its version; one that doesn't answer XTVERSION never does.
-const terminalWait = time.Second
+// say its version; one that doesn't answer XTVERSION never does. It is a
+// variable so that the tests, which run the wait to the end, can shorten it.
+var terminalWait = time.Second
 
 // maxVersion is the most bytes of the terminal's version logged.
 const maxVersion = 128

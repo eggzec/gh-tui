@@ -15,6 +15,7 @@ import (
 // The command key opens the command line over each modal that doesn't type
 // the key as text, and esc closes the line again, leaving the modal.
 func TestCommandKeyOpensOverEveryModal(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -39,6 +40,7 @@ func TestCommandKeyOpensOverEveryModal(t *testing.T) {
 // Esc over a modal dismisses an error toast first, then cancels the line,
 // and only then reaches the modal.
 func TestEscLadderOverTheCommandLine(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "global.select")
 		open := m.modal
@@ -62,6 +64,7 @@ func TestEscLadderOverTheCommandLine(t *testing.T) {
 // The finder types the command key into its query, and a question that a
 // modal asks takes it as an answer.
 func TestCommandKeyIsTypedWhereTheModalTypes(t *testing.T) {
+	t.Parallel()
 	m := newKeysApp(t, true)
 	pressKeys(t, m, "ctrl+p")
 	mod := m.modal
@@ -80,6 +83,7 @@ func TestCommandKeyIsTypedWhereTheModalTypes(t *testing.T) {
 // An allowed command runs over each modal, and a refused one says to close
 // the modal first, by its name, and leaves it open.
 func TestCommandsOverEveryModal(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -108,6 +112,7 @@ func TestCommandsOverEveryModal(t *testing.T) {
 // The names of the commands that complete over a modal are those that run
 // over it: the commands of the app alone, and those that it names.
 func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
+	t.Parallel()
 	m := newKeysApp(t, true)
 	all := func(prefix string) []string { return texts(m.complete(prefix, len(prefix))) }
 	for _, tt := range []struct {
@@ -153,6 +158,7 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 // Every command that a modal names is one that runs over the modals that
 // name it, and not over the others.
 func TestDeclaredCommandsExist(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, mod.steps...)
@@ -174,6 +180,7 @@ func TestDeclaredCommandsExist(t *testing.T) {
 // Over a modal, the config shows in the pager, and backspace returns to the
 // modal as it was.
 func TestConfigOverAModalReturnsToIt(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -196,6 +203,7 @@ func TestConfigOverAModalReturnsToIt(t *testing.T) {
 // the tree behind it has selected: each modal is opened on something other
 // than what the screen's cursor is on.
 func TestCopyOverAModal(t *testing.T) {
+	t.Parallel()
 	other := testRepo
 	for _, tt := range []struct {
 		name  string
@@ -245,6 +253,7 @@ func TestCopyOverAModal(t *testing.T) {
 // A release that isn't read yet has no tag, so there is no reference of it
 // to copy, and the repository is not one.
 func TestCopyRefOfAReleaseNotRead(t *testing.T) {
+	t.Parallel()
 	sel := ui.Selection{What: "release", Repo: testRepo}
 	if got := ref(sel); got != "" {
 		t.Errorf("ref of a release without a tag = %q, want none", got)

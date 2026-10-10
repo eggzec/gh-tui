@@ -168,6 +168,7 @@ func focusedTitles(fakes []*fakeSection) []string {
 }
 
 func TestOpensOnRepoWithFilesFocused(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	for _, f := range fakes {
 		if !f.themed {
@@ -189,6 +190,7 @@ func TestOpensOnRepoWithFilesFocused(t *testing.T) {
 }
 
 func TestOpensOnNotificationsWithoutRepo(t *testing.T) {
+	t.Parallel()
 	m, fakes := newApp(t, core.RepoRef{})
 	if m.screen != notifScreen {
 		t.Fatal("the app didn't open on the notifications")
@@ -206,6 +208,7 @@ func TestOpensOnNotificationsWithoutRepo(t *testing.T) {
 }
 
 func TestPanesAreSizedToTheirFrames(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	// The header and the help line take a row each; the files take two
 	// fifths of the width, and the other two panes share the height.
@@ -223,6 +226,7 @@ func TestPanesAreSizedToTheirFrames(t *testing.T) {
 }
 
 func TestFilesWidthIsBounded(t *testing.T) {
+	t.Parallel()
 	for width, want := range map[int]int{70: 28, 80: 32, 100: 40, 200: 60, 20: 24} {
 		if got := filesWidth(width); got != want {
 			t.Errorf("filesWidth(%d) = %d, want %d", width, got, want)
@@ -231,6 +235,7 @@ func TestFilesWidthIsBounded(t *testing.T) {
 }
 
 func TestRepoScreenIsFramed(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	out := m.View().Content
 	lines := strings.Split(out, "\n")
@@ -258,6 +263,7 @@ func TestRepoScreenIsFramed(t *testing.T) {
 }
 
 func TestFocusedFrameTakesTheAccent(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	focused, blurred := m.st.focusEdge.Render("╭─"), m.st.edge.Render("╭─")
 	if focused == blurred {
@@ -273,6 +279,7 @@ func TestFocusedFrameTakesTheAccent(t *testing.T) {
 }
 
 func TestNarrowShowsTheFocusedPaneAlone(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
 	for _, f := range fakes[:3] {
@@ -291,6 +298,7 @@ func TestNarrowShowsTheFocusedPaneAlone(t *testing.T) {
 }
 
 func TestZoom(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	tests := []struct {
@@ -350,6 +358,7 @@ func TestZoom(t *testing.T) {
 }
 
 func TestZoomNeedsTheRepoScreen(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	run(m, m.key(press("I")))
 	run(m, m.key(press("z")))
@@ -366,6 +375,7 @@ func TestZoomNeedsTheRepoScreen(t *testing.T) {
 }
 
 func TestZoomOnlyWhereItShows(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 64, Height: 24})
 	run(m, m.key(press("z")))
@@ -380,6 +390,7 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 }
 
 func TestZoomLeavesKeysToCapture(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	run(m, m.key(press("z")))
@@ -413,6 +424,7 @@ func (k backKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHel
 // the section's back, and the zoom key for what it does, which is the way
 // out of a zoom while one shows, and only where the zoom works.
 func TestZoomHelp(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[0].keyMap = backKeys{}
 	check := func(when string, bar, help []string, not ...string) {
@@ -464,6 +476,7 @@ func helpRows(t *testing.T, m *Model) []string {
 }
 
 func TestZoomView(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 14})
 	run(m, m.key(press("2")))
@@ -472,6 +485,7 @@ func TestZoomView(t *testing.T) {
 }
 
 func TestProgramZooms(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
@@ -495,6 +509,7 @@ func TestProgramZooms(t *testing.T) {
 }
 
 func TestFocusMovesBetweenPanes(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	steps := []struct {
 		key  string
@@ -527,6 +542,7 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 // I shows the notifications, and pressing it again stays there; backspace
 // goes back to the pane that had the focus.
 func TestNotificationsKeyShowsTheNotifications(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	run(m, m.key(press("2")))
 	run(m, m.key(press("I")))
@@ -561,6 +577,7 @@ func TestNotificationsKeyShowsTheNotifications(t *testing.T) {
 }
 
 func TestSectionsStartWhenShown(t *testing.T) {
+	t.Parallel()
 	m, fakes := newApp(t, core.RepoRef{})
 	run(m, m.Init())
 	for _, f := range fakes {
@@ -583,6 +600,7 @@ func TestSectionsStartWhenShown(t *testing.T) {
 }
 
 func TestInitRunsWhatTheFirstRepoAsksFor(t *testing.T) {
+	t.Parallel()
 	type loaded struct{}
 	files := &fakeSection{title: "Files", reply: func(msg tea.Msg) tea.Cmd {
 		if _, ok := msg.(ui.RepoMsg); ok {
@@ -598,6 +616,7 @@ func TestInitRunsWhatTheFirstRepoAsksFor(t *testing.T) {
 }
 
 func TestRepoScreenStartsEveryPane(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	run(m, m.Init())
 	for _, f := range fakes {
@@ -608,6 +627,7 @@ func TestRepoScreenStartsEveryPane(t *testing.T) {
 }
 
 func TestKeysGoToTheFocusedPaneOnly(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	run(m, m.key(press("x")))
 	if !fakes[0].got(isKey("x")) || fakes[1].got(isKey("x")) || fakes[3].got(isKey("x")) {
@@ -616,6 +636,7 @@ func TestKeysGoToTheFocusedPaneOnly(t *testing.T) {
 }
 
 func TestCapturingSectionTakesEveryKey(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[0].capturing = true
 	keys := []string{"q", "?", "]", "2", "I", "S"}
@@ -650,6 +671,7 @@ func TestCapturingSectionTakesEveryKey(t *testing.T) {
 }
 
 func TestAppMessagesReachEverySection(t *testing.T) {
+	t.Parallel()
 	m, fakes := newApp(t, core.RepoRef{})
 	run(m, func() tea.Msg { return ui.SyncMsg{Key: "k"} })
 	for _, f := range fakes {
@@ -660,6 +682,7 @@ func TestAppMessagesReachEverySection(t *testing.T) {
 }
 
 func TestRepoMsgShowsTheRepo(t *testing.T) {
+	t.Parallel()
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	var asked []core.RepoRef
 	info := func(_ context.Context, ref core.RepoRef) (core.Repo, error) {
@@ -691,6 +714,7 @@ func TestRepoMsgShowsTheRepo(t *testing.T) {
 }
 
 func TestRepoInfoForAnotherRepoIsIgnored(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	m.Update(repoInfoMsg{repo: core.Repo{Ref: core.RepoRef{Owner: "a", Name: "b"}, DefaultBranch: "trunk"}})
 	if m.branch != "" {
@@ -704,6 +728,7 @@ func TestRepoInfoForAnotherRepoIsIgnored(t *testing.T) {
 }
 
 func TestRepoWatcherSeesRepoBeforeSections(t *testing.T) {
+	t.Parallel()
 	want := core.RepoRef{Owner: "cli", Name: "cli"}
 	var got []core.RepoRef
 	var fakes []*fakeSection
@@ -800,6 +825,7 @@ func checkClean(t *testing.T, text string) {
 }
 
 func TestDoneWithErrorShowsToast(t *testing.T) {
+	t.Parallel()
 	for _, f := range failures() {
 		t.Run(f.name, func(t *testing.T) {
 			m, fakes := newTestApp(t, WithVoice(logVoice(t)))
@@ -819,6 +845,7 @@ func TestDoneWithErrorShowsToast(t *testing.T) {
 }
 
 func TestFailShowsToast(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		err  error
@@ -845,6 +872,7 @@ func TestFailShowsToast(t *testing.T) {
 }
 
 func TestDoneWithErrorWithoutLog(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(ui.DoneMsg{What: "merge #42", Err: errors.New("github: decode 200: unexpected EOF")})
 	if want := "Couldn't merge #42: something went wrong."; !hasToast(m, want) {
@@ -853,6 +881,7 @@ func TestDoneWithErrorWithoutLog(t *testing.T) {
 }
 
 func TestDoneWithoutErrorIsQuiet(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(ui.DoneMsg{What: "merge #42"})
 	if !m.toast.Empty() {
@@ -861,6 +890,7 @@ func TestDoneWithoutErrorIsQuiet(t *testing.T) {
 }
 
 func TestNotifyShowsToast(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(ui.NotifyMsg{Level: toast.Success, Text: "Starred"})
 	if !strings.Contains(onScreen(m), "Starred") {
@@ -869,6 +899,7 @@ func TestNotifyShowsToast(t *testing.T) {
 }
 
 func TestWarningAtStart(t *testing.T) {
+	t.Parallel()
 	m, _ := newApp(t, core.RepoRef{}, WithWarning("No disk cache"))
 	if strings.Contains(onScreen(m), "No disk cache") {
 		t.Error("the warning showed before the app started")
@@ -880,6 +911,7 @@ func TestWarningAtStart(t *testing.T) {
 }
 
 func TestShowFocusesTheSection(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	run(m, func() tea.Msg { return ui.ShowMsg{Title: "Notifications"} })
 	if m.screen != notifScreen || !fakes[3].focused {
@@ -892,6 +924,7 @@ func TestShowFocusesTheSection(t *testing.T) {
 }
 
 func TestBadgeIsInTheHeader(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[3].badge = "3"
 	m.Update(ui.SyncMsg{Key: "notifications"})
@@ -906,6 +939,7 @@ func TestBadgeIsInTheHeader(t *testing.T) {
 }
 
 func TestHeaderFitsAnyWidth(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[3].badge = "30+"
 	m.Update(ui.SyncMsg{})
@@ -918,6 +952,7 @@ func TestHeaderFitsAnyWidth(t *testing.T) {
 }
 
 func TestSyncListensAgain(t *testing.T) {
+	t.Parallel()
 	events := make(chan ui.SyncMsg, 2)
 	events <- ui.SyncMsg{Key: "a"}
 	events <- ui.SyncMsg{Key: "b"}
@@ -936,6 +971,7 @@ func TestSyncListensAgain(t *testing.T) {
 }
 
 func TestFocusIsReported(t *testing.T) {
+	t.Parallel()
 	var got []bool
 	m, _ := newTestApp(t, WithActivity(func(active bool) { got = append(got, active) }))
 	m.Update(tea.BlurMsg{})
@@ -946,6 +982,7 @@ func TestFocusIsReported(t *testing.T) {
 }
 
 func TestOpenReportsFailure(t *testing.T) {
+	// Not parallel: it sets environment variables, which the whole process shares.
 	for _, tt := range []struct{ name, ghBrowser, want string }{
 		{"no GH_BROWSER", "", "Couldn't open the browser: set one with gh config set browser <command>."},
 		{"GH_BROWSER", "nosuchbrowser", "Couldn't open the browser: GH_BROWSER names a command that didn't open it."},
@@ -969,6 +1006,7 @@ func TestOpenReportsFailure(t *testing.T) {
 // starts detached, and that a browser that runs in the terminal is given
 // it.
 func TestOpenRedraws(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithBrowser(func(string) (*exec.Cmd, error) { return nil, nil }))
 	if msg := m.openURL("https://github.com")(); msg != tea.ClearScreen() {
 		t.Errorf("message %T after a detached browser, want a redraw", msg)
@@ -985,6 +1023,7 @@ func TestOpenRedraws(t *testing.T) {
 // focused pane and of the app, and that the help lists them all without
 // taking room from the panes.
 func TestHelpShowsPaneAndAppKeys(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	s := onScreen(m)
 	for _, want := range []string{"x close", "S search", "I notifications", "? help", "q quit"} {
@@ -1005,6 +1044,7 @@ func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 }
 
 func TestMissingSectionsAreLeftOut(t *testing.T) {
+	t.Parallel()
 	pulls := &fakeSection{title: "Pull requests"}
 	m := New(t.Context(), config.Default(), Layout{Pulls: pulls}, WithRepo(testRepo))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -1030,6 +1070,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 }
 
 func TestProgramRendersAndQuits(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
@@ -1096,6 +1137,7 @@ func (r *rateCounter) RateStatus() core.RateStatus {
 }
 
 func TestSyncRateLimitRereadsRates(t *testing.T) {
+	t.Parallel()
 	rates := &rateCounter{}
 	m, _ := newTestApp(t, WithRateStatus(rates))
 	if rates.reads != 1 || m.rate.Quotas[0].Remaining != 1 {
@@ -1114,6 +1156,7 @@ func TestSyncRateLimitRereadsRates(t *testing.T) {
 // Toasts are marked with the glyphs of the icon set, and a switch of
 // ui.icons marks the next ones with the new set's.
 func TestToastMarksFollowIcons(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	for _, set := range []string{config.IconsASCII, config.IconsUnicode, config.IconsNerd} {
@@ -1136,6 +1179,7 @@ func TestToastMarksFollowIcons(t *testing.T) {
 // The toasts leave the border of the pane under them, however narrow the
 // screen.
 func TestToastsKeepThePaneBorder(t *testing.T) {
+	t.Parallel()
 	for _, width := range []int{80, 24, 20} {
 		m, _ := newTestApp(t)
 		m.Update(tea.WindowSizeMsg{Width: width, Height: 24})

@@ -15,6 +15,7 @@ import (
 // The frame draws whatever title a modal gives it, which may hold text
 // from GitHub.
 func TestFrameCleansHostileTitles(t *testing.T) {
+	t.Parallel()
 	for _, w := range []int{40, 200} {
 		m, _ := newTestApp(t)
 		m.Update(tea.WindowSizeMsg{Width: w, Height: 24})
@@ -28,6 +29,7 @@ func TestFrameCleansHostileTitles(t *testing.T) {
 // The header names the default branch and the base, which are refs that
 // may hold what git allows.
 func TestHeaderCleansHostileRefs(t *testing.T) {
+	t.Parallel()
 	h := termtexttest.Hostile
 	info := func(context.Context, core.RepoRef) (core.Repo, error) { return core.Repo{DefaultBranch: h}, nil }
 	for _, w := range []int{40, 200} {

@@ -51,6 +51,7 @@ var ctrlP = tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}
 // TestTDoesNotOpenTheFinder checks that t, github.com's key for the
 // file finder, opens nothing and goes on to the section.
 func TestTDoesNotOpenTheFinder(t *testing.T) {
+	t.Parallel()
 	m, files, fakes := newFindingApp(t, testRepo)
 	run(m, m.Init())
 	run(m, m.key(press("t")))
@@ -63,6 +64,7 @@ func TestTDoesNotOpenTheFinder(t *testing.T) {
 }
 
 func TestFindFileKeyOpensTheFinder(t *testing.T) {
+	t.Parallel()
 	for _, k := range []tea.KeyPressMsg{{Code: 'p', Mod: tea.ModCtrl}} {
 		t.Run(k.String(), func(t *testing.T) {
 			m, files, _ := newFindingApp(t, testRepo)
@@ -84,6 +86,7 @@ func TestFindFileKeyOpensTheFinder(t *testing.T) {
 }
 
 func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
+	t.Parallel()
 	m, files, _ := newFindingApp(t, testRepo)
 	run(m, m.key(press("I")))
 	run(m, m.key(ctrlP))
@@ -106,6 +109,7 @@ func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
 }
 
 func TestFindFileKeyAbsentWithoutAFinder(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.Init())
 	if s := onScreen(m); strings.Contains(s, "find file") {

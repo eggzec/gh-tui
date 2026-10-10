@@ -44,6 +44,7 @@ func shownDescs(m *Model) []string {
 // TestHelpOverModal checks that the help key opens the help over a modal,
 // which keeps the modal open and gets no keys until the help closes.
 func TestHelpOverModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &fakeModal{title: "Preview \x1b[31mred"}
 	run(m, ui.OpenModal(mod))
@@ -80,6 +81,7 @@ func TestHelpOverModal(t *testing.T) {
 // TestHelpNotWhileTyping checks that the help key types into an input
 // rather than open the help, in a modal and in a capturing section.
 func TestHelpNotWhileTyping(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[0].capturing = true
 	run(m, m.key(press("?")))
@@ -102,6 +104,7 @@ func TestHelpNotWhileTyping(t *testing.T) {
 // TestHelpKeyThatTypesNothing checks that a help key that types nothing,
 // such as f1, still opens the help while ? is typed.
 func TestHelpKeyThatTypesNothing(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set(config.ActionHelp, []string{"?", "f1"})
 	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
@@ -129,6 +132,7 @@ func TestHelpKeyThatTypesNothing(t *testing.T) {
 // TestHelpFilter checks that the query lists only the rows it matches,
 // fuzzily, in their order, and that disabled rows show.
 func TestHelpFilter(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	all := len(m.keyhelp.Shown())
@@ -146,6 +150,7 @@ func TestHelpFilter(t *testing.T) {
 // TestHelpCapture checks that tab captures keys to find what they do,
 // even keys that would act, but ctrl+c, which still quits.
 func TestHelpCapture(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	run(m, m.key(press("tab")))
@@ -188,6 +193,7 @@ func TestHelpCapture(t *testing.T) {
 // TestHelpShowsCollisions checks that the help lists both bindings of a
 // key that two hold, with the one that loses it marked, rather than one.
 func TestHelpShowsCollisions(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	fakes[0].keyMap = collideKeys{}
 	run(m, m.key(press("?")))
@@ -216,6 +222,7 @@ func TestHelpShowsCollisions(t *testing.T) {
 // TestHelpFollowsResizeAndTheme checks that the open help takes a new size
 // and theme.
 func TestHelpFollowsResizeAndTheme(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -232,6 +239,7 @@ func TestHelpFollowsResizeAndTheme(t *testing.T) {
 // TestHelpView checks the help at 80 and 120 columns, in the light and the
 // dark theme, over a section whose key collides with the app's.
 func TestHelpView(t *testing.T) {
+	t.Parallel()
 	for _, dark := range []bool{false, true} {
 		theme := "light"
 		if dark {
@@ -253,6 +261,7 @@ func TestHelpView(t *testing.T) {
 // TestHelpViewFiltered checks the help with a query at 80 columns, and a
 // key captured at 120.
 func TestHelpViewFiltered(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	typeKeys(m, "pane")
@@ -324,6 +333,7 @@ func quits(cmd tea.Cmd) bool {
 // since the config can't bind it, from a section that takes every key, the
 // help and a modal, and that the help lists it with the quit key.
 func TestCtrlCAlwaysQuits(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Keys.Set(config.ActionQuit, []string{"x"})
 	files := &fakeSection{title: "Files"}
@@ -363,6 +373,7 @@ func TestCtrlCAlwaysQuits(t *testing.T) {
 // is open, such as one a goto opens once GitHub answers, closes the help,
 // which listed the keys of what had them before.
 func TestHelpClosesForNewModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press("?")))
 	mod := &fakeModal{title: "Preview"}
@@ -397,6 +408,7 @@ func (p *pagerModal) KeyLayers() []keyhelp.Layer {
 // TestHelpKeyReachesWaitingPager checks that ? goes to a pager that waits
 // for the name of an option.
 func TestHelpKeyReachesWaitingPager(t *testing.T) {
+	t.Parallel()
 	for _, first := range []string{"-"} {
 		m, _ := newTestApp(t)
 		mod := &pagerModal{title: "README.md", pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(config.Default().Keys, "preview"))), pager.WithSize(60, 10))}
@@ -419,6 +431,7 @@ func TestHelpKeyReachesWaitingPager(t *testing.T) {
 // on: no binding of the tab's own, such as the one that closes an empty
 // search line with the same key, may hide it.
 func TestHelpListsBackOnPullDiff(t *testing.T) {
+	t.Parallel()
 	var diffCtx keyContext
 	for _, c := range keyContexts() {
 		if c.name == "pull request: diff" {

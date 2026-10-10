@@ -51,6 +51,7 @@ func (c listFindCase) context(t *testing.T) keyContext {
 // a quick filter by default, whose prompts type every key and whose esc
 // clears what they showed, with the list zoomed too.
 func TestListsFindAndQuickFilterByDefault(t *testing.T) {
+	t.Parallel()
 	for _, c := range listFindCases {
 		name := c.name
 		if c.zoom {
@@ -143,6 +144,7 @@ func TestListsFindAndQuickFilterByDefault(t *testing.T) {
 // With two rows that hold the text, a find says 1/2, n moves to 2/2, and N
 // back to 1/2.
 func TestFindStepsBetweenTwoMatches(t *testing.T) {
+	// Not parallel: it sets keyIssueRows, which every app's issues come from.
 	second := keyIssue
 	second.ID, second.Number, second.Title = "I_3", 3, "Keys again"
 	keyIssueRows = []core.Issue{keyIssue, second}

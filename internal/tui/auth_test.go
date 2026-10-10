@@ -95,6 +95,7 @@ var refreshPlan = access.Plan{
 }
 
 func TestNotice(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		access core.Access
@@ -140,6 +141,7 @@ func TestNotice(t *testing.T) {
 }
 
 func TestNoticeOnce(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(core.Access{Kind: core.TokenClassic})
 	m, fakes := newTestApp(t, WithAccess(acc))
 	// run waits for every command, and the changes never end.
@@ -167,6 +169,7 @@ func TestNoticeOnce(t *testing.T) {
 }
 
 func TestAuthCommand(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(uitest.Classic("gist", "read:org", "repo"))
 	acc.plan = refreshPlan
 	var ran [][]string
@@ -213,6 +216,7 @@ func TestAuthCommand(t *testing.T) {
 // The modal marks what the token may do with the icon set that :set
 // chose, in ASCII alone with the ASCII set.
 func TestAuthCommandIcons(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(uitest.Classic("gist", "read:org", "repo"))
 	acc.plan = refreshPlan
 	m, _ := newTestApp(t, WithAccess(acc))
@@ -230,6 +234,7 @@ func TestAuthCommandIcons(t *testing.T) {
 }
 
 func TestAuthCommandRefused(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(uitest.Classic("gist", "read:org", "repo"))
 	acc.plan = refreshPlan
 	var done func(error) tea.Msg
@@ -253,6 +258,7 @@ func TestAuthCommandRefused(t *testing.T) {
 }
 
 func TestAuthCommandWithNothingToRun(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(core.Access{Kind: core.TokenFineGrained})
 	acc.plan = access.Plan{Why: "A fine-grained token has no scopes to grant; run gh auth login to use a classic token."}
 	m, _ := newTestApp(t, WithAccess(acc))
@@ -271,6 +277,7 @@ func TestAuthCommandWithNothingToRun(t *testing.T) {
 }
 
 func TestAuthModalView(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		access core.Access
@@ -323,6 +330,7 @@ func TestAuthModalView(t *testing.T) {
 // couldn't be read with the icon set's glyph, and joins the hint as the
 // set does, as the app's other error lines are.
 func TestAuthModalErrorMark(t *testing.T) {
+	t.Parallel()
 	p, err := config.Default().Palette(true)
 	if err != nil {
 		t.Fatal(err)
@@ -353,6 +361,7 @@ func TestAuthModalErrorMark(t *testing.T) {
 // TestProgramTellsWhatTheTokenLacks runs the program with a token that
 // lacks repo, and checks that it says so once GitHub said.
 func TestProgramTellsWhatTheTokenLacks(t *testing.T) {
+	t.Parallel()
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	acc := newFakeAccess(core.Access{Kind: core.TokenClassic})
@@ -371,6 +380,7 @@ func TestProgramTellsWhatTheTokenLacks(t *testing.T) {
 }
 
 func TestAuthPromptNamesTheProgram(t *testing.T) {
+	t.Parallel()
 	argv := []string{"/usr/bin/gh", "auth", "refresh", "--hostname=github.com"}
 	if got := commandLine(argv, "/usr/bin/gh"); got != "gh auth refresh --hostname=github.com" {
 		t.Errorf("the gh on the PATH shows as %q", got)
@@ -388,6 +398,7 @@ func TestAuthPromptNamesTheProgram(t *testing.T) {
 // read otherwise, such as a path with a space, so that it reads as what
 // runs.
 func TestAuthPromptQuotes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		argv []string
 		want string
@@ -445,6 +456,7 @@ func (f *fakeInbox) Invalidate() {}
 // every scope: nothing tells the user of it, the notifications are read,
 // the marks are offered, and :auth says why.
 func TestChecksOff(t *testing.T) {
+	t.Parallel()
 	cfg := config.Default()
 	cfg.Auth.Check = false
 	acc := newFakeAccess(uitest.Classic("gist"))
@@ -500,6 +512,7 @@ func helpStatus(m *Model, desc string) keyhelp.Status {
 // TestHelpShowsWhatTheTokenRefuses checks that the help lists the marks
 // the token may not make as disabled, and the keys of :auth.
 func TestHelpShowsWhatTheTokenRefuses(t *testing.T) {
+	t.Parallel()
 	acc := newFakeAccess(uitest.Classic("gist"))
 	acc.plan = refreshPlan
 	m, _, in := newTokenApp(t, config.Default(), acc)
@@ -538,6 +551,7 @@ func (boundClient) ProbeAccess(context.Context) error { return nil }
 // user once that notifications need a classic token, and the pane says
 // so in place of the list.
 func TestTokenFoundWhileRunning(t *testing.T) {
+	t.Parallel()
 	svc := access.New("github.com", access.Token{Source: "gh", Login: "octocat"})
 	m, _, _ := newTokenApp(t, config.Default(), svc)
 	if got := toasted(m); got != "" {

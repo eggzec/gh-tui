@@ -136,6 +136,7 @@ func TestUnbindAllElse(t *testing.T) {
 // TestUnboundCommands checks that a command that presses the key of an
 // action the config unbinds says so, rather than doing something else.
 func TestUnboundCommands(t *testing.T) {
+	t.Parallel()
 	for command, action := range map[string]string{
 		"help": config.ActionHelp, "refresh": config.ActionRefresh, "open": config.ActionOpen,
 	} {

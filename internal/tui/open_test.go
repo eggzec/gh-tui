@@ -15,6 +15,7 @@ func (b *browser) open(url string) (*exec.Cmd, error) {
 }
 
 func TestOpenCommand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// dash opens the app on the dashboard, with no repository.
@@ -80,6 +81,7 @@ func TestOpenCommand(t *testing.T) {
 // TestOpenCommandRefuses checks that open opens no link that could lead
 // off the user's host, or out of the browser's web pages.
 func TestOpenCommandRefuses(t *testing.T) {
+	t.Parallel()
 	for _, line := range []string{
 		"open https://github.com@evil.com/o/n",
 		"open https://github.com:8443/o/n",
@@ -108,6 +110,7 @@ func TestOpenCommandRefuses(t *testing.T) {
 // TestOpenCommandPressesTheKey checks that open alone opens what is
 // selected by pressing the open key, where the key goes.
 func TestOpenCommandPressesTheKey(t *testing.T) {
+	t.Parallel()
 	b := &browser{}
 	m, fakes := newGotoApp(t, newGotoRepos(), WithBrowser(b.open), WithRepo(testRepo))
 	drive(m, m.key(press("3")))

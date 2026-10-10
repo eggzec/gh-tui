@@ -120,6 +120,7 @@ func startAvatars(t *testing.T, m *Model, s *fakeSection, tmux bool) []tea.Msg {
 // terminal as it arrives. The sections draw the avatars that arrive
 // together once.
 func TestAvatarsFlow(t *testing.T) {
+	t.Parallel()
 	m, s := avatarsApp(t)
 	arrivals := startAvatars(t, m, s, false)
 	raw, sent := feed(m, arrivals...)
@@ -151,6 +152,7 @@ func TestAvatarsFlow(t *testing.T) {
 // interrupt meanwhile is dropped, so none ends the program before the
 // deletes are written.
 func TestAvatarsQuit(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name string
 		msg  tea.Msg
@@ -194,6 +196,7 @@ func TestAvatarsQuit(t *testing.T) {
 // view sends; the avatars sent while the app's pane was blurred are sent
 // again when it gains focus, and only those. With all, nothing is.
 func TestAvatarsSentWhileHidden(t *testing.T) {
+	t.Parallel()
 	for _, passthrough := range []string{"on", "all"} {
 		t.Run(passthrough, func(t *testing.T) {
 			m, s := avatarsApp(t)
@@ -221,6 +224,7 @@ func TestAvatarsSentWhileHidden(t *testing.T) {
 // its client is another terminal that shows images too, not on every
 // focus.
 func TestAvatarsResendOnAttach(t *testing.T) {
+	t.Parallel()
 	m, s := avatarsApp(t)
 	feed(m, startAvatars(t, m, s, true)...)
 	if raw, _ := feed(m, tea.FocusMsg{}); len(raw) != 0 {
@@ -235,6 +239,7 @@ func TestAvatarsResendOnAttach(t *testing.T) {
 // Without images, the sections are never told of avatars and nothing is
 // fetched or deleted.
 func TestAvatarsWithoutImages(t *testing.T) {
+	t.Parallel()
 	m, s := avatarsApp(t)
 	m.Update(graphicsDecidedMsg{graphics: ui.Graphics{}})
 	raw, _ := feed(m, tea.FocusMsg{}, cellSizedMsg{cell: imgcaps.Cell{Width: 10, Height: 20}, from: cellFromCell})
@@ -250,6 +255,7 @@ func TestAvatarsWithoutImages(t *testing.T) {
 // from another terminal that shows images too sends the avatars again,
 // once each.
 func TestTmuxAttachResendsAvatars(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, _ := tmuxApp(t, ft)
 	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
@@ -278,6 +284,7 @@ func TestTmuxAttachResendsAvatars(t *testing.T) {
 // those sent from the first, which is still attached and would keep them;
 // once it detaches, images are sent again.
 func TestTmuxSharedDeletesAvatars(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}, Attached: 1}}
 	m, _ := tmuxApp(t, ft)
 	m.after = func(_ time.Duration, msg tea.Msg) tea.Cmd { return func() tea.Msg { return later{msg} } }
@@ -312,6 +319,7 @@ func TestTmuxSharedDeletesAvatars(t *testing.T) {
 // repository, as its icon, in a box kept from the start, and looks as it
 // does without avatars where the terminal shows no images.
 func TestHeaderAvatar(t *testing.T) {
+	t.Parallel()
 	plain := newHeaderApp(t).header
 	src := &uitest.ImageHost{}
 	if got := newHeaderApp(t, WithImages(uitest.Avatars(src, false))).header; got != plain {

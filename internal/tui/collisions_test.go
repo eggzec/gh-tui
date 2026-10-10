@@ -192,6 +192,7 @@ func byFile(lines []string) string {
 // the app against the allowlist: a collision it doesn't list fails, and
 // so does a line that lists one no context has.
 func TestCollisions(t *testing.T) {
+	t.Parallel()
 	allow, problems := readAllow(os.DirFS(allowDir))
 	for _, p := range problems {
 		t.Error(p)
@@ -226,6 +227,7 @@ func TestCollisions(t *testing.T) {
 // line without a reason or listed twice is a problem, and that what to add
 // and remove is named exactly.
 func TestAllowList(t *testing.T) {
+	t.Parallel()
 	a := collision{context: "issues", key: "f", loser: "list: page down", winner: "app: filter"}
 	b := collision{context: "issues", key: "s", loser: "Issues: sort", winner: "app: sort"}
 	c := collision{context: "pull requests", key: "f", loser: "list: page down", winner: "app: filter"}
@@ -264,6 +266,7 @@ func TestAllowList(t *testing.T) {
 // TestReadAllow checks that every file of the allowlist is read, and that
 // an empty file and a line in the file of another context are problems.
 func TestReadAllow(t *testing.T) {
+	t.Parallel()
 	a := collision{context: "issues", key: "f", loser: "list: page down", winner: "app: filter"}
 	b := collision{context: "owner: stars", key: "]", loser: "profile: next pane", winner: "profile: next tab"}
 	c := collision{context: "pull requests", key: "f", loser: "list: page down", winner: "app: filter"}

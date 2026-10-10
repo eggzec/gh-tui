@@ -71,6 +71,7 @@ func texts(cs []cmdline.Candidate) []string {
 }
 
 func TestComplete(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		// line has | at the cursor, or the cursor at its end.
@@ -180,6 +181,7 @@ func TestComplete(t *testing.T) {
 }
 
 func TestCompleteShowsTitlesAndDetails(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
 	got := m.complete("goto #7", 7)
 	if len(got) != 1 || got[0].Label != "#7" || got[0].Detail != "First" {
@@ -197,6 +199,7 @@ func TestCompleteShowsTitlesAndDetails(t *testing.T) {
 }
 
 func TestTabCompletesTheLine(t *testing.T) {
+	t.Parallel()
 	recall := newFakeRecall()
 	m, _ := newTestApp(t, WithRecall(recall))
 	drive(m, m.key(press(":")))
@@ -227,6 +230,7 @@ func TestTabCompletesTheLine(t *testing.T) {
 }
 
 func TestRecentRepos(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	for i := range maxRecent + 3 {
 		drive(m, func() tea.Msg { return testRepoMsg(i) })
@@ -253,6 +257,7 @@ func testRepoMsg(i int) ui.RepoMsg {
 }
 
 func TestCompleteArgumentsOverAModal(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
 	if got := m.complete("goto #7", 7); len(got) == 0 {
 		t.Fatal("goto completes nothing without a modal")
@@ -276,6 +281,7 @@ func TestCompleteArgumentsOverAModal(t *testing.T) {
 }
 
 func TestCompleteParsesTheHistoryOnce(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
 	m.line.SetHistory([]string{"goto cli/cli", "refresh", "goto @octocat", "goto golang/go"})
 	for _, line := range []string{"goto @o", "goto @oc", "goto @oct", "goto c", "goto cl"} {
@@ -295,6 +301,7 @@ func TestCompleteParsesTheHistoryOnce(t *testing.T) {
 }
 
 func TestCompleteSeesAGotoSubmittedAfterACompletion(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t, WithRecall(newFakeRecall()))
 	drive(m, m.key(press(":")))
 	if got := texts(m.complete("goto @nos", 9)); len(got) != 0 {

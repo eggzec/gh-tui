@@ -60,6 +60,7 @@ var modalsOver = []struct {
 // screen is refused while a modal is open, naming the modal and what the
 // key does, and is disabled in the modal's help.
 func TestScreenKeysAreRefusedOverAModal(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		for _, tt := range []struct{ key, use string }{
 			{"0", "the dashboard"}, {"I", "notifications"}, {"S", "search"}, {".", "the repository"},
@@ -86,6 +87,7 @@ func TestScreenKeysAreRefusedOverAModal(t *testing.T) {
 // lists the keys that show another screen as disabled, but for the owner
 // key where the modal takes it for its author.
 func TestScreenKeysAreDisabledInModalHelp(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		modal      []string
 		owner      bool
@@ -126,6 +128,7 @@ func TestScreenKeysAreDisabledInModalHelp(t *testing.T) {
 // TestOwnerKeyOverModals checks that the owner key shows the author of a
 // pull request or an issue from its modal, and is refused over the others.
 func TestOwnerKeyOverModals(t *testing.T) {
+	t.Parallel()
 	for _, steps := range [][]string{{"global.pane_2", "global.select"}, {"global.pane_3", "global.select"}} {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, steps...)
@@ -158,6 +161,7 @@ func modalName(m *Model) string { return m.modalName(m.modal) }
 // TestQuitClosesTheModal checks that the quit key closes the modal in one
 // press, from any of its views, and quits when none is open.
 func TestQuitClosesTheModal(t *testing.T) {
+	t.Parallel()
 	for _, mod := range modalsOver {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -188,6 +192,7 @@ func TestQuitClosesTheModal(t *testing.T) {
 // TestQuitIsTypedInAnInput checks that q types into a modal's input, and
 // doesn't close it.
 func TestQuitIsTypedInAnInput(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_3", "global.select", "issue_modal.comment")
 		tap(t, m, "q")
@@ -200,6 +205,7 @@ func TestQuitIsTypedInAnInput(t *testing.T) {
 // TestDismissLadder checks that the dismiss key goes one step at a time: an
 // error toast first, even over a modal, and then the modal closes.
 func TestDismissLadder(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "global.select")
 		driveKeys(t, m, func() tea.Msg { return ui.NotifyMsg{Level: toast.Error, Text: "Could not merge."} })
@@ -220,6 +226,7 @@ func TestDismissLadder(t *testing.T) {
 // TestDismissLeavesOtherToasts checks that the dismiss key takes an error
 // toast only: the others go on their own.
 func TestDismissLeavesOtherToasts(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.NotifyMsg{Level: toast.Info, Text: "Copied."} })
@@ -236,6 +243,7 @@ func TestDismissLeavesOtherToasts(t *testing.T) {
 // where backspace steps back and esc closes the modal; the zoom key shows
 // the panes again.
 func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
+	t.Parallel()
 	t.Run("repository", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, "global.zoom")
@@ -301,6 +309,7 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 // TestErrorToastsStayUntilDismissed checks that an error toast has no
 // time of its own and so no timer, by default.
 func TestErrorToastsStayUntilDismissed(t *testing.T) {
+	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
 	if d := m.toast.ErrorDuration(); d != 0 {
 		t.Errorf("error toasts stay %v, want until dismissed", d)
@@ -316,6 +325,7 @@ func TestErrorToastsStayUntilDismissed(t *testing.T) {
 // TestToastKeyIsGone checks that ctrl+x no longer dismisses a toast and
 // that the config has no action for it.
 func TestToastKeyIsGone(t *testing.T) {
+	t.Parallel()
 	for _, a := range config.Default().Keys.Actions() {
 		if strings.HasSuffix(a, "dismiss_toast") {
 			t.Errorf("the config has the action %s", a)
@@ -335,6 +345,7 @@ func TestToastKeyIsGone(t *testing.T) {
 // something, such as a refusal over a modal or a mistyped command, is a
 // warning that goes on its own, and that a failure stays an error.
 func TestGuidanceIsAWarning(t *testing.T) {
+	t.Parallel()
 	fresh := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
 	if cmd := fresh.toast.Push(toast.Warning, "Close the file first."); cmd == nil {
 		t.Error("a warning has no timer")
@@ -358,6 +369,7 @@ func TestGuidanceIsAWarning(t *testing.T) {
 // TestDismissOrder checks that esc dismisses an error toast first, then
 // cancels a goto that waits, even while a query is typed.
 func TestDismissOrder(t *testing.T) {
+	t.Parallel()
 	repos := newGotoRepos()
 	m, _ := newGotoApp(t, repos)
 	submitLine(t, m, "goto charmbracelet/bubbletea")
@@ -390,6 +402,7 @@ func TestDismissOrder(t *testing.T) {
 // TestCtrlCQuitsFromTheCommandLine checks that ctrl+c quits from the open
 // command line, and that esc cancels the line.
 func TestCtrlCQuitsFromTheCommandLine(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	run(m, m.key(press(":")))
 	cmd := m.key(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
@@ -409,6 +422,7 @@ func TestCtrlCQuitsFromTheCommandLine(t *testing.T) {
 
 // TestQuitClosesTheRelease checks that q closes a release modal.
 func TestQuitClosesTheRelease(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg {

@@ -25,6 +25,7 @@ var markCases = []listFindCase{
 // the marks, and help lists the mark key, and the esc that clears the marks
 // while some are set.
 func TestListsMarkRows(t *testing.T) {
+	t.Parallel()
 	for _, c := range markCases {
 		t.Run(c.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -104,6 +105,7 @@ func TestListsMarkRows(t *testing.T) {
 
 // With ui.icons set to ascii the mark is drawn in ASCII too.
 func TestListMarkASCII(t *testing.T) {
+	t.Parallel()
 	for _, c := range markCases {
 		t.Run(c.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

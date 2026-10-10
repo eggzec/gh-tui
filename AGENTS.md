@@ -339,7 +339,10 @@ reacts to messages. Concretely:
   services and no mocks. Use table-driven tests for Update, golden files for
   View, and include benchmarks.
 - **Tests that drive the program** (keys in, output and final model out) use
-  `teatest`. Refresh golden files with `go test ./... -update`.
+  `teatest`. Refresh golden files with `go test ./... -update`. Tests in
+  `internal/tui` run in parallel, which is safe for `-update` since each test
+  writes its own golden files. A test that sets environment variables or
+  replaces the default logger stays serial, and says why in a comment.
 - **Services** are tested with small hand-written fakes of the interfaces they
   consume. For the API clients, use `httptest.Server` with recorded fixtures.
   Cover error paths, pagination, cache hits and misses, and rollback.

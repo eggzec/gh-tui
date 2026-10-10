@@ -109,6 +109,7 @@ func kittyReply(id uint32, payload string) uv.KittyGraphicsEvent {
 var da1 = uv.PrimaryDeviceAttributesEvent{62, 22}
 
 func TestImagesProbe(t *testing.T) {
+	t.Parallel()
 	kittyEnv := imgcaps.Env{Term: "xterm-kitty"}
 	plain := imgcaps.Env{Term: "xterm-256color"}
 	name := func(n string) func(uint32) []tea.Msg {
@@ -278,6 +279,7 @@ func TestImagesProbe(t *testing.T) {
 // profile that changes nothing; one that lets images be drawn where the
 // first didn't starts the probe again.
 func TestImagesProbeProfile(t *testing.T) {
+	t.Parallel()
 	m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-kitty"}, "")
 	if writes := answer(m, da1); len(writes) != 0 || m.images.done {
 		t.Fatalf("a DA1 before the probe wrote %q, done %v", writes, m.images.done)
@@ -309,6 +311,7 @@ func TestImagesProbeProfile(t *testing.T) {
 // environment, runs no tmux and sends the terminal nothing, and draws no
 // images.
 func TestImagesNoProbe(t *testing.T) {
+	t.Parallel()
 	m, sections := newTestApp(t)
 	m.images.tmux = func(context.Context, ...string) (string, error) {
 		t.Error("tmux ran without WithImageProbe")
@@ -335,6 +338,7 @@ func TestImagesNoProbe(t *testing.T) {
 // profile it gets starts the probe again, which can turn images on.
 // NO_COLOR keeps its profile.
 func TestImagesProbeUpgradesProfile(t *testing.T) {
+	t.Parallel()
 	m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-256color"}, "")
 	if writes := answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI}); !slices.Equal(writes, []string{ansi.RequestNameVersion}) {
 		t.Fatalf("16 colors wrote %q, want XTVERSION alone", writes)
@@ -373,6 +377,7 @@ func TestImagesProbeUpgradesProfile(t *testing.T) {
 // early or late, whole or in pieces, reaches the app as keys: the reader
 // decodes each one into an event of its own, which the probe drops.
 func TestLateAnswers(t *testing.T) {
+	t.Parallel()
 	m, sections := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-kitty"}, "")
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.TrueColor})
 	answer(m, probeTimeoutMsg{id: m.images.id})
@@ -443,6 +448,7 @@ func readEvents(t *testing.T, reads []string) []uv.Event {
 // The app asks XTVERSION once, in the probe, and the terminal record
 // carries the verdict, once both came.
 func TestTerminalRecordHasImages(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	var buf bytes.Buffer
 	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
@@ -509,6 +515,7 @@ func captureLog(t *testing.T) *bytes.Buffer {
 // Through tmux the terminal record says so, names the terminal of tmux's
 // client as tmux does, and how long tmux took.
 func TestTerminalRecordThroughTmux(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	buf := captureLog(t)
 	m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "tmux-256color", Tmux: true}, "kitty(0.43.1)")
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -535,6 +542,7 @@ func TestTerminalRecordThroughTmux(t *testing.T) {
 // own; the first verdict, decided by the profile alone, waited for
 // nothing.
 func TestImagesRecordAfterTerminal(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	buf := captureLog(t)
 	m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-256color"}, "")
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
@@ -573,6 +581,7 @@ func TestImagesRecordAfterTerminal(t *testing.T) {
 // The images command says what the startup check found, and changes
 // nothing.
 func TestImagesCommand(t *testing.T) {
+	t.Parallel()
 	passthroughOff := &fakeTmux{passthrough: "off", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)"}}
 	tests := []struct {
 		name  string
@@ -663,6 +672,7 @@ func TestImagesCommand(t *testing.T) {
 
 // The images command takes no argument.
 func TestImagesCommandTakesNoArgument(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	runCommand(t, m, "images now")
 	if got := toasted(m); !strings.Contains(got, "The images command takes no argument.") {
@@ -688,6 +698,7 @@ func trimLines(s string) string {
 // At a narrow width the images pager wraps its lines rather than cut
 // them, so the line to add to tmux.conf shows whole.
 func TestImagesCommandNarrow(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	m.images.mode = imgcaps.ModeAuto
 	ft := &fakeTmux{passthrough: "off", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)"}}

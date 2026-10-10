@@ -48,6 +48,7 @@ func terminalRecords(t *testing.T, msgs ...tea.Msg) []map[string]any {
 }
 
 func TestTerminalRecord(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	size := tea.WindowSizeMsg{Width: 120, Height: 40}
 	profile := tea.ColorProfileMsg{Profile: colorprofile.TrueColor}
 	tests := []struct {

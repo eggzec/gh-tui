@@ -58,6 +58,7 @@ func (f *fakeModal) keys() []string {
 // TestModalTakesEveryKey checks that a modal takes every key but ctrl+c,
 // which quits, and the help key, which opens the help over it.
 func TestModalTakesEveryKey(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
@@ -88,6 +89,7 @@ func TestModalTakesEveryKey(t *testing.T) {
 }
 
 func TestModalGetsOtherMessages(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
@@ -131,6 +133,7 @@ func (s *settlingModal) Settle() tea.Cmd {
 // message that ends the wait reaches it; a modal that waits out nothing
 // is resized alike.
 func TestModalSettlesAfterAResize(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	plain := &fakeModal{title: "Plain"}
 	run(m, ui.OpenModal(plain))
@@ -155,6 +158,7 @@ func TestModalSettlesAfterAResize(t *testing.T) {
 // the candidates of the command line take a row from it, which may
 // narrow what it renders.
 func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &settlingModal{}
 	mod.title = "README.md"
@@ -182,6 +186,7 @@ func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
 }
 
 func TestOpeningAModalHidesTheOpenOne(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	first := &hidingModal{}
 	first.title = "Actions"
@@ -197,6 +202,7 @@ func TestOpeningAModalHidesTheOpenOne(t *testing.T) {
 }
 
 func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
+	t.Parallel()
 	m, fakes := newTestApp(t)
 	first, second := &fakeModal{title: "Search"}, &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(first))
@@ -232,6 +238,7 @@ func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 }
 
 func TestModalIsDrawnInAFrameOverTheScreen(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &fakeModal{title: "go.mod"}
 	run(m, ui.OpenModal(mod))

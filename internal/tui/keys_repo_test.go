@@ -33,6 +33,7 @@ func newRepoKeyApp(t *testing.T, keys config.Keymap, sel ui.Selection, ok bool) 
 // repository of the row the cursor is on, not that of the current
 // directory.
 func TestRepoKeyOpensTheRepositoryOfTheRow(t *testing.T) {
+	t.Parallel()
 	m := newRepoKeyApp(t, config.Default().Keys, ui.RepoSelection(core.Repo{Ref: bubbletea}, ""), true)
 	if !m.keys.state(m).Repo.Enabled() {
 		t.Error("the repo key is off on a row with a repository")
@@ -47,6 +48,7 @@ func TestRepoKeyOpensTheRepositoryOfTheRow(t *testing.T) {
 // and that help shows it off, where the selection has no repository or
 // nothing is selected, and where it is the repository on view.
 func TestRepoKeyIsOffWithoutARepository(t *testing.T) {
+	t.Parallel()
 	for name, tt := range map[string]struct {
 		sel ui.Selection
 		ok  bool
@@ -77,6 +79,7 @@ func TestRepoKeyIsOffWithoutARepository(t *testing.T) {
 // TestRepoKeyFollowsTheConfig checks that the repo key can be unbound or
 // bound to another key.
 func TestRepoKeyFollowsTheConfig(t *testing.T) {
+	t.Parallel()
 	sel := ui.RepoSelection(core.Repo{Ref: bubbletea}, "")
 
 	keys := config.Default().Keys
@@ -103,6 +106,7 @@ func TestRepoKeyFollowsTheConfig(t *testing.T) {
 // TestRepoKeyOnASearchResult checks that the repo key opens the repository
 // of the result the cursor is on.
 func TestRepoKeyOnASearchResult(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
@@ -119,6 +123,7 @@ func TestRepoKeyOnASearchResult(t *testing.T) {
 // TestSearchKeyClearsTheQueryOnThePage checks that the search key, pressed
 // with the search page on view, starts a new query.
 func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
@@ -135,6 +140,7 @@ func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
 // TestGotoHere checks that goto . opens the repository of the current
 // directory, and says so when there is none.
 func TestGotoHere(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos(), WithHere(testRepo))
 	runCommand(t, m, "goto .")
 	if m.screen != repoScreen || m.repo != testRepo {
@@ -151,6 +157,7 @@ func TestGotoHere(t *testing.T) {
 // TestCompleteHere checks that goto completes . when there is a
 // repository in the current directory.
 func TestCompleteHere(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos(), WithHere(testRepo))
 	got := m.completeTarget(".", 1, 1, true)
 	if len(got) != 1 || got[0].Text != "." {
@@ -171,6 +178,7 @@ func TestCompleteHere(t *testing.T) {
 // repository of a result keeps the query that found it among the recent
 // searches, even when it was never submitted.
 func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "q", "z", "x", "esc")
@@ -190,6 +198,7 @@ func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
 // TestBackspaceOnTheSearchPage checks that backspace goes back from the
 // search page while the query isn't typing, and deletes while it is.
 func TestBackspaceOnTheSearchPage(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "backspace")
@@ -211,6 +220,7 @@ func TestBackspaceOnTheSearchPage(t *testing.T) {
 // search page focused but not typing, no result is selected for the repo
 // key.
 func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "esc", "1")
@@ -231,6 +241,7 @@ func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 // current directory, and that . says where the repository is when it is on
 // another host, for open and goto.
 func TestOpenHere(t *testing.T) {
+	t.Parallel()
 	m, _ := newGotoApp(t, newGotoRepos(), WithHere(testRepo))
 	got := runCommand(t, m, "open .")
 	if !slices.Contains(got, tea.Msg(ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui"})) {

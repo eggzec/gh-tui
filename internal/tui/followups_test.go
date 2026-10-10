@@ -17,6 +17,7 @@ import (
 // that expires, whatever the target is, and keeps the error toasts, which
 // stay until dismissed, for the failures of asking GitHub.
 func TestGotoNotFoundIsAWarning(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		line string
@@ -61,6 +62,7 @@ func TestGotoNotFoundIsAWarning(t *testing.T) {
 // even over the command line and the help, which close only when there is
 // neither.
 func TestEscDismissesBeforeLineAndHelp(t *testing.T) {
+	t.Parallel()
 	failure := errors.New("boom")
 	open := map[string]func(*testing.T, *Model){
 		"command line": func(t *testing.T, m *Model) {
@@ -129,6 +131,7 @@ func TestEscDismissesBeforeLineAndHelp(t *testing.T) {
 // Where icons are plain ASCII, no section draws a separator, a mark or an
 // ellipsis from the set of unicode ones.
 func TestASCIIIconsOnTheRepositoryScreen(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Icons = config.IconsASCII })
 		resize(m, 80, 24)

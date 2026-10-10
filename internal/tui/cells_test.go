@@ -44,6 +44,7 @@ func ghosttyApp(t *testing.T) (*Model, []*fakeSection, []string) {
 // the columns and rows, else from the fallback; DA1 after each question
 // tells a terminal that ignored it from one that is slow.
 func TestCellQuery(t *testing.T) {
+	t.Parallel()
 	timeout := func(m *Model) tea.Msg { return cellTimeoutMsg{id: m.cells.id} }
 	msgs := func(ms ...tea.Msg) func(*Model) []tea.Msg {
 		return func(*Model) []tea.Msg { return ms }
@@ -138,6 +139,7 @@ func TestCellQuery(t *testing.T) {
 // A resize asks again, and one during a query has it ask again once it
 // ends; a DA1 the query didn't ask for is the probe's to drop.
 func TestCellQueryResize(t *testing.T) {
+	t.Parallel()
 	m, _, _ := ghosttyApp(t)
 	if writes := answer(m, tea.WindowSizeMsg{Width: 120, Height: 40}); len(writes) != 0 {
 		t.Errorf("a resize during the query wrote %q", writes)
@@ -168,6 +170,7 @@ func TestCellQueryResize(t *testing.T) {
 
 // A terminal the probe didn't allow is asked nothing, however it resizes.
 func TestCellQueryOnlyWithImages(t *testing.T) {
+	t.Parallel()
 	m, _ := probeApp(t, imgcaps.ModeAuto, imgcaps.Env{Term: "xterm-256color"}, "")
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.TrueColor})
@@ -190,6 +193,7 @@ func TestCellQueryOnlyWithImages(t *testing.T) {
 // The window's pixels are divided by the columns and rows the query was
 // asked with, though a resize came meanwhile.
 func TestCellQueryWindowOfTheAsk(t *testing.T) {
+	t.Parallel()
 	m, _, _ := ghosttyApp(t)
 	answer(m, da1)
 	answer(m, tea.WindowSizeMsg{Width: 50, Height: 15})
@@ -205,6 +209,7 @@ func TestCellQueryWindowOfTheAsk(t *testing.T) {
 // A query that times out after a size was found keeps it: the fallback
 // is for a terminal that never said.
 func TestCellQueryKeepsFoundCell(t *testing.T) {
+	t.Parallel()
 	m, _, _ := ghosttyApp(t)
 	answer(m, uv.CellSizeEvent{Width: 9, Height: 18})
 	answer(m, da1)
@@ -219,6 +224,7 @@ func TestCellQueryKeepsFoundCell(t *testing.T) {
 // taken for the next query's nor end it: a terminal answers in order, so
 // what comes before the late DA1 is the old query's.
 func TestCellQueryLateAnswers(t *testing.T) {
+	t.Parallel()
 	m, _, _ := ghosttyApp(t)
 	answer(m, cellTimeoutMsg{id: m.cells.id})
 	if writes := answer(m, tea.WindowSizeMsg{Width: 120, Height: 40}); !slices.Equal(writes, []string{askCell}) {
@@ -238,6 +244,7 @@ func TestCellQueryLateAnswers(t *testing.T) {
 
 // A query that ends after images went off doesn't ask again.
 func TestCellQueryAgainOnlyWithImages(t *testing.T) {
+	t.Parallel()
 	m, _ := newTestApp(t)
 	if writes := answer(m, cellSizedMsg{cell: imgcaps.Cell{Width: 9, Height: 18}, from: cellFromCell, again: true}); len(writes) != 0 {
 		t.Errorf("wrote %q without images", writes)
@@ -259,6 +266,7 @@ func tmuxApp(t *testing.T, ft *fakeTmux) (*Model, []*fakeSection) {
 // size of its client's cells, on every resize too, whether or not the
 // app's pane is active.
 func TestTmuxCells(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, _ := tmuxApp(t, ft)
 	if writes := answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256}); len(writes) != 0 {
@@ -288,6 +296,7 @@ func TestTmuxCells(t *testing.T) {
 // attached from another terminal; only another terminal has it asked
 // everything again, and a verdict that changes is told and logged.
 func TestTmuxFocusRechecks(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	buf := captureLog(t)
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, sections := tmuxApp(t, ft)
@@ -357,6 +366,7 @@ func TestTmuxFocusRechecks(t *testing.T) {
 // a resize meanwhile has the size of a cell asked again once the answer
 // in flight came, since that answer may predate the resize.
 func TestTmuxFocusWhileAsking(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, _ := tmuxApp(t, ft)
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
@@ -384,6 +394,7 @@ func TestTmuxFocusWhileAsking(t *testing.T) {
 // Setting allow-passthrough on, as :images suggests, and reloading tmux's
 // config turns images on at the next focus, without a restart.
 func TestTmuxPassthroughTurnedOn(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "off", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}}}
 	m, _ := tmuxApp(t, ft)
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
@@ -408,6 +419,7 @@ func TestTmuxPassthroughTurnedOn(t *testing.T) {
 // it finds on a focus or a resize, and asks tmux on a resize even while
 // images are off for that.
 func TestTmuxSharedSession(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1", Termtype: "kitty(0.43.1)", Cell: imgcaps.Cell{Width: 9, Height: 18}, Attached: 2}}
 	m, _ := tmuxApp(t, ft)
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
@@ -449,6 +461,7 @@ func TestTmuxSharedSession(t *testing.T) {
 // compared with what tmux said then, so a focus that finds the same
 // asks tmux one question, not everything.
 func TestTmuxFocusUnnamedClient(t *testing.T) {
+	t.Parallel()
 	ft := &fakeTmux{passthrough: "on", client: imgcaps.TmuxClient{TTY: "/dev/pts/1"}}
 	m, _ := tmuxApp(t, ft)
 	answer(m, tea.ColorProfileMsg{Profile: colorprofile.ANSI256})
@@ -462,6 +475,7 @@ func TestTmuxFocusUnnamedClient(t *testing.T) {
 
 // Outside tmux, focus asks nothing.
 func TestFocusOutsideTmux(t *testing.T) {
+	t.Parallel()
 	m, _, _ := ghosttyApp(t)
 	answer(m, cellTimeoutMsg{id: m.cells.id})
 	m.images.tmux = func(context.Context, ...string) (string, error) {

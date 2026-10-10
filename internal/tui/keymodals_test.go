@@ -43,6 +43,7 @@ var closing = []struct {
 // TestEscClosesTheModalFromAnyStep checks that esc closes the whole modal
 // at once, from the deepest step of it, not a step at a time.
 func TestEscClosesTheModalFromAnyStep(t *testing.T) {
+	t.Parallel()
 	for _, tt := range closing {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -83,6 +84,7 @@ func openRelease(t *testing.T) *Model {
 // TestBackspaceDoesNothingAtTheTopOfAModal checks that the back key leaves
 // a modal that has no step before it as it is, and doesn't close it.
 func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
+	t.Parallel()
 	tops := []struct {
 		name  string
 		steps []string
@@ -124,6 +126,7 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 // modal: the log goes back to the jobs, the jobs to the runs, and the runs
 // have nothing before them, and the help names the step the key goes to.
 func TestBackspaceStepsBackThroughActions(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.next_pane")
 		for _, want := range []string{"jobs", "runs", ""} {
@@ -141,6 +144,7 @@ func TestBackspaceStepsBackThroughActions(t *testing.T) {
 // TestBackspaceStepsBackThroughHistory checks the steps of History: the
 // graph goes back to the branches, which have nothing before them.
 func TestBackspaceStepsBackThroughHistory(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "repo.history")
 		for _, want := range []string{"branches", ""} {
@@ -158,6 +162,7 @@ func TestBackspaceStepsBackThroughHistory(t *testing.T) {
 // TestEscClearsASearchBeforeClosing checks that esc takes away the search
 // that a pager shows before it closes the modal.
 func TestEscClearsASearchBeforeClosing(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.command", typed("config"), "command_line.run")
 		tap(t, m, "/")
@@ -180,6 +185,7 @@ func TestEscClearsASearchBeforeClosing(t *testing.T) {
 // pager's search, it deletes a character and neither steps back nor
 // closes.
 func TestBackspaceDeletesInATypingWidget(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		steps []string

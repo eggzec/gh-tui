@@ -83,6 +83,7 @@ func (a *linkApp) check(t *testing.T, when string, want int) {
 // reach it wakes the polls and the sections once, and that nothing else
 // does: not an answer while online, nor a change of another key.
 func TestOnlineWakesOnce(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		run(a.m, a.online())
@@ -107,6 +108,7 @@ func TestOnlineWakesOnce(t *testing.T) {
 // status bar, and that the failing resource answering well again wakes
 // the polls and the sections once, as coming online does.
 func TestFailingWakesOnRecovery(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		a.m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
@@ -139,6 +141,7 @@ func TestFailingWakesOnRecovery(t *testing.T) {
 // since what was kept while it held was served and read only on a wake,
 // and that a limit holding wakes nothing.
 func TestLimitLiftWakes(t *testing.T) {
+	t.Parallel()
 	limits := map[string]func(s *core.RateStatus, until time.Time){
 		"quota": func(s *core.RateStatus, until time.Time) {
 			s.Quotas = []core.Quota{{Resource: "core", Limit: 5000, Reset: until, LimitedUntil: until}}
@@ -176,6 +179,7 @@ func TestLimitLiftWakes(t *testing.T) {
 // an OnlineMsg that says so, and that the limit lifting later wakes them
 // with one that doesn't, so that reads ahead resume only then.
 func TestOnlineAfterOutageTellsTheLimit(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		run(a.m, a.limit(func(s *core.RateStatus) { s.Quotas = []core.Quota{spent("core", time.Now().Add(time.Minute))} }))
@@ -218,6 +222,7 @@ func spent(resource string, until time.Time) core.Quota {
 // still holds wakes nothing, and that the last one lifting wakes the polls
 // and the sections.
 func TestLimitLiftWaitsForTheLast(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		now := time.Now()
@@ -238,6 +243,7 @@ func TestLimitLiftWaitsForTheLast(t *testing.T) {
 // the reads would fail again, and waking the polls would undo their
 // backoff.
 func TestLimitLiftWhileOfflineOrFailing(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name string
 		down func(a *linkApp)
@@ -264,6 +270,7 @@ func TestLimitLiftWhileOfflineOrFailing(t *testing.T) {
 // TestLimitLiftsWakeOnceAGap checks that a limit that holds and lifts
 // again within onlineGap of the last wake waits for the gap's end.
 func TestLimitLiftsWakeOnceAGap(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		hold := func(until time.Time) tea.Cmd {
@@ -295,6 +302,7 @@ func TestLimitLiftsWakeOnceAGap(t *testing.T) {
 // which would undo the backoff of the failing poll, that the bar tells
 // the same start each time it shows, and that it is logged once.
 func TestFailingLapsesDoNotWake(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	synctest.Test(t, func(t *testing.T) {
 		var buf bytes.Buffer
 		prev := slog.Default()
@@ -331,6 +339,7 @@ func TestFailingLapsesDoNotWake(t *testing.T) {
 // an outage wakes the polls and the sections even while a resource still
 // fails with server errors, and so does the wait for onlineGap.
 func TestOnlineWakesWhileFailing(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		s := a.rates.RateStatus()
@@ -356,6 +365,7 @@ func TestOnlineWakesWhileFailing(t *testing.T) {
 // wake the polls and the sections, and the bar keeps telling since when
 // it failed.
 func TestFailingSteadyDoesNotWake(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		a.m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
@@ -379,6 +389,7 @@ func TestFailingSteadyDoesNotWake(t *testing.T) {
 // line wakes the polls and the sections at most once each onlineGap, and
 // only if GitHub still answers when the gap ends.
 func TestOnlineFlapsWakeOnceAGap(t *testing.T) {
+	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newLinkApp(t)
 		a.offline()
@@ -422,6 +433,7 @@ func TestOnlineFlapsWakeOnceAGap(t *testing.T) {
 // logged once, with the host: offline since when, online again after how
 // long, and the token rejected.
 func TestConnectionLogged(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
 	synctest.Test(t, func(t *testing.T) {
 		var buf bytes.Buffer
 		prev := slog.Default()

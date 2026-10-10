@@ -22,6 +22,7 @@ func (l *linkedModal) Link() string { return l.link }
 // The title of a modal with a page links to it, on the screen as the
 // terminal gets it, however narrow the frame.
 func TestModalTitleLinks(t *testing.T) {
+	t.Parallel()
 	for _, host := range uitest.Hosts {
 		for _, width := range []int{120, 80, 30, 12} {
 			m, _ := newTestApp(t)
@@ -49,6 +50,7 @@ func TestModalTitleLinks(t *testing.T) {
 // The header links the repository to its page on the user's host, and
 // the other screens' titles to nothing.
 func TestHeaderLinks(t *testing.T) {
+	t.Parallel()
 	for _, host := range uitest.Hosts {
 		m := newHeaderApp(t, WithHost(host))
 		for _, width := range []int{120, 40, 10} {

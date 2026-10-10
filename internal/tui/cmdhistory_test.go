@@ -46,6 +46,7 @@ func (f *fakeHistory) saved() [][]string {
 }
 
 func TestHistoryIsLoadedAndSaved(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli", "goto #7"}}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	drive(m, m.Init())
@@ -63,6 +64,7 @@ func TestHistoryIsLoadedAndSaved(t *testing.T) {
 }
 
 func TestHistoryWaitsForTheLoad(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli"}}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	load := m.Init()
@@ -78,6 +80,7 @@ func TestHistoryWaitsForTheLoad(t *testing.T) {
 }
 
 func TestHistoryFailuresAreQuiet(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli"}, loadErr: errors.New("corrupt"), saveErr: errors.New("read-only")}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	drive(m, m.Init())
@@ -94,6 +97,7 @@ func TestHistoryFailuresAreQuiet(t *testing.T) {
 }
 
 func TestHistorySavesInOrder(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	drive(m, m.Init())
@@ -114,6 +118,7 @@ func TestHistorySavesInOrder(t *testing.T) {
 }
 
 func TestQuitWaitsForTheLoad(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli"}}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	load := m.Init()
@@ -139,6 +144,7 @@ func TestQuitWaitsForTheLoad(t *testing.T) {
 }
 
 func TestQuitWaitsNoLonger(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli"}}
 	m, _ := newTestApp(t, WithCommandHistory(hist))
 	m.Init()
@@ -159,6 +165,7 @@ func TestQuitWaitsNoLonger(t *testing.T) {
 }
 
 func TestProgramSavesHistoryBeforeQuitting(t *testing.T) {
+	t.Parallel()
 	hist := &fakeHistory{lines: []string{"goto cli/cli"}}
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}

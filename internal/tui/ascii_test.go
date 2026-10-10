@@ -46,6 +46,7 @@ func nonASCII(s string) string {
 // connection, the toasts, the command line, a modal's frame and tabs, and
 // the help.
 func TestASCIIIconsDrawASCII(t *testing.T) {
+	t.Parallel()
 	s := core.RateStatus{Quotas: quotas(4812, 4960), Answered: statusAt.Add(-time.Minute), At: statusAt}
 	m, fakes := newTestApp(t, WithRateStatus(&fixedRates{s: s}), WithLogin("laraibg786"), WithHost("github.com"))
 	fakes[0].keyMap = arrowKeys{}

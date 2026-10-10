@@ -7,6 +7,7 @@ import (
 )
 
 func TestOldEnterprise(t *testing.T) {
+	t.Parallel()
 	old := make(chan string, 1)
 	m, _ := newTestApp(t, WithOldEnterprise(old))
 	old <- "3.12.4"
