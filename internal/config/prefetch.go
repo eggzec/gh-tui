@@ -101,6 +101,9 @@ type PullsKinds struct {
 	Checks Layer `yaml:"checks,omitempty"`
 	// OtherTabs is the first page of the state tabs not shown yet.
 	OtherTabs Layer `yaml:"other_tabs,omitempty"`
+	// Files is the first page of the files an open pull request changes,
+	// which its Files tab shows.
+	Files Layer `yaml:"files,omitempty"`
 }
 
 // IssuesKinds is the issue list's.
@@ -227,6 +230,7 @@ var windowBounds = map[string]int{
 // cursor, and say so of a window set on them.
 var windowless = map[string]string{
 	"pulls.other_tabs":   "other tabs are read a page at a time, not around the cursor",
+	"pulls.files":        "the files are read of the pull request that is open, never of the rows of a list",
 	"issues.other_tabs":  "other tabs are read a page at a time, not around the cursor",
 	"search.other_kinds": "other kinds of results are read a page at a time, not around the cursor",
 	"owner.other_tabs":   "other tabs are read a page at a time, not around the cursor",

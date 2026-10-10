@@ -84,6 +84,17 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
 }
 
+// Rest has the first window after a [Ahead.Reset] wait for the rest too,
+// rather than being read at once as the first window of a list that shows
+// is. Call it after Reset, for what reads ahead of a single item that the
+// user is already on, such as the files of the pull request a modal
+// shows, which the user may leave at once.
+func (a *Ahead[K]) Rest() {
+	if a != nil {
+		a.loaded = true
+	}
+}
+
 // Keep has the read ahead of k go on though k leaves the window, such as
 // the row the cursor just landed on, which the caller reads itself and
 // leaves out of the window: the caller's read then joins the one in

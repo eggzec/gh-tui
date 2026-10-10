@@ -95,11 +95,18 @@ func sampleFiles() []core.CommitFile {
 // height. The pull request has a head, which the files are read at.
 func filed(tb testing.TB, svc *fakeService, width, height int) (*host, *detailModal) {
 	tb.Helper()
+	return filedWith(tb, svc, width, height)
+}
+
+// filedWith is filed with more options for the section.
+func filedWith(tb testing.TB, svc *fakeService, width, height int, opts ...Option) (*host, *detailModal) {
+	tb.Helper()
 	svc.pulls[0].HeadSHA = "a1b2c3d"
 	if svc.changed == nil {
 		svc.changed = sampleFiles()
 	}
-	h := started(tb, svc, width, height, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
+	opts = append([]Option{WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode))}, opts...)
+	h := started(tb, svc, width, height, opts...)
 	press(tb, h, "enter")
 	m := h.modal()
 	if m == nil {

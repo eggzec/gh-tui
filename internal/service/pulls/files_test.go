@@ -94,6 +94,26 @@ func TestFilesMissThenHit(t *testing.T) {
 	}
 }
 
+func TestCurrentFiles(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		s := New((&restFiles{}).api(), WithTTL(time.Minute))
+		if s.CurrentFiles(filesQ) {
+			t.Fatal("CurrentFiles before any read = true, want false")
+		}
+		readFiles(t, s, filesQ)
+		if !s.CurrentFiles(filesQ) {
+			t.Error("CurrentFiles of a fresh page = false, want true")
+		}
+		if s.CurrentFiles(FilesQuery{Repo: repo, Number: 1}) {
+			t.Error("CurrentFiles with no head = true, want false")
+		}
+		time.Sleep(2 * time.Minute)
+		if s.CurrentFiles(filesQ) {
+			t.Error("CurrentFiles of a stale page = true, want false")
+		}
+	})
+}
+
 func TestFilesNewHeadIsNewKey(t *testing.T) {
 	r := &restFiles{}
 	s := New(r.api())

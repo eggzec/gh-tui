@@ -90,8 +90,11 @@ type detailModal struct {
 	checksSvc checks.Service
 	newChecks func() *checks.Step
 	checks    *checks.Step
-	// files is the Files tab, once it has been shown.
+	// files is the Files tab, once it has been shown. ahead reads the first
+	// page of the files while another tab shows, if prefetch.pulls.files
+	// is on, for the tab to find when it is first shown.
 	files *filesState
+	ahead *ui.Ahead[string]
 	// newRefs makes the References step, which refs is while it shows over
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -160,6 +163,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		avatars:     s.avatars,
 		bodies:      ui.NewImageBodies(s.capsOf(repo).Private),
 		checksSvc:   s.checks,
+		ahead:       newFilesAhead(ctx, s.svc, repo, number, s.prefetch, s.slots),
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -217,14 +221,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step, m.readFilesAhead()))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
-	loads := []tea.Cmd{m.show(), m.revalidate(), step}
+	loads := []tea.Cmd{m.show(), m.revalidate(), step, m.readFilesAhead()}
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
@@ -368,6 +372,12 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
+	return tea.Batch(m.update(msg), m.updateAhead(msg))
+}
+
+// update takes msg, apart from what the read ahead of the files does with
+// it.
+func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.press(msg)

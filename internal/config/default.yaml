@@ -301,8 +301,9 @@ prefetch:
   budget: 10
   # The pages, and the kinds of items on them. Each may set enabled,
   # window and rest. Kinds that read a page at a time (other_tabs,
-  # other_kinds) take no window.
-  #   pulls: details, comments, checks, other_tabs
+  # other_kinds) or only for the item that is open (pulls.files) take no
+  # window.
+  #   pulls: details, comments, checks, other_tabs, files
   #   issues: details, comments, other_tabs
   #   notifications: details, comments (the dashboard's inbox has one
   #     kind for both, dashboard.inbox, and doesn't follow
@@ -321,6 +322,12 @@ prefetch:
     # pending, unless the row shows a new head; the Checks step polls
     # pending checks once it opens.
     checks: {enabled: false, window: {before: 0, after: 2}}
+    # The first page of the files an open pull request changes, 100 with
+    # their patches, a request, read once its modal rests on another tab
+    # than Files for this long, so that the Files tab opens at once. The
+    # rows of the list never read theirs, and the next pages are read as
+    # the diff scrolls.
+    files: {rest: 300ms}
   dashboard:
     # Waiting on you is read while its pane has the focus, and the inbox
     # while the dashboard is on view. A row costs two requests, the detail

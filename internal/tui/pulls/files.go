@@ -27,6 +27,7 @@ import (
 // changes beside the diff of them, or one of the two at a time where the
 // modal is too narrow for both. The files are read when the tab is first
 // shown, a page at a time as the diff scrolls, and the tree grows with them.
+// The first page may be read before, while another tab shows (filesahead.go).
 
 // filesPane is a pane of the Files tab.
 type filesPane int

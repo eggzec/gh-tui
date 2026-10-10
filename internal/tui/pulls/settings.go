@@ -22,6 +22,8 @@ func (s *Section) configure(c config.Config) {
 
 // setPrefetch reads ahead as p says for prefetch.pulls.
 func (s *Section) setPrefetch(p config.PrefetchLayers) {
+	// The modals opened from now on read the files ahead as p says.
+	s.prefetch = &p
 	s.ahead.Configure(p)
 	s.setOthers(ui.Resolve(p, "pulls", "other_tabs").Enabled)
 }
