@@ -7,8 +7,13 @@
   load it with ToolSearch `select:LSP`. Use grep for text, not symbols.
 - **Never block on one command for more than about 4 minutes.** The prompt
   cache lasts 5 minutes, so a longer wait makes the next turn pay for the
-  whole context again. Run long commands in the background and poll in short
-  steps.
+  whole context again.
+- **Wait without blocking.** Never run a foreground `sleep` or `until` loop.
+  To wait for one thing (tests done, a file present), run it with Bash
+  `run_in_background`, for example `until grep -q DONE out; do sleep 1;
+  done`, and end your turn; its completion notice wakes you. For a stream of
+  events (each package's test result, each CI check), use the Monitor tool
+  with a filter that also matches failures (`FAIL|panic|ok`).
 - **Make independent tool calls in parallel**, in one message. Read a file
   once, by range (see Tooling); don't re-read AGENTS.md.
 - **Edit with the Edit tool**, not shell heredocs or sed, for code.
