@@ -109,7 +109,7 @@ func TestKeysByContext(t *testing.T) {
 		{"action of another context", "keys:\n  issues:\n    merge: [M]\n", "line 3: keys.issues.merge: unknown action"},
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
-		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge, keys.notifications.read_all, keys.pull_modal.merge: unbind or rebind them there"},
+		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge, keys.pull_modal.merge: unbind or rebind them there"},
 		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "line 3: keys.global.zoom: B is also keys.repo.history: unbind or rebind them there"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -134,6 +134,7 @@ func TestKeyValidation(t *testing.T) {
 		{"unknown context", "keys:\n  pull:\n    merge: [M]\n", "line 3: keys.pull: unknown context"},
 		{"context without actions", "keys:\n  pulls: [m]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.bottom"},
 		{"unknown action", "keys:\n  pulls:\n    mege: [M]\n", "line 3: keys.pulls.mege: unknown action"},
+		{"removed action", "keys:\n  notifications:\n    read_all: [M]\n", "line 3: keys.notifications.read_all: removed, mark all notifications read with the :read all command, which asks first and needs no key"},
 		{"global action elsewhere", "keys:\n  pulls:\n    refresh: [R]\n", "line 3: keys.pulls.refresh: refresh is a global action, which no context may redefine: set keys.global.refresh"},
 		{"misspelt key", "keys:\n  pulls:\n    merge: [ctlr+m]\n", `line 3: keys.pulls.merge: unknown key "ctlr+m"`},
 		{"ctrl+c in a context", "keys:\n  pulls:\n    merge: [ctrl+c]\n", "line 3: keys.pulls.merge: ctrl+c always quits and can't be bound"},

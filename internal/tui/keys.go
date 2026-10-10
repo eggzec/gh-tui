@@ -27,6 +27,8 @@ type KeyMap struct {
 	// Actions opens the workflow runs of the repository on the repository
 	// screen.
 	Actions key.Binding
+	// Star stars the repository of the repository screen, or unstars it.
+	Star key.Binding
 	// FindFile opens the file finder of the section that has one, on the
 	// repository screen.
 	FindFile key.Binding
@@ -77,6 +79,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Search:        ui.Binding(keys, config.ActionSearch, "search"),
 		History:       ui.Binding(keys, config.ActionHistory, "history"),
 		Actions:       ui.Binding(keys, config.ActionActions, "actions"),
+		Star:          ui.Binding(keys, config.ActionStar, "star"),
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		form:          ui.FilterFormKeys(keys, "filter"),
@@ -121,7 +124,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // FullHelp implements help.KeyMap: every key the app handles, in the
 // order it matches them.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{append(k.globalKeys(), k.History, k.Actions)}
+	return [][]key.Binding{append(k.globalKeys(), k.History, k.Actions, k.Star)}
 }
 
 // globalKeys returns the keys that work on every screen, in the order the
@@ -134,7 +137,7 @@ func (k KeyMap) globalKeys() []key.Binding {
 	}
 }
 
-func (k KeyMap) repoKeys() []key.Binding { return []key.Binding{k.History, k.Actions} }
+func (k KeyMap) repoKeys() []key.Binding { return []key.Binding{k.History, k.Actions, k.Star} }
 
 // layers returns the keys of the app as layers of keys, with the keys that
 // work everywhere, and on the repository screen those of its own.
@@ -153,6 +156,7 @@ func (k KeyMap) layers(m *Model) []keyhelp.Layer {
 func (k KeyMap) state(m *Model) KeyMap {
 	k.History.SetEnabled(k.History.Enabled() && m.canOpenHistory())
 	k.Actions.SetEnabled(k.Actions.Enabled() && m.canOpenActions())
+	k.Star.SetEnabled(k.Star.Enabled() && m.canStar())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})

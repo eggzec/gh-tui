@@ -336,6 +336,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithImageProbe(imgcaps.EnvFrom(os.Getenv), imgcaps.RunTmux),
 		tui.WithImages(pics),
 		tui.WithRepoInfo(repoSvc.Get),
+		tui.WithStarrer(repoSvc),
 		// goto opens a repository or the page of an owner only once it is
 		// known to exist, a number once it knows whether it is an issue or
 		// a pull request, and links to the user's host.

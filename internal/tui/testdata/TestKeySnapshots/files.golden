@@ -21,6 +21,7 @@ global
 Repository
   history | B | B | on
   actions | A | A | on
+  star |  |  | off
 
 Files
   refresh | r | r | on

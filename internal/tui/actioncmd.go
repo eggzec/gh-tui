@@ -60,18 +60,29 @@ func (m *Model) pressAction(action string) tea.Cmd {
 	return m.key(keymap.ActionPress(action))
 }
 
+// actionRead is the action that marks the selected notifications read,
+// whose command also takes "all".
+const actionRead = "notifications.read"
+
 // actionCommand runs the command name that is no built-in one: the action
 // of that name that the focus has, or else a refusal that says where it
-// works, or that there is no such command.
+// works, or that there is no such command. read with the argument all is
+// the one that marks every notification read, for which no action has a
+// key.
 func (m *Model) actionCommand(name, arg string) tea.Cmd {
+	what := name
+	readAll := name == "read" && arg == "all"
+	if readAll {
+		what = "read all"
+	}
 	// A widget that takes every key has no commands but those of the
 	// line, and a modal like it is closed before the app acts.
 	if mod := m.topModal(); mod != nil && m.modalTakesKeys() {
-		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+name+".")
+		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+what+".")
 	}
 	if p := m.focused(); m.topModal() == nil && p != nil {
 		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
-			return m.toast.Push(toast.Warning, "Finish typing first to use "+name+".")
+			return m.toast.Push(toast.Warning, "Finish typing first to use "+what+".")
 		}
 	}
 	action, ok := m.resolveAction(name)
@@ -82,11 +93,14 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 			return m.toast.Push(toast.Warning, "Unknown command: "+name+".")
 		case mod != nil:
 			// A modal refuses what it doesn't own, naming itself.
-			return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+name+".")
+			return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+what+".")
 		}
-		return m.toast.Push(toast.Warning, name+" works in "+where+".")
+		return m.toast.Push(toast.Warning, what+" works in "+where+".")
 	}
-	if arg != "" {
+	if arg != "" && !readAll {
+		if action == actionRead {
+			return m.toast.Push(toast.Warning, "The read command takes no argument but all.")
+		}
 		return m.toast.Push(toast.Warning, "The "+name+" command takes no argument.")
 	}
 	if mod := m.topModal(); mod != nil && action == config.ActionFindFile {
@@ -97,6 +111,14 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	}
 	if !m.actionOpen(action) {
 		return m.toast.Push(toast.Warning, "There is nothing to "+name+" here.")
+	}
+	if readAll {
+		if p := m.focused(); m.topModal() == nil && p != nil {
+			if cmd := p.section.Update(ui.MarkAllReadMsg{}); cmd != nil {
+				return cmd
+			}
+		}
+		return m.toast.Push(toast.Warning, "There is nothing to read here.")
 	}
 	// An action whose own guard makes the key do nothing here, such as
 	// reopening what is open, would leave the line as silent as the key;
@@ -136,6 +158,8 @@ func (m *Model) actionOpen(action string) bool {
 		return m.canOpenHistory()
 	case config.ActionActions:
 		return m.canOpenActions()
+	case config.ActionStar:
+		return m.canStar()
 	case config.ActionFindFile:
 		return m.fileFinder() != nil
 	case config.ActionZoom:

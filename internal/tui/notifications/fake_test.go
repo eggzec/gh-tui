@@ -334,6 +334,9 @@ const showAll = "filter:"
 
 // press presses each key and runs the resulting commands. A key that
 // starts with showAll applies the filter of the query after it.
+// readAll stands in press for the read all command, which has no key.
+const readAll = "read all"
+
 func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	tb.Helper()
 	var app []tea.Msg
@@ -343,7 +346,16 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 			continue
 		}
 		if m, ok := asking[s]; ok {
+			if k == readAll {
+				// No key does it, and the question that is open takes
+				// no other command.
+				continue
+			}
 			app = append(app, run(tb, s, m.Update(keyPress(k)))...)
+			continue
+		}
+		if k == readAll {
+			app = append(app, run(tb, s, s.Update(ui.MarkAllReadMsg{}))...)
 			continue
 		}
 		app = append(app, run(tb, s, s.Update(keyPress(k)))...)

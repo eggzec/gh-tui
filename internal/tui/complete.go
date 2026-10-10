@@ -74,11 +74,27 @@ func (m *Model) complete(line string, cursor int) []cmdline.Candidate {
 		return m.actionCandidates(name, start, end, end == len(line))
 	}
 	c, ok := findCommand(name)
-	if !ok || c.complete == nil || !m.runsOver(c) {
+	if !ok {
+		return m.completeActionArg(name, arg, cursor, end)
+	}
+	if c.complete == nil || !m.runsOver(c) {
 		// A command that is refused over the modal gets no suggestions.
 		return nil
 	}
 	return c.complete(m, arg, cursor, end, end == len(line))
+}
+
+// completeActionArg completes the argument of the action that name is
+// where the focus has it: only read takes one, all.
+func (m *Model) completeActionArg(name, arg string, cursor, end int) []cmdline.Candidate {
+	if action, ok := m.resolveAction(name); !ok || action != actionRead {
+		return nil
+	}
+	word := strings.TrimLeft(arg, " ")
+	if len(word) > len("all") || "all"[:len(word)] != word {
+		return nil
+	}
+	return []cmdline.Candidate{{Text: "all", Label: "all", Detail: "mark every notification read", Start: cursor - len(word), End: end}}
 }
 
 // completeTarget completes what goto opens: a repository, a number after
