@@ -185,10 +185,15 @@ func tags(login string) []string {
 
 // tagged returns load, whose entries it tags as the account login's too.
 func tagged[V any](login string, load cache.FetchFunc[V]) cache.FetchFunc[V] {
+	return withTag(loginTag(login), load)
+}
+
+// withTag returns load, whose entries it also tags with tag.
+func withTag[V any](tag string, load cache.FetchFunc[V]) cache.FetchFunc[V] {
 	return func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
 		e, err := load(ctx, prev, ok)
-		if err == nil && !slices.Contains(e.Tags, loginTag(login)) {
-			e.Tags = append(slices.Clip(e.Tags), loginTag(login))
+		if err == nil && !slices.Contains(e.Tags, tag) {
+			e.Tags = append(slices.Clip(e.Tags), tag)
 		}
 		return e, err
 	}
