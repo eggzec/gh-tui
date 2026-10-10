@@ -49,6 +49,7 @@ func TestModal(t *testing.T) {
 				if got := svc.got(); !slices.Equal(got, []int{135}) {
 					t.Errorf("got details %v, want [135]", got)
 				}
+				m.tab = conversationTab
 				view := modalScreen(t, h)
 				for _, want := range []string{"Retry GraphQL requests", "Cold starts read every page", "Does this survive a crash"} {
 					if !strings.Contains(view, want) {
@@ -179,6 +180,7 @@ func TestCachedModalOpensAtOnce(t *testing.T) {
 		t.Fatal("enter should open the modal, then start its loads")
 	}
 	drain(t, h, seq[0])
+	h.modal().tab = conversationTab
 	view := modalScreen(t, h)
 	for _, want := range []string{"Cold starts read every page", "Does this survive a crash", "It writes to a temporary file"} {
 		if !strings.Contains(view, want) {
@@ -418,6 +420,7 @@ func TestCommentsErrorWords(t *testing.T) {
 			svc.commentsErr = tt.err
 			h := started(t, svc, 100, 30)
 			press(t, h, "enter")
+			h.modal().tab = conversationTab
 			if v := modalScreen(t, h); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") || strings.Contains(v, "/graphql") {
 				t.Errorf("modal = %q, want %q", v, tt.want)
 			}
@@ -565,6 +568,7 @@ func TestModalKeepsItsScrollWhenResized(t *testing.T) {
 	h := started(t, svc, 80, 30)
 	press(t, h, "enter")
 	m := h.modal()
+	m.tab = conversationTab
 	for range 12 {
 		press(t, h, "j")
 	}

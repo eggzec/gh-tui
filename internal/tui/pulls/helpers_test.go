@@ -103,6 +103,9 @@ type fakeService struct {
 	// stale are the numbers whose cached detail has aged, so that Get
 	// would ask GitHub again.
 	stale map[int]bool
+	// tweaks change the detail of a pull request by number, after the
+	// service made it.
+	tweaks map[int]func(*core.PullRequestDetail)
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -141,7 +144,11 @@ func (f *fakeService) detail(number int) core.PullRequestDetail {
 	if !ok {
 		merge = core.MergeInfo{Status: core.MergeClean}
 	}
-	return core.PullRequestDetail{PullRequest: pr, CheckCounts: counts, Merge: merge}
+	d := core.PullRequestDetail{PullRequest: pr, CheckCounts: counts, Merge: merge}
+	if tweak := f.tweaks[number]; tweak != nil {
+		tweak(&d)
+	}
+	return d
 }
 
 func (f *fakeService) CachedGet(_ core.RepoRef, number int) (core.PullRequestDetail, bool) {

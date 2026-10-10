@@ -1,24 +1,24 @@
 - eggzec/gh-tui --------------------------------------------- * 1 notification -
 +-[1] Files -------------------++-[2] Pull requests ---------------------------+
-|> + cmd+- #2 -------------------- Files 4 - Conversation - Checks x2 -+d - All|
+|> + cmd+- #2 -------------------------------- Ov - Fi 4 - Co - Ch x2 -+d - All|
 |    REA|   Match keys by order                                        |    now|
-|       |                                                              |       |
-|       |    O Open   #2 - octocat opened just now - updated just now  |       |
-|       |   keys -> main - +0 -0 - 4 files                             |       |
-|       |   CI  x 2 failing  - C for details                           |       |
+|       |   Ready - x 2                                                |       |
 |       |   ---------------------------------------------------------- |       |
+|       | > x 2 more failing checks  see them in Checks                |       |
 |       |                                                              |       |
-|       |   Paragraph 1. Keys match by order. Keys match by order.     |       |
-|       |   Keys match by order. Keys match by order. Keys match by    |-------+
-|       |   order. Keys match by order. Keys match by order. Keys      |-------+
-|       |   match by order. Keys match by order. Keys match by         |d - All|
-|       |   order. Keys match by order. Keys match by order.           |    now|
+|       |   Merge  + up to date - squash                               |       |
+|       |    O Open  #2 - octocat - now - keys -> main - +0 -0         |       |
+|       |   Reviewers No reviewers                                     |       |
+|       |   --------------------------------------------------------   |-------+
+|       |   Paragraph 1. Keys match by order. Keys match by order.     |-------+
+|       |   Keys match by order. Keys match by order. Keys match by    |d - All|
+|       |   order. Keys match by order. Keys match by order. Keys      |    now|
+|       |   match by order. Keys match by order. Keys match by         |       |
+|       |   order. Keys match by order. Keys match by order.           |       |
 |       |                                                              |       |
 |       |   Paragraph 2. Keys match by order. Keys match by order.     |       |
 |       |   Keys match by order. Keys match by order. Keys match by    |       |
-|       |   order. Keys match by order. Keys match by order. Keys      |       |
-|       |   match by order. Keys match by order. Keys match by         |       |
-|       |   order. Keys match by order. Keys match by order.           |       |
+|       |   ... the rest is in Conversation                            |       |
 |       +--------------------------------------------------------------+       |
 +------------------------------++----------------------------------------------+
- ? help  up/k up  down/j down  esc close  ] next tab  M merge        github.com 
+ ? help  enter go  up/k up  down/j down  esc close  ] next tab       github.com 

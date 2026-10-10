@@ -178,6 +178,9 @@ type Step struct {
 	// opened is set once the cursor went to the first failing check, which
 	// it does once.
 	opened bool
+	// want is the check that [Step.Open] was asked for before the checks
+	// were read, which opens once they are.
+	want *wanted
 
 	mode mode
 	// check is the check a job or a detail shows.

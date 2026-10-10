@@ -2,6 +2,7 @@ package checks
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -106,7 +107,55 @@ func (s *Step) receive(msg checksMsg) tea.Cmd {
 	}
 	s.setChecks(msg.checks)
 	s.syncWatch()
-	return s.startTick()
+	return tea.Batch(s.openWanted(), s.startTick())
+}
+
+// wanted names a check to open: the check run with ID id if there is one,
+// or else the check or status called name.
+type wanted struct {
+	name string
+	id   int64
+}
+
+// Open shows the job of the check run with ID id, or of the check called
+// name when no run has that ID, as the select key shows it: its log, or
+// what its app reported. Without checks read yet it does so once they
+// arrive, and a check the list doesn't have leaves the step as it was.
+func (s *Step) Open(name string, id int64) tea.Cmd {
+	s.want = &wanted{name: name, id: id}
+	return s.openWanted()
+}
+
+// openWanted opens the check that [Step.Open] asked for, if the checks
+// are read and have it.
+func (s *Step) openWanted() tea.Cmd {
+	if s.want == nil || !s.loaded {
+		return nil
+	}
+	w := *s.want
+	s.want = nil
+	match := func(r row) bool {
+		return !r.title() && r.check != nil && w.id != 0 && r.check.ID == w.id
+	}
+	i := slices.IndexFunc(s.rows, match)
+	if i < 0 {
+		i = slices.IndexFunc(s.rows, func(r row) bool {
+			return !r.title() && (r.check != nil && r.check.Name == w.name || r.status != nil && r.status.Context == w.name)
+		})
+	}
+	if i < 0 {
+		return nil
+	}
+	if s.mode != listMode {
+		s.back()
+	}
+	s.cursor = i
+	s.scroll()
+	if r := s.rows[i]; r.job() {
+		return s.openJob(r)
+	}
+	s.openDetail(s.rows[i])
+	return nil
 }
 
 // press handles a key: the confirmation takes the answer, a search of the

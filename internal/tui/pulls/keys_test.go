@@ -50,12 +50,17 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Fatal("enter opened no pull request")
 	}
 	for k, want := range map[string]string{
-		"esc": "Pull request: close", "r": "Pull request: refresh", "j": "Conversation: down", "]": "Pull request: next tab",
+		"esc": "Pull request: close", "r": "Pull request: refresh", "j": "Overview: down", "]": "Pull request: next tab", "enter": "Overview: go",
 	} {
 		if got := winner(m.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the modal, want %q", k, got, want)
 		}
 	}
+	m.tab = conversationTab
+	if got := winner(m.KeyLayers(), "j"); got != "Conversation: down" {
+		t.Errorf("j reaches %q in the conversation, want its own", got)
+	}
+	m.tab = overviewTab
 	press(t, h, "M")
 	if m.ask == nil {
 		t.Fatal("M didn't ask to merge")

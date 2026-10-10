@@ -231,7 +231,7 @@ func TestPullModalReferencesKeyLayers(t *testing.T) {
 		}
 		return strings.Join(out, ",")
 	}
-	if got := names(); got != "pull_modal,pull_conversation" {
+	if got := names(); got != "pull_modal,pull_overview" {
 		t.Fatalf("layers = %q", got)
 	}
 	var listed bool

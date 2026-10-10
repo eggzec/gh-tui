@@ -85,6 +85,7 @@ var contexts = []Context{
 	{Name: "owner_calendar", Title: "Contributions", Reach: ReachPane, Parent: "owner"},
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
+	{Name: "pull_overview", Title: "Overview", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
 	// The panes of the Files tab: the tree of the files changed, and their diff.
 	{Name: "pull_files", Title: "Changed files", Reach: ReachPane, Parent: "pull_modal"},

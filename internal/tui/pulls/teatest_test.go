@@ -137,7 +137,7 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	wait("Retry GraphQL requests")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	wait("Does this survive a crash")
+	wait("Cold starts read every page")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 	wait("Add a disk layer")
 	tm.Type("M")
@@ -184,7 +184,7 @@ func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
 
 	wait("Add a disk layer")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	wait("Does this survive a crash")
+	wait("Cold starts read every page")
 	tm.Type("M")
 	wait("Squash-merge #142 into main?")
 	// Keys other than the answer leave the question open.

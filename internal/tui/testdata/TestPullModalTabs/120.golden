@@ -1,36 +1,36 @@
 ─ eggzec/gh-tui ───────────────────────────────────────────────────────────────────────────────────── ● 1 notification ─
 ╭─[1] Files ───────────────────────────────────╮╭─[2] Pull requests ───────────────────────────────────────────────────╮
 │▌ ▸ cmd                                       ││   eggzec/gh-tui                          Open · Closed · Merged · All│
-│    README.╭─ #2 ──────────────────────────────────────────────────── Files 4 · Conversation · Checks ✗2 ─╮at      now│
+│    README.╭─ #2 ───────────────────────────────────────── Overview · Files 4 · Conversation · Checks ✗2 ─╮at      now│
 │           │   Match keys by order                                                                        │           │
-│           │                                                                                              │           │
-│           │    ↣ Open   #2 · octocat opened just now · updated just now                                  │           │
-│           │   keys → main · +0 −0 · 4 files                                                              │           │
-│           │   CI  ✗ 2 failing  · C for details                                                           │           │
+│           │    ↣ Open  #2 · octocat · now · keys → main · +0 −0                                          │           │
+│           │   Ready · ✗ 2                                                                                │           │
 │           │   ────────────────────────────────────────────────────────────────────────────────────────── │           │
+│           │   Needs you                                                                                  │           │
+│           │ ▌ ✗ 2 more failing checks  see them in Checks                                                │           │
 │           │                                                                                              │           │
-│           │   Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
-│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
-│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
+│           │   Merge                                                                                      │           │
+│           │   ✓ up to date  with main, no conflicts                                                      │           │
+│           │     method      squash (the repository allows merge, squash, rebase)                         │           │
+│           │                                                                                              │           │
+│           │   Reviewers                                                                                  │           │
+│           │     No reviewers                                                                             │           │
+│           │   ────────────────────────────────────────────────────────────────────────────────────────   │───────────╯
+│           │   Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys match     │───────────╮
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │losed · All│
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │ocat    now│
 │           │   order.                                                                                     │           │
 │           │                                                                                              │           │
 │           │   Paragraph 2. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
-│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │───────────╯
-│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │───────────╮
-│           │   order.                                                                                     │losed · All│
-│           │                                                                                              │ocat    now│
+│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
+│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
+│           │   order.                                                                                     │           │
+│           │                                                                                              │           │
 │           │   Paragraph 3. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
 │           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
 │           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
-│           │   order.                                                                                     │           │
-│           │                                                                                              │           │
-│           │   Paragraph 4. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
-│           │   by order. Keys match by order. Keys match by order. Keys match by order. Keys match by     │           │
-│           │   order. Keys match by order. Keys match by order. Keys match by order. Keys match by        │           │
-│           │   order.                                                                                     │           │
-│           │                                                                                              │           │
-│           │   Paragraph 5. Keys match by order. Keys match by order. Keys match by order. Keys match     │           │
+│           │   … the rest is in Conversation                                                              │           │
 │           ╰──────────────────────────────────────────────────────────────────────────────────────────────╯           │
 │                                              ││                                                                      │
 ╰──────────────────────────────────────────────╯╰──────────────────────────────────────────────────────────────────────╯
- ? help  ↑/k up  ↓/j down  esc close  ] next tab  M merge  X close PR  C checks  o open in browser           github.com 
+ ? help  ↵ go  ↑/k up  ↓/j down  esc close  ] next tab  M merge  X close PR  C checks  o open in browser     github.com 

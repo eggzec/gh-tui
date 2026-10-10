@@ -1082,6 +1082,17 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+  # The modal of a pull request: the overview. Move the cursor through
+  # what needs attention; enter goes to where it is dealt with.
+  pull_overview:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
   # The modal of a pull request: the conversation.
   pull_conversation:
     up: [up, k]
