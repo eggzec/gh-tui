@@ -307,6 +307,11 @@ func validateKeys(ctx, name string, keys []string) error {
 		if c, ok := LookupContext(ctx); ok && c.Typing && !slices.Contains(c.Printable, name) && keyhelp.Printable(key) {
 			return fmt.Errorf("%s: %s would be typed into the %s; use a key that types nothing, such as one with ctrl or alt", path, key, strings.ToLower(c.Title))
 		}
+		// An error toast takes the dismiss key before the widgets that type
+		// see it, so a printable one could not be typed there.
+		if ctx+"."+name == ActionDismiss && keyhelp.Printable(key) {
+			return fmt.Errorf("%s: %s would be typed into the command line and the help filter; use a key that types nothing, such as one with ctrl or alt", path, key)
+		}
 	}
 	return nil
 }

@@ -225,6 +225,28 @@ func TestTypingContextsRefusePrintableKeys(t *testing.T) {
 	}
 }
 
+// TestDismissRefusesPrintableKeys checks that the global dismiss key, which an
+// error toast takes while the command line or the help filter types, can't be
+// a key that types, but may be one with ctrl or alt.
+func TestDismissRefusesPrintableKeys(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"a letter", "keys:\n  global:\n    dismiss: [x]\n", "line 3: keys.global.dismiss: x would be typed into the command line and the help filter; use a key that types nothing, such as one with ctrl or alt"},
+		{"one of several keys", "keys:\n  global:\n    dismiss: [esc, \"?\"]\n", "line 3: keys.global.dismiss: ? would be typed into the command line and the help filter"},
+		{"esc", "keys:\n  global:\n    dismiss: [esc]\n", ""},
+		{"a ctrl key", "keys:\n  global:\n    dismiss: [ctrl+x]\n", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := loadBase(writeConfig(t, tt.file))
+			switch {
+			case tt.want == "" && err != nil:
+				t.Errorf("Load = %v, want none", err)
+			case tt.want != "" && (err == nil || !strings.Contains(err.Error(), tt.want)):
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
 // TestKeysOfWidgetsAreChecked checks that the keys of the filter form and
 // the widgets that take every key are known, so that a key of the global
 // context that one of them uses is refused, and a user's key for one of
