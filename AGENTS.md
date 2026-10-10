@@ -49,6 +49,8 @@ internal/
   buildinfo/          what the binary was built from, such as its version
   imgcaps/            whether the terminal shows images: the startup check's rules
   keyname/            key names as the config writes them, and presses of them
+  cmdhist/            the command line's history, kept on disk between sessions
+  images/             fetching, decoding and caching remote images
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
@@ -59,8 +61,21 @@ internal/
   tui/ui/             what sections share: the Section interface, theme, keys, app messages
   tui/<section>/      one package per section, adapting a service to bubbles
 pkg/bubbles/<name>/   reusable Elm-style components with no knowledge of gh-tui
+pkg/{markdown,mermaid,syntax,termimg,termtext}/   standalone rendering helpers
 third_party/<name>/   vendored upstream code that needed changes (see Vendoring)
 ```
+
+Where things live:
+
+- Defaults are in `internal/config/default.yaml` (embedded); the schema,
+  validation and key contexts are in `internal/config/*.go`, with the context
+  names in `contexts.go`.
+- Golden files are in `testdata/` next to the test (`internal/tui/testdata`,
+  `pkg/bubbles/<name>/testdata`).
+- Each service is `internal/service/<domain>`; its section is
+  `internal/tui/<section>`.
+- Commands: `go list ./...` lists packages, `make help` the targets, and
+  `scripts/tui` drives the TUI by hand (see Testing).
 
 Rules:
 
@@ -339,16 +354,19 @@ reacts to messages. Concretely:
   services and no mocks. Use table-driven tests for Update, golden files for
   View, and include benchmarks.
 - **Tests that drive the program** (keys in, output and final model out) use
-  `teatest`. Refresh golden files with `go test ./... -update`. Tests in
+  `teatest`. Refresh golden files with `go test ./<pkg> -update`. Tests in
   `internal/tui` run in parallel, which is safe for `-update` since each test
-  writes its own golden files. A test that sets environment variables or
-  replaces the default logger stays serial, and says why in a comment.
+  writes its own golden files. A test stays serial, and says why in a
+  comment, if it uses `t.Setenv`, replaces the global slog default, starts the
+  process-wide `config.WatchReads` watcher, or writes a package-level test
+  variable.
 - **Services** are tested with small hand-written fakes of the interfaces they
   consume. For the API clients, use `httptest.Server` with recorded fixtures.
   Cover error paths, pagination, cache hits and misses, and rollback.
 - **Time-dependent code**, such as the sync engine, is tested with
   `testing/synctest`, so it uses a fake clock and no real sleeps.
-- Run `go test -race ./...` before every commit.
+- Before a commit, run `go test -race` on the packages you changed, plus
+  their direct dependents if you changed an exported API. See Tooling.
 
 ## Configuration
 
@@ -479,25 +497,34 @@ reacts to messages. Concretely:
 ### Tooling
 
 ```sh
-go vet ./...
-golangci-lint run ./...          # config in .golangci.yml (v2)
-golangci-lint fmt --diff ./...   # gofmt and goimports
-go test -race ./...
+go vet ./internal/foo/...
+golangci-lint run ./internal/foo/...   # config in .golangci.yml (v2)
+golangci-lint fmt --diff ./internal/foo/...   # gofmt and goimports
+go test -race ./internal/foo/...
 make bench                       # every benchmark in the module
 ```
 
-gopls diagnostics and golangci-lint must be clean before you commit. To check
-that every commit on a branch passes on its own:
+Before you commit, run these on the packages you changed only, plus their
+direct dependents if you changed an exported API. Don't run the whole
+module's suite locally: CI runs `go test -race ./...`, lint, bench, schema
+and cross-compilation on every PR and is the gate. gopls diagnostics must be
+clean. To check that every commit on a branch builds on its own:
 
 ```sh
-chk="$TMPDIR/chk-$(git branch --show-current | tr / -)"   # unique per branch
-for c in $(git rev-list --reverse origin/main..HEAD); do
-  git worktree add -q --detach "$chk" "$c"
-  (cd "$chk" && go build ./... && go vet ./... && go test -race ./... &&
-    golangci-lint run --allow-parallel-runners ./... && golangci-lint fmt --diff ./...)
-  git worktree remove --force "$chk"
-done
+git rebase -x 'go build ./... && go vet ./internal/foo/...' origin/main
 ```
+
+Read code by function or line range, not whole files. Run `git diff --stat`
+before a full diff, then diff single paths.
+
+To check the TUI by hand, use `scripts/tui` (needs tmux): `start NAME
+[COLSxROWS]` builds this worktree and runs it in a tmux server of its own,
+`keys NAME [-l] KEY...` sends keys and waits for the screen to settle,
+`wait NAME REGEX [SECS]` waits for text, `cap NAME` prints the screen, `stop
+NAME` ends it. Navigate with `:goto`, since the CLI takes no arguments. Never
+confirm a mutation against real GitHub. Check 80x24 and 120x40, and check
+again after a rebase. Agent skills, such as the one for this script, live
+in `.agents/skills`.
 
 ## Git workflow
 
@@ -529,8 +556,9 @@ git worktree remove cache-lru && git branch -D feat/cache-lru
 - **PR bodies are short and meant for people.** Say what changed and anything
   a reviewer must know, in a few lines. Skip file-by-file summaries,
   boilerplate sections and long rationale.
-- **Verify before you open a PR.** Run the checks under Tooling, then wait for
-  CI to pass before you merge.
+- **Verify before you open a PR.** Run the checks under Tooling on what you
+  changed. Don't wait on CI after you push: whoever merges checks it.
+  Reviewers read the diff and the CI status and don't re-run the suite.
 - **Merge with rebase and merge only.**
 - **Use `gh` with care.** Run explicit, single-purpose commands, check the
   result of each one, and don't take destructive or bulk actions without

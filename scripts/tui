@@ -1,0 +1,81 @@
+#!/bin/sh
+# tui: drive gh-tui in a tmux server of its own, to check it by hand.
+#
+#   tui start NAME [COLSxROWS]   build this worktree and run it (default 120x40)
+#   tui keys NAME [-l] KEY...    send tmux key names, or with -l literal text,
+#                                then wait for the screen to settle
+#   tui wait NAME REGEX [SECS]   wait until the screen matches REGEX (default 15)
+#   tui cap NAME                 print the screen
+#   tui stop NAME                end the session
+set -eu
+
+die() {
+	echo "tui: $*" >&2
+	exit 1
+}
+
+[ $# -ge 2 ] || die "usage: tui start|keys|wait|cap|stop NAME ..."
+cmd=$1
+name=$2
+shift 2
+
+t() { tmux -L "$name" "$@"; }
+cap() { t capture-pane -p -t "$name"; }
+
+# settle waits until two captures in a row are the same, for at most 5s.
+settle() {
+	prev=$(cap)
+	i=0
+	while [ "$i" -lt 50 ]; do
+		sleep 0.1
+		cur=$(cap)
+		[ "$cur" = "$prev" ] && return 0
+		prev=$cur
+		i=$((i + 1))
+	done
+}
+
+case $cmd in
+start)
+	size=${1:-120x40}
+	cols=${size%x*}
+	rows=${size#*x}
+	root=$(cd "$(dirname "$0")/.." && pwd)
+	bin="${TMPDIR:-/tmp}/gh-tui-$name"
+	(cd "$root" && go build -o "$bin" ./cmd/gh-tui)
+	t kill-server 2>/dev/null || true
+	t new-session -d -s "$name" -x "$cols" -y "$rows" "$bin"
+	;;
+keys)
+	[ $# -ge 1 ] || die "keys: no keys given"
+	if [ "$1" = -l ]; then
+		shift
+		t send-keys -t "$name" -l "$*"
+	else
+		t send-keys -t "$name" "$@"
+	fi
+	settle
+	;;
+wait)
+	[ $# -ge 1 ] || die "wait: no regex given"
+	re=$1
+	end=$(($(date +%s) + ${2:-15}))
+	while [ "$(date +%s)" -lt "$end" ]; do
+		if cap | grep -Eq -- "$re"; then
+			exit 0
+		fi
+		sleep 0.2
+	done
+	cap >&2
+	die "wait: no match for '$re'"
+	;;
+cap)
+	cap
+	;;
+stop)
+	t kill-server
+	;;
+*)
+	die "unknown command '$cmd'"
+	;;
+esac
