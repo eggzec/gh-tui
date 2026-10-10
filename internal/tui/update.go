@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -258,7 +258,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// first, and then a goto that waits for GitHub. What is left is the
 	// line's, the help's, the modal's or the section's to clear and then
 	// close.
-	if key.Matches(msg, m.keys.Dismiss) {
+	if keymap.Matches(msg, m.keys.Dismiss) {
 		switch {
 		case m.toast.Has(toast.Error):
 			m.toast.DismissLevel(toast.Error)
@@ -271,7 +271,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// The open command line takes every key but ctrl+c, which quits from
 	// everywhere; esc cancels the line.
 	if m.line.Focused() {
-		if key.Matches(msg, forceQuit) {
+		if keymap.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
 		return m.updateLine(msg)
@@ -279,7 +279,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// ctrl+c quits from the help and a modal, which take every other
 	// key, so that they can't trap the user.
 	if m.helpOpen() {
-		if key.Matches(msg, forceQuit) {
+		if keymap.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
 		return m.updateHelp(msg)
@@ -290,14 +290,14 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openHelp()
 	}
 	if mod := m.topModal(); mod != nil {
-		if key.Matches(msg, forceQuit) {
+		if keymap.Matches(msg, forceQuit) {
 			return tea.Quit
 		}
-		if m.commandsOver() && key.Matches(msg, m.keys.Command) {
+		if m.commandsOver() && keymap.Matches(msg, m.keys.Command) {
 			return m.openLine()
 		}
 		takes := m.modalTakesKeys()
-		if !takes && key.Matches(msg, m.keys.Maximize) {
+		if !takes && keymap.Matches(msg, m.keys.Maximize) {
 			m.toggleMaximized()
 			return nil
 		}
@@ -313,35 +313,35 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	p := m.focused()
 	// ctrl+c always reaches the app's keys, so a capturing section can't
 	// trap the user.
-	if p != nil && !key.Matches(msg, forceQuit) && m.takes(p.section) {
+	if p != nil && !keymap.Matches(msg, forceQuit) && m.takes(p.section) {
 		cmd := p.section.Update(msg)
 		m.updateBadges()
 		return cmd
 	}
 	switch {
-	case key.Matches(msg, m.keys.Command):
+	case keymap.Matches(msg, m.keys.Command):
 		return m.openLine()
-	case key.Matches(msg, m.keys.Quit):
+	case keymap.Matches(msg, m.keys.Quit):
 		return tea.Quit
-	case key.Matches(msg, m.keys.Search):
+	case keymap.Matches(msg, m.keys.Search):
 		return m.showSearch()
-	case m.canOpenHistory() && key.Matches(msg, m.keys.History):
+	case m.canOpenHistory() && keymap.Matches(msg, m.keys.History):
 		return m.openHistory()
-	case m.canOpenActions() && key.Matches(msg, m.keys.Actions):
+	case m.canOpenActions() && keymap.Matches(msg, m.keys.Actions):
 		return m.openActions()
-	case m.fileFinder() != nil && key.Matches(msg, m.keys.FindFile):
+	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
-	case m.canZoom() && m.width >= narrowWidth && key.Matches(msg, m.keys.Zoom):
+	case m.canZoom() && m.width >= narrowWidth && keymap.Matches(msg, m.keys.Zoom):
 		m.setZoom(!m.zoom)
 		return nil
-	case key.Matches(msg, m.keys.Back):
+	case keymap.Matches(msg, m.keys.Back):
 		return m.goBack()
-	case key.Matches(msg, m.keys.Owner):
+	case keymap.Matches(msg, m.keys.Owner):
 		// Without an owner, the key goes on to the section.
 		if owner := m.selectedOwner(); owner != "" {
 			return m.gotoOwner(core.Target{Owner: owner})
 		}
-	case key.Matches(msg, m.keys.Repo):
+	case keymap.Matches(msg, m.keys.Repo):
 		if repo := m.selectedRepo(); repo != (core.RepoRef{}) {
 			if p := m.focused(); p != nil {
 				if o, ok := p.section.(ui.RepoOpener); ok {
@@ -351,18 +351,18 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 			}
 			return m.selectRepo(ui.RepoMsg{Repo: repo})
 		}
-	case key.Matches(msg, m.keys.Notifications):
+	case keymap.Matches(msg, m.keys.Notifications):
 		return m.showScreen(notifScreen, m.focus)
-	case m.dash != nil && key.Matches(msg, m.keys.Dashboard):
+	case m.dash != nil && keymap.Matches(msg, m.keys.Dashboard):
 		return m.showScreen(dashScreen, m.focus)
 	}
 	// Only the repository screen has panes for the app to cycle through;
 	// elsewhere these keys are the section's.
 	if m.screen == repoScreen {
 		switch {
-		case key.Matches(msg, m.keys.Next):
+		case keymap.Matches(msg, m.keys.Next):
 			return m.cycle(1)
-		case key.Matches(msg, m.keys.Prev):
+		case keymap.Matches(msg, m.keys.Prev):
 			return m.cycle(-1)
 		}
 	}

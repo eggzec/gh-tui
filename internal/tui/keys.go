@@ -193,7 +193,7 @@ func lineKeys(keys config.Keymap) cmdline.KeyMap {
 // pane returns the index of the pane that msg focuses, or -1.
 func (k KeyMap) pane(msg tea.KeyPressMsg) int {
 	for i, b := range k.Panes {
-		if key.Matches(msg, b) {
+		if keymap.Matches(msg, b) {
 			return i
 		}
 	}

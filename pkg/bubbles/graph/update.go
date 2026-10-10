@@ -1,9 +1,10 @@
 package graph
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys while focused, and the graph's own fetch results and
@@ -44,27 +45,27 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.height, 1)
 	switch {
-	case key.Matches(msg, m.keyMap.Up):
+	case keymap.Matches(msg, m.keyMap.Up):
 		m.sel--
-	case key.Matches(msg, m.keyMap.Down):
+	case keymap.Matches(msg, m.keyMap.Down):
 		m.sel++
-	case key.Matches(msg, m.keyMap.PageUp):
+	case keymap.Matches(msg, m.keyMap.PageUp):
 		m.sel -= page
-	case key.Matches(msg, m.keyMap.PageDown):
+	case keymap.Matches(msg, m.keyMap.PageDown):
 		m.sel += page
-	case key.Matches(msg, m.keyMap.HalfPageUp):
+	case keymap.Matches(msg, m.keyMap.HalfPageUp):
 		m.sel -= max(page/2, 1)
-	case key.Matches(msg, m.keyMap.HalfPageDown):
+	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.sel += max(page/2, 1)
-	case key.Matches(msg, m.keyMap.Home):
+	case keymap.Matches(msg, m.keyMap.Home):
 		m.sel = 0
-	case key.Matches(msg, m.keyMap.End):
+	case keymap.Matches(msg, m.keyMap.End):
 		// Loading the whole history could take many requests, so go to the
 		// last commit loaded, which fetches the next chunk.
 		m.sel = len(m.rows) - 1
-	case key.Matches(msg, m.keyMap.Choose):
+	case keymap.Matches(msg, m.keyMap.Choose):
 		return m.choose()
-	case key.Matches(msg, m.keyMap.Retry):
+	case keymap.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
 	default:
 		return nil

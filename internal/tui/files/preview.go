@@ -17,6 +17,7 @@ import (
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -379,10 +380,10 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		p.failed = nil
 		return p.load()
 	case tea.KeyPressMsg:
-		if !p.pager.Capturing() && key.Matches(msg, p.open) {
+		if !p.pager.Capturing() && keymap.Matches(msg, p.open) {
 			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))
 		}
-		if p.preset && key.Matches(msg, p.pager.KeyMap().Close()) {
+		if p.preset && keymap.Matches(msg, p.pager.KeyMap().Close()) {
 			return p.close()
 		}
 	}

@@ -133,8 +133,8 @@ func TestUnbindAllElse(t *testing.T) {
 	}
 }
 
-// TestUnboundCommands checks that a command that presses the key of an
-// action the config unbinds says so, rather than doing something else.
+// TestUnboundCommands checks that a command that is an action works
+// with the keys of the action unbound, as the key would where it is bound.
 func TestUnboundCommands(t *testing.T) {
 	t.Parallel()
 	for command, action := range map[string]string{
@@ -150,8 +150,11 @@ func TestUnboundCommands(t *testing.T) {
 					driveKeys(t, m, m.key(msg))
 				}
 				driveKeys(t, m, m.key(enter))
-				if want := "No key is bound to keys." + action; !hasToast(m, want) {
-					t.Errorf(":%s shows %q, want %q", command, toasted(m), want)
+				if got := toasted(m); strings.Contains(got, "No key") || strings.Contains(got, "Unknown") {
+					t.Errorf(":%s with %s unbound shows %q", command, action, got)
+				}
+				if command == "help" && !m.helpOpen() {
+					t.Error(":help with its key unbound didn't open the help")
 				}
 			})
 		})

@@ -454,6 +454,21 @@ reacts to messages. Concretely:
   action, and `ui.Binding` gives it a disabled binding with no key, so
   code that names a key in a hint must leave the hint out when the key is
   "".
+  Every action of a context that isn't a capturing one is also a command of
+  the `:` line, named as the action is without its context, unless its name
+  is in `config.Navigation` (the moves, `select`, `back`, `dismiss`, the
+  pane and tab keys and the keys that edit a form): `:merge` is
+  `pulls.merge` or `pull_modal.merge`, whichever is in the focused chain,
+  the innermost first. The line presses the action as its key does
+  (`keymap.ActionPress`, which `keymap.Matches` takes for the key of an
+  action whether the config binds it or not), so it passes the same
+  gates and asks the same questions; code that handles a key therefore
+  matches it with `keymap.Matches`, never `key.Matches`, except in a widget
+  that takes every key. A built-in command of the table in `command.go` has
+  its name first, so an action never shadows `goto`, `config`, `copy`,
+  `set`, `raw`, `images`, `q`, `auth` or `references`. An action outside the
+  focused chain is refused with the places it works in, and the line
+  completes the focused chain's actions before the rest.
 - The only command-line flags are `--debug`, `--hostname` and
   `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
   pull request or issue, or the page of a user or organization

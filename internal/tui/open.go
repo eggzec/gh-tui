@@ -20,7 +20,7 @@ import (
 // as the open key does.
 func (m *Model) openCommand(arg string) tea.Cmd {
 	if arg == "" {
-		return m.press(config.ActionOpen)
+		return m.pressAction(config.ActionOpen)
 	}
 	if strings.TrimSpace(arg) == "." {
 		here, why := m.hereRepo()

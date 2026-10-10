@@ -1,13 +1,13 @@
 package dashboard
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles the dashboard's keys, its reads and the changes to the
@@ -112,16 +112,16 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := &s.keys
 	switch {
-	case key.Matches(msg, k.Next):
+	case keymap.Matches(msg, k.Next):
 		s.focusPane((s.focus + 1) % numPanes)
 		return nil
-	case key.Matches(msg, k.Prev):
+	case keymap.Matches(msg, k.Prev):
 		s.focusPane((s.focus + numPanes - 1) % numPanes)
 		return nil
-	case s.wide && key.Matches(msg, k.Zoom):
+	case s.wide && keymap.Matches(msg, k.Zoom):
 		s.setZoom(!s.zoom)
 		return nil
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
 	if p := k.pane(msg); p >= 0 {
@@ -148,20 +148,20 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case pinnedPane:
 		c := &s.pinned
 		switch {
-		case key.Matches(msg, k.Left):
+		case keymap.Matches(msg, k.Left):
 			c.Move(-1)
-		case key.Matches(msg, k.Right):
+		case keymap.Matches(msg, k.Right):
 			c.Move(1)
-		case key.Matches(msg, k.Up):
+		case keymap.Matches(msg, k.Up):
 			c.Move(-c.Cols)
-		case key.Matches(msg, k.Down):
+		case keymap.Matches(msg, k.Down):
 			c.Move(c.Cols)
-		case key.Matches(msg, k.Select):
+		case keymap.Matches(msg, k.Select):
 			if it, ok := c.Selected(); ok {
 				s.aheadPinned.Opened(it.Repo.Ref)
 				return selectRepo(it.Repo.Ref), true
 			}
-		case key.Matches(msg, k.Open):
+		case keymap.Matches(msg, k.Open):
 			if it, ok := c.Selected(); ok {
 				return ui.Open(s.repoURL(it.Repo)), true
 			}
@@ -172,26 +172,26 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case reposPane:
 		t := &s.repos
 		switch {
-		case key.Matches(msg, k.NextOwner):
+		case keymap.Matches(msg, k.NextOwner):
 			return t.switchTab(1), true
-		case key.Matches(msg, k.PrevOwner):
+		case keymap.Matches(msg, k.PrevOwner):
 			return t.switchTab(-1), true
-		case key.Matches(msg, k.ClearFilter):
+		case keymap.Matches(msg, k.ClearFilter):
 			if !t.filter().Active() {
 				return nil, true
 			}
 			return t.setFilter(""), true
-		case key.Matches(msg, k.Filter):
+		case keymap.Matches(msg, k.Filter):
 			return ui.OpenFilter(filterform.FiltersTab), true
-		case key.Matches(msg, k.Sort):
+		case keymap.Matches(msg, k.Sort):
 			return ui.OpenFilter(filterform.SortTab), true
-		case key.Matches(msg, k.Select):
+		case keymap.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				s.aheadRepos.Opened(r.Ref)
 				return selectRepo(r.Ref), true
 			}
 			return nil, true
-		case key.Matches(msg, k.Open):
+		case keymap.Matches(msg, k.Open):
 			if r, ok := t.selected(); ok {
 				return ui.Open(s.repoURL(r)), true
 			}
@@ -200,25 +200,25 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case workPane:
 		w := &s.tasks
 		switch {
-		case key.Matches(msg, k.NextList):
+		case keymap.Matches(msg, k.NextList):
 			w.switchTab(1)
 			s.readTabNow()
-		case key.Matches(msg, k.PrevList):
+		case keymap.Matches(msg, k.PrevList):
 			w.switchTab(-1)
 			s.readTabNow()
-		case key.Matches(msg, k.WorkUp):
+		case keymap.Matches(msg, k.WorkUp):
 			w.move(-1)
-		case key.Matches(msg, k.WorkDown):
+		case keymap.Matches(msg, k.WorkDown):
 			w.move(1)
-		case key.Matches(msg, k.Select):
+		case keymap.Matches(msg, k.Select):
 			if hit, ok := w.selected(); ok {
 				return s.openHit(hit, false), true
 			}
-		case key.Matches(msg, k.Checks):
+		case keymap.Matches(msg, k.Checks):
 			if hit, ok := w.selected(); ok && hit.Kind == core.SearchPulls {
 				return s.openHit(hit, true), true
 			}
-		case key.Matches(msg, k.Open):
+		case keymap.Matches(msg, k.Open):
 			if hit, ok := w.selected(); ok {
 				return ui.Open(hit.Issue.URL), true
 			}
@@ -229,13 +229,13 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case inboxPane:
 		l := &s.threads
 		switch {
-		case key.Matches(msg, k.InboxUp):
+		case keymap.Matches(msg, k.InboxUp):
 			l.move(-1)
-		case key.Matches(msg, k.InboxDown):
+		case keymap.Matches(msg, k.InboxDown):
 			l.move(1)
-		case key.Matches(msg, k.Select):
+		case keymap.Matches(msg, k.Select):
 			return s.openThread(), true
-		case key.Matches(msg, k.Open):
+		case keymap.Matches(msg, k.Open):
 			if n, ok := l.selected(); ok {
 				return ui.Open(n.Subject.WebURL), true
 			}

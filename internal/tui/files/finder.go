@@ -355,14 +355,14 @@ func (f *finderModal) Update(msg tea.Msg) tea.Cmd {
 // press handles the finder's own keys and reports whether msg was one.
 func (f *finderModal) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
-	case key.Matches(msg, f.keys.Reveal):
+	case keymap.Matches(msg, f.keys.Reveal):
 		it, ok := f.find.Selected()
 		if !ok {
 			return nil, true
 		}
 		f.stopRead()
 		return tea.Batch(ui.CloseModal(f), f.s.reveal(it.Path)), true
-	case key.Matches(msg, f.keys.Preview):
+	case keymap.Matches(msg, f.keys.Preview):
 		show := !f.preview
 		f.toggled = &show
 		f.layout()

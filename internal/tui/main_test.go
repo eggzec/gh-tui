@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/dlclark/regexp2/v2"
+
+	"github.com/eggzec/gh-tui/internal/keyname"
 )
 
 func TestMain(m *testing.M) {
@@ -33,3 +36,7 @@ func startRegexpClock() {
 		panic(err)
 	}
 }
+
+// keyPress returns a press of the key named name, as the config and
+// bubbletea name keys, and false for a name it can't press.
+func keyPress(name string) (tea.KeyPressMsg, bool) { return keyname.Press(name) }

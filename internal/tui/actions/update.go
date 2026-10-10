@@ -1,11 +1,11 @@
 package actions
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles the modal's keys and its reads, and passes everything else
@@ -130,7 +130,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.answer(msg)
 	}
 	if m.filterStep != nil {
-		if m.filterStep.form == nil && key.Matches(msg, m.keys.Dismiss) {
+		if m.filterStep.form == nil && keymap.Matches(msg, m.keys.Dismiss) {
 			return m.dismiss()
 		}
 		return m.updateFilter(msg)
@@ -147,41 +147,41 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
 	switch {
 	// The tabs share ] and [ with the panes, and take them first.
-	case key.Matches(msg, k.NextTab):
+	case keymap.Matches(msg, k.NextTab):
 		return m.switchTab(1)
-	case key.Matches(msg, k.PrevTab):
+	case keymap.Matches(msg, k.PrevTab):
 		return m.switchTab(-1)
-	case key.Matches(msg, k.Next):
+	case keymap.Matches(msg, k.Next):
 		return m.moveFocus(1)
-	case key.Matches(msg, k.Prev):
+	case keymap.Matches(msg, k.Prev):
 		return m.moveFocus(-1)
 	case k.focusOf(msg) >= 0:
 		return m.focusPane(k.focusOf(msg))
-	case m.focus == runsPane && key.Matches(msg, k.Filter):
+	case m.focus == runsPane && keymap.Matches(msg, k.Filter):
 		return m.openFilter()
-	case m.focus == runsPane && key.Matches(msg, k.ClearFilter):
+	case m.focus == runsPane && keymap.Matches(msg, k.ClearFilter):
 		return m.setFilter(cleared(m.filter))
-	case key.Matches(msg, k.Zoom):
+	case keymap.Matches(msg, k.Zoom):
 		m.zoom = !m.zoom
 		m.layout()
 		return nil
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		return m.open()
-	case key.Matches(msg, k.RerunFailed):
+	case keymap.Matches(msg, k.RerunFailed):
 		return m.asks(m.rerunFailed)
-	case key.Matches(msg, k.Rerun):
+	case keymap.Matches(msg, k.Rerun):
 		return m.asks(m.rerunAll)
-	case m.focus != runsPane && key.Matches(msg, k.rerunJob(m)):
+	case m.focus != runsPane && keymap.Matches(msg, k.rerunJob(m)):
 		return m.asks(m.rerunJob)
-	case key.Matches(msg, k.Cancel):
+	case keymap.Matches(msg, k.Cancel):
 		return m.asks(m.cancelRun)
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return m.refresh()
-	case key.Matches(msg, k.Dismiss):
+	case keymap.Matches(msg, k.Dismiss):
 		return m.dismiss()
-	case key.Matches(msg, k.Back):
+	case keymap.Matches(msg, k.Back):
 		return m.back()
-	case key.Matches(msg, k.Select) && m.focus != logPane:
+	case keymap.Matches(msg, k.Select) && m.focus != logPane:
 		return m.drill()
 	}
 	switch m.focus {

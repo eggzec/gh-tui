@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -17,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -229,34 +229,34 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.bodyHeight(), 1)
 	before := b.cursor
 	switch {
-	case key.Matches(msg, m.keys.Select):
+	case keymap.Matches(msg, m.keys.Select):
 		br, ok := b.selected()
 		if !ok {
 			return nil
 		}
 		return m.showBranch(br.Name)
-	case key.Matches(msg, m.keys.Filter):
+	case keymap.Matches(msg, m.keys.Filter):
 		return m.openFilter()
-	case key.Matches(msg, m.keys.Retry):
+	case keymap.Matches(msg, m.keys.Retry):
 		if b.err == nil {
 			return nil
 		}
 		return m.retryBranches()
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		b.cursor--
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		b.cursor++
-	case key.Matches(msg, k.PageUp):
+	case keymap.Matches(msg, k.PageUp):
 		b.cursor -= page
-	case key.Matches(msg, k.PageDown):
+	case keymap.Matches(msg, k.PageDown):
 		b.cursor += page
-	case key.Matches(msg, k.HalfPageUp):
+	case keymap.Matches(msg, k.HalfPageUp):
 		b.cursor -= max(page/2, 1)
-	case key.Matches(msg, k.HalfPageDown):
+	case keymap.Matches(msg, k.HalfPageDown):
 		b.cursor += max(page/2, 1)
-	case key.Matches(msg, k.Home):
+	case keymap.Matches(msg, k.Home):
 		b.cursor = 0
-	case key.Matches(msg, k.End):
+	case keymap.Matches(msg, k.End):
 		b.cursor = len(b.items) - 1
 	default:
 		return nil

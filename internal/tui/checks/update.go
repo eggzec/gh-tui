@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
@@ -122,17 +122,17 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := s.keys
 	switch {
-	case key.Matches(msg, k.Dismiss):
+	case keymap.Matches(msg, k.Dismiss):
 		if s.mode == jobMode && s.view.Query() != "" {
 			// The dismiss key clears the search first.
 			return s.updateView(msg)
 		}
 		id := s.id
 		return func() tea.Msg { return CloseMsg{ID: id} }
-	case key.Matches(msg, k.Back):
+	case keymap.Matches(msg, k.Back):
 		s.StepOut()
 		return nil
-	case key.Matches(msg, k.paneRerun(s)):
+	case keymap.Matches(msg, k.paneRerun(s)):
 		if r, ok := s.current(); ok && r.job() {
 			if cmd, refused := s.gate().Refuse(ui.ActRerun, nil); refused {
 				return cmd
@@ -140,9 +140,9 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		s.askRerun()
 		return nil
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		return s.open()
 	}
 	switch s.mode {
@@ -150,10 +150,10 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.pressJob(msg)
 	case detailMode:
 		switch {
-		case key.Matches(msg, k.Top):
+		case keymap.Matches(msg, k.Top):
 			s.detail.GotoTop()
 			return nil
-		case key.Matches(msg, k.Bottom):
+		case keymap.Matches(msg, k.Bottom):
 			s.detail.GotoBottom()
 			return nil
 		}
@@ -170,7 +170,7 @@ func (s *Step) pressList(msg tea.KeyPressMsg) tea.Cmd {
 	k := s.keys
 	page := max(s.listRows()-1, 1)
 	switch {
-	case key.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Select):
 		r, ok := s.selected()
 		switch {
 		case !ok:
@@ -180,21 +180,21 @@ func (s *Step) pressList(msg tea.KeyPressMsg) tea.Cmd {
 			s.openDetail(r)
 		}
 		return nil
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		s.move(-1)
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		s.move(1)
-	case key.Matches(msg, k.PageUp):
+	case keymap.Matches(msg, k.PageUp):
 		s.move(-page)
-	case key.Matches(msg, k.PageDown):
+	case keymap.Matches(msg, k.PageDown):
 		s.move(page)
-	case key.Matches(msg, k.HalfPageUp):
+	case keymap.Matches(msg, k.HalfPageUp):
 		s.move(-max(page/2, 1))
-	case key.Matches(msg, k.HalfPageDown):
+	case keymap.Matches(msg, k.HalfPageDown):
 		s.move(max(page/2, 1))
-	case key.Matches(msg, k.Home):
+	case keymap.Matches(msg, k.Home):
 		s.move(-len(s.rows))
-	case key.Matches(msg, k.End):
+	case keymap.Matches(msg, k.End):
 		s.move(len(s.rows))
 	}
 	return nil
@@ -203,7 +203,7 @@ func (s *Step) pressList(msg tea.KeyPressMsg) tea.Cmd {
 // pressJob passes a key to the job view. A preview of the file of an
 // annotation hides the step, which stops its polls until it is back.
 func (s *Step) pressJob(msg tea.KeyPressMsg) tea.Cmd {
-	opens := s.view.OnAnnotations() && key.Matches(msg, s.keys.Select)
+	opens := s.view.OnAnnotations() && keymap.Matches(msg, s.keys.Select)
 	cmd := s.updateView(msg)
 	if opens && cmd != nil {
 		s.pause()

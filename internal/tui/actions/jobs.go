@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -15,6 +14,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -276,21 +276,21 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.bodyHeight()-1, 1)
 	to := j.cursor
 	switch {
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		to--
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		to++
-	case key.Matches(msg, k.PageUp):
+	case keymap.Matches(msg, k.PageUp):
 		to -= page
-	case key.Matches(msg, k.PageDown):
+	case keymap.Matches(msg, k.PageDown):
 		to += page
-	case key.Matches(msg, k.HalfPageUp):
+	case keymap.Matches(msg, k.HalfPageUp):
 		to -= max(page/2, 1)
-	case key.Matches(msg, k.HalfPageDown):
+	case keymap.Matches(msg, k.HalfPageDown):
 		to += max(page/2, 1)
-	case key.Matches(msg, k.Home):
+	case keymap.Matches(msg, k.Home):
 		to = 0
-	case key.Matches(msg, k.End):
+	case keymap.Matches(msg, k.End):
 		to = n - 1
 	default:
 		return nil

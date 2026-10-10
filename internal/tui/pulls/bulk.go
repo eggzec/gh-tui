@@ -3,11 +3,11 @@ package pulls
 import (
 	"strconv"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -17,8 +17,8 @@ import (
 // the cursor, as without them, and its question names that one.
 func (s *Section) isBulk(msg tea.KeyPressMsg) bool {
 	k := s.keys
-	return s.feed != nil && s.feed.Marks() > 0 && !key.Matches(msg, k.Merge) &&
-		key.Matches(msg, k.Close, k.Reopen, k.ToggleDraft)
+	return s.feed != nil && s.feed.Marks() > 0 && !keymap.Matches(msg, k.Merge) &&
+		keymap.Matches(msg, k.Close, k.Reopen, k.ToggleDraft)
 }
 
 // bulkAction returns the change that msg asks of the marked pull
@@ -31,14 +31,14 @@ func (s *Section) bulkAction(msg tea.KeyPressMsg, marked []core.PullRequest) (a 
 	k := s.keys
 	under, hasUnder := s.feed.Selected()
 	hasUnder = hasUnder && s.feed.Marked(under)
-	if key.Matches(msg, k.Close, k.Reopen) {
+	if keymap.Matches(msg, k.Close, k.Reopen) {
 		// A shared key goes the way of the marked row under the cursor,
 		// or else of the first marked one.
 		first := under
 		if !hasUnder && len(marked) > 0 {
 			first = marked[0]
 		}
-		closes, reopens := key.Matches(msg, k.Close), key.Matches(msg, k.Reopen)
+		closes, reopens := keymap.Matches(msg, k.Close), keymap.Matches(msg, k.Reopen)
 		if closes && (!reopens || first.State != core.StateClosed) {
 			return ui.ActClose, false
 		}

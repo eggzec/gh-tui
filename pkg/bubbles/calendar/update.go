@@ -3,8 +3,9 @@ package calendar
 import (
 	"slices"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update moves the cursor on keys while focused, and sends a [SelectMsg]
@@ -17,17 +18,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	i := m.cw*7 + m.cd
 	switch {
-	case key.Matches(k, m.keyMap.Up):
+	case keymap.Matches(k, m.keyMap.Up):
 		i, _ = m.step(i, -1)
-	case key.Matches(k, m.keyMap.Down):
+	case keymap.Matches(k, m.keyMap.Down):
 		i, _ = m.step(i, 1)
-	case key.Matches(k, m.keyMap.Left):
+	case keymap.Matches(k, m.keyMap.Left):
 		i = m.sideways(-1)
-	case key.Matches(k, m.keyMap.Right):
+	case keymap.Matches(k, m.keyMap.Right):
 		i = m.sideways(1)
-	case key.Matches(k, m.keyMap.First):
+	case keymap.Matches(k, m.keyMap.First):
 		i, _ = m.step(-1, 1)
-	case key.Matches(k, m.keyMap.Last):
+	case keymap.Matches(k, m.keyMap.Last):
 		i, _ = m.step(len(m.grid)*7, -1)
 	default:
 		return m, nil

@@ -1,13 +1,13 @@
 package issues
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update implements ui.Section.
@@ -198,40 +198,40 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := s.keys
 	switch {
-	case key.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Select):
 		it, ok := s.list.Selected()
 		if !ok {
 			return nil
 		}
 		return s.openDetail(s.repo, it.Number, &it, false, nil, nil)
-	case key.Matches(msg, k.Close, k.Reopen):
+	case keymap.Matches(msg, k.Close, k.Reopen):
 		if state, ok := s.bulkState(msg); ok && s.list.Marks() > 0 {
 			return s.bulk(state)
 		}
-		if key.Matches(msg, k.Close) {
+		if keymap.Matches(msg, k.Close) {
 			return s.setState(core.StateClosed)
 		}
 		return s.setState(core.StateOpen)
-	case key.Matches(msg, k.NextTab):
+	case keymap.Matches(msg, k.NextTab):
 		s.others.Arm()
 		return s.show(nextTab(s.tab, 1), s.query)
-	case key.Matches(msg, k.PrevTab):
+	case keymap.Matches(msg, k.PrevTab):
 		s.others.Arm()
 		return s.show(nextTab(s.tab, -1), s.query)
-	case key.Matches(msg, k.ClearFilter):
+	case keymap.Matches(msg, k.ClearFilter):
 		return s.show(s.tab, "")
-	case key.Matches(msg, k.Refresh):
+	case keymap.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
 		s.ahead.Resume()
 		return s.list.Reload()
-	case key.Matches(msg, k.Open):
+	case keymap.Matches(msg, k.Open):
 		if it, ok := s.list.Selected(); ok && it.URL != "" {
 			return ui.Open(it.URL)
 		}
 		return nil
-	case key.Matches(msg, k.Filter):
+	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab)
-	case key.Matches(msg, k.Sort):
+	case keymap.Matches(msg, k.Sort):
 		return ui.OpenFilter(filterform.SortTab)
 	}
 	return s.forward(msg)

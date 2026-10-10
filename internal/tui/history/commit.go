@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -15,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
@@ -272,7 +272,7 @@ func (m *Modal) pressCommit(msg tea.KeyPressMsg) tea.Cmd {
 	page := max(m.filesHeight(), 1)
 	before := c.cursor
 	switch {
-	case key.Matches(msg, m.keys.Select):
+	case keymap.Matches(msg, m.keys.Select):
 		if c.cursor >= len(c.files) {
 			return nil
 		}
@@ -280,23 +280,23 @@ func (m *Modal) pressCommit(msg tea.KeyPressMsg) tea.Cmd {
 		m.layoutCommit()
 		c.pager.Focus()
 		return m.showFile()
-	case key.Matches(msg, m.keys.Retry):
+	case keymap.Matches(msg, m.keys.Retry):
 		return m.retryCommit(func(error) bool { return true })
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		c.cursor--
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		c.cursor++
-	case key.Matches(msg, k.PageUp):
+	case keymap.Matches(msg, k.PageUp):
 		c.cursor -= page
-	case key.Matches(msg, k.PageDown):
+	case keymap.Matches(msg, k.PageDown):
 		c.cursor += page
-	case key.Matches(msg, k.HalfPageUp):
+	case keymap.Matches(msg, k.HalfPageUp):
 		c.cursor -= max(page/2, 1)
-	case key.Matches(msg, k.HalfPageDown):
+	case keymap.Matches(msg, k.HalfPageDown):
 		c.cursor += max(page/2, 1)
-	case key.Matches(msg, k.Home):
+	case keymap.Matches(msg, k.Home):
 		c.cursor = 0
-	case key.Matches(msg, k.End):
+	case keymap.Matches(msg, k.End):
 		c.cursor = len(c.files) - 1
 	default:
 		return nil

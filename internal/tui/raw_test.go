@@ -201,7 +201,7 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 	if m.cfg.Files.Markdown != "raw" {
 		t.Errorf("set over the preview didn't run: %q", m.cfg.Files.Markdown)
 	}
-	for _, name := range []string{"goto", "search", "filter", "sort", "auth", "refresh"} {
+	for _, name := range []string{"goto", "search", "auth"} {
 		line := name
 		if name == "goto" {
 			line += " x"
@@ -214,8 +214,8 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 			t.Errorf("%s: toast = %q, want %q", name, toasted(m), want)
 		}
 	}
-	if got := texts(m.complete("r", 1)); !slices.Equal(got, []string{"raw "}) {
-		t.Errorf("over the preview r completes %q, want only raw", got)
+	if got := texts(m.complete("r", 1)); !slices.Equal(got, []string{"raw ", "refresh"}) {
+		t.Errorf("over the preview r completes %q, want raw and refresh", got)
 	}
 }
 

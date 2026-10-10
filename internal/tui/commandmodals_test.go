@@ -81,7 +81,8 @@ func TestCommandKeyIsTypedWhereTheModalTypes(t *testing.T) {
 }
 
 // An allowed command runs over each modal, and a refused one says to close
-// the modal first, by its name, and leaves it open.
+// the modal first, by its name, and leaves it open. An action that the
+// modal doesn't have says where it works.
 func TestCommandsOverEveryModal(t *testing.T) {
 	t.Parallel()
 	for _, mod := range modalsOver {
@@ -93,7 +94,7 @@ func TestCommandsOverEveryModal(t *testing.T) {
 				if m.cfg.Files.Markdown != "raw" {
 					t.Errorf("set over %s didn't run: files.markdown is %q", mod.title, m.cfg.Files.Markdown)
 				}
-				for _, line := range []string{"goto cli/cli", "search", "refresh", "filter", "sort", "auth"} {
+				for _, line := range []string{"goto cli/cli", "search", "find_file", "auth"} {
 					runCommand(t, m, line)
 					name, _, _ := strings.Cut(line, " ")
 					want := "Close " + mod.title + " first to use " + name + "."
@@ -103,6 +104,13 @@ func TestCommandsOverEveryModal(t *testing.T) {
 					if m.modal != open {
 						t.Fatalf("%s changed the modal", line)
 					}
+				}
+				runCommand(t, m, "history")
+				if want := "Close " + mod.title + " first to use history."; !hasToast(m, want) {
+					t.Errorf("history over %s: toasts %s, want %q", mod.title, toasted(m), want)
+				}
+				if m.modal != open {
+					t.Fatal("history changed the modal")
 				}
 			})
 		})
@@ -119,9 +127,9 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 		prefix string
 		want   []string
 	}{
-		{"s", []string{"search ", "set ", "sort"}},
-		{"co", []string{"config ", "copy "}},
-		{"r", []string{"raw ", "references", "refresh"}},
+		{"s", []string{"search ", "set "}},
+		{"co", []string{"collapse", "config ", "copy "}},
+		{"r", []string{"reset_base", "raw ", "references", "refresh", "repo"}},
 		{"g", []string{"goto "}},
 	} {
 		if got := all(tt.prefix); !slices.Equal(got, tt.want) {
@@ -136,15 +144,15 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 	}{
 		{"history", []string{"repo.history"}, "s", []string{"set "}},
 		{"history", []string{"repo.history"}, "co", []string{"config ", "copy "}},
-		{"history", []string{"repo.history"}, "r", nil},
+		{"history", []string{"repo.history"}, "r", []string{"reset_base", "refresh"}},
 		{"actions", []string{"repo.actions"}, "g", nil},
 		{"pull request", []string{"global.pane_2", "global.select"}, "co", []string{"config ", "copy "}},
-		{"pull request", []string{"global.pane_2", "global.select"}, "r", []string{"references"}},
-		{"issue", []string{"global.pane_3", "global.select"}, "r", []string{"references"}},
-		{"issue", []string{"global.pane_3", "global.select"}, "co", []string{"config ", "copy "}},
-		{"preview", []string{"files.down", "global.select"}, "r", []string{"raw "}},
+		{"pull request", []string{"global.pane_2", "global.select"}, "r", []string{"reopen", "references", "refresh"}},
+		{"issue", []string{"global.pane_3", "global.select"}, "r", []string{"reopen", "references", "refresh"}},
+		{"issue", []string{"global.pane_3", "global.select"}, "co", []string{"comment", "config ", "copy "}},
+		{"preview", []string{"files.down", "global.select"}, "r", []string{"raw ", "refresh"}},
 		{"preview", []string{"files.down", "global.select"}, "co", []string{"config ", "copy "}},
-		{"preview", []string{"files.down", "global.select"}, "o", []string{"open "}},
+		{"preview", []string{"files.down", "global.select"}, "o", []string{"option", "open "}},
 	} {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, tt.steps...)

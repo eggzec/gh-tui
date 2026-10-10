@@ -3,11 +3,11 @@ package issues
 import (
 	"strconv"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -19,7 +19,7 @@ func issueKey(it core.Issue) string { return strconv.Itoa(it.Number) }
 // follows the marked issue under the cursor, or else the first marked one.
 func (s *Section) bulkState(msg tea.KeyPressMsg) (state core.State, ok bool) {
 	k := s.keys
-	closes, reopens := key.Matches(msg, k.Close), key.Matches(msg, k.Reopen)
+	closes, reopens := keymap.Matches(msg, k.Close), keymap.Matches(msg, k.Reopen)
 	switch {
 	case closes && reopens:
 		// A shared key goes the way of the marked issue under the

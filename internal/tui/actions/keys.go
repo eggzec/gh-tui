@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
@@ -193,7 +194,7 @@ var paneTitles = [numPanes]string{"runs", "jobs", "log"}
 // focusOf returns the pane that msg focuses, or -1.
 func (k KeyMap) focusOf(msg tea.KeyPressMsg) pane {
 	for i, b := range k.Panes {
-		if key.Matches(msg, b) {
+		if keymap.Matches(msg, b) {
 			return pane(i)
 		}
 	}

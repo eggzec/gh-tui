@@ -28,6 +28,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -155,6 +156,12 @@ func press(k string) tea.KeyPressMsg {
 
 func isKey(k string) func(tea.Msg) bool {
 	return func(msg tea.Msg) bool { p, ok := msg.(tea.KeyPressMsg); return ok && p.String() == k }
+}
+
+// isActionPress matches the press that stands for action, as a command
+// gives it where the key would go.
+func isActionPress(action string) func(tea.Msg) bool {
+	return func(msg tea.Msg) bool { a, ok := keymap.Pressed(msg); return ok && a == action }
 }
 
 func focusedTitles(fakes []*fakeSection) []string {

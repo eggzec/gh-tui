@@ -1,9 +1,10 @@
 package pager
 
 import (
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update scrolls and searches on keys while the pager is focused, and takes
@@ -75,53 +76,53 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	h := max(m.bodyHeight(), 1)
 	switch {
-	case key.Matches(k, m.keys.Down):
+	case keymap.Matches(k, m.keys.Down):
 		m.down(1)
-	case key.Matches(k, m.keys.Up):
+	case keymap.Matches(k, m.keys.Up):
 		m.up(1)
-	case key.Matches(k, m.keys.PageDown):
+	case keymap.Matches(k, m.keys.PageDown):
 		m.down(h)
-	case key.Matches(k, m.keys.PageUp):
+	case keymap.Matches(k, m.keys.PageUp):
 		m.up(h)
-	case key.Matches(k, m.keys.HalfPageDown):
+	case keymap.Matches(k, m.keys.HalfPageDown):
 		m.down(max(h/2, 1))
-	case key.Matches(k, m.keys.HalfPageUp):
+	case keymap.Matches(k, m.keys.HalfPageUp):
 		m.up(max(h/2, 1))
-	case key.Matches(k, m.keys.Home):
+	case keymap.Matches(k, m.keys.Home):
 		m.top, m.row = 0, 0
 		m.clamp()
-	case key.Matches(k, m.keys.End):
+	case keymap.Matches(k, m.keys.End):
 		m.top, m.row = m.last()
 		m.clamp()
-	case key.Matches(k, m.keys.Right):
+	case keymap.Matches(k, m.keys.Right):
 		if !m.wrap {
 			m.scrollRight(m.hStep())
 			m.findHits()
 		}
-	case key.Matches(k, m.keys.Left):
+	case keymap.Matches(k, m.keys.Left):
 		m.left = max(m.left-m.hStep(), 0)
 		m.findHits()
-	case key.Matches(k, m.keys.Option):
+	case keymap.Matches(k, m.keys.Option):
 		m.opt = true
 		m.enableSearchKeys()
-	case key.Matches(k, m.keys.Search):
+	case keymap.Matches(k, m.keys.Search):
 		cmd := m.openPrompt(promptSearch)
 		return m, cmd
-	case key.Matches(k, m.keys.Filter):
+	case keymap.Matches(k, m.keys.Filter):
 		cmd := m.openPrompt(promptFilter)
 		return m, cmd
-	case key.Matches(k, m.keys.Next):
+	case keymap.Matches(k, m.keys.Next):
 		m.step(1)
-	case key.Matches(k, m.keys.Prev):
+	case keymap.Matches(k, m.keys.Prev):
 		m.step(-1)
-	case key.Matches(k, m.keys.Cancel):
+	case keymap.Matches(k, m.keys.Cancel):
 		// Esc peels one layer at a time: the search, then the filter.
 		cmd, _ := m.ClearTransient()
 		return m, cmd
-	case key.Matches(k, m.keys.Edit):
+	case keymap.Matches(k, m.keys.Edit):
 		cmd := m.edit()
 		return m, cmd
-	case key.Matches(k, m.keys.Quit, m.keys.Dismiss):
+	case keymap.Matches(k, m.keys.Quit, m.keys.Dismiss):
 		return m, m.close()
 	}
 	return m, nil
