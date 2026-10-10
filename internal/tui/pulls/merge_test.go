@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -445,6 +446,37 @@ func TestMergeWaitsForTheDetailOfARow(t *testing.T) {
 		drain(t, h, h.Update(detailMsg{thread: m.thread.ID(), detail: svc.detail(142)}))
 		if got, want := question(h), "Add #142 to the merge queue for main?"; got != want {
 			t.Errorf("asks %q, want %q", got, want)
+		}
+	})
+}
+
+// The wait says its ellipsis in the icon set, so the ASCII set shows no
+// Unicode glyph.
+func TestMergeWaitUsesTheIconEllipsis(t *testing.T) {
+	ascii := WithIcons(ui.NewIcons(config.IconsASCII))
+	t.Run("the list", func(t *testing.T) {
+		svc := newFakeService()
+		stand(svc, core.MergeInfo{Status: core.MergeBlocked}, core.ReviewApproved, core.ChecksSuccess)
+		h := started(t, svc, 120, 20, ascii)
+		drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps}))
+		svc.mu.Lock()
+		clear(svc.cached)
+		svc.mu.Unlock()
+		msgs := press(t, h, "M")
+		if !slices.Contains(msgs, info("Checking #142...")) {
+			t.Errorf("messages %v, want the wait said with ASCII dots", msgs)
+		}
+	})
+	t.Run("the modal", func(t *testing.T) {
+		svc := newFakeService()
+		stand(svc, core.MergeInfo{Status: core.MergeClean}, core.ReviewApproved, core.ChecksSuccess)
+		h := started(t, svc, 120, 20, ascii)
+		drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps}))
+		press(t, h, "enter")
+		h.modal().seen = false
+		msgs := press(t, h, "M")
+		if !slices.Contains(msgs, info("Checking #142...")) {
+			t.Errorf("messages %v, want the wait said with ASCII dots", msgs)
 		}
 	})
 }
