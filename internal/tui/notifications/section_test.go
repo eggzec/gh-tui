@@ -500,6 +500,18 @@ func TestMarkAllReadIgnoresTheQuickFilter(t *testing.T) {
 	}
 }
 
+// With nothing in the inbox there is nothing to mark, so read all asks
+// nothing and sends no question to the app.
+func TestMarkAllReadOnAnEmptyInboxAsksNothing(t *testing.T) {
+	s := newSection(t, newFake(), 80, 12)
+	if app := press(t, s, readAll); len(app) != 0 {
+		t.Errorf("read all sent %v, want nothing", app)
+	}
+	if got := question(s); got != "" {
+		t.Errorf("question = %q, want none", got)
+	}
+}
+
 func isDone(m tea.Msg) bool { _, ok := m.(ui.DoneMsg); return ok }
 
 func TestMarksAskAgain(t *testing.T) {
