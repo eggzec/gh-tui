@@ -6,6 +6,7 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -40,6 +41,39 @@ func (b *backModal) Discard() { b.discarded++ }
 // the app's keys reach the modal as intents.
 func (b *backModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{{Source: b.title, Context: "issue_modal"}}
+}
+
+// disabledBackModal has a binding on the back key that is off, as the
+// pager's search clear is while no search is open.
+type disabledBackModal struct {
+	backModal
+	keys []string
+}
+
+func (d *disabledBackModal) KeyLayers() []keyhelp.Layer {
+	off := key.NewBinding(key.WithKeys(d.keys...), key.WithHelp("off", "clear"))
+	off.SetEnabled(false)
+	return []keyhelp.Layer{{Source: d.title, Context: "issue_modal", Bindings: []key.Binding{off}}}
+}
+
+// TestHelpListsBackBesideDisabledBinding checks that a disabled binding on
+// the back key doesn't hide the app's back key from the help, since the
+// disabled one doesn't answer the key.
+func TestHelpListsBackBesideDisabledBinding(t *testing.T) {
+	t.Parallel()
+	m, _ := newTestApp(t)
+	first := &backModal{}
+	first.title = "first"
+	second := &disabledBackModal{keys: m.keys.Back.Keys()}
+	second.title = "second"
+	run(m, ui.OpenModalOver(first, nil))
+	run(m, ui.OpenModalOver(second, first))
+	if !m.modalBack() {
+		t.Fatal("the open modal has no modal to return to")
+	}
+	if !backKey(t, m) {
+		t.Error("the help lists the back key as off, or not at all")
+	}
 }
 
 // backKey returns the back key as the help of the open modal lists it, and
