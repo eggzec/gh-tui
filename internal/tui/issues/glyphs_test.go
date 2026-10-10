@@ -88,6 +88,27 @@ func TestRowASCII(t *testing.T) {
 	}
 }
 
+// With the ASCII icons the bar over the list is ASCII, set at construction
+// or by the set command.
+func TestBarASCII(t *testing.T) {
+	ascii := config.Default()
+	ascii.UI.Icons = config.IconsASCII
+	for name, s := range map[string]*Section{
+		"option": started(t, newFakeService(sampleIssues(3)), 80, 30, WithIcons(ui.NewIcons(config.IconsASCII))).Section,
+		"set": func() *Section {
+			s := started(t, newFakeService(sampleIssues(3)), 80, 30).Section
+			s.configure(ascii)
+			s.SetTheme(s.theme)
+			return s
+		}(),
+	} {
+		bar := ansi.Strip(strings.SplitN(s.View(), "\n", 2)[0])
+		if strings.ContainsFunc(bar, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%s: bar %q isn't ASCII", name, bar)
+		}
+	}
+}
+
 // With the ASCII icons the detail is ASCII apart from what GitHub wrote:
 // its header, the separators and marks of its comments, and its frame.
 func TestDetailASCII(t *testing.T) {
