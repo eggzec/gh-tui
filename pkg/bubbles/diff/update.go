@@ -46,6 +46,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmd := m.press(msg)
 		return m, cmd
 	}
+	if m.focused && m.searching {
+		// Pastes and the like go to the input, which edits its text in
+		// place, so it gets a copy of its own first.
+		m.input.SetValue(m.input.Value())
+		var cmd tea.Cmd
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+	}
 	return m, nil
 }
 
@@ -60,6 +68,7 @@ func (m *Model) receive(msg pageMsg) tea.Cmd {
 	m.pg.err = nil
 	m.syncKeys()
 	m.layout.Append(msg.files...)
+	m.searchMore()
 	// A source that answers with no files and the cursor it was asked
 	// with would be asked again for ever.
 	m.pg.done = msg.next == "" || (len(msg.files) == 0 && msg.next == msg.cursor)
@@ -88,7 +97,11 @@ func (m *Model) Retry() tea.Cmd {
 }
 
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
+	if m.searching {
+		return m.pressSearch(msg)
+	}
 	m.pg.seek = nil
+	m.search.waiting = false
 	h := m.bodyHeight()
 	switch {
 	case key.Matches(msg, m.keyMap.Up):
@@ -121,6 +134,14 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.prevHunk()
 	case key.Matches(msg, m.keyMap.Fold):
 		m.fold()
+	case key.Matches(msg, m.keyMap.Search):
+		return m.openSearch()
+	case key.Matches(msg, m.keyMap.Next):
+		m.step(1)
+	case key.Matches(msg, m.keyMap.Prev):
+		m.step(-1)
+	case m.search.query != "" && key.Matches(msg, m.keyMap.Cancel):
+		m.clearSearch()
 	case key.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
 	default:
@@ -265,7 +286,8 @@ func (m Model) wantsMore() bool {
 	if m.pg.done || m.pg.fetching || m.pg.err != nil {
 		return false
 	}
-	return m.pg.seek != nil || m.top+2*max(m.bodyHeight(), 1) >= m.layout.Len()
+	// A search shown covers every file, so the pages go on to be fetched.
+	return m.pg.seek != nil || m.search.re != nil || m.top+2*max(m.bodyHeight(), 1) >= m.layout.Len()
 }
 
 // bodyHeight is the number of rows of the window: the view without its

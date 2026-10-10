@@ -199,7 +199,8 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 // the rename arrow and the ellipsis of ic. The markers of added and deleted
 // lines take the palette's success and error colors, and a faint mix of
 // each with the background tints the highlighted code of those lines. The
-// syntax colors keep the pager's.
+// syntax colors keep the pager's, and so do the search highlights, which
+// need backgrounds the palette doesn't have.
 func (t Theme) Diff(ic Icons) diff.Styles {
 	s := diff.DefaultStyles(t.Dark)
 	s.Syntax = pager.DefaultStyles(t.Dark).Syntax
@@ -226,6 +227,8 @@ func (t Theme) Diff(ic Icons) diff.Styles {
 	s.Empty = s.Empty.Foreground(c(p.Muted))
 	s.Error = s.Error.Foreground(c(p.Error))
 	s.Hint = s.Hint.Foreground(c(p.Subtle))
+	s.Prompt = s.Prompt.Foreground(c(p.Accent))
+	s.InputCursor = s.InputCursor.Foreground(c(p.Accent))
 	return s
 }
 

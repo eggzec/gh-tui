@@ -47,6 +47,15 @@ type Styles struct {
 	// Status styles the line that says where the cursor is.
 	Status lipgloss.Style
 
+	// Match styles the matches of a search, and CurrentMatch the one the
+	// last jump went to. They replace the colors of the match.
+	Match        lipgloss.Style
+	CurrentMatch lipgloss.Style
+	// Prompt styles the "/" before the search input, and InputCursor its
+	// cursor, with its foreground.
+	Prompt      lipgloss.Style
+	InputCursor lipgloss.Style
+
 	// Loading, Empty, Error and Hint style the rows that say that files
 	// are being fetched, that there are none, that a fetch failed, and
 	// what to do about it.
@@ -79,6 +88,11 @@ func DefaultStyles(isDark bool) Styles {
 	red := ld(lipgloss.Color("#c0392b"), lipgloss.Color("#ef7d7d"))
 	cyan := ld(lipgloss.Color("#0b7285"), lipgloss.Color("#7dcfff"))
 
+	match := ld(lipgloss.Color("#f6e7a8"), lipgloss.Color("#4a4430"))
+	current := ld(lipgloss.Color("#f2c14e"), lipgloss.Color("#e0af68"))
+	text := ld(lipgloss.Color("#1f2330"), lipgloss.Color("#c8cedb"))
+	onCurrent := ld(lipgloss.Color("#1f2330"), lipgloss.Color("#1a1b26"))
+
 	syntax := "github"
 	if isDark {
 		syntax = "github-dark"
@@ -100,6 +114,10 @@ func DefaultStyles(isDark bool) Styles {
 		Note:          lipgloss.NewStyle().Foreground(muted).Italic(true),
 		LineNumber:    lipgloss.NewStyle().Foreground(subtle),
 		Status:        lipgloss.NewStyle().Foreground(muted),
+		Match:         lipgloss.NewStyle().Foreground(text).Background(match),
+		CurrentMatch:  lipgloss.NewStyle().Foreground(onCurrent).Background(current),
+		Prompt:        lipgloss.NewStyle().Foreground(accent),
+		InputCursor:   lipgloss.NewStyle().Foreground(accent),
 		Loading:       lipgloss.NewStyle().Foreground(muted),
 		Empty:         lipgloss.NewStyle().Foreground(muted),
 		Error:         lipgloss.NewStyle().Foreground(red),
@@ -130,6 +148,7 @@ func (w sgr) on(text string) string { return w.pre + text + w.suf }
 type wraps struct {
 	FileHeader, HunkHeader, Added, Deleted, Context, NoNewline, Note sgr
 	LineNumber, Status, Loading, Empty, Error, Hint                  sgr
+	match, current                                                   sgr
 	// code is how the code of a context, an added and a deleted line
 	// looks once highlighted.
 	code [3]tokenStyles
@@ -150,6 +169,7 @@ func newWraps(s Styles) wraps {
 		LineNumber: wrapOf(s.LineNumber), Status: wrapOf(s.Status),
 		Loading: wrapOf(s.Loading), Empty: wrapOf(s.Empty),
 		Error: wrapOf(s.Error), Hint: wrapOf(s.Hint),
+		match: wrapOf(s.Match), current: wrapOf(s.CurrentMatch),
 		code: [3]tokenStyles{
 			codeContext: newTokenStyles(s.ContextText, s.Syntax),
 			codeAdded:   newTokenStyles(s.AddedText, s.Syntax),

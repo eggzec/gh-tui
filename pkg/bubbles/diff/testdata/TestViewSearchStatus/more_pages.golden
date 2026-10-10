@@ -1,0 +1,8 @@
+> v a.go +1 -1                                    
+      @@ -1,3 +1,3 @@                             
+       keep Foo                                   
+      -old foo                                    
+      +new bar                                    
+  v b.go +1 -1                                    
+      @@ -1,2 +1,2 @@                             
+file 1/3+ - match 2/2+                            

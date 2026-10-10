@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -354,6 +355,10 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Open):
 		return m.openFiles()
 	case key.Matches(msg, k.Back):
+		// The search of the diff is cleared first, then the modal closes.
+		if f != nil && f.diff.ClearSearch() {
+			return nil
+		}
 		return m.close()
 	case f == nil:
 		return nil
@@ -378,6 +383,19 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 		f.tree, cmd = f.tree.Update(msg)
 		return cmd
 	}
+	return m.pressDiff(msg)
+}
+
+// searchingDiff reports whether the Files tab shows a diff whose search
+// input is open, which takes every key.
+func (m *detailModal) searchingDiff() bool {
+	return m.onFiles() && m.files != nil && m.files.diff.Capturing()
+}
+
+// pressDiff gives a key to the diff.
+func (m *detailModal) pressDiff(msg tea.KeyPressMsg) tea.Cmd {
+	f := m.files
+	var cmd tea.Cmd
 	f.diff, cmd = f.diff.Update(msg)
 	return tea.Batch(cmd, m.follow(), m.spinWhileLoading())
 }
@@ -646,7 +664,11 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		}
 		// The modal's refresh retries a failed read.
 		keys.Retry.SetEnabled(false)
-		return ui.ContextHelp(ctxDiff, keys, false)
+		l := ui.ContextHelp(ctxDiff, keys, false)
+		// Backspace on an empty search line is the prompt's alone. Listed
+		// here, though off, it would hide the app's back key in help.
+		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), keys.CancelEmpty.Keys()) })
+		return l
 	}
 	return ui.ContextHelp(ctxFiles, m.keys.tree, false)
 }

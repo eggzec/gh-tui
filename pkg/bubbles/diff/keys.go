@@ -31,6 +31,20 @@ type KeyMap struct {
 	PrevHunk key.Binding `keymap:"prev_hunk" help:"prev hunk"`
 	// Fold folds or unfolds the file whose header the cursor is on.
 	Fold key.Binding `keymap:"global.select" help:"fold"`
+	// Search opens the search input, Confirm searches the lines of every
+	// file for what it holds, and Cancel closes it. Outside the input,
+	// Cancel clears the search. The view enables Confirm only while the
+	// input is open, and Cancel only while it is or a search is shown.
+	Search  key.Binding `keymap:"find" help:"search"`
+	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
+	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`
+	// CancelEmpty closes the input too, but only on an empty line, where
+	// the input takes it before it would erase a character.
+	CancelEmpty key.Binding `keymap:"search_prompt.cancel_empty" help:"cancel"`
+	// Next and Prev move between matches, across files, wrapping round at
+	// the ends. The view enables them only while there are matches.
+	Next key.Binding `keymap:"next_match" help:"next match"`
+	Prev key.Binding `keymap:"prev_match" help:"prev match"`
 	// Retry repeats a failed fetch. The view enables it only while a fetch
 	// has failed, so help shows it only when it does something.
 	Retry key.Binding `keymap:"global.refresh" help:"retry"`
@@ -44,6 +58,9 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	keymap.Fill(&k, look)
 	// The view enables the retry key while a fetch has failed.
 	k.Retry.SetEnabled(false)
+	for _, b := range []*key.Binding{&k.Confirm, &k.Cancel, &k.CancelEmpty, &k.Next, &k.Prev} {
+		b.SetEnabled(false)
+	}
 	return k
 }
 
@@ -52,7 +69,7 @@ var unbound = keymap.Func(func(string) []string { return nil })
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.NextFile, k.NextHunk, k.Fold, k.Retry}
+	return []key.Binding{k.Up, k.Down, k.NextFile, k.NextHunk, k.Fold, k.Search, k.Next, k.Retry}
 }
 
 // FullHelp returns the bindings for the full help view.
@@ -61,5 +78,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
 		{k.NextFile, k.PrevFile, k.NextHunk, k.PrevHunk, k.Fold, k.Retry},
+		{k.Search, k.Confirm, k.Cancel, k.CancelEmpty, k.Next, k.Prev},
 	}
 }
