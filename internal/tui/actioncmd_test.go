@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -10,6 +11,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -503,6 +507,34 @@ func TestReadAllIsTheReadCommandWithAll(t *testing.T) {
 		runCommand(t, m, "read")
 		if view := ansi.Strip(m.View().Content); strings.Contains(view, "all notifications") || layerNames(m.keyLayers()) != "always, confirm" {
 			t.Errorf(":read asks about all, or nothing:\n%s", view)
+		}
+	})
+}
+
+// keyEmptyInbox has no notifications.
+type keyEmptyInbox struct{ keyInbox }
+
+func (keyEmptyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bool) {
+	return core.Page[core.Notification]{}, true
+}
+func (keyEmptyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
+	return core.Page[core.Notification]{}, nil
+}
+
+// TestReadAllOnAnEmptyInbox checks that read all says there is nothing to
+// read, and asks nothing.
+func TestReadAllOnAnEmptyInbox(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		m.notif.section = notifications.New(t.Context(), keyEmptyInbox{}, m.cfg.Keys, notifications.WithVoice(m.voice), notifications.WithIcons(m.icons))
+		driveKeys(t, m, m.showScreen(notifScreen, m.focus))
+		runCommand(t, m, "read all")
+		if want := "There is nothing to read here."; !hasToast(m, want) {
+			t.Errorf(":read all toasts %s, want %q", toasted(m), want)
+		}
+		if got := layerNames(m.keyLayers()); got == "always, confirm" {
+			t.Error(":read all asks on an empty inbox")
 		}
 	})
 }
