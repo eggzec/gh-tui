@@ -374,7 +374,7 @@ func TestModalRefusesWhatItDoesNotOwn(t *testing.T) {
 func TestInnermostContextResolvesFirst(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "global.pane_2", "global.select", "global.prev_tab", "global.pane_1")
+		m := keysAfter(t, true, "global.pane_2", "global.select", "global.next_tab", "global.pane_1")
 		chain := m.focusChain()
 		pane := slices.IndexFunc(chain, func(ctx string) bool { return ctx == "pull_files" })
 		modal := slices.Index(chain, "pull_modal")
