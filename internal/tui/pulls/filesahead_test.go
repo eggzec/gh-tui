@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -98,6 +99,60 @@ func TestFilesAheadThenTabUsesIt(t *testing.T) {
 	}
 	if n := svc.fileReadCount(); n != 1 {
 		t.Errorf("showing the Files tab read %d more pages, want none", n-1)
+	}
+}
+
+// filesOpened replaces the default stats and returns how many files reads
+// ahead they count as used.
+func filesOpened(t *testing.T) func() int64 {
+	t.Helper()
+	stats := obs.NewStats()
+	prev := obs.SetDefault(stats)
+	t.Cleanup(func() { obs.SetDefault(prev) })
+	return func() int64 {
+		for _, p := range stats.Summary().Prefetch {
+			if p.Kind == "pull_files" {
+				return p.Opened
+			}
+		}
+		return 0
+	}
+}
+
+// TestFilesAheadThenTabCountsAsUsed checks that showing the Files tab counts
+// the files read ahead of it as used, and not before. It stays serial, as it
+// replaces the default stats.
+func TestFilesAheadThenTabCountsAsUsed(t *testing.T) {
+	opened := filesOpened(t)
+	svc := newFakeService()
+	svc.filesCache = true
+	h, _ := filedWith(t, svc, 100, 30, quickFiles())
+	if n := opened(); n != 0 {
+		t.Fatalf("%d files reads counted as used before the tab showed, want none", n)
+	}
+	press(t, h, "[")
+	if n := opened(); n != 1 {
+		t.Errorf("%d files reads counted as used after showing the tab, want 1", n)
+	}
+}
+
+// TestFilesAheadNewHeadThenTabCountsAsUsed checks that the files read ahead
+// of a new head count as used when the tab, which was seen before, shows
+// again and reads them. It stays serial, as it replaces the default stats.
+func TestFilesAheadNewHeadThenTabCountsAsUsed(t *testing.T) {
+	opened := filesOpened(t)
+	svc := newFakeService()
+	svc.filesCache = true
+	h, _ := filedWith(t, svc, 100, 30, quickFiles())
+	press(t, h, "[")
+	press(t, h, "]")
+	newHead(t, h, svc, "b2c3d4e")
+	if n := opened(); n != 1 {
+		t.Fatalf("%d files reads counted as used before the tab showed again, want the first", n)
+	}
+	press(t, h, "[")
+	if n := opened(); n != 2 {
+		t.Errorf("%d files reads counted as used after the tab showed again, want 2", n)
 	}
 }
 
