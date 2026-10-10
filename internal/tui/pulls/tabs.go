@@ -14,7 +14,9 @@ import (
 type modalTab int
 
 const (
-	conversationTab modalTab = iota
+	// overviewTab is the first, and the one the modal opens on.
+	overviewTab modalTab = iota
+	conversationTab
 	checksTab
 	filesTab
 )
@@ -23,8 +25,8 @@ const (
 // title for the tabs to be named in full.
 const titleRoom = 18
 
-// has reports whether the modal has tab t: the files and the conversation
-// always, the checks unless the pull request has none.
+// has reports whether the modal has tab t: the overview, the files and
+// the conversation always, the checks unless the pull request has none.
 func (m *detailModal) has(t modalTab) bool {
 	if t == checksTab {
 		return m.hasChecks()
@@ -51,9 +53,9 @@ func (m *detailModal) hasChecks() bool {
 // tabList returns the tabs the modal has, in order.
 func (m *detailModal) tabList() []modalTab {
 	if m.hasChecks() {
-		return []modalTab{filesTab, conversationTab, checksTab}
+		return []modalTab{overviewTab, filesTab, conversationTab, checksTab}
 	}
-	return []modalTab{filesTab, conversationTab}
+	return []modalTab{overviewTab, filesTab, conversationTab}
 }
 
 // hasTabs reports whether there is more than one tab, for the keys that
@@ -93,11 +95,17 @@ func (m *detailModal) Tabs() (names []string, active int) {
 	return names, active
 }
 
-// label names tab t for the top edge: "Files" with the count of files,
-// "Conversation" and "Checks" with how the checks stand, or "Fi", "Co" and
-// "Ch" with the count of comments and how the checks stand when short.
+// label names tab t for the top edge: "Overview", "Files" with the count
+// of files, "Conversation" and "Checks" with how the checks stand, or "Ov",
+// "Fi", "Co" and "Ch" with the count of comments and how the checks stand
+// when short.
 func (m *detailModal) label(t modalTab, short bool) string {
 	switch t {
+	case overviewTab:
+		if short {
+			return "Ov"
+		}
+		return "Overview"
 	case filesTab:
 		name := "Files"
 		if short {
@@ -130,7 +138,26 @@ func (m *detailModal) label(t modalTab, short bool) string {
 // checkGlyph says how the checks stand: the failing ones counted, or that
 // some are pending, or that all passed. It is empty while that isn't known.
 func (m *detailModal) checkGlyph() string {
-	var failing, pending, passing int
+	failing, pending, passing, state := m.checkTally()
+	switch {
+	case failing > 0:
+		return m.icons.Run(ui.RunFailure) + strconv.Itoa(failing)
+	case state == core.ChecksFailure:
+		return m.icons.Run(ui.RunFailure)
+	case pending > 0:
+		return m.icons.Run(ui.RunInProgress)
+	case passing > 0:
+		return m.icons.Run(ui.RunSuccess)
+	}
+	return ""
+}
+
+// checkTally counts the checks by how they stand, from the checks as the
+// step has them, or else from the detail. When the detail has only the
+// state and no counts, the counts are 0 except that a passing state counts
+// one passing and a pending one counts one pending, and state is the
+// state it names.
+func (m *detailModal) checkTally() (failing, pending, passing int, state core.ChecksState) {
 	switch c, ok := m.knownChecks(); {
 	case ok && c.Total > 0:
 		failing, pending, passing = c.Count()
@@ -139,25 +166,16 @@ func (m *detailModal) checkGlyph() string {
 		failing, pending, passing = n.Failed, n.Pending, n.Passed
 	case m.loaded:
 		// The state says how they stand, not how many.
-		switch m.detail.Checks {
-		case core.ChecksFailure:
-			return m.icons.Run(ui.RunFailure)
+		state = m.detail.Checks
+		switch state {
 		case core.ChecksPending:
 			pending = 1
 		case core.ChecksSuccess:
 			passing = 1
-		case core.ChecksNone:
+		case core.ChecksFailure, core.ChecksNone:
 		}
 	}
-	switch {
-	case failing > 0:
-		return m.icons.Run(ui.RunFailure) + strconv.Itoa(failing)
-	case pending > 0:
-		return m.icons.Run(ui.RunInProgress)
-	case passing > 0:
-		return m.icons.Run(ui.RunSuccess)
-	}
-	return ""
+	return failing, pending, passing, state
 }
 
 // knownChecks returns the checks as the step has them if it read them, or
@@ -198,6 +216,9 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 		return m.showChecks()
 	case filesTab:
 		return m.showFiles()
+	case overviewTab:
+		// It reads the detail each time it draws.
+		return nil
 	case conversationTab:
 	}
 	if !m.loaded {

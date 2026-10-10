@@ -21,7 +21,7 @@ func theme(dark bool) ui.Theme {
 }
 
 // threadModal returns a section width wide with the modal of a pull request
-// open on comments, in a dark or light theme.
+// open on comments, on its conversation, in a dark or light theme.
 func threadModal(tb testing.TB, comments []core.Comment, dark bool, width, height int) (*host, *detailModal) {
 	tb.Helper()
 	svc := newFakeService()
@@ -33,6 +33,7 @@ func threadModal(tb testing.TB, comments []core.Comment, dark bool, width, heigh
 	if m == nil {
 		tb.Fatal("enter didn't open the pull request")
 	}
+	m.tab = conversationTab
 	return h, m
 }
 

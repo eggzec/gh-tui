@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -679,5 +680,45 @@ func TestReopenedReadsTheLostLog(t *testing.T) {
 	}
 	if s.view.State() != jobview.Ready {
 		t.Errorf("the log is in state %d once the step is back, want shown", s.view.State())
+	}
+}
+
+// Open shows the check it is asked for as enter does: the log of a job,
+// and what an app reported for another, found by its ID or else by its name.
+func TestOpenShowsTheCheckAskedFor(t *testing.T) {
+	s, h := newStep(t, newFake(), wideW, wideH)
+	h.run(s.Open("", testJob))
+	if s.mode != jobMode || s.check.name() != "test (ubuntu-latest)" {
+		t.Fatalf("Open by ID shows mode %d on %q, want the log of the test job", s.mode, s.check.name())
+	}
+	h.run(s.Open("codecov/patch", 0))
+	if s.mode != detailMode || s.check.name() != "codecov/patch" {
+		t.Fatalf("Open by name from a log shows mode %d on %q, want the detail of codecov/patch", s.mode, s.check.name())
+	}
+	h.keys("backspace")
+	if r, _ := s.selected(); s.mode != listMode || r.name() != "codecov/patch" {
+		t.Errorf("back from the opened check is on %q in mode %d, want the list on it", r.name(), s.mode)
+	}
+	h.run(s.Open("nothing of the sort", 0))
+	if s.mode != listMode {
+		t.Errorf("Open of a check the list lacks left mode %d, want the list", s.mode)
+	}
+}
+
+// A check asked for before the checks arrive opens once they do.
+func TestOpenWaitsForTheChecks(t *testing.T) {
+	f := newFake()
+	s := New(t.Context(), f, repo, query.Number, config.Default().Keys,
+		forTests(), WithClock(func() time.Time { return testNow }), WithIcons(ui.NewIcons(config.IconsUnicode)), WithReturn(ret))
+	s.SetTheme(testTheme())
+	s.SetSize(wideW, wideH)
+	h := &host{s: s}
+	h.run(s.Open("test (ubuntu-latest)", 0))
+	if s.mode != listMode {
+		t.Fatalf("Open before the checks read shows mode %d", s.mode)
+	}
+	h.run(s.Init())
+	if s.mode != jobMode || s.check.name() != "test (ubuntu-latest)" {
+		t.Errorf("the checks arrived and the step shows mode %d on %q, want the log of the check asked for", s.mode, s.check.name())
 	}
 }

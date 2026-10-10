@@ -176,6 +176,7 @@ func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 		t.Fatal("enter should open the modal, then start its loads")
 	}
 	drain(t, h, seq[0])
+	h.modal().tab = conversationTab
 	view := modalScreen(t, h)
 	for _, want := range []string{"Retry GraphQL requests", "Cold starts read every page", "Does this survive a crash"} {
 		if !strings.Contains(view, want) {
@@ -215,6 +216,7 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 		t.Fatal("the notification should open the modal, then start its loads")
 	}
 	drain(t, h, seq[0])
+	h.modal().tab = conversationTab
 	view := modalScreen(t, h)
 	for _, want := range []string{"Cold starts read every page", "Does this survive a crash", "It writes to a temporary file"} {
 		if !strings.Contains(view, want) {

@@ -14,9 +14,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
-// tabbed returns a section with checks, whose icons are plain unicode, and
-// the modal of its first pull request, opened on its conversation.
-func tabbed(tb testing.TB, svc *fakeService, c *fakeChecks, opts ...checks.Option) (*host, *detailModal) {
+// opened returns a section with checks, whose icons are plain unicode, and
+// the modal of its first pull request, on the Overview it opens on.
+func opened(tb testing.TB, svc *fakeService, c *fakeChecks, opts ...checks.Option) (*host, *detailModal) {
 	tb.Helper()
 	h := started(tb, svc, 100, 30, WithChecks(c, opts...), WithIcons(ui.NewIcons(config.IconsUnicode)))
 	press(tb, h, "enter")
@@ -27,24 +27,40 @@ func tabbed(tb testing.TB, svc *fakeService, c *fakeChecks, opts ...checks.Optio
 	return h, m
 }
 
+// tabbed is opened with the modal moved to its conversation.
+func tabbed(tb testing.TB, svc *fakeService, c *fakeChecks, opts ...checks.Option) (*host, *detailModal) {
+	tb.Helper()
+	h, m := opened(tb, svc, c, opts...)
+	m.tab = conversationTab
+	return h, m
+}
+
 func TestTabsCycle(t *testing.T) {
-	h, m := tabbed(t, newFakeService(), &fakeChecks{})
-	if m.tab != conversationTab || m.checks != nil || m.files != nil {
-		t.Fatalf("the modal opened on tab %d with checks %v and files %v, want the conversation and neither built", m.tab, m.checks, m.files)
+	h, m := opened(t, newFakeService(), &fakeChecks{})
+	if m.tab != overviewTab || m.checks != nil || m.files != nil {
+		t.Fatalf("the modal opened on tab %d with checks %v and files %v, want the overview and neither built", m.tab, m.checks, m.files)
 	}
 	names, active := m.Tabs()
-	if want := []string{"Files 10", "Conversation", "Checks ✗1"}; !slices.Equal(names, want) || active != 1 {
-		t.Errorf("tabs = %v at %d, want %v at 1", names, active, want)
+	if want := []string{"Overview", "Files 10", "Conversation", "Checks ✗1"}; !slices.Equal(names, want) || active != 0 {
+		t.Errorf("tabs = %v at %d, want %v at 0", names, active, want)
+	}
+	press(t, h, "]")
+	if m.tab != filesTab {
+		t.Fatalf("] showed tab %d, want the Files tab", m.tab)
+	}
+	press(t, h, "]")
+	if m.tab != conversationTab {
+		t.Fatalf("] showed tab %d, want the conversation", m.tab)
 	}
 	press(t, h, "]")
 	if m.tab != checksTab || m.checks == nil {
 		t.Fatalf("] showed tab %d with checks %v, want the Checks tab built", m.tab, m.checks)
 	}
-	if names, active := m.Tabs(); active != 2 || names[2] != "Checks ✗1" {
+	if names, active := m.Tabs(); active != 3 || names[3] != "Checks ✗1" {
 		t.Errorf("tabs = %v at %d, want Checks active with the failing check counted", names, active)
 	}
 	press(t, h, "]")
-	if m.tab != filesTab {
+	if m.tab != overviewTab {
 		t.Error("] on the last tab didn't wrap to the first")
 	}
 	press(t, h, "[")
@@ -56,9 +72,28 @@ func TestTabsCycle(t *testing.T) {
 	if m.tab != filesTab {
 		t.Error("[ from the conversation didn't go to the files")
 	}
+	press(t, h, "[")
+	if m.tab != overviewTab {
+		t.Error("[ from the files didn't go to the overview")
+	}
 	press(t, h, "C")
 	if m.tab != checksTab {
 		t.Error("C didn't jump to the Checks tab")
+	}
+}
+
+// The modal opens on the Overview, but one asked for the checks opens on
+// them.
+func TestOpensOnTheOverviewUnlessAskedForChecks(t *testing.T) {
+	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
+	drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 142}))
+	if m := h.modal(); m == nil || m.tab != overviewTab {
+		t.Fatalf("OpenPullMsg opened %v, want the Overview", m)
+	}
+	press(t, h, "esc")
+	drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 142, Checks: true}))
+	if m := h.modal(); m == nil || m.tab != checksTab || m.checks == nil {
+		t.Fatalf("OpenPullMsg with Checks opened %v, want the Checks tab", m)
 	}
 }
 
@@ -202,11 +237,11 @@ func TestNoChecksTabWithoutChecks(t *testing.T) {
 	if m == nil || m.number != 114 {
 		t.Fatalf("opened %v, want #114", m)
 	}
-	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Files 1", "Conversation"}) {
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Overview", "Files 1", "Conversation"}) {
 		t.Errorf("tabs = %v, want no Checks tab for a pull request without checks", names)
 	}
 	press(t, h, "C")
-	if m.tab != conversationTab || m.checks != nil {
+	if m.tab != overviewTab || m.checks != nil {
 		t.Error("C showed the checks of a pull request without them")
 	}
 	press(t, h, "]")
@@ -221,14 +256,14 @@ func TestNoChecksTabWithoutChecks(t *testing.T) {
 func TestTabsBeforeTheDetailAndInShort(t *testing.T) {
 	_, m := tabbed(t, newFakeService(), &fakeChecks{})
 	m.loaded, m.detail = false, core.PullRequestDetail{}
-	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Files", "Conversation", "Checks"}) {
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Overview", "Files", "Conversation", "Checks"}) {
 		t.Errorf("tabs = %v before the detail, want no counts", names)
 	}
 	m.loaded, m.detail.Comments = true, 6
 	m.detail.CheckCounts = core.CheckCounts{Failed: 2, Passed: 3}
 	m.checksSvc = nil
 	m.SetSize(36, 20)
-	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Fi 0", "Co 6", "Ch ✗2"}) {
+	if names, _ := m.Tabs(); !slices.Equal(names, []string{"Ov", "Fi 0", "Co 6", "Ch ✗2"}) {
 		t.Errorf("tabs = %v in a narrow modal, want the short ones", names)
 	}
 }

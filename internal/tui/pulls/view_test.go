@@ -46,6 +46,7 @@ func TestView(t *testing.T) {
 			t.Helper()
 			s := started(t, newFakeService(), 80, 30)
 			press(t, s, "enter")
+			s.modal().tab = conversationTab
 			return s.modal().View()
 		}},
 	}

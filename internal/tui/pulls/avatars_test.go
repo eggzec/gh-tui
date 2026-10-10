@@ -12,6 +12,7 @@ import (
 )
 
 // avatarModal returns the modal of a pull request open on three comments,
+// on its conversation,
 // whose bodies hold no image, so only avatars draw, 80 wide, drawing
 // avatars with a.
 func avatarModal(tb testing.TB, a *ui.Images) (*host, *detailModal) {
@@ -25,6 +26,7 @@ func avatarModal(tb testing.TB, a *ui.Images) (*host, *detailModal) {
 	if m == nil {
 		tb.Fatal("enter didn't open the pull request")
 	}
+	m.tab = conversationTab
 	return h, m
 }
 
@@ -71,6 +73,7 @@ func TestCommentPictures(t *testing.T) {
 		h.SetTheme(theme(true))
 		press(t, h, "enter")
 		m := h.modal()
+		m.tab = conversationTab
 		return h, m
 	}
 	_, plain := threadModal(t, comments, true, 80, 60)

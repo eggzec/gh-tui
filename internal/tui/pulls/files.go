@@ -352,8 +352,20 @@ func (m *detailModal) spinWhileLoading() tea.Cmd {
 // showFile puts the diff's cursor on the header of the file at path and
 // focuses the diff.
 func (m *detailModal) showFile(path string) tea.Cmd {
+	return m.seekDiff(path, func(d *diff.Model) { d.SeekFile(path) })
+}
+
+// showLine puts the diff's cursor on the line p names, or the header of its
+// file if the diff doesn't show that line, and focuses the diff.
+func (m *detailModal) showLine(p diff.Pos) tea.Cmd {
+	return m.seekDiff(p.Path, func(d *diff.Model) { d.Seek(p) })
+}
+
+// seekDiff moves the diff's cursor with seek, to a place in the file at
+// path, and focuses the diff.
+func (m *detailModal) seekDiff(path string, seek func(*diff.Model)) tea.Cmd {
 	f := m.files
-	f.diff.SeekFile(path)
+	seek(&f.diff)
 	f.followed = path
 	f.setFocus(diffPane)
 	m.layoutFiles()

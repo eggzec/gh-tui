@@ -39,8 +39,8 @@ type changedMsg struct {
 	repo core.RepoRef
 }
 
-// detailModal shows a pull request in a modal, as tabs: its conversation,
-// and its checks, and changes it. It is opened with
+// detailModal shows a pull request in a modal, as tabs: its overview, its
+// files, its conversation and its checks, and changes it. It is opened with
 // [Section.openDetail].
 type detailModal struct {
 	svc         Service
@@ -95,6 +95,11 @@ type detailModal struct {
 	// is on, for the tab to find when it is first shown.
 	files *filesState
 	ahead *ui.Ahead[string]
+	// ov is the state of the Overview tab. viewer is the login of the
+	// signed-in user once known, which whoAmI reads, or nil without one.
+	ov     overviewState
+	viewer string
+	whoAmI Viewer
 	// newRefs makes the References step, which refs is while it shows over
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -164,6 +169,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		bodies:      ui.NewImageBodies(s.capsOf(repo).Private),
 		checksSvc:   s.checks,
 		ahead:       newFilesAhead(ctx, s.svc, repo, number, s.prefetch, s.slots),
+		whoAmI:      s.readViewer,
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -221,14 +227,14 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step, m.readFilesAhead()))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step, m.readFilesAhead(), m.readViewer()))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
-	loads := []tea.Cmd{m.show(), m.revalidate(), step, m.readFilesAhead()}
+	loads := []tea.Cmd{m.show(), m.revalidate(), step, m.readFilesAhead(), m.readViewer()}
 	if primed {
 		loads = append(loads, m.thread.Reload())
 	}
@@ -308,6 +314,7 @@ func (m *detailModal) SetSize(width, height int) {
 func (m *detailModal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.icons)
+	m.ov.md = nil
 	m.runSt = ui.NewRunStyles(t, m.icons)
 	m.confirmSt = t.Confirm(m.icons)
 	m.thread.SetStyles(t.Thread(m.icons))
@@ -337,6 +344,8 @@ func (m *detailModal) View() string {
 		base = m.find.View()
 	case m.refs != nil:
 		base = m.refs.View()
+	case m.onOverview():
+		base = m.overviewView()
 	case m.onChecks():
 		base = m.checks.View()
 	case m.onFiles():
@@ -372,6 +381,7 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
+	m.pinCursor()
 	return tea.Batch(m.update(msg), m.updateAhead(msg))
 }
 
@@ -496,6 +506,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	if m.onFiles() {
 		return m.pressFiles(msg)
+	}
+	if m.onOverview() {
+		return m.pressOverview(msg)
 	}
 	switch {
 	case key.Matches(msg, k.Back):
@@ -645,6 +658,10 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return append([]keyhelp.Layer{m.modalLayer(k)}, m.checks.KeyLayers()...)
 	case m.onFiles():
 		return []keyhelp.Layer{m.modalLayer(k), m.filesLayer()}
+	case m.onOverview():
+		keys := m.overviewLayer()
+		l := ui.ContextLayer(ctxOverview, keys, keys[:3])
+		return []keyhelp.Layer{m.modalLayer(k), l}
 	}
 	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp(ctxConversation, m.thread, false)}
 }

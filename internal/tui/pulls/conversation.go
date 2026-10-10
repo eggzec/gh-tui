@@ -28,6 +28,11 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case detailMsg:
 		return m.receive(msg)
+	case viewerMsg:
+		if msg.thread == m.thread.ID() {
+			m.viewer = msg.login
+		}
+		return nil
 	case resendMsg:
 		if msg.owner != any(m) {
 			return nil
@@ -154,7 +159,6 @@ func (m *detailModal) show() tea.Cmd {
 func (m *detailModal) detailHeader(width int) string {
 	d, st := &m.detail, &m.st
 	inner := max(width-len(gutter), 1)
-	now := m.now()
 	var lines []string
 	line := func(parts ...string) {
 		lines = append(lines, gutter+strings.Join(parts, ""))
@@ -167,16 +171,9 @@ func (m *detailModal) detailHeader(width int) string {
 	lines = append(lines, "")
 
 	dot := st.sep.Render(st.ic.Separator)
-	line(st.badge(d.PullRequest), "  ",
-		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))), dot,
-		st.title.Render(ui.OneLine(d.Author.Login)), st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)), dot,
-		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now)))
+	line(m.stateLine())
 
-	stats := []string{
-		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" "+st.ic.Arrow+" ") + st.title.Render(ui.OneLine(d.BaseRef)),
-		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render(st.ic.Minus+strconv.Itoa(d.Deletions)),
-		st.author.Render(plural(d.ChangedFiles, "file")),
-	}
+	stats := m.refStats()
 	if r := st.reviewText(d.ReviewDecision); r != "" {
 		stats = append(stats, r)
 	}
@@ -194,6 +191,29 @@ func (m *detailModal) detailHeader(width int) string {
 	}
 	line(st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
 	return strings.Join(lines, "\n")
+}
+
+// stateLine renders the state badge of the pull request, its number, who
+// opened it, and when it was opened and last updated.
+func (m *detailModal) stateLine() string {
+	d, st := &m.detail, &m.st
+	now := m.now()
+	dot := st.sep.Render(st.ic.Separator)
+	return st.badge(d.PullRequest) + "  " +
+		termtext.Link(d.URL, st.age.Render("#"+strconv.Itoa(d.Number))) + dot +
+		st.title.Render(ui.OneLine(d.Author.Login)) + st.author.Render(" opened "+m.dates.Prose(d.CreatedAt, now)) + dot +
+		st.author.Render("updated "+m.dates.Prose(d.UpdatedAt, now))
+}
+
+// refStats renders the branches of the pull request, what it adds and
+// deletes, and how many files it changes, one string each.
+func (m *detailModal) refStats() []string {
+	d, st := &m.detail, &m.st
+	return []string{
+		st.title.Render(ui.OneLine(d.HeadRef)) + st.sep.Render(" "+st.ic.Arrow+" ") + st.title.Render(ui.OneLine(d.BaseRef)),
+		st.added.Render("+"+strconv.Itoa(d.Additions)) + " " + st.deleted.Render(st.ic.Minus+strconv.Itoa(d.Deletions)),
+		st.author.Render(plural(d.ChangedFiles, "file")),
+	}
 }
 
 // ciLine counts the checks of the pull request by how they stand, from the

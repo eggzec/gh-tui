@@ -62,6 +62,10 @@ type keyMap struct {
 	// their diff, on the Files tab of the modal.
 	tree tree.KeyMap
 	diff diff.KeyMap
+	// overview moves the cursor through the Attention list of the
+	// Overview tab, and attend goes to the target of the row under it.
+	overview ui.MoveKeys
+	attend   key.Binding
 	// nextPane and prevPane move the focus between the tree and the diff
 	// of the Files tab, panes focus one of them, and jump stands for the
 	// keys of panes in help. zoom shows the focused one alone. The modal
@@ -78,10 +82,11 @@ type keyMap struct {
 }
 
 // The contexts of the keys of pull requests: the list, the modal of one,
-// and its conversation, and the tree of changed files and the diff.
+// its overview and conversation, and the tree of changed files and the diff.
 const (
 	ctxList         = "pulls"
 	ctxModal        = "pull_modal"
+	ctxOverview     = "pull_overview"
 	ctxConversation = "pull_conversation"
 	ctxFiles        = "pull_files"
 	ctxDiff         = "pull_diff"
@@ -131,6 +136,10 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// A file shows its diff, and a directory folds.
 	k.tree.Open = files.Binding("global.select", "show diff")
 	k.diff = diff.NewKeyMap(ui.In(keys, ctxDiff))
+
+	overview := ui.In(keys, ctxOverview)
+	k.overview = ui.NewMoveKeys(overview)
+	k.attend = overview.Binding("global.select", "go")
 	return k
 }
 

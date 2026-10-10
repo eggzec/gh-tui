@@ -117,6 +117,9 @@ func TestBackKeepsScroll(t *testing.T) {
 		if a == nil {
 			t.Fatal("no pull request opened")
 		}
+		// The conversation is the tab that reads down.
+		driveKeys(t, m, m.key(press("]")))
+		driveKeys(t, m, m.key(press("]")))
 		top := a.View()
 		driveKeys(t, m, m.key(press("G")))
 		bottom := a.View()

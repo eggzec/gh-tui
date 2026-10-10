@@ -301,6 +301,7 @@ func TestChecksReadAheadShowInTheModal(t *testing.T) {
 		h := started(t, newFakeService(), 100, 40, WithChecks(c), readingChecks(), WithIcons(ui.NewIcons(config.IconsUnicode)))
 		n := len(c.numbers())
 		press(t, h, "enter")
+		h.modal().tab = conversationTab
 		if v := modalText(h); !strings.Contains(v, "CI ✗ 1 failing, ✓ 1 passed") {
 			t.Errorf("the header doesn't count the checks read ahead:\n%s", v)
 		}

@@ -77,9 +77,9 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		if d, ok := item.(ui.Discarder); ok {
 			d.Discard()
 		}
-		// Back again steps out of the links, to the thread.
+		// Back again steps out of the links, to the tab they covered.
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr || layerNames(m.keyLayers()) != "global, pull_modal, pull_conversation" {
+		if m.modal != pr || layerNames(m.keyLayers()) != "global, pull_modal, pull_overview" {
 			t.Fatalf("the second back left the keys at %q", layerNames(m.keyLayers()))
 		}
 		if got := pr.View(); got != thread {

@@ -91,7 +91,8 @@ func sampleFiles() []core.CommitFile {
 }
 
 // filed returns a section over svc, which serves the sample files, and the
-// modal of its first pull request, opened on its conversation, at width by
+// modal of its first pull request, moved from the Overview it opens on to
+// its conversation, at width by
 // height. The pull request has a head, which the files are read at.
 func filed(tb testing.TB, svc *fakeService, width, height int) (*host, *detailModal) {
 	tb.Helper()
@@ -112,6 +113,7 @@ func filedWith(tb testing.TB, svc *fakeService, width, height int, opts ...Optio
 	if m == nil {
 		tb.Fatal("enter opened no pull request")
 	}
+	m.tab = conversationTab
 	return h, m
 }
 
@@ -314,6 +316,13 @@ func TestDigitsOnlyOnFiles(t *testing.T) {
 		press(t, h, k)
 		if m.tab != checksTab || m.files != nil {
 			t.Fatalf("%s on the checks did something: tab %d, files %v", k, m.tab, m.files)
+		}
+	}
+	press(t, h, "]")
+	for _, k := range []string{"1", "2"} {
+		press(t, h, k)
+		if m.tab != overviewTab || m.files != nil {
+			t.Fatalf("%s on the overview did something: tab %d, files %v", k, m.tab, m.files)
 		}
 	}
 	press(t, h, "]")
@@ -561,7 +570,7 @@ func filesView(width, height int, icons string) func(t *testing.T) string {
 		svc.changed = sampleFiles()
 		h := started(t, svc, width, height, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(icons)))
 		press(t, h, "enter")
-		press(t, h, "[")
+		press(t, h, "]")
 		press(t, h, "J")
 		press(t, h, "j")
 		press(t, h, "j")
