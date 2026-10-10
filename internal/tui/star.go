@@ -44,6 +44,12 @@ func (m *Model) canStar() bool {
 	return m.starrer != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})
 }
 
+// starGate returns the gate that decides whether the token may star repo,
+// which r is the read of.
+func (m *Model) starGate(repo core.RepoRef, r core.Repo) ui.Gate {
+	return ui.Gate{Repo: repo, Caps: r.Caps, Token: m.token, Icons: m.icons}
+}
+
 // star asks whether to star the repository of the screen, or to unstar it
 // if the viewer has starred it, and does so on a yes, as the key of
 // repo.star or the star command does.
@@ -55,6 +61,11 @@ func (m *Model) star() tea.Cmd {
 			// Which of the two it is isn't known until the repository
 			// is read, and a question for the wrong one would undo a star.
 			return c, false, ui.Notify(toast.Info, "Still reading "+repo.String()+", so star it again in a moment.")
+		}
+		// A token that may not star is told so before the question, not
+		// after the yes.
+		if cmd, refused := m.starGate(repo, r).Refuse(ui.ActStar, nil); refused {
+			return c, false, cmd
 		}
 		verb, send := "Star", m.starrer.Star
 		if r.Starred {

@@ -29,6 +29,9 @@ const (
 	// ActMarkRead marks notifications read or done, which the Gate decides
 	// by the token alone.
 	ActMarkRead
+	// ActStar stars a repository or removes the star, which the Gate decides
+	// by the token alone: an archived or locked repository may be starred.
+	ActStar
 )
 
 // Gate decides what the viewer may do in one repository, from what GitHub
@@ -81,6 +84,8 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 		return core.NeedRuns, "Cancelling"
 	case ActMarkRead:
 		return core.NeedNotifications, "Marking notifications"
+	case ActStar:
+		gerund = "Starring"
 	case ActMerge:
 		gerund = "Merging"
 	case ActClose:
@@ -101,8 +106,8 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 
 // allowRepo reports whether the repository and it let the viewer take a.
 func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
-	// Notifications aren't a repository's.
-	if a == ActMarkRead {
+	// Notifications aren't a repository's, and a star is allowed in any.
+	if a == ActMarkRead || a == ActStar {
 		return true, ""
 	}
 	c, repo := g.Caps, g.Repo.String()
@@ -167,7 +172,7 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 		if !c.CanWrite() {
 			return false, "Cancelling needs write access to " + repo + "."
 		}
-	case ActMarkRead:
+	case ActMarkRead, ActStar:
 	}
 	return true, ""
 }
