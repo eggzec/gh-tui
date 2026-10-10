@@ -49,6 +49,26 @@ func TestJobsAroundTheRunsAreReadAhead(t *testing.T) {
 	}
 }
 
+// TestJobsAheadReadAgainWhenReopened loses the message that ends the rest,
+// as when a preview opened from the modal hides it then, and has the modal
+// reopen with no move of the cursor.
+func TestJobsAheadReadAgainWhenReopened(t *testing.T) {
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH, withPrefetch(nil))
+	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
+	h.keys("j")
+	h.hold, h.held = nil, nil
+	f.mu.Lock()
+	clear(f.cachedJobs)
+	f.mu.Unlock()
+	f.took()
+
+	h.send(ui.ReopenedMsg{Modal: m})
+	if got, _ := f.took(); !slices.Contains(got, cancelledRun) {
+		t.Errorf("read the jobs of %v after reopening, want those of the run the window reaches too", got)
+	}
+}
+
 func TestJobsAheadAreConfigured(t *testing.T) {
 	for name, edit := range map[string]func(p *config.PrefetchLayers){
 		"tests' options": nil,

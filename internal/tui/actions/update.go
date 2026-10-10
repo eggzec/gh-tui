@@ -96,8 +96,8 @@ func (m *Modal) reopened() tea.Cmd {
 	if m.workflows.loading {
 		lost = append(lost, m.readWorkflows(false))
 	}
-	lost = append(lost, m.log.ReadLost())
-	cmd := tea.Batch(append(lost, m.fromCache())...)
+	lost = append(lost, m.log.ReadLost(), m.readJobsAround(), m.readLogsAround(), m.fromCache())
+	cmd := tea.Batch(lost...)
 	if m.loading() {
 		cmd = tea.Batch(cmd, m.startSpinner())
 	}

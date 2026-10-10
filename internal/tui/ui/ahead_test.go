@@ -193,6 +193,82 @@ func TestAheadResetCancels(t *testing.T) {
 	})
 }
 
+// TestAheadLostRest checks that a rest whose end never came back, as for a
+// modal hidden then, is waited out again when the same window is asked for
+// after it, and that the end that was thought lost still reads if it comes,
+// once, with the new end of the rest ignored then.
+func TestAheadLostRest(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		a := newAhead(t, r, 0, 2, time.Millisecond)
+		a.Rest()
+		first := a.Window(rowsOf(3), 0)
+		if first == nil {
+			t.Fatal("no delay started")
+		}
+		if a.Window(rowsOf(3), 0) != nil {
+			t.Fatal("the same window started another delay while the first runs")
+		}
+		lost := first().(AheadMsg)
+		again := a.Window(rowsOf(3), 0)
+		if again == nil {
+			t.Fatal("the same window after a lost rest started no delay")
+		}
+		if got := r.reads(); len(got) != 0 {
+			t.Errorf("read %v before either end of the rest arrived", got)
+		}
+		run(a.Rested(lost))
+		if got, want := r.reads(), []int{1, 2, 3}; !slices.Equal(got, want) {
+			t.Errorf("read %v after the first end, want %v", got, want)
+		}
+		// The second end finds the rest consumed.
+		if cmd := rest(t, a, again); cmd != nil {
+			t.Error("the second end of the rest read the window again")
+		}
+		// Once the rest ended and was heard, the window is not waited for
+		// again.
+		time.Sleep(time.Second)
+		if a.Window(rowsOf(3), 0) != nil {
+			t.Error("a rest that ended started again")
+		}
+	})
+}
+
+// TestAheadRestEndInFlight checks that messages handled after the rest's
+// timer fired but before its AheadMsg is delivered, such as spinner frames,
+// don't make that AheadMsg stale: it still reads the window, once.
+func TestAheadRestEndInFlight(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := newReader()
+		a := newAhead(t, r, 0, 2, time.Millisecond)
+		a.Rest()
+		cmd := a.Window(rowsOf(3), 0)
+		if cmd == nil {
+			t.Fatal("no delay started")
+		}
+		queued := make(chan AheadMsg, 1)
+		go func() { queued <- cmd().(AheadMsg) }()
+		time.Sleep(2 * time.Millisecond)
+		synctest.Wait()
+		// The timer fired; its message waits to be handled.
+		for range 3 {
+			a.Window(rowsOf(3), 0)
+			time.Sleep(2 * time.Millisecond)
+		}
+		if got := r.reads(); len(got) != 0 {
+			t.Errorf("read %v before the AheadMsg was handled", got)
+		}
+		run(a.Rested(<-queued))
+		if got, want := r.reads(), []int{1, 2, 3}; !slices.Equal(got, want) {
+			t.Errorf("read %v after the AheadMsg, want %v", got, want)
+		}
+		time.Sleep(time.Second)
+		if a.Window(rowsOf(3), 0) != nil {
+			t.Error("a rest that ended started again")
+		}
+	})
+}
+
 func TestAheadStopsAtRateLimit(t *testing.T) {
 	r := newReader()
 	r.err = &core.RateLimitError{Reset: time.Now()}

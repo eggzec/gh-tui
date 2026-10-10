@@ -49,7 +49,8 @@ func (a *Ahead[K]) On() bool {
 // as when its first rows are all folders.
 //
 // Call it whenever the cursor may have moved or the list changed; it
-// waits again only when the rows of the window change. Each rest reads the
+// waits again only when the rows of the window change, or when the end of
+// its rest never came back, as for a modal hidden then. Each rest reads the
 // window again, skipping the rows cached or still being read, and those
 // whose read ahead failed lately. The reads of the last rest go on for the
 // rows still in the window, and stop for those that left it.
@@ -58,11 +59,21 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 		return nil
 	}
 	rows := windowRows(at, i, a.span.Before, a.span.After)
-	if a.windowed && slices.Equal(rows, a.around) {
+	same := a.windowed && slices.Equal(rows, a.around)
+	// A rest whose end never came back, because the modal was hidden then
+	// and got no messages, is waited for again. A message handled after the
+	// timer fired but before its AheadMsg is delivered looks the same, so the
+	// rest keeps its seq: whichever end arrives first reads, the other finds
+	// the rest consumed.
+	lost := same && !a.restEnds.IsZero() && !time.Now().Before(a.restEnds)
+	if same && !lost {
 		return nil
 	}
 	a.around, a.windowed = rows, true
-	a.seq++
+	a.restEnds = time.Time{}
+	if !lost {
+		a.seq++
+	}
 	if at == nil || i < 0 {
 		// The list lost the focus or its rows: the reads of the rows that
 		// were in the window stop now, rather than at a rest that may
@@ -81,6 +92,7 @@ func (a *Ahead[K]) Window(at func(i int) (K, bool), i int) tea.Cmd {
 		return nil
 	}
 	msg := AheadMsg{id: a.id, seq: a.seq}
+	a.restEnds = time.Now().Add(a.delay)
 	return tea.Tick(a.delay, func(time.Time) tea.Msg { return msg })
 }
 
@@ -115,11 +127,13 @@ func (a *Ahead[K]) Unkeep() {
 	}
 }
 
-// Rested reads the window the cursor rested on, unless it moved since.
+// Rested reads the window the cursor rested on, unless it moved since or an
+// end of the same rest already read it.
 func (a *Ahead[K]) Rested(msg AheadMsg) tea.Cmd {
-	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.windowed {
+	if a == nil || msg.id != a.id || msg.seq != a.seq || !a.windowed || a.restEnds.IsZero() {
 		return nil
 	}
+	a.restEnds = time.Time{}
 	return a.readWindow()
 }
 

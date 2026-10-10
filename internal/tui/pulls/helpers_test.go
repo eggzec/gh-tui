@@ -489,6 +489,14 @@ func started(tb testing.TB, svc Service, width, height int, opts ...Option) *hos
 // the app that h doesn't handle, such as OpenMsg. It returns every message.
 func drain(tb testing.TB, h *host, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
+	return drainLosing(tb, h, cmd, nil)
+}
+
+// drainLosing is drain, except that the messages for which lose returns true
+// never reach h, as when a hidden modal doesn't get them. A nil lose loses
+// none.
+func drainLosing(tb testing.TB, h *host, cmd tea.Cmd, lose func(tea.Msg) bool) []tea.Msg {
+	tb.Helper()
 	var out []tea.Msg
 	queue := []tea.Cmd{cmd}
 	for steps := 0; len(queue) > 0; steps++ {
@@ -504,7 +512,7 @@ func drain(tb testing.TB, h *host, cmd tea.Cmd) []tea.Msg {
 		if seq, ok := sequence(msg); ok {
 			// Run each command of a sequence to the end before the next.
 			for _, sc := range seq {
-				out = append(out, drain(tb, h, sc)...)
+				out = append(out, drainLosing(tb, h, sc, lose)...)
 			}
 			continue
 		}
@@ -516,6 +524,9 @@ func drain(tb testing.TB, h *host, cmd tea.Cmd) []tea.Msg {
 		case ui.OpenMsg, ui.NotifyMsg:
 			out = append(out, msg)
 		default:
+			if lose != nil && lose(msg) {
+				continue
+			}
 			out = append(out, msg)
 			queue = append(queue, h.Update(msg))
 		}
