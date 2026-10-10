@@ -31,7 +31,7 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 		}
 		return nil, false
 	case "owner":
-		if m.ask != nil || m.refs != nil || m.onChecks() && m.checks.TakesKeys() {
+		if m.ask != nil || m.refs != nil || m.find != nil || m.onChecks() && m.checks.TakesKeys() {
 			return nil, false
 		}
 		return m.author(), true

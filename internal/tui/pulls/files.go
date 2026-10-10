@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -66,6 +67,10 @@ type filesState struct {
 	folded bool
 	// followed is the file the tree last went to for the diff's cursor.
 	followed string
+	// settling is the file a finder chose, until the tree is on it. The
+	// tree may not hold the file yet when the diff arrives there, since it
+	// reads the files a page late, so it is revealed again as it loads.
+	settling string
 	// kept is set by a read that was served a page GitHub couldn't be
 	// asked for, which is read again once it can, and reread says that
 	// GitHub answered since.
@@ -301,7 +306,32 @@ func (m *detailModal) growTree(dirs []string) tea.Cmd {
 func (m *detailModal) follow() tea.Cmd {
 	f := m.files
 	cur, ok := f.diff.CurrentFile()
-	if !ok || cur.Path == f.followed {
+	if f.settling != "" {
+		_, read := f.set.index(f.settling)
+		switch n, on := f.tree.Selected(); {
+		case on && n.ID == f.settling:
+			f.settling = ""
+		case ok && cur.Path == f.settling:
+			f.followed = cur.Path
+			cmd := f.tree.Reveal(treePath(cur.Path)...)
+			if n, on := f.tree.Selected(); on && n.ID == f.settling {
+				f.settling = ""
+			}
+			return cmd
+		case read:
+			// The diff went elsewhere since.
+			f.settling = ""
+		case f.diff.Done() && f.set.len() == f.diff.Files():
+			// Every page is in and the file isn't.
+			path := f.settling
+			f.settling = ""
+			return ui.Notify(toast.Warning, path+" isn't changed in this pull request.")
+		}
+	}
+	if !ok {
+		return nil
+	}
+	if cur.Path == f.followed {
 		return nil
 	}
 	f.followed = cur.Path
@@ -335,6 +365,7 @@ func (m *detailModal) showFile(path string) tea.Cmd {
 // setFocus focuses pane p and blurs the other.
 func (f *filesState) setFocus(p filesPane) {
 	f.focus = p
+	f.settling = ""
 	if p == treePane {
 		f.tree.Focus()
 		f.diff.Blur()
@@ -375,6 +406,8 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 		m.layoutFiles()
 		return nil
 	}
+	// A key of the user's takes the cursor from what a finder chose.
+	f.settling = ""
 	var cmd tea.Cmd
 	if f.focus == treePane {
 		if key.Matches(msg, k.tree.Collapse, k.tree.ToggleAll) {
@@ -685,7 +718,7 @@ func (m *detailModal) filesModalLayer(k keyMap, owner key.Binding) keyhelp.Layer
 			k.Refresh = renamed(k.Refresh, "retry")
 		}
 	}
-	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
+	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
 	l := ui.ContextLayer(ctxModal, keys, []key.Binding{k.Merge, k.Close, k.Reopen, k.nextPane, k.zoom, k.Open})
 	l.Bindings = append(l.Bindings, owner)
 	return l

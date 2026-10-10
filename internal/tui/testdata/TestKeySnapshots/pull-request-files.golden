@@ -18,6 +18,7 @@ Pull request
   convert to draft | W | W | on
   checks | C | C | on
   linked items | # | # | on
+  find file | ctrl+p | ^p | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   pane | tab | tab | on

@@ -20,6 +20,7 @@ Pull request
   open | enter | ↵ | off
   checks | C | C | on
   linked items | # | # | on
+  find file | ctrl+p | ^p | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   clear filters | F | F | off
