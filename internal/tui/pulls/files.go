@@ -163,6 +163,9 @@ func (m *detailModal) reloadFiles() tea.Cmd {
 // startFiles starts reading the files of the head the detail shows, in
 // place of those of prev, if any, whose focus and zoom it keeps.
 func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
+	// Every read of the tab, the first or of a new head, uses what was read
+	// ahead of it for that head, if anything.
+	m.ahead.Opened(m.detail.HeadSHA)
 	ctx, cancel := context.WithCancel(m.ctx)
 	f := &filesState{
 		cancel: cancel,
