@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // fakeStar is a Starrer that records what it sends. known says whether the
@@ -147,6 +148,29 @@ func TestStarCommandSaysWhenItFails(t *testing.T) {
 		}
 		if !hasToast(m, "Still reading eggzec/gh-tui") {
 			t.Errorf("toasts %q", toasted(m))
+		}
+	})
+}
+
+// TestStarRefusedBeforeTheQuestion checks that a token that may not star is
+// told so, and not asked, as one that may is.
+func TestStarRefusedBeforeTheQuestion(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		f := &fakeStar{known: true}
+		acc := newFakeAccess(uitest.Classic("notifications"))
+		m := newKeysAppOpts(t, true, func(*config.Config) {}, WithStarrer(f), WithAccess(acc))
+		runCommand(t, m, "star")
+		if got := layerNames(m.keyLayers()); got == "always, confirm" {
+			t.Error(":star asks a token that may not star")
+		}
+		if !hasToast(m, "Starring") {
+			t.Errorf("toasts %q, want why the token may not star", toasted(m))
+		}
+		if got := f.log(); len(got) != 0 {
+			t.Errorf("sent %v, want nothing", got)
+		}
+		if m.keys.state(m).Star.Enabled() {
+			t.Error("help offers the star key to a token that may not star")
 		}
 	})
 }

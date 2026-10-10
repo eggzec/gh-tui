@@ -157,6 +157,13 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.History.SetEnabled(k.History.Enabled() && m.canOpenHistory())
 	k.Actions.SetEnabled(k.Actions.Enabled() && m.canOpenActions())
 	k.Star.SetEnabled(k.Star.Enabled() && m.canStar())
+	if m.canStar() {
+		// Until the repository is read there is no telling what the token
+		// may do, and the key stays on.
+		if r, ok := m.starrer.CachedGet(m.repo); ok {
+			k.Star = m.starGate(m.repo, r).Gated(k.Star, ui.ActStar, nil)
+		}
+	}
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})
