@@ -15,6 +15,7 @@ type options struct {
 	capacity int
 	store    cache.Store
 	access   Access
+	stars    Stars
 	// pageSize is that of a page whose query sets none.
 	pageSize int
 }
@@ -71,6 +72,13 @@ func WithCapacity(n int) Option {
 // outlives the service.
 func WithStore(store cache.Store) Option {
 	return func(o *options) { o.store = store }
+}
+
+// WithStars has the service tell stars once a star it sent is confirmed, so
+// that the pages of stars read elsewhere are read again. By default none is
+// told.
+func WithStars(stars Stars) Option {
+	return func(o *options) { o.stars = stars }
 }
 
 // WithAccess has the service ask access before it stars a repository or

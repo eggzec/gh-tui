@@ -50,7 +50,19 @@ func (s *Service) FreshStars(q StarsQuery) bool {
 func (s *Service) Stars(ctx context.Context, q StarsQuery) (core.Page[core.Repo], error) {
 	q = q.normalize(s.sizes.Repos)
 	// The client already names the request in its error.
-	return read(ctx, s, &s.repos, q.Login, "stars", q.key(), q.Again, whole(func(ctx context.Context) (core.Page[core.Repo], error) {
+	return read(ctx, s, &s.repos, q.Login, "stars", q.key(), q.Again, withTag(starsTag, whole(func(ctx context.Context) (core.Page[core.Repo], error) {
 		return s.api.UserStars(ctx, q.Login, q.PageSize, q.Cursor)
-	}))
+	})))
+}
+
+// starsTag marks the pages of stars, whose account a star of the viewer's
+// changes without the service knowing which one is the viewer's.
+const starsTag = "stars"
+
+// InvalidateStars marks every cached page of stars stale, as a star the
+// viewer gave or took back changes theirs. The pages stay in the Cached
+// reads, and the next read of each goes to GitHub, even while it is fresh.
+// Pages of other accounts are read again too, which costs one request each.
+func (s *Service) InvalidateStars() {
+	s.repos.mem.InvalidateTag(starsTag)
 }

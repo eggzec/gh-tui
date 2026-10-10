@@ -170,8 +170,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// which a change there needs a wider scope for, is what the
 	// repositories service read of it.
 	size := cfg.PageSize
+	ownerSvc := ownersvc.New(client, ownersvc.WithTTLs(ownersvc.TTLs{
+		Header: ttl.Profile, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions, People: ttl.People, Readme: ttl.Readme,
+	}), ownersvc.WithCapacity(mem.Entries), ownersvc.WithStore(entries), ownersvc.WithSizes(ownersvc.Sizes{Repos: size.Repos, People: size.People}))
+	// A star changes the viewer's Stars tab, which the owners service caches.
 	repoSvc := reposvc.New(client, reposvc.WithTTL(ttl.Repos), reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries),
-		reposvc.WithStore(entries), reposvc.WithAccess(access), reposvc.WithPageSize(size.Repos))
+		reposvc.WithStore(entries), reposvc.WithAccess(access), reposvc.WithPageSize(size.Repos), reposvc.WithStars(ownerSvc))
 	pullSvc := pullsvc.New(client, pullsvc.WithTTL(ttl.Pulls), pullsvc.WithCapacity(mem.Entries), pullsvc.WithStore(entries),
 		pullsvc.WithAccess(access), pullsvc.WithRepos(repoSvc), pullsvc.WithPageSize(size.Pulls), pullsvc.WithDetailSizes(github.DetailSizes{Threads: size.Threads, Reviewers: size.Reviewers, Rules: size.Rules}),
 		pullsvc.WithDiffMemory(int64(mem.Diffs)))
@@ -184,9 +188,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	dashSvc := dashsvc.New(client, dashsvc.WithTTLs(dashsvc.TTLs{
 		Header: ttl.Profile, Work: ttl.WaitingOnYou, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions,
 	}), dashsvc.WithCapacity(mem.Entries), dashsvc.WithStore(entries), dashsvc.WithWorkSize(size.WaitingOnYou))
-	ownerSvc := ownersvc.New(client, ownersvc.WithTTLs(ownersvc.TTLs{
-		Header: ttl.Profile, Repos: ttl.DashboardRepos, Contributions: ttl.Contributions, People: ttl.People, Readme: ttl.Readme,
-	}), ownersvc.WithCapacity(mem.Entries), ownersvc.WithStore(entries), ownersvc.WithSizes(ownersvc.Sizes{Repos: size.Repos, People: size.People}))
 	fileSvcOpts := []filesvc.Option{
 		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries), filesvc.WithTreeMemory(int64(mem.Trees)),
 		filesvc.WithBlobCapacity(mem.Entries), filesvc.WithBlobMemory(int64(mem.Files)),

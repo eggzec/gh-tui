@@ -32,6 +32,12 @@ type Access interface {
 	Check(n core.Need) error
 }
 
+// Stars is told when a star changed, so that what it caches of the
+// viewer's stars is read again. The owners service is one.
+type Stars interface {
+	InvalidateStars()
+}
+
 // ListQuery selects a page of the viewer's repositories.
 type ListQuery struct {
 	// Cursor is the Next of the previous page, or empty for the first page.
@@ -61,8 +67,10 @@ type Service struct {
 	// access refuses a star the token may not change before it is shown,
 	// if set.
 	access Access
-	lists  *cache.Cache[core.Page[core.Repo]]
-	repos  *cache.Cache[core.Repo]
+	// stars is told of a confirmed star, if set.
+	stars Stars
+	lists *cache.Cache[core.Page[core.Repo]]
+	repos *cache.Cache[core.Repo]
 	// kept holds the list pages an earlier session read, and keptRepos
 	// the repositories, if the service has a store.
 	kept      *cache.Shelf[core.Page[core.Repo]]
@@ -91,6 +99,7 @@ func New(api API, opts ...Option) *Service {
 	return &Service{
 		api:       api,
 		access:    o.access,
+		stars:     o.stars,
 		lists:     cache.New[core.Page[core.Repo]](cache.WithTTL(cmp.Or(o.ttl, d.Cache.TTL.Repos)), capacity),
 		repos:     cache.New[core.Repo](cache.WithTTL(cmp.Or(o.infoTTL, d.Cache.TTL.RepoInfo)), capacity),
 		kept:      cache.NewShelf[core.Page[core.Repo]](o.store, kind, schema),
