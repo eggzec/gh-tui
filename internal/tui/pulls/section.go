@@ -43,6 +43,9 @@ type Service interface {
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool
 	CurrentComments(q pulls.CommentsQuery) bool
+	// CurrentFiles reports whether Files would answer without a request.
+	// It does no I/O.
+	CurrentFiles(q pulls.FilesQuery) bool
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
@@ -241,6 +244,10 @@ func WithChecks(svc ChecksService, opts ...checks.Option) Option {
 //     once. It reads them once per repository and session. Each costs a
 //     request; pages cached fresh are skipped, and so is a list the user
 //     filtered.
+//   - files: the first page of the files a pull request changes, once its
+//     modal rests on a tab other than Files, so that the tab opens at
+//     once. It is the modal's own read, of the one pull request that is
+//     open, and costs a request; a page cached fresh is skipped.
 //
 // The default reads nothing ahead.
 func WithPrefetch(p config.PrefetchLayers) Option {

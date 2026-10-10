@@ -88,6 +88,15 @@ type fakeService struct {
 	filesErr  error
 	// filesKept serves the pages as kept for want of an answer from GitHub.
 	filesKept bool
+	// filesCache makes Files cache the pages it serves as the service
+	// does: a page read before is served again without a read, which
+	// fileReads doesn't count, and CurrentFiles says so.
+	filesCache bool
+	filesDone  map[string]bool
+	// filesGate, when set, holds every read of files until it is closed
+	// or the read's context is done, and fileCtxs are those contexts.
+	filesGate chan struct{}
+	fileCtxs  []context.Context
 	// merges are what the details say of merging, by number; a pull
 	// request without one merges cleanly.
 	merges map[int]core.MergeInfo
@@ -629,13 +638,44 @@ func (f *fakeService) state(number int) core.PullRequest {
 // errMark is the error glyph of the default icons, which mark what failed.
 var errMark = ui.NewIcons(config.IconsNerd).Error
 
-func (f *fakeService) Files(_ context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error) {
+func (f *fakeService) CurrentFiles(q pulls.FilesQuery) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	return f.filesCache && f.filesDone[q.Head+"|"+q.Cursor]
+}
+
+func (f *fakeService) Files(ctx context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error) {
+	f.mu.Lock()
+	if f.filesCache && f.filesDone[q.Head+"|"+q.Cursor] {
+		defer f.mu.Unlock()
+		return f.filesPage(q), nil
+	}
 	f.fileReads = append(f.fileReads, q)
+	f.fileCtxs = append(f.fileCtxs, ctx)
+	if gate := f.filesGate; gate != nil {
+		f.mu.Unlock()
+		select {
+		case <-gate:
+		case <-ctx.Done():
+			return core.Page[core.CommitFile]{}, ctx.Err()
+		}
+		f.mu.Lock()
+	}
+	defer f.mu.Unlock()
 	if f.filesErr != nil {
 		return core.Page[core.CommitFile]{}, f.filesErr
 	}
+	if f.filesCache {
+		if f.filesDone == nil {
+			f.filesDone = map[string]bool{}
+		}
+		f.filesDone[q.Head+"|"+q.Cursor] = true
+	}
+	return f.filesPage(q), nil
+}
+
+// filesPage returns the page of files that q selects.
+func (f *fakeService) filesPage(q pulls.FilesQuery) core.Page[core.CommitFile] {
 	all, ok := f.changedAt[q.Head]
 	if !ok {
 		all = f.changed
@@ -646,7 +686,7 @@ func (f *fakeService) Files(_ context.Context, q pulls.FilesQuery) (core.Page[co
 	if end < len(all) {
 		p.Next = strconv.Itoa(end)
 	}
-	return p, nil
+	return p
 }
 
 // fileReadCount returns how many pages of files were read.

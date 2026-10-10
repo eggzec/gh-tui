@@ -149,6 +149,7 @@ func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.Commi
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
+func (keyPulls) CurrentFiles(pullsvc.FilesQuery) bool       { return true }
 func (keyPulls) Invalidate(core.RepoRef)                    {}
 
 // keyChanged are the files the pull request changes: several, in two

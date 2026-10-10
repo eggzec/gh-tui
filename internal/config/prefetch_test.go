@@ -41,6 +41,8 @@ func TestResolveDefaults(t *testing.T) {
 			"prefetch.dashboard.repositories.enabled", "prefetch.dashboard.repositories.window.before", "prefetch.dashboard.repositories.window.after", "prefetch.rest", false},
 		{"dashboard", "pinned", false, 1, 1, 150 * time.Millisecond,
 			"prefetch.dashboard.pinned.enabled", "prefetch.dashboard.pinned.window.before", "prefetch.dashboard.pinned.window.after", "prefetch.rest", false},
+		{"pulls", "files", true, 0, 0, 300 * time.Millisecond,
+			"prefetch.enabled", "", "", "prefetch.pulls.files.rest", true},
 		{"search", "details", true, 0, 0, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.search.window.before", "prefetch.search.window.after", "prefetch.rest", false},
 		{"search", "other_kinds", true, 0, 0, 700 * time.Millisecond,
@@ -160,11 +162,11 @@ func TestResolveUnknown(t *testing.T) {
 
 func TestPrefetchKinds(t *testing.T) {
 	kinds := Default().Prefetch.Kinds()
-	if len(kinds) != 26 {
-		t.Errorf("%d kinds, want 26: %v", len(kinds), kinds)
+	if len(kinds) != 27 {
+		t.Errorf("%d kinds, want 27: %v", len(kinds), kinds)
 	}
 	for _, want := range []string{"pulls.details", "pulls.other_tabs", "dashboard.pinned", "search.other_kinds", "files.preview", "actions.logs",
-		"owner.people", "owner.repositories", "owner.other_tabs"} {
+		"owner.people", "owner.repositories", "owner.other_tabs", "pulls.files"} {
 		if !slices.ContainsFunc(kinds, func(pk PageKind) bool { return pk.String() == want }) {
 			t.Errorf("no kind %s", want)
 		}
@@ -187,6 +189,8 @@ func TestValidatePrefetch(t *testing.T) {
 		{"prefetch.files.tree.window.after", "31", "prefetch.files.tree.window.after: must be between 0 and 30"},
 		{"prefetch.pulls.other_tabs.window.after", "1",
 			"prefetch.pulls.other_tabs.window: other tabs are read a page at a time, not around the cursor"},
+		{"prefetch.pulls.files.window.after", "1",
+			"prefetch.pulls.files.window: the files are read of the pull request that is open"},
 		{"prefetch.search.other_kinds.window.before", "0",
 			"prefetch.search.other_kinds.window: other kinds of results are read a page at a time"},
 		{"prefetch.owner.other_tabs.window.after", "1",

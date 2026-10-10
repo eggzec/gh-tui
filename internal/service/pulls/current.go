@@ -84,6 +84,12 @@ func (s *Service) CurrentComments(q CommentsQuery) bool {
 	return ok || fresh(s.comments, q.key(s.pageSize))
 }
 
+// CurrentFiles reports whether Files returns the page of q without a
+// request, since it is cached and fresh. It does no I/O.
+func (s *Service) CurrentFiles(q FilesQuery) bool {
+	return q.Head != "" && fresh(s.files, q.key())
+}
+
 func fresh[V any](c *cache.Cache[V], key string) bool {
 	_, st := c.Get(key)
 	return st == cache.Fresh
