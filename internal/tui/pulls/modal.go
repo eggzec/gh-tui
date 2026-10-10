@@ -571,7 +571,7 @@ func (m *detailModal) change(msg tea.KeyPressMsg) tea.Cmd {
 		// more.
 		if !m.seen || !m.svc.CurrentGet(m.repo, m.number) || !decided(m.detail.Merge) {
 			m.merging = &msg
-			wait := ui.Notify(toast.Info, "Checking #"+strconv.Itoa(m.number)+"…")
+			wait := ui.Notify(toast.Info, checking(m.icons, m.number))
 			if m.seen || m.failed != nil {
 				// No read is under way, so one starts, though what is
 				// cached is fresh.

@@ -303,7 +303,13 @@ func (s *Section) checkMerge(pr core.PullRequest, msg tea.KeyPressMsg) tea.Cmd {
 		_, err := svc.Revalidate(ctx, repo, number)
 		return mergeReadMsg{repo: repo, number: number, key: msg, err: err}
 	}
-	return tea.Batch(ui.Notify(toast.Info, "Checking #"+strconv.Itoa(number)+"…"), read)
+	return tea.Batch(ui.Notify(toast.Info, checking(s.icons, number)), read)
+}
+
+// checking is the toast that says the detail of pull request number is
+// being read, ended with the ellipsis of ic.
+func checking(ic ui.Icons, number int) string {
+	return "Checking #" + strconv.Itoa(number) + ic.OrUnicode().Ellipsis
 }
 
 // merged goes on with the merge that waited for the detail of its pull
