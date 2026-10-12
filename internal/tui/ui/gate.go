@@ -103,7 +103,7 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 	case ActLabel:
 		gerund = "Labeling"
 	case ActResolve:
-		gerund = "Resolving a thread"
+		gerund = "Changing a thread"
 	default:
 		return core.Need{}, ""
 	}

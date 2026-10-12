@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -91,6 +92,32 @@ func TestResolveRefused(t *testing.T) {
 	}
 	if m.detail.Threads.Unresolved != 2 {
 		t.Errorf("the overview counts %d unresolved threads, want the cache rolled back to 2", m.detail.Threads.Unresolved)
+	}
+}
+
+// TestResolveRefusedAfterTheModalClosed checks that the failure is reported by
+// the command that sent the change, not by the modal, which may be gone when
+// GitHub answers.
+func TestResolveRefusedAfterTheModalClosed(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	h, _ := resolving(t, svc, resolvable("t1", "a.go", 1))
+	svc.sendErr = errors.New("boom")
+	press(t, h, "T")
+	cmd := h.Update(keyMsg("y"))
+	// The modal never sees the answer, as if it had closed.
+	msgs := drainLosing(t, h, cmd, func(msg tea.Msg) bool {
+		_, ok := msg.(threadResolvedMsg)
+		return ok
+	})
+	var failed bool
+	for _, msg := range msgs {
+		if f, ok := msg.(ui.FailMsg); ok && strings.Contains(f.What, "resolve a thread of #142") {
+			failed = true
+		}
+	}
+	if !failed {
+		t.Errorf("a refused change sent no failure to show without the modal: %v", msgs)
 	}
 }
 
