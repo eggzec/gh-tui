@@ -291,6 +291,128 @@ func TestSetThreadResolved(t *testing.T) {
 	}
 }
 
+// resolvedIn reports whether thread t2 of p is resolved.
+func resolvedIn(p core.ThreadPage) bool { return p.Threads[1].Resolved }
+
+func TestConfirmThreadResolvedIsKept(t *testing.T) {
+	r := &threadServer{}
+	store := openStore(t)
+	s := New(r.api(), WithStore(store))
+	readThreads(t, s, threadsQ)
+	if _, ok := s.SetThreadResolved(repo, 1, "t2", true); !ok {
+		t.Fatal("SetThreadResolved = false, want true")
+	}
+	s.ConfirmThreadResolved(repo, 1, "t2", true)
+
+	// A new session, within the TTL, serves the page kept with the change and
+	// reads nothing.
+	s = New(r.api(), WithStore(store))
+	p := readThreads(t, s, threadsQ)
+	if !resolvedIn(p) || p.Threads[0].Resolved {
+		t.Errorf("kept page = %+v, %+v; want only t2 resolved", p.Threads[0], p.Threads[1])
+	}
+	if n := len(r.requests()); n != 1 {
+		t.Errorf("requests = %d, want 1: the kept page is fresh and holds the change", n)
+	}
+}
+
+func TestConfirmThreadResolvedStaysStale(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r := &threadServer{}
+		store := openStore(t)
+		s := New(r.api(), WithTTL(time.Minute), WithStore(store))
+		readThreads(t, s, threadsQ)
+		time.Sleep(2 * time.Minute)
+		s.SetThreadResolved(repo, 1, "t2", true)
+		s.ConfirmThreadResolved(repo, 1, "t2", true)
+
+		// The page was read two minutes ago, so confirming the change doesn't
+		// make it fresh: it is read again.
+		s = New(r.api(), WithTTL(time.Minute), WithStore(store))
+		readThreads(t, s, threadsQ)
+		if n := len(r.requests()); n != 2 {
+			t.Errorf("requests = %d, want the old kept page read again", n)
+		}
+	})
+}
+
+func TestSetThreadResolvedRollbackKeepsNothing(t *testing.T) {
+	r := &threadServer{}
+	store := openStore(t)
+	s := New(r.api(), WithStore(store))
+	readThreads(t, s, threadsQ)
+	rollback, _ := s.SetThreadResolved(repo, 1, "t2", true)
+	rollback()
+
+	// GitHub refused it and nothing confirmed it, so what was kept is what was
+	// read.
+	s = New(r.api(), WithStore(store))
+	if p := readThreads(t, s, threadsQ); resolvedIn(p) || len(r.requests()) != 1 {
+		t.Errorf("kept page = %+v after %d requests, want t2 unresolved, as read", p.Threads[1], len(r.requests()))
+	}
+	// Confirming a change that was never made keeps nothing either.
+	s.ConfirmThreadResolved(repo, 1, "t2", true)
+	s = New(r.api(), WithStore(store))
+	if p := readThreads(t, s, threadsQ); resolvedIn(p) {
+		t.Error("a confirm of a change that isn't held kept it")
+	}
+}
+
+func TestSetThreadResolvedDuringRead(t *testing.T) {
+	gate := make(chan struct{}, 1)
+	started := make(chan struct{}, 1)
+	r := &threadServer{}
+	api := &fakeAPI{threads: func(ctx context.Context, rp core.RepoRef, n int, cursor string, first int) (core.ThreadPage, error) {
+		started <- struct{}{}
+		<-gate
+		return r.serve(ctx, rp, n, cursor, first)
+	}}
+	s := New(api)
+	gate <- struct{}{} // the first read goes through at once
+	readThreads(t, s, threadsQ)
+	<-started
+
+	// A read again is in flight when the change is made, and brings the page
+	// as it was before.
+	s.Invalidate(repo)
+	done := make(chan core.ThreadPage)
+	go func() { done <- readThreads(t, s, threadsQ) }()
+	<-started
+	rollback, ok := s.SetThreadResolved(repo, 1, "t2", true)
+	if !ok {
+		t.Fatal("SetThreadResolved of a cached, stale page = false, want true")
+	}
+	gate <- struct{}{}
+	<-done
+
+	if p, _ := s.CachedThreads(threadsQ); !resolvedIn(p) {
+		t.Error("the read that was in flight undid the change")
+	}
+	rollback()
+	if p, _ := s.CachedThreads(threadsQ); resolvedIn(p) {
+		t.Error("the rollback didn't restore the page")
+	}
+}
+
+func TestRevalidateReadsThreadsAgain(t *testing.T) {
+	r := &threadServer{}
+	api := r.api()
+	api.get = func(context.Context, core.RepoRef, int) (core.PullRequestDetail, error) {
+		var d core.PullRequestDetail
+		d.Number = 1
+		return d, nil
+	}
+	s := New(api)
+	readThreads(t, s, threadsQ)
+	if _, err := s.Revalidate(t.Context(), repo, 1); err != nil {
+		t.Fatalf("Revalidate: %v", err)
+	}
+	readThreads(t, s, threadsQ)
+	if n := len(r.requests()); n != 2 {
+		t.Errorf("thread requests = %d, want the page read again after the detail was", n)
+	}
+}
+
 func TestSetThreadResolvedUnknown(t *testing.T) {
 	r := &threadServer{}
 	s := New(r.api())

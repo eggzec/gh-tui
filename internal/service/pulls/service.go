@@ -409,6 +409,8 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 	// the comments and reviews; the read skips it for the detail.
 	s.keptDetails.Warm(s.details, key, true)
 	s.details.Invalidate(key)
+	// A thread resolved elsewhere moves nothing that vouches for its page.
+	s.threads.InvalidateTag(key)
 	return s.readDetail(ctx, repo, number)
 }
 
