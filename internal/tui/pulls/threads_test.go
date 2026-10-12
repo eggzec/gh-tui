@@ -2,10 +2,14 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -258,5 +262,301 @@ func TestThreadsReadOnShowAndRefresh(t *testing.T) {
 	press(t, h, "r")
 	if n := svc.threadReadCount(); n != 2 {
 		t.Errorf("refresh read %d pages in all, want 2", n)
+	}
+}
+
+// threadIDs returns the ids of the threads the block lists.
+func threadIDs(m *detailModal) []string {
+	ids := make([]string, 0, len(m.th.list))
+	for i := range m.th.list {
+		ids = append(ids, m.th.list[i].ID)
+	}
+	return ids
+}
+
+// onePage is a page of a single thread, the last.
+func onePage(id string) core.ThreadPage {
+	return core.ThreadPage{Threads: []core.Thread{review(id, "x/"+id+".go", 3, "monalisa", "Look at "+id+".")}, Total: 1}
+}
+
+func TestThreadsStaleResultsDropped(t *testing.T) {
+	want := []string{"t1", "t2", "t3"}
+	setup := func(t *testing.T) (*fakeService, *host, *detailModal) {
+		t.Helper()
+		svc := newFakeService()
+		svc.threadPages = map[string]core.ThreadPage{"": firstPage(), "p2": secondPage()}
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		return svc, h, m
+	}
+	t.Run("a first page of a read that was replaced", func(t *testing.T) {
+		svc, h, m := setup(t)
+		old := m.fetchThreads("", m.th.gen)()
+		svc.threadPages[""] = onePage("t7")
+		press(t, h, "r")
+		if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) {
+			t.Fatalf("refresh shows %v, want t7", got)
+		}
+		drain(t, h, m.receiveThreads(old.(threadsMsg)))
+		if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) {
+			t.Errorf("the page of the replaced read changed the threads to %v", got)
+		}
+	})
+	t.Run("a next page of a read that was replaced", func(t *testing.T) {
+		_, h, m := setup(t)
+		old := m.fetchThreads("p2", m.th.gen)()
+		press(t, h, "r")
+		cmd := m.receiveThreads(old.(threadsMsg))
+		if got := threadIDs(m); !slices.Equal(got, want) || cmd != nil {
+			t.Errorf("a next page of the replaced read gave %v, want %v kept", got, want)
+		}
+	})
+	t.Run("a page of a head the pull request left", func(t *testing.T) {
+		svc, h, m := setup(t)
+		old := m.fetchThreads("", m.th.gen)()
+		m.detail.HeadSHA = "f00d"
+		svc.threadPages[""] = onePage("t7")
+		drain(t, h, m.reloadThreads())
+		if q := svc.threadReads[len(svc.threadReads)-1]; q.Head != "f00d" {
+			t.Fatalf("the read after the head changed was %+v, want the new head", q)
+		}
+		drain(t, h, m.receiveThreads(old.(threadsMsg)))
+		if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) {
+			t.Errorf("the page of the old head changed the threads to %v", got)
+		}
+	})
+	t.Run("a page for another thread", func(t *testing.T) {
+		_, _, m := setup(t)
+		cmd := m.receiveThreads(threadsMsg{thread: m.thread.ID() + 1, gen: m.th.gen, page: onePage("t9")})
+		if got := threadIDs(m); !slices.Equal(got, want) || cmd != nil {
+			t.Errorf("a page for another modal gave %v, want %v kept", got, want)
+		}
+	})
+}
+
+// A head that changed while another tab showed is read when the Conversation
+// tab shows again.
+func TestThreadsReadAgainAfterHeadChange(t *testing.T) {
+	svc := newFakeService()
+	svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+	h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+	drain(t, h, m.switchTo(filesTab))
+	m.detail.HeadSHA = "f00d"
+	svc.threadPages[""] = onePage("t7")
+	drain(t, h, m.switchTo(conversationTab))
+	if q := svc.threadReads[len(svc.threadReads)-1]; svc.threadReadCount() != 2 || q.Head != "f00d" {
+		t.Fatalf("reads %+v, want a second one of the new head", svc.threadReads)
+	}
+	if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) {
+		t.Errorf("the threads are %v, want those of the new head", got)
+	}
+}
+
+func TestThreadsKeptReadAgainOnline(t *testing.T) {
+	offline := fmt.Errorf("github: POST /graphql: %w", core.ErrOffline)
+	t.Run("a first page served kept", func(t *testing.T) {
+		svc := newFakeService()
+		kept := firstPage()
+		kept.Offline = true
+		svc.threadPages = map[string]core.ThreadPage{"": kept}
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		if !m.th.kept {
+			t.Fatal("a page served offline isn't kept")
+		}
+		svc.threadPages[""] = onePage("t7")
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		if n := svc.threadReadCount(); n != 2 {
+			t.Errorf("two OnlineMsg read %d pages in all, want one more than the first", n)
+		}
+		if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) || m.th.kept {
+			t.Errorf("online shows %v (kept %v), want the fresh page", got, m.th.kept)
+		}
+	})
+	t.Run("a next page served kept", func(t *testing.T) {
+		svc := newFakeService()
+		more := secondPage()
+		more.Limited = true
+		svc.threadPages = map[string]core.ThreadPage{"": firstPage(), "p2": more}
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		for range 3 {
+			press(t, h, "j")
+		}
+		press(t, h, "enter")
+		if !m.th.kept {
+			t.Fatal("a next page served rate limited isn't kept")
+		}
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		if n := svc.threadReadCount(); n != 3 {
+			t.Errorf("online read %d pages in all, want the first again", n)
+		}
+	})
+	t.Run("a first page that couldn't be reached", func(t *testing.T) {
+		svc := newFakeService()
+		svc.threadsErr = offline
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		if m.th.err == nil {
+			t.Fatal("the failed read left no error")
+		}
+		svc.threadsErr = nil
+		svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		if m.th.err != nil || len(m.th.list) != 3 {
+			t.Errorf("online left error %v and %d threads, want the page", m.th.err, len(m.th.list))
+		}
+	})
+	t.Run("a refusal isn't read again", func(t *testing.T) {
+		svc := newFakeService()
+		svc.threadsErr = core.ErrNotFound
+		h, _ := threaded(t, svc, 116, 37, config.IconsUnicode)
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		if n := svc.threadReadCount(); n != 1 {
+			t.Errorf("online read %d pages after a refusal, want none more", n)
+		}
+	})
+	t.Run("a cached page shows at once", func(t *testing.T) {
+		svc := newFakeService()
+		svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		svc.threadCache = map[string]core.ThreadPage{"": onePage("t8")}
+		cmd := m.readThreads()
+		if got := threadIDs(m); !slices.Equal(got, []string{"t8"}) {
+			t.Fatalf("the cached page isn't shown before the read: %v", got)
+		}
+		drain(t, h, cmd)
+		if got := threadIDs(m); !slices.Equal(got, []string{"t1", "t2", "t3"}) {
+			t.Errorf("the read didn't replace the cached page: %v", got)
+		}
+	})
+}
+
+func TestThreadsCursorFollowsItsThread(t *testing.T) {
+	svc := newFakeService()
+	svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+	h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+	press(t, h, "j")
+	if id := m.th.rowIDAt(m.th.cursorRow()); id != "t2" {
+		t.Fatalf("the cursor is on %q, want t2", id)
+	}
+	above := firstPage()
+	above.Threads = append([]core.Thread{review("t0", "a/new.go", 1, "hubot", "New.")}, above.Threads...)
+	svc.threadPages[""] = above
+	press(t, h, "r")
+	if row, id := m.th.cursorRow(), m.th.rowIDAt(m.th.cursorRow()); row != 2 || id != "t2" {
+		t.Errorf("after a thread came above, the cursor is on row %d (%q), want t2 on row 2", row, id)
+	}
+	svc.threadPages[""] = onePage("t1")
+	press(t, h, "r")
+	if row := m.th.cursorRow(); row != 0 {
+		t.Errorf("with its thread gone the cursor is on row %d, want it clamped to 0", row)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "Unresolved threads (1)") {
+		t.Errorf("the block of the one thread isn't shown:\n%s", v)
+	}
+}
+
+// manyThreads is a page of n threads that each have a reply.
+func manyThreads(n int) core.ThreadPage {
+	p := core.ThreadPage{Total: n}
+	for i := range n {
+		id := "m" + strconv.Itoa(i)
+		p.Threads = append(p.Threads, review(id, "pkg/"+id+".go", i+1, "hubot", "Comment "+id+".", reply("octocat", "Reply "+id+".")))
+	}
+	return p
+}
+
+func TestThreadsKeysFallThroughOffScreen(t *testing.T) {
+	setup := func(t *testing.T) (*fakeService, *host, *detailModal) {
+		t.Helper()
+		svc := newFakeService()
+		svc.threadPages = map[string]core.ThreadPage{"": manyThreads(20)}
+		h, m := threaded(t, svc, 100, 14, config.IconsUnicode)
+		return svc, h, m
+	}
+	t.Run("j scrolls when the next row is below the screen", func(t *testing.T) {
+		_, h, m := setup(t)
+		for range 40 {
+			row, top := m.th.cursorRow(), m.thread.YOffset()
+			press(t, h, "j")
+			if m.th.cursorRow() != row {
+				continue
+			}
+			if row == 0 || row >= len(m.th.list)-1 {
+				t.Fatalf("the cursor stayed on row %d of %d", row, len(m.th.list))
+			}
+			if m.thread.YOffset() <= top {
+				t.Errorf("j with the next row below the screen left the view at %d, want it scrolled", top)
+			}
+			return
+		}
+		t.Fatal("the cursor never reached the bottom of the screen")
+	})
+	t.Run("enter does nothing to a cursor off the screen", func(t *testing.T) {
+		svc, h, m := setup(t)
+		for range 80 {
+			press(t, h, "j")
+			if m.th.rows[m.th.cursorRow()] < m.thread.YOffset() {
+				reads := svc.threadReadCount()
+				press(t, h, "enter")
+				if m.tab != conversationTab || svc.threadReadCount() != reads {
+					t.Errorf("enter on a cursor above the screen switched to tab %d", m.tab)
+				}
+				return
+			}
+		}
+		t.Fatal("scrolling never took the cursor row off the screen")
+	})
+}
+
+func TestConversationKeyLayer(t *testing.T) {
+	show := func(t *testing.T, m *detailModal) key.Binding {
+		t.Helper()
+		layers := m.KeyLayers()
+		l := layers[len(layers)-1]
+		if l.Context != ctxConversation {
+			t.Fatalf("the last layer is %q, want the Conversation's", l.Context)
+		}
+		for _, b := range l.Bindings {
+			if b.Help().Key == m.keys.showThread.Help().Key && b.Enabled() {
+				return b
+			}
+		}
+		return key.Binding{}
+	}
+	t.Run("rows", func(t *testing.T) {
+		svc := newFakeService()
+		svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+		h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		if b := show(t, m); b.Help().Desc != "show in diff" {
+			t.Errorf("the layer offers %+v on a thread, want show in diff", b.Help())
+		}
+		for range 3 {
+			press(t, h, "j")
+		}
+		if b := show(t, m); b.Help().Desc != "read more" {
+			t.Errorf("the layer offers %+v on the more row, want read more", b.Help())
+		}
+	})
+	t.Run("none", func(t *testing.T) {
+		svc := newFakeService()
+		_, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+		if b := show(t, m); b.Enabled() {
+			t.Errorf("the layer offers %+v with no threads", b.Help())
+		}
+	})
+}
+
+// A failed refresh keeps the threads that were read, with the failure above
+// them.
+func TestThreadsFailedRefreshKeepsRows(t *testing.T) {
+	svc := newFakeService()
+	svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
+	h, m := threaded(t, svc, 116, 37, config.IconsUnicode)
+	svc.threadsErr = errors.New("boom")
+	press(t, h, "r")
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"Unresolved threads (3+)", "went wrong", "internal/cache/disk.go:45"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the block lacks %q after a failed refresh:\n%s", want, v)
+		}
 	}
 }

@@ -350,9 +350,9 @@ func (m *detailModal) openPage(path string) tea.Cmd {
 }
 
 // showThread shows the Files tab with the diff's cursor on the line of a
-// review thread. The Conversation tab doesn't list review threads, so it is
-// where a thread goes that the diff can't place: one with no file, no line
-// (the code it was about has changed), or none at all.
+// review thread. A thread that the diff can't place, with no file, no line
+// (the code it was about has changed), or none at all, goes to the
+// Conversation tab, which lists the unresolved threads.
 func (m *detailModal) showThread(t core.ReviewThread) tea.Cmd {
 	if t.Path == "" || t.Line < 1 || t.Outdated {
 		return m.switchTo(conversationTab)

@@ -146,6 +146,12 @@ func (keyPulls) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core
 func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.CommitFile], error) {
 	return core.Page[core.CommitFile]{Items: keyChanged}, nil
 }
+func (keyPulls) Threads(context.Context, pullsvc.ThreadsQuery) (core.ThreadPage, error) {
+	return core.ThreadPage{}, nil
+}
+func (keyPulls) CachedThreads(pullsvc.ThreadsQuery) (core.ThreadPage, bool) {
+	return core.ThreadPage{}, true
+}
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }

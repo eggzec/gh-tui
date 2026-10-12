@@ -676,7 +676,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		l := ui.ContextLayer(ctxOverview, keys, keys[:3])
 		return []keyhelp.Layer{m.modalLayer(k), l}
 	}
-	return []keyhelp.Layer{m.modalLayer(k), ui.ContextHelp(ctxConversation, m.thread, false)}
+	return []keyhelp.Layer{m.modalLayer(k), m.conversationLayer()}
 }
 
 // modalLayer returns the layer of the keys of the modal, which work on any

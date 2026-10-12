@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -254,6 +256,7 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 		t.read += len(msg.page.Threads)
 		t.total, t.next = msg.page.Total, msg.page.Next
 		t.loadingMore = false
+		t.kept = t.kept || msg.page.Offline || msg.page.Limited
 	default:
 		t.err = nil
 		t.setFirst(msg.page)
@@ -281,25 +284,33 @@ func (m *detailModal) threadsBlock(w, base int) []string {
 	t := &m.th
 	t.rows = t.rows[:0]
 	heading := func(s string) string { return gutter + m.theme.Muted.Bold(true).Render(s) }
+	// A failed read of the first page says so above the threads that were
+	// read before, if there are any.
+	var failed string
 	if t.err != nil {
 		text, hint := m.threadsErr(t.err)
-		if text == "" {
-			return nil
+		if text != "" {
+			line := m.theme.Error.Render(m.icons.Error) + " " + text
+			if hint != "" {
+				line += m.icons.Separator + hint
+			}
+			failed = ansi.Truncate(gutter+line, w, m.icons.Ellipsis)
 		}
-		line := m.theme.Error.Render(m.icons.Error) + " " + text
-		if hint != "" {
-			line += m.icons.Separator + hint
-		}
-		return []string{heading("Unresolved threads"), ansi.Truncate(gutter+line, w, m.icons.Ellipsis)}
 	}
 	if len(t.list) == 0 && t.next == "" {
-		return nil
+		if failed == "" {
+			return nil
+		}
+		return []string{heading("Unresolved threads"), failed}
 	}
 	count := strconv.Itoa(len(t.list))
 	if t.next != "" {
 		count += "+"
 	}
 	lines := []string{heading("Unresolved threads (" + count + ")")}
+	if failed != "" {
+		lines = append(lines, failed)
+	}
 	cur := t.cursorRow()
 
 	// The locations share a column, and so do the names, each no wider than
@@ -307,11 +318,11 @@ func (m *detailModal) threadsBlock(w, base int) []string {
 	locCol, whoCol := 0, 0
 	for i := range t.list {
 		th := &t.list[i]
-		w := ansi.StringWidth(threadPlace(th))
+		pw := ansi.StringWidth(threadPlace(th))
 		if th.Outdated {
-			w += 1 + len(outdatedTag)
+			pw += 1 + len(outdatedTag)
 		}
-		locCol = max(locCol, w)
+		locCol = max(locCol, pw)
 		whoCol = max(whoCol, ansi.StringWidth(m.threadWho(firstComment(th), false)))
 		if last := lastReply(th); last != nil {
 			whoCol = max(whoCol, ansi.StringWidth(m.threadWho(last, false)))
@@ -461,7 +472,7 @@ func cutHead(s string, w int, ellipsis string) string {
 func (m *detailModal) pressThreads(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	t := &m.th
 	n := t.rowCount()
-	if !m.onConversation() || n == 0 || len(t.rows) < n {
+	if !m.onConversation() || !t.threadsShow() {
 		return nil, false
 	}
 	k := m.keys
@@ -491,6 +502,27 @@ func (m *detailModal) pressThreads(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.showThreadAt(&t.list[cur]), true
 	}
 	return nil, false
+}
+
+// threadsShow reports whether the block of threads shows rows that the cursor
+// moves through.
+func (t *threadsState) threadsShow() bool {
+	n := t.rowCount()
+	return n > 0 && len(t.rows) >= n
+}
+
+// conversationLayer returns the layer of the keys of the Conversation tab: the
+// key that acts on the row under the cursor, matched before the thread's keys,
+// and then the thread's. The thread's own use of the same key, to toggle a
+// diagram, takes over while one is on screen.
+func (m *detailModal) conversationLayer() keyhelp.Layer {
+	enter := m.keys.showThread
+	enter.SetEnabled(enter.Enabled() && m.th.threadsShow() && !m.thread.OnDiagram())
+	if m.th.cursorRow() >= len(m.th.list) {
+		enter.SetHelp(enter.Help().Key, "read more")
+	}
+	own := ui.ContextLayer(ctxConversation, []key.Binding{enter}, []key.Binding{enter})
+	return ui.MergeLayers(ctxConversation, own, ui.ContextHelp(ctxConversation, m.thread, false))
 }
 
 // showThreadAt shows the Files tab with the diff's cursor on the line of

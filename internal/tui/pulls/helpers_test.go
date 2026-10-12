@@ -112,6 +112,8 @@ type fakeService struct {
 	threadPages map[string]core.ThreadPage
 	threadReads []pulls.ThreadsQuery
 	threadsErr  error
+	// threadCache are the pages CachedThreads serves, by cursor.
+	threadCache map[string]core.ThreadPage
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.
@@ -125,9 +127,12 @@ func (f *fakeService) Threads(_ context.Context, q pulls.ThreadsQuery) (core.Thr
 	return f.threadPages[q.Cursor], nil
 }
 
-// CachedThreads serves nothing: the threads always read.
-func (f *fakeService) CachedThreads(pulls.ThreadsQuery) (core.ThreadPage, bool) {
-	return core.ThreadPage{}, false
+// CachedThreads serves the page of threadCache at the cursor, if there is one.
+func (f *fakeService) CachedThreads(q pulls.ThreadsQuery) (core.ThreadPage, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	p, ok := f.threadCache[q.Cursor]
+	return p, ok
 }
 
 // threadReadCount returns how many pages of threads were read.
