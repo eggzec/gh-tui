@@ -87,6 +87,10 @@ type filesState struct {
 	// marks are the letters of the statuses, rendered in the theme.
 	marks map[diff.Status]string
 	theme ui.Theme
+	// counts are the threads of each file, and dot the glyph that the tree
+	// shows them with.
+	counts map[string]threadCount
+	dot    string
 }
 
 // loading reports whether the first page of files is on its way.
@@ -175,6 +179,7 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 		focus:  diffPane,
 		marks:  map[diff.Status]string{},
 		theme:  m.theme,
+		dot:    m.icons.Dot,
 	}
 	if prev != nil {
 		f.focus, f.zoom, f.folded = prev.focus, prev.zoom, prev.folded
@@ -203,6 +208,8 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 	f.spin.Style = m.theme.Accent
 	f.spinning = true
 	m.files = f
+	// The threads read wait in the diff for their files.
+	m.applyThreadBlocks()
 	m.layoutFiles()
 	return tea.Batch(f.diff.Init(), f.spin.Tick)
 }
@@ -466,13 +473,18 @@ func (m *detailModal) refreshFiles() tea.Cmd {
 		return tea.Batch(cmd, m.spinWhileLoading())
 	}
 	m.svc.Invalidate(m.repo)
-	return tea.Batch(m.get(), m.reloadFiles())
+	return tea.Batch(m.get(), m.reloadFiles(), m.reloadThreads())
 }
 
-// openFiles opens the diff of the file under the cursor on GitHub: that of
-// the file selected in the tree, while it has the focus, and otherwise the
-// one the diff is in. Without a file it opens the page of the files.
+// openFiles opens the thread under the cursor of the diff on GitHub, if the
+// cursor is on one. Otherwise it opens the diff of the file under the cursor:
+// that of the file selected in the tree, while it has the focus, and
+// otherwise the one the diff is in. Without a file it opens the page of the
+// files.
 func (m *detailModal) openFiles() tea.Cmd {
+	if cmd, ok := m.openThread(); ok {
+		return cmd
+	}
 	if m.detail.URL == "" {
 		return nil
 	}
@@ -531,7 +543,9 @@ func (m *detailModal) restyleFiles() {
 	clear(f.marks)
 	f.diff.SetStyles(m.theme.Diff(m.icons))
 	f.tree.SetStyles(m.theme.Tree(m.icons))
-	f.tree.SetIcons(f.icon)
+	f.dot = m.icons.Dot
+	// The blocks are drawn in the theme when they are rendered.
+	m.applyThreadBlocks()
 	f.spin.Style = m.theme.Accent
 }
 
@@ -571,11 +585,16 @@ func (f *filesState) mark(s diff.Status) string {
 	return r
 }
 
-// icon is a tree.Icons: a file has the letter of its status, and a
-// directory nothing but the tree's own mark.
+// icon is a tree.Icons: a file has the letter of its status, followed by how
+// many review threads it has, and a directory nothing but the tree's own
+// mark.
 func (f *filesState) icon(n tree.Node, _ bool) string {
 	if file, ok := n.Value.(diff.File); ok {
-		return f.mark(file.Status)
+		s := f.mark(file.Status)
+		if t := f.threadMarkOf(file.Path, f.dot); t != "" {
+			s += " " + t
+		}
+		return s
 	}
 	return ""
 }

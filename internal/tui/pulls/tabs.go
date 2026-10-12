@@ -215,7 +215,7 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 	case checksTab:
 		return m.showChecks()
 	case filesTab:
-		return m.showFiles()
+		return tea.Batch(m.showFiles(), m.showThreads())
 	case overviewTab:
 		// It reads the detail each time it draws.
 		return nil
