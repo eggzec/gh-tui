@@ -593,6 +593,24 @@ func TestSearchKeepsCurrentThroughBlockChanges(t *testing.T) {
 	}
 }
 
+// Blocks that arrive above the cursor don't push its line down the window.
+func TestSetBlocksKeepsCursorRow(t *testing.T) {
+	m := load(t, blockFiles(), WithSize(60, 6))
+	m.moveTo(8)
+	row, _ := m.layout.RowAt(m.Cursor())
+	below := m.cursor - m.top
+	if below < 1 {
+		t.Fatalf("setup: the cursor is at the top of the window (%d)", below)
+	}
+	m.SetBlocks([]Block{at("a", "a.go", 2), at("b", "a.go", 1), note("c", "a.go", NewSide, 0, "x")})
+	if r, _ := m.layout.RowAt(m.Cursor()); r.Text != row.Text || r.Kind != row.Kind {
+		t.Errorf("the cursor moved to %q, want %q", r.Text, row.Text)
+	}
+	if got := m.cursor - m.top; got != below {
+		t.Errorf("the cursor is %d rows into the window, want %d", got, below)
+	}
+}
+
 // The moves between hunks and files do not stop at blocks, and a block under
 // a header does not hide the file's first hunk.
 func TestMovesAcrossBlocks(t *testing.T) {

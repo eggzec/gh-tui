@@ -149,6 +149,18 @@ func (m *detailModal) threadFolded(th *core.Thread, w int) []string {
 	return lines
 }
 
+// fitTags truncates line, not its tags, to leave them whole within w columns.
+// The tags go only when less than a few columns of line remain beside them,
+// which is at very narrow widths; lead is the width of the line's fixed start.
+func (m *detailModal) fitTags(line, tags string, w, lead int) string {
+	tw := ansi.StringWidth(tags)
+	room := w - tw
+	if room < lead+2 {
+		return ansi.Truncate(line+tags, w, m.icons.Ellipsis)
+	}
+	return ansi.Truncate(line, room, m.icons.Ellipsis) + tags
+}
+
 // threadOpen renders every comment of thread th: who wrote it and when, and
 // the text wrapped under that.
 func (m *detailModal) threadOpen(th *core.Thread, w int) []string {
@@ -163,9 +175,11 @@ func (m *detailModal) threadOpen(th *core.Thread, w int) []string {
 		}
 		line := lead + m.threadWho(c, true)
 		if i == 0 {
-			line += m.threadTags(th)
+			line = m.fitTags(line, m.threadTags(th), w, ansi.StringWidth(lead))
+		} else {
+			line = ansi.Truncate(line, w, m.icons.Ellipsis)
 		}
-		lines = append(lines, ansi.Truncate(line, w, m.icons.Ellipsis))
+		lines = append(lines, line)
 		for raw := range strings.SplitSeq(c.Body, "\n") {
 			for _, l := range ui.Wrap(ui.OneLine(raw), max(w-len(indent), 1)) {
 				lines = append(lines, indent+m.st.title.Render(strings.TrimRight(l, " ")))

@@ -534,8 +534,10 @@ func (m *detailModal) layoutFiles() {
 	body := max(m.height-1, 0)
 	tw, dw := m.width, m.width
 	if !m.filesNarrow() && !f.zoom {
-		tw = min(treeWidth, m.width)
-		dw = max(m.width-tw-1, 0)
+		// The tree leaves a column free before the divider, so that the
+		// stats of a full row don't touch it.
+		tw = max(min(treeWidth, m.width)-1, 0)
+		dw = max(m.width-treeWidth-1, 0)
 	}
 	f.tree.SetSize(tw, body)
 	f.diff.SetSize(dw, body)

@@ -2,12 +2,19 @@ package diff
 
 // SetBlocks replaces the blocks shown in the diff; see [Block] and
 // [Layout.SetBlocks]. The cursor and the window stay on the rows they were
-// on, and a search shown reads the text of the new blocks.
+// on, and a search shown reads the text of the new blocks. The cursor also
+// keeps its place in the window, so blocks that arrive above it, such as the
+// threads of a diff that has already been drawn, don't push its line down.
 func (m *Model) SetBlocks(blocks []Block) {
 	h := m.holdRows()
+	below := m.cursor - m.top
 	files := m.layout.applyBlocks(blocks)
 	m.searchRefile(files...)
 	m.restore(h)
+	if below > 0 {
+		m.top = max(m.cursor-below, 0)
+		m.scroll()
+	}
 	m.dirty = true
 }
 
