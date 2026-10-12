@@ -101,6 +101,60 @@ func TestFileThreadsEnterExpands(t *testing.T) {
 	}
 }
 
+// The header of an open thread keeps its tags whole, and shortens the author
+// instead, down to widths where nothing else would fit.
+func TestFileThreadsOpenHeaderKeepsTags(t *testing.T) {
+	th := review("t1", "internal/cache/disk.go", 0, "copilot-pull-request-reviewer", "Check the pin.")
+	th.Resolved, th.Outdated = true, true
+	_, m := onFilesWith(t, th)
+	for _, w := range []int{76, 56, 44, 36} {
+		lines := m.threadOpen(&th, w)
+		head := ansi.Strip(lines[0])
+		if !strings.HasSuffix(head, " resolved outdated") {
+			t.Errorf("at %d columns the header is %q, want it to end in the tags", w, head)
+		}
+		for _, l := range lines {
+			if got := ansi.StringWidth(l); got > w {
+				t.Errorf("at %d columns a line is %d wide: %q", w, got, ansi.Strip(l))
+			}
+		}
+	}
+	if head := ansi.Strip(m.threadOpen(&th, 12)[0]); ansi.StringWidth(head) > 12 {
+		t.Errorf("at 12 columns the header is %q, want it to fit", head)
+	}
+}
+
+// The tree leaves a column free before the divider, at 80 and 120 columns,
+// even for a row that its stats fill.
+func TestFilesTreeStatsLeaveGapBeforeDivider(t *testing.T) {
+	for _, width := range []int{96, 116} {
+		svc := newFakeService()
+		svc.pulls[0].HeadSHA = "a1b2c3d"
+		svc.changed = sampleFiles()
+		for i := range svc.changed {
+			svc.changed[i].Additions, svc.changed[i].Deletions = 1234, 5678
+		}
+		h := started(t, svc, width, 30, WithChecks(&fakeChecks{}))
+		press(t, h, "enter")
+		press(t, h, "]")
+		lines := strings.Split(ansi.Strip(h.modal().View()), "\n")
+		seen := false
+		for _, l := range lines {
+			cells := []rune(l)
+			if len(cells) <= treeWidth || !strings.ContainsRune(l, '+') {
+				continue
+			}
+			if cells[treeWidth-1] != ' ' {
+				t.Errorf("at %d columns the cell before the divider is %q in %q", width, cells[treeWidth-1], l)
+			}
+			seen = seen || strings.Contains(l, "+1234")
+		}
+		if !seen {
+			t.Errorf("at %d columns no row of the tree shows its stats:\n%s", width, strings.Join(lines, "\n"))
+		}
+	}
+}
+
 func TestFileThreadsTreeCount(t *testing.T) {
 	open := review("t1", "internal/cache/disk.go", 45, "hubot", "Swallowing err.")
 	done := review("t2", "internal/cache/disk.go", 3, "hubot", "Unused.")
