@@ -106,6 +106,35 @@ type fakeService struct {
 	// tweaks change the detail of a pull request by number, after the
 	// service made it.
 	tweaks map[int]func(*core.PullRequestDetail)
+	// threadPages are the pages of review threads by the cursor that reads
+	// them, "" for the first, and threadReads are the reads of them.
+	// threadsErr fails them.
+	threadPages map[string]core.ThreadPage
+	threadReads []pulls.ThreadsQuery
+	threadsErr  error
+}
+
+// Threads serves the page of threadPages at the cursor, or an empty one.
+func (f *fakeService) Threads(_ context.Context, q pulls.ThreadsQuery) (core.ThreadPage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.threadReads = append(f.threadReads, q)
+	if f.threadsErr != nil {
+		return core.ThreadPage{}, f.threadsErr
+	}
+	return f.threadPages[q.Cursor], nil
+}
+
+// CachedThreads serves nothing: the threads always read.
+func (f *fakeService) CachedThreads(pulls.ThreadsQuery) (core.ThreadPage, bool) {
+	return core.ThreadPage{}, false
+}
+
+// threadReadCount returns how many pages of threads were read.
+func (f *fakeService) threadReadCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.threadReads)
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were

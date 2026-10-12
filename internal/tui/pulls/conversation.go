@@ -33,6 +33,8 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 			m.viewer = msg.login
 		}
 		return nil
+	case threadsMsg:
+		return m.receiveThreads(msg)
 	case resendMsg:
 		if msg.owner != any(m) {
 			return nil
@@ -49,7 +51,7 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 		if msg.Err != nil || msg.Key != pulls.SyncKey(m.repo) {
 			return nil
 		}
-		return tea.Batch(m.get(), m.thread.Reload())
+		return tea.Batch(m.get(), m.thread.Reload(), m.reloadThreads())
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -79,7 +81,7 @@ func (m *detailModal) online() tea.Cmd {
 	if f := m.files; f != nil {
 		files = m.filesOnline()
 	}
-	return tea.Batch(get, files, ui.RetryUnreached(&m.thread))
+	return tea.Batch(get, files, m.threadsOnline(), ui.RetryUnreached(&m.thread))
 }
 
 // get fetches the detail. A fresh cached detail costs no request. Once it
@@ -123,7 +125,7 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 	}
 	newer := m.loaded && msg.detail.UpdatedAt.After(m.detail.UpdatedAt)
 	m.detail, m.loaded, m.seen, m.failed = msg.detail, true, true, nil
-	cmds := []tea.Cmd{m.show(), m.showFiles()}
+	cmds := []tea.Cmd{m.show(), m.showFiles(), m.showThreads()}
 	if m.refs != nil && newer {
 		// The links are read again for what changed.
 		cmds = append(cmds, m.refs.Reread())
@@ -189,7 +191,12 @@ func (m *detailModal) detailHeader(width int) string {
 		}
 		line(strings.Join(names, "  "))
 	}
-	line(st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
+	rule := gutter + st.rule.Render(strings.Repeat(st.ic.Border.Top, inner))
+	lines = append(lines, rule)
+	if block := m.threadsBlock(width, len(lines)); len(block) > 0 {
+		lines = append(lines, block...)
+		lines = append(lines, rule)
+	}
 	return strings.Join(lines, "\n")
 }
 

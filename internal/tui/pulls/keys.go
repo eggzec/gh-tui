@@ -66,6 +66,9 @@ type keyMap struct {
 	// Overview tab, and attend goes to the target of the row under it.
 	overview ui.MoveKeys
 	attend   key.Binding
+	// showThread shows the unresolved thread under the cursor of the
+	// Conversation tab in the diff, or reads more of them.
+	showThread key.Binding
 	// nextPane and prevPane move the focus between the tree and the diff
 	// of the Files tab, panes focus one of them, and jump stands for the
 	// keys of panes in help. zoom shows the focused one alone. The modal
@@ -126,6 +129,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	k.search = ui.SearchPromptKeys(keys)
 
 	t := thread.NewKeyMap(ui.In(keys, ctxConversation))
+	k.showThread = ui.In(keys, ctxConversation).Binding("global.select", "show in diff")
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())
