@@ -112,24 +112,34 @@ func TestJumpFromOverviewShowsTheFirstAndLastThread(t *testing.T) {
 	}
 }
 
+// With neither the threads nor the files read, the jump waits for both and
+// lands on the diff's first thread, or its last, not on the first or last in
+// the order GitHub lists them, which is that of their creation: here the
+// threads are t1, t2 and t3 in that order, and the diff, which follows the
+// order of the changed files, has t3 (cmd/), t1 (internal/) and t2 (docs/).
 func TestJumpFromOverviewReadsTheThreadsFirst(t *testing.T) {
 	t.Parallel()
-	svc := newFakeService()
-	svc.threadPages = map[string]core.ThreadPage{"": {Threads: jumpThreads(), Total: 3}}
-	svc.pulls[0].HeadSHA = "a1b2c3d"
-	svc.changed = sampleFiles()
-	h := started(t, svc, 116, 60)
-	press(t, h, "enter")
-	m := h.modal()
-	if m == nil || m.tab != overviewTab {
-		t.Fatalf("the modal is %v, want it on the Overview tab", m)
-	}
-	press(t, h, ")")
-	if m.tab != filesTab {
-		t.Fatalf(") on the Overview, before any thread was read, showed tab %d, want Files", m.tab)
-	}
-	if id := cursorThread(t, m); id == "" {
-		t.Error("the diff's cursor is on no thread")
+	for key, want := range map[string]string{")": "t3", "(": "t2"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			svc := newFakeService()
+			svc.threadPages = map[string]core.ThreadPage{"": {Threads: jumpThreads(), Total: 3}}
+			svc.pulls[0].HeadSHA = "a1b2c3d"
+			svc.changed = sampleFiles()
+			h := started(t, svc, 116, 60)
+			press(t, h, "enter")
+			m := h.modal()
+			if m == nil || m.tab != overviewTab {
+				t.Fatalf("the modal is %v, want it on the Overview tab", m)
+			}
+			press(t, h, key)
+			if m.tab != filesTab {
+				t.Fatalf("%s on the Overview, before any thread was read, showed tab %d, want Files", key, m.tab)
+			}
+			if id := cursorThread(t, m); id != want {
+				t.Errorf("%s on the Overview showed thread %q, want %q", key, id, want)
+			}
+		})
 	}
 }
 

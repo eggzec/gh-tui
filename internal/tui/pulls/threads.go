@@ -57,6 +57,9 @@ type threadsState struct {
 	started bool
 	head    string
 	dirty   bool
+	// got says that a first page came in, so that an empty list isn't taken
+	// for a read that is still under way.
+	got bool
 	// jumping is the direction of a jump to the diff that waits for the first
 	// page of the threads, or 0.
 	jumping int
@@ -209,7 +212,7 @@ func (m *detailModal) readThreads() tea.Cmd {
 		t.setFirst(p)
 	} else if moved {
 		// What was read is of a head the pull request left.
-		t.all, t.list, t.read, t.total, t.next, t.kept = nil, nil, 0, 0, "", false
+		t.all, t.list, t.read, t.total, t.next, t.kept, t.got = nil, nil, 0, 0, "", false, false
 	}
 	m.applyThreadBlocks()
 	return tea.Batch(m.fetchThreads("", t.gen), m.show())
@@ -245,6 +248,7 @@ func (t *threadsState) setFirst(p core.ThreadPage) {
 	t.list, t.read, t.total, t.next = unresolved(t.all), len(p.Threads), p.Total, p.Next
 	t.kept = p.Offline || p.Limited
 	t.loadingMore, t.moreErr = false, nil
+	t.got = true
 }
 
 // pin makes the cursor follow its row from now on, so that rows added or

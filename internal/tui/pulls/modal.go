@@ -108,6 +108,9 @@ type detailModal struct {
 	// back are the places that jumps to the diff left, the last one to come
 	// back to first.
 	back []returnPoint
+	// fileJump is the direction of a jump to a thread that waits for the first
+	// page of the files, which the diff's order of the threads needs, or 0.
+	fileJump int
 	// newRefs makes the References step, which refs is while it shows over
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -557,7 +560,7 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
-	m.back = nil
+	m.back, m.fileJump = nil, 0
 	m.dropFind()
 	if m.refs != nil {
 		m.refs.Close()

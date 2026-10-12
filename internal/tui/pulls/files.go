@@ -290,6 +290,14 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 		// Nothing arrives for the tree to show.
 		cmds = append(cmds, m.growTree(nil))
 	}
+	// The diff takes a page before it tells of it with a FilesMsg, which is
+	// when the files the jump orders the threads by are in the set.
+	_, told := msg.(diff.FilesMsg)
+	if d := m.fileJump; d != 0 && (told && (f.set.len() > 0 || f.diff.Done()) || f.diff.Err() != nil) {
+		// The files the jump waited for have come in, or won't.
+		m.fileJump = 0
+		cmds = append(cmds, m.jumpDiff(d, true))
+	}
 	return tea.Batch(append(cmds, m.follow(), m.spinWhileLoading())...)
 }
 

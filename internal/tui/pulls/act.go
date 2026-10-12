@@ -9,9 +9,10 @@ import (
 var _ ui.Actor = (*detailModal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal from any step of
-// it, the back key steps back from the links, out of what the Checks
-// tab opened, or from a jump to the diff, and the owner key shows the page of the author; every other
-// intent is the app's to refuse while the modal is open.
+// it, the back key steps back from the links, out of what the Checks tab
+// opened, or from a jump to the diff, and the owner key shows the page of
+// the author; every other intent is the app's to refuse while the modal is
+// open.
 func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 	switch action {
 	case ui.ActQuit:
@@ -30,7 +31,7 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 			return nil, true
 		}
 		// A jump to the diff steps back to where it started.
-		if m.ask == nil && m.find == nil && !m.searchingDiff() {
+		if m.ask == nil && m.find == nil && !m.searchingDiff() && (!m.onChecks() || !m.checks.TakesKeys()) {
 			return m.popReturn()
 		}
 		return nil, false
