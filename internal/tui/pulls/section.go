@@ -39,6 +39,11 @@ type Service interface {
 	// Files reads a page of the files that a pull request changes, with
 	// their patches.
 	Files(ctx context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error)
+	// Threads reads a page of the review threads of a pull request, with
+	// their comments, and CachedThreads returns one from memory, if it is
+	// there, without a request.
+	Threads(ctx context.Context, q pulls.ThreadsQuery) (core.ThreadPage, error)
+	CachedThreads(q pulls.ThreadsQuery) (core.ThreadPage, bool)
 	// CurrentGet and CurrentComments report whether Get and Comments
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool

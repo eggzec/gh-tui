@@ -101,6 +101,10 @@ type detailModal struct {
 	ov     overviewState
 	viewer string
 	whoAmI Viewer
+	// th is the state of the unresolved threads of the Conversation tab, and
+	// threadsErr words why they couldn't be read.
+	th         threadsState
+	threadsErr func(error) (text, hint string)
 	// newRefs makes the References step, which refs is while it shows over
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -175,6 +179,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
 	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
+	threadsVoice := s.voice
+	threadsVoice.Retry = modalKeys.Refresh
+	m.threadsErr = ui.ErrorText("read the review threads", core.Target{Repo: repo, Number: number}.String(), threadsVoice)
 	m.theme, m.runSt, m.confirmSt = s.theme, ui.NewRunStyles(s.theme, s.icons), s.theme.Confirm(s.icons)
 	if s.checks != nil {
 		svc, keys := s.checks, s.rawKeys
@@ -424,7 +431,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		// a Checks step, which stays paused.
 		switch {
 		case m.refs != nil && msg.Modal == m:
-			return tea.Batch(m.refs.Update(msg), m.get(), m.thread.Reload())
+			return tea.Batch(m.refs.Update(msg), m.get(), m.thread.Reload(), m.reloadThreads())
 		case m.refs != nil:
 			return nil
 		case m.onChecks():
@@ -432,7 +439,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		case msg.Modal != m:
 			return nil
 		}
-		return tea.Batch(m.get(), m.thread.Reload())
+		return tea.Batch(m.get(), m.thread.Reload(), m.reloadThreads())
 	}
 	if _, ok := msg.(tea.MouseMsg); ok && (m.refs != nil || m.find != nil) {
 		// The links and the finder cover the tab, which would scroll
@@ -518,12 +525,15 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.close()
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
-		return tea.Batch(m.get(), m.thread.Reload())
+		return tea.Batch(m.get(), m.thread.Reload(), m.reloadThreads())
 	case keymap.Matches(msg, k.Open):
 		if m.detail.URL != "" {
 			return ui.Open(m.detail.URL)
 		}
 		return nil
+	}
+	if cmd, ok := m.pressThreads(msg); ok {
+		return cmd
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)

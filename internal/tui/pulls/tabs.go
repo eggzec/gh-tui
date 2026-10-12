@@ -224,8 +224,9 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 	if !m.loaded {
 		return nil
 	}
-	// The header counts the checks as the step last read them.
-	return m.show()
+	// The header counts the checks as the step last read them. The threads
+	// are read when the tab first shows.
+	return tea.Batch(m.show(), m.showThreads())
 }
 
 // showChecks starts the Checks step on its first showing, and starts it
