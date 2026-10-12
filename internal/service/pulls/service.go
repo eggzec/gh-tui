@@ -35,6 +35,9 @@ type API interface {
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// SetReviewThreadResolved resolves the review thread with node ID id, or
+	// unresolves it.
+	SetReviewThreadResolved(ctx context.Context, id string, resolved bool) error
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error)

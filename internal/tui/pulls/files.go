@@ -742,6 +742,7 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		// The modal's refresh retries a failed read.
 		keys.Retry.SetEnabled(false)
 		l := ui.ContextHelp(ctxDiff, keys, false)
+		l.Bindings = append(l.Bindings, m.resolveBinding())
 		// Backspace on an empty search line is the prompt's alone. Listed
 		// here, though off, it would hide the app's back key in help.
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), keys.CancelEmpty.Keys()) })

@@ -34,6 +34,7 @@ Pull request
 
 Conversation
   read more | enter | ↵ | off
+  resolve thread | T | T | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on

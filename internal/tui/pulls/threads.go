@@ -88,6 +88,8 @@ type threadsState struct {
 	// rows are the lines of the first line of each row in the header of the
 	// thread, as it was last rendered.
 	rows []int
+	// pending are the ids of the threads whose change is under way.
+	pending map[string]bool
 }
 
 // rowCount is the number of rows the cursor moves through: a row for each
@@ -437,7 +439,7 @@ func (m *detailModal) threadLines(th *core.Thread, cursor bool, loc, who, w int)
 	if th.Outdated {
 		cell += " " + st.age.Render(outdatedTag)
 	}
-	head := mark + " " + m.theme.Warning.Render(m.icons.Dot) + " " + ui.Fit(cell, loc) + "  "
+	head := mark + " " + m.threadMark(th) + " " + ui.Fit(cell, loc) + "  "
 
 	first := firstComment(th)
 	body := func(c *core.ThreadComment, style func(...string) string, room int) string {
@@ -554,7 +556,9 @@ func (m *detailModal) conversationLayer() keyhelp.Layer {
 	if m.th.cursorRow() >= len(m.th.list) {
 		enter.SetHelp(enter.Help().Key, "read more")
 	}
-	own := ui.ContextLayer(ctxConversation, []key.Binding{enter}, []key.Binding{enter})
+	resolve := m.keys.resolve
+	resolve.SetEnabled(resolve.Enabled() && m.th.threadsShow() && m.th.cursorRow() < len(m.th.list) && !m.thread.OnDiagram())
+	own := ui.ContextLayer(ctxConversation, []key.Binding{enter, resolve}, []key.Binding{enter})
 	return ui.MergeLayers(ctxConversation, own, ui.ContextHelp(ctxConversation, m.thread, false))
 }
 

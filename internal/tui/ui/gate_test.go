@@ -61,6 +61,11 @@ func TestGate(t *testing.T) {
 			name: "an archived repository can't re-run", caps: archived, action: ActRerun,
 			why: "charmbracelet/bubbletea is archived, so it's read-only.",
 		},
+		{
+			name: "an archived repository can't resolve a thread", caps: archived, action: ActResolve, it: theirs,
+			why: "charmbracelet/bubbletea is archived, so it's read-only.",
+		},
+		{name: "read resolves a thread of their own pull request", caps: caps(core.PermissionRead), viewer: "me", action: ActResolve, it: theirs},
 		{name: "triage closes another's issue", caps: caps(core.PermissionTriage), viewer: "me", action: ActClose, it: theirs},
 		{
 			name: "read can't close another's issue", caps: caps(core.PermissionRead), viewer: "me", action: ActClose, it: theirs,

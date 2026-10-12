@@ -336,6 +336,74 @@ func TestConfirmThreadResolvedStaysStale(t *testing.T) {
 	})
 }
 
+// detailWithThreads is a detail that lists thread t2 as unresolved, among one
+// resolved and one other unresolved thread.
+func detailWithThreads(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
+	d, _ := detail(context.TODO(), repo, number)
+	d.HeadSHA = "abc123"
+	d.Threads = core.ThreadSummary{
+		Total: 3, Unresolved: 2, Resolved: 1,
+		Threads: []core.ReviewThread{{ID: "t1"}, {ID: "t2"}, {ID: "t3", Resolved: true}},
+	}
+	return d, nil
+}
+
+func TestResolveThreadUpdatesCachesAndKeepsIt(t *testing.T) {
+	r := &threadServer{}
+	api := r.api()
+	api.get = detailWithThreads
+	store := openStore(t)
+	s := New(api, WithStore(store))
+	readThreads(t, s, threadsQ)
+	if _, err := s.Get(t.Context(), repo, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	op := s.ResolveThread(repo, 1, "t2", true)
+	if p, _ := s.CachedThreads(threadsQ); !resolvedIn(p) {
+		t.Error("the cached page doesn't show the thread resolved at once")
+	}
+	if d, _ := s.CachedGet(repo, 1); d.Threads.Unresolved != 1 || d.Threads.Resolved != 2 || !d.Threads.Threads[1].Resolved {
+		t.Errorf("detail threads = %+v, want one unresolved and two resolved", d.Threads)
+	}
+	if err := op.Do(t.Context()); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if n := api.count("thread t2 true"); n != 1 {
+		t.Errorf("resolve requests = %d, want 1", n)
+	}
+
+	// The next session serves both kept with the change.
+	api2 := r.api()
+	api2.get = detailWithThreads
+	s = New(api2, WithStore(store))
+	if p := readThreads(t, s, threadsQ); !resolvedIn(p) {
+		t.Error("kept page doesn't hold the confirmed change")
+	}
+	if d, err := s.Get(t.Context(), repo, 1); err != nil || d.Threads.Unresolved != 1 {
+		t.Errorf("kept detail = %+v, %v; want one unresolved thread", d.Threads, err)
+	}
+}
+
+func TestResolveThreadRollsBackWhenRefused(t *testing.T) {
+	r := &threadServer{}
+	api := r.api()
+	api.get = detailWithThreads
+	api.threadSetErr = errors.New("nope")
+	s := New(api)
+	readThreads(t, s, threadsQ)
+	if _, err := s.Get(t.Context(), repo, 1); err != nil {
+		t.Fatal(err)
+	}
+	op := s.ResolveThread(repo, 1, "t3", false)
+	if err := op.Do(t.Context()); err == nil {
+		t.Fatal("Do = nil, want the refusal")
+	}
+	if d, _ := s.CachedGet(repo, 1); d.Threads.Unresolved != 2 || !d.Threads.Threads[2].Resolved {
+		t.Errorf("detail threads = %+v, want them as read", d.Threads)
+	}
+}
+
 func TestSetThreadResolvedRollbackKeepsNothing(t *testing.T) {
 	r := &threadServer{}
 	store := openStore(t)
