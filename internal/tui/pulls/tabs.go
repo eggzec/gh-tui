@@ -211,6 +211,9 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 		m.checks.Hide()
 	}
 	m.tab = t
+	if t != filesTab {
+		m.fileJump = 0
+	}
 	switch t {
 	case checksTab:
 		return m.showChecks()

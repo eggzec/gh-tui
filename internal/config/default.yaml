@@ -823,8 +823,8 @@ keys:
     references: ["#"]
     # Jump to the next and previous review thread, from any tab: on Files
     # and Conversation they step through the threads, wrapping at the ends,
-    # and elsewhere ")" goes to the first thread in the diff. Backspace
-    # then returns to where the jump started.
+    # and elsewhere ")" goes to the first thread in the diff and "(" to the
+    # last. Backspace then returns to where the jump started.
     next_thread: [")"]
     prev_thread: ["("]
   # Checks: the list of checks. Each pane of the step re-runs the failed

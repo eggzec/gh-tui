@@ -1,6 +1,9 @@
 package pulls
 
 import (
+	"slices"
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -77,9 +80,13 @@ func (m *detailModal) jumpThread(d int) tea.Cmd {
 		return m.jumpConversation(d)
 	}
 	t := &m.th
-	if !t.started || t.dirty || t.err != nil {
-		// Once the threads are read, the jump goes on in receiveThreads.
+	if !t.started || !t.got || t.dirty || t.err != nil {
+		// Once the threads are read, the jump goes on in receiveThreads. A
+		// first read that is under way is waited for, not started again.
 		t.jumping = d
+		if t.started && !t.dirty && t.err == nil {
+			return nil
+		}
 		return m.readThreads()
 	}
 	return m.enterDiff(d)
@@ -160,20 +167,24 @@ func (m *detailModal) jumpDiff(d int, enter bool) tea.Cmd {
 		return ui.Notify(toast.Info, "No review threads.")
 	}
 	last := len(threads) - 1
-	pick := func(ts []*core.Thread) *core.Thread {
-		if d < 0 {
-			return ts[len(ts)-1]
-		}
-		return ts[0]
-	}
 	f := m.files
 	if f == nil || f.set.len() == 0 {
-		// The files aren't read yet: the diff finds the thread as they arrive.
-		return m.showThreadAt(pick(threads))
+		switch {
+		case f != nil && f.diff.Err() != nil:
+			// The diff says why it has nothing.
+			return nil
+		case f != nil && f.diff.Done() && f.diff.Files() == 0:
+			return ui.Notify(toast.Info, "No review threads.")
+		}
+		// The diff's order of the threads is that of its files, so wait for
+		// the first of them: updateFiles goes on with the jump.
+		m.fileJump = d
+		return nil
 	}
 
 	// later are the threads of files that the diff has not fetched yet, which
-	// come after all those it has.
+	// come after all those it has, in the order of the paths as the changed
+	// files are listed.
 	var later []*core.Thread
 	if !f.diff.Done() {
 		for _, th := range threads {
@@ -181,6 +192,7 @@ func (m *detailModal) jumpDiff(d int, enter bool) tea.Cmd {
 				later = append(later, th)
 			}
 		}
+		slices.SortStableFunc(later, func(a, b *core.Thread) int { return strings.Compare(a.Path, b.Path) })
 	}
 	anyBlock := func(diff.Block) bool { return true }
 	step := f.diff.NextBlock
@@ -243,8 +255,11 @@ func (m *detailModal) finishJump(msg threadsMsg) tea.Cmd {
 		return nil
 	}
 	t.jumping = 0
-	if msg.err != nil || m.showsThreads() {
+	if m.showsThreads() {
 		return nil
+	}
+	if msg.err != nil {
+		return ui.Notify(toast.Warning, "Couldn't read the review threads.")
 	}
 	return m.enterDiff(d)
 }
