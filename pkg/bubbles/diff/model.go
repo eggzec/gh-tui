@@ -32,8 +32,9 @@ type paging struct {
 }
 
 type pendingSeek struct {
-	pos  Pos
-	file bool
+	pos   Pos
+	file  bool
+	block string // the block asked for, if one was, which pos is the file of
 }
 
 // Model is a view of the diff of many files, with a line cursor. Create one
@@ -90,6 +91,7 @@ func New(fetch Fetch, opts ...Option) Model {
 		o(&m.settings)
 	}
 	m.layout = NewLayout(nil, opts...)
+	m.layout.blockWidth = m.blockWidth()
 	// Init fetches the first page, and it cannot record that itself.
 	m.pg.fetching = true
 	m.SetKeyMap(m.keyMap)
@@ -195,6 +197,7 @@ func (m *Model) moveTo(row int) {
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.input.SetWidth(max(m.width-2, 1))
+	m.setBlockWidth()
 	m.scroll()
 	m.dirty = true
 }

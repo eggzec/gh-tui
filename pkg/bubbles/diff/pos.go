@@ -14,7 +14,7 @@ func (l *Layout) PosAt(i int) (Pos, bool) {
 		return Pos{Path: l.files[r.File].file.Path, Side: NewSide, Line: r.New}, true
 	case KindDeleted:
 		return Pos{Path: l.files[r.File].file.Path, Side: OldSide, Line: r.Old}, true
-	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw:
+	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw, KindBlock:
 	}
 	return Pos{}, false
 }
@@ -36,23 +36,33 @@ func (l *Layout) Find(p Pos) (row int, found bool) {
 		return row, false
 	}
 	l.ensure(f)
-	for r := range s.body {
-		b := &s.body[r]
+	if r, ok := lineIn(s.body, p); ok {
+		// The rows of blocks above the line push it down.
+		return row + 1 + r + s.shift(r), true
+	}
+	return row, false
+}
+
+// lineIn is the index of the row of body that shows p, which is a line of
+// some file.
+func lineIn(body []Row, p Pos) (int, bool) {
+	for r := range body {
+		b := &body[r]
 		switch b.Kind {
 		case KindContext:
 			if (p.Side == NewSide && b.New == p.Line) || (p.Side == OldSide && b.Old == p.Line) {
-				return row + 1 + r, true
+				return r, true
 			}
 		case KindAdded:
 			if p.Side == NewSide && b.New == p.Line {
-				return row + 1 + r, true
+				return r, true
 			}
 		case KindDeleted:
 			if p.Side == OldSide && b.Old == p.Line {
-				return row + 1 + r, true
+				return r, true
 			}
-		case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw:
+		case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw, KindBlock:
 		}
 	}
-	return row, false
+	return 0, false
 }

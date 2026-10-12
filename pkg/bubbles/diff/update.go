@@ -76,7 +76,11 @@ func (m *Model) receive(msg pageMsg) tea.Cmd {
 	if m.pg.seek != nil {
 		p := *m.pg.seek
 		if m.layout.FileIndex(p.pos.Path) >= 0 || m.pg.done {
-			m.seek(p.pos, p.file)
+			if p.block != "" {
+				m.SeekBlock(p.block)
+			} else {
+				m.seek(p.pos, p.file)
+			}
 		}
 	}
 	id, files, done := m.id, msg.files, m.pg.done
@@ -150,8 +154,13 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	return m.sync()
 }
 
-// fold folds or unfolds the file whose header the cursor is on.
+// fold folds or unfolds the block the cursor is on, or the file whose header
+// it is on.
 func (m *Model) fold() {
+	if b, ok := m.layout.BlockAt(m.cursor); ok {
+		m.SetBlockFolded(b.ID, !m.layout.BlockFolded(b.ID))
+		return
+	}
 	if f, ok := m.layout.FileAt(m.cursor); ok && m.isHeader(m.cursor) {
 		m.layout.SetCollapsed(f, !m.layout.Collapsed(f))
 	}
@@ -211,8 +220,11 @@ func (m *Model) nextHunk() {
 		if m.layout.Collapsed(g) {
 			continue
 		}
-		if start, _ := m.layout.FileRow(g); m.hunkAt(start + 1) {
-			m.cursor = start + 1
+		// The blocks under the header come before the first row of the body.
+		start, _ := m.layout.FileRow(g)
+		m.layout.ensure(g)
+		if first := start + 1 + m.layout.files[g].shift(0); m.hunkAt(first) {
+			m.cursor = first
 			return
 		}
 	}
@@ -262,7 +274,7 @@ func scrolls(k Kind) bool {
 	switch k {
 	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw:
 		return true
-	case KindFileHeader, KindHunkHeader, KindNote:
+	case KindFileHeader, KindHunkHeader, KindNote, KindBlock:
 	}
 	return false
 }
