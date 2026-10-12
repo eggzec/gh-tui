@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -38,8 +39,7 @@ type ThreadsQuery struct {
 }
 
 // headKey is the key of the pages of the threads of the pull request at the
-// head of q, apart from their cursor and size. It also tags them, so that
-// the pages of one head are found together.
+// head of q, apart from their cursor and size.
 func (q ThreadsQuery) headKey() string {
 	return "pullthreads:" + repoID(q.Repo) + "#" + strconv.Itoa(q.Number) + "@" + strings.ToLower(q.Head)
 }
@@ -83,7 +83,7 @@ func (s *Service) Threads(ctx context.Context, q ThreadsQuery) (core.ThreadPage,
 	}
 	key := q.key(s.detailSizes.Threads)
 	s.keptThreads.Warm(s.threads, key, true)
-	p, err := fetch(ctx, s.threads, s.keptThreads, key, threadMarks, whole(append(tags(q.Repo, q.Number), q.headKey()), func(ctx context.Context) (core.ThreadPage, error) {
+	p, err := fetch(ctx, s.threads, s.keptThreads, key, threadMarks, whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.ThreadPage, error) {
 		return s.api.ListPullRequestThreads(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize, s.detailSizes.Threads))
 	}))
 	if err != nil {
@@ -97,13 +97,14 @@ func (s *Service) Threads(ctx context.Context, q ThreadsQuery) (core.ThreadPage,
 // reading them again, for the optimistic change of a resolve or an
 // unresolve. It reports false, and changes nothing, if no cached page holds
 // the thread. The returned rollback undoes the change, as cache.Cache.Mutate's
-// does, if GitHub refuses it.
+// does, if GitHub refuses it. If it accepts it, ConfirmThreadResolved keeps
+// the change for the next session.
 //
 // The viewer who may resolve a thread may also unresolve it, so the two
 // permissions swap. Who resolved it isn't known until the thread is read
 // again, so a resolved thread keeps none, and an unresolved one is left with
-// none. What the service keeps for a later session is not changed: it is
-// only a shortcut that the next read replaces.
+// none. Until the change is confirmed only memory has it, so a rollback
+// leaves nothing behind.
 func (s *Service) SetThreadResolved(repo core.RepoRef, number int, id string, resolved bool) (rollback func(), ok bool) {
 	rollback = s.threads.MutateTag(detailKey(repo, number), func(p core.ThreadPage) (core.ThreadPage, bool) {
 		i := slices.IndexFunc(p.Threads, func(t core.Thread) bool { return t.ID == id })
@@ -121,4 +122,20 @@ func (s *Service) SetThreadResolved(repo core.RepoRef, number int, id string, re
 		return p, true
 	})
 	return rollback, ok
+}
+
+// ConfirmThreadResolved keeps for the next session every cached page of pull
+// request number of repo whose thread id is resolved or not as resolved says,
+// once GitHub has accepted the change that SetThreadResolved made. Without
+// it, a page kept within the TTL would be served as it was read, with the
+// thread as it was. A page keeps the time it was read, so one that was stale
+// is still read again.
+func (s *Service) ConfirmThreadResolved(repo core.RepoRef, number int, id string, resolved bool) {
+	for key, e := range s.threads.TaggedEntries(detailKey(repo, number)) {
+		held := slices.ContainsFunc(e.Value.Threads, func(t core.Thread) bool { return t.ID == id && t.Resolved == resolved })
+		if !held {
+			continue
+		}
+		_ = s.keptThreads.Save(key, cache.Entry[core.ThreadPage]{Value: e.Value, Tags: e.Tags, FetchedAt: e.FetchedAt})
+	}
 }

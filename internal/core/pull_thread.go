@@ -21,8 +21,9 @@ const (
 type Thread struct {
 	ID   string
 	Path string
-	// Line is where the thread ends in the file as the head has it, and
-	// StartLine where a thread on several lines starts, which is 0 for one
+	// Line is where the thread ends in the file of Side (the head's for the
+	// right side, the base's for the left), and StartLine where a thread on
+	// several lines starts, which is 0 for one
 	// on a single line. Both are 0 for a thread that is outdated, or on a
 	// whole file: see OriginalLine.
 	Line, StartLine int
