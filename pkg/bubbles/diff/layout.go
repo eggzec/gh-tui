@@ -14,6 +14,12 @@ type state struct {
 	hunks     []Hunk
 	body      []Row // every row after the header, once parsed
 	err       error
+
+	// blocks are the blocks anchored in this file, in the order they sit in
+	// once parsed, and the order they were given in until then; blockRows is
+	// the number of rows they take.
+	blocks    []placed
+	blockRows int
 }
 
 // bodyRows is how many rows the file has below its header, known without
@@ -63,6 +69,14 @@ type Layout struct {
 	collapseOver int
 	firstFiles   int
 	onParse      func(path string) // called as each file parses; for tests
+
+	// The blocks put in the diff; see blocks.go.
+	blocks     []Block
+	blockIdx   map[string]int // ID to index of blocks
+	byPath     map[string][]int
+	folded     map[string]bool
+	blockFiles []int // the files that have blocks, ascending
+	blockWidth int
 }
 
 // NewLayout lays out files, copying them. It reads the options that concern
@@ -102,6 +116,7 @@ func (l *Layout) Append(files ...File) {
 			l.index[f.Path] = len(l.files)
 		}
 		l.files = append(l.files, s)
+		l.attach(len(l.files) - 1)
 	}
 	l.starts = append(l.starts, make([]int, len(files))...)
 	l.resum(from)
@@ -113,7 +128,7 @@ func (l *Layout) rowsOf(i int) int {
 	if s.collapsed {
 		return 1
 	}
-	return 1 + s.bodyRows()
+	return 1 + s.bodyRows() + s.blockRows
 }
 
 // resum recomputes the row offsets from file i on.
@@ -228,20 +243,27 @@ func (l *Layout) RowAt(i int) (Row, bool) {
 		return l.header(f), true
 	}
 	l.ensure(f)
-	return l.files[f].body[local-1], true
+	return l.rowIn(f, local-1), true
 }
 
 func (l *Layout) header(f int) Row {
 	return Row{Kind: KindFileHeader, File: f, Hunk: -1, Text: l.files[f].file.Path}
 }
 
-// ensure parses file i unless it has been.
+// ensure parses file i unless it has been, and puts its blocks in place.
 func (l *Layout) ensure(i int) {
 	s := &l.files[i]
 	if s.parsed {
 		return
 	}
 	s.parsed = true
+	l.parse(i)
+	l.place(i)
+}
+
+// parse fills the body of file i.
+func (l *Layout) parse(i int) {
+	s := &l.files[i]
 	if s.lines == 0 {
 		if k := s.noteKind(); k != NoteNone {
 			s.body = []Row{{Kind: KindNote, File: i, Hunk: -1, Note: k, Text: noteText[k]}}

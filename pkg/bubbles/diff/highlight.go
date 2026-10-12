@@ -158,7 +158,7 @@ func (m *Model) lex(f int) tea.Cmd {
 	for i, r := range s.body {
 		switch r.Kind {
 		case KindContext, KindAdded, KindDeleted:
-		case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw:
+		case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw, KindBlock:
 			continue
 		}
 		size += len(r.Text)
@@ -271,7 +271,7 @@ func keep(out [][]syntax.Span, found bool) [][]syntax.Span {
 // rowSpans returns the spans of row, which is the row number index of the
 // layout, or nil if it shows plain.
 func (m Model) rowSpans(row Row, index int) []syntax.Span {
-	if len(m.hl.spans) == 0 || row.File < 0 {
+	if len(m.hl.spans) == 0 || row.File < 0 || row.Kind == KindBlock {
 		return nil
 	}
 	spans := m.hl.spans[row.File]
@@ -279,7 +279,7 @@ func (m Model) rowSpans(row Row, index int) []syntax.Span {
 		return nil
 	}
 	start, _ := m.layout.FileRow(row.File)
-	return spans.row(index - start - 1)
+	return spans.row(m.layout.bodyIndex(row.File, index-start-1))
 }
 
 // tokenStyles holds, for a kind of line, how each token type looks:

@@ -3,6 +3,7 @@ package diff
 import (
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -141,19 +142,78 @@ func (m *Model) searchFrom(from int) {
 		return
 	}
 	for f := from; f < m.layout.Files(); f++ {
-		m.layout.ensure(f)
-		for i, r := range m.layout.files[f].body {
-			if !searchable(r.Kind) {
-				continue
-			}
-			s := termtext.Clean(r.Text, m.tabs)
-			for _, loc := range m.search.re.FindAllStringIndex(s, -1) {
-				m.search.matches = append(m.search.matches, match{file: f, row: i, start: loc[0], end: loc[1]})
-			}
-		}
+		m.search.matches = append(m.search.matches, m.fileMatches(f)...)
 	}
 	m.search.files = m.layout.Files()
 	m.syncKeys()
+}
+
+// fileMatches returns the matches in the rows of file f, blocks included,
+// which it numbers as the file's rows below its header are.
+func (m *Model) fileMatches(f int) []match {
+	m.layout.ensure(f)
+	var found []match
+	for i := range m.layout.fullRows(f) {
+		r := m.layout.rowIn(f, i)
+		if !searchable(r.Kind) {
+			continue
+		}
+		for _, loc := range m.search.re.FindAllStringIndex(m.searchText(r), -1) {
+			found = append(found, match{file: f, row: i, start: loc[0], end: loc[1]})
+		}
+	}
+	return found
+}
+
+// searchText is the text of a row a search reads, and that the offsets of
+// its matches are in: the text as drawn, and for a block the text of its
+// line without its styles.
+func (m Model) searchText(r Row) string {
+	if r.Kind == KindBlock {
+		return termtext.Clean(ansi.Strip(r.Text), m.tabs)
+	}
+	return termtext.Clean(r.Text, m.tabs)
+}
+
+// searchRefile finds the matches of files again, in ascending order, for
+// rows that moved or read differently, and keeps the current match if it
+// can. The files are those whose blocks changed.
+func (m *Model) searchRefile(files ...int) {
+	if m.search.re == nil || len(files) == 0 {
+		return
+	}
+	cur := -1
+	curFile, curCount := -1, 0
+	if c := m.search.cur; c >= 0 && c < len(m.search.matches) {
+		cur, curFile = c, m.search.matches[c].file
+		lo, hi := m.fileRange(curFile)
+		curCount = hi - lo
+	}
+	for _, f := range files {
+		if f >= m.search.files {
+			// Not searched yet; it will be when it is.
+			continue
+		}
+		lo, hi := m.fileRange(f)
+		fresh := m.fileMatches(f)
+		if f == curFile && len(fresh) != curCount {
+			cur = -1
+		}
+		if cur >= hi {
+			cur += len(fresh) - (hi - lo)
+		}
+		m.search.matches = slices.Replace(m.search.matches, lo, hi, fresh...)
+	}
+	m.search.cur = min(cur, len(m.search.matches)-1)
+	m.syncKeys()
+}
+
+// fileRange is the range of the matches that are in file f.
+func (m *Model) fileRange(f int) (lo, hi int) {
+	all := m.search.matches
+	lo = sort.Search(len(all), func(i int) bool { return all[i].file >= f })
+	hi = lo + sort.Search(len(all)-lo, func(i int) bool { return all[lo+i].file > f })
+	return lo, hi
 }
 
 // searchMore searches the files that arrived since the last search, and
@@ -180,11 +240,11 @@ func (m *Model) rebuildSearch() {
 }
 
 // searchable reports whether the rows of kind k are lines of the diff,
-// which a search reads: not the headers, the notes, nor the marker of a
-// missing newline.
+// which a search reads, and the rows of blocks: not the headers, the notes,
+// nor the marker of a missing newline.
 func searchable(k Kind) bool {
 	switch k {
-	case KindContext, KindAdded, KindDeleted, KindRaw:
+	case KindContext, KindAdded, KindDeleted, KindRaw, KindBlock:
 		return true
 	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote:
 	}
@@ -262,7 +322,9 @@ func (m *Model) jump(i int) {
 	m.dirty = true
 	m.scroll()
 	r, ok := m.layout.RowAt(row)
-	if !ok {
+	if !ok || r.Kind == KindBlock {
+		// A block does not scroll sideways, and a search does not mark its
+		// text.
 		return
 	}
 	s := termtext.Clean(r.Text, m.tabs)

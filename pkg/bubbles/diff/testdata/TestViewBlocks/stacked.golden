@@ -1,0 +1,16 @@
+▌ ▾ a.go +2 -2                                              
+  @@ -1,3 +1,3 @@ func f0() {                               
+    1  ctx a0                                               
+      ┌ on-context                                          
+      │ a context line takes both sides                     
+      └                                                     
+    2 -old b0                                               
+    2 +new b0                                               
+      ┌ first                                               
+      │ one                                                 
+      └                                                     
+      ┌ second                                              
+      │ two                                                 
+      └                                                     
+    3  ctx c0                                               
+file 1/2                                                    

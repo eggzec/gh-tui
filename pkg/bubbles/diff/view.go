@@ -145,6 +145,14 @@ func (m Model) textWidth(numW int) int {
 	return max(m.width-gutterWidth-m.numberCells(numW)-1, 0)
 }
 
+// blockWidth is the width of the lines of a block: the row less the gutter
+// and the blank where the line numbers of the lines stand, which is as wide
+// as it is when the numbers have the fewest digits, so that the rows of a
+// block do not change with what is in the window.
+func (m Model) blockWidth() int {
+	return max(m.width-gutterWidth-m.numberCells(minNumberWidth), 0)
+}
+
 // numberCells is the width of the line numbers of the gutter.
 func (m Model) numberCells(numW int) int {
 	if m.width >= twoNumbersFrom {
@@ -178,6 +186,10 @@ func (m Model) line(v visible, numW int) string {
 	case KindNote:
 		blank := strings.Repeat(" ", min(m.numberCells(numW), room))
 		return fit(gutter+m.wrap.Note.on(fit(blank+termtext.OneLine(row.Text), room)), m.width)
+	case KindBlock:
+		// The block's own styles end with its line, whatever it did.
+		blank := strings.Repeat(" ", min(m.numberCells(minNumberWidth), room))
+		return fit(gutter+blank+row.Text+"\x1b[m", m.width)
 	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw:
 	}
 	style, marker := m.wrap.Context, " "
@@ -190,7 +202,7 @@ func (m Model) line(v visible, numW int) string {
 		style = m.wrap.NoNewline
 	case KindRaw:
 		marker = ""
-	case KindFileHeader, KindHunkHeader, KindContext, KindNote:
+	case KindFileHeader, KindHunkHeader, KindContext, KindNote, KindBlock:
 	}
 	numbers := m.numbers(row, numW)
 	width := max(m.textWidth(numW)+1-len(marker), 0)
@@ -207,7 +219,7 @@ func (m Model) line(v visible, numW int) string {
 			code = m.wrap.code[codeAdded]
 		case KindDeleted:
 			code = m.wrap.code[codeDeleted]
-		case KindFileHeader, KindHunkHeader, KindContext, KindNoNewline, KindNote, KindRaw:
+		case KindFileHeader, KindHunkHeader, KindContext, KindNoNewline, KindNote, KindRaw, KindBlock:
 		}
 		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width, hits), m.width)
 	}

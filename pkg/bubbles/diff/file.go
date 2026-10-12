@@ -74,6 +74,7 @@ const (
 	KindNoNewline // "\ No newline at end of file"
 	KindNote      // a note in place of patch lines; see NoteKind
 	KindRaw       // a patch line shown as it is, since the patch did not parse
+	KindBlock     // a row of a [Block] the caller put in the diff
 )
 
 // NoteKind says why a note row stands in for patch lines.
@@ -115,4 +116,7 @@ type Row struct {
 	Note NoteKind
 	// Err is why the patch did not parse; set on every KindRaw row.
 	Err string
+	// Block is the ID of the block a KindBlock row belongs to; Text is then
+	// the line the block rendered, with its own styles.
+	Block string
 }
