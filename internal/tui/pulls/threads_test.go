@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 )
 
 // review makes a thread of the path and line, whose first comment is by
@@ -137,34 +136,30 @@ func TestThreadsBlockContent(t *testing.T) {
 	}
 }
 
-func TestThreadsEnterShowsTheLine(t *testing.T) {
-	t.Run("on a line", func(t *testing.T) {
+func TestThreadsEnterShowsTheThread(t *testing.T) {
+	for i, want := range []struct{ id, path string }{
+		{"t1", "internal/cache/disk.go"},
+		{"t2", "internal/legacy.go"},
+		{"t3", "docs/design.md"},
+	} {
 		svc := newFakeService()
 		svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
 		h, m := threaded(t, svc, 100, 30, config.IconsUnicode)
+		for range i {
+			press(t, h, "j")
+		}
 		press(t, h, "enter")
-		want := diff.Pos{Path: "internal/cache/disk.go", Side: diff.NewSide, Line: 45}
-		if got, ok := m.files.diff.Position(); m.tab != filesTab || !ok || got != want {
-			t.Errorf("enter showed tab %d with the cursor on %v (a line %v), want %v", m.tab, got, ok, want)
+		b, on := m.files.diff.CursorBlock()
+		if m.tab != filesTab || !on || b.ID != want.id {
+			t.Errorf("enter on row %d showed tab %d with the cursor on block %q (a block %v), want %q", i, m.tab, b.ID, on, want.id)
 		}
-	})
-	t.Run("outdated and on a file go to the header", func(t *testing.T) {
-		for i, path := range []string{"internal/legacy.go", "docs/design.md"} {
-			svc := newFakeService()
-			svc.threadPages = map[string]core.ThreadPage{"": firstPage()}
-			h, m := threaded(t, svc, 100, 30, config.IconsUnicode)
-			for range i + 1 {
-				press(t, h, "j")
-			}
-			press(t, h, "enter")
-			if _, ok := m.files.diff.Position(); ok {
-				t.Errorf("%s: the cursor is on a line, want it on the header of the file", path)
-			}
-			if cur, ok := m.files.diff.CurrentFile(); m.tab != filesTab || !ok || cur.Path != path {
-				t.Errorf("enter showed tab %d on %q, want the file %s", m.tab, cur.Path, path)
-			}
+		if cur, ok := m.files.diff.CurrentFile(); !ok || cur.Path != want.path {
+			t.Errorf("enter on row %d showed %q, want the file %s", i, cur.Path, want.path)
 		}
-	})
+		if m.files.focus != diffPane {
+			t.Errorf("enter on row %d left the focus on pane %d, want the diff", i, m.files.focus)
+		}
+	}
 }
 
 func TestThreadsMoreRowReadsThePage(t *testing.T) {
@@ -254,14 +249,18 @@ func TestThreadsReadOnShowAndRefresh(t *testing.T) {
 	if n := svc.threadReadCount(); n != 1 {
 		t.Fatalf("showing the conversation read %d pages, want 1", n)
 	}
+	// The diff holds every thread, so the Files tab reads the second page.
 	drain(t, h, m.switchTo(filesTab))
+	if n := svc.threadReadCount(); n != 2 {
+		t.Fatalf("showing the files read %d pages in all, want 2", n)
+	}
 	drain(t, h, m.switchTo(conversationTab))
-	if n := svc.threadReadCount(); n != 1 {
+	if n := svc.threadReadCount(); n != 2 {
 		t.Errorf("showing the conversation again read %d pages, want it kept", n)
 	}
 	press(t, h, "r")
-	if n := svc.threadReadCount(); n != 2 {
-		t.Errorf("refresh read %d pages in all, want 2", n)
+	if n := svc.threadReadCount(); n != 3 {
+		t.Errorf("refresh read %d pages in all, want 3", n)
 	}
 }
 
@@ -343,7 +342,7 @@ func TestThreadsReadAgainAfterHeadChange(t *testing.T) {
 	m.detail.HeadSHA = "f00d"
 	svc.threadPages[""] = onePage("t7")
 	drain(t, h, m.switchTo(conversationTab))
-	if q := svc.threadReads[len(svc.threadReads)-1]; svc.threadReadCount() != 2 || q.Head != "f00d" {
+	if q := svc.threadReads[len(svc.threadReads)-1]; svc.threadReadCount() != 3 || q.Head != "f00d" {
 		t.Fatalf("reads %+v, want a second one of the new head", svc.threadReads)
 	}
 	if got := threadIDs(m); !slices.Equal(got, []string{"t7"}) {

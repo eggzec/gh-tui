@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -58,9 +59,10 @@ type threadsState struct {
 	dirty   bool
 	// gen counts the reads of the first page.
 	gen int
-	// list are the unresolved threads read, in the order GitHub lists them,
-	// and read how many threads of every kind the pages held, of total.
-	list        []core.Thread
+	// all are the threads read, resolved or not, in the order GitHub lists
+	// them, and list those of them that are unresolved. read is how many
+	// threads the pages held, of total.
+	all, list   []core.Thread
 	read, total int
 	// next is the cursor of the page after those read, empty after the last.
 	next string
@@ -137,6 +139,11 @@ func unresolved(ts []core.Thread) []core.Thread {
 // onConversation reports whether the Conversation tab shows.
 func (m *detailModal) onConversation() bool { return m.tab == conversationTab }
 
+// showsThreads reports whether a tab that shows the threads is shown: the
+// Conversation tab lists the unresolved ones, and the Files tab puts every
+// one in the diff.
+func (m *detailModal) showsThreads() bool { return m.onConversation() || m.onFiles() }
+
 // readableThreads reports whether the threads can be read: they are of a
 // head, which the detail says.
 func (m *detailModal) readableThreads() bool {
@@ -148,28 +155,33 @@ func (m *detailModal) threadsQuery(cursor string) pulls.ThreadsQuery {
 	return pulls.ThreadsQuery{Repo: m.repo, Number: m.number, Head: m.detail.HeadSHA, Cursor: cursor}
 }
 
-// showThreads reads the threads when the Conversation tab shows, once the
-// detail has said what the head is, unless it has read them already for that
-// head. Nothing is read while another tab shows.
+// showThreads reads the threads when the Conversation or the Files tab shows,
+// once the detail has said what the head is, unless it has read them already
+// for that head. Nothing is read while another tab shows. The diff of the
+// Files tab holds every thread, so there the pages after the first are read
+// too.
 func (m *detailModal) showThreads() tea.Cmd {
 	t := &m.th
-	if !m.onConversation() || !m.readableThreads() {
+	if !m.showsThreads() || !m.readableThreads() {
 		return nil
 	}
 	if t.started && !t.dirty && t.err == nil && t.head == m.detail.HeadSHA {
+		if m.onFiles() {
+			return m.readMoreThreads()
+		}
 		return nil
 	}
 	return m.readThreads()
 }
 
 // reloadThreads reads the threads again, as the modal reads the pull request
-// again: at once while the Conversation tab shows, and when it shows next
+// again: at once while a tab that shows them is shown, and when one shows next
 // otherwise.
 func (m *detailModal) reloadThreads() tea.Cmd {
 	if !m.th.started {
 		return nil
 	}
-	if !m.onConversation() {
+	if !m.showsThreads() {
 		m.th.dirty = true
 		return nil
 	}
@@ -194,8 +206,9 @@ func (m *detailModal) readThreads() tea.Cmd {
 		t.setFirst(p)
 	} else if moved {
 		// What was read is of a head the pull request left.
-		t.list, t.read, t.total, t.next, t.kept = nil, 0, 0, "", false
+		t.all, t.list, t.read, t.total, t.next, t.kept = nil, nil, 0, 0, "", false
 	}
+	m.applyThreadBlocks()
 	return tea.Batch(m.fetchThreads("", t.gen), m.show())
 }
 
@@ -223,7 +236,10 @@ func (m *detailModal) fetchThreads(cursor string, gen int) tea.Cmd {
 
 // setFirst shows page p as the first page, in place of what was read.
 func (t *threadsState) setFirst(p core.ThreadPage) {
-	t.list, t.read, t.total, t.next = unresolved(p.Threads), len(p.Threads), p.Total, p.Next
+	// A cached page is shared, and the pages after it are added to what is
+	// kept here.
+	t.all = slices.Clone(p.Threads)
+	t.list, t.read, t.total, t.next = unresolved(t.all), len(p.Threads), p.Total, p.Next
 	t.kept = p.Offline || p.Limited
 	t.loadingMore, t.moreErr = false, nil
 }
@@ -252,7 +268,8 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 	case msg.err != nil:
 		t.err = msg.err
 	case msg.more:
-		t.list = append(t.list, unresolved(msg.page.Threads)...)
+		t.all = append(t.all, msg.page.Threads...)
+		t.list = unresolved(t.all)
 		t.read += len(msg.page.Threads)
 		t.total, t.next = msg.page.Total, msg.page.Next
 		t.loadingMore = false
@@ -263,6 +280,11 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 	}
 	if !m.loaded {
 		return nil
+	}
+	m.applyThreadBlocks()
+	if msg.err == nil && m.onFiles() {
+		// The diff holds every thread: read the next page behind this one.
+		return tea.Batch(m.show(), m.readMoreThreads())
 	}
 	return m.show()
 }
@@ -525,9 +547,9 @@ func (m *detailModal) conversationLayer() keyhelp.Layer {
 	return ui.MergeLayers(ctxConversation, own, ui.ContextHelp(ctxConversation, m.thread, false))
 }
 
-// showThreadAt shows the Files tab with the diff's cursor on the line of
-// thread th, or on the header of its file if the diff can't place it: a
-// thread whose code has changed since, or that is on the whole file.
+// showThreadAt shows the Files tab with the diff's cursor on thread th, which
+// sits under its line, or under the header of its file if the diff can't place
+// it: a thread whose code has changed since, or that is on the whole file.
 func (m *detailModal) showThreadAt(th *core.Thread) tea.Cmd {
 	if th.Path == "" {
 		return nil
@@ -536,12 +558,6 @@ func (m *detailModal) showThreadAt(th *core.Thread) tea.Cmd {
 	if m.files == nil {
 		return cmd
 	}
-	if th.Outdated || th.File || th.Line < 1 {
-		return tea.Batch(cmd, m.showFile(th.Path))
-	}
-	side := diff.NewSide
-	if th.Side == core.SideLeft {
-		side = diff.OldSide
-	}
-	return tea.Batch(cmd, m.showLine(diff.Pos{Path: th.Path, Side: side, Line: th.Line}))
+	// The diff holds the thread as a block, which waits for its file.
+	return tea.Batch(cmd, m.seekDiff(th.Path, func(d *diff.Model) { d.SeekBlock(th.ID) }))
 }
