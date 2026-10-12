@@ -386,6 +386,10 @@ func TestPullReadErrors(t *testing.T) {
 			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 42, "", 30)
 			return err
 		},
+		"threads": func(c *Client) error {
+			_, err := c.ListPullRequestThreads(t.Context(), pullsRepo, 42, "", 30)
+			return err
+		},
 	}
 	responses := []struct {
 		name   string
@@ -424,6 +428,10 @@ func TestPullReadsNullPull(t *testing.T) {
 		},
 		"reviews": func(c *Client) error {
 			_, err := c.ListPullRequestReviews(t.Context(), pullsRepo, 999, "", 30)
+			return err
+		},
+		"threads": func(c *Client) error {
+			_, err := c.ListPullRequestThreads(t.Context(), pullsRepo, 999, "", 30)
 			return err
 		},
 	}

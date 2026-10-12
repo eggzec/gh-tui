@@ -1,0 +1,204 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "resetAt": "2026-09-23T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "totalCount": 7,
+          "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOnYyOpHOAAAF"},
+          "nodes": [
+            {
+              "id": "PRRT_kwDOLnBTf85Aa001",
+              "path": "internal/tui/model.go",
+              "line": 42,
+              "startLine": null,
+              "originalLine": 40,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 2,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab001",
+                    "author": {"__typename": "User", "login": "hubot", "name": "Hubot"},
+                    "createdAt": "2026-09-21T10:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
+                    "replyTo": null
+                  },
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab002",
+                    "author": {"__typename": "User", "login": "monalisa", "name": "Mona Lisa"},
+                    "createdAt": "2026-09-21T11:30:00Z",
+                    "lastEditedAt": "2026-09-21T11:45:00Z",
+                    "body": "No, a value keeps it copyable.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1002",
+                    "replyTo": {"id": "PRRC_kwDOLnBTf86Ab001"}
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa002",
+              "path": "internal/tui/update.go",
+              "line": 14,
+              "startLine": 10,
+              "originalLine": 14,
+              "originalStartLine": 10,
+              "diffSide": "RIGHT",
+              "startDiffSide": "RIGHT",
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab003",
+                    "author": {"__typename": "Bot", "login": "dependabot", "name": null},
+                    "createdAt": "2026-09-22T08:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "This block can move into a helper.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1003",
+                    "replyTo": null
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa003",
+              "path": "README.md",
+              "line": null,
+              "startLine": null,
+              "originalLine": null,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "FILE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": false,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab004",
+                    "author": null,
+                    "createdAt": "2026-09-22T09:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Mention the new flag in this file.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1004",
+                    "replyTo": null
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa004",
+              "path": "internal/cache/cache.go",
+              "line": null,
+              "startLine": null,
+              "originalLine": 7,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": true,
+              "isOutdated": true,
+              "resolvedBy": {"login": "monalisa", "name": "Mona Lisa"},
+              "viewerCanResolve": false,
+              "viewerCanUnresolve": true,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab005",
+                    "author": {"__typename": "User", "login": "hubot", "name": "Hubot"},
+                    "createdAt": "2026-09-20T15:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Dead code.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1005",
+                    "replyTo": null
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa005",
+              "path": "internal/tui/view.go",
+              "line": 88,
+              "startLine": null,
+              "originalLine": 88,
+              "originalStartLine": null,
+              "diffSide": "LEFT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab006",
+                    "author": {"__typename": "User", "login": "hubot", "name": "Hubot"},
+                    "createdAt": "2026-09-22T10:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Why was this removed?",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1006",
+                    "replyTo": null
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa006",
+              "path": "internal/tui/long.go",
+              "line": 5,
+              "startLine": null,
+              "originalLine": 5,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 130,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab007",
+                    "author": {"__typename": "User", "login": "hubot", "name": "Hubot"},
+                    "createdAt": "2026-09-19T10:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "The first of a long discussion.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1007",
+                    "replyTo": null
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

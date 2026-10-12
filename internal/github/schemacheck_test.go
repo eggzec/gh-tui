@@ -43,6 +43,7 @@ var graphqlOperations = map[string]string{
 	"multiSearchQuery":          multiSearchQuery,
 	"listPullsQuery":            listPullsQuery,
 	"getPullQuery":              getPullQuery,
+	"pullThreadsQuery":          pullThreadsQuery,
 	"pullReviewsQuery":          pullReviewsQuery,
 	"pullIDQuery":               pullIDQuery,
 	"pullHeadQuery":             pullHeadQuery,

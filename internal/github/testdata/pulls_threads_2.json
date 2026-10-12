@@ -1,0 +1,45 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4998, "resetAt": "2026-09-23T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "totalCount": 7,
+          "pageInfo": {"hasNextPage": false, "endCursor": "Y3Vyc29yOnYyOpHOAAAH"},
+          "nodes": [
+            {
+              "id": "PRRT_kwDOLnBTf85Aa007",
+              "path": "go.mod",
+              "line": 3,
+              "startLine": null,
+              "originalLine": 3,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab008",
+                    "author": {"__typename": "User", "login": "monalisa", "name": "Mona Lisa"},
+                    "createdAt": "2026-09-23T07:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Bump this.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1008",
+                    "replyTo": null
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
