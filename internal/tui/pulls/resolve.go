@@ -103,29 +103,34 @@ func (m *detailModal) sendResolve(id string, resolve bool) tea.Cmd {
 	from := m.thread.ID()
 	return tea.Batch(m.showThreadChange(), func() tea.Msg {
 		done, _ := do().(ui.DoneMsg)
-		return threadResolvedMsg{thread: from, id: id, resolved: resolve, err: done.Err}
+		answer := func() tea.Msg { return threadResolvedMsg{thread: from, id: id, resolved: resolve, err: done.Err} }
+		if done.Err == nil {
+			return answer()
+		}
+		// The modal may be closed by now, and then nothing else would say
+		// that the change was refused.
+		return tea.BatchMsg{ui.Fail(what, done.Err), answer}
 	})
 }
 
 // resolved takes GitHub's answer to a change of a thread. A refusal leaves
-// the thread as it was, and a toast says why. Otherwise the thread leaves the
-// unresolved ones, and folds in the diff, or comes back unfolded.
+// the thread as it was; the command that sent it has shown why. Otherwise the
+// thread leaves the unresolved ones, and folds in the diff, or comes back
+// unfolded.
 func (m *detailModal) resolved(msg threadResolvedMsg) tea.Cmd {
 	if msg.thread != m.thread.ID() {
 		return nil
 	}
 	delete(m.th.pending, msg.id)
 	if msg.err != nil {
-		what := "unresolve a thread of #" + strconv.Itoa(m.number)
-		if msg.resolved {
-			what = "resolve a thread of #" + strconv.Itoa(m.number)
-		}
-		return tea.Batch(m.showThreadChange(), ui.Fail(what, msg.err))
+		// A read may have taken the change while it was under way.
+		return tea.Batch(m.showThreadChange(), m.reload())
 	}
 	// The slice may be shared with a page that was kept.
 	all := slices.Clone(m.th.all)
 	if i := slices.IndexFunc(all, func(th core.Thread) bool { return th.ID == msg.id }); i >= 0 {
 		all[i].Resolved = msg.resolved
+		all[i].ResolvedBy = core.User{}
 		all[i].ViewerCanResolve, all[i].ViewerCanUnresolve = !msg.resolved, msg.resolved
 	}
 	m.th.pin()
