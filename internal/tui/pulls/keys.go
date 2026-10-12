@@ -47,6 +47,10 @@ type keyMap struct {
 	// FindFile finds one of the changed files of a pull request in a step
 	// of its modal, and shows its diff. The list has no such key.
 	FindFile key.Binding
+	// NextThread and PrevThread jump between the review threads of a pull
+	// request, in its modal. The list has no such keys.
+	NextThread key.Binding
+	PrevThread key.Binding
 
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
@@ -118,6 +122,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Checks:      list.Binding("checks", "checks"),
 		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
 		FindFile:    ui.In(keys, ctxModal).Binding("global.find_file", "find file"),
+		NextThread:  ui.In(keys, ctxModal).Binding("next_thread", "next thread"),
+		PrevThread:  ui.In(keys, ctxModal).Binding("prev_thread", "previous thread"),
 		confirm:     ui.NewConfirmKeys(keys),
 		finder:      finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		owner:       list.Binding("global.owner", "author"),
@@ -170,6 +176,8 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Checks = modal.Binding("checks", "checks")
 	k.References = modal.Binding("references", "linked items")
 	k.FindFile = modal.Binding("global.find_file", "find file")
+	k.NextThread = modal.Binding("next_thread", "next thread")
+	k.PrevThread = modal.Binding("prev_thread", "previous thread")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
@@ -199,7 +207,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 
@@ -233,5 +241,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Back.SetEnabled(false)
 	k.References.SetEnabled(false)
 	k.FindFile.SetEnabled(false)
+	k.NextThread.SetEnabled(false)
+	k.PrevThread.SetEnabled(false)
 	return k
 }

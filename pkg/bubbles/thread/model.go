@@ -461,6 +461,10 @@ func (m Model[T]) AtBottom() bool { return m.vp.AtBottom() }
 // YOffset returns the first line on screen.
 func (m Model[T]) YOffset() int { return m.vp.YOffset() }
 
+// SetYOffset scrolls so that line n is the first on screen, as far as the
+// lines laid out allow.
+func (m *Model[T]) SetYOffset(n int) { m.vp.SetYOffset(n) }
+
 // TotalLines returns the number of lines laid out.
 func (m Model[T]) TotalLines() int { return len(m.lines) }
 
