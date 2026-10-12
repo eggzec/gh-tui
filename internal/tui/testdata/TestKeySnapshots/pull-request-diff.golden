@@ -54,3 +54,4 @@ Diff
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
+  resolve thread | T | T | off

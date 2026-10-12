@@ -110,8 +110,12 @@ func (m *detailModal) threadTags(th *core.Thread) string {
 }
 
 // threadMark is the dot a thread starts with: the warning colour while it is
-// unresolved, and dim once it is resolved.
+// unresolved, and dim once it is resolved. An ellipsis stands for it while a
+// change of it is under way.
 func (m *detailModal) threadMark(th *core.Thread) string {
+	if m.th.pending[th.ID] {
+		return m.theme.Warning.Render(m.icons.Ellipsis)
+	}
 	if th.Resolved {
 		return m.theme.Subtle.Render(m.icons.Dot)
 	}

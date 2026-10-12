@@ -35,6 +35,8 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 		return nil
 	case threadsMsg:
 		return m.receiveThreads(msg)
+	case threadResolvedMsg:
+		return m.resolved(msg)
 	case resendMsg:
 		if msg.owner != any(m) {
 			return nil

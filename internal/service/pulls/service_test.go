@@ -47,6 +47,8 @@ type fakeAPI struct {
 	heads []string
 	// detailSizes are the list sizes that details asked for.
 	detailSizes []github.DetailSizes
+	// threadSetErr fails SetReviewThreadResolved.
+	threadSetErr error
 }
 
 func (f *fakeAPI) called(method string) {
@@ -164,6 +166,13 @@ func (f *fakeAPI) MarkPullRequestReady(ctx context.Context, id string) (core.Pul
 func (f *fakeAPI) ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error) {
 	f.called("draft")
 	return f.mutate(ctx, "draft", id, "")
+}
+
+func (f *fakeAPI) SetReviewThreadResolved(_ context.Context, id string, resolved bool) error {
+	f.called(fmt.Sprintf("thread %s %t", id, resolved))
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.threadSetErr
 }
 
 func (f *fakeAPI) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error) {

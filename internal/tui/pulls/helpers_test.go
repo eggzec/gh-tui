@@ -114,6 +114,11 @@ type fakeService struct {
 	threadsErr  error
 	// threadCache are the pages CachedThreads serves, by cursor.
 	threadCache map[string]core.ThreadPage
+	// summaries are the thread counts the detail of a pull request has, by
+	// number, and ResolveThread moves them. sends are the changes of the
+	// threads that were sent.
+	summaries map[int]core.ThreadSummary
+	sends     []string
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.
@@ -153,6 +158,7 @@ func newFakeService() *fakeService {
 	return &fakeService{
 		pulls: samplePulls(), pageSize: 30,
 		cached: map[int]bool{}, stale: map[int]bool{}, fresh: map[pulls.ListQuery]bool{}, commented: map[pulls.CommentsQuery]bool{}, listedAs: map[int]core.State{},
+		summaries: map[int]core.ThreadSummary{},
 	}
 }
 
@@ -181,6 +187,9 @@ func (f *fakeService) detail(number int) core.PullRequestDetail {
 	d := core.PullRequestDetail{PullRequest: pr, CheckCounts: counts, Merge: merge}
 	if tweak := f.tweaks[number]; tweak != nil {
 		tweak(&d)
+	}
+	if s, ok := f.summaries[number]; ok {
+		d.Threads = s
 	}
 	return d
 }
@@ -673,6 +682,46 @@ func (f *fakeService) MarkReady(_ core.RepoRef, number int) *optimistic.Op {
 
 func (f *fakeService) ConvertToDraft(_ core.RepoRef, number int) *optimistic.Op {
 	return f.change("draft", number, func(pr *core.PullRequest) { pr.Draft = true })
+}
+
+// ResolveThread records "resolve id" or "unresolve id", and moves the thread
+// counts of the detail of pull request number at once, as the service does,
+// before the Op sends it. A failed send fails with sendErr, and rolls the
+// counts back.
+func (f *fakeService) ResolveThread(_ core.RepoRef, number int, id string, resolved bool) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	what, step := "unresolve "+id, 1
+	if resolved {
+		what, step = "resolve "+id, -1
+	}
+	f.ops = append(f.ops, what)
+	before, had := f.summaries[number]
+	if had {
+		after := before
+		after.Unresolved += step
+		after.Resolved -= step
+		f.summaries[number] = after
+	}
+	return optimistic.New(func(context.Context) error {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.sends = append(f.sends, what)
+		return cmp.Or(f.sendErr, f.sendErrs[number])
+	}, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if had {
+			f.summaries[number] = before
+		}
+	})
+}
+
+// sent returns the changes whose Op was sent, in order.
+func (f *fakeService) sent() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.sends)
 }
 
 func (f *fakeService) changes() []string {

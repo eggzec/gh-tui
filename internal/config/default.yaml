@@ -1109,6 +1109,8 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+    # Resolve the unresolved thread under the cursor, after a question.
+    resolve: [T]
   # The modal of a pull request: the tree of the files it changes.
   # Expand and collapse fold its directories; enter or expand on a file
   # shows its diff.
@@ -1145,6 +1147,9 @@ keys:
     find: [/]
     next_match: [n]
     prev_match: [N]
+    # Resolve the thread under the cursor, or unresolve it if it is resolved,
+    # after a question.
+    resolve: [T]
   # The modal of a release.
   release_modal:
     up: [up, k]

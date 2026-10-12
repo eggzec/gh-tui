@@ -68,6 +68,9 @@ type Service interface {
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op
 	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
+	// ResolveThread marks the review thread id resolved, or open again when
+	// resolved is false.
+	ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op
 }
 
 // ChecksService is what the section needs to show the checks of pull

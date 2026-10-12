@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
 
 // The review threads of a pull request, with their comments, are read a page
@@ -122,6 +123,62 @@ func (s *Service) SetThreadResolved(repo core.RepoRef, number int, id string, re
 		return p, true
 	})
 	return rollback, ok
+}
+
+// ResolveThread resolves review thread id of pull request number of repo, or
+// unresolves it if resolved is false. The change shows at once in the cached
+// pages that hold the thread and in the thread counts of the cached detail,
+// and the returned Op sends it. When GitHub accepts it, both are kept for the
+// next session, and when it refuses it, they are rolled back. A token that
+// may not change the repository changes nothing, and the Op returns why.
+//
+// A read of threads that was under way when the change was made may still
+// bring the thread as it was, and the cache holds that until the next read: a
+// window of one request, which the next read of the threads closes.
+func (s *Service) ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op {
+	what := "unresolve"
+	if resolved {
+		what = "resolve"
+	}
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("%s review thread of pull %s#%d: %w", what, repo, number, err))
+	}
+	undoThreads, _ := s.SetThreadResolved(repo, number, id, resolved)
+	key := detailKey(repo, number)
+	undoDetail, _ := s.details.Mutate(key, func(d core.PullRequestDetail) core.PullRequestDetail {
+		return withThreadResolved(d, id, resolved)
+	})
+	return optimistic.New(func(ctx context.Context) error {
+		if err := s.api.SetReviewThreadResolved(ctx, id, resolved); err != nil {
+			return fmt.Errorf("%s review thread of pull %s#%d: %w", what, repo, number, err)
+		}
+		s.ConfirmThreadResolved(repo, number, id, resolved)
+		if e, st := s.details.Get(key); st != cache.Miss {
+			_ = s.keptDetails.Save(key, cache.Entry[core.PullRequestDetail]{Value: e.Value, Tags: e.Tags})
+		}
+		return nil
+	}, undoThreads, undoDetail)
+}
+
+// withThreadResolved returns d with thread id marked resolved or not, and the
+// counts of its threads moved to match. A thread that the detail doesn't list,
+// because it has more than it lists, leaves it as it is.
+func withThreadResolved(d core.PullRequestDetail, id string, resolved bool) core.PullRequestDetail {
+	i := slices.IndexFunc(d.Threads.Threads, func(t core.ReviewThread) bool { return t.ID == id })
+	if i < 0 || d.Threads.Threads[i].Resolved == resolved {
+		return d
+	}
+	// The detail's slice is shared with whoever holds the cached value.
+	d.Threads.Threads = slices.Clone(d.Threads.Threads)
+	d.Threads.Threads[i].Resolved = resolved
+	if resolved {
+		d.Threads.Unresolved--
+		d.Threads.Resolved++
+	} else {
+		d.Threads.Unresolved++
+		d.Threads.Resolved--
+	}
+	return d
 }
 
 // ConfirmThreadResolved keeps for the next session every cached page of pull

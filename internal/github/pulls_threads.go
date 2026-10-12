@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -143,6 +144,57 @@ func (t pullThread) core() core.Thread {
 	}
 	return out
 }
+
+// The mutations that resolve and unresolve a review thread. Neither is told
+// the pull request: a thread's node ID names it. The payload is aliased to
+// result, so that one shape decodes both.
+const (
+	resolveThreadMutation = `mutation ResolveReviewThread($id: ID!) {
+  result: resolveReviewThread(input: {threadId: $id}) { thread { id isResolved } }
+}`
+	unresolveThreadMutation = `mutation UnresolveReviewThread($id: ID!) {
+  result: unresolveReviewThread(input: {threadId: $id}) { thread { id isResolved } }
+}`
+)
+
+// SetReviewThreadResolved resolves the review thread with node ID id, or
+// unresolves it if resolved is false. GitHub answers with the thread as it
+// left it, and it is an error if that is not the state asked for.
+func (c *Client) SetReviewThreadResolved(ctx context.Context, id string, resolved bool) error {
+	if resolved {
+		return c.setThreadResolved(ctx, resolveThreadMutation, "resolve", id, true)
+	}
+	return c.setThreadResolved(ctx, unresolveThreadMutation, "unresolve", id, false)
+}
+
+func (c *Client) setThreadResolved(ctx context.Context, query, what, id string, resolved bool) error {
+	var data struct {
+		Result *struct {
+			Thread *struct {
+				IsResolved bool `json:"isResolved"`
+			} `json:"thread"`
+		} `json:"result"`
+	}
+	err := c.Query(ctx, query, map[string]any{"id": id}, &data)
+	if err == nil && (data.Result == nil || data.Result.Thread == nil) {
+		err = errNoThread
+	} else if err == nil && data.Result.Thread.IsResolved != resolved {
+		err = errThreadState
+	}
+	if err != nil {
+		return fmt.Errorf("%s review thread %s: %w", what, id, err)
+	}
+	return nil
+}
+
+var (
+	// errNoThread is returned when a mutation succeeds without returning the
+	// thread, which GitHub should not do.
+	errNoThread = errors.New("response has no review thread")
+	// errThreadState is returned when GitHub accepts the mutation but leaves
+	// the thread as it was.
+	errThreadState = errors.New("the thread was not changed")
+)
 
 // ListPullRequestThreads returns a page of up to first review threads of
 // pull request number of repo, in the order GitHub gives them, each with its

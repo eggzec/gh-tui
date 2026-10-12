@@ -32,6 +32,10 @@ const (
 	// ActStar stars a repository or removes the star, which the Gate decides
 	// by the token alone: an archived or locked repository may be starred.
 	ActStar
+	// ActResolve resolves a review thread or opens it again. The viewer may be
+	// the author of the pull request, so the thread says whether the viewer
+	// may, and the Gate decides by the token and the repository.
+	ActResolve
 )
 
 // Gate decides what the viewer may do in one repository, from what GitHub
@@ -98,6 +102,8 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 		gerund = "Commenting"
 	case ActLabel:
 		gerund = "Labeling"
+	case ActResolve:
+		gerund = "Resolving a thread"
 	default:
 		return core.Need{}, ""
 	}
@@ -172,7 +178,7 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 		if !c.CanWrite() {
 			return false, "Cancelling needs write access to " + repo + "."
 		}
-	case ActMarkRead, ActStar:
+	case ActMarkRead, ActStar, ActResolve:
 	}
 	return true, ""
 }

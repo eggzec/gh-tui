@@ -524,6 +524,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.onChecks() {
 		return m.checks.Update(msg)
 	}
+	if cmd, ok := m.pressResolve(msg); ok {
+		return cmd
+	}
 	if m.onFiles() {
 		return m.pressFiles(msg)
 	}
