@@ -821,6 +821,12 @@ keys:
     # and those that mention it. Quoted, since an unquoted # starts a
     # comment.
     references: ["#"]
+    # Jump to the next and previous review thread, from any tab: on Files
+    # and Conversation they step through the threads, wrapping at the ends,
+    # and elsewhere ")" goes to the first thread in the diff. Backspace
+    # then returns to where the jump started.
+    next_thread: [")"]
+    prev_thread: ["("]
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:

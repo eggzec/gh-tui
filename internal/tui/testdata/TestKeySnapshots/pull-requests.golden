@@ -33,6 +33,8 @@ Pull requests
   checks | C | C | on
   linked items | # | # | off
   find file | ctrl+p | ^p | off
+  next thread | ) | ) | off
+  previous thread | ( | ( | off
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off

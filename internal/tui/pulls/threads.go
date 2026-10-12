@@ -57,6 +57,9 @@ type threadsState struct {
 	started bool
 	head    string
 	dirty   bool
+	// jumping is the direction of a jump to the diff that waits for the first
+	// page of the threads, or 0.
+	jumping int
 	// gen counts the reads of the first page.
 	gen int
 	// all are the threads read, resolved or not, in the order GitHub lists
@@ -282,11 +285,12 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 		return nil
 	}
 	m.applyThreadBlocks()
+	jump := m.finishJump(msg)
 	if msg.err == nil && m.onFiles() {
 		// The diff holds every thread: read the next page behind this one.
-		return tea.Batch(m.show(), m.readMoreThreads())
+		return tea.Batch(m.show(), m.readMoreThreads(), jump)
 	}
-	return m.show()
+	return tea.Batch(m.show(), jump)
 }
 
 // threadsOnline reads the threads again once GitHub answers again, if they
@@ -520,6 +524,9 @@ func (m *detailModal) pressThreads(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		if cur >= len(t.list) {
 			return m.readMoreThreads(), true
+		}
+		if t.list[cur].Path != "" {
+			m.pushReturn()
 		}
 		return m.showThreadAt(&t.list[cur]), true
 	}

@@ -19,6 +19,8 @@ Pull request
   checks | C | C | off
   linked items | # | # | on
   find file | ctrl+p | ^p | on
+  next thread | ) | ) | on
+  previous thread | ( | ( | on
   next tab | ] | ] | on
   previous tab | [ | [ | on
   author | @ | @ | on

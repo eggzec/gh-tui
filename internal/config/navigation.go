@@ -23,6 +23,8 @@ var navigation = []string{
 	// Moving between matches, and the choices of a search page, which has
 	// no such actions yet.
 	"next_match", "prev_match", "results", "kinds",
+	// Jumping between the review threads of a pull request.
+	"next_thread", "prev_thread",
 	// quit is the q command, and command opens the line that commands
 	// are typed in.
 	"quit", "command",

@@ -105,6 +105,9 @@ type detailModal struct {
 	// threadsErr words why they couldn't be read.
 	th         threadsState
 	threadsErr func(error) (text, hint string)
+	// back are the places that jumps to the diff left, the last one to come
+	// back to first.
+	back []returnPoint
 	// newRefs makes the References step, which refs is while it shows over
 	// the tab; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -500,6 +503,10 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openRefs()
 	case keymap.Matches(msg, k.FindFile) && m.canReadFiles():
 		return m.openFind()
+	case keymap.Matches(msg, k.NextThread) && m.readableThreads():
+		return m.jumpThread(1)
+	case keymap.Matches(msg, k.PrevThread) && m.readableThreads():
+		return m.jumpThread(-1)
 	case m.hasTabs() && keymap.Matches(msg, k.NextTab):
 		return m.cycle(1)
 	case m.hasTabs() && keymap.Matches(msg, k.PrevTab):
@@ -550,6 +557,7 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
+	m.back = nil
 	m.dropFind()
 	if m.refs != nil {
 		m.refs.Close()
@@ -689,13 +697,15 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 	k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
 	k.Checks.SetEnabled(k.Checks.Enabled() && m.tab != checksTab && m.hasChecks())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.canReadFiles())
+	k.NextThread.SetEnabled(k.NextThread.Enabled() && m.readableThreads())
+	k.PrevThread.SetEnabled(k.PrevThread.Enabled() && m.readableThreads())
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.detail.Author) != "")
 	if m.onFiles() {
 		return m.filesModalLayer(k, owner)
 	}
 	if m.onChecks() {
-		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextTab, k.PrevTab},
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
 		l.Bindings = append(l.Bindings, owner)
 		return l
