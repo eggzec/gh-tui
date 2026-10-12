@@ -412,9 +412,10 @@ github:
 page_size:
   # Pull requests, and their comments and reviews.
   pulls: 30
-  # The review threads that the detail of a pull request lists. Its counts
-  # of resolved, unresolved and outdated threads cover these, so a pull
-  # request with more threads says so.
+  # The review threads that the detail of a pull request lists, and the
+  # first page of the threads that its modal reads with their comments.
+  # The detail's counts of resolved, unresolved and outdated threads cover
+  # the former, so a pull request with more threads says so.
   threads: 50
   # The review requests, and the latest reviews, that the detail of a pull
   # request lists. Its totals say when there are more.

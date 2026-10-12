@@ -33,6 +33,7 @@ type API interface {
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
+	ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
@@ -74,12 +75,16 @@ type Service struct {
 	reviews  *cache.Cache[core.Page[core.Review]]
 	// files holds the pages of the files a pull request changes, by head.
 	files *cache.Cache[core.Page[core.CommitFile]]
+	// threads holds the pages of the review threads of a pull request, by
+	// head.
+	threads *cache.Cache[core.ThreadPage]
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
 	keptLists    *cache.Shelf[listPage]
 	keptDetails  *cache.Shelf[core.PullRequestDetail]
 	keptComments *cache.Shelf[stampedComments]
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
+	keptThreads  *cache.Shelf[core.ThreadPage]
 	now          func() time.Time
 	// ttl is how long a fetched entry stays fresh.
 	ttl time.Duration
@@ -118,11 +123,13 @@ func New(api API, opts ...Option) *Service {
 		details:      cache.New[core.PullRequestDetail](mem...),
 		comments:     cache.New[stampedComments](mem...),
 		reviews:      cache.New[core.Page[core.Review]](mem...),
+		threads:      cache.New[core.ThreadPage](mem...),
 		files:        cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
 		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
 		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.store, kindFiles, filesSchema),
+		keptThreads:  cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
 		now:          time.Now,
 		ttl:          ttl,
 		pageSize:     cmp.Or(o.pageSize, d.PageSize.Pulls),
@@ -144,6 +151,7 @@ const (
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
 	kindFiles    = "pullfiles"
+	kindThreads  = "pullthreads"
 
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
@@ -157,6 +165,8 @@ const (
 	commentsSchema = 4
 	// filesSchema 1 is the first.
 	filesSchema = 1
+	// threadsSchema 1 is the first.
+	threadsSchema = 1
 )
 
 // maxPageSize is the most items GitHub returns in a page.
@@ -424,4 +434,5 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.comments.InvalidateTag(tag)
 	s.reviews.InvalidateTag(tag)
 	s.files.InvalidateTag(tag)
+	s.threads.InvalidateTag(tag)
 }
