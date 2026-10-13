@@ -308,10 +308,11 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	// text could pass for a quote.
 	g := r.glyphs
 	src = strings.ReplaceAll(src, g.quoteToken(), g.Quote)
-	// So may the characters that hold the place of a space or a hyphen in a
-	// code span, and they go from the whole source, since any line may hold a
-	// span, and unspan would turn the text's own into spaces and hyphens.
-	src = strings.NewReplacer(string(spanSpace), "\uFFFD", string(spanHyphen), "\uFFFD").Replace(src)
+	// So may the characters that hold the place of a space, a hyphen or
+	// another break of a line in a code span, and they go from the whole
+	// source, since any line may hold a span, and unspan would turn the
+	// text's own into those.
+	src = scrubSpan(src)
 	b := newBudget()
 	var parts []part
 	text := prepare(src, open, r.hint, g, width, func(i int, blk Block, shown bool) string {

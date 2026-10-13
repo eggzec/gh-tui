@@ -764,17 +764,38 @@ func closeRun(s string, n int) int {
 	return -1
 }
 
+// spanBreaks are the characters glamour breaks a line at: a space, a
+// hyphen, which it breaks after in a paragraph, as in a flag such as
+// --force-with-lease, and what a list, a quote or a definition list also
+// breaks after (" ,.;-+|"), as in a path such as ~/.local/state.
+const spanBreaks = " -.,;+|"
+
 // spanSpace stands for a space inside a code span while glamour wraps the
 // text, which it would break at, so a span that fits on a line wraps as a
 // unit. It is a private-use character of a supplementary plane, one cell
 // wide, no space and no markdown, and unspan puts the spaces back. The
 // planes' characters are rarer in text than the basic plane's, which icon
-// fonts fill.
+// fonts fill. The other characters of spanBreaks have stand-ins that follow
+// it, in the order spanBreaks has them: the hyphen's is the next one.
 const spanSpace = '\U000F0000'
 
-// spanHyphen stands for a hyphen inside a code span in the same way, since
-// the wrap breaks after a hyphen too, as in a flag such as --force-with-lease.
-const spanHyphen = '\U000F0001'
+// spanStand returns the stand-in for the character of spanBreaks at i.
+func spanStand(i int) rune { return spanSpace + rune(i) }
+
+// scrubSpan returns s without the stand-ins, which become U+FFFD, so that
+// no text can pass for a span's characters, and unspan would not turn it
+// into spaces and the rest.
+func scrubSpan(s string) string {
+	return spanScrubber.Replace(s)
+}
+
+var spanScrubber = func() *strings.Replacer {
+	args := make([]string, 0, 2*len(spanBreaks))
+	for i := range len(spanBreaks) {
+		args = append(args, string(spanStand(i)), "�")
+	}
+	return strings.NewReplacer(args...)
+}()
 
 // spans follows the code spans of the lines of a paragraph, one line at a
 // time, since a span may run over several.
@@ -840,9 +861,9 @@ func backslashes(s string) int {
 	return len(s) - len(strings.TrimRight(s, "\\"))
 }
 
-// bindSpaces returns the content of a code span with the spaces between its
-// first and last character replaced with spanSpace, and its hyphens with
-// spanHyphen, if it fits in room cells.
+// bindSpaces returns the content of a code span with the characters of
+// spanBreaks between its first and last character replaced with their
+// stand-ins, if it fits in room cells.
 func bindSpaces(s string, room int) string {
 	from := len(s) - len(strings.TrimLeft(s, " "))
 	to := len(strings.TrimRight(s, " "))
@@ -852,12 +873,17 @@ func bindSpaces(s string, room int) string {
 	return s[:from] + spanBinder.Replace(s[from:to]) + s[to:]
 }
 
-var spanBinder = strings.NewReplacer(" ", string(spanSpace), "-", string(spanHyphen))
+var spanBinder, spanUnbinder = func() (bind, unbind *strings.Replacer) {
+	to := make([]string, 0, 2*len(spanBreaks))
+	back := make([]string, 0, 2*len(spanBreaks))
+	for i := range len(spanBreaks) {
+		c, r := spanBreaks[i:i+1], string(spanStand(i))
+		to, back = append(to, c, r), append(back, r, c)
+	}
+	return strings.NewReplacer(to...), strings.NewReplacer(back...)
+}()
 
-// unspan puts back the spaces and hyphens of the code spans that bind
-// replaced.
+// unspan puts back the characters of the code spans that bind replaced.
 func unspan(s string) string {
 	return spanUnbinder.Replace(s)
 }
-
-var spanUnbinder = strings.NewReplacer(string(spanSpace), " ", string(spanHyphen), "-")
