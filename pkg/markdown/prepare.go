@@ -772,6 +772,10 @@ func closeRun(s string, n int) int {
 // fonts fill.
 const spanSpace = '\U000F0000'
 
+// spanHyphen stands for a hyphen inside a code span in the same way, since
+// the wrap breaks after a hyphen too, as in a flag such as --force-with-lease.
+const spanHyphen = '\U000F0001'
+
 // spans follows the code spans of the lines of a paragraph, one line at a
 // time, since a span may run over several.
 type spans struct {
@@ -837,18 +841,23 @@ func backslashes(s string) int {
 }
 
 // bindSpaces returns the content of a code span with the spaces between its
-// first and last character replaced with spanSpace, if it fits in room
-// cells.
+// first and last character replaced with spanSpace, and its hyphens with
+// spanHyphen, if it fits in room cells.
 func bindSpaces(s string, room int) string {
 	from := len(s) - len(strings.TrimLeft(s, " "))
 	to := len(strings.TrimRight(s, " "))
 	if from >= to || xansi.StringWidth(s) > room {
 		return s
 	}
-	return s[:from] + strings.ReplaceAll(s[from:to], " ", string(spanSpace)) + s[to:]
+	return s[:from] + spanBinder.Replace(s[from:to]) + s[to:]
 }
 
-// unspan puts back the spaces of the code spans that bind replaced.
+var spanBinder = strings.NewReplacer(" ", string(spanSpace), "-", string(spanHyphen))
+
+// unspan puts back the spaces and hyphens of the code spans that bind
+// replaced.
 func unspan(s string) string {
-	return strings.ReplaceAll(s, string(spanSpace), " ")
+	return spanUnbinder.Replace(s)
 }
+
+var spanUnbinder = strings.NewReplacer(string(spanSpace), " ", string(spanHyphen), "-")
