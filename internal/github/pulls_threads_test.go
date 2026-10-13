@@ -32,6 +32,7 @@ func TestListPullRequestThreads(t *testing.T) {
 			Line: 42, OriginalLine: 40,
 			Side: core.SideRight, StartSide: core.SideRight,
 			ViewerCanResolve: true,
+			ReviewID:         "PRR_kwDOLnBTf85Rv001",
 			Comments: []core.ThreadComment{
 				{
 					ID: "PRRC_kwDOLnBTf86Ab001", Author: hubot, At: pullTime("2026-09-21T10:00:00Z"),
@@ -48,6 +49,19 @@ func TestListPullRequestThreads(t *testing.T) {
 		}
 		if got := page.Threads[0]; !reflect.DeepEqual(got, want) {
 			t.Errorf("thread =\n%+v\nwant\n%+v", got, want)
+		}
+	})
+
+	t.Run("review", func(t *testing.T) {
+		// The thread belongs to the review of its first comment, not of a reply
+		// made in another one, and a comment made in none leaves it with none.
+		if q := reqs()[0].Query; !strings.Contains(q, "pullRequestReview { id }") {
+			t.Errorf("query does not read the review of each comment:\n%s", q)
+		}
+		got := []string{page.Threads[0].ReviewID, page.Threads[1].ReviewID, page.Threads[2].ReviewID, page.Threads[3].ReviewID}
+		want := []string{"PRR_kwDOLnBTf85Rv001", "PRR_kwDOLnBTf85Rv001", "", ""}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("review ids = %q, want %q", got, want)
 		}
 	})
 
