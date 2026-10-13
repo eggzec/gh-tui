@@ -242,8 +242,9 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		{"rerun over the pull request", true, []string{"global.pane_2", "global.select"}, "rerun", "Close the pull request first to use rerun."},
 		{"star on the dashboard", false, nil, "star", "star works in Repository screen."},
 		{"star over history", true, []string{"repo.history"}, "star", "Close History first to use star."},
-		{"labels on the files", true, nil, "labels", "labels works in Issues (Repository) and Issue modal."},
-		{"labels on the pull requests", true, []string{"global.pane_2"}, "labels", "labels works in Issues (Repository) and Issue modal."},
+		{"labels on the files", true, nil, "labels", "labels works in Issue modal."},
+		{"labels on the pull requests", true, []string{"global.pane_2"}, "labels", "labels works in Issue modal."},
+		{"labels on the issues", true, []string{"global.pane_3"}, "labels", "labels works in Issue modal."},
 		{"labels over history", true, []string{"repo.history"}, "labels", "Close History first to use labels."},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -335,7 +336,7 @@ func TestCompletionListsTheFocusedChainFirst(t *testing.T) {
 			}
 		}
 		m = keysAfter(t, true, "global.pane_3")
-		if got := texts(m.complete("c", 1)); !slices.Equal(got, []string{"clear_filter", "close", "comment", "config ", "copy "}) {
+		if got := texts(m.complete("c", 1)); !slices.Equal(got, []string{"clear_filter", "close", "config ", "copy "}) {
 			t.Errorf("on the issues, c completes %q", got)
 		}
 		m = keysAfter(t, true)
@@ -363,7 +364,7 @@ func TestActionCommandsSayWhenNothingHappens(t *testing.T) {
 				m := keysAfter(t, true, tt.steps...)
 				open := m.modal
 				runCommand(t, m, tt.line)
-				if want := "There is nothing to " + tt.line + " here."; !hasToast(m, want) {
+				if want := "There is nothing to do for " + tt.line + " here."; !hasToast(m, want) {
 					t.Errorf(":%s toasts %s, want %q", tt.line, toasted(m), want)
 				}
 				if m.modal != open {
@@ -624,37 +625,25 @@ func TestLabelsCommandOpensTheEditor(t *testing.T) {
 }
 
 // TestLabelsCommandOnTheIssueList checks that labels from the list of issues,
-// where the labels are edited only in the modal of an issue, says there is
-// nothing to label there, as its key does nothing, and opens no editor.
+// where the labels are edited only in the modal of an issue, names the modal
+// as the place it works in and opens no editor.
 func TestLabelsCommandOnTheIssueList(t *testing.T) {
-	for _, unbound := range []bool{true, false} {
-		name := "key bound"
-		if unbound {
-			name = "key unbound"
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		c := keyContext{name: "issues", repo: true}
+		for _, k := range c.press(t, config.Default().Keys, "global.pane_3") {
+			msg, _ := keyPress(k)
+			driveKeys(t, m, m.key(msg))
 		}
-		t.Run(name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				m := newKeysAppWith(t, true, func(c *config.Config) {
-					if unbound {
-						c.Keys.Set("issues.labels", []string{})
-					}
-				})
-				c := keyContext{name: name, repo: true}
-				for _, k := range c.press(t, config.Default().Keys, "global.pane_3") {
-					msg, _ := keyPress(k)
-					driveKeys(t, m, m.key(msg))
-				}
-				before := layerNames(m.keyLayers())
-				runCommand(t, m, "labels")
-				if got := layerNames(m.keyLayers()); got != before {
-					t.Errorf(":labels on the list changed the keys from %q to %q", before, got)
-				}
-				if !hasToast(m, "There is nothing to labels here.") {
-					t.Errorf(":labels toasts %s, want that there is nothing to label", toasted(m))
-				}
-			})
-		})
-	}
+		before := layerNames(m.keyLayers())
+		runCommand(t, m, "labels")
+		if got := layerNames(m.keyLayers()); got != before {
+			t.Errorf(":labels on the list changed the keys from %q to %q", before, got)
+		}
+		if want := "labels works in Issue modal."; !hasToast(m, want) {
+			t.Errorf(":labels toasts %s, want %q", toasted(m), want)
+		}
+	})
 }
 
 // TestMutationCommandsKeepBuiltInNames checks that the commands that
