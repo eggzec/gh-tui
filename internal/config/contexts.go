@@ -54,11 +54,18 @@ type Context struct {
 	// to printable keys: those that act only where the key would not be
 	// typed.
 	Printable []string
+	// Typed names the actions of a context that isn't typing itself that
+	// may not be bound to printable keys, each with the widgets that would
+	// type the key, because a key that those widgets type must not reach
+	// the action first.
+	Typed map[string]string
 }
 
 // contexts are all the contexts of keys there are.
 var contexts = []Context{
-	{Name: ContextGlobal, Title: "global", Reach: ReachGlobal},
+	// An error toast takes the dismiss key before the widgets that type see
+	// it, so a printable one could not be typed there.
+	{Name: ContextGlobal, Title: "global", Reach: ReachGlobal, Typed: map[string]string{"dismiss": "the command line and the help filter"}},
 
 	{Name: "dashboard", Title: "Dashboard", Reach: ReachScreen},
 	{Name: "dashboard_pinned", Title: "Pinned", Reach: ReachPane, Parent: "dashboard"},
