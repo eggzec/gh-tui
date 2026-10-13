@@ -134,9 +134,10 @@ func RefKey(t Target) string {
 	return strings.ToLower(t.Repo.String()) + "#" + strconv.Itoa(t.Number)
 }
 
-// refAfter ends a number: a word boundary, or the underscore that closes
-// emphasis.
-const refAfter = `(?:\b|_)`
+// refAfter ends a number: a word boundary, or underscores that close
+// emphasis and are themselves followed by one. A word character after the
+// number, an underscore included, isn't a link, as on GitHub.
+const refAfter = `(?:\b|_+\b)`
 
 // refBefore is what may come before a link in text: the start, space,
 // punctuation or the mark of emphasis, but not a letter, digit or an
