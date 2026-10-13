@@ -218,6 +218,9 @@ func TestRenderWrapsCodeSpansWhole(t *testing.T) {
 		{"fits on the next line", "aaaa bbbb `foo bar baz` cccc", 20, []string{"aaaa bbbb", " foo bar baz  cccc"}},
 		{"wider than a line breaks at its spaces", "aaaa `foo bar baz qux quux` cccc", 10, []string{"aaaa  foo", "bar baz", "qux quux ", "cccc"}},
 		{"spaces kept", "x `a  b` y", 40, []string{"x  a  b  y"}},
+		{"hyphens do not break it", "aaaa bbbb `foo-bar --baz` cccc", 20, []string{"aaaa bbbb", " foo-bar --baz  cccc"}},
+		{"a span of one word with hyphens", "aaaa bbbb `--force-with-lease` cccc", 20, []string{"aaaa bbbb", " --force-with-lease ", "cccc"}},
+		{"wider than a line breaks at its hyphens", "aaaa `foo-bar-baz-qux` cccc", 10, []string{"aaaa  foo-", "bar-baz-", "qux  cccc"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -251,8 +254,13 @@ func TestRenderCodeSpanBindingLeavesMarkdownAlone(t *testing.T) {
 }
 
 func TestRenderReplacesTheSpanSpace(t *testing.T) {
-	out := ansi.Strip(New(DefaultStyle(true)).Render("a"+string(spanSpace)+"b", 40))
-	if strings.Contains(out, "a b") || !strings.Contains(out, "a\ufffdb") {
-		t.Errorf("render = %q, want the character replaced, not shown as a space", out)
+	for _, c := range []struct {
+		r    rune
+		text string
+	}{{spanSpace, "a b"}, {spanHyphen, "a-b"}} {
+		out := ansi.Strip(New(DefaultStyle(true)).Render("a"+string(c.r)+"b", 40))
+		if strings.Contains(out, c.text) || !strings.Contains(out, "a\ufffdb") {
+			t.Errorf("render = %q, want the character replaced, not shown as %q", out, c.text)
+		}
 	}
 }
