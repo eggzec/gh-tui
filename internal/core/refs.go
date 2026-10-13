@@ -146,7 +146,7 @@ const refBefore = `(?:^|[\s(\[{,;:*~]|(?:^|[\s(\[{,;:*~])_)`
 
 var (
 	refURL   = regexp.MustCompile(`https?://[^\s<>()\[\]"']+`)
-	refShort = regexp.MustCompile(refBefore + `((?:[A-Za-z0-9_-]+/[A-Za-z0-9._-]+)?#[0-9]+)` + refAfter)
+	refShort = regexp.MustCompile(refBefore + `((?:[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+)?#[0-9]+)` + refAfter)
 	// refGH is GitHub's autolink GH-123, in capitals, which names a number of the
 	// same repository.
 	refGH   = regexp.MustCompile(refBefore + `(GH-(\d+))` + refAfter)
