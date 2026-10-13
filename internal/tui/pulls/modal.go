@@ -193,7 +193,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		svc, keys := s.checks, s.rawKeys
 		opts := append(slices.Clone(s.checksOpts), checks.WithReturn(m), checks.WithIcons(s.icons), checks.WithClock(s.now))
 		m.newChecks = func() *checks.Step {
-			return checks.New(m.sendCtx, svc, repo, number, keys, append(opts, checks.WithCaps(m.caps))...)
+			// With the icons the modal has now, which :set may have changed.
+			return checks.New(m.sendCtx, svc, repo, number, keys, append(slices.Clone(opts), checks.WithIcons(m.icons), checks.WithCaps(m.caps))...)
 		}
 	}
 	if s.refs != nil {
@@ -201,7 +202,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		opts := append(slices.Clone(s.refsOpts), refs.WithReturn(m), refs.WithIcons(s.icons), refs.WithClock(s.now),
 			refs.WithItem(func() refs.Item { return refs.Item{Title: m.detail.Title, Updated: m.detail.UpdatedAt} }))
 		m.newRefs = func() *refs.Step {
-			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindPull}, true, keys, opts...)
+			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindPull}, true, keys, append(slices.Clone(opts), refs.WithIcons(m.icons))...)
 		}
 	}
 	var step tea.Cmd
@@ -403,6 +404,16 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 // it.
 func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&m.icons)
+		m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
+		if m.checks != nil {
+			m.checks.SetIcons(m.icons)
+		}
+		if m.refs != nil {
+			m.refs.SetIcons(m.icons)
+		}
+		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case checks.CloseMsg:

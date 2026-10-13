@@ -23,6 +23,13 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&m.opts.icons, m.opts.voice)
+		// The rows of the graph already drawn keep the marks they have; the
+		// header and the rows read from now on take the new ones.
+		ic := m.opts.icons
+		m.format.yes, m.format.no, m.format.sep = ic.Yes, ic.No, ic.Separator
+		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case branchesMsg:

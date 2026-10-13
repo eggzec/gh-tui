@@ -106,6 +106,10 @@ func (m *authModal) Title() string { return "Token" }
 // Update implements ui.Modal: the keys that answer the question, or the
 // one that closes the modal.
 func (m *authModal) Update(msg tea.Msg) tea.Cmd {
+	if s, ok := msg.(ui.SettingsMsg); ok {
+		s.ReloadIcons(&m.icons, &m.voice)
+		return nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return nil

@@ -140,7 +140,8 @@ func (m *Modal) showForm() tea.Cmd {
 	f := filterform.New(spec,
 		filterform.WithQuery(queryOf(m.filter, m.workflows.items)),
 		filterform.WithContext(m.ctx),
-		filterform.WithKeyNames(m.opts.icons.Key),
+		// Read as the help line draws, so that it follows a switch of the icons.
+		filterform.WithKeyNames(func(k string) string { return m.opts.icons.Key(k) }),
 		filterform.WithKeyMap(m.keys.form),
 		filterform.WithStyles(m.theme.FilterForm(m.opts.icons)),
 		filterform.WithSize(m.width, m.bodyHeight()),

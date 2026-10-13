@@ -333,6 +333,10 @@ func (p *preview) Link() string {
 // shown is the one it opened with, which the user didn't ask for.
 func (p *preview) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&p.icons)
+		p.img.ellipsis = p.icons.Ellipsis
+		return nil
 	case blobMsg:
 		if msg.id != p.pager.ID() {
 			return nil

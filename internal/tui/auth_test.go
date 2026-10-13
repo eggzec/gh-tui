@@ -326,6 +326,35 @@ func TestAuthModalView(t *testing.T) {
 	}
 }
 
+// TestSetIconsInOpenAuthModal checks that the modal open draws with the
+// icon set that a setting changed it to, not the one it opened with.
+func TestSetIconsInOpenAuthModal(t *testing.T) {
+	t.Parallel()
+	m := New(t.Context(), config.Default(), Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+	m.applyTheme(true)
+	_ = m.authCommand("")
+	mod, ok := m.modal.(*authModal)
+	if !ok {
+		t.Fatalf("the modal open is %T, want the auth modal", m.modal)
+	}
+	w, h := mod.Fit(72, 30)
+	mod.SetSize(w, h)
+	mod.checked(core.Access{}, access.Plan{}, fmt.Errorf("read the token: %w", core.ErrOffline))
+
+	cfg, err := m.cfg.Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.cfg = cfg
+	m.applySettings()
+
+	ic := ui.NewIcons(config.IconsASCII)
+	want := ic.Error + " Can't reach GitHub"
+	if v := ansi.Strip(mod.View()); !strings.Contains(v, want) {
+		t.Errorf("view lacks %q after the icons were set to ascii:\n%s", want, v)
+	}
+}
+
 // TestAuthModalErrorMark checks that the modal marks why the token
 // couldn't be read with the icon set's glyph, and joins the hint as the
 // set does, as the app's other error lines are.

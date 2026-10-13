@@ -271,6 +271,16 @@ type SettingsMsg struct {
 	Config config.Config
 }
 
+// ReloadIcons sets ic to the icon set the settings name and points each of
+// voices at it, as a modal does that keeps its icons, whose styles the theme
+// that follows draws again.
+func (m SettingsMsg) ReloadIcons(ic *Icons, voices ...*Voice) {
+	*ic = NewIcons(m.Config.UI.Icons)
+	for _, v := range voices {
+		v.Icons = ic
+	}
+}
+
 // OpenMsg asks the app to open URL in the browser.
 type OpenMsg struct {
 	URL string

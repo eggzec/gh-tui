@@ -569,7 +569,9 @@ func (f *finderModal) SetTheme(t ui.Theme) {
 	f.theme = t
 	// The icons take the theme first, so that the finder draws once, in
 	// the new styles and with the new icons.
+	f.icons.setIcons(f.s.icons)
 	f.icons.setTheme(t)
+	f.img.ellipsis = f.s.icons.Ellipsis
 	f.find.SetStyles(t.Finder(f.s.icons))
 	f.pager.SetStyles(t.Pager(f.s.icons))
 	f.md.setTheme(t, f.s.icons)
