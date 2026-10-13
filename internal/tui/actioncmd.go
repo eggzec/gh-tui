@@ -110,7 +110,7 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 		return m.toast.Push(toast.Warning, "Nothing here to "+name+".")
 	}
 	if !m.actionOpen(action) {
-		return m.toast.Push(toast.Warning, "There is nothing to "+name+" here.")
+		return m.toast.Push(toast.Warning, "There is nothing to do for "+name+" here.")
 	}
 	if readAll {
 		if p := m.focused(); m.topModal() == nil && p != nil {
@@ -127,7 +127,7 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	if cmd := m.pressAction(action); cmd != nil || m.View().Content != before {
 		return cmd
 	}
-	return m.toast.Push(toast.Warning, "There is nothing to "+name+" here.")
+	return m.toast.Push(toast.Warning, "There is nothing to do for "+name+" here.")
 }
 
 // filterTabs are the commands that open the filter modal of a list, on the

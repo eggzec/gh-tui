@@ -383,29 +383,29 @@ func TestSectionActionsCanBeRebound(t *testing.T) {
 
 func TestComposeActions(t *testing.T) {
 	defaults := Default().Keys
-	for action, want := range map[string]string{"issues.comment": "c", "issues.labels": "L"} {
+	for action, want := range map[string]string{"issue_modal.comment": "c", "issue_modal.labels": "L"} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
 		}
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  issues:\n    comment: [\"C\", \"ctrl+e\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  issue_modal:\n    comment: [\"C\", \"ctrl+e\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got := cfg.Keys.Of("issues.comment"); !slices.Equal(got, []string{"C", "ctrl+e"}) {
+	if got := cfg.Keys.Of("issue_modal.comment"); !slices.Equal(got, []string{"C", "ctrl+e"}) {
 		t.Errorf("comment = %v, want [C ctrl+e]", got)
 	}
-	if got := cfg.Keys.Of("issues.labels"); !slices.Equal(got, []string{"L"}) {
+	if got := cfg.Keys.Of("issue_modal.labels"); !slices.Equal(got, []string{"L"}) {
 		t.Errorf("labels = %v, want the default [L]", got)
 	}
 
 	cfg = Default()
-	cfg.Keys.Set("issues.labels", []string{})
+	cfg.Keys.Set("issue_modal.labels", []string{})
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("Validate() = %v, want labels unbound", err)
 	}

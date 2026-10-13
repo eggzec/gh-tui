@@ -717,8 +717,6 @@ keys:
     mark: [space]
     close: [X]
     reopen: [O]
-    comment: [c]
-    labels: [L]
 
   # The notifications screen.
   notifications:

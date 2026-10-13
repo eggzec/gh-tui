@@ -79,8 +79,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Open:        list.Binding("global.open", "browser"),
 		Close:       list.Binding("close", "close issue"),
 		Reopen:      list.Binding("reopen", "reopen issue"),
-		Comment:     list.Binding("comment", "comment"),
-		Label:       list.Binding("labels", "labels"),
+		Comment:     ui.In(keys, ctxModal).Binding("comment", "comment"),
+		Label:       ui.In(keys, ctxModal).Binding("labels", "labels"),
 		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
 		confirm:     ui.NewConfirmKeys(keys),
 		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
@@ -105,8 +105,6 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	modal := ui.In(keys, ctxModal)
 	k.Close = modal.Binding("close", "close issue")
 	k.Reopen = modal.Binding("reopen", "reopen issue")
-	k.Comment = modal.Binding("comment", "comment")
-	k.Label = modal.Binding("labels", "labels")
 	k.References = modal.Binding("references", "linked items")
 	return k
 }
