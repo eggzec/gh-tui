@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -124,6 +125,39 @@ func TestStarKeyAsksLikeTheCommand(t *testing.T) {
 			t.Errorf("sent %v", got)
 		}
 	})
+}
+
+// TestStarFailureToastIsTheError checks that a star or unstar that fails
+// shows the error the service gave, explained for the action, and not the
+// success text.
+func TestStarFailureToastIsTheError(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		starred bool
+		err     error
+		want    string
+	}{
+		{"star forbidden", false, core.ErrForbidden, "Couldn't star eggzec/gh-tui: you don't have access to this."},
+		{"unstar not found", true, core.ErrNotFound, "Couldn't unstar eggzec/gh-tui: this doesn't exist or is private."},
+		{"star wrapped", false, fmt.Errorf("star eggzec/gh-tui: %w", core.ErrConflict), "Couldn't star eggzec/gh-tui: GitHub refused this."},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				f := &fakeStar{known: true, starred: tt.starred, err: tt.err}
+				m := starApp(t, f)
+				runCommand(t, m, "star")
+				answerQuestion(t, m, "y")
+				if !hasToast(m, tt.want) {
+					t.Errorf("toasts %q, want the error %q", toasted(m), tt.want)
+				}
+				for _, done := range []string{"Starred", "Unstarred"} {
+					if hasToast(m, done) {
+						t.Errorf("toasts %q, want no %q after a failure", toasted(m), done)
+					}
+				}
+			})
+		})
+	}
 }
 
 // TestStarCommandSaysWhenItFails checks that an error is shown, and that a
