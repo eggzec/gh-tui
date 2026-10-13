@@ -32,7 +32,8 @@
                     "lastEditedAt": null,
                     "body": "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
-                    "replyTo": null
+                    "replyTo": null,
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv001"}
                   },
                   {
                     "id": "PRRC_kwDOLnBTf86Ab002",
@@ -41,7 +42,8 @@
                     "lastEditedAt": "2026-09-21T11:45:00Z",
                     "body": "No, a value keeps it copyable.",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1002",
-                    "replyTo": {"id": "PRRC_kwDOLnBTf86Ab001"}
+                    "replyTo": {"id": "PRRC_kwDOLnBTf86Ab001"},
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv002"}
                   }
                 ]
               }
@@ -71,7 +73,8 @@
                     "lastEditedAt": null,
                     "body": "This block can move into a helper.",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1003",
-                    "replyTo": null
+                    "replyTo": null,
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv001"}
                   }
                 ]
               }
@@ -101,7 +104,8 @@
                     "lastEditedAt": null,
                     "body": "Mention the new flag in this file.",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1004",
-                    "replyTo": null
+                    "replyTo": null,
+                    "pullRequestReview": null
                   }
                 ]
               }

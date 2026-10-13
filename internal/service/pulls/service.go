@@ -168,8 +168,8 @@ const (
 	commentsSchema = 4
 	// filesSchema 1 is the first.
 	filesSchema = 1
-	// threadsSchema 1 is the first.
-	threadsSchema = 1
+	// threadsSchema 1 is the first, and 2 keeps the review of each thread.
+	threadsSchema = 2
 )
 
 // maxPageSize is the most items GitHub returns in a page.

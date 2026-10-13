@@ -35,6 +35,9 @@ type Thread struct {
 	Side, StartSide Side
 	// File reports a thread on the whole file rather than on lines.
 	File bool
+	// ReviewID is the ID of the review that its first comment was made in,
+	// empty if that comment was not made in one.
+	ReviewID string
 
 	Resolved bool
 	// Outdated reports whether the code it is about has changed since.
