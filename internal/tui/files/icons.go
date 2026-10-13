@@ -25,6 +25,12 @@ func (f *fileIcons) setTheme(t ui.Theme) {
 	clear(f.rendered)
 }
 
+// setIcons takes the icon set ic from now on, which the theme renders.
+func (f *fileIcons) setIcons(ic ui.Icons) {
+	f.icons = ic
+	clear(f.rendered)
+}
+
 // entry returns the rendered icon of e, open or not, or "" in icon sets
 // without file icons.
 func (f *fileIcons) entry(e core.TreeEntry, open bool) string {

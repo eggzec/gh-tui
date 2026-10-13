@@ -38,6 +38,26 @@ func (r *ran) confirm(q string) Confirm {
 	}}
 }
 
+// A confirmation open when the icons are set draws with the new set, which
+// the theme set after styles.
+func TestConfirmModalSetIcons(t *testing.T) {
+	var r ran
+	m := NewConfirmModal(r.confirm("Close issue #12?"), NewConfirmKeys(config.Default().Keys), NewIcons(config.IconsNerd))
+	cfg, err := config.Default().Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmd := m.Update(SettingsMsg{Config: cfg}); cmd != nil {
+		t.Errorf("the settings sent %v", cmd)
+	}
+	if got, want := m.icons.Separator, NewIcons(config.IconsASCII).Separator; got != want {
+		t.Errorf("separator = %q, want %q", got, want)
+	}
+	if r.n != 0 || m.answered {
+		t.Error("the settings answered the question")
+	}
+}
+
 func TestConfirmAnswer(t *testing.T) {
 	tests := []struct {
 		key       string

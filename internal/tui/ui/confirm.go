@@ -279,6 +279,10 @@ func (m *ConfirmModal) Question() string { return m.ask.Question }
 // Update implements Modal. It takes the answer from the keys and ignores
 // every other message.
 func (m *ConfirmModal) Update(msg tea.Msg) tea.Cmd {
+	if s, ok := msg.(SettingsMsg); ok {
+		s.ReloadIcons(&m.icons)
+		return nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok || m.answered {
 		return nil

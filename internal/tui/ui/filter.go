@@ -80,6 +80,8 @@ type FilterModal struct {
 	form   filterform.Model
 	rows   int
 	icons  Icons
+	// section and subject are what the title names.
+	section, subject string
 	// back is off: the modal has no step before it.
 	back key.Binding
 }
@@ -166,16 +168,16 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	for _, opt := range opts {
 		opt(&o)
 	}
-	title := "Filter" + o.icons.Separator + section
-	if f.Subject != "" {
-		title += o.icons.Separator + f.Subject
-	}
+	m := &FilterModal{target: target, section: section, subject: f.Subject, icons: o.icons, back: o.back}
+	m.retitle()
 	formOpts := []filterform.Option{
 		filterform.WithQuery(f.Query),
 		filterform.WithTab(o.tab),
 		filterform.WithTabBar(false),
 		filterform.WithHelpLine(true),
-		filterform.WithKeyNames(o.icons.Key),
+		// The icons are read as the help line draws, so that it follows a
+		// switch of them.
+		filterform.WithKeyNames(func(k string) string { return m.icons.Key(k) }),
 		filterform.WithKeyMap(o.keys),
 		filterform.WithContext(ctx),
 	}
@@ -183,19 +185,27 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 		// The form loads the options again with its retry key, and has no
 		// key that opens GitHub.
 		v := *o.voice
-		v.Retry, v.Open, v.Icons = o.keys.Retry, key.Binding{}, &o.icons
+		v.Retry, v.Open, v.Icons = o.keys.Retry, key.Binding{}, &m.icons
 		formOpts = append(formOpts, filterform.WithErrorText(ErrorText("load the options", f.Subject, v)))
 	}
-	form := filterform.New(f.Spec, formOpts...)
+	m.form = filterform.New(f.Spec, formOpts...)
 	// Focusing the rows, where the form starts, needs no command.
-	_ = form.Focus()
+	_ = m.form.Focus()
 	// The modal keeps its height on either tab.
-	rows := len(f.Spec.Fields)
+	m.rows = len(f.Spec.Fields)
 	if f.Spec.Sort != nil {
-		rows = max(rows, sortRows)
+		m.rows = max(m.rows, sortRows)
 	}
-	o.back.SetEnabled(false)
-	return &FilterModal{title: title, target: target, form: form, rows: rows, icons: o.icons, back: o.back}
+	m.back.SetEnabled(false)
+	return m
+}
+
+// retitle words the title with the separator of the icons.
+func (m *FilterModal) retitle() {
+	m.title = "Filter" + m.icons.Separator + m.section
+	if m.subject != "" {
+		m.title += m.icons.Separator + m.subject
+	}
 }
 
 // Title implements Modal.
@@ -205,6 +215,10 @@ func (m *FilterModal) Title() string { return m.title }
 // modal ignores those of other forms.
 func (m *FilterModal) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case SettingsMsg:
+		msg.ReloadIcons(&m.icons)
+		m.retitle()
+		return nil
 	case filterform.AppliedMsg:
 		if msg.ID != m.form.ID() {
 			return nil

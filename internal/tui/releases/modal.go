@@ -299,6 +299,10 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&m.icons, &m.voice)
+		m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
+		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case releaseMsg:

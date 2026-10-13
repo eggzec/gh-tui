@@ -127,6 +127,34 @@ func TestFilterModalASCII(t *testing.T) {
 	}
 }
 
+// A modal open when the icons are set draws the new set alone: its title, and
+// the words of a failed load, which name the keys in words.
+func TestFilterModalSetIcons(t *testing.T) {
+	load := func(context.Context, string) ([]filterform.Item, error) {
+		return nil, fmt.Errorf("list labels: %w", core.ErrOffline)
+	}
+	spec := filterform.Spec{Fields: []filterform.Field{{Key: "labels", Label: "Labels", Kind: filterform.Multi, Qualifier: "label", Load: load}}}
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: spec, Subject: "eggzec/x"}, WithFormVoice(NewVoice(config.Default().Keys, "")))
+	p, _ := config.Default().Palette(true)
+	m.SetSize(80, 10)
+	cmd := m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	for _, msg := range drain(cmd) {
+		m.Update(msg)
+	}
+	cfg, err := config.Default().Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Update(SettingsMsg{Config: cfg})
+	m.SetTheme(NewTheme(p, true))
+	if got, want := m.Title(), "Filter - Issues - eggzec/x"; got != want {
+		t.Errorf("title = %q, want %q", got, want)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "x Can't reach GitHub") || !strings.Contains(v, "r to retry - esc to close") {
+		t.Errorf("view isn't in the ASCII set:\n%s", v)
+	}
+}
+
 // drain runs cmd and the commands of its batches, and returns what they
 // sent, save the spinner's ticks.
 func drain(cmd tea.Cmd) []tea.Msg {

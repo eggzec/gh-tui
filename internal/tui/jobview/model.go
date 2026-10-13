@@ -230,9 +230,16 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys KeyMap, opts 
 	return m
 }
 
+// SetIcons takes the icon set ic, which the theme set after draws with. The
+// voice keeps pointing to the copy that New made, which the log's error text
+// reads, so that is the one changed too.
+func (m *Model) SetIcons(ic ui.Icons) {
+	m.opts.icons = ic
+	*m.opts.voice.Icons = ic
+}
+
 // SetTheme styles the view.
 func (m *Model) SetTheme(t ui.Theme) {
-	m.opts.voice.Icons = &m.opts.icons
 	m.st = ui.NewRunStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
 	m.view.SetStyles(t.LogView(m.opts.icons))

@@ -276,6 +276,13 @@ func (s *Step) SetSize(width, height int) {
 	s.layout()
 }
 
+// SetIcons takes the icon set ic, in the step and the log it shows, which the
+// theme set after draws with.
+func (s *Step) SetIcons(ic ui.Icons) {
+	s.opts.icons = ic
+	s.view.SetIcons(ic)
+}
+
 // SetTheme styles the step and the bubbles in it.
 func (s *Step) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.opts.icons

@@ -134,6 +134,10 @@ func (t *textModal) Title() string { return t.title }
 // Update closes the modal when the pager asks, and passes the rest to the
 // pager.
 func (t *textModal) Update(msg tea.Msg) tea.Cmd {
+	if s, ok := msg.(ui.SettingsMsg); ok {
+		s.ReloadIcons(&t.icons)
+		return nil
+	}
 	if c, ok := msg.(pager.CloseMsg); ok {
 		if c.ID != t.pager.ID() {
 			return nil

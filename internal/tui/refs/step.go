@@ -214,6 +214,10 @@ const promptFilter = "&"
 // ID returns the instance ID that scopes the step's messages.
 func (s *Step) ID() int64 { return s.id }
 
+// SetIcons takes the icon set ic, which the theme set after draws with. The
+// step's voice points to it.
+func (s *Step) SetIcons(ic ui.Icons) { s.opts.icons = ic }
+
 // CloseMsg asks the parent to close the modal the step with ID is in, which
 // the dismiss key sends once there is no filter left to clear.
 type CloseMsg struct {

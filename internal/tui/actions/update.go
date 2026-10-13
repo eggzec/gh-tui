@@ -17,6 +17,10 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&m.opts.icons, m.opts.voice)
+		m.log.SetIcons(m.opts.icons)
+		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case restMsg:

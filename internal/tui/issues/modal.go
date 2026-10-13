@@ -142,7 +142,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		opts := append(slices.Clone(s.refsOpts), refs.WithReturn(m), refs.WithIcons(s.icons), refs.WithClock(s.now),
 			refs.WithItem(func() refs.Item { return refs.Item{Title: m.issue.Title, Updated: m.issue.UpdatedAt} }))
 		m.newRefs = func() *refs.Step {
-			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindIssue}, false, keys, opts...)
+			// The icons the modal has now, which :set may have changed.
+			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindIssue}, false, keys, append(slices.Clone(opts), refs.WithIcons(m.icons))...)
 		}
 	}
 	svc, q := s.svc, commentsQuery(repo, number)
@@ -314,6 +315,13 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	switch msg := msg.(type) {
+	case ui.SettingsMsg:
+		msg.ReloadIcons(&m.icons)
+		m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
+		if m.refs != nil {
+			m.refs.SetIcons(m.icons)
+		}
+		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case issueMsg:
