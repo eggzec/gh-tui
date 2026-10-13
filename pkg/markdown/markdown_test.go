@@ -238,6 +238,31 @@ func TestRenderWrapsCodeSpansWhole(t *testing.T) {
 	}
 }
 
+// A list, a quote and a definition list break a line after a dot, a comma
+// and some other characters too, as the files pager's 58 and 62 columns show
+// for a path in a list item, so a span that fits stays whole in them as well.
+func TestRenderKeepsCodeSpansWholeAfterEveryBreak(t *testing.T) {
+	const text = "- Logs are JSON Lines through `log/slog`, written to `log.file` (default\n" +
+		"  `$XDG_STATE_HOME/gh-tui/gh-tui.log`, else `~/.local/state/gh-tui/gh-tui.log`,\n" +
+		"  on macOS too; `%LocalAppData%` on Windows), mode 0600, rotated at\n" +
+		"  `a;b+c|d,e.f` and more words, and more words.\n"
+	wantWhole := []string{"log.file", "~/.local/state/gh-tui/gh-tui.log", "a;b+c|d,e.f"}
+	for name, src := range map[string]string{
+		"list":  text,
+		"quote": "> " + strings.ReplaceAll(strings.TrimPrefix(text, "- "), "\n  ", "\n> "),
+		"text":  strings.ReplaceAll(strings.TrimPrefix(text, "- "), "\n  ", "\n"),
+	} {
+		for _, width := range []int{50, 54, 58, 60, 62, 66, 80} {
+			out := ansi.Strip(New(DefaultStyle(true)).Render(src, width))
+			for _, span := range wantWhole {
+				if !strings.Contains(out, span) {
+					t.Errorf("%s at width %d splits %q:\n%s", name, width, span, out)
+				}
+			}
+		}
+	}
+}
+
 func TestRenderCodeSpanBindingLeavesMarkdownAlone(t *testing.T) {
 	tests := []struct{ name, src, want string }{
 		{"escaped backticks", "pre \\`2 * 3 * 4\\` post", "2 * 3 * 4"},
@@ -254,13 +279,11 @@ func TestRenderCodeSpanBindingLeavesMarkdownAlone(t *testing.T) {
 }
 
 func TestRenderReplacesTheSpanSpace(t *testing.T) {
-	for _, c := range []struct {
-		r    rune
-		text string
-	}{{spanSpace, "a b"}, {spanHyphen, "a-b"}} {
-		out := ansi.Strip(New(DefaultStyle(true)).Render("a"+string(c.r)+"b", 40))
-		if strings.Contains(out, c.text) || !strings.Contains(out, "a\ufffdb") {
-			t.Errorf("render = %q, want the character replaced, not shown as %q", out, c.text)
+	for i := range len(spanBreaks) {
+		r, text := spanStand(i), "a"+spanBreaks[i:i+1]+"b"
+		out := ansi.Strip(New(DefaultStyle(true)).Render("a"+string(r)+"b", 40))
+		if strings.Contains(out, text) || !strings.Contains(out, "a\ufffdb") {
+			t.Errorf("render = %q, want the character replaced, not shown as %q", out, text)
 		}
 	}
 }
