@@ -1,8 +1,12 @@
 package pulls
 
 import (
+	"errors"
 	"slices"
+	"strconv"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -140,6 +144,194 @@ func TestJumpFromOverviewReadsTheThreadsFirst(t *testing.T) {
 				t.Errorf("%s on the Overview showed thread %q, want %q", key, id, want)
 			}
 		})
+	}
+}
+
+// heldThreads returns the section with the modal of the sample pull request
+// open on its Overview tab, and a function that takes the pages of the threads
+// off the messages it is given, so that they arrive when the test says. In the
+// diff, the threads come in the order t3 (cmd/), t1 (internal/) and t2
+// (docs/). Reading the threads fails if failing is set.
+func heldThreads(t *testing.T, failing bool) (h *host, m *detailModal, lose func(tea.Msg) bool, release func() []tea.Msg) {
+	t.Helper()
+	svc := newFakeService()
+	svc.threadPages = map[string]core.ThreadPage{"": {Threads: jumpThreads(), Total: 3}}
+	if failing {
+		svc.threadsErr = errors.New("boom")
+	}
+	svc.pulls[0].HeadSHA = "a1b2c3d"
+	svc.changed = sampleFiles()
+	h = started(t, svc, 116, 60)
+	press(t, h, "enter")
+	m = h.modal()
+	if m == nil || m.tab != overviewTab {
+		t.Fatalf("the modal is %v, want it on the Overview tab", m)
+	}
+	var held []tea.Msg
+	lose = func(msg tea.Msg) bool {
+		if _, ok := msg.(threadsMsg); ok {
+			held = append(held, msg)
+			return true
+		}
+		return false
+	}
+	release = func() []tea.Msg {
+		t.Helper()
+		out := make([]tea.Msg, 0, len(held))
+		for _, msg := range held {
+			out = append(out, drain(t, h, h.Update(msg))...)
+		}
+		held = nil
+		return out
+	}
+	return h, m, lose, release
+}
+
+// pressHolding presses k, keeping the pages of the threads back, and returns
+// the text of the toasts it showed.
+func pressHolding(t *testing.T, h *host, lose func(tea.Msg) bool, k string) []string {
+	t.Helper()
+	var toasts []string
+	for _, msg := range drainLosing(t, h, h.Update(keyMsg(k)), lose) {
+		if n, ok := msg.(ui.NotifyMsg); ok {
+			toasts = append(toasts, n.Text)
+		}
+	}
+	return toasts
+}
+
+// A jump pressed on the Files tab before the threads are in is dropped, with a
+// toast, and doesn't land when they arrive.
+func TestJumpOnFilesBeforeTheThreadsLoadIsDropped(t *testing.T) {
+	t.Parallel()
+	h, m, lose, release := heldThreads(t, false)
+	drainLosing(t, h, m.switchTo(filesTab), lose)
+	if m.tab != filesTab || m.files == nil || m.files.set.len() == 0 {
+		t.Fatalf("the Files tab is not shown with its files: tab %d", m.tab)
+	}
+	for _, key := range []string{")", "("} {
+		toasts := pressHolding(t, h, lose, key)
+		if !slices.Equal(toasts, []string{"Review threads are still loading."}) {
+			t.Errorf("%s before the threads loaded showed the toasts %q, want that they are loading", key, toasts)
+		}
+	}
+	release()
+	if _, on := m.files.diff.CursorBlock(); on {
+		t.Errorf("a jump dropped before the threads loaded landed on thread %q once they had", cursorThread(t, m))
+	}
+	if len(m.back) != 0 {
+		t.Errorf("a dropped jump left %d return points", len(m.back))
+	}
+	// The next press works.
+	press(t, h, ")")
+	if _, on := m.files.diff.CursorBlock(); !on {
+		t.Error(") after the threads loaded did not land on a thread")
+	}
+}
+
+// A jump pressed on another tab before the threads are in waits for them and
+// lands once, however many times it was pressed.
+func TestJumpFromOverviewBeforeTheThreadsLoadLandsOnce(t *testing.T) {
+	t.Parallel()
+	for presses := 1; presses <= 3; presses++ {
+		t.Run(strconv.Itoa(presses), func(t *testing.T) {
+			t.Parallel()
+			h, m, lose, release := heldThreads(t, false)
+			for range presses {
+				if toasts := pressHolding(t, h, lose, ")"); len(toasts) != 0 {
+					t.Errorf(") on the Overview showed the toasts %q, want none", toasts)
+				}
+			}
+			if m.tab != overviewTab {
+				t.Fatalf(") before the threads loaded showed tab %d, want to wait on the Overview", m.tab)
+			}
+			release()
+			if m.tab != filesTab {
+				t.Fatalf("the jump showed tab %d once the threads loaded, want Files", m.tab)
+			}
+			if id := cursorThread(t, m); id != "t3" {
+				t.Errorf("%d presses landed on thread %q, want the first of the diff, t3", presses, id)
+			}
+			if len(m.back) != 1 {
+				t.Errorf("%d presses left %d return points, want 1", presses, len(m.back))
+			}
+		})
+	}
+}
+
+// A jump pressed on the Files tab after the threads failed to load says so, and
+// doesn't land later.
+func TestJumpOnFilesAfterTheThreadsFailedSaysSo(t *testing.T) {
+	t.Parallel()
+	h, m, lose, release := heldThreads(t, true)
+	drainLosing(t, h, m.switchTo(filesTab), lose)
+	release()
+	if m.th.got || m.th.err == nil {
+		t.Fatalf("the threads read: got %v, err %v, want it to have failed", m.th.got, m.th.err)
+	}
+	toasts := pressHolding(t, h, lose, ")")
+	if !slices.Equal(toasts, []string{"Couldn't read the review threads."}) {
+		t.Errorf(") after the threads failed showed the toasts %q, want that they couldn't be read", toasts)
+	}
+	release()
+	if _, on := m.files.diff.CursorBlock(); on {
+		t.Errorf("a jump dropped after the threads failed landed on thread %q", cursorThread(t, m))
+	}
+	if len(m.back) != 0 {
+		t.Errorf("a dropped jump left %d return points", len(m.back))
+	}
+}
+
+// A jump from another tab that waits for the threads is dropped if the user
+// goes to the Files tab first, and leaves nothing to land later.
+func TestJumpFromOverviewIsDroppedByLeavingForFiles(t *testing.T) {
+	t.Parallel()
+	h, m, lose, release := heldThreads(t, false)
+	if toasts := pressHolding(t, h, lose, ")"); len(toasts) != 0 {
+		t.Errorf(") on the Overview showed the toasts %q, want none", toasts)
+	}
+	if m.th.jumping == 0 {
+		t.Fatal(") on the Overview did not wait for the threads")
+	}
+	drainLosing(t, h, m.switchTo(filesTab), lose)
+	release()
+	if m.th.jumping != 0 {
+		t.Errorf("a jump is still waiting after the threads came in: %d", m.th.jumping)
+	}
+	if m.tab != filesTab {
+		t.Errorf("the tab is %d, want Files", m.tab)
+	}
+	if _, on := m.files.diff.CursorBlock(); on {
+		t.Errorf("a jump pressed on the Overview landed on thread %q after the user left for Files", cursorThread(t, m))
+	}
+	if len(m.back) != 0 {
+		t.Errorf("a dropped jump left %d return points", len(m.back))
+	}
+}
+
+// A jump from another tab whose read of the threads fails says so and leaves
+// nothing waiting.
+func TestJumpFromOverviewWhenTheThreadsFailSaysSo(t *testing.T) {
+	t.Parallel()
+	h, m, lose, release := heldThreads(t, true)
+	pressHolding(t, h, lose, ")")
+	if m.th.jumping == 0 {
+		t.Fatal(") on the Overview did not wait for the threads")
+	}
+	var toasts []string
+	for _, msg := range release() {
+		if n, ok := msg.(ui.NotifyMsg); ok {
+			toasts = append(toasts, n.Text)
+		}
+	}
+	if !slices.Equal(toasts, []string{"Couldn't read the review threads."}) {
+		t.Errorf("a failed read showed the toasts %q, want that the threads couldn't be read", toasts)
+	}
+	if m.th.jumping != 0 {
+		t.Errorf("a jump is still waiting after the read failed: %d", m.th.jumping)
+	}
+	if m.tab != overviewTab {
+		t.Errorf("the tab is %d, want to stay on the Overview", m.tab)
 	}
 }
 

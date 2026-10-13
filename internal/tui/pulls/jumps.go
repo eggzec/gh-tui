@@ -73,13 +73,22 @@ func (m *detailModal) jumpThread(d int) tea.Cmd {
 	if !m.readableThreads() {
 		return nil
 	}
+	t := &m.th
 	switch {
 	case m.onFiles():
+		// A jump that waited here would land after a later press had moved the
+		// cursor, one thread further than the user means, so it is dropped.
+		switch {
+		case t.got:
+		case t.err != nil:
+			return ui.Notify(toast.Warning, "Couldn't read the review threads.")
+		default:
+			return ui.Notify(toast.Info, "Review threads are still loading.")
+		}
 		return m.jumpDiff(d, false)
 	case m.onConversation():
 		return m.jumpConversation(d)
 	}
-	t := &m.th
 	if !t.started || !t.got || t.dirty || t.err != nil {
 		// Once the threads are read, the jump goes on in receiveThreads. A
 		// first read that is under way is waited for, not started again.
