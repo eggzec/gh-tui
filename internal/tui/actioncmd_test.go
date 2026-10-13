@@ -623,6 +623,40 @@ func TestLabelsCommandOpensTheEditor(t *testing.T) {
 	}
 }
 
+// TestLabelsCommandOnTheIssueList checks that labels from the list of issues,
+// where the labels are edited only in the modal of an issue, says there is
+// nothing to label there, as its key does nothing, and opens no editor.
+func TestLabelsCommandOnTheIssueList(t *testing.T) {
+	for _, unbound := range []bool{true, false} {
+		name := "key bound"
+		if unbound {
+			name = "key unbound"
+		}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m := newKeysAppWith(t, true, func(c *config.Config) {
+					if unbound {
+						c.Keys.Set("issues.labels", []string{})
+					}
+				})
+				c := keyContext{name: name, repo: true}
+				for _, k := range c.press(t, config.Default().Keys, "global.pane_3") {
+					msg, _ := keyPress(k)
+					driveKeys(t, m, m.key(msg))
+				}
+				before := layerNames(m.keyLayers())
+				runCommand(t, m, "labels")
+				if got := layerNames(m.keyLayers()); got != before {
+					t.Errorf(":labels on the list changed the keys from %q to %q", before, got)
+				}
+				if !hasToast(m, "There is nothing to labels here.") {
+					t.Errorf(":labels toasts %s, want that there is nothing to label", toasted(m))
+				}
+			})
+		})
+	}
+}
+
 // TestMutationCommandsKeepBuiltInNames checks that the commands that
 // change something don't take the names of the built-in ones.
 func TestMutationCommandsKeepBuiltInNames(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/eggzec/gh-tui/internal/cache/disk"
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -137,6 +138,70 @@ func TestUnstar(t *testing.T) {
 	}
 	wantCached(t, s, []core.Repo{ghTUI, dotfiles}, ghTUI)
 	api.wantCalls(t, "unstar octo-org/dotfiles")
+}
+
+// TestStarFailureLeavesTheKeptCopyAsItWas checks that a star or unstar that
+// fails leaves what is kept on disk as GitHub last sent it, while the change
+// is pending and after, so a new session never starts from a guessed star.
+func TestStarFailureLeavesTheKeptCopyAsItWas(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		do   func(*Service) error
+		repo core.Repo
+	}{
+		{"star", func(s *Service) error { return s.Star(ghTUI.Ref).Do(t.Context()) }, ghTUI},
+		{"unstar", func(s *Service) error { return s.Unstar(dotfiles.Ref).Do(t.Context()) }, dotfiles},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			store, err := disk.Open(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			list := func(int, string) (core.Page[core.Repo], error) { return page("", ghTUI, dotfiles), nil }
+			get := func(ref core.RepoRef) (core.Repo, error) {
+				if sameRepo(ref, dotfiles.Ref) {
+					return dotfiles, nil
+				}
+				return ghTUI, nil
+			}
+			api := &fakeAPI{t: t, listRepos: list, getRepo: get}
+			s := New(api, WithStore(store))
+			if _, err := s.List(t.Context(), ListQuery{}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Get(t.Context(), tt.repo.Ref); err != nil {
+				t.Fatal(err)
+			}
+
+			// A new session reads the kept copy: the repository fresh, and the
+			// list page stale. Neither shows a star that was never confirmed.
+			kept := func(when string) {
+				t.Helper()
+				api := &fakeAPI{t: t, listRepos: list, getRepo: get}
+				ns := New(api, WithStore(store))
+				if got, err := ns.Get(t.Context(), tt.repo.Ref); err != nil || got != tt.repo {
+					t.Errorf("kept repository %s = %+v, %v; want %+v", when, got, err, tt.repo)
+				}
+				got, err := ns.List(t.Context(), ListQuery{})
+				if err != nil || !slices.Contains(got.Items, tt.repo) {
+					t.Errorf("kept list %s = %+v, %v; want it to hold %+v", when, got.Items, err, tt.repo)
+				}
+				api.wantCalls(t)
+			}
+
+			api.star = func(core.RepoRef, bool) error {
+				kept("while the change is sent")
+				return core.ErrForbidden
+			}
+			if err := tt.do(s); !errors.Is(err, core.ErrForbidden) {
+				t.Fatalf("Do error = %v, want ErrForbidden", err)
+			}
+			kept("after the failure")
+			if got, _ := s.CachedGet(tt.repo.Ref); got != tt.repo {
+				t.Errorf("cached repository = %+v, want %+v", got, tt.repo)
+			}
+		})
+	}
 }
 
 func TestStarAlreadyStarred(t *testing.T) {
