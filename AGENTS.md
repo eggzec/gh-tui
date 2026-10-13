@@ -440,7 +440,9 @@ reacts to messages. Concretely:
   is refused, except for the actions the context lists in `Printable`
   (`help.close`, `picker.toggle`). `picker_normal`, the picker's keys
   before its filter takes the typing, is a separate context that does not
-  type. What a
+  type. An action of another context that those widgets must see the keys
+  before, such as `global.dismiss`, is listed in its context's `Typed` and
+  refuses printable keys too. What a
   global key does depends on what has the focus: a pane implements such an
   intent (`global.select`, `global.refresh`) and labels it in help, but
   never binds its key. Every context is listed in
