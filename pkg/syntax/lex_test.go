@@ -122,8 +122,8 @@ func TestHeadWaitsForTheGate(t *testing.T) {
 }
 
 // guardedHead is Head that fails the test if it hasn't returned after a
-// bound that only a hang reaches, which it isn't a limit on how long Head
-// may take: without it a Head that ignored its limit, its context or its
+// bound that only a hang reaches. The bound is not a limit on how long Head
+// may take: without it, a Head that ignored its limit, its context or its
 // wait would end in the test's timeout and a dump of every goroutine.
 func guardedHead(ctx context.Context, t *testing.T, l chroma.Lexer, code string, limit time.Duration) ([]chroma.Token, error) {
 	t.Helper()
