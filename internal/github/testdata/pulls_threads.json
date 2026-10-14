@@ -4,7 +4,7 @@
     "repository": {
       "pullRequest": {
         "reviewThreads": {
-          "totalCount": 7,
+          "totalCount": 8,
           "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOnYyOpHOAAAF"},
           "nodes": [
             {
@@ -33,7 +33,7 @@
                     "body": "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
                     "replyTo": null,
-                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv001"}
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv001", "state": "COMMENTED"}
                   },
                   {
                     "id": "PRRC_kwDOLnBTf86Ab002",

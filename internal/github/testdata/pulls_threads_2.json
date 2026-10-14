@@ -4,7 +4,7 @@
     "repository": {
       "pullRequest": {
         "reviewThreads": {
-          "totalCount": 7,
+          "totalCount": 8,
           "pageInfo": {"hasNextPage": false, "endCursor": "Y3Vyc29yOnYyOpHOAAAH"},
           "nodes": [
             {
@@ -32,7 +32,49 @@
                     "lastEditedAt": null,
                     "body": "Bump this.",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1008",
-                    "replyTo": null
+                    "replyTo": null,
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv003", "state": "PENDING"}
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOLnBTf85Aa008",
+              "path": "go.sum",
+              "line": 9,
+              "startLine": null,
+              "originalLine": 9,
+              "originalStartLine": null,
+              "diffSide": "RIGHT",
+              "startDiffSide": null,
+              "subjectType": "LINE",
+              "isResolved": false,
+              "isOutdated": false,
+              "resolvedBy": null,
+              "viewerCanResolve": true,
+              "viewerCanUnresolve": false,
+              "comments": {
+                "totalCount": 2,
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab009",
+                    "author": {"__typename": "User", "login": "monalisa", "name": "Mona Lisa"},
+                    "createdAt": "2026-09-23T08:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Is this sum right?",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1009",
+                    "replyTo": null,
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv004", "state": "COMMENTED"}
+                  },
+                  {
+                    "id": "PRRC_kwDOLnBTf86Ab010",
+                    "author": {"__typename": "User", "login": "hubot", "name": "Hubot"},
+                    "createdAt": "2026-09-23T09:00:00Z",
+                    "lastEditedAt": null,
+                    "body": "Yes, I checked.",
+                    "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1010",
+                    "replyTo": {"id": "PRRC_kwDOLnBTf86Ab009"},
+                    "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv003", "state": "PENDING"}
                   }
                 ]
               }

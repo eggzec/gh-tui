@@ -54,6 +54,12 @@ type fakeAPI struct {
 	// submitErr fails SubmitReview, and submits are what it was sent.
 	submitErr error
 	submits   []submitted
+	// pendingReview, pendingFound and pendingErr are what PendingReview
+	// answers. A pending submission is recorded in submits, with the review's
+	// ID in the commit field.
+	pendingReview core.PendingReview
+	pendingFound  bool
+	pendingErr    error
 }
 
 // submitted is one call of SubmitReview.
@@ -73,6 +79,21 @@ func (f *fakeAPI) SubmitReview(_ context.Context, pullID, commit string, event c
 		return "", f.submitErr
 	}
 	return "PRR_1", nil
+}
+
+func (f *fakeAPI) PendingReview(context.Context, core.RepoRef, int) (core.PendingReview, bool, error) {
+	f.called("pending")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pendingReview, f.pendingFound, f.pendingErr
+}
+
+func (f *fakeAPI) SubmitPendingReview(_ context.Context, pullID, reviewID string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) error {
+	f.called("submitpending")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.submits = append(f.submits, submitted{pullID, reviewID, body, event, threads, replies})
+	return f.submitErr
 }
 
 func (f *fakeAPI) called(method string) {

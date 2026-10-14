@@ -38,6 +38,9 @@ type Thread struct {
 	// ReviewID is the ID of the review that its first comment was made in,
 	// empty if that comment was not made in one.
 	ReviewID string
+	// Pending reports a thread that its first comment started in a review
+	// that is not submitted yet, which only its author sees.
+	Pending bool
 
 	Resolved bool
 	// Outdated reports whether the code it is about has changed since.
@@ -69,6 +72,8 @@ type ThreadComment struct {
 	ReplyTo string
 	// EditedAt is when the comment was last edited, zero if it wasn't.
 	EditedAt time.Time
+	// Pending reports a comment of a review that is not submitted yet.
+	Pending bool
 }
 
 // ThreadPage is one page of the review threads of a pull request. An empty
