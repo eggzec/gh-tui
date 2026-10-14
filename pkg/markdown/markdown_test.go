@@ -263,6 +263,43 @@ func TestRenderKeepsCodeSpansWholeAfterEveryBreak(t *testing.T) {
 	}
 }
 
+// A line ending inside a code span is a space, before any line break, so the
+// span is one span and stays whole like any other, while the soft breaks
+// outside it stay breaks.
+func TestRenderJoinsCodeSpanOverLines(t *testing.T) {
+	const text = "a path in `~/.local/state/\ngh-tui/gh-tui.log` and more\nnext line"
+	const want = "~/.local/state/ gh-tui/gh-tui.log"
+	for name, src := range map[string]string{
+		"text":  text,
+		"quote": "> " + strings.ReplaceAll(text, "\n", "\n> "),
+		"list":  "- " + strings.ReplaceAll(text, "\n", "\n  "),
+	} {
+		for _, width := range []int{40, 50, 60, 80} {
+			out := ansi.Strip(New(DefaultStyle(true)).Render(src, width))
+			if !strings.Contains(out, want) {
+				t.Errorf("%s at width %d splits the span:\n%s", name, width, out)
+			}
+			if !strings.Contains(out, "more\n") || !strings.Contains(out, "next line") {
+				t.Errorf("%s at width %d lost the soft break after the span:\n%s", name, width, out)
+			}
+		}
+	}
+}
+
+// The paragraph of the markdown test file, wrapped at the widths where a path
+// used to split.
+func TestRenderKeepsCodeSpansWholeInAParagraph(t *testing.T) {
+	const src = "This file exists to test markdown rendering in gh-tui. It has long lines with inline code such as `~/.local/state/gh-tui/gh-tui.log` and `internal/tui/pulls/modal.go` near the end of a line so that wrapping can be checked at 80 columns."
+	for width := 56; width <= 80; width++ {
+		out := ansi.Strip(New(DefaultStyle(true)).Render(src, width))
+		for _, span := range []string{"~/.local/state/gh-tui/gh-tui.log", "internal/tui/pulls/modal.go"} {
+			if !strings.Contains(out, span) {
+				t.Errorf("width %d splits %q:\n%s", width, span, out)
+			}
+		}
+	}
+}
+
 func TestRenderCodeSpanBindingLeavesMarkdownAlone(t *testing.T) {
 	tests := []struct{ name, src, want string }{
 		{"escaped backticks", "pre \\`2 * 3 * 4\\` post", "2 * 3 * 4"},
