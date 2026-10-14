@@ -270,6 +270,9 @@ func newSection(tb testing.TB, svc Service, width, height int) *Section {
 	s.SetTheme(ui.NewTheme(p, true))
 	s.SetSize(width, height)
 	s.Focus()
+	// asking is package-level, so a question left open must not outlive
+	// the test that opened it.
+	tb.Cleanup(func() { delete(asking, s) })
 	run(tb, s, s.Init())
 	return s
 }

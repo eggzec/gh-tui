@@ -289,12 +289,28 @@ func TestSeedDuringFetch(t *testing.T) {
 			return Entry[string]{Value: "new"}, nil
 		})
 	}()
-	<-started
+	defer func() {
+		// Let the fetch end if the test fails before releasing it.
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the fetch never started")
+	}
 	if c.Seed("k", Entry[string]{Value: "kept"}) {
 		t.Error("Seed during a fetch = true, want false")
 	}
 	close(release)
-	<-done
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the fetch never ended")
+	}
 	if e, st := c.Get("k"); e.Value != "new" || st != Fresh {
 		t.Errorf("Get = %+v, %v; want the fetched value", e, st)
 	}

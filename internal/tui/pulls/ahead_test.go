@@ -81,111 +81,131 @@ func TestPrefetchHover(t *testing.T) {
 }
 
 func TestPrefetchCancelledByRepo(t *testing.T) {
-	svc := newFakeService()
-	h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
-	svc.mu.Lock()
-	ctxs := slices.Clone(svc.getCtxs)
-	svc.mu.Unlock()
-	if len(ctxs) == 0 {
-		t.Fatal("nothing was read ahead")
-	}
-	drain(t, h, h.Update(ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}))
-	for _, ctx := range ctxs {
-		if ctx.Err() == nil {
-			t.Error("a read ahead of the old repository wasn't cancelled")
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
+		synctest.Wait()
+		svc.mu.Lock()
+		ctxs := slices.Clone(svc.getCtxs)
+		svc.mu.Unlock()
+		if len(ctxs) == 0 {
+			t.Fatal("nothing was read ahead")
 		}
-	}
+		drain(t, h, h.Update(ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}))
+		for _, ctx := range ctxs {
+			if ctx.Err() == nil {
+				t.Error("a read ahead of the old repository wasn't cancelled")
+			}
+		}
+	})
 }
 
 func TestPrefetchStopsAtRateLimit(t *testing.T) {
-	svc := newFakeService()
-	svc.getErr = &core.RateLimitError{Reset: clock}
-	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
-	n := len(svc.got())
-	if n == 0 || n > 3 {
-		t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
-	}
-	press(t, h, "down")
-	press(t, h, "down")
-	if got := len(svc.got()); got != n {
-		t.Errorf("read %d more details under the rate limit", got-n)
-	}
-	// Another repository is under the same token, so it stays limited.
-	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
-	svc.mu.Lock()
-	svc.getErr = nil
-	for i := range svc.pulls {
-		svc.pulls[i].Repo = other
-	}
-	svc.mu.Unlock()
-	drain(t, h, h.Update(ui.RepoMsg{Repo: other}))
-	press(t, h, "down")
-	if got := len(svc.got()); got != n {
-		t.Errorf("read %d more details for another repository under the rate limit", got-n)
-	}
-	// GitHub answering again while a limit holds resumes nothing.
-	drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
-	if got := len(svc.got()); got != n {
-		t.Errorf("read %d more details while a rate limit still held", got-n)
-	}
-	// Once the limit lifts, the window is read again, before the cursor
-	// moves.
-	drain(t, h, h.Update(ui.OnlineMsg{}))
-	if got := len(svc.got()); got == n {
-		t.Error("nothing was read ahead once the rate limit lifted")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		svc.getErr = &core.RateLimitError{Reset: clock}
+		h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
+		synctest.Wait()
+		n := len(svc.got())
+		if n == 0 || n > 3 {
+			t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
+		}
+		press(t, h, "down")
+		press(t, h, "down")
+		synctest.Wait()
+		if got := len(svc.got()); got != n {
+			t.Errorf("read %d more details under the rate limit", got-n)
+		}
+		// Another repository is under the same token, so it stays limited.
+		other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+		svc.mu.Lock()
+		svc.getErr = nil
+		for i := range svc.pulls {
+			svc.pulls[i].Repo = other
+		}
+		svc.mu.Unlock()
+		drain(t, h, h.Update(ui.RepoMsg{Repo: other}))
+		press(t, h, "down")
+		synctest.Wait()
+		if got := len(svc.got()); got != n {
+			t.Errorf("read %d more details for another repository under the rate limit", got-n)
+		}
+		// GitHub answering again while a limit holds resumes nothing.
+		drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
+		synctest.Wait()
+		if got := len(svc.got()); got != n {
+			t.Errorf("read %d more details while a rate limit still held", got-n)
+		}
+		// Once the limit lifts, the window is read again, before the cursor
+		// moves.
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		synctest.Wait()
+		if got := len(svc.got()); got == n {
+			t.Error("nothing was read ahead once the rate limit lifted")
+		}
+	})
 }
 
 // TestPrefetchStopsAtKeptForLimit checks that a detail served kept, in
 // place of a read GitHub rate limited, stops the reads ahead as the rate
 // limit's error does, until the limit lifts.
 func TestPrefetchStopsAtKeptForLimit(t *testing.T) {
-	svc := newFakeService()
-	svc.getKept = true
-	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
-	n := len(svc.got())
-	if n == 0 || n > 3 {
-		t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
-	}
-	press(t, h, "down")
-	press(t, h, "down")
-	if got := len(svc.got()); got != n {
-		t.Errorf("read %d more details under the rate limit", got-n)
-	}
-	// GitHub answering again while a limit holds resumes nothing.
-	drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
-	press(t, h, "down")
-	if got := len(svc.got()); got != n {
-		t.Errorf("read %d more details while a rate limit still held", got-n)
-	}
-	svc.mu.Lock()
-	svc.getKept = false
-	svc.mu.Unlock()
-	drain(t, h, h.Update(ui.OnlineMsg{}))
-	if got := len(svc.got()); got == n {
-		t.Error("nothing was read ahead once the rate limit lifted")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		svc.getKept = true
+		h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
+		synctest.Wait()
+		n := len(svc.got())
+		if n == 0 || n > 3 {
+			t.Errorf("read %d details before the rate limit stopped it, want 1 to 3", n)
+		}
+		press(t, h, "down")
+		press(t, h, "down")
+		synctest.Wait()
+		if got := len(svc.got()); got != n {
+			t.Errorf("read %d more details under the rate limit", got-n)
+		}
+		// GitHub answering again while a limit holds resumes nothing.
+		drain(t, h, h.Update(ui.OnlineMsg{Limited: true}))
+		press(t, h, "down")
+		synctest.Wait()
+		if got := len(svc.got()); got != n {
+			t.Errorf("read %d more details while a rate limit still held", got-n)
+		}
+		svc.mu.Lock()
+		svc.getKept = false
+		svc.mu.Unlock()
+		drain(t, h, h.Update(ui.OnlineMsg{}))
+		synctest.Wait()
+		if got := len(svc.got()); got == n {
+			t.Error("nothing was read ahead once the rate limit lifted")
+		}
+	})
 }
 
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {
-	svc := newFakeService()
-	h := started(t, svc, 80, 40, readingAhead(4, time.Millisecond, false))
-	press(t, h, "down")
-	seq, ok := sequence(h.Update(keyMsg("enter"))())
-	if !ok || len(seq) != 2 {
-		t.Fatal("enter should open the modal, then start its loads")
-	}
-	drain(t, h, seq[0])
-	h.modal().tab = conversationTab
-	view := modalScreen(t, h)
-	for _, want := range []string{"Retry GraphQL requests", "Cold starts read every page", "Does this survive a crash"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		h := started(t, svc, 80, 40, readingAhead(4, time.Millisecond, false))
+		press(t, h, "down")
+		// The detail of the row moved to is read ahead before the modal opens.
+		synctest.Wait()
+		seq, ok := sequence(h.Update(keyMsg("enter"))())
+		if !ok || len(seq) != 2 {
+			t.Fatal("enter should open the modal, then start its loads")
 		}
-	}
-	if strings.Contains(view, "Loading…") {
-		t.Errorf("modal waits for its detail:\n%s", view)
-	}
+		drain(t, h, seq[0])
+		h.modal().tab = conversationTab
+		view := modalScreen(t, h)
+		for _, want := range []string{"Retry GraphQL requests", "Cold starts read every page", "Does this survive a crash"} {
+			if !strings.Contains(view, want) {
+				t.Errorf("modal lacks %q before any load:\n%s", want, view)
+			}
+		}
+		if strings.Contains(view, "Loading…") {
+			t.Errorf("modal waits for its detail:\n%s", view)
+		}
+	})
 }
 
 func TestNoPrefetchByDefault(t *testing.T) {

@@ -253,22 +253,26 @@ func TestFilesAheadOff(t *testing.T) {
 }
 
 func TestFilesAheadNotWhileFilesShows(t *testing.T) {
-	t.Parallel()
-	svc := newFakeService()
-	svc.filesCache = true
-	h, m := filedWith(t, svc, 100, 30, quickFiles())
-	press(t, h, "[")
-	if !m.onFiles() {
-		t.Fatal("the modal isn't on the Files tab")
-	}
-	reads := svc.fileReadCount()
-	// The tab reads the files of the new head itself.
-	newHead(t, h, svc, "b2c3d4e")
-	time.Sleep(20 * time.Millisecond)
-	press(t, h, "j")
-	if got := svc.fileReadCount(); got != reads+1 {
-		t.Errorf("%d reads of the new head's files while Files shows, want the tab's own one", got-reads)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService()
+		svc.filesCache = true
+		h, m := filedWith(t, svc, 100, 30, readingFiles(nil))
+		press(t, h, "[")
+		if !m.onFiles() {
+			t.Fatal("the modal isn't on the Files tab")
+		}
+		reads := svc.fileReadCount()
+		// The tab reads the files of the new head itself.
+		newHead(t, h, svc, "b2c3d4e")
+		// Past the rest, so that a read ahead would have been made by now.
+		time.Sleep(time.Second)
+		synctest.Wait()
+		press(t, h, "j")
+		synctest.Wait()
+		if got := svc.fileReadCount(); got != reads+1 {
+			t.Errorf("%d reads of the new head's files while Files shows, want the tab's own one", got-reads)
+		}
+	})
 }
 
 func TestFilesAheadNotTwice(t *testing.T) {

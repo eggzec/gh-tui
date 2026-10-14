@@ -141,11 +141,13 @@ func TestKindOf(t *testing.T) {
 }
 
 // Warm logs a stale entry read from disk once, whether it is served or
-// only put in memory, and not again as it is served from memory.
+// only put in memory, and not again as it is served from memory. It
+// replaces the global slog default, so it stays serial.
 func TestWarmLogsDiskReadsOnly(t *testing.T) {
+	prev := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(prev) })
 	for _, again := range []bool{false, true} {
 		var buf bytes.Buffer
-		prev := slog.Default()
 		slog.SetDefault(obs.NewLogger(&buf, slog.LevelDebug, "s_test"))
 		shelf := NewShelf[int](newMemStore(), "pulllist", 1)
 		if err := shelf.Save("pulls:a", Entry[int]{Value: 1, FetchedAt: time.Now().Add(-time.Hour)}); err != nil {
@@ -155,7 +157,6 @@ func TestWarmLogsDiskReadsOnly(t *testing.T) {
 		for range 3 {
 			shelf.Warm(c, "pulls:a", again)
 		}
-		slog.SetDefault(prev)
 		if n := strings.Count(buf.String(), `"span":"cache.disk"`); n != 1 {
 			t.Errorf("again=%v: %d disk records, want one:\n%s", again, n, buf.String())
 		}

@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
@@ -91,18 +92,22 @@ func TestPrefetchedFilterShowsWithoutRequest(t *testing.T) {
 }
 
 func TestPrefetchFiltersReadsNoDetailsAhead(t *testing.T) {
-	svc := newFakeService(sampleIssues(12))
-	h := started(t, svc, 80, 30, readingTabs(), readingAhead(4, time.Millisecond, false))
-	// All the issues show, and the closed ones are read ahead. #991 is
-	// closed, and past the first rows of all.
-	press(t, h, "[")
-	if got := svc.getCalls(); slices.Contains(got, 991) {
-		t.Errorf("read closed issue #991 ahead of its filter: %v", got)
-	}
-	press(t, h, "[")
-	if got := svc.getCalls(); !slices.Contains(got, 991) {
-		t.Errorf("read issues %v, want the closed ones once shown", got)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService(sampleIssues(12))
+		h := started(t, svc, 80, 30, readingTabs(), readingAhead(4, time.Millisecond, false))
+		// All the issues show, and the closed ones are read ahead. #991 is
+		// closed, and past the first rows of all.
+		press(t, h, "[")
+		synctest.Wait()
+		if got := svc.getCalls(); slices.Contains(got, 991) {
+			t.Errorf("read closed issue #991 ahead of its filter: %v", got)
+		}
+		press(t, h, "[")
+		synctest.Wait()
+		if got := svc.getCalls(); !slices.Contains(got, 991) {
+			t.Errorf("read issues %v, want the closed ones once shown", got)
+		}
+	})
 }
 
 func TestPrefetchFiltersOncePerRepository(t *testing.T) {

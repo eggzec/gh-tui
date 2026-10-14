@@ -576,12 +576,17 @@ func TestSharedFetch(t *testing.T) {
 		_, err := f.Fetch(first, Source{URL: avatar}, box)
 		errs <- err
 	}()
-	<-arrived
+	select {
+	case <-arrived:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the first request never arrived")
+	}
 	go func() {
 		_, err := f.Fetch(t.Context(), Source{URL: avatar}, box)
 		errs <- err
 	}()
 	// The second caller joins before the first gives up.
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		f.mu.Lock()
 		n := 0
@@ -591,6 +596,9 @@ func TestSharedFetch(t *testing.T) {
 		f.mu.Unlock()
 		if n == 2 {
 			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d callers share the download, want 2", n)
 		}
 		time.Sleep(time.Millisecond)
 	}
@@ -955,7 +963,11 @@ func TestOneDownloadForTwoBoxes(t *testing.T) {
 		errs <- err
 	}()
 	// Both flights are waiting on the one download before it ends.
+	deadline := time.Now().Add(10 * time.Second)
 	for !f.sharing(2) {
+		if time.Now().After(deadline) {
+			t.Fatal("the two flights never shared the download")
+		}
 		time.Sleep(time.Millisecond)
 	}
 	close(release)

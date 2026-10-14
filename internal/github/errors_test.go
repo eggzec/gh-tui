@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -351,13 +352,17 @@ func TestErrorKindsOffline(t *testing.T) {
 
 func TestErrorKindsCanceled(t *testing.T) {
 	arrived := make(chan struct{})
+	var once sync.Once
 	c := newTestClient(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		close(arrived)
+		once.Do(func() { close(arrived) })
 		<-r.Context().Done()
 	}))
 	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
-		<-arrived
+		select {
+		case <-arrived:
+		case <-time.After(10 * time.Second):
+		}
 		cancel()
 	}()
 	_, err := c.Get(ctx, "slow", Conditional{}, nil)
