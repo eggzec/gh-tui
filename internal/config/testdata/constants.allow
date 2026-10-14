@@ -83,6 +83,7 @@ internal/github/gate.go:maxStagger  keep: a safety mechanism of the rate-limit g
 internal/github/gate.go:minStagger  keep: a safety mechanism of the rate-limit gate
 internal/github/gate.go:probeTimeout  keep: a safety mechanism of the rate-limit gate
 internal/github/gate.go:gateLogEvery  keep: a log throttle, one record of a held request per resource and reason a while
+internal/github/pulls_review.go:cleanupTimeout  keep: a safety bound on deleting a pending review after a failed submit
 internal/github/ratelimit.go:secondaryBackoff  keep: GitHub's documented wait after a secondary limit that names none
 internal/github/ratestatus.go:notifyEvery  keep: a mechanism, how often the status bar hears of the rate limit
 internal/github/server.go:maxSkew  keep: a bound, how far GitHub's clock may drift before the log warns
