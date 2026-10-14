@@ -152,6 +152,9 @@ func (keyPulls) Reviews(context.Context, pullsvc.ReviewsQuery) (core.Page[core.R
 func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.CommitFile], error) {
 	return core.Page[core.CommitFile]{Items: keyChanged}, nil
 }
+func (keyPulls) PendingReview(context.Context, core.RepoRef, int) (core.PendingReview, bool, error) {
+	return core.PendingReview{}, false, nil
+}
 func (keyPulls) Threads(context.Context, pullsvc.ThreadsQuery) (core.ThreadPage, error) {
 	return core.ThreadPage{}, nil
 }
