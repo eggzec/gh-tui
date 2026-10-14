@@ -596,8 +596,8 @@ var reachedLayers = struct {
 type reachedContext struct {
 	once   sync.Once
 	layers []keyhelp.Layer
-	// ok is set when the context was reached, for a caller that finds the
-	// caller that tried failed.
+	// ok is set once the context was reached. A later caller that finds it
+	// unset knows that the first caller's attempt failed.
 	ok bool
 }
 
@@ -606,7 +606,7 @@ type reachedContext struct {
 // others share what it found.
 func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	t.Helper()
-	id := fmt.Sprintf("%s\x00%v\x00%q\x00%T\x00%q\x00%s", c.name, c.repo, c.steps, c.msg, c.after, c.want)
+	id := fmt.Sprintf("%s\x00%v\x00%q\x00%#v\x00%q\x00%s", c.name, c.repo, c.steps, c.msg, c.after, c.want)
 	reachedLayers.Lock()
 	r, ok := reachedLayers.byContext[id]
 	if !ok {

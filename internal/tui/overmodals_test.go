@@ -23,6 +23,19 @@ func TestOverEveryModal(t *testing.T) {
 				}
 				open := m.modal
 
+				// A check could leave the modal on another step or focus
+				// without replacing it, and every later check, the quit
+				// above all, would then test that other view. So the
+				// layers of keys it opened with are kept, and each check
+				// must leave the modal on them.
+				views := layerNames(m.keyLayers())
+				same := func(after string) {
+					t.Helper()
+					if got := layerNames(m.keyLayers()); m.modal != open || got != views {
+						t.Fatalf("%s: left %s with keys of %q, want %q", after, mod.title, got, views)
+					}
+				}
+
 				// A key that shows another screen is refused, naming the
 				// modal and what the key does.
 				for _, tt := range []struct{ key, use string }{
@@ -38,6 +51,7 @@ func TestOverEveryModal(t *testing.T) {
 					if m.modal != open || m.screen != screen {
 						t.Errorf("screen key %s: the key changed what shows: modal %v, screen %v", tt.key, m.modal != open, m.screen != screen)
 					}
+					same("screen key " + tt.key)
 				}
 
 				// The command key opens the command line over each modal
@@ -54,6 +68,7 @@ func TestOverEveryModal(t *testing.T) {
 				if m.line.Focused() || m.modal != open {
 					t.Errorf("command key: esc left the line open %v, modal kept %v; want it closed over the same modal", m.line.Focused(), m.modal == open)
 				}
+				same("the esc that closes the command line")
 
 				// An allowed command runs over each modal, and a refused
 				// one says to close the modal first, by its name, and
@@ -63,6 +78,7 @@ func TestOverEveryModal(t *testing.T) {
 				if m.cfg.Files.Markdown != "raw" {
 					t.Errorf("commands: set over %s didn't run: files.markdown is %q", mod.title, m.cfg.Files.Markdown)
 				}
+				same("set")
 				for _, line := range []string{"goto cli/cli", "search", "find_file", "auth", "history"} {
 					m.toast.Clear()
 					runCommand(t, m, line)
@@ -71,9 +87,7 @@ func TestOverEveryModal(t *testing.T) {
 					if !hasToast(m, want) {
 						t.Errorf("commands: %s: toasts %s, want %q", line, toasted(m), want)
 					}
-					if m.modal != open {
-						t.Fatalf("commands: %s changed the modal", line)
-					}
+					same(line)
 				}
 
 				// Over a modal, the config shows in the pager, and
@@ -86,6 +100,7 @@ func TestOverEveryModal(t *testing.T) {
 				if m.modal != open {
 					t.Fatalf("config: backspace left the pager over %s, want it back", mod.title)
 				}
+				same("the backspace from the config pager")
 
 				// The quit key closes the modal in one press, from any of
 				// its views.
