@@ -51,6 +51,28 @@ type fakeAPI struct {
 	threadSetErr error
 	// commentErr fails CreateIssueComment.
 	commentErr error
+	// submitErr fails SubmitReview, and submits are what it was sent.
+	submitErr error
+	submits   []submitted
+}
+
+// submitted is one call of SubmitReview.
+type submitted struct {
+	pull, commit, body string
+	event              core.ReviewEvent
+	threads            []github.ReviewThreadDraft
+	replies            []github.ReviewReplyDraft
+}
+
+func (f *fakeAPI) SubmitReview(_ context.Context, pullID, commit string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) (string, error) {
+	f.called("submit")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.submits = append(f.submits, submitted{pullID, commit, body, event, threads, replies})
+	if f.submitErr != nil {
+		return "", f.submitErr
+	}
+	return "PRR_1", nil
 }
 
 func (f *fakeAPI) called(method string) {

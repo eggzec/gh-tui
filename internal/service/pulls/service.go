@@ -42,6 +42,9 @@ type API interface {
 	// SetReviewThreadResolved resolves the review thread with node ID id, or
 	// unresolves it.
 	SetReviewThreadResolved(ctx context.Context, id string, resolved bool) error
+	// SubmitReview sends threads and replies as one review of the pull
+	// request with node ID pullID, on commit, and returns the review's ID.
+	SubmitReview(ctx context.Context, pullID, commit string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) (string, error)
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error)
