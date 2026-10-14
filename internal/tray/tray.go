@@ -76,6 +76,10 @@ type Draft struct {
 	// or changed. The draft keeps its commit, and is sent against it unless the
 	// user places it on a line again.
 	Outdated bool `json:"outdated,omitempty"`
+	// OnGitHub marks a comment that is already in the user's pending review on
+	// GitHub, which the tray shows beside the drafts. It is read from GitHub
+	// each time, so the tag keeps it out of the file.
+	OnGitHub bool `json:"-"`
 }
 
 // file is the shape of the file of the drafts of a pull request. The key is

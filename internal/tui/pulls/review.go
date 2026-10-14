@@ -24,9 +24,19 @@ import (
 // The review step of the modal: the user picks a verdict, writes a summary
 // and, after a question, every draft of the tray goes to GitHub as one review.
 
-// pendingReviewText is what the user reads when GitHub says that they already
-// have a pending review on the pull request, which it allows one of.
-const pendingReviewText = "You have a pending review on this PR on GitHub; finish or discard it there."
+// outdatedPendingText is what the user reads when their pending review on
+// GitHub is on an older commit than the head: a comment added to it lands on
+// that commit, so a review sent from here would not be one of the head.
+const outdatedPendingText = "Your pending review on GitHub is on an older commit than the head; update or discard it on GitHub first."
+
+// pendingAppearedText is what the user reads when a pending review started on
+// GitHub after they confirmed: its comments are in the tray now, and the
+// drafts are kept.
+const pendingAppearedText = "You have a pending review on GitHub; its comments are in the tray now. Submit again to send them with the drafts."
+
+// partialReviewText is what the user reads when a review into their pending
+// review failed part way: what was added stays there.
+const partialReviewText = "Comments that went in before the failure stay in your pending review on GitHub, and leave the drafts."
 
 // reviewStage is the part of the step on view.
 type reviewStage int
@@ -83,6 +93,10 @@ type reviewPlan struct {
 	skipped     int
 	sentIDs     []string
 	number      int
+	// onGitHub counts the comments already in the pending review, which are
+	// not sent, and pending is that review, with no ID if there is none.
+	onGitHub int
+	pending  core.PendingReview
 }
 
 // summaryKey is the key of the draft of the summary of a review of this pull
@@ -104,7 +118,8 @@ func (m *detailModal) openReview() tea.Cmd {
 		return ui.Notify(toast.Info, "The head commit is not known yet; try again once the pull request has loaded.")
 	}
 	m.rev = &reviewState{}
-	return nil
+	// A pending review may have been started on the web since it was last read.
+	return m.loadPending()
 }
 
 // pressReview takes a key of the step, which takes every key.
@@ -160,6 +175,16 @@ func (m *detailModal) startSummary() tea.Cmd {
 	}
 	r.stage = reviewSummary
 	r.comp = composer.New(m.summaryKey(), opts...)
+	if body := m.tray.pending.Body; body != "" && m.drafts != nil {
+		// The pending review's summary starts the text, unless the user kept
+		// a draft of their own, which is read here since a text in the
+		// composer keeps its own draft from being restored.
+		if text, err := m.drafts.Load(m.summaryKey()); err != nil || strings.TrimSpace(text) == "" {
+			r.comp.SetValue(body)
+		}
+	} else if body != "" {
+		r.comp.SetValue(body)
+	}
 	return tea.Batch(r.comp.Init(), r.comp.Focus())
 }
 
@@ -254,7 +279,7 @@ func (m *detailModal) pasteReview(msg tea.PasteMsg) tea.Cmd {
 // is to a thread, whichever commit it was written on, and one with no commit,
 // as the drafts of an earlier version are, is sent as it is.
 func draftOutdatedFor(d tray.Draft, head string) bool {
-	if d.ThreadID != "" {
+	if d.ThreadID != "" || d.OnGitHub {
 		return false
 	}
 	return d.Outdated || d.Commit != "" && d.Commit != head
@@ -264,10 +289,16 @@ func draftOutdatedFor(d tray.Draft, head string) bool {
 // verdict is the one picked, and the drafts those the head left no change to.
 func (m *detailModal) planReview(summary string) (p reviewPlan, refusal string) {
 	v := verdicts[m.rev.verdict]
-	p = reviewPlan{event: v.event, label: v.label, body: strings.TrimSpace(summary), head: m.detail.HeadSHA, number: m.number}
+	p = reviewPlan{event: v.event, label: v.label, body: strings.TrimSpace(summary), head: m.detail.HeadSHA, number: m.number, pending: m.tray.pending}
+	if c := p.pending.Commit; p.pending.ID != "" && c != "" && c != p.head {
+		return p, outdatedPendingText
+	}
 	for i := range m.tray.drafts {
 		d := m.tray.drafts[i]
 		switch {
+		case d.OnGitHub:
+			p.onGitHub++
+			continue
 		case draftOutdatedFor(d, p.head):
 			p.skipped++
 			continue
@@ -283,7 +314,7 @@ func (m *detailModal) planReview(summary string) (p reviewPlan, refusal string) 
 		p.drafts = append(p.drafts, d)
 		p.sentIDs = append(p.sentIDs, d.ID)
 	}
-	if len(p.drafts) == 0 && p.body == "" && p.event != core.ReviewEventApprove {
+	if len(p.drafts) == 0 && p.onGitHub == 0 && p.body == "" && p.event != core.ReviewEventApprove {
 		return p, "Nothing to send: GitHub refuses a review that only " + strings.ToLower(v.label) + "s with no summary and no comments."
 	}
 	return p, ""
@@ -298,6 +329,9 @@ func (p reviewPlan) question() string {
 	}
 	if p.replies > 0 {
 		with = append(with, counted(p.replies, "reply", "replies"))
+	}
+	if p.onGitHub > 0 {
+		with = append(with, strconv.Itoa(p.onGitHub)+" already on GitHub")
 	}
 	if len(with) > 0 {
 		q += " with " + strings.Join(with, " and ")
@@ -358,7 +392,12 @@ func (m *detailModal) sendReview(p reviewPlan) tea.Cmd {
 	m.rev.sending = true
 	svc, ctx, repo, n := m.svc, m.sendCtx, m.repo, m.number
 	return func() tea.Msg {
-		err := svc.SubmitReview(ctx, repo, n, p.head, p.event, p.body, p.drafts)
+		var err error
+		if p.pending.ID != "" {
+			err = svc.SubmitIntoPending(ctx, repo, n, p.head, p.pending, p.event, p.body, p.drafts)
+		} else {
+			err = svc.SubmitReview(ctx, repo, n, p.head, p.event, p.body, p.drafts)
+		}
 		return reviewedMsg{owner: m, err: err, sent: p.sentIDs}
 	}
 }
@@ -377,16 +416,25 @@ func (m *detailModal) reviewed(msg reviewedMsg) tea.Cmd {
 	num := "#" + strconv.Itoa(m.number)
 	if msg.err != nil {
 		slog.WarnContext(m.ctx, "review not submitted", "span", "tui", "err", ui.ShortPath(msg.err.Error()))
-		if errors.Is(msg.err, pulls.ErrPendingReview) {
-			return ui.Notify(toast.Error, pendingReviewText)
+		switch {
+		case errors.Is(msg.err, pulls.ErrPendingAppeared):
+			// The drafts stay, and the comments of the review that started are
+			// among them once it is read.
+			return tea.Batch(m.loadPending(), ui.Notify(toast.Info, pendingAppearedText))
+		case errors.Is(msg.err, pulls.ErrPendingReviewOutdated):
+			return ui.Notify(toast.Error, outdatedPendingText)
+		case m.tray.pending.ID != "":
+			// Steps before the failing one went through: what is in the pending
+			// review now is read again, and those drafts are dropped for it.
+			m.tray.reconcile = msg.sent
+			return tea.Batch(ui.Fail("submit the review of "+num, msg.err), ui.Notify(toast.Warning, partialReviewText), m.loadPending())
 		}
 		return ui.Fail("submit the review of "+num, msg.err)
 	}
 	slog.InfoContext(m.ctx, "review submitted", "span", "tui", "drafts", len(msg.sent))
 	m.tray.drafts = slices.DeleteFunc(m.tray.drafts, func(d tray.Draft) bool { return slices.Contains(msg.sent, d.ID) })
-	if len(m.tray.drafts) == 0 {
-		m.tray.drafts = nil
-	}
+	// The pending review went with it, comments and all.
+	m.dropPending()
 	m.tray.replacing, m.tray.from = "", nil
 	if m.rev != nil && m.drafts != nil {
 		if err := m.drafts.Delete(m.rev.comp.Key()); err != nil {

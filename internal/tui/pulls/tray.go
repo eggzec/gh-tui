@@ -53,6 +53,13 @@ type trayState struct {
 	// readFailed is set when the file of the drafts could not be read, and may
 	// still hold some: nothing is saved over it.
 	readFailed bool
+	// pending is the user's pending review on GitHub, as it was last read, with
+	// no ID if they have none. Its comments are among the drafts, tagged
+	// OnGitHub.
+	pending core.PendingReview
+	// reconcile are the IDs of the drafts of a review that failed part way into
+	// the pending review: the next read of it drops those that it holds now.
+	reconcile []string
 }
 
 // composeState is the draft being written.
@@ -103,7 +110,9 @@ func (m *detailModal) writeTray() error {
 	if m.tray.readFailed {
 		return errors.New("the saved drafts could not be read, so they are left as they are")
 	}
-	return m.tray.store.Save(m.trayKey(), m.tray.drafts)
+	// The comments of the pending review are GitHub's, not the tray's.
+	local := slices.DeleteFunc(slices.Clone(m.tray.drafts), func(d tray.Draft) bool { return d.OnGitHub })
+	return m.tray.store.Save(m.trayKey(), local)
 }
 
 // Save implements ui.Saver: the text of the open composers is kept as drafts
@@ -143,6 +152,8 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return tea.Batch(m.settleDrafts(), m.showThreadChange())
+	case pendingLoadedMsg:
+		return m.receivePending(msg)
 	case composer.SubmitMsg:
 		// The comment's composer reports through the same messages.
 		if c := m.tray.comp; c != nil && c.c.ID() == msg.ID {
@@ -238,6 +249,9 @@ func (m *detailModal) draftRows(d tray.Draft, w int) []string {
 	if d.Outdated {
 		where += " " + draftOutdated
 	}
+	if d.OnGitHub {
+		where += " " + draftOnGitHub
+	}
 	lines := []string{ansi.Truncate(head+m.theme.Accent.Bold(true).Render("draft")+m.st.age.Render(where), w, m.icons.Ellipsis)}
 	indent := strings.Repeat(" ", ansi.StringWidth(head))
 	for raw := range strings.SplitSeq(d.Body, "\n") {
@@ -282,6 +296,9 @@ func (m *detailModal) pressTray(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if !ok {
 			return nil, false
 		}
+		if d.OnGitHub {
+			return ui.Notify(toast.Info, onGitHubText), true
+		}
 		m.tray.drafts = slices.DeleteFunc(m.tray.drafts, func(o tray.Draft) bool { return o.ID == d.ID })
 		return tea.Batch(m.saveTray(), m.showThreadChange()), true
 	}
@@ -314,6 +331,9 @@ func (m *detailModal) comment() tea.Cmd {
 	}
 	f := m.files
 	if d, ok := m.draftUnderCursor(); ok {
+		if d.OnGitHub {
+			return ui.Notify(toast.Info, onGitHubText)
+		}
 		m.tray.replacing = ""
 		return m.openComposer(d, "Edit draft")
 	}
