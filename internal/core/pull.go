@@ -110,8 +110,11 @@ const (
 
 // Review is a pull request review.
 type Review struct {
-	ID          string
-	Author      User
+	ID     string
+	Author User
+	// AvatarURL is the address of the author's avatar as GitHub gave it, or
+	// empty for a deleted account.
+	AvatarURL   string
 	State       ReviewState
 	Body        string
 	SubmittedAt time.Time

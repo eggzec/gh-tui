@@ -36,6 +36,11 @@ type Service interface {
 	Revalidate(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
+	// Reviews reads a page of the reviews of a pull request, which the
+	// conversation shows among its comments, and CachedReviews returns one
+	// from memory, if it is there, without a request.
+	Reviews(ctx context.Context, q pulls.ReviewsQuery) (core.Page[core.Review], error)
+	CachedReviews(q pulls.ReviewsQuery) (core.Page[core.Review], bool)
 	// Files reads a page of the files that a pull request changes, with
 	// their patches.
 	Files(ctx context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error)

@@ -212,6 +212,7 @@ func (m *detailModal) readThreads() tea.Cmd {
 	t.err, t.moreErr, t.loadingMore = nil, nil, false
 	if p, ok := m.svc.CachedThreads(m.threadsQuery("")); ok {
 		t.setFirst(p)
+		m.thread.Redraw()
 	} else if moved {
 		// What was read is of a head the pull request left.
 		t.all, t.list, t.read, t.total, t.next, t.kept, t.got = nil, nil, 0, 0, "", false, false
@@ -291,6 +292,10 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 		return nil
 	}
 	m.applyThreadBlocks()
+	if msg.err == nil {
+		// The reviews of the conversation count the threads read.
+		m.thread.Redraw()
+	}
 	jump := m.finishJump(msg)
 	if msg.err == nil && m.onFiles() {
 		// The diff holds every thread: read the next page behind this one.

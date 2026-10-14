@@ -143,6 +143,12 @@ func (keyPulls) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], 
 func (keyPulls) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
+func (keyPulls) CachedReviews(pullsvc.ReviewsQuery) (core.Page[core.Review], bool) {
+	return core.Page[core.Review]{}, true
+}
+func (keyPulls) Reviews(context.Context, pullsvc.ReviewsQuery) (core.Page[core.Review], error) {
+	return core.Page[core.Review]{}, nil
+}
 func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.CommitFile], error) {
 	return core.Page[core.CommitFile]{Items: keyChanged}, nil
 }

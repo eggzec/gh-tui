@@ -75,7 +75,7 @@ type detailModal struct {
 	// failed is why the last read of the detail failed, or nil.
 	failed error
 
-	thread thread.Model[core.Comment]
+	thread thread.Model[entry]
 	// ctx bounds the reads of the modal and is cancelled when it closes.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -214,17 +214,11 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		// The app reads those of the selected repository.
 		step = tea.Batch(step, ui.LoadCaps(ctx, s.repos, repo))
 	}
-	svc, q := s.svc, commentsQuery(repo, number)
-	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
-		q := q
-		q.Cursor = cursor
-		p, err := svc.Comments(ctx, q)
-		return p.Items, p.Next, err
-	}
+	svc := s.svc
 	// The thread fetches failed comments again with its own retry key.
 	v := s.voice
 	v.Retry = s.keys.thread.Retry
-	m.thread = thread.New(fetch, m.renderComment,
+	m.thread = thread.New(fetchTimeline(svc, repo, number), m.renderEntry,
 		thread.WithContext(ctx),
 		thread.WithStyles(s.theme.Thread(s.icons)),
 		thread.WithKeyMap(s.keys.thread),
@@ -245,9 +239,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.revalidate(), step, m.readFilesAhead(), m.readViewer()))
 	}
 	// What is cached shows at once, and is read again behind it.
-	cp, primed := svc.CachedComments(q)
+	first, next, primed := cachedFirst(svc, repo, number)
 	if primed {
-		m.thread.SetFirst(cp.Items, cp.Next)
+		m.thread.SetFirst(first, next)
 	}
 	loads := []tea.Cmd{m.show(), m.revalidate(), step, m.readFilesAhead(), m.readViewer()}
 	if primed {

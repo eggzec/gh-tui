@@ -75,6 +75,11 @@ type fakeService struct {
 	// thread, when set, are the comments on every pull request, served
 	// in one page.
 	thread []core.Comment
+	// reviews are the reviews of every pull request, reviewsErr fails the
+	// reads of them, and reviewed says that Reviews has served them.
+	reviews    []core.Review
+	reviewsErr error
+	reviewed   bool
 	// bare are the numbers whose detail counts no checks.
 	bare map[int]bool
 	// changed are the files every pull request changes, or those at the
@@ -227,6 +232,24 @@ func (f *fakeService) Revalidate(ctx context.Context, repo core.RepoRef, number 
 	f.revalidated = append(f.revalidated, number)
 	f.mu.Unlock()
 	return f.Get(ctx, repo, number)
+}
+
+// Reviews serves the reviews that are set, on every pull request, in one
+// page, and CachedReviews serves them once Reviews did.
+func (f *fakeService) Reviews(_ context.Context, _ pulls.ReviewsQuery) (core.Page[core.Review], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.reviewsErr != nil {
+		return core.Page[core.Review]{}, f.reviewsErr
+	}
+	f.reviewed = true
+	return core.Page[core.Review]{Items: f.reviews}, nil
+}
+
+func (f *fakeService) CachedReviews(pulls.ReviewsQuery) (core.Page[core.Review], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return core.Page[core.Review]{Items: f.reviews}, f.reviewed
 }
 
 // Comments serves three comments on every pull request, two a page, or
