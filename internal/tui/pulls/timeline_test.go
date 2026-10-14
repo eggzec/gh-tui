@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func at(h int) time.Time { return clock.Add(time.Duration(h) * time.Hour) }
@@ -279,5 +281,152 @@ func TestConversationFitsNarrowWidths(t *testing.T) {
 			}
 			golden.RequireEqual(t, v)
 		})
+	}
+}
+
+// reviewsFailureText is what the line for a reviews read that failed with err
+// says, as the modal words it.
+func reviewsFailureText(m *detailModal, err error) string {
+	text, _ := m.sayReviews(err)
+	return text
+}
+
+// A read of the reviews that GitHub can't answer leaves the comments on the
+// screen, with the failure line in the error style above them, and notes that
+// the reviews are to be read again once GitHub answers.
+func TestConversationShowsAFailedReviewsRead(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	svc.reviews = []core.Review{submitted("R1", core.ReviewStateApproved, "", 0)}
+	offline := fmt.Errorf("github: POST /graphql: %w", core.ErrOffline)
+	svc.reviewsErr = offline
+	_, m := conversation(t, svc)
+	if !m.reviewsFailed.Load() {
+		t.Error("a read of the reviews that failed for want of an answer isn't noted")
+	}
+	v := m.View()
+	plain := ansi.Strip(v)
+	text := reviewsFailureText(m, offline)
+	if text == "" || !strings.Contains(plain, text) {
+		t.Errorf("the conversation lacks the failure line %q:\n%s", text, plain)
+	}
+	for _, want := range []string{"commenter-a", "commenter-z"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("the conversation lacks the comment of %q:\n%s", want, plain)
+		}
+	}
+	if strings.Contains(plain, "reviewer-R1") {
+		t.Errorf("a review that was not read shows:\n%s", plain)
+	}
+	// The line is the head of the conversation, in the style of the errors.
+	if i, j := strings.Index(plain, text), strings.Index(plain, "commenter-a"); i > j {
+		t.Errorf("the failure line comes after the first comment:\n%s", plain)
+	}
+	// The mark and the text share the error style's colour: the line is the
+	// colour's start, the mark and the text, with no other style between.
+	probe := m.theme.Errors(m.icons).Text.Render("x")
+	start, _, _ := strings.Cut(probe, "x")
+	if want := start + m.icons.Error + " " + text; !strings.Contains(v, want) {
+		t.Errorf("the failure line isn't in the error style, want %q in:\n%q", want, v)
+	}
+}
+
+// A read of the reviews that GitHub refused is not read again when GitHub
+// answers again, and the failure line stays, while one that GitHub didn't
+// answer is, and the line goes once the reviews arrive.
+func TestReviewsReadAgainOnline(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name      string
+		err       error
+		wantReads int
+	}{
+		{"offline", fmt.Errorf("github: POST /graphql: %w", core.ErrOffline), 1},
+		{"unavailable", fmt.Errorf("github: 502: %w", core.ErrUnavailable), 1},
+		{"refused", fmt.Errorf("github: 403: %w", core.ErrForbidden), 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := newFakeService()
+			svc.reviewsErr = tt.err
+			h, m := conversation(t, svc)
+			text := reviewsFailureText(m, tt.err)
+			if v := ansi.Strip(m.View()); text == "" || !strings.Contains(v, text) {
+				t.Fatalf("the conversation lacks the failure line %q:\n%s", text, v)
+			}
+			svc.mu.Lock()
+			svc.reviewsErr = nil
+			svc.reviews = []core.Review{submitted("R1", core.ReviewStateApproved, "", 0)}
+			reads := len(svc.reviewReads)
+			svc.mu.Unlock()
+
+			drain(t, h, h.Update(ui.OnlineMsg{}))
+			svc.mu.Lock()
+			got := len(svc.reviewReads) - reads
+			svc.mu.Unlock()
+			if got != tt.wantReads {
+				t.Errorf("reads of the reviews after OnlineMsg = %d, want %d", got, tt.wantReads)
+			}
+			v := ansi.Strip(m.View())
+			if tt.wantReads == 0 {
+				if !strings.Contains(v, text) || strings.Contains(v, "reviewer-R1") {
+					t.Errorf("the refused read changed:\n%s", v)
+				}
+				return
+			}
+			if strings.Contains(v, text) || !strings.Contains(v, "reviewer-R1") {
+				t.Errorf("the reviews didn't replace the failure line:\n%s", v)
+			}
+			if m.reviewsFailed.Load() {
+				t.Error("the reviews are still noted as failed once read")
+			}
+			// Read, they cost nothing more.
+			drain(t, h, h.Update(ui.OnlineMsg{}))
+			svc.mu.Lock()
+			again := len(svc.reviewReads) - reads
+			svc.mu.Unlock()
+			if again != got {
+				t.Errorf("a second OnlineMsg read the reviews again: %d reads, want %d", again, got)
+			}
+		})
+	}
+}
+
+// Reviews that the service kept and served for want of an answer from GitHub
+// stay on the screen: they are a page, not a failure, so there is no failure
+// line and nothing to read again.
+func TestKeptReviewsStayShown(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	svc.reviewPages = map[string]core.Page[core.Review]{"": {
+		Items:   []core.Review{submitted("R1", core.ReviewStateChangesRequested, "kept words", -2)},
+		Offline: true,
+	}}
+	h, m := conversation(t, svc)
+	v := ansi.Strip(m.View())
+	for _, want := range []string{"reviewer-R1", "changes requested", "commenter-a", "commenter-z"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the conversation lacks %q:\n%s", want, v)
+		}
+	}
+	if text := reviewsFailureText(m, core.ErrOffline); strings.Contains(v, text) {
+		t.Errorf("kept reviews show a failure line %q:\n%s", text, v)
+	}
+	if m.reviewsFailed.Load() {
+		t.Error("kept reviews are noted as failed")
+	}
+	svc.mu.Lock()
+	reads := len(svc.reviewReads)
+	svc.mu.Unlock()
+	drain(t, h, h.Update(ui.OnlineMsg{}))
+	svc.mu.Lock()
+	got := len(svc.reviewReads) - reads
+	svc.mu.Unlock()
+	if got != 0 {
+		t.Errorf("kept reviews were read again by OnlineMsg: %d reads", got)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "reviewer-R1") {
+		t.Errorf("the kept reviews went:\n%s", v)
 	}
 }
