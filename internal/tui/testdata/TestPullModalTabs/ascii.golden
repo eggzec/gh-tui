@@ -12,12 +12,12 @@
 |       |   --------------------------------------------------------   |-------+
 |       |   Paragraph 1. Keys match by order. Keys match by order.     |-------+
 |       |   Keys match by order. Keys match by order. Keys match by    |d - All|
-|       |   order. Keys match by order. Keys match by order. Keys      |    now|
-|       |   match by order. Keys match by order. Keys match by         |       |
-|       |   order. Keys match by order. Keys match by order.           |       |
+|       |   order. Keys match by order.                                |    now|
 |       |                                                              |       |
 |       |   Paragraph 2. Keys match by order. Keys match by order.     |       |
 |       |   Keys match by order. Keys match by order. Keys match by    |       |
+|       |   order. Keys match by order.                                |       |
+|       |                                                              |       |
 |       |   ... the rest is in Conversation                            |       |
 |       +--------------------------------------------------------------+       |
 +------------------------------++----------------------------------------------+
