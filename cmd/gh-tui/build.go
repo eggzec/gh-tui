@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tray"
 	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
@@ -273,6 +274,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
 		}
 	)
+	if dir, err := trayDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
+		pullOpts = append(pullOpts, pulls.WithTray(tray.New(dir)))
+	}
 	// The notifications screen and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the
 	// repository screen do, with one opener: whichever is on view reads

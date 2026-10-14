@@ -77,6 +77,10 @@ type keyMap struct {
 	// of the Conversation tab, and resolve or unresolve the one under the
 	// cursor of the diff.
 	resolve, diffResolve key.Binding
+	// comment drafts a review comment on the line, range or thread under the
+	// cursor of the diff, or edits the draft there; rangeSel starts a range
+	// of lines; deleteDraft deletes the draft under the cursor.
+	comment, rangeSel, deleteDraft key.Binding
 	// nextPane and prevPane move the focus between the tree and the diff
 	// of the Files tab, panes focus one of them, and jump stands for the
 	// keys of panes in help. zoom shows the focused one alone. The modal
@@ -142,6 +146,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 	k.showThread = ui.In(keys, ctxConversation).Binding("global.select", "show in diff")
 	k.resolve = ui.In(keys, ctxConversation).Binding("resolve", "resolve thread")
 	k.diffResolve = ui.In(keys, ctxDiff).Binding("resolve", "resolve thread")
+	k.comment = ui.In(keys, ctxDiff).Binding("comment", "draft comment")
+	k.rangeSel = ui.In(keys, ctxDiff).Binding("range", "start range")
+	k.deleteDraft = ui.In(keys, ctxDiff).Binding("delete_draft", "delete draft")
 	// The thread offers retry itself once something failed.
 	t.Retry = retry(k.Refresh)
 	t.Retry.SetEnabled(k.Refresh.Enabled())

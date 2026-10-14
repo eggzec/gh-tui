@@ -448,6 +448,9 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 		f.tree, cmd = f.tree.Update(msg)
 		return cmd
 	}
+	if cmd, ok := m.pressTray(msg); ok {
+		return cmd
+	}
 	return m.pressDiff(msg)
 }
 
@@ -745,6 +748,7 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		keys.Retry.SetEnabled(false)
 		l := ui.ContextHelp(ctxDiff, keys, false)
 		l.Bindings = append(l.Bindings, m.resolveBinding())
+		l.Bindings = append(l.Bindings, m.trayBindings()...)
 		// Backspace on an empty search line is the prompt's alone. Listed
 		// here, though off, it would hide the app's back key in help.
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), keys.CancelEmpty.Keys()) })

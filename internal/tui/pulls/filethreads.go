@@ -51,7 +51,7 @@ func (m *detailModal) threadBlocks() []diff.Block {
 			Render: func(w int, folded bool) []string { return m.threadRows(th, w, folded) },
 		})
 	}
-	return blocks
+	return append(blocks, m.draftBlocks()...)
 }
 
 // applyThreadBlocks gives the diff the threads read, and the tree the number

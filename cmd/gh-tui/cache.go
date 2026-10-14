@@ -140,6 +140,21 @@ func historyPath(cfg config.Disk, host, account string) (string, error) {
 	return filepath.Join(root, hostDir(host), entryDir, account, cmdhist.FileName), nil
 }
 
+// trayDir returns the directory of the review comments that account drafted
+// on pull requests of host, in its directory of the disk cache, so no account
+// finds another's. It returns "" when the disk cache is off, and the drafts
+// then last until the pull request's modal closes.
+func trayDir(cfg config.Disk, host, account string) (string, error) {
+	if !cfg.Enabled {
+		return "", nil
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, hostDir(host), entryDir, account, "review-tray"), nil
+}
+
 // entryDir holds the directories of the accounts' entries in the directory
 // of a host. Its objects go by kinds of lowercase letters, and account
 // names are longer than their two-digit subdirectories, so nothing clashes.
