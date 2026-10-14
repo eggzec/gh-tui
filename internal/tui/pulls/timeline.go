@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -25,6 +26,8 @@ type entry struct {
 	comment  core.Comment
 	review   core.Review
 	isReview bool
+	// failure is why the reviews couldn't be read, for the entry that says so.
+	failure error
 }
 
 // at returns when the entry was made.
@@ -64,8 +67,12 @@ func joinCursor(next string, last time.Time) string {
 
 // fetchTimeline returns what the thread fetches its pages with: a page of
 // the comments of pull request number of repo, with the reviews among them.
-// The reviews are read whole, and the service keeps them.
-func fetchTimeline(svc Service, repo core.RepoRef, number int) thread.Fetch[entry] {
+// The reviews are read whole, and the service keeps them. The comments are
+// the page's content: if the reviews can't be read, the page shows them with
+// a line that says so, at the head of the first page, and failed tells
+// whether it was for want of an answer from GitHub, so the page can be read
+// again then.
+func fetchTimeline(svc Service, repo core.RepoRef, number int, failed *atomic.Bool) thread.Fetch[entry] {
 	return func(ctx context.Context, cursor string) ([]entry, string, error) {
 		inner, after := splitCursor(cursor)
 		var (
@@ -81,10 +88,18 @@ func fetchTimeline(svc Service, repo core.RepoRef, number int) thread.Fetch[entr
 		if err != nil {
 			return nil, "", err
 		}
-		if rerr != nil {
-			return nil, "", rerr
+		out := timeline(p.Items, p.Next != "", reviews, after)
+		if rerr != nil && ctx.Err() == nil {
+			if failed != nil {
+				failed.Store(ui.Unreached(rerr))
+			}
+			if inner == "" {
+				out = append([]entry{{failure: rerr}}, out...)
+			}
+		} else if failed != nil {
+			failed.Store(false)
 		}
-		return timeline(p.Items, p.Next != "", reviews, after), joinCursor(p.Next, lastAt(p.Items, after)), nil
+		return out, joinCursor(p.Next, lastAt(p.Items, after)), nil
 	}
 }
 
@@ -173,6 +188,10 @@ func timeline(comments []core.Comment, more bool, reviews []core.Review, after t
 
 // renderEntry renders a comment or a review of the conversation.
 func (m *detailModal) renderEntry(e entry, width int) string {
+	if e.failure != nil {
+		text, hint := m.sayReviews(e.failure)
+		return strings.Join(ui.ErrorLine(m.theme.Errors(m.icons), text, hint, width-len(gutter)), "\n")
+	}
 	if e.isReview {
 		return m.renderReview(e.review, width)
 	}

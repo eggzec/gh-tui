@@ -86,6 +86,7 @@ type Service struct {
 	keptLists    *cache.Shelf[listPage]
 	keptDetails  *cache.Shelf[core.PullRequestDetail]
 	keptComments *cache.Shelf[stampedComments]
+	keptReviews  *cache.Shelf[core.Page[core.Review]]
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
 	keptThreads  *cache.Shelf[core.ThreadPage]
 	now          func() time.Time
@@ -131,6 +132,7 @@ func New(api API, opts ...Option) *Service {
 		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
 		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
+		keptReviews:  cache.NewShelf[core.Page[core.Review]](o.store, kindReviews, reviewsSchema),
 		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.store, kindFiles, filesSchema),
 		keptThreads:  cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
 		now:          time.Now,
@@ -153,6 +155,7 @@ const (
 	kindList     = "pulllist"
 	kindDetail   = "pull"
 	kindComments = "pullcomments"
+	kindReviews  = "pullreviews"
 	kindFiles    = "pullfiles"
 	kindThreads  = "pullthreads"
 
@@ -166,6 +169,8 @@ const (
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
 	// and 4 keeps the avatar of each comment's author.
 	commentsSchema = 4
+	// reviewsSchema 1 is the first.
+	reviewsSchema = 1
 	// filesSchema 1 is the first.
 	filesSchema = 1
 	// threadsSchema 1 is the first, and 2 keeps the review of each thread.

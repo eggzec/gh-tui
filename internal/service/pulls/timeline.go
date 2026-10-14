@@ -120,9 +120,14 @@ func (s *Service) CachedReviews(q ReviewsQuery) (core.Page[core.Review], bool) {
 }
 
 // Reviews returns the page for q, oldest first. A fresh cached page is
-// returned without a request.
+// returned without a request, and what an earlier session kept counts as
+// cached. GraphQL gives the page no validators, so a stale one is read again
+// in full. If GitHub can't be reached, a cached page is served with Offline
+// set, and if it rate limits the read, with Limited set.
 func (s *Service) Reviews(ctx context.Context, q ReviewsQuery) (core.Page[core.Review], error) {
-	p, err := fetch(ctx, s.reviews, nil, q.key(s.pageSize), fallback.Page[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
+	key := q.key(s.pageSize)
+	s.keptReviews.Warm(s.reviews, key, true)
+	p, err := fetch(ctx, s.reviews, s.keptReviews, key, fallback.Page[core.Review], whole(tags(q.Repo, q.Number), func(ctx context.Context) (core.Page[core.Review], error) {
 		return s.api.ListPullRequestReviews(ctx, q.Repo, q.Number, q.Cursor, pageSize(q.PageSize, s.pageSize))
 	}))
 	if err != nil {
