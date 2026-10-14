@@ -301,7 +301,16 @@ func (m *detailModal) comment() tea.Cmd {
 }
 
 // newDraftID returns an ID that no draft has.
-func (m *detailModal) newDraftID() string { return strconv.FormatInt(m.now().UnixNano(), 36) }
+func (m *detailModal) newDraftID() string {
+	n := m.now().UnixNano()
+	for {
+		id := strconv.FormatInt(n, 36)
+		if !slices.ContainsFunc(m.tray.drafts, func(d tray.Draft) bool { return d.ID == id }) {
+			return id
+		}
+		n++
+	}
+}
 
 // openComposer opens the composer on d, over the bottom of the diff.
 func (m *detailModal) openComposer(d tray.Draft, title string) tea.Cmd {
