@@ -39,9 +39,9 @@ func commentIDs(t *testing.T, s *Service, q CommentsQuery) []string {
 	if !ok {
 		t.Fatalf("comments %+v aren't cached", q)
 	}
-	var ids []string
-	for _, c := range p.Items {
-		ids = append(ids, c.ID)
+	ids := make([]string, 0, len(p.Items))
+	for i := range p.Items {
+		ids = append(ids, p.Items[i].ID)
 	}
 	return ids
 }

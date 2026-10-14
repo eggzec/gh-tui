@@ -46,7 +46,7 @@ func (d *memDrafts) Delete(key string) error {
 	return nil
 }
 
-func (d *memDrafts) get(key string) (string, []string) {
+func (d *memDrafts) get(key string) (text string, deleted []string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.drafts[key], slices.Clone(d.deleted)
