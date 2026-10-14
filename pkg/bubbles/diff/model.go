@@ -174,9 +174,6 @@ func (m *Model) seek(p Pos, file bool) bool {
 		// The file starts the window, even when its header is already in
 		// it, so that the rows shown are the file's and not those of the
 		// file above.
-		// The file starts the window, even when its header is already in
-		// it, so that the rows shown are the file's and not those of the
-		// file above.
 		m.top = row
 		m.moveTo(row)
 		return true
