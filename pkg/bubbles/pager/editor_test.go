@@ -108,6 +108,7 @@ func TestEdit(t *testing.T) {
 	text := "Gr\xfc\xdfe \x1b[31mred\x1b[m\tend\n" + numbered(50)
 	dir := t.TempDir()
 	copyNoted.Store(false)
+	t.Cleanup(func() { copyNoted.Store(false) })
 	var got ran
 	m := editorPager(t, "docs/notes.txt", text, dir, &got, nil)
 	m, _ = enterAll(t, m, "&", "line", "enter")

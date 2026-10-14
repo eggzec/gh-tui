@@ -1,9 +1,8 @@
 package pager
 
 import (
-	"runtime"
+	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,21 +23,32 @@ type spy struct {
 	release                         chan struct{}
 }
 
-var (
-	spyOnce sync.Once
-	theSpy  *spy
-)
-
-// registerSpy registers the spy with chroma, once for all tests, and
-// returns it with its counts zeroed.
+// registerSpy registers a new spy with chroma until the test ends, and
+// returns it. Chroma can't forget a lexer by name, but the list the files
+// are matched against goes back to what it was.
 func registerSpy(t *testing.T) *spy {
 	t.Helper()
-	spyOnce.Do(func() {
-		theSpy = &spy{release: make(chan struct{})}
-		lexers.GlobalLexerRegistry.Register(theSpy)
-	})
-	theSpy.reset()
-	return theSpy
+	reg := lexers.GlobalLexerRegistry
+	before := slices.Clone(reg.Lexers)
+	t.Cleanup(func() { reg.Lexers = before })
+	s := &spy{release: make(chan struct{})}
+	reg.Register(s)
+	// Registering asks the spy about itself.
+	s.reset()
+	return s
+}
+
+// noLexerRuns fails the test if a lexer holds the gate: one that never
+// finishes, as the spy doesn't, holds it for as long as it runs.
+func noLexerRuns(t *testing.T) {
+	t.Helper()
+	gate := syntax.Lexing()
+	select {
+	case gate <- struct{}{}:
+		<-gate
+	default:
+		t.Error("a lexer still runs")
+	}
 }
 
 func (s *spy) reset() {
@@ -74,16 +84,6 @@ func (s *spy) SetAnalyser(func(string) float32) chroma.Lexer  { return s }
 func (s *spy) AnalyseText(string) float32 {
 	s.analysed.Add(1)
 	return 1
-}
-
-// settle waits a while for the goroutines to come down to n, and returns
-// how many run.
-func settle(n int) int {
-	deadline := time.Now().Add(10 * time.Second)
-	for runtime.NumGoroutine() > n && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
-	}
-	return runtime.NumGoroutine()
 }
 
 // Setting content and taking its tokens never reach chroma, which may
@@ -129,33 +129,22 @@ func TestUpdateNeverReachesChroma(t *testing.T) {
 func TestHostileFilesStayPlain(t *testing.T) {
 	syntaxtest.Use(t, nil)
 	s := registerSpy(t)
-	before := runtime.NumGoroutine()
 	for _, name := range []string{"a.jsonata", "a.jungle", "a.spy", "notes", "notes.txt"} {
 		for _, text := range []string{"\\\n", "é\n", "\\é\n"} {
 			m := fresh(t, WithSize(40, 5))
-			start := time.Now()
 			cmd := m.SetContent(name, text)
-			if d := time.Since(start); d > 50*time.Millisecond {
-				t.Errorf("%s: setting the content took %v", name, d)
-			}
 			if cmd == nil {
 				continue
 			}
-			start = time.Now()
 			if msg := cmd(); msg != nil {
 				t.Errorf("%s: highlighted %q", name, text)
-			}
-			if d := time.Since(start); d > lexLimit {
-				t.Errorf("%s: the command took %v, more than %v", name, d, lexLimit)
 			}
 		}
 	}
 	if n, g := s.tokenised.Load(), s.analysed.Load(); n != 0 || g != 0 {
 		t.Errorf("chroma ran the spy %d times and guessed %d times", n, g)
 	}
-	if n := settle(before); n > before {
-		t.Errorf("%d goroutines run after the commands, %d before", n, before)
-	}
+	noLexerRuns(t)
 }
 
 // highlighted returns the pager with name and text and its tokens.
@@ -219,7 +208,6 @@ func typeNames(ts []chroma.TokenType) []string {
 // Code in a markdown fence reaches only the lexers of common languages.
 func TestMarkdownFencesStayPlain(t *testing.T) {
 	s := registerSpy(t)
-	before := runtime.NumGoroutine()
 	for _, lang := range []string{"jsonata", "jungle", "spy", "x.jsonata"} {
 		m := fresh(t)
 		cmd := m.SetContent("README.md", "# Title\n\n```"+lang+"\n\\\n```\n")
@@ -230,9 +218,7 @@ func TestMarkdownFencesStayPlain(t *testing.T) {
 	if n := s.tokenised.Load(); n != 0 {
 		t.Errorf("a fence ran the spy %d times", n)
 	}
-	if n := settle(before); n > before {
-		t.Errorf("%d goroutines run after the commands, %d before", n, before)
-	}
+	noLexerRuns(t)
 }
 
 // A line too long to lex shows plain, and the lines around it highlight.

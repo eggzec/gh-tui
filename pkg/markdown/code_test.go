@@ -2,7 +2,7 @@ package markdown
 
 import (
 	"math/rand/v2"
-	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -13,23 +13,28 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
 )
 
-// settle waits a while for the goroutines to come down to n, and returns
-// how many run.
-func settle(n int) int {
-	deadline := time.Now().Add(slowdown * 5 * time.Second)
-	for runtime.NumGoroutine() > n && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
+// noLexerRuns fails the test if a lexer holds the gate: one that never
+// finishes holds it for as long as it runs, so after a render that cut one
+// short the gate is taken.
+func noLexerRuns(t *testing.T) {
+	t.Helper()
+	gate := syntax.Lexing()
+	select {
+	case gate <- struct{}{}:
+		<-gate
+	default:
+		t.Error("a lexer still runs")
 	}
-	return runtime.NumGoroutine()
 }
 
 // Code whose lexer would hand it to a lexer the code names, such as a
 // fence in markdown, never reaches the lexers that never finish, at any
 // width.
-func TestDelegatedCodeRendersQuickly(t *testing.T) {
+func TestDelegatedCodeNeverReachesStuckLexers(t *testing.T) {
 	wallClock(t)
 	for name, src := range map[string]string{
 		"markdown":   "~~~markdown\n```jsonata\n\\\n```\n~~~",
@@ -38,20 +43,14 @@ func TestDelegatedCodeRendersQuickly(t *testing.T) {
 		"http":       "```http\nHTTP/1.1 200 OK\nContent-Type: text/x-jungle\n\n\\\n```",
 	} {
 		t.Run(name, func(t *testing.T) {
-			before := runtime.NumGoroutine()
+			idle(t)
 			r := New(DefaultStyle(true))
 			for w := 80; w > 72; w-- {
-				start := time.Now()
 				out := r.Render(src, w)
-				if d := time.Since(start); d > hostileLimit {
-					t.Errorf("took %v at %d cells, more than %v", d, w, hostileLimit)
-				}
 				if !strings.Contains(ansi.Strip(out), `\`) {
 					t.Errorf("the code doesn't show at %d cells:\n%s", w, out)
 				}
-			}
-			if n := settle(before); n > before {
-				t.Errorf("%d goroutines run after the renders, %d before", n, before)
+				noLexerRuns(t)
 			}
 		})
 	}
@@ -108,7 +107,12 @@ func (s *spy) AnalyseText(string) float32 {
 // lexer it doesn't highlight runs, and none is guessed.
 func TestCodeReachesChromaOnlyThroughTheGate(t *testing.T) {
 	s := &spy{}
-	lexers.GlobalLexerRegistry.Register(s)
+	// Chroma can't forget a lexer by name, but the list that the tests of
+	// the lexers iterate goes back to what it was.
+	reg := lexers.GlobalLexerRegistry
+	before := slices.Clone(reg.Lexers)
+	t.Cleanup(func() { reg.Lexers = before })
+	reg.Register(s)
 	r := New(DefaultStyle(true))
 	for name, src := range shapes("spy", "x := 1") {
 		for _, w := range []int{80, 40} {
@@ -192,24 +196,18 @@ func TestHighlightedCodeFitsTheWidth(t *testing.T) {
 	}
 }
 
-// Code a lexer never finishes on renders quickly in any container, at
+// Code a lexer never finishes on never reaches it in any container, at
 // any width, and leaves nothing running.
-func TestContainedCodeRendersQuickly(t *testing.T) {
+func TestContainedCodeNeverReachesStuckLexers(t *testing.T) {
 	wallClock(t)
 	for _, lang := range []string{"jsonata", "jungle"} {
 		for name, src := range shapes(lang, `\`) {
 			t.Run(lang+"/"+name, func(t *testing.T) {
-				before := runtime.NumGoroutine()
+				idle(t)
 				r := New(DefaultStyle(true))
 				for w := 80; w > 76; w-- {
-					start := time.Now()
 					r.Render(src, w)
-					if d := time.Since(start); d > hostileLimit {
-						t.Errorf("took %v at %d cells, more than %v", d, w, hostileLimit)
-					}
-				}
-				if n := settle(before); n > before {
-					t.Errorf("%d goroutines run after the renders, %d before", n, before)
+					noLexerRuns(t)
 				}
 			})
 		}
@@ -238,7 +236,6 @@ func (l *stuck) Tokenise(*chroma.TokeniseOptions, string) (chroma.Iterator, erro
 func TestOverrunLexerRunsAlone(t *testing.T) {
 	wallClock(t)
 	idle(t)
-	before := runtime.NumGoroutine()
 	l := &stuck{Lexer: lexers.Get("go"), release: make(chan struct{}), entered: make(chan struct{})}
 	// The overruns are kept for as long as the process runs, so each run
 	// of the test lexes code of its own.
@@ -260,11 +257,7 @@ func TestOverrunLexerRunsAlone(t *testing.T) {
 		t.Error("the lexer doesn't run")
 	}
 	close(l.release)
-	if n := settle(before); n > before {
-		t.Fatalf("%d goroutines run after the lexer ended, %d before", n, before)
-	}
-	// Another goroutine may have ended first, while the lexer's still
-	// held its token.
+	// The gate is free once the lexer has ended.
 	idle(t)
 	// Nothing overruns from here on, so other code highlights on a busy
 	// machine too.

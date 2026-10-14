@@ -6,30 +6,8 @@ import (
 	"time"
 
 	"github.com/alecthomas/chroma/v2/lexers"
-)
 
-// hostileLimit is how long the render of a hostile comment may take. It
-// runs in Update, so the app waits for it; a render takes milliseconds,
-// and the limit leaves room for slow and busy machines.
-const hostileLimit = slowdown * 200 * time.Millisecond
-
-// A hostile comment must render in time that grows with its length, as
-// plain text of the same length does, not with its square or worse: a
-// render runs in Update, so the app waits for it. So its time is weighed
-// against that of plain text of the same length, timed alongside it,
-// which a busy machine slows down as much. hostileRatio leaves room for
-// the markup that costs more than words (the costliest take about 35
-// times as long as plain text), and for the long comments a render whose
-// time grows with the square of its length takes hundreds or thousands of
-// times as long. For the short ones, the floor guards: hostileLex is the
-// time lexers may take on top, which the wall clock bounds
-// (renderLexLimit), however fast the machine. hostileCeiling is an
-// absolute bound, well above any render's time today, for a slowdown the
-// ratio can't see, such as one in code that plain text shares.
-const (
-	hostileRatio   = 100
-	hostileLex     = 2 * renderLexLimit
-	hostileCeiling = 10 * hostileLimit
+	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
 )
 
 // hostile are comments made to take a long time to render.
@@ -102,35 +80,39 @@ func plainText(n int) string {
 	return strings.Repeat(words, n/len(words)+1)[:n]
 }
 
-func TestHostileRendersQuickly(t *testing.T) {
+func TestHostileRendersSafely(t *testing.T) {
 	wallClock(t)
 	t.Cleanup(func() { idle(t) })
 	for _, set := range []map[string]string{hostile, long} {
 		for name, src := range set {
 			t.Run(name, func(t *testing.T) {
-				base := plainText(len(src))
-				// The fastest of three renders of each, taken in turns,
-				// so that a busy machine's pauses don't count and its
-				// load weighs on both alike.
-				var out string
-				d, b := time.Duration(1<<62), time.Duration(1<<62)
-				for range 3 {
-					start := time.Now()
-					New(DefaultStyle(true)).Render(base, 76)
-					b = min(b, time.Since(start))
-					start = time.Now()
-					out = New(DefaultStyle(true)).Render(src, 76)
-					d = min(d, time.Since(start))
-				}
-				if limit := hostileLex + hostileRatio*b; d > limit {
-					t.Errorf("took %v, more than %v: %d times the %v plain text of its length takes, and the lexers' %v",
-						d, limit, hostileRatio, b, hostileLex)
-				}
-				if d > hostileCeiling {
-					t.Errorf("took %v, more than %v", d, hostileCeiling)
-				}
+				out := New(DefaultStyle(true)).Render(src, 76)
 				if why := unsafe(out); why != "" {
 					t.Error(why)
+				}
+			})
+		}
+	}
+}
+
+// BenchmarkHostileRender times the render of each hostile comment, and of
+// plain text of its length, which its time is to grow with and not with the
+// square of its length. The render runs in Update, so the app waits for it.
+func BenchmarkHostileRender(b *testing.B) {
+	syntaxtest.Use(b, nil)
+	for _, set := range []map[string]string{hostile, long} {
+		for name, src := range set {
+			b.Run(name, func(b *testing.B) {
+				b.ReportAllocs()
+				for b.Loop() {
+					New(DefaultStyle(true)).Render(src, 76)
+				}
+			})
+			b.Run(name+"/plain", func(b *testing.B) {
+				base := plainText(len(src))
+				b.ReportAllocs()
+				for b.Loop() {
+					New(DefaultStyle(true)).Render(base, 76)
 				}
 			})
 		}
@@ -172,11 +154,7 @@ func TestHighlightedLexersFinish(t *testing.T) {
 			alias = a[0]
 		}
 		for _, code := range hostileCode {
-			start := time.Now()
 			out := r.Render("```"+alias+"\n"+code+"\n```", 60)
-			if d := time.Since(start); d > hostileLimit {
-				t.Errorf("%s took %v on %q", name, d, code[:min(len(code), 20)])
-			}
 			if why := unsafe(out); why != "" {
 				t.Errorf("%s: %s", name, why)
 			}

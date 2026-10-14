@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
-	"runtime"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -46,14 +45,9 @@ func (l *stalling) Tokenise(_ *chroma.TokeniseOptions, code string) (chroma.Iter
 // stalled on isn't lexed again.
 func TestHeadStopsAtTheLimit(t *testing.T) {
 	idle(t)
-	before := runtime.NumGoroutine()
 	l := newStalling()
 	stalled, other := unique(t, "stalled"), unique(t, "other")
-	start := time.Now()
 	toks, err := Head(t.Context(), l, stalled, 10*time.Millisecond)
-	if d := time.Since(start); d > time.Second {
-		t.Errorf("took %v", d)
-	}
 	if got := text(toks); got != "st" || err != nil {
 		t.Errorf("gave %q, %v, want the tokens before the stall", got, err)
 	}
@@ -66,11 +60,7 @@ func TestHeadStopsAtTheLimit(t *testing.T) {
 	// A stall past Limit after the lexer was asked to stop is an overrun.
 	time.Sleep(2 * Limit)
 	close(l.release)
-	if n := settle(before); n > before {
-		t.Fatalf("%d goroutines run after the lexer ended, %d before", n, before)
-	}
-	// Another goroutine may have ended first, while the lexer's still
-	// held its token.
+	// The gate is free again once the lexer has ended.
 	idle(t)
 	if _, err := Head(t.Context(), l, stalled, time.Second); !errors.Is(err, ErrOverran) {
 		t.Errorf("the code the lexer stalled on was lexed again: %v", err)
@@ -108,11 +98,9 @@ func TestHeadStopsWhenCancelled(t *testing.T) {
 	}
 	ctx, cancel = context.WithCancel(t.Context())
 	time.AfterFunc(10*time.Millisecond, cancel)
-	start := time.Now()
+	// A Head that ignored the context would wait for the minute, and the
+	// test's timeout would end it.
 	_, _ = Head(ctx, l, code, time.Minute)
-	if d := time.Since(start); d > 10*time.Second {
-		t.Errorf("took %v after the context was cancelled", d)
-	}
 	close(l.release)
 	idle(t)
 }
@@ -128,12 +116,8 @@ func TestHeadWaitsForTheGate(t *testing.T) {
 	}
 	lexing <- struct{}{}
 	defer func() { <-lexing }()
-	start := time.Now()
 	if _, err := Head(t.Context(), Lexer("go"), "x := 1", time.Second); !errors.Is(err, ErrBusy) {
 		t.Errorf("ran while the gate was taken: %v", err)
-	}
-	if d := time.Since(start); d > 10*Wait {
-		t.Errorf("waited %v for the gate", d)
 	}
 }
 

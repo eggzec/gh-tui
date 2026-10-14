@@ -2,6 +2,7 @@ package tree_test
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 
@@ -39,4 +40,13 @@ func Example() {
 	// m.Update. Enter on a leaf sends a tree.OpenMsg whose ID is m.ID(), to
 	// show a preview of msg.Node; call m.Reload() when the tree changes.
 	_ = m.Init()
+
+	root, _ := children(context.Background(), tree.Node{})
+	for _, n := range root {
+		fmt.Println(n.Name, n.Branch)
+	}
+	// Output:
+	// cmd true
+	// internal true
+	// go.mod false
 }
