@@ -120,6 +120,8 @@ type Section struct {
 	// readViewer reads the login of the signed-in user, whom the filter
 	// offers as @me.
 	readViewer Viewer
+	// tray keeps the drafted review comments, or is nil.
+	tray TrayStore
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -197,6 +199,13 @@ func WithMergeMethod(m core.MergeMethod) Option {
 // refuses what it doesn't allow.
 func WithRepos(r ui.Repos) Option {
 	return func(s *Section) { s.repos = r }
+}
+
+// WithTray keeps the review comments that the user drafts in the diff of a
+// pull request in store, so that they come back when it is opened again.
+// Without it the drafts last until the modal closes.
+func WithTray(store TrayStore) Option {
+	return func(s *Section) { s.tray = store }
 }
 
 // Viewer returns the login of the signed-in user. It may do I/O.

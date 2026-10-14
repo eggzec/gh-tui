@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
@@ -47,7 +49,10 @@ type changedMsg struct {
 type detailModal struct {
 	svc         Service
 	keys        keyMap
+	rawKeys     config.Keymap
 	now         func() time.Time
+	// tray is the review comments drafted and not sent.
+	tray trayState
 	mergeMethod core.MergeMethod
 	// remember tells the section the method a merge was confirmed with,
 	// for the merges after it.
@@ -188,6 +193,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		checksSvc:   s.checks,
 		ahead:       newFilesAhead(ctx, s.svc, repo, number, s.prefetch, s.slots),
 		whoAmI:      s.readViewer,
+		rawKeys:     s.rawKeys,
+		tray:        trayState{store: s.tray},
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -212,10 +219,10 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindPull}, true, keys, append(slices.Clone(opts), refs.WithIcons(m.icons))...)
 		}
 	}
-	var step tea.Cmd
+	step := m.loadTray()
 	if onChecks && m.newChecks != nil {
 		m.tab = checksTab
-		step = m.showChecks()
+		step = tea.Batch(step, m.showChecks())
 	}
 	if !m.caps.Known {
 		// The app reads those of the selected repository.
@@ -377,6 +384,10 @@ func (m *detailModal) View() string {
 		}
 		return ui.OverLastLines(base, lines)
 	}
+	if c := m.tray.comp; c != nil && m.onFiles() {
+		c.c.SetSize(m.width, composerHeight(m.height))
+		return ui.OverLastLines(base, strings.Split(c.c.View(), "\n"))
+	}
 	return base
 }
 
@@ -403,9 +414,9 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(m.update(msg), m.updateAhead(msg))
 }
 
-// update takes msg, apart from what the read ahead of the files does with
-// it.
-func (m *detailModal) update(msg tea.Msg) tea.Cmd {
+// updateMain takes msg, apart from what the read ahead of the files and the
+// tray do with it.
+func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
@@ -499,6 +510,10 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
+	}
+	if m.tray.comp != nil {
+		// The composer types, so it takes every key.
+		return m.pressCompose(msg)
 	}
 	if m.find != nil {
 		// The finder types, so it takes every key.
@@ -688,6 +703,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
+	case m.tray.comp != nil:
+		return []keyhelp.Layer{ui.ContextHelp("composer", m.tray.comp.c, true)}
 	case m.find != nil:
 		return []keyhelp.Layer{ui.ContextHelp("finder", m.find, true)}
 	case m.refs != nil:

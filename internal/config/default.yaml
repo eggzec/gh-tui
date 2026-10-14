@@ -1149,6 +1149,13 @@ keys:
     # Resolve the thread under the cursor, or unresolve it if it is resolved,
     # after a question.
     resolve: [T]
+    # Draft a review comment on the line under the cursor, or on the range
+    # started with range, or as a reply to the thread there, or edit the
+    # draft there. Nothing is sent. Range starts a range of lines (press it
+    # again to clear it), and delete_draft deletes the draft under the cursor.
+    comment: [c]
+    range: [V]
+    delete_draft: [D]
   # The modal of a release.
   release_modal:
     up: [up, k]

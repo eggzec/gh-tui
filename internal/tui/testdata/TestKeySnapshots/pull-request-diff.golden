@@ -55,3 +55,6 @@ Diff
   next match | n | n | off
   prev match | N | N | off
   resolve thread | T | T | off
+  draft comment | c | c | on
+  start range | V | V | on
+  delete draft | D | D | off
