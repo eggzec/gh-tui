@@ -1,7 +1,6 @@
 package pulls
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 
@@ -70,6 +69,9 @@ type threadsState struct {
 	// threads the pages held, of total.
 	all, list   []core.Thread
 	read, total int
+	// hidden are the pending review's comments among the threads read, which
+	// the tray shows and the threads leave out (see splitPending).
+	hidden []core.Thread
 	// next is the cursor of the page after those read, empty after the last.
 	next string
 	// loadingMore is set while the next page is read, and moreErr is why
@@ -215,7 +217,7 @@ func (m *detailModal) readThreads() tea.Cmd {
 		m.thread.Redraw()
 	} else if moved {
 		// What was read is of a head the pull request left.
-		t.all, t.list, t.read, t.total, t.next, t.kept, t.got = nil, nil, 0, 0, "", false, false
+		t.all, t.list, t.hidden, t.read, t.total, t.next, t.kept, t.got = nil, nil, nil, 0, 0, "", false, false
 	}
 	m.applyThreadBlocks()
 	return tea.Batch(m.fetchThreads("", t.gen), m.show())
@@ -247,7 +249,7 @@ func (m *detailModal) fetchThreads(cursor string, gen int) tea.Cmd {
 func (t *threadsState) setFirst(p core.ThreadPage) {
 	// A cached page is shared, and the pages after it are added to what is
 	// kept here.
-	t.all = slices.Clone(p.Threads)
+	t.all, t.hidden = splitPending(p.Threads)
 	t.list, t.read, t.total, t.next = unresolved(t.all), len(p.Threads), p.Total, p.Next
 	t.kept = p.Offline || p.Limited
 	t.loadingMore, t.moreErr = false, nil
@@ -278,7 +280,9 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 	case msg.err != nil:
 		t.err = msg.err
 	case msg.more:
-		t.all = append(t.all, msg.page.Threads...)
+		shown, hidden := splitPending(msg.page.Threads)
+		t.all = append(t.all, shown...)
+		t.hidden = append(t.hidden, hidden...)
 		t.list = unresolved(t.all)
 		t.read += len(msg.page.Threads)
 		t.total, t.next = msg.page.Total, msg.page.Next
@@ -290,6 +294,10 @@ func (m *detailModal) receiveThreads(msg threadsMsg) tea.Cmd {
 	}
 	if !m.loaded {
 		return nil
+	}
+	if m.tray.pending.ID != "" {
+		// The comments of the review take their side from the threads.
+		m.placePending()
 	}
 	m.applyThreadBlocks()
 	if msg.err == nil {

@@ -135,6 +135,9 @@ type fakeService struct {
 	// fails it.
 	submitted []reviewCall
 	submitErr error
+	// pending is the pending review that PendingReview reads, if pendingFound.
+	pending      core.PendingReview
+	pendingFound bool
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.

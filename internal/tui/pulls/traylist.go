@@ -70,6 +70,8 @@ func (m *detailModal) pressTrayList(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.showThread) && cur < len(m.tray.drafts):
 		m.tray.list = nil
 		return m.showDraft(m.tray.drafts[cur].ID)
+	case keymap.Matches(msg, k.deleteDraft) && cur < len(m.tray.drafts) && m.tray.drafts[cur].OnGitHub:
+		return ui.Notify(toast.Info, onGitHubText)
 	case keymap.Matches(msg, k.deleteDraft) && cur < len(m.tray.drafts):
 		id := m.tray.drafts[cur].ID
 		cmd := m.removeDraft(id)
@@ -81,6 +83,9 @@ func (m *detailModal) pressTrayList(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	case keymap.Matches(msg, k.comment) && cur < len(m.tray.drafts):
 		d := m.tray.drafts[cur]
+		if d.OnGitHub {
+			return ui.Notify(toast.Info, onGitHubText)
+		}
 		if d.ThreadID != "" {
 			return ui.Notify(toast.Info, "A reply stays with its thread.")
 		}
@@ -158,6 +163,9 @@ func (m *detailModal) trayListView() string {
 		if d.Outdated {
 			head += " " + m.theme.Warning.Render(draftOutdated)
 		}
+		if d.OnGitHub {
+			head += " " + m.st.age.Render(draftOnGitHub)
+		}
 		first, _, _ := strings.Cut(d.Body, "\n")
 		lines = append(lines, ansi.Truncate(head, w, m.icons.Ellipsis),
 			ansi.Truncate("     "+m.st.age.Render(ui.OneLine(first)), w, m.icons.Ellipsis))
@@ -190,7 +198,7 @@ func (m *detailModal) checkDrafts() bool {
 	for i := range m.tray.drafts {
 		d := &m.tray.drafts[i]
 		// A reply is to a thread, whichever commit it was written on.
-		if d.Outdated || d.ThreadID != "" || d.Commit == "" || d.Commit == f.head {
+		if d.OnGitHub || d.Outdated || d.ThreadID != "" || d.Commit == "" || d.Commit == f.head {
 			continue
 		}
 		pos := diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line}

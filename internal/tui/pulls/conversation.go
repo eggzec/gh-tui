@@ -132,6 +132,11 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 	newer := m.loaded && msg.detail.UpdatedAt.After(m.detail.UpdatedAt)
 	m.detail, m.loaded, m.seen, m.failed = msg.detail, true, true, nil
 	cmds := []tea.Cmd{m.show(), m.showFiles(), m.showThreads()}
+	if msg.detail.Reviewers.Viewer == core.ReviewStatePending || m.tray.pending.ID != "" {
+		// A review started on the web: its comments join the tray. One that was
+		// read may be submitted or discarded elsewhere since.
+		cmds = append(cmds, m.loadPending())
+	}
 	if m.refs != nil && newer {
 		// The links are read again for what changed.
 		cmds = append(cmds, m.refs.Reread())

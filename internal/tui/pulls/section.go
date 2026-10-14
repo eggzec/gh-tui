@@ -86,6 +86,12 @@ type Service interface {
 	// the verdict event and the summary body. It is not optimistic: nothing
 	// changes in the cache unless GitHub accepts the review.
 	SubmitReview(ctx context.Context, repo core.RepoRef, number int, head string, event core.ReviewEvent, body string, drafts []tray.Draft) error
+	// PendingReview reads the user's pending review of a pull request, such as
+	// one started on the web, and reports whether they have one.
+	PendingReview(ctx context.Context, repo core.RepoRef, number int) (core.PendingReview, bool, error)
+	// SubmitIntoPending adds drafts to the pending review that PendingReview
+	// read and submits it, as SubmitReview does for a review of its own.
+	SubmitIntoPending(ctx context.Context, repo core.RepoRef, number int, head string, pending core.PendingReview, event core.ReviewEvent, body string, drafts []tray.Draft) error
 }
 
 // ChecksService is what the section needs to show the checks of pull

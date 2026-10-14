@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
-	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // reviewCall is a review that the fake service was asked to submit.
@@ -26,14 +25,40 @@ type reviewCall struct {
 	event  core.ReviewEvent
 	body   string
 	drafts []tray.Draft
+	// pendingID is the pending review the drafts were added to, or empty for a
+	// review of their own.
+	pendingID string
 }
 
 // SubmitReview records the review, and fails with submitErr if it is set.
 func (f *fakeService) SubmitReview(_ context.Context, _ core.RepoRef, number int, head string, event core.ReviewEvent, body string, drafts []tray.Draft) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.submitted = append(f.submitted, reviewCall{number, head, event, body, slices.Clone(drafts)})
+	f.submitted = append(f.submitted, reviewCall{number, head, event, body, slices.Clone(drafts), ""})
 	return f.submitErr
+}
+
+// SubmitIntoPending records the review with the ID of the pending one, and
+// fails with submitErr if it is set.
+func (f *fakeService) SubmitIntoPending(_ context.Context, _ core.RepoRef, number int, head string, pending core.PendingReview, event core.ReviewEvent, body string, drafts []tray.Draft) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.submitted = append(f.submitted, reviewCall{number, head, event, body, slices.Clone(drafts), pending.ID})
+	return f.submitErr
+}
+
+// PendingReview serves the pending review that the test set.
+func (f *fakeService) PendingReview(context.Context, core.RepoRef, int) (core.PendingReview, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pending, f.pendingFound, nil
+}
+
+// setPending sets the pending review that the fake serves.
+func (f *fakeService) setPending(p core.PendingReview) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pending, f.pendingFound = p, p.ID != ""
 }
 
 func (f *fakeService) reviewCalls() []reviewCall {
@@ -236,24 +261,146 @@ func TestReviewFailureKeepsDraftsAndText(t *testing.T) {
 	}
 }
 
-func TestReviewPendingReviewMessage(t *testing.T) {
+// webPending is a pending review started on the web, on the head of #142,
+// with a comment on a line of the first file and a summary.
+var webPending = core.PendingReview{
+	ID: "PRR1", Commit: "a1b2c3d", Body: "web summary",
+	Comments: []core.PendingComment{{ID: "C1", Path: "cmd/gh-tui/main.go", Line: 20, Body: "from the web"}},
+}
+
+func TestReviewPendingAppearedMergesAndKeepsDrafts(t *testing.T) {
 	t.Parallel()
 	h, m, svc := reviewing(t, kept(reviewLine), &memDrafts{})
-	svc.submitErr = fmt.Errorf("submit review: %w", pulls.ErrPendingReview)
+	// The review is started on the web after the tray last read GitHub.
+	svc.submitErr = fmt.Errorf("submit review: %w: %w", pulls.ErrPendingAppeared, pulls.ErrPendingReview)
 	toSummary(t, h, 1, "")
 	submitSummary(t, h)
+	svc.setPending(webPending)
 	msgs := press(t, h, "y")
-	var found bool
-	for _, msg := range msgs {
-		if n, ok := msg.(ui.NotifyMsg); ok && n.Text == pendingReviewText && n.Level == toast.Error {
-			found = true
+	if got := toasts(msgs); !slices.Contains(got, pendingAppearedText) {
+		t.Errorf("toasts %v, want %q", got, pendingAppearedText)
+	}
+	if m.tray.pending.ID != "PRR1" || len(m.tray.drafts) != 2 {
+		t.Errorf("pending %q and %d drafts, want the review merged beside the kept draft", m.tray.pending.ID, len(m.tray.drafts))
+	}
+	if byID(t, m.tray.drafts, "line").OnGitHub || !byID(t, m.tray.drafts, "C1").OnGitHub {
+		t.Errorf("drafts %+v, want only the comment of the review on GitHub", m.tray.drafts)
+	}
+}
+
+func TestPendingCommentsShowAsRowsAndAreNotSaved(t *testing.T) {
+	t.Parallel()
+	store := kept(reviewLine)
+	h, m, svc := reviewing(t, store, &memDrafts{})
+	svc.setPending(webPending)
+	runReview(t, h)
+	if !byID(t, m.tray.drafts, "C1").OnGitHub {
+		t.Fatalf("drafts %+v, want the comment of the pending review among them", m.tray.drafts)
+	}
+	if err := m.writeTray(); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.drafts(); len(got) != 1 || got[0].ID != "line" {
+		t.Errorf("the store holds %+v, want only the local draft", got)
+	}
+	if blocks := m.draftBlocks(); len(blocks) != 2 {
+		t.Errorf("the diff has %d draft blocks, want 2", len(blocks))
+	}
+	press(t, h, "esc")
+	press(t, h, "t")
+	if v := modalText(h); !strings.Contains(v, "from the web") || !strings.Contains(v, draftOnGitHub) {
+		t.Errorf("the list lacks the comment on GitHub:\n%s", v)
+	}
+}
+
+func TestPendingCommentsAreReadOnly(t *testing.T) {
+	t.Parallel()
+	h, m, svc := reviewing(t, kept(), &memDrafts{})
+	svc.setPending(webPending)
+	runReview(t, h)
+	press(t, h, "esc")
+	press(t, h, "t")
+	for _, k := range []string{"D", "c"} {
+		msgs := press(t, h, k)
+		if got := toasts(msgs); !slices.Contains(got, onGitHubText) {
+			t.Errorf("%s toasts %v, want %q", k, got, onGitHubText)
 		}
 	}
-	if !found {
-		t.Errorf("no toast says %q: %v", pendingReviewText, msgs)
-	}
 	if len(m.tray.drafts) != 1 {
-		t.Errorf("the tray holds %d drafts after the refusal, want it kept", len(m.tray.drafts))
+		t.Errorf("the tray holds %d drafts, want the comment kept", len(m.tray.drafts))
+	}
+}
+
+func TestReviewIntoPendingQuestionsAndSends(t *testing.T) {
+	t.Parallel()
+	d := &memDrafts{}
+	h, m, svc := reviewing(t, kept(reviewLine, reviewReply), d)
+	svc.setPending(webPending)
+	toSummary(t, h, 1, "")
+	if got := m.rev.comp.Value(); got != "web summary" {
+		t.Errorf("the summary starts as %q, want the pending review's", got)
+	}
+	submitSummary(t, h)
+	want := "Submit review (Approve) with 1 comment and 1 reply and 1 already on GitHub on #142?"
+	if m.ask == nil || m.ask.Question != want {
+		t.Fatalf("submit asked %+v, want %q", m.ask, want)
+	}
+	press(t, h, "y")
+	calls := svc.reviewCalls()
+	if len(calls) != 1 || calls[0].pendingID != "PRR1" || len(calls[0].drafts) != 2 {
+		t.Fatalf("calls %+v, want one into PRR1 with the two local drafts", calls)
+	}
+	if m.tray.drafts != nil || m.tray.pending.ID != "" {
+		t.Errorf("the tray holds %v and pending %q, want both cleared", m.tray.drafts, m.tray.pending.ID)
+	}
+}
+
+func TestReviewRefusesPendingOnAnOlderCommit(t *testing.T) {
+	t.Parallel()
+	h, m, svc := reviewing(t, kept(reviewLine), &memDrafts{})
+	old := webPending
+	old.Commit = "0ld0ld0"
+	svc.setPending(old)
+	toSummary(t, h, 1, "")
+	msgs := submitSummary(t, h)
+	if got := toasts(msgs); !slices.Contains(got, outdatedPendingText) {
+		t.Errorf("toasts %v, want %q", got, outdatedPendingText)
+	}
+	if m.ask != nil || len(svc.reviewCalls()) != 0 {
+		t.Errorf("the review went on: ask %+v, calls %v", m.ask, svc.reviewCalls())
+	}
+}
+
+func TestReviewFailureIntoPendingDropsWhatWentIn(t *testing.T) {
+	t.Parallel()
+	h, m, svc := reviewing(t, kept(reviewLine, reviewRange), &memDrafts{})
+	svc.setPending(webPending)
+	toSummary(t, h, 1, "")
+	submitSummary(t, h)
+	// GitHub took the first comment, then failed.
+	added := webPending
+	added.Comments = append(slices.Clone(webPending.Comments), core.PendingComment{ID: "C2", Path: reviewLine.Path, Line: reviewLine.Line, Body: reviewLine.Body})
+	svc.submitErr = errors.New("boom")
+	svc.setPending(added)
+	press(t, h, "y")
+	if len(m.tray.drafts) != 3 {
+		t.Fatalf("the tray holds %+v, want the range and two comments on GitHub", m.tray.drafts)
+	}
+	if !byID(t, m.tray.drafts, "C2").OnGitHub || slices.ContainsFunc(m.tray.drafts, func(d tray.Draft) bool { return d.ID == "line" }) {
+		t.Errorf("drafts %+v, want the added draft to show as on GitHub only", m.tray.drafts)
+	}
+}
+
+func TestPendingThreadsAreNotThreads(t *testing.T) {
+	t.Parallel()
+	pub := core.Thread{ID: "T1", Comments: []core.ThreadComment{{ID: "a"}, {ID: "b", ReplyTo: "a", Pending: true}}, TotalComments: 2}
+	web := core.Thread{ID: "T2", Pending: true, Comments: []core.ThreadComment{{ID: "c", Pending: true}}}
+	shown, hidden := splitPending([]core.Thread{pub, web})
+	if len(shown) != 1 || shown[0].ID != "T1" || len(shown[0].Comments) != 1 || shown[0].TotalComments != 1 {
+		t.Errorf("shown %+v, want T1 without its pending reply", shown)
+	}
+	if len(hidden) != 2 || hidden[0].ID != "T1" || hidden[1].ID != "T2" {
+		t.Errorf("hidden %+v, want the pending part of T1 and T2", hidden)
 	}
 }
 
