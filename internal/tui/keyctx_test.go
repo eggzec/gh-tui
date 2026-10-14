@@ -585,11 +585,43 @@ func layerNames(layers []keyhelp.Layer) string {
 	return strings.Join(names, ", ")
 }
 
-// layers returns the layers of keys the app has in the context.
+// reachedLayers keeps the layers of each context that layers reached, so
+// that the tests that read the layers of every context reach each one once
+// between them, and not once each. The layers are only read.
+var reachedLayers = struct {
+	sync.Mutex
+	byContext map[string]*reachedContext
+}{byContext: map[string]*reachedContext{}}
+
+type reachedContext struct {
+	once   sync.Once
+	layers []keyhelp.Layer
+	// ok is set when the context was reached, for a caller that finds the
+	// caller that tried failed.
+	ok bool
+}
+
+// layers returns the layers of keys the app has in the context. Reaching
+// the context builds and drives an app, so the first caller does it and the
+// others share what it found.
 func (c keyContext) layers(t *testing.T) []keyhelp.Layer {
 	t.Helper()
-	_, layers := c.reach(t)
-	return layers
+	id := fmt.Sprintf("%s\x00%v\x00%q\x00%T\x00%q\x00%s", c.name, c.repo, c.steps, c.msg, c.after, c.want)
+	reachedLayers.Lock()
+	r, ok := reachedLayers.byContext[id]
+	if !ok {
+		r = &reachedContext{}
+		reachedLayers.byContext[id] = r
+	}
+	reachedLayers.Unlock()
+	r.once.Do(func() {
+		_, r.layers = c.reach(t)
+		r.ok = true
+	})
+	if !r.ok {
+		t.Fatalf("%s: the context wasn't reached; the first test to reach it failed", c.name)
+	}
+	return r.layers
 }
 
 // reach returns the app in the context, and the layers of keys it has.
@@ -1166,8 +1198,7 @@ func TestBindingsHavePaths(t *testing.T) {
 		// The contexts run in turn: the checks after them need all they saw.
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				_, layers := c.reach(t)
-				for _, l := range layers {
+				for _, l := range c.layers(t) {
 					for _, b := range l.Bindings {
 						id := fmt.Sprintf("%s: %q (%s) of %s", c.name, b.Help().Desc, b.Help().Key, layerNames([]keyhelp.Layer{l}))
 						named := keymap.Actions(b)

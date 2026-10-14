@@ -56,7 +56,10 @@ func TestActionCommandsWorkUnbound(t *testing.T) {
 		}
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				_, layers := c.reach(t)
+				// The app that listed the layers is the first the key of an
+				// action is pressed in, as it was reached; the next actions
+				// reach their own.
+				fresh, layers := c.reach(t)
 				for _, l := range layers {
 					if l.Context == "" || l.Typing {
 						continue
@@ -81,7 +84,7 @@ func TestActionCommandsWorkUnbound(t *testing.T) {
 								// an unbound action has none of.
 								continue
 							}
-							checkUnboundCommand(t, c, action, checked)
+							checkUnboundCommand(t, c, action, checked, &fresh)
 						}
 					}
 				}
@@ -111,8 +114,9 @@ func pendingActions(c keyContext, checked map[string]bool) bool {
 // checkUnboundCommand checks, in the context c, that the key of action
 // does something there, and that the command of the same name does
 // something with the key unbound, and neither is refused, and records it
-// in checked.
-func checkUnboundCommand(t *testing.T, c keyContext, action string, checked map[string]bool) {
+// in checked. The key is pressed in *fresh, an app just as c reaches it,
+// which the press uses up, if there is one, and in a new app otherwise.
+func checkUnboundCommand(t *testing.T, c keyContext, action string, checked map[string]bool, fresh **Model) {
 	t.Helper()
 	ctx, name, _ := strings.Cut(action, ".")
 	var press tea.KeyPressMsg
@@ -125,7 +129,11 @@ func checkUnboundCommand(t *testing.T, c keyContext, action string, checked map[
 	if press.String() == "" {
 		return
 	}
-	m, _ := c.reach(t)
+	m := *fresh
+	*fresh = nil
+	if m == nil {
+		m, _ = c.reach(t)
+	}
 	if !effect(m, func() tea.Cmd { return m.key(press) }) {
 		// TestHelpRowsWork answers for a key that does nothing here.
 		return
