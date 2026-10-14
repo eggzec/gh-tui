@@ -49,6 +49,8 @@ type fakeAPI struct {
 	detailSizes []github.DetailSizes
 	// threadSetErr fails SetReviewThreadResolved.
 	threadSetErr error
+	// commentErr fails CreateIssueComment.
+	commentErr error
 }
 
 func (f *fakeAPI) called(method string) {
@@ -173,6 +175,16 @@ func (f *fakeAPI) SetReviewThreadResolved(_ context.Context, id string, resolved
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.threadSetErr
+}
+
+func (f *fakeAPI) CreateIssueComment(_ context.Context, _ core.RepoRef, number int, body string) (core.Comment, error) {
+	f.called(fmt.Sprintf("comment %d", number))
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.commentErr != nil {
+		return core.Comment{}, f.commentErr
+	}
+	return core.Comment{ID: "C_real", Body: body}, nil
 }
 
 func (f *fakeAPI) ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error) {
