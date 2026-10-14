@@ -303,6 +303,25 @@ func (m *Model) SetStyles(s Styles) {
 	m.refreshError()
 }
 
+// Rewrite replaces the text of every loaded commit with what f returns for
+// it and renders the rows again, for a parent whose text changed, such as
+// marks that follow a setting. f must keep the ID and the parents, which the
+// lanes were drawn from. The commit under the cursor stays selected.
+func (m *Model) Rewrite(f func(Commit) Commit) {
+	// Copies of the model share the rows, so write into new ones.
+	m.rows = slices.Clone(m.rows)
+	for i := range m.rows {
+		m.rows[i].commit = f(m.rows[i].commit)
+		m.render(&m.rows[i])
+	}
+}
+
+// SetFetch sets how the next chunks load, in place of the fetch the graph
+// was made or last reset with. Chunks in flight keep theirs.
+func (m *Model) SetFetch(fetch Fetch) {
+	m.fetch = fetch
+}
+
 // Styles returns the styles.
 func (m Model) Styles() Styles {
 	s := m.styles
