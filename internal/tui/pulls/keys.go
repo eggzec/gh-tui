@@ -55,6 +55,9 @@ type keyMap struct {
 	// Tray lists the drafts of the review, in the modal. The list has no such
 	// key.
 	Tray key.Binding
+	// Review submits the drafts as one review, from the modal. It has no key
+	// by default, so it runs as the :review command.
+	Review key.Binding
 
 	// composer are the keys of the composer of a comment.
 	composer composer.KeyMap
@@ -143,6 +146,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		PrevThread:  ui.In(keys, ctxModal).Binding("prev_thread", "previous thread"),
 		composer:    composer.NewKeyMap(ui.Lookup(keys, "composer")),
 		Tray:        ui.In(keys, ctxModal).Binding("tray", "drafts"),
+		Review:      ui.In(keys, ctxModal).Binding("review", "submit review"),
 		confirm:     ui.NewConfirmKeys(keys),
 		finder:      finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		owner:       list.Binding("global.owner", "author"),
@@ -204,6 +208,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.NextThread = modal.Binding("next_thread", "next thread")
 	k.PrevThread = modal.Binding("prev_thread", "previous thread")
 	k.Tray = modal.Binding("tray", "drafts")
+	k.Review = modal.Binding("review", "submit review")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
@@ -233,7 +238,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.ConvComment, k.Tray, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.ConvComment, k.Tray, k.Review, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 

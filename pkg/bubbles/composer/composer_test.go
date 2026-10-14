@@ -151,6 +151,30 @@ func TestSubmitRefusedWhenBlank(t *testing.T) {
 	}
 }
 
+// With WithOptional a blank composer submits its text as written; without it
+// the submit is refused.
+func TestOptionalSubmitsBlank(t *testing.T) {
+	for _, text := range []string{"", "   ", "\n \n"} {
+		m := typeText(focused(t, "k", WithOptional()), text)
+		m, cmd := m.Update(ctrlS)
+		got, ok := run(cmd).(SubmitMsg)
+		if !ok {
+			t.Fatalf("%q: blank text with WithOptional was not submitted", text)
+		}
+		if got.Text != text {
+			t.Errorf("%q: submitted text %q, want it as written", text, got.Text)
+		}
+		if strings.Contains(ansi.Strip(m.View()), noteEmpty) {
+			t.Errorf("%q: the view refuses a blank text that is allowed", text)
+		}
+
+		m = typeText(focused(t, "k"), text)
+		if _, cmd := m.Update(ctrlS); cmd != nil {
+			t.Errorf("%q: submitted without WithOptional: %v", text, run(cmd))
+		}
+	}
+}
+
 func TestSubmitKeepsDraftUntilDiscarded(t *testing.T) {
 	d := newMem(nil)
 	m := typeText(focused(t, "k", WithDrafts(d)), "LGTM")

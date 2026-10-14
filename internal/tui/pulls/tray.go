@@ -109,7 +109,7 @@ func (m *detailModal) writeTray() error {
 // Save implements ui.Saver: the text of the open composers is kept as drafts
 // when the app quits.
 func (m *detailModal) Save() error {
-	return errors.Join(m.saveComment(), m.saveReview())
+	return errors.Join(m.saveComment(), m.saveReview(), m.saveSummary())
 }
 
 // saveReview keeps the text of the open composer of a review comment as a

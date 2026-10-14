@@ -11,7 +11,8 @@ import (
 )
 
 // SubmitMsg reports that the user submitted the composer with ID. Text is
-// what they wrote, as is, and never blank. The draft under Key is saved,
+// what they wrote, as is, and never blank unless the composer was made
+// [WithOptional]. The draft under Key is saved,
 // since the send may fail; Err is why that failed, if it did. The parent
 // sends the text, then calls [Model.Discard].
 type SubmitMsg struct {
@@ -87,7 +88,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		switch {
 		case key.Matches(msg, m.keys.Submit):
-			if m.blank() {
+			if m.blank() && !m.optional {
 				m.setNote(noteEmpty)
 				return m, nil
 			}

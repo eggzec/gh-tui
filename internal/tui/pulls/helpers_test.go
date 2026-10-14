@@ -131,6 +131,10 @@ type fakeService struct {
 	// threads that were sent.
 	summaries map[int]core.ThreadSummary
 	sends     []string
+	// submitted are the reviews that SubmitReview was given, and submitErr
+	// fails it.
+	submitted []reviewCall
+	submitErr error
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.
