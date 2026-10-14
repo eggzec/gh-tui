@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 )
@@ -236,5 +238,113 @@ func TestTrayListPlaceNeedsAnOutdatedDraft(t *testing.T) {
 	press(t, h, "c")
 	if m.tray.list == nil || m.tray.replacing != "" {
 		t.Errorf("c on a reply left list %+v and replacing %q, want it open and nothing armed", m.tray.list, m.tray.replacing)
+	}
+}
+
+// The list fills the modal: every line is as wide as it, so the frame keeps
+// its size and the screen under it stays hidden.
+func TestTrayListFillsTheModal(t *testing.T) {
+	t.Parallel()
+	h, m := drafting(t, kept(
+		tray.Draft{ID: "a", Commit: "a1b2c3d", Path: "cmd/gh-tui/main.go", Side: tray.Right, StartLine: 10, Line: 12, Body: "first\nsecond line"},
+		tray.Draft{ID: "b", Commit: "a1b2c3d", Path: "internal/cache/disk.go", Side: tray.Right, Line: 45, Body: strings.Repeat("long ", 60)},
+	))
+	press(t, h, "t")
+	lines := strings.Split(m.trayListView(), "\n")
+	if len(lines) != m.height {
+		t.Fatalf("the list has %d lines, want %d", len(lines), m.height)
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != m.width {
+			t.Errorf("line %d is %d cells wide, want %d: %q", i, w, m.width, l)
+		}
+	}
+	if v := modalText(h); !strings.Contains(v, "cmd/gh-tui/main.go:10-12") {
+		t.Errorf("the list shows no range as path:10-12:\n%s", v)
+	}
+}
+
+// A draft on an empty line is told from a draft with no text kept: it goes
+// outdated when its line is not empty on the head, and the first line of a
+// range counts as well.
+func TestDraftsSettleOnEmptyLinesAndRanges(t *testing.T) {
+	t.Parallel()
+	_, probe := drafting(t, nil)
+	line := func(path string, n int) string {
+		text, shown, _ := probe.files.diff.Line(diff.Pos{Path: path, Side: diff.NewSide, Line: n})
+		if !shown {
+			t.Fatalf("line %d of %s is not shown", n, path)
+		}
+		return text
+	}
+	const main = "cmd/gh-tui/main.go"
+	store := kept(
+		// Line 10 of main.go is not empty on the head.
+		tray.Draft{ID: "was-empty", Commit: "old1", Path: main, Side: tray.Right, Line: 10, HasText: true, Body: "a"},
+		// Line 2 of the new test file is empty, as it was.
+		tray.Draft{ID: "still-empty", Commit: "old1", Path: "internal/cache/disk_test.go", Side: tray.Right, Line: 2, HasText: true, Body: "b"},
+		// The last line of the range is as it was, and the first is not.
+		tray.Draft{ID: "start", Commit: "old1", Path: main, Side: tray.Right, StartLine: 10, Line: 11, Text: line(main, 11), StartText: "changed", HasText: true, Body: "c"},
+		tray.Draft{ID: "range", Commit: "old1", Path: main, Side: tray.Right, StartLine: 10, Line: 11, Text: line(main, 11), StartText: line(main, 10), HasText: true, Body: "d"},
+	)
+	_, m := drafting(t, store)
+	for id, outdated := range map[string]bool{"was-empty": true, "still-empty": false, "start": true, "range": false} {
+		if d := byID(t, m.tray.drafts, id); d.Outdated != outdated {
+			t.Errorf("draft %s outdated = %v, want %v", id, d.Outdated, outdated)
+		}
+	}
+}
+
+// A placement that was left, by esc, another tab, the list or a range, does
+// not move the draft at the next comment.
+func TestTrayReplacingEnds(t *testing.T) {
+	t.Parallel()
+	store := kept(tray.Draft{ID: "o", Commit: "old1", Path: "internal/cache/disk.go", Side: tray.Right, Line: 900, Text: "old text", Body: "keep me", Outdated: true})
+	h, m := drafting(t, store)
+	arm := func() {
+		t.Helper()
+		press(t, h, "t")
+		press(t, h, "c")
+		if m.tray.replacing != "o" {
+			t.Fatalf("replacing = %q, want armed", m.tray.replacing)
+		}
+	}
+
+	// The hint shows in the status line while it is armed.
+	arm()
+	if v := modalText(h); !strings.Contains(v, "placing draft: c on a line") {
+		t.Errorf("no hint while placing:\n%s", v)
+	}
+	press(t, h, "esc")
+	if m.tray.replacing != "" || m.closed {
+		t.Fatalf("esc left replacing %q, closed %v, want it ended and the modal open", m.tray.replacing, m.closed)
+	}
+	press(t, h, "g")
+	down(t, h, rowContext)
+	press(t, h, "c")
+	if c := m.tray.comp; c == nil || c.d.ID == "o" {
+		t.Fatalf("c after esc opened %+v, want a new draft", c)
+	}
+	press(t, h, "esc")
+
+	// Another tab ends it.
+	arm()
+	drain(t, h, m.switchTo(overviewTab))
+	if m.tray.replacing != "" {
+		t.Errorf("leaving the Files tab left replacing %q", m.tray.replacing)
+	}
+	drain(t, h, m.switchTo(filesTab))
+
+	// A range ends it, and a placement ends the range.
+	arm()
+	press(t, h, "g")
+	down(t, h, rowContext)
+	press(t, h, "V")
+	if m.tray.replacing != "" || m.tray.from == nil {
+		t.Errorf("a range left replacing %q and from %+v", m.tray.replacing, m.tray.from)
+	}
+	arm()
+	if m.tray.from != nil {
+		t.Errorf("a placement left the range %+v open", m.tray.from)
 	}
 }

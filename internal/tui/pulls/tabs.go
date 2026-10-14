@@ -213,6 +213,8 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 	m.tab = t
 	if t != filesTab {
 		m.fileJump = 0
+		// A placement is made on the Files tab.
+		m.tray.replacing = ""
 	}
 	switch t {
 	case checksTab:

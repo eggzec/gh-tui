@@ -67,6 +67,11 @@ type Draft struct {
 	// Text is the text of the line the draft is on, as the diff showed it when
 	// the draft was written, to tell later whether the line changed.
 	Text string `json:"text,omitempty"`
+	// StartText is the same for the first line of a range. HasText says that
+	// both were recorded, so that an empty line is not taken for no text: a
+	// draft kept before they were recorded has it unset.
+	StartText string `json:"start_text,omitempty"`
+	HasText   bool   `json:"has_text,omitempty"`
 	// Outdated is set when the head moved and the line the draft is on is gone
 	// or changed. The draft keeps its commit, and is sent against it unless the
 	// user places it on a line again.

@@ -301,6 +301,8 @@ func (m *detailModal) startRange() tea.Cmd {
 		return ui.Notify(toast.Info, "Put the cursor on a line to start a range.")
 	}
 	t.from = &pos
+	// A range is a new comment, so it ends a placement.
+	t.replacing = ""
 	return ui.Notify(toast.Info, "Range starts at line "+strconv.Itoa(pos.Line)+": move, then comment.")
 }
 
@@ -338,7 +340,7 @@ func (m *detailModal) comment() tea.Cmd {
 		// where a thread is: a re-placed comment is not a reply.
 		d := m.tray.drafts[i]
 		d.Commit, d.Path, d.Side, d.Line, d.StartLine, d.Outdated = head, pos.Path, traySide(pos.Side), pos.Line, 0, false
-		d.Text, _, _ = f.diff.Line(pos)
+		m.noteText(&d)
 		m.tray.replacing = ""
 		return m.openComposer(d, "Place draft")
 	}
@@ -365,7 +367,7 @@ func (m *detailModal) comment() tea.Cmd {
 			d.StartLine = 0
 		}
 	}
-	d.Text, _, _ = f.diff.Line(diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line})
+	m.noteText(&d)
 	return m.openComposer(d, "Draft comment")
 }
 

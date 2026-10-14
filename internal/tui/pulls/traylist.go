@@ -35,6 +35,7 @@ func (m *detailModal) openTrayList() tea.Cmd {
 		return ui.Notify(toast.Info, "No drafts: put the cursor on a line of the diff and comment.")
 	}
 	m.tray.list = &trayList{id: m.tray.drafts[0].ID}
+	m.tray.replacing = ""
 	return nil
 }
 
@@ -87,6 +88,8 @@ func (m *detailModal) pressTrayList(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.Notify(toast.Info, "Only an outdated draft is placed on a new line.")
 		}
 		m.tray.list = nil
+		// A range that was started is another comment's.
+		m.tray.from = nil
 		m.tray.replacing = d.ID
 		return tea.Batch(m.showDraft(d.ID), ui.Notify(toast.Info, "Move to the new line, then comment to place the draft there."))
 	}
@@ -122,7 +125,10 @@ func (m *detailModal) removeDraft(id string) tea.Cmd {
 // replies to.
 func draftWhere(d tray.Draft) string {
 	where := d.Path
-	if d.Line > 0 {
+	switch {
+	case d.StartLine > 0 && d.StartLine < d.Line:
+		where += ":" + strconv.Itoa(d.StartLine) + "-" + strconv.Itoa(d.Line)
+	case d.Line > 0:
 		where += ":" + strconv.Itoa(d.Line)
 	}
 	if d.ThreadID != "" {
@@ -156,10 +162,8 @@ func (m *detailModal) trayListView() string {
 		lines = append(lines, ansi.Truncate(head, w, m.icons.Ellipsis),
 			ansi.Truncate("     "+m.st.age.Render(ui.OneLine(first)), w, m.icons.Ellipsis))
 	}
-	for len(lines) < h {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines[:h], "\n")
+	// Every line is as wide as the modal, so that its frame keeps its size.
+	return strings.Join(ui.FitLines(lines, w, h), "\n")
 }
 
 // trayListLayer is the keys of the open list, for help.
@@ -194,11 +198,15 @@ func (m *detailModal) checkDrafts() bool {
 		if !known {
 			continue
 		}
-		if shown && d.StartLine > 0 {
+		// A draft kept before the text was recorded has none to compare, and
+		// moves if its line shows; an empty line is a text.
+		same := shown && (!d.HasText && d.Text == "" || d.Text == text)
+		if same && d.StartLine > 0 {
 			pos.Line = d.StartLine
-			_, shown, _ = f.diff.Line(pos)
+			start, startShown, _ := f.diff.Line(pos)
+			same = startShown && (!d.HasText || d.StartText == start)
 		}
-		if shown && (d.Text == "" || d.Text == text) {
+		if same {
 			d.Commit = f.head
 		} else {
 			d.Outdated = true
@@ -206,6 +214,20 @@ func (m *detailModal) checkDrafts() bool {
 		changed = true
 	}
 	return changed
+}
+
+// noteText records on draft d the text of the lines it is on, as the diff
+// shows them, to tell later whether they changed.
+func (m *detailModal) noteText(d *tray.Draft) {
+	pos := diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line}
+	var shown bool
+	d.Text, shown, _ = m.files.diff.Line(pos)
+	d.StartText = ""
+	if d.StartLine > 0 {
+		pos.Line = d.StartLine
+		d.StartText, _, _ = m.files.diff.Line(pos)
+	}
+	d.HasText = shown
 }
 
 // settleDrafts runs checkDrafts, and saves and shows what it changed.
