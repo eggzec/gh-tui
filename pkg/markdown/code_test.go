@@ -13,23 +13,8 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
 )
-
-// noLexerRuns fails the test if a lexer holds the gate: one that never
-// finishes holds it for as long as it runs, so after a render that cut one
-// short the gate is taken.
-func noLexerRuns(t *testing.T) {
-	t.Helper()
-	gate := syntax.Lexing()
-	select {
-	case gate <- struct{}{}:
-		<-gate
-	default:
-		t.Error("a lexer still runs")
-	}
-}
 
 // Code whose lexer would hand it to a lexer the code names, such as a
 // fence in markdown, never reaches the lexers that never finish, at any
@@ -50,7 +35,7 @@ func TestDelegatedCodeNeverReachesStuckLexers(t *testing.T) {
 				if !strings.Contains(ansi.Strip(out), `\`) {
 					t.Errorf("the code doesn't show at %d cells:\n%s", w, out)
 				}
-				noLexerRuns(t)
+				idle(t)
 			}
 		})
 	}
@@ -207,7 +192,7 @@ func TestContainedCodeNeverReachesStuckLexers(t *testing.T) {
 				r := New(DefaultStyle(true))
 				for w := 80; w > 76; w-- {
 					r.Render(src, w)
-					noLexerRuns(t)
+					idle(t)
 				}
 			})
 		}
