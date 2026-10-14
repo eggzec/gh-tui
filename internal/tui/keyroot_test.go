@@ -56,33 +56,6 @@ var modalsOver = []struct {
 	{"token prompt", []string{"global.command", typed("auth"), "command_line.run"}, "the token prompt"},
 }
 
-// TestScreenKeysAreRefusedOverAModal checks that a key that shows another
-// screen is refused while a modal is open, naming the modal and what the
-// key does, and is disabled in the modal's help.
-func TestScreenKeysAreRefusedOverAModal(t *testing.T) {
-	t.Parallel()
-	for _, mod := range modalsOver {
-		for _, tt := range []struct{ key, use string }{
-			{"0", "the dashboard"}, {"I", "notifications"}, {"S", "search"}, {".", "the repository"},
-		} {
-			t.Run(mod.name+" "+tt.key, func(t *testing.T) {
-				synctest.Test(t, func(t *testing.T) {
-					m := keysAfter(t, true, mod.steps...)
-					open, screen := m.modal, m.screen
-					tap(t, m, tt.key)
-					want := "Close " + mod.title + " first to use " + tt.use + "."
-					if !hasToast(m, want) {
-						t.Errorf("toasts: %s, want %q", toasted(m), want)
-					}
-					if m.modal != open || m.screen != screen {
-						t.Errorf("the key changed what shows: modal %v, screen %v", m.modal != open, m.screen != screen)
-					}
-				})
-			})
-		}
-	}
-}
-
 // TestScreenKeysAreDisabledInModalHelp checks that the help over a modal
 // lists the keys that show another screen as disabled, but for the owner
 // key where the modal takes it for its author.
@@ -158,25 +131,10 @@ func TestOwnerKeyOverModals(t *testing.T) {
 
 func modalName(m *Model) string { return m.modalName(m.modal) }
 
-// TestQuitClosesTheModal checks that the quit key closes the modal in one
-// press, from any of its views, and quits when none is open.
-func TestQuitClosesTheModal(t *testing.T) {
+// TestQuitQuitsWithoutAModal checks that the quit key quits when no modal
+// is open (TestOverEveryModal checks that it closes one).
+func TestQuitQuitsWithoutAModal(t *testing.T) {
 	t.Parallel()
-	for _, mod := range modalsOver {
-		t.Run(mod.name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				m := keysAfter(t, true, mod.steps...)
-				if m.modal == nil {
-					t.Fatal("the modal isn't open")
-				}
-				cmd := m.key(press("q"))
-				driveKeys(t, m, cmd)
-				if m.modal != nil {
-					t.Errorf("q left the modal open")
-				}
-			})
-		})
-	}
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true)
 		cmd := m.key(press("q"))
