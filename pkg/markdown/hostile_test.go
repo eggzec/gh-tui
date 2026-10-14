@@ -60,16 +60,46 @@ var hostile = map[string]shape{
 	"css": func(k int) string { return "```css\n" + lines(7*k, strings.Repeat("{a:", 170)) + "\n```" },
 }
 
-// long are hostile comments as long as they come.
+// long are hostile comments as long as they come. Their k counts quarters of
+// the full length, so that the scaling test can render a quarter of it and
+// all of it.
 var long = map[string]shape{
-	"many blocks":        func(k int) string { return strings.Repeat("```go\n"+strings.Repeat("x := 1; ", 20)+"\n```\n", 333*k) },
-	"nested lines":       func(k int) string { return lines(999*k, strings.Repeat("> ", 8)+strings.Repeat("- ", 10)+"x") },
-	"lists on each line": func(k int) string { return lines(999*k, strings.Repeat("- ", 10)+"x") },
-	"long links":         func(k int) string { return strings.Repeat("[a](", 32<<10*k) },
-	"long emphasis":      func(k int) string { return strings.Repeat("*a", 32<<10*k) },
-	"long autolinks":     func(k int) string { return strings.Repeat("https://a.b/", 5<<10*k) },
-	"long backticks":     func(k int) string { return strings.Repeat("`a", 32<<10*k) },
+	"many blocks":        func(k int) string { return strings.Repeat("```go\n"+strings.Repeat("x := 1; ", 20)+"\n```\n", 333*k/4) },
+	"nested lines":       func(k int) string { return lines(999*k/4, strings.Repeat("> ", 8)+strings.Repeat("- ", 10)+"x") },
+	"lists on each line": func(k int) string { return lines(999*k/4, strings.Repeat("- ", 10)+"x") },
+	"long links":         func(k int) string { return strings.Repeat("[a](", 32<<10*k/4) },
+	"long emphasis":      func(k int) string { return strings.Repeat("*a", 32<<10*k/4) },
+	"long autolinks":     func(k int) string { return strings.Repeat("https://a.b/", 5<<10*k/4) },
+	"long backticks":     func(k int) string { return strings.Repeat("`a", 32<<10*k/4) },
 }
+
+// smaller are the shapes of the scaling test that are slow to render, as
+// lexers that run to their end or deep nesting take long, in sizes that keep
+// the test short. They are still far longer than what a render costs apart
+// from its input.
+var smaller = map[string]shape{
+	"lists over lines": func(k int) string { return listLines(60 * k) },
+	"long code":        func(k int) string { return "```go\n" + strings.Repeat("x := `\\\n", 1000*k) + "```" },
+	"java":             func(k int) string { return "```java\n" + lines(3*k, strings.Repeat("a ", 40)) + "\n```" },
+	"html":             func(k int) string { return "```html\n" + lines(3*k, strings.Repeat("<?", 40)) + "\n```" },
+	"groovy":           func(k int) string { return "```groovy\n" + lines(25*k, strings.Repeat("a", 40)) + "\n```" },
+	"quoted java": func(k int) string {
+		return "> ```java\n" + lines(3*k, "> "+strings.Repeat("a ", 40)) + "\n> ```"
+	},
+	"indented templ": func(k int) string {
+		return "text\n\n    templ x() {\n" + lines(8*k, "    "+strings.Repeat("<?", 240))
+	},
+	"css":                func(k int) string { return "```css\n" + lines(3*k, strings.Repeat("{a:", 27)) + "\n```" },
+	"many blocks":        func(k int) string { return strings.Repeat("```go\n"+strings.Repeat("x := 1; ", 20)+"\n```\n", 40*k) },
+	"nested lines":       func(k int) string { return lines(30*k, strings.Repeat("> ", 8)+strings.Repeat("- ", 10)+"x") },
+	"lists on each line": func(k int) string { return lines(30*k, strings.Repeat("- ", 10)+"x") },
+}
+
+// sets are the hostile comments, each with the k of its full length.
+var sets = []struct {
+	shapes map[string]shape
+	full   int
+}{{hostile, 1}, {long, 4}}
 
 // lines returns n lines of l.
 func lines(n int, l string) string {
@@ -101,10 +131,10 @@ func plainText(n int) string {
 func TestHostileRendersSafely(t *testing.T) {
 	wallClock(t)
 	t.Cleanup(func() { idle(t) })
-	for _, set := range []map[string]shape{hostile, long} {
-		for name, src := range set {
+	for _, set := range sets {
+		for name, src := range set.shapes {
 			t.Run(name, func(t *testing.T) {
-				out := New(DefaultStyle(true)).Render(src(1), 76)
+				out := New(DefaultStyle(true)).Render(src(set.full), 76)
 				if why := unsafe(out); why != "" {
 					t.Error(why)
 				}
@@ -119,12 +149,19 @@ const scaleLimit = 8
 
 // The work to render a comment grows with its length and not with the
 // square of it. Allocations stand for the work, as they don't depend on how
-// busy the machine is, as a time does.
+// busy the machine is, as a time does. The lexers run on the stopped clock, so
+// each finishes and none runs on after the render to add to a count. That
+// leaves out the lexers that never finish, which Head's tests and the test
+// above reach on the wall clock.
 func TestHostileRenderScales(t *testing.T) {
-	wallClock(t)
-	t.Cleanup(func() { idle(t) })
 	for _, set := range []map[string]shape{hostile, long} {
 		for name, src := range set {
+			if strings.HasPrefix(name, "jsonata") || strings.HasPrefix(name, "jungle") {
+				continue
+			}
+			if s, ok := smaller[name]; ok {
+				src = s
+			}
 			t.Run(name, func(t *testing.T) {
 				allocs := func(k int) float64 {
 					in := src(k)
@@ -149,9 +186,9 @@ func BenchmarkHostileRender(b *testing.B) {
 	syntaxtest.Use(b, nil)
 	// A lexer cut short that never finishes would keep the rest plain.
 	b.Cleanup(func() { idle(b) })
-	for _, set := range []map[string]shape{hostile, long} {
-		for name, build := range set {
-			src := build(1)
+	for _, set := range sets {
+		for name, build := range set.shapes {
+			src := build(set.full)
 			b.Run(name, func(b *testing.B) {
 				b.Run("hostile", func(b *testing.B) {
 					b.ReportAllocs()
