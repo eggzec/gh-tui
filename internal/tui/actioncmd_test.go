@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -57,9 +58,10 @@ func TestActionCommandsWorkUnbound(t *testing.T) {
 		t.Run(strings.NewReplacer(" ", "-", ":", "").Replace(c.name), func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				// The app that listed the layers is the first the key of an
-				// action is pressed in, as it was reached; the next actions
-				// reach their own.
+				// action is pressed in, as it was reached.
+				// The unbound commands are checked once the keys have been.
 				fresh, layers := c.reach(t)
+				var actions []string
 				for _, l := range layers {
 					if l.Context == "" || l.Typing {
 						continue
@@ -74,7 +76,7 @@ func TestActionCommandsWorkUnbound(t *testing.T) {
 							// and a step that presses an action can't
 							// reach the context without its key.
 							ctx, _, _ := strings.Cut(action, ".")
-							if !config.Commandable(action) || checked[action] || !slices.Contains(config.Chain(c.context), ctx) ||
+							if !config.Commandable(action) || checked[action] || slices.Contains(actions, action) || !slices.Contains(config.Chain(c.context), ctx) ||
 								slices.Contains(c.steps, action) || slices.Contains(c.after, action) {
 								continue
 							}
@@ -84,12 +86,89 @@ func TestActionCommandsWorkUnbound(t *testing.T) {
 								// an unbound action has none of.
 								continue
 							}
-							checkUnboundCommand(t, c, action, checked, &fresh)
+							actions = append(actions, action)
 						}
 					}
 				}
+				checkUnboundCommands(t, c, actions, checked, fresh)
 			})
 		})
+	}
+}
+
+// appState is what tells an app that was backed out of a check from one that
+// was just reached: what is on view, the keys that work, the screen, the
+// modal and the toasts.
+type appState struct {
+	view, layers, modal, toasts string
+	screen                      screen
+	focus, places               int
+	zoom, maximized             bool
+}
+
+func stateOf(m *Model) appState {
+	return appState{
+		view: ansi.Strip(m.View().Content), layers: layerNames(m.keyLayers()),
+		modal: fmt.Sprintf("%T", m.modal), toasts: toasted(m), screen: m.screen,
+		focus: m.focus, places: len(m.back), zoom: m.zoom, maximized: m.maximized,
+	}
+}
+
+// appPool hands out apps in the key context c, of the config that edit
+// changes, and takes them back after a check. A check leaves its app on a
+// question, or on a modal or a toast, so the pool backs out of it with the
+// dismiss and back keys, and keeps the app only if it is then as it was when
+// it was reached; otherwise it reaches another. A mutation only ever asks
+// here, and backing out cancels the question, so the services see none.
+type appPool struct {
+	t    *testing.T
+	c    keyContext
+	edit func(*config.Config)
+	// kept is an app as it was reached, which state describes.
+	kept  *Model
+	state appState
+}
+
+// keep takes m, just as it was reached.
+func (p *appPool) keep(m *Model) {
+	p.kept, p.state = m, stateOf(m)
+}
+
+// get returns an app as the context is reached.
+func (p *appPool) get() *Model {
+	if m := p.kept; m != nil {
+		p.kept = nil
+		return m
+	}
+	m, _ := p.c.reachWith(p.t, p.edit)
+	p.state = stateOf(m)
+	return m
+}
+
+// put takes m back after a check.
+func (p *appPool) put(m *Model, again func() tea.Cmd) {
+	keys := config.Default().Keys
+	// Doing the action again undoes one that toggles.
+	for _, action := range []string{"global.dismiss", "", "global.dismiss", "global.back"} {
+		if stateOf(m) == p.state {
+			p.kept = m
+			return
+		}
+		if action == "" {
+			if _, reached := runReaches(func() tea.Cmd { driveKeys(p.t, m, again()); return nil }); reached {
+				return
+			}
+			continue
+		}
+		for _, k := range keys.Of(action) {
+			if msg, ok := keyPress(k); ok {
+				driveKeys(p.t, m, m.key(msg))
+				break
+			}
+		}
+	}
+	if stateOf(m) == p.state {
+		p.kept = m
 	}
 }
 
@@ -111,38 +190,62 @@ func pendingActions(c keyContext, checked map[string]bool) bool {
 	return false
 }
 
-// checkUnboundCommand checks, in the context c, that the key of action
-// does something there, and that the command of the same name does
-// something with the key unbound, and neither is refused, and records it
-// in checked. The key is pressed in *fresh, an app just as c reaches it,
-// which the press uses up, if there is one, and in a new app otherwise.
-func checkUnboundCommand(t *testing.T, c keyContext, action string, checked map[string]bool, fresh **Model) {
+// checkUnboundCommands checks, in the context c, that the key of each action
+// does something there, and that the command of the same name does something
+// with the key unbound, and asks if the key asks, and neither is refused, and
+// records the actions it checked in checked. Each is checked in an app as c
+// reaches it, which the first of the keys is pressed in, and then the first
+// of the commands, with the keys of all the actions that did something
+// unbound together: the commands don't read each other's keys.
+func checkUnboundCommands(t *testing.T, c keyContext, actions []string, checked map[string]bool, fresh *Model) {
+	t.Helper()
+	keyed := &appPool{t: t, c: c, edit: func(*config.Config) {}}
+	keyed.keep(fresh)
+	asks := map[string]bool{}
+	var done []string
+	for _, action := range actions {
+		var press tea.KeyPressMsg
+		for _, k := range config.Default().Keys.Of(action) {
+			if msg, ok := keyPress(k); ok {
+				press = msg
+				break
+			}
+		}
+		if press.String() == "" {
+			continue
+		}
+		m := keyed.get()
+		if effect(m, func() tea.Cmd { return m.key(press) }) {
+			checked[action] = true
+			done = append(done, action)
+			// A key that asks to confirm is a mutation, which its command
+			// asks for too, and not only sends.
+			asks[action] = strings.Contains(layerNames(m.keyLayers()), "confirm")
+		}
+		// TestHelpRowsWork answers for a key that does nothing here.
+		keyed.put(m, func() tea.Cmd { return m.key(press) })
+	}
+	if len(done) == 0 {
+		return
+	}
+	unbound := &appPool{t: t, c: c, edit: func(cfg *config.Config) {
+		for _, action := range done {
+			cfg.Keys.Set(action, []string{})
+		}
+	}}
+	for _, action := range done {
+		m := unbound.get()
+		checkUnboundCommand(t, c, action, asks[action], m)
+		_, name, _ := strings.Cut(action, ".")
+		unbound.put(m, func() tea.Cmd { return m.runLine(name, nil) })
+	}
+}
+
+// checkUnboundCommand checks that the command of action does something in
+// m, with the key unbound, and asks if asks, and is not refused.
+func checkUnboundCommand(t *testing.T, c keyContext, action string, asks bool, m *Model) {
 	t.Helper()
 	ctx, name, _ := strings.Cut(action, ".")
-	var press tea.KeyPressMsg
-	for _, k := range config.Default().Keys.Of(action) {
-		if msg, ok := keyPress(k); ok {
-			press = msg
-			break
-		}
-	}
-	if press.String() == "" {
-		return
-	}
-	m := *fresh
-	*fresh = nil
-	if m == nil {
-		m, _ = c.reach(t)
-	}
-	if !effect(m, func() tea.Cmd { return m.key(press) }) {
-		// TestHelpRowsWork answers for a key that does nothing here.
-		return
-	}
-	checked[action] = true
-	// A key that asks to confirm is a mutation, which its command asks
-	// for too, and not only sends.
-	asks := strings.Contains(layerNames(m.keyLayers()), "confirm")
-	m, _ = c.reachWith(t, func(cfg *config.Config) { cfg.Keys.Set(action, []string{}) })
 	if !effect(m, func() tea.Cmd { return m.runLine(name, nil) }) {
 		t.Errorf("%s: :%s with %s unbound does nothing, as its key does", c.name, name, ctx)
 	}
