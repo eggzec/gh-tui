@@ -286,6 +286,35 @@ func TestRenderJoinsCodeSpanOverLines(t *testing.T) {
 	}
 }
 
+// A code span runs over a line ending only inside one paragraph, never over a
+// block boundary, so a backtick with no partner in a table row, a list item or
+// a quote stays literal and the next row, item or block stays on its own line.
+func TestRenderKeepsBlocksApartAroundUnmatchedBackticks(t *testing.T) {
+	tests := []struct{ name, src string }{
+		{"table rows", "| a | b |\n|---|---|\n| one ` | x |\n| two ` | y |\n"},
+		{"table rows without a lead", "a | b\n--|--\none ` | x\ntwo ` | y\n"},
+		{"table in a quote", "> | a | b |\n> |---|---|\n> | one ` | x |\n> | two ` | y |\n"},
+		{"table in a list item", "- | a | b |\n  |---|---|\n  | one ` | x |\n  | two ` | y |\n"},
+		{"list items", "- one `x\n- two` y\n"},
+		{"list items in a quote", "> one `x\n> - two` y\n"},
+		{"quote after a paragraph", "one `x\n> two` y\n"},
+	}
+	for _, tt := range tests {
+		for _, width := range []int{20, 40, 80} {
+			out := ansi.Strip(New(DefaultStyle(true)).Render(tt.src, width))
+			if strings.Count(out, "`") < 2 {
+				t.Errorf("%s at width %d lost a backtick:\n%s", tt.name, width, out)
+			}
+			for line := range strings.SplitSeq(out, "\n") {
+				if strings.Contains(line, "one") && strings.Contains(line, "two") {
+					t.Errorf("%s at width %d joins two blocks on a line:\n%s", tt.name, width, out)
+					break
+				}
+			}
+		}
+	}
+}
+
 // The paragraph of the markdown test file, wrapped at the widths where a path
 // used to split.
 func TestRenderKeepsCodeSpansWholeInAParagraph(t *testing.T) {
