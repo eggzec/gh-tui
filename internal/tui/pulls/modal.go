@@ -47,12 +47,12 @@ type changedMsg struct {
 // files, its conversation and its checks, and changes it. It is opened with
 // [Section.openDetail].
 type detailModal struct {
-	svc         Service
-	keys        keyMap
-	rawKeys     config.Keymap
-	now         func() time.Time
+	svc     Service
+	keys    keyMap
+	rawKeys config.Keymap
+	now     func() time.Time
 	// tray is the review comments drafted and not sent.
-	tray trayState
+	tray        trayState
 	mergeMethod core.MergeMethod
 	// remember tells the section the method a merge was confirmed with,
 	// for the merges after it.

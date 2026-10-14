@@ -63,24 +63,24 @@ func (m *detailModal) trayKey() string { return tray.Key(m.repo.String(), m.numb
 
 // loadTray reads the drafts of the pull request from disk.
 func (m *detailModal) loadTray() tea.Cmd {
-	store, key := m.tray.store, m.trayKey()
+	store, id := m.tray.store, m.trayKey()
 	if store == nil {
 		return nil
 	}
 	return func() tea.Msg {
-		d, err := store.Load(key)
+		d, err := store.Load(id)
 		return trayLoadedMsg{owner: m, drafts: d, err: err}
 	}
 }
 
 // saveTray writes the drafts to disk, and warns if it can't.
 func (m *detailModal) saveTray() tea.Cmd {
-	store, key, drafts := m.tray.store, m.trayKey(), slices.Clone(m.tray.drafts)
+	store, id, drafts := m.tray.store, m.trayKey(), slices.Clone(m.tray.drafts)
 	if store == nil {
 		return nil
 	}
 	return func() tea.Msg {
-		if err := store.Save(key, drafts); err != nil {
+		if err := store.Save(id, drafts); err != nil {
 			return ui.Notify(toast.Warning, "Couldn't save the drafts: "+err.Error())()
 		}
 		return nil
@@ -107,9 +107,10 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		}
 		if msg.err == nil {
 			// Drafts made before the read came back stay.
-			for _, d := range msg.drafts {
-				if !slices.ContainsFunc(m.tray.drafts, func(o tray.Draft) bool { return o.ID == d.ID }) {
-					m.tray.drafts = append(m.tray.drafts, d)
+			for i := range msg.drafts {
+				id := msg.drafts[i].ID
+				if !slices.ContainsFunc(m.tray.drafts, func(o tray.Draft) bool { return o.ID == id }) {
+					m.tray.drafts = append(m.tray.drafts, msg.drafts[i])
 				}
 			}
 		}
