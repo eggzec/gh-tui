@@ -25,10 +25,24 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.opts.icons, m.opts.voice)
-		// The rows of the graph already drawn keep the marks they have; the
-		// header and the rows read from now on take the new ones.
 		ic := m.opts.icons
 		m.format.yes, m.format.no, m.format.sep = ic.Yes, ic.No, ic.Separator
+		// The rows already drawn are built again from their commits, and the
+		// chunks read from now on take the new marks too.
+		now := m.opts.now()
+		m.graph.model.Rewrite(func(g graph.Commit) graph.Commit {
+			c, ok := g.Value.(core.Commit)
+			if !ok {
+				return g
+			}
+			r := m.format.graphCommit(c, now)
+			r.Link = g.Link
+			return r
+		})
+		if m.graph.fetch != nil {
+			m.graph.fetch = m.fetchCommits(m.graph.branch, m.graph.stale, m.graph.kept)
+			m.graph.model.SetFetch(m.graph.fetch)
+		}
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)

@@ -69,6 +69,31 @@ func TestViewASCII(t *testing.T) {
 	}
 }
 
+// A :set of the icons redraws the rows of the graph already shown, not just
+// the rows read after it: the verified mark of the newest commit changes.
+func TestSettingsIconsRedrawRows(t *testing.T) {
+	cfg := testConfig()
+	cfg.Row = []string{config.FieldShortSHA, config.FieldSubject, config.FieldVerified, config.FieldAge}
+	uni, asc := ui.NewIcons(config.IconsUnicode), ui.NewIcons(config.IconsASCII)
+	m, _ := newModal(t, newFake(), wideW, wideH, WithConfig(cfg), WithIcons(uni))
+	if uni.Yes == asc.Yes {
+		t.Fatalf("both icon sets mark a verified signature with %q", uni.Yes)
+	}
+	if v := ansi.Strip(m.View()); !strings.Contains(v, uni.Yes) {
+		t.Fatalf("before :set the graph lacks %q:\n%s", uni.Yes, v)
+	}
+
+	c := config.Default()
+	c.UI.Icons = config.IconsASCII
+	m.Update(ui.SettingsMsg{Config: c})
+	m.SetTheme(testTheme())
+
+	v := ansi.Strip(m.View())
+	if strings.Contains(v, uni.Yes) || !strings.Contains(v, asc.Yes) {
+		t.Errorf("after :set the graph rows should show %q, not %q:\n%s", asc.Yes, uni.Yes, v)
+	}
+}
+
 // The commit and the branches say why they failed, in both themes.
 func TestViewFailed(t *testing.T) {
 	for _, tt := range []struct {
