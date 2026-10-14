@@ -80,43 +80,51 @@ func TestPrefetchHover(t *testing.T) {
 }
 
 func TestPrefetchCancelledByRepo(t *testing.T) {
-	svc := newFakeService(sampleIssues(12))
-	h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
-	svc.mu.Lock()
-	ctxs := slices.Clone(svc.getCtxs)
-	svc.mu.Unlock()
-	if len(ctxs) == 0 {
-		t.Fatal("nothing was read ahead")
-	}
-	run(t, h, h.Update(ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}))
-	for _, ctx := range ctxs {
-		if ctx.Err() == nil {
-			t.Error("a read ahead of the old repository wasn't cancelled")
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService(sampleIssues(12))
+		h := started(t, svc, 80, 30, readingAhead(2, time.Millisecond, false))
+		synctest.Wait()
+		svc.mu.Lock()
+		ctxs := slices.Clone(svc.getCtxs)
+		svc.mu.Unlock()
+		if len(ctxs) == 0 {
+			t.Fatal("nothing was read ahead")
 		}
-	}
+		run(t, h, h.Update(ui.RepoMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}}))
+		for _, ctx := range ctxs {
+			if ctx.Err() == nil {
+				t.Error("a read ahead of the old repository wasn't cancelled")
+			}
+		}
+	})
 }
 
 func TestPrefetchStopsAtRateLimit(t *testing.T) {
-	svc := newFakeService(sampleIssues(12))
-	svc.getErr = &core.RateLimitError{Reset: testNow}
-	h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
-	n := len(svc.getCalls())
-	if n == 0 || n > 3 {
-		t.Errorf("read %d issues before the rate limit stopped it, want 1 to 3", n)
-	}
-	press(t, h, "down", "down")
-	if got := len(svc.getCalls()); got != n {
-		t.Errorf("read %d more issues under the rate limit", got-n)
-	}
-	svc.mu.Lock()
-	svc.getErr = nil
-	svc.mu.Unlock()
-	// Once the limit lifts, the window is read again, before the cursor
-	// moves.
-	run(t, h, h.Update(ui.OnlineMsg{}))
-	if got := len(svc.getCalls()); got == n {
-		t.Error("nothing was read ahead once the rate limit lifted")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := newFakeService(sampleIssues(12))
+		svc.getErr = &core.RateLimitError{Reset: testNow}
+		h := started(t, svc, 80, 30, readingAhead(4, time.Millisecond, false))
+		synctest.Wait()
+		n := len(svc.getCalls())
+		if n == 0 || n > 3 {
+			t.Errorf("read %d issues before the rate limit stopped it, want 1 to 3", n)
+		}
+		press(t, h, "down", "down")
+		synctest.Wait()
+		if got := len(svc.getCalls()); got != n {
+			t.Errorf("read %d more issues under the rate limit", got-n)
+		}
+		svc.mu.Lock()
+		svc.getErr = nil
+		svc.mu.Unlock()
+		// Once the limit lifts, the window is read again, before the cursor
+		// moves.
+		run(t, h, h.Update(ui.OnlineMsg{}))
+		synctest.Wait()
+		if got := len(svc.getCalls()); got == n {
+			t.Error("nothing was read ahead once the rate limit lifted")
+		}
+	})
 }
 
 func TestPrefetchedModalOpensAtOnce(t *testing.T) {

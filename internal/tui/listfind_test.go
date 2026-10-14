@@ -147,8 +147,9 @@ func TestFindStepsBetweenTwoMatches(t *testing.T) {
 	// Not parallel: it sets keyIssueRows, which every app's issues come from.
 	second := keyIssue
 	second.ID, second.Number, second.Title = "I_3", 3, "Keys again"
+	prev := keyIssueRows
 	keyIssueRows = []core.Issue{keyIssue, second}
-	t.Cleanup(func() { keyIssueRows = []core.Issue{keyIssue} })
+	t.Cleanup(func() { keyIssueRows = prev })
 	synctest.Test(t, func(t *testing.T) {
 		c := listFindCase{name: "issues"}.context(t)
 		m, _ := c.reach(t)

@@ -64,7 +64,11 @@ func TestLimitWaitEndsWithContext(t *testing.T) {
 	for range maxInFlight {
 		wg.Go(func() { _, _ = c.Do(context.Background(), http.MethodGet, "held", nil, nil) })
 	}
+	deadline := time.Now().Add(10 * time.Second)
 	for arrived.Load() < int64(maxInFlight) {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d of %d requests reached the server", arrived.Load(), maxInFlight)
+		}
 		time.Sleep(time.Millisecond)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -261,14 +262,28 @@ func TestAccessIgnoresOldToken(t *testing.T) {
 		_, err := c.Get(t.Context(), "user", Conditional{}, nil)
 		done <- err
 	}()
-	<-arrived
+	var released sync.Once
+	releaseOnce := func() { released.Do(func() { close(release) }) }
+	// Registered after accessClient's own cleanup, so it runs first and
+	// frees the held handler before the server closes.
+	t.Cleanup(releaseOnce)
+	select {
+	case <-arrived:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the request with the old token never arrived")
+	}
 	c.SetToken("gho_new")
 	if err := c.ProbeAccess(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	close(release)
-	if err := <-done; err != nil {
-		t.Fatal(err)
+	releaseOnce()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the request with the old token never ended")
 	}
 	want := core.Access{Kind: core.TokenClassic, Known: true, Scopes: []string{"repo", "workflow"}}
 	if got := c.Access(); !got.Equal(want) {

@@ -272,8 +272,10 @@ func TestFindFilePreview(t *testing.T) {
 // TestFindFilePreviewIsNotCounted checks that the file under the finder's
 // cursor, which isn't a guess, stays out of the prefetch counts.
 func TestFindFilePreviewIsNotCounted(t *testing.T) {
+	// Serial: it replaces the process-wide stats.
 	stats := obs.NewStats()
-	defer obs.SetDefault(obs.SetDefault(stats))
+	prev := obs.SetDefault(stats)
+	t.Cleanup(func() { obs.SetDefault(prev) })
 	h := newHost(loaded(t, sampleFake(), 40, 12, fast))
 	h.width, h.height = 120, 16
 	f := findIn(t, h)
@@ -291,8 +293,10 @@ func TestFindFilePreviewIsNotCounted(t *testing.T) {
 // TestFindFileWindowReadCountsAsUsed checks that a file the finder's window
 // read ahead counts as used once the cursor moves onto it and it shows.
 func TestFindFileWindowReadCountsAsUsed(t *testing.T) {
+	// Serial: it replaces the process-wide stats.
 	stats := obs.NewStats()
-	defer obs.SetDefault(obs.SetDefault(stats))
+	prev := obs.SetDefault(stats)
+	t.Cleanup(func() { obs.SetDefault(prev) })
 	opt := prefetching(func(p *config.PrefetchLayers) {
 		p.Finder.Rest = new(time.Millisecond)
 		p.Finder.Preview.Window = config.Span{Before: new(0), After: new(1)}

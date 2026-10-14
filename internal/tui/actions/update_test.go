@@ -952,8 +952,14 @@ func TestClearFilterIsTheRunsKey(t *testing.T) {
 // Cancelling a run is X: x no longer asks.
 func TestLowercaseXDoesNotCancel(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	for m.run.ID != runningRun {
+	for range 100 {
+		if m.run.ID == runningRun {
+			break
+		}
 		h.keys("down")
+	}
+	if m.run.ID != runningRun {
+		t.Fatalf("no run %v reached by moving down, at %v", runningRun, m.run.ID)
 	}
 	h.keys("x")
 	if m.ask != nil {
