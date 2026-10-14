@@ -306,7 +306,7 @@ func TestListPullRequestReviews(t *testing.T) {
 	})
 	want := core.Page[core.Review]{
 		Items: []core.Review{
-			{ID: "PRR_kwDOLnBTf86Aa001", Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateChangesRequested, Body: "Please add tests.", SubmittedAt: pullTime("2026-09-21T10:00:00Z")},
+			{ID: "PRR_kwDOLnBTf86Aa001", Author: core.User{Login: "hubot", Name: "Hubot"}, AvatarURL: "https://avatars.githubusercontent.com/u/1?v=4", State: core.ReviewStateChangesRequested, Body: "Please add tests.", SubmittedAt: pullTime("2026-09-21T10:00:00Z")},
 			{ID: "PRR_kwDOLnBTf86Aa002", Author: core.User{Login: "monalisa", Name: "Mona Lisa"}, State: core.ReviewStateCommented, SubmittedAt: pullTime("2026-09-22T09:12:30Z")},
 		},
 	}
