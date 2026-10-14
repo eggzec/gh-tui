@@ -57,9 +57,19 @@ type trayState struct {
 	// no ID if they have none. Its comments are among the drafts, tagged
 	// OnGitHub.
 	pending core.PendingReview
-	// reconcile are the IDs of the drafts of a review that failed part way into
-	// the pending review: the next read of it drops those that it holds now.
-	reconcile []string
+	// asked is set once the modal has asked for the pending review.
+	asked bool
+	// reconcile is set when a review failed part way into the pending review:
+	// the next read of it drops the drafts that it holds now.
+	reconcile *reconcileState
+}
+
+// reconcileState is what a review that failed part way sent: the IDs of its
+// drafts, and the IDs of the comments the pending review held before it, from
+// the read that the review was planned on, which a read since may have
+// replaced.
+type reconcileState struct {
+	sent, before []string
 }
 
 // composeState is the draft being written.

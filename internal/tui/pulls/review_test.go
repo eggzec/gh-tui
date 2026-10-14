@@ -80,7 +80,15 @@ var (
 // service, ready for :review.
 func reviewing(t *testing.T, store *memTray, d *memDrafts) (*host, *detailModal, *fakeService) {
 	t.Helper()
+	return reviewingWith(t, store, d, core.PendingReview{})
+}
+
+// reviewingWith is reviewing for a user who already has the pending review p
+// on GitHub when the modal opens.
+func reviewingWith(t *testing.T, store *memTray, d *memDrafts, p core.PendingReview) (*host, *detailModal, *fakeService) {
+	t.Helper()
 	svc := newFakeService()
+	svc.setPending(p)
 	svc.pulls[0].HeadSHA = "a1b2c3d"
 	svc.changed = sampleFiles()
 	h := started(t, svc, 116, 40, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)), WithTray(store), WithDrafts(d, "host/me"))
@@ -310,6 +318,62 @@ func TestPendingCommentsShowAsRowsAndAreNotSaved(t *testing.T) {
 	press(t, h, "t")
 	if v := modalText(h); !strings.Contains(v, "from the web") || !strings.Contains(v, draftOnGitHub) {
 		t.Errorf("the list lacks the comment on GitHub:\n%s", v)
+	}
+}
+
+// GitHub names no review of the viewer's while the only one is pending, so the
+// detail says nothing of it, and the modal reads it all the same.
+func TestPendingReviewLoadsWithTheDetail(t *testing.T) {
+	t.Parallel()
+	_, m, _ := reviewingWith(t, kept(), &memDrafts{}, webPending)
+	if v := m.detail.Reviewers.Viewer; v != "" {
+		t.Fatalf("the detail says the viewer's review is %q, want none", v)
+	}
+	if m.tray.pending.ID != "PRR1" || !byID(t, m.tray.drafts, "C1").OnGitHub {
+		t.Errorf("pending %q and drafts %+v, want the comments of the review in the tray", m.tray.pending.ID, m.tray.drafts)
+	}
+}
+
+func TestPendingSummaryFillsAnEmptyComposer(t *testing.T) {
+	t.Parallel()
+	h, m, _ := reviewing(t, kept(), &memDrafts{})
+	toSummary(t, h, 1, "")
+	if got := m.rev.comp.Value(); got != "" {
+		t.Fatalf("the summary starts as %q, want it empty before the review is read", got)
+	}
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "web summary" {
+		t.Errorf("the summary is %q once the review is read, want the pending review's", got)
+	}
+	m.rev.comp.SetValue("mine")
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "mine" {
+		t.Errorf("the summary is %q after a read, want the user's text kept", got)
+	}
+}
+
+func TestLeaveAddedUsesTheReadTheReviewWasPlannedOn(t *testing.T) {
+	t.Parallel()
+	_, m, _ := reviewing(t, kept(reviewLine), &memDrafts{})
+	// The pending review was read again while the send was in flight, and
+	// holds the comment the send added.
+	m.tray.pending = core.PendingReview{ID: "PRR1", Comments: []core.PendingComment{
+		{ID: "C1"}, {ID: "C2", Path: reviewLine.Path, Line: reviewLine.Line, Body: reviewLine.Body},
+	}}
+	now := m.tray.pending
+	now.Comments = slices.Clone(now.Comments)
+	// GitHub gives the text with other line endings and a trailing newline.
+	now.Comments[1].Body = strings.ReplaceAll(reviewLine.Body, " ", "\r\n") + "\n"
+	m.tray.drafts[0].Body = strings.ReplaceAll(reviewLine.Body, " ", "\n")
+	if !m.leaveAdded(now, &reconcileState{sent: []string{"line"}, before: []string{"C1"}}) {
+		t.Errorf("drafts %+v, want the draft that the send added dropped", m.tray.drafts)
+	}
+}
+
+func TestSameBody(t *testing.T) {
+	t.Parallel()
+	if !sameBody("a\r\nb ", "\na\nb") || sameBody("a b", "a  b") {
+		t.Error("sameBody ignores line endings and surrounding space only")
 	}
 }
 

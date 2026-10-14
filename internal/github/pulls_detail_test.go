@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -126,6 +127,30 @@ func TestGetPullRequestDetail(t *testing.T) {
 			t.Errorf("check counts = %+v, want %+v", got.CheckCounts, want)
 		}
 	})
+}
+
+// TestDetailThreadsLeaveOutPending keeps the threads of the viewer's pending
+// review out of the summary: they are in the review tray, and block nobody.
+func TestDetailThreadsLeaveOutPending(t *testing.T) {
+	const raw = `{"reviewThreads": {"totalCount": 4, "nodes": [
+		{"id": "T1", "comments": {"totalCount": 1, "nodes": [{"bodyText": "open", "pullRequestReview": {"state": "COMMENTED"}}]}},
+		{"id": "T2", "comments": {"totalCount": 1, "nodes": [{"bodyText": "mine", "pullRequestReview": {"state": "PENDING"}}]}},
+		{"id": "T3", "isResolved": true, "comments": {"totalCount": 1, "nodes": [{"bodyText": "done", "pullRequestReview": null}]}}
+	]}}`
+	var d pullDetail
+	if err := json.Unmarshal([]byte(raw), &d); err != nil {
+		t.Fatal(err)
+	}
+	th := d.threads()
+	if th.Total != 3 || !th.Truncated || th.Unresolved != 1 || th.Resolved != 1 || len(th.Threads) != 2 {
+		t.Errorf("total %d, truncated %v, unresolved %d, resolved %d, listed %d; want 3, true, 1, 1, 2",
+			th.Total, th.Truncated, th.Unresolved, th.Resolved, len(th.Threads))
+	}
+	for _, r := range th.Threads {
+		if r.ID == "T2" {
+			t.Errorf("threads list the pending thread %+v, want it left out", r)
+		}
+	}
 }
 
 // TestGetPullRequestDetailAbsent reads an answer without any field of the
