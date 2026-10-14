@@ -422,7 +422,12 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Open):
 		return m.openFiles()
 	case keymap.Matches(msg, k.Back):
-		// The search of the diff is cleared first, then the modal closes.
+		// A placement ends first, then the search of the diff is cleared, then
+		// the modal closes.
+		if m.tray.replacing != "" {
+			m.tray.replacing = ""
+			return nil
+		}
 		if f != nil && f.diff.ClearSearch() {
 			return nil
 		}
@@ -694,7 +699,13 @@ func (m *detailModal) paneLines(p filesPane, w, h int) []string {
 	if p == treePane {
 		return ui.FitLines(strings.Split(f.tree.View(), "\n"), w, h)
 	}
-	return ui.FitLines(strings.Split(f.diff.View(), "\n"), w, h)
+	lines := ui.FitLines(strings.Split(f.diff.View(), "\n"), w, h)
+	if m.tray.replacing != "" && len(lines) >= 3 {
+		// The status line of the diff says what the next comment does.
+		hint := "placing draft: " + m.keys.comment.Help().Key + " on a line, " + m.keys.Back.Help().Key + " to stop"
+		lines[len(lines)-1] = ui.Fit(m.theme.Warning.Render(hint), w)
+	}
+	return lines
 }
 
 // paneTitle renders the line over pane p: what it shows, in the accent
