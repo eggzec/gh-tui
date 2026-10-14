@@ -38,16 +38,18 @@ func registerSpy(t *testing.T) *spy {
 	return s
 }
 
-// noLexerRuns fails the test if a lexer holds the gate: one that never
-// finishes, as the spy doesn't, holds it for as long as it runs.
-func noLexerRuns(t *testing.T) {
+// idle waits for a lexer that was cut short to finish its token and free the
+// gate. One that never finishes, as the spy doesn't, holds the gate past
+// any bound, so the wait fails the test when one was reached. Probing the
+// gate once would fail on a lexer that was only slow to stop.
+func idle(t *testing.T) {
 	t.Helper()
 	gate := syntax.Lexing()
 	select {
 	case gate <- struct{}{}:
 		<-gate
-	default:
-		t.Error("a lexer still runs")
+	case <-time.After(10 * time.Second):
+		t.Fatal("a lexer that never finishes was reached: the gate is still held")
 	}
 }
 
@@ -144,7 +146,7 @@ func TestHostileFilesStayPlain(t *testing.T) {
 	if n, g := s.tokenised.Load(), s.analysed.Load(); n != 0 || g != 0 {
 		t.Errorf("chroma ran the spy %d times and guessed %d times", n, g)
 	}
-	noLexerRuns(t)
+	idle(t)
 }
 
 // highlighted returns the pager with name and text and its tokens.
@@ -218,7 +220,7 @@ func TestMarkdownFencesStayPlain(t *testing.T) {
 	if n := s.tokenised.Load(); n != 0 {
 		t.Errorf("a fence ran the spy %d times", n)
 	}
-	noLexerRuns(t)
+	idle(t)
 }
 
 // A line too long to lex shows plain, and the lines around it highlight.

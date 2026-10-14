@@ -47,7 +47,7 @@ func TestHeadStopsAtTheLimit(t *testing.T) {
 	idle(t)
 	l := newStalling()
 	stalled, other := unique(t, "stalled"), unique(t, "other")
-	toks, err := Head(t.Context(), l, stalled, 10*time.Millisecond)
+	toks, err := guardedHead(t.Context(), t, l, stalled, 10*time.Millisecond)
 	if got := text(toks); got != "st" || err != nil {
 		t.Errorf("gave %q, %v, want the tokens before the stall", got, err)
 	}
@@ -79,7 +79,7 @@ func TestHeadCutsSlowLexersShort(t *testing.T) {
 	idle(t)
 	l := newStalling()
 	slow := unique(t, "slow")
-	_, _ = Head(t.Context(), l, slow, 10*time.Millisecond)
+	_, _ = guardedHead(t.Context(), t, l, slow, 10*time.Millisecond)
 	close(l.release)
 	idle(t)
 	if toks, err := Head(t.Context(), l, slow, time.Second); text(toks) != slow || err != nil {
@@ -98,9 +98,9 @@ func TestHeadStopsWhenCancelled(t *testing.T) {
 	}
 	ctx, cancel = context.WithCancel(t.Context())
 	time.AfterFunc(10*time.Millisecond, cancel)
-	// A Head that ignored the context would wait for the minute, and the
-	// test's timeout would end it.
-	_, _ = Head(ctx, l, code, time.Minute)
+	// The limit is out of reach, so only the context ends Head; one that
+	// ignored it fails the guard.
+	_, _ = guardedHead(ctx, t, l, code, time.Hour)
 	close(l.release)
 	idle(t)
 }
@@ -111,13 +111,37 @@ func TestHeadWaitsForTheGate(t *testing.T) {
 	idle(t)
 	lexing <- struct{}{}
 	time.AfterFunc(Wait/10, func() { <-lexing })
-	if toks, err := Head(t.Context(), Lexer("go"), "x := 1", time.Second); text(toks) != "x := 1" || err != nil {
+	if toks, err := guardedHead(t.Context(), t, Lexer("go"), "x := 1", time.Second); text(toks) != "x := 1" || err != nil {
 		t.Errorf("gave %q, %v once the gate was free", text(toks), err)
 	}
 	lexing <- struct{}{}
 	defer func() { <-lexing }()
-	if _, err := Head(t.Context(), Lexer("go"), "x := 1", time.Second); !errors.Is(err, ErrBusy) {
+	if _, err := guardedHead(t.Context(), t, Lexer("go"), "x := 1", time.Second); !errors.Is(err, ErrBusy) {
 		t.Errorf("ran while the gate was taken: %v", err)
+	}
+}
+
+// guardedHead is Head that fails the test if it hasn't returned after a
+// bound that only a hang reaches, which it isn't a limit on how long Head
+// may take: without it a Head that ignored its limit, its context or its
+// wait would end in the test's timeout and a dump of every goroutine.
+func guardedHead(ctx context.Context, t *testing.T, l chroma.Lexer, code string, limit time.Duration) ([]chroma.Token, error) {
+	t.Helper()
+	type result struct {
+		toks []chroma.Token
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		toks, err := Head(ctx, l, code, limit)
+		done <- result{toks, err}
+	}()
+	select {
+	case r := <-done:
+		return r.toks, r.err
+	case <-time.After(30 * time.Second):
+		t.Fatal("Head didn't return: it ignored its limit, its context or its wait")
+		return nil, nil
 	}
 }
 
