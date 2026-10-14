@@ -84,6 +84,25 @@ func (s *fileSet) add(files []diff.File) []string {
 	})
 }
 
+// setMinus changes the sign of the files already added, and reports whether
+// it differed from the one they have.
+func (s *fileSet) setMinus(minus string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.minus == minus {
+		return false
+	}
+	s.minus = minus
+	for _, kids := range s.kids {
+		for i, n := range kids {
+			if f, ok := n.Value.(diff.File); ok {
+				kids[i].Detail = changes(f, minus)
+			}
+		}
+	}
+	return true
+}
+
 // children implements tree.Children.
 func (s *fileSet) children(_ context.Context, parent tree.Node) ([]tree.Node, error) {
 	s.mu.RLock()

@@ -413,6 +413,10 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if m.refs != nil {
 			m.refs.SetIcons(m.icons)
 		}
+		if f := m.files; f != nil && f.set.setMinus(m.icons.Minus) && f.treeStarted {
+			// The nodes the tree holds carry the old sign: read them again.
+			return m.growTree([]string{""})
+		}
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)

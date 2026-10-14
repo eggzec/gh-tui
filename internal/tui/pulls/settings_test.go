@@ -32,6 +32,41 @@ func TestSettingsIcons(t *testing.T) {
 	}
 }
 
+// The tree of the Files tab shows the sign of deleted lines of the icon set
+// the user switches to, as the modal is open.
+func TestSettingsIconsRedrawTreeRows(t *testing.T) {
+	h, m := filed(t, newFakeService(), 100, 30)
+	press(t, h, "[")
+	if m.tab != filesTab {
+		t.Fatalf("tab = %d, want the Files tab", m.tab)
+	}
+	row := func() string {
+		for _, l := range plain(m) {
+			// The tree is the pane left of the diff.
+			tree := ansi.Truncate(l, treeWidth, "")
+			if strings.Contains(tree, "main.go") && strings.Contains(tree, "+4") {
+				return tree
+			}
+		}
+		t.Fatalf("no tree row for main.go in:\n%s", strings.Join(plain(m), "\n"))
+		return ""
+	}
+	if got := row(); !strings.Contains(got, "−2") {
+		t.Fatalf("row = %q, want the Unicode minus before the setup", got)
+	}
+	c, err := config.Default().Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The app updates the modal with the message, then sets its theme.
+	cmd := m.Update(ui.SettingsMsg{Config: c})
+	m.SetTheme(m.theme)
+	drain(t, h, cmd)
+	if got := row(); !strings.Contains(got, "-2") || strings.Contains(got, "−") {
+		t.Errorf("row = %q, want the ASCII minus", got)
+	}
+}
+
 // prefetchConfig returns the defaults with each of set, key=value, set.
 func prefetchConfig(t *testing.T, set ...string) config.Config {
 	t.Helper()
