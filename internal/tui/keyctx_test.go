@@ -51,13 +51,13 @@ import (
 // on. What no context asks for, such as a change, is left to the embedded
 // interface, which fails loudly if it is asked after all.
 
-// keyProse returns sixty paragraphs of markdown, enough to fill any window
+// keyProse returns forty paragraphs of markdown, enough to fill any window
 // several times over, so that the keys that scroll a text have somewhere
 // to go. keyWide returns n plain lines, each far wider than any window.
 func keyProse() string {
-	paras := make([]string, 60)
+	paras := make([]string, 40)
 	for i := range paras {
-		paras[i] = fmt.Sprintf("Paragraph %d. %s", i+1, strings.Repeat("Keys match by order. ", 12))
+		paras[i] = fmt.Sprintf("Paragraph %d. %s", i+1, strings.Repeat("Keys match by order. ", 6))
 	}
 	return strings.Join(paras, "\n\n") + "\n"
 }
@@ -169,12 +169,14 @@ func (keyPulls) Invalidate(core.RepoRef)                    {}
 
 // keyChanged are the files the pull request changes: several, in two
 // directories, each a diff of three hunks of wide lines, so that every key
-// of the tree and of the diff has somewhere to go.
+// of the tree and of the diff has somewhere to go. The names have no
+// extension, which no lexer takes, so that the keys, which are what these
+// files are for, don't wait for the highlighting of wide lines.
 var keyChanged = []core.CommitFile{
-	{Path: "cmd/main.go", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
-	{Path: "cmd/run.go", Status: core.FileAdded, Additions: 6, Deletions: 3, Patch: keyDiff()},
-	{Path: "internal/keys/match.go", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
-	{Path: "README.md", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "cmd/main", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "cmd/run", Status: core.FileAdded, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "internal/keys/match", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
+	{Path: "README", Status: core.FileModified, Additions: 6, Deletions: 3, Patch: keyDiff()},
 }
 
 // keyDiff returns a patch of three hunks that each delete a line and add
@@ -263,7 +265,7 @@ type keyFiles struct{ files.Service }
 
 var keyTree = core.Tree{SHA: "def456", Entries: []core.TreeEntry{
 	{Path: "cmd", Name: "cmd", Type: core.EntryTree, SHA: "t1"},
-	{Path: "cmd/main.go", Name: "main.go", Type: core.EntryBlob, SHA: "b2", Size: 4},
+	{Path: "cmd/main", Name: "main", Type: core.EntryBlob, SHA: "b2", Size: 4},
 	{Path: "README.md", Name: "README.md", Type: core.EntryBlob, SHA: "b1", Size: 6},
 }}
 
@@ -483,7 +485,7 @@ func keyChecks() core.Checks {
 type keyHistory struct{ history.Service }
 
 var keyFile = core.CommitFile{
-	Path: "README.md", Status: core.FileModified, SHA: "b1", Additions: 1, Deletions: 1,
+	Path: "README", Status: core.FileModified, SHA: "b1", Additions: 1, Deletions: 1,
 	Patch: keyPatch(60),
 }
 
