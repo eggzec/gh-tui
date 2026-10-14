@@ -20,8 +20,8 @@ func TestListPullRequestThreads(t *testing.T) {
 	if q := reqs()[0].Query; !strings.Contains(q, "comments(first: 100)") {
 		t.Errorf("query does not read 100 comments of each thread:\n%s", q)
 	}
-	if page.Total != 7 || page.Next != "Y3Vyc29yOnYyOpHOAAAF" || len(page.Threads) != 6 {
-		t.Fatalf("page = total %d, next %q, %d threads; want 7, the cursor of the fixture, 6", page.Total, page.Next, len(page.Threads))
+	if page.Total != 8 || page.Next != "Y3Vyc29yOnYyOpHOAAAF" || len(page.Threads) != 6 {
+		t.Fatalf("page = total %d, next %q, %d threads; want 8, the cursor of the fixture, 6", page.Total, page.Next, len(page.Threads))
 	}
 	hubot := core.User{Login: "hubot", Name: "Hubot"}
 	mona := core.User{Login: "monalisa", Name: "Mona Lisa"}
@@ -55,7 +55,7 @@ func TestListPullRequestThreads(t *testing.T) {
 	t.Run("review", func(t *testing.T) {
 		// The thread belongs to the review of its first comment, not of a reply
 		// made in another one, and a comment made in none leaves it with none.
-		if q := reqs()[0].Query; !strings.Contains(q, "pullRequestReview { id }") {
+		if q := reqs()[0].Query; !strings.Contains(q, "pullRequestReview { id state }") {
 			t.Errorf("query does not read the review of each comment:\n%s", q)
 		}
 		got := []string{page.Threads[0].ReviewID, page.Threads[1].ReviewID, page.Threads[2].ReviewID, page.Threads[3].ReviewID}
@@ -123,9 +123,25 @@ func TestListPullRequestThreadsSecondPage(t *testing.T) {
 	checkPullQuery(t, reqs(), "reviewThreads(first: $first, after: $after)", map[string]any{
 		"owner": "eggzec", "name": "gh-tui", "number": float64(42), "first": float64(50), "after": "Y3Vyc29yOnYyOpHOAAAF",
 	})
-	if !page.Last() || page.Total != 7 || len(page.Threads) != 1 || page.Threads[0].Path != "go.mod" {
-		t.Errorf("page = %+v, want the last page, of 7 threads in all, holding the one of go.mod", page)
+	if !page.Last() || page.Total != 8 || len(page.Threads) != 2 || page.Threads[0].Path != "go.mod" {
+		t.Fatalf("page = %+v, want the last page, of 8 threads in all, holding those of go.mod and go.sum", page)
 	}
+
+	t.Run("pending", func(t *testing.T) {
+		// A thread is pending when its first comment is, and a reply to a
+		// published thread is a pending comment of one that is not.
+		started, replied := page.Threads[0], page.Threads[1]
+		if !started.Pending || !started.Comments[0].Pending {
+			t.Errorf("go.mod thread = pending %v, comment pending %v; want both", started.Pending, started.Comments[0].Pending)
+		}
+		if replied.Pending || replied.Comments[0].Pending || !replied.Comments[1].Pending {
+			t.Errorf("go.sum thread = pending %v, comments pending %v, %v; want a published thread with a pending reply",
+				replied.Pending, replied.Comments[0].Pending, replied.Comments[1].Pending)
+		}
+		if started.ReviewID != "PRR_kwDOLnBTf85Rv003" {
+			t.Errorf("review = %q, want the pending review", started.ReviewID)
+		}
+	})
 }
 
 func TestListPullRequestThreadsSize(t *testing.T) {

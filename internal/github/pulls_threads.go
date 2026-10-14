@@ -48,7 +48,7 @@ var pullThreadsQuery = fmt.Sprintf(`query PullThreads($owner: String!, $name: St
               author { __typename login ... on User { name } }
               createdAt lastEditedAt body url
               replyTo { id }
-              pullRequestReview { id }
+              pullRequestReview { id state }
             }
           }
         }
@@ -95,7 +95,8 @@ type pullThreadComment struct {
 	// Review is the review that the comment was made in, null for a comment
 	// that was not made in one.
 	Review *struct {
-		ID string `json:"id"`
+		ID    string `json:"id"`
+		State string `json:"state"`
 	} `json:"pullRequestReview"`
 }
 
@@ -110,6 +111,7 @@ func (c pullThreadComment) core() core.ThreadComment {
 	if c.ReplyTo != nil {
 		out.ReplyTo = c.ReplyTo.ID
 	}
+	out.Pending = c.Review != nil && strings.EqualFold(c.Review.State, "PENDING")
 	return out
 }
 
@@ -147,6 +149,7 @@ func (t pullThread) core() core.Thread {
 	if len(t.Comments.Nodes) > 0 && t.Comments.Nodes[0].Review != nil {
 		out.ReviewID = t.Comments.Nodes[0].Review.ID
 	}
+	out.Pending = len(out.Comments) > 0 && out.Comments[0].Pending
 	// A thread on one line starts on the side it ends on.
 	out.StartSide = diffSide(t.StartDiffSide, out.Side)
 	if t.ResolvedBy != nil {

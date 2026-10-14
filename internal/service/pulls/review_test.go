@@ -139,8 +139,185 @@ func TestSubmitReviewPendingReviewIsKnown(t *testing.T) {
 	api := &fakeAPI{submitErr: github.ErrPendingReview}
 	s := reviewReads(t, api)
 	err := s.SubmitReview(t.Context(), repo, 1, "abc123", core.ReviewEventComment, "", nil)
-	if !errors.Is(err, ErrPendingReview) {
-		t.Errorf("SubmitReview = %v, want an error that wraps ErrPendingReview", err)
+	if !errors.Is(err, ErrPendingReview) || !errors.Is(err, ErrPendingAppeared) {
+		t.Errorf("SubmitReview = %v, want an error that wraps ErrPendingReview and ErrPendingAppeared", err)
+	}
+}
+
+// pendingOnHead is a pending review on the commit of the head, "abc123".
+func pendingOnHead() core.PendingReview {
+	return core.PendingReview{ID: "PRR_pending", Commit: "abc123", Body: "half", Comments: []core.PendingComment{{ID: "c1", Path: "z.go", Line: 3, Body: "web"}}}
+}
+
+func TestPendingReviewIsCached(t *testing.T) {
+	api := &fakeAPI{pendingReview: pendingOnHead(), pendingFound: true}
+	s := New(api)
+	if _, ok := s.CachedPendingReview(repo, 1); ok {
+		t.Fatal("a pending review is cached before it was read")
+	}
+	for range 2 {
+		got, ok, err := s.PendingReview(t.Context(), repo, 1)
+		if err != nil || !ok || !reflect.DeepEqual(got, api.pendingReview) {
+			t.Fatalf("PendingReview = %+v, %v, %v; want the review", got, ok, err)
+		}
+	}
+	if n := api.count("pending"); n != 1 {
+		t.Errorf("reads = %d, want 1: the second was cached", n)
+	}
+	if got, ok := s.CachedPendingReview(repo, 1); !ok || got.ID != "PRR_pending" {
+		t.Errorf("CachedPendingReview = %+v, %v; want the review", got, ok)
+	}
+
+	// A refresh reads it again.
+	s.Invalidate(repo)
+	if _, _, err := s.PendingReview(t.Context(), repo, 1); err != nil {
+		t.Fatal(err)
+	}
+	if n := api.count("pending"); n != 2 {
+		t.Errorf("reads after a refresh = %d, want 2", n)
+	}
+}
+
+func TestPendingReviewNoneAndFailure(t *testing.T) {
+	api := &fakeAPI{}
+	s := New(api)
+	if _, ok, err := s.PendingReview(t.Context(), repo, 1); err != nil || ok {
+		t.Errorf("PendingReview = %v, %v; want none", ok, err)
+	}
+	if _, ok := s.CachedPendingReview(repo, 1); ok {
+		t.Error("CachedPendingReview has a review that GitHub said there is none of")
+	}
+
+	api = &fakeAPI{pendingErr: errors.New("nope")}
+	s = New(api)
+	if _, _, err := s.PendingReview(t.Context(), repo, 1); !errors.Is(err, api.pendingErr) {
+		t.Errorf("PendingReview = %v, want the failure", err)
+	}
+	// A failure is not cached.
+	_, _, _ = s.PendingReview(t.Context(), repo, 1)
+	if n := api.count("pending"); n != 2 {
+		t.Errorf("reads = %d, want 2", n)
+	}
+}
+
+func TestPendingReviewRefused(t *testing.T) {
+	api := &fakeAPI{pendingReview: pendingOnHead(), pendingFound: true}
+	s := New(api)
+	s.access, s.repos = tokenWith(classic("gist"), true), private
+	if _, _, err := s.PendingReview(t.Context(), repo, 1); !errors.As(err, new(*core.ScopeError)) {
+		t.Errorf("PendingReview = %v, want a ScopeError", err)
+	}
+	if n := api.count("pending"); n != 0 {
+		t.Errorf("reads = %d, want none", n)
+	}
+}
+
+func TestSubmitIntoPendingSendsAndRefreshesCaches(t *testing.T) {
+	api := &fakeAPI{pendingReview: pendingOnHead(), pendingFound: true}
+	store := openStore(t)
+	s := reviewReads(t, api, WithStore(store))
+	pending, ok, err := s.PendingReview(t.Context(), repo, 1)
+	if err != nil || !ok {
+		t.Fatalf("PendingReview = %v, %v", ok, err)
+	}
+
+	if err := s.SubmitIntoPending(t.Context(), repo, 1, "abc123", pending, core.ReviewEventRequestChanges, "please fix", reviewDrafts); err != nil {
+		t.Fatalf("SubmitIntoPending: %v", err)
+	}
+	// The review's ID stands where SubmitReview has the commit.
+	want := submitted{
+		pull: "PR_1", commit: "PRR_pending", body: "please fix", event: core.ReviewEventRequestChanges,
+		threads: []github.ReviewThreadDraft{
+			{Path: "a.go", Side: "RIGHT", Line: 7, Body: "one line"},
+			{Path: "b.go", Side: "LEFT", Line: 12, StartLine: 9, Body: "a range"},
+			{Path: "c.go", Side: "RIGHT", Line: 1, Body: "legacy"},
+		},
+		replies: []github.ReviewReplyDraft{{ThreadID: "t1", Body: "a reply"}},
+	}
+	if len(api.submits) != 1 || !reflect.DeepEqual(api.submits[0], want) {
+		t.Fatalf("sent %+v, want one submission %+v", api.submits, want)
+	}
+	if n := api.count("submit"); n != 0 {
+		t.Errorf("started %d new reviews, want none", n)
+	}
+
+	// The review is gone, and it reads so without asking GitHub.
+	if _, ok := s.CachedPendingReview(repo, 1); ok {
+		t.Error("the pending review is still cached after it was submitted")
+	}
+	if _, ok, _ := s.PendingReview(t.Context(), repo, 1); ok {
+		t.Error("PendingReview found the review that was submitted")
+	}
+	if n := api.count("pending"); n != 1 {
+		t.Errorf("reads = %d, want 1: none is known after a submission", n)
+	}
+	made := readAgain(t, s, api)
+	for _, k := range []string{"threads", "get", "reviews", "comments"} {
+		if made[k] != 1 {
+			t.Errorf("%s requests after the review = %d, want 1; all: %v", k, made[k], made)
+		}
+	}
+}
+
+func TestSubmitIntoPendingFailureReadsTheReviewAgain(t *testing.T) {
+	api := &fakeAPI{pendingReview: pendingOnHead(), pendingFound: true, submitErr: errors.New("nope")}
+	s := reviewReads(t, api)
+	pending, _, _ := s.PendingReview(t.Context(), repo, 1)
+
+	err := s.SubmitIntoPending(t.Context(), repo, 1, "abc123", pending, core.ReviewEventComment, "", reviewDrafts)
+	if !errors.Is(err, api.submitErr) {
+		t.Fatalf("SubmitIntoPending = %v, want the failure", err)
+	}
+	// Some drafts may be in the review now, so it and the threads are read
+	// again; the rest stays as it was.
+	if _, _, err := s.PendingReview(t.Context(), repo, 1); err != nil {
+		t.Fatal(err)
+	}
+	if n := api.count("pending"); n != 2 {
+		t.Errorf("reads of the pending review = %d, want 2", n)
+	}
+	made := readAgain(t, s, api)
+	if made["threads"] != 1 || made["get"]+made["reviews"]+made["comments"] != 0 {
+		t.Errorf("requests after a failed submission = %v, want only the threads", made)
+	}
+}
+
+func TestSubmitIntoPendingRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		head    string
+		pending core.PendingReview
+		want    error
+	}{
+		{"older commit", "def456", pendingOnHead(), ErrPendingReviewOutdated},
+		{"no review", "abc123", core.PendingReview{}, errNoPending},
+		{"older draft", "abc123", pendingOnHead(), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &fakeAPI{}
+			s := reviewReads(t, api)
+			drafts := []tray.Draft(nil)
+			if tc.want == nil {
+				tc.want, drafts = errOutdatedDraft, []tray.Draft{{ID: "old", Commit: "0000000", Path: "a.go", Line: 1, Body: "x"}}
+			}
+			err := s.SubmitIntoPending(t.Context(), repo, 1, tc.head, tc.pending, core.ReviewEventComment, "", drafts)
+			if !errors.Is(err, tc.want) {
+				t.Errorf("SubmitIntoPending = %v, want %v", err, tc.want)
+			}
+			if n := api.count("submitpending") + api.count("submit"); n != 0 {
+				t.Errorf("submissions = %d, want none", n)
+			}
+		})
+	}
+}
+
+func TestSubmitIntoPendingThatNamesNoCommitIsSent(t *testing.T) {
+	// A review that names no commit is sent, as a draft that names none is.
+	api := &fakeAPI{id: func(context.Context, core.RepoRef, int) (string, error) { return "PR_1", nil }}
+	s := New(api)
+	pending := core.PendingReview{ID: "PRR_pending"}
+	if err := s.SubmitIntoPending(t.Context(), repo, 1, "abc123", pending, core.ReviewEventComment, "", nil); err != nil {
+		t.Fatalf("SubmitIntoPending: %v", err)
 	}
 }
 

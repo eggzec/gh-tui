@@ -45,6 +45,12 @@ type API interface {
 	// SubmitReview sends threads and replies as one review of the pull
 	// request with node ID pullID, on commit, and returns the review's ID.
 	SubmitReview(ctx context.Context, pullID, commit string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) (string, error)
+	// PendingReview returns the viewer's pending review with all of its
+	// comments, and false if there is none. SubmitPendingReview adds threads
+	// and replies to it, as the node ID of the pull request pullID and the
+	// review's reviewID say, and submits it.
+	PendingReview(ctx context.Context, repo core.RepoRef, number int) (core.PendingReview, bool, error)
+	SubmitPendingReview(ctx context.Context, pullID, reviewID string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) error
 	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
 	StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error)
@@ -88,6 +94,9 @@ type Service struct {
 	// threads holds the pages of the review threads of a pull request, by
 	// head.
 	threads *cache.Cache[core.ThreadPage]
+	// pendings holds the viewer's pending review of a pull request. It is
+	// private and changes on the web, so it is never kept on disk.
+	pendings *cache.Cache[pendingRead]
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
 	keptLists    *cache.Shelf[listPage]
@@ -137,6 +146,7 @@ func New(api API, opts ...Option) *Service {
 		comments:     cache.New[stampedComments](mem...),
 		reviews:      cache.New[core.Page[core.Review]](mem...),
 		threads:      cache.New[core.ThreadPage](mem...),
+		pendings:     cache.New[pendingRead](mem...),
 		files:        cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
 		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
@@ -182,8 +192,9 @@ const (
 	reviewsSchema = 1
 	// filesSchema 1 is the first.
 	filesSchema = 1
-	// threadsSchema 1 is the first, and 2 keeps the review of each thread.
-	threadsSchema = 2
+	// threadsSchema 1 is the first, 2 keeps the review of each thread, and 3
+	// whether a thread or a comment is pending.
+	threadsSchema = 3
 )
 
 // maxPageSize is the most items GitHub returns in a page.
@@ -428,6 +439,7 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 	s.details.Invalidate(key)
 	// A thread resolved elsewhere moves nothing that vouches for its page.
 	s.threads.InvalidateTag(key)
+	s.pendings.InvalidateTag(key)
 	return s.readDetail(ctx, repo, number)
 }
 
@@ -454,4 +466,5 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.reviews.InvalidateTag(tag)
 	s.files.InvalidateTag(tag)
 	s.threads.InvalidateTag(tag)
+	s.pendings.InvalidateTag(tag)
 }
