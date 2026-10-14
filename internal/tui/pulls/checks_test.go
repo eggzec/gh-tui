@@ -376,8 +376,8 @@ func TestChangeKeysWorkInTheChecks(t *testing.T) {
 	if len(layers) < 2 || layers[0].Context != "pull_modal" {
 		t.Fatalf("layers = %v, want the modal's first", layers)
 	}
-	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close PR", "convert to draft", "next tab", "previous tab", "author"}) {
-		t.Errorf("enabled keys of the modal in the checks = %v, want the changes, the tabs and the author", got)
+	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close PR", "convert to draft", "drafts", "next tab", "previous tab", "author"}) {
+		t.Errorf("enabled keys of the modal in the checks = %v, want the changes, the drafts, the tabs and the author", got)
 	}
 	// C does nothing while the checks show.
 	if msgs := press(t, h, "C"); len(msgs) != 0 || m.checks == nil {

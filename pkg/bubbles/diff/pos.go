@@ -19,6 +19,24 @@ func (l *Layout) PosAt(i int) (Pos, bool) {
 	return Pos{}, false
 }
 
+// Line returns the text of the line p names, as the fetched files show it,
+// and whether the diff shows that line. known is false when that can't be
+// said yet: the file may still come with a later page, or the diff of the file
+// is cut short, so that the line may be in the part that isn't there.
+func (m Model) Line(p Pos) (text string, shown, known bool) {
+	i := m.layout.FileIndex(p.Path)
+	if i < 0 {
+		return "", false, m.pg.done
+	}
+	l := m.layout
+	l.ensure(i)
+	if r, ok := lineIn(l.files[i].body, p); ok {
+		return l.files[i].body[r].Text, true, true
+	}
+	f := l.files[i].file
+	return "", false, !f.Truncated && f.Patch != ""
+}
+
 // Find returns the row of a position, parsing the file. When the position is
 // not a line the diff shows, found is false and row is the file's header, or
 // -1 if the file is not in the layout. A collapsed file is not found: expand

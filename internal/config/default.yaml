@@ -826,6 +826,10 @@ keys:
     # jumps within Files and Conversation leave no return point.
     next_thread: [")"]
     prev_thread: ["("]
+    # List the comments drafted on the pull request, in the review tray: enter
+    # shows one in the diff, delete_draft deletes it and comment places an
+    # outdated one on a line again.
+    tray: [t]
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:

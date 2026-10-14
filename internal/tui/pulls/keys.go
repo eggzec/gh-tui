@@ -52,6 +52,9 @@ type keyMap struct {
 	// request, in its modal. The list has no such keys.
 	NextThread key.Binding
 	PrevThread key.Binding
+	// Tray lists the drafts of the review, in the modal. The list has no such
+	// key.
+	Tray key.Binding
 
 	// composer are the keys of the composer of a comment.
 	composer composer.KeyMap
@@ -139,6 +142,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		NextThread:  ui.In(keys, ctxModal).Binding("next_thread", "next thread"),
 		PrevThread:  ui.In(keys, ctxModal).Binding("prev_thread", "previous thread"),
 		composer:    composer.NewKeyMap(ui.Lookup(keys, "composer")),
+		Tray:        ui.In(keys, ctxModal).Binding("tray", "drafts"),
 		confirm:     ui.NewConfirmKeys(keys),
 		finder:      finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		owner:       list.Binding("global.owner", "author"),
@@ -199,6 +203,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.FindFile = modal.Binding("global.find_file", "find file")
 	k.NextThread = modal.Binding("next_thread", "next thread")
 	k.PrevThread = modal.Binding("prev_thread", "previous thread")
+	k.Tray = modal.Binding("tray", "drafts")
 	// The modal closes on esc, as it does from the list, and its tabs are those of the global keys.
 	k.Back = modal.Binding("global.dismiss", "close")
 	k.NextTab = modal.Binding("global.next_tab", "next tab")
@@ -228,7 +233,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.ConvComment, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.ConvComment, k.Tray, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 
@@ -265,5 +270,6 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.NextThread.SetEnabled(false)
 	k.PrevThread.SetEnabled(false)
 	k.ConvComment.SetEnabled(false)
+	k.Tray.SetEnabled(false)
 	return k
 }
