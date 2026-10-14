@@ -201,8 +201,8 @@ func (f *fakeService) lastList() notifications.ListQuery {
 }
 
 // thread returns a notification about subject type typ, updated ago before
-// now. Its subject is numbered by id: the issue or pull request, the
-// release, or the commit.
+// now. Its subject is numbered by id: the issue, pull request or discussion,
+// the release, or the commit.
 func thread(id, repo string, typ core.SubjectType, title, reason string, unread bool, ago time.Duration) core.Notification {
 	r, _ := core.ParseRepoRef(repo)
 	sub := core.Subject{Title: title, Type: typ}
@@ -216,13 +216,19 @@ func thread(id, repo string, typ core.SubjectType, title, reason string, unread 
 		sub.Number = n
 		sub.WebURL = base + "/pull/" + id
 	case core.SubjectRelease:
+		// The API names releases by ID, which the web doesn't use.
 		sub.ReleaseID = int64(n)
-		sub.WebURL = base + "/releases/tag/v" + id
+		sub.WebURL = base + "/releases"
+	case core.SubjectDiscussion:
+		sub.Number = n
+		sub.WebURL = base + "/discussions/" + id
 	case core.SubjectCommit:
 		sub.SHA = "c0ffee" + id
 		sub.WebURL = base + "/commit/" + sub.SHA
+	case core.SubjectCheckSuite:
+		sub.WebURL = base + "/actions"
 	default:
-		sub.WebURL = base + "/actions/runs/" + id
+		sub.WebURL = base
 	}
 	return core.Notification{
 		ID:        id,
