@@ -214,11 +214,17 @@ func checkRunState(s string) core.ChecksState {
 }
 
 type review struct {
-	ID          string    `json:"id"`
-	Author      *actor    `json:"author"`
-	State       string    `json:"state"`
-	Body        string    `json:"body"`
-	SubmittedAt time.Time `json:"submittedAt"`
+	ID          string        `json:"id"`
+	Author      *reviewAuthor `json:"author"`
+	State       string        `json:"state"`
+	Body        string        `json:"body"`
+	SubmittedAt time.Time     `json:"submittedAt"`
+}
+
+// reviewAuthor is who wrote a review, with the address of their avatar.
+type reviewAuthor struct {
+	actor
+	AvatarURL string `json:"avatarUrl"`
 }
 
 func (r review) core() core.Review {
@@ -230,6 +236,7 @@ func (r review) core() core.Review {
 	}
 	if r.Author != nil {
 		out.Author = r.Author.core()
+		out.AvatarURL = r.Author.AvatarURL
 	}
 	return out
 }
@@ -362,7 +369,7 @@ func pullPage(op, field, nodeFields string) string {
 }`, op, rateLimitField, field, nodeFields)
 }
 
-var pullReviewsQuery = pullPage("PullReviews", "reviews", "id author { __typename login ... on User { name } } state body submittedAt")
+var pullReviewsQuery = pullPage("PullReviews", "reviews", "id author { __typename login avatarUrl ... on User { name } } state body submittedAt")
 
 // listPullPage runs a pullPage query and converts its nodes with f. What
 // names the page in errors.

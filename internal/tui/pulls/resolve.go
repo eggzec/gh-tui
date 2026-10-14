@@ -135,6 +135,7 @@ func (m *detailModal) resolved(msg threadResolvedMsg) tea.Cmd {
 	}
 	m.th.pin()
 	m.th.all, m.th.list = all, unresolved(all)
+	m.thread.Redraw()
 	cmd := m.showThreadChange()
 	if f := m.files; f != nil {
 		f.diff.SetBlockFolded(msg.id, msg.resolved)
