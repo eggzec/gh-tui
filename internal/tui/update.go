@@ -275,7 +275,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// everywhere; esc cancels the line.
 	if m.line.Focused() {
 		if keymap.Matches(msg, forceQuit) {
-			return tea.Quit
+			return m.quitNow()
 		}
 		return m.updateLine(msg)
 	}
@@ -283,7 +283,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	// key, so that they can't trap the user.
 	if m.helpOpen() {
 		if keymap.Matches(msg, forceQuit) {
-			return tea.Quit
+			return m.quitNow()
 		}
 		return m.updateHelp(msg)
 	}
@@ -294,7 +294,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	if mod := m.topModal(); mod != nil {
 		if keymap.Matches(msg, forceQuit) {
-			return tea.Quit
+			return m.quitNow()
 		}
 		if m.commandsOver() && keymap.Matches(msg, m.keys.Command) {
 			return m.openLine()
@@ -325,7 +325,7 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keys.Command):
 		return m.openLine()
 	case keymap.Matches(msg, m.keys.Quit):
-		return tea.Quit
+		return m.quitNow()
 	case keymap.Matches(msg, m.keys.Search):
 		return m.showSearch()
 	case m.canOpenHistory() && keymap.Matches(msg, m.keys.History):

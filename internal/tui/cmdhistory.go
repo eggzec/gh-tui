@@ -107,6 +107,7 @@ type quitWaitedMsg struct{}
 // kept are loaded, it waits for them, up to historyWait, and then quits
 // without saving rather than write over them.
 func (m *Model) quit(save tea.Cmd) tea.Cmd {
+	m.saveOpen()
 	if m.hist == nil || m.hist.loaded {
 		return tea.Sequence(save, tea.Quit)
 	}

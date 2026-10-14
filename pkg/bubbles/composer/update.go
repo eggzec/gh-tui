@@ -143,7 +143,10 @@ func (m Model) save() tea.Cmd {
 }
 
 // Save saves the text as the draft now, and waits for the disk. A parent
-// calls it before it quits, so that ctrl+c loses nothing.
+// calls it before it quits, so that ctrl+c loses nothing (the app reaches it
+// through its Saver interface). An earlier save that runs in a command may
+// still be in flight, so the two can race on the disk and the last writer
+// wins; both write the same text unless the user typed in between.
 func (m Model) Save() error { return saveDraft(m.drafts, m.key, m.Value()) }
 
 // Discard returns the command that removes the draft, for the parent to run

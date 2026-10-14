@@ -18,7 +18,7 @@ import (
 
 var (
 	ctrlS = tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}
-	ctrlO = tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl}
+	ctrlE = tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl}
 	esc   = tea.KeyPressMsg{Code: tea.KeyEscape}
 	enter = tea.KeyPressMsg{Code: tea.KeyEnter}
 )
@@ -78,7 +78,7 @@ func testKeys(tb testing.TB) KeyMap {
 	return NewKeyMap(keytest.Table(map[string][]string{
 		"submit": {"ctrl+s"},
 		"cancel": {"esc"},
-		"edit":   {"ctrl+o"},
+		"edit":   {"ctrl+e"},
 	}))
 }
 
@@ -183,11 +183,21 @@ func TestEscKeepsDraft(t *testing.T) {
 	if text, _ := d.get(); text != "half a thought" {
 		t.Errorf("draft %q, want the text", text)
 	}
-	// Closing it emptied drops the draft.
-	m = focused(t, "k2", WithDrafts(newMem(map[string]string{"k2": "old"})))
+	// Closing it emptied drops the draft: load "old", clear it, press esc.
+	d2 := newMem(map[string]string{"k2": "old"})
+	m = focused(t, "k2", WithDrafts(d2))
+	m, _ = m.Update(run(m.Init()))
+	if m.Value() != "old" {
+		t.Fatalf("draft not loaded: %q", m.Value())
+	}
+	m.SetValue("")
 	_, cmd = m.Update(esc)
-	if _, ok := run(cmd).(CancelMsg); !ok {
-		t.Error("esc didn't cancel")
+	got, ok = run(cmd).(CancelMsg)
+	if !ok || got.Text != "" {
+		t.Fatalf("esc gave %+v", got)
+	}
+	if text, ok := d2.texts["k2"]; ok {
+		t.Errorf("the draft %q is still kept after closing it empty", text)
 	}
 }
 
@@ -218,8 +228,51 @@ func TestRestoreByKey(t *testing.T) {
 	bad.err = errors.New("damaged")
 	m = focused(t, "a", WithDrafts(bad))
 	m, _ = m.Update(run(m.Init()))
-	if m.Value() != "x" && m.Value() != "" {
-		t.Errorf("value %q", m.Value())
+	// The fake returns the text along with the error, as a damaged file may.
+	if m.Value() != "" || m.Restored() {
+		t.Errorf("value %q, restored %v; want none", m.Value(), m.Restored())
+	}
+}
+
+// ctrl+e opens the editor, and the text area's own use of it, the end of the
+// line, stays on the End key.
+func TestEditKeyAndLineEnd(t *testing.T) {
+	m := focused(t, "k", WithEditor("vim"))
+	m = typeText(m, "ab")
+	m.exec, m.tempDir = fakeEditor("edited", nil), t.TempDir()
+	m, cmd := m.Update(ctrlE)
+	if cmd == nil {
+		t.Fatal("ctrl+e opened no editor")
+	}
+	if m.Value() != "ab" {
+		t.Errorf("ctrl+e changed the text to %q", m.Value())
+	}
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnd})
+	m = typeText(m, "!")
+	if m.Value() != "ab!" {
+		t.Errorf("home, end, ! gave %q, want ab!", m.Value())
+	}
+}
+
+// Wide characters and tabs keep every row at the width.
+func TestWideAndTabs(t *testing.T) {
+	m := focused(t, "k", WithSize(20, 8))
+	text := "日本語のコメント 😀 tab\there"
+	m = typeText(m, text)
+	for l := range strings.SplitSeq(m.View(), "\n") {
+		if w := ansi.StringWidth(l); w != 20 {
+			t.Errorf("row %q is %d wide, want 20", ansi.Strip(l), w)
+		}
+	}
+	if !strings.HasPrefix(m.Value(), "日本語のコメント 😀 tab") {
+		t.Errorf("value %q lost characters", m.Value())
+	}
+	// A tab key neither moves the focus nor inserts a tab.
+	before := m.Value()
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if !m.Focused() || strings.Contains(strings.TrimPrefix(m.Value(), before), "\t") {
+		t.Errorf("tab key: focused %v, value %q", m.Focused(), m.Value())
 	}
 }
 
@@ -257,7 +310,7 @@ func TestEditor(t *testing.T) {
 	d := newMem(nil)
 	m := typeText(focused(t, "k", WithDrafts(d), WithEditor("vim")), "short")
 	m.exec, m.tempDir = fakeEditor("from the editor\nline two\n", nil), t.TempDir()
-	m, cmd := m.Update(ctrlO)
+	m, cmd := m.Update(ctrlE)
 	m, save := m.Update(run(cmd))
 	if m.Value() != "from the editor\nline two" {
 		t.Errorf("value %q", m.Value())
@@ -269,7 +322,7 @@ func TestEditor(t *testing.T) {
 
 	// A failing editor leaves the text and says so.
 	m.exec = fakeEditor("", errors.New("exit status 1\nmore"))
-	m, cmd = m.Update(ctrlO)
+	m, cmd = m.Update(ctrlE)
 	m, _ = m.Update(run(cmd))
 	if m.Value() != "from the editor\nline two" || !strings.Contains(ansi.Strip(m.View()), "editor: exit status 1") {
 		t.Errorf("value %q after a failing editor", m.Value())
@@ -279,7 +332,7 @@ func TestEditor(t *testing.T) {
 func TestNoEditor(t *testing.T) {
 	m := focused(t, "k")
 	m.getenv = func(string) string { return "" }
-	m, cmd := m.Update(ctrlO)
+	m, cmd := m.Update(ctrlE)
 	if cmd != nil || !strings.Contains(ansi.Strip(m.View()), noteNoEditor) {
 		t.Errorf("cmd %v; the view doesn't say there is no editor", cmd != nil)
 	}
