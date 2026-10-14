@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 )
 
 // memDrafts keeps drafts in memory and records the keys deleted.
@@ -59,7 +60,11 @@ func commenting(t *testing.T, svc *fakeService, d *memDrafts) (*host, *detailMod
 	svc.thread = []core.Comment{{ID: "c1", Author: core.User{Login: "hubot"}, Body: "First.", CreatedAt: clock}}
 	svc.pulls[0].HeadSHA = "a1b2c3d"
 	svc.changed = sampleFiles()
-	h := started(t, svc, 116, 40, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)), WithDrafts(d, "host/me"))
+	var drafts composer.Drafts
+	if d != nil {
+		drafts = d
+	}
+	h := started(t, svc, 116, 40, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)), WithDrafts(drafts, "host/me"))
 	h.SetTheme(theme(true))
 	press(t, h, "enter")
 	m := h.modal()
@@ -70,10 +75,10 @@ func commenting(t *testing.T, svc *fakeService, d *memDrafts) (*host, *detailMod
 	return h, m
 }
 
-// submit types text in the open composer and submits it with its key.
-func submit(t *testing.T, h *host, m *detailModal, text string) {
+// submit types a comment in the open composer and submits it with its key.
+func submit(t *testing.T, h *host, m *detailModal) {
 	t.Helper()
-	m.comp.SetValue(text)
+	m.comp.SetValue("Looks good.")
 	drain(t, h, h.Update(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}))
 }
 
@@ -108,7 +113,7 @@ func TestCommentAsksBeforeItPosts(t *testing.T) {
 	d := &memDrafts{}
 	h, m := commenting(t, svc, d)
 	press(t, h, "c")
-	submit(t, h, m, "Looks good.")
+	submit(t, h, m)
 	if m.ask == nil || m.ask.Question != "Post this comment on #142?" {
 		t.Fatalf("submit asked %+v, want the question to post", m.ask)
 	}
@@ -133,7 +138,7 @@ func TestCommentPostsAndDiscardsTheDraft(t *testing.T) {
 	d := &memDrafts{}
 	h, m := commenting(t, svc, d)
 	press(t, h, "c")
-	submit(t, h, m, "Looks good.")
+	submit(t, h, m)
 	key := m.draftKey()
 	if text, _ := d.get(key); text != "Looks good." {
 		t.Fatalf("the draft is %q after submit, want it saved while the comment is sent", text)
@@ -197,7 +202,7 @@ func TestCommentRefusedRollsBackAndKeepsTheDraft(t *testing.T) {
 	d := &memDrafts{}
 	h, m := commenting(t, svc, d)
 	press(t, h, "c")
-	submit(t, h, m, "Looks good.")
+	submit(t, h, m)
 	svc.sendErr = errors.New("boom")
 	var failed bool
 	for _, msg := range press(t, h, "y") {
@@ -208,10 +213,91 @@ func TestCommentRefusedRollsBackAndKeepsTheDraft(t *testing.T) {
 	if !failed {
 		t.Error("a refused comment reported no failure to show")
 	}
-	if got := ansi.Strip(m.View()); strings.Contains(got, "Looks good.") {
+	if got := ansi.Strip(m.thread.View()); strings.Contains(got, "Looks good.") {
 		t.Errorf("the refused comment is still shown:\n%s", got)
 	}
 	if text, deleted := d.get(m.draftKey()); text != "Looks good." || len(deleted) != 0 {
 		t.Errorf("the draft is %q and %v were deleted, want the text kept", text, deleted)
+	}
+	if m.comp == nil || m.comp.Value() != "Looks good." {
+		t.Errorf("the composer is %v after the refusal, want it open with the text", m.comp)
+	}
+}
+
+func TestCommentRefusedWithoutDraftsKeepsTheText(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	h, m := commenting(t, svc, nil)
+	press(t, h, "c")
+	submit(t, h, m)
+	svc.sendErr = errors.New("boom")
+	press(t, h, "y")
+	if m.comp == nil || m.comp.Value() != "Looks good." {
+		t.Fatalf("the composer is %v after the refusal, want it open with the text", m.comp)
+	}
+
+	// With the composer away, the text waits for the next one.
+	press(t, h, "esc")
+	press(t, h, "c")
+	if got := m.comp.Value(); got != "" {
+		t.Fatalf("the composer holds %q, want the text given back once", got)
+	}
+}
+
+func TestCommentRefusedAwayFromTheConversationWaitsForTheNextComposer(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	h, m := commenting(t, svc, nil)
+	press(t, h, "c")
+	submit(t, h, m)
+	svc.sendErr = errors.New("boom")
+	cmd := h.Update(keyMsg("y"))
+	drain(t, h, m.switchTo(filesTab))
+	drain(t, h, cmd)
+	if m.comp != nil {
+		t.Fatal("a composer opened on the Files tab")
+	}
+	drain(t, h, m.switchTo(conversationTab))
+	press(t, h, "c")
+	if m.comp == nil || m.comp.Value() != "Looks good." {
+		t.Errorf("the composer is %v, want it to hold the refused text", m.comp)
+	}
+}
+
+func TestCommentPostedKeepsADraftSavedMeanwhile(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	d := &memDrafts{}
+	h, m := commenting(t, svc, d)
+	press(t, h, "c")
+	submit(t, h, m)
+	key := m.draftKey()
+	cmd := h.Update(keyMsg("y"))
+	if err := d.Save(key, "Another one."); err != nil {
+		t.Fatal(err)
+	}
+	drain(t, h, cmd)
+	if text, deleted := d.get(key); text != "Another one." || len(deleted) != 0 {
+		t.Errorf("the draft is %q and %v were deleted, want the newer draft kept", text, deleted)
+	}
+}
+
+func TestCommentSaveLeavesTheDraftToABlankComposerNotYetLoaded(t *testing.T) {
+	t.Parallel()
+	d := &memDrafts{}
+	_, m := commenting(t, newFakeService(), d)
+	if err := d.Save(m.draftKey(), "Half written"); err != nil {
+		t.Fatal(err)
+	}
+	// The composer opens, but the draft has not reached it yet.
+	m.startComment()
+	if m.comp == nil {
+		t.Fatal("no composer opened")
+	}
+	if err := m.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if text, deleted := d.get(m.draftKey()); text != "Half written" || len(deleted) != 0 {
+		t.Errorf("the draft is %q and %v were deleted, want it kept", text, deleted)
 	}
 }

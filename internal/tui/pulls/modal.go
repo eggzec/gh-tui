@@ -145,6 +145,10 @@ type detailModal struct {
 	comp       *composer.Model
 	drafts     composer.Drafts
 	draftScope string
+	// unsent is the text of a comment GitHub refused, kept in memory for the
+	// next composer when the draft can't hold it: there is no store, or it
+	// failed.
+	unsent string
 
 	width, height int
 	theme         ui.Theme
@@ -445,13 +449,13 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
-	case composer.SubmitMsg, composer.CancelMsg, composer.DiscardedMsg:
+	case composer.SubmitMsg, composer.CancelMsg:
 		return m.updateComposer(msg)
 	case commentedMsg:
 		if msg.thread != m.thread.ID() {
 			return nil
 		}
-		return m.thread.Reload()
+		return tea.Batch(m.thread.Reload(), m.commented(msg))
 	case tea.PasteMsg:
 		if m.comp != nil {
 			// A paste while the text is being confirmed would change what
