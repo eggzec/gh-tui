@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"slices"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -76,6 +77,12 @@ type detailModal struct {
 	failed error
 
 	thread thread.Model[entry]
+	// reviewsFailed is set while the reviews of the thread couldn't be read
+	// for want of an answer from GitHub, so that it reads again when GitHub
+	// answers.
+	reviewsFailed *atomic.Bool
+	// sayReviews words a failed read of the reviews.
+	sayReviews func(error) (text, hint string)
 	// ctx bounds the reads of the modal and is cancelled when it closes.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -218,7 +225,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 	// The thread fetches failed comments again with its own retry key.
 	v := s.voice
 	v.Retry = s.keys.thread.Retry
-	m.thread = thread.New(fetchTimeline(svc, repo, number), m.renderEntry,
+	m.reviewsFailed = new(atomic.Bool)
+	m.sayReviews = ui.ErrorText("load the reviews", core.Target{Repo: repo, Number: number}.String(), s.voice)
+	m.thread = thread.New(fetchTimeline(svc, repo, number, m.reviewsFailed), m.renderEntry,
 		thread.WithContext(ctx),
 		thread.WithStyles(s.theme.Thread(s.icons)),
 		thread.WithKeyMap(s.keys.thread),

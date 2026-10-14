@@ -148,12 +148,17 @@ func TestReviewCountsFollowTheThreads(t *testing.T) {
 	}
 }
 
-// A review that couldn't be read fails the page, which reads again.
+// A review that couldn't be read leaves the comments, with a line that says
+// so at the head of the first page.
 func TestReviewsFailedRead(t *testing.T) {
 	t.Parallel()
 	svc := newFakeService()
 	svc.reviewsErr = errors.New("boom")
-	if _, _, err := fetchTimeline(svc, repo, 142)(t.Context(), ""); err == nil {
-		t.Error("a failed read of the reviews passed")
+	got, _, err := fetchTimeline(svc, repo, 142, nil)(t.Context(), "")
+	if err != nil {
+		t.Fatalf("a failed read of the reviews failed the page: %v", err)
+	}
+	if len(got) < 2 || got[0].failure == nil {
+		t.Errorf("the page has no line for the failed reviews: %v", ids(got))
 	}
 }

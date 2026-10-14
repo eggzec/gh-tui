@@ -83,7 +83,11 @@ func (m *detailModal) online() tea.Cmd {
 	if f := m.files; f != nil {
 		files = m.filesOnline()
 	}
-	return tea.Batch(get, files, m.threadsOnline(), ui.RetryUnreached(&m.thread))
+	var reviews tea.Cmd
+	if m.reviewsFailed != nil && m.reviewsFailed.Load() {
+		reviews = m.thread.Reload()
+	}
+	return tea.Batch(get, files, m.threadsOnline(), ui.RetryUnreached(&m.thread), reviews)
 }
 
 // get fetches the detail. A fresh cached detail costs no request. Once it
