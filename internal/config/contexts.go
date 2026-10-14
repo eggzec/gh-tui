@@ -132,6 +132,9 @@ var contexts = []Context{
 	{Name: "help", Title: "Help", Reach: ReachCapture, Typing: true, Printable: []string{"close"}},
 	{Name: "confirm", Title: "Confirm", Reach: ReachCapture},
 	{Name: "prompt", Title: "Prompt", Reach: ReachCapture, Typing: true},
+	// The editor of a comment. Its keys are control keys, since the letters
+	// are typed.
+	{Name: "composer", Title: "Composer", Reach: ReachCapture, Typing: true},
 	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
 	// Space checks the item under the cursor of a dropdown with several
 	// choices while its filter doesn't have the keys, and is typed in the

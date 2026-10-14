@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -40,38 +39,6 @@ func TestEditorPrecedence(t *testing.T) {
 				t.Errorf("editor() = %q, want %q", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestEditorArgs(t *testing.T) {
-	const f = "/tmp/gh-tui-1/main.go"
-	tests := []struct {
-		words []string
-		want  []string
-	}{
-		{[]string{"vim"}, []string{"+12", f}},
-		{[]string{"/usr/bin/nvim", "-u", "NONE"}, []string{"-u", "NONE", "+12", f}},
-		{[]string{"vi"}, []string{"+12", f}},
-		{[]string{"nano"}, []string{"+12", f}},
-		{[]string{"emacsclient", "-t"}, []string{"-t", "+12", f}},
-		{[]string{"emacs", "-nw"}, []string{"-nw", "+12", f}},
-		{[]string{"micro"}, []string{"+12", f}},
-		{[]string{"hx"}, []string{"+12", f}},
-		{[]string{"helix"}, []string{"+12", f}},
-		{[]string{"kak"}, []string{"+12", f}},
-		{[]string{`C:\Program Files\Vim\GVIM.EXE`}, []string{"+12", f}},
-		{[]string{"code", "--wait"}, []string{"--wait", "-g", f + ":12"}},
-		{[]string{"codium", "-w"}, []string{"-w", "-g", f + ":12"}},
-		{[]string{"subl", "-w"}, []string{"-w", f}},
-		{[]string{"ed"}, []string{f}},
-	}
-	for _, tt := range tests {
-		if got := editorArgs(tt.words, f, 12); !slices.Equal(got, tt.want) {
-			t.Errorf("editorArgs(%q) = %q, want %q", tt.words, got, tt.want)
-		}
-	}
-	if got := editorArgs([]string{"vim"}, f, 0); !slices.Equal(got, []string{"+1", f}) {
-		t.Errorf("line 0 gives %q, want +1", got)
 	}
 }
 
@@ -173,73 +140,6 @@ func TestEdit(t *testing.T) {
 	m, _ = m.Update(cmd())
 	if m.flash != "" {
 		t.Errorf("after the editor again: note %q, want none", m.flash)
-	}
-}
-
-// The files to edit that a killed program left behind go once they are a
-// day old, and nothing else in the directory does.
-func TestSweepTemp(t *testing.T) {
-	dir := t.TempDir()
-	now := time.Now()
-	day := now.Add(-staleAfter - time.Minute)
-	mk := func(name string, files []string, subdir bool, at time.Time) string {
-		t.Helper()
-		d := filepath.Join(dir, name)
-		if err := os.Mkdir(d, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		for _, f := range files {
-			p := filepath.Join(d, f)
-			if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Chtimes(p, at, at); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if subdir {
-			if err := os.Mkdir(filepath.Join(d, "sub"), 0o700); err != nil {
-				t.Fatal(err)
-			}
-		}
-		if err := os.Chtimes(d, at, at); err != nil {
-			t.Fatal(err)
-		}
-		return d
-	}
-	stale := mk(tempPrefix+"123", []string{"main.go"}, false, day)
-	keep := make([]string, 0, 10)
-	keep = append(keep,
-		mk(tempPrefix+"456", []string{"main.go"}, false, now),
-		mk(tempPrefix+"789", []string{"a", "b"}, false, day),
-		mk(tempPrefix+"790", nil, true, day),
-		mk(tempPrefix+"791", nil, false, day),
-		mk(tempPrefix+"x12", []string{"main.go"}, false, day),
-		mk("gh-tui-123", []string{"main.go"}, false, day),
-		mk("other", []string{"main.go"}, false, day),
-	)
-	// A link to a directory is not one.
-	target := mk("target", []string{"main.go"}, false, day)
-	link := filepath.Join(dir, tempPrefix+"999")
-	if err := os.Symlink(target, link); err != nil {
-		t.Fatal(err)
-	}
-	keep = append(keep, target, link)
-	// A file in a fresh directory may still be open, even if it is old.
-	fresh := mk(tempPrefix+"555", []string{"main.go"}, false, day)
-	if err := os.Chtimes(filepath.Join(fresh, "main.go"), now, now); err != nil {
-		t.Fatal(err)
-	}
-	keep = append(keep, fresh)
-
-	sweepTemp(dir, now)
-	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
-		t.Errorf("%s is still there", stale)
-	}
-	for _, k := range keep {
-		if _, err := os.Lstat(k); err != nil {
-			t.Errorf("%s is gone: %v", k, err)
-		}
 	}
 }
 

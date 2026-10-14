@@ -1,6 +1,6 @@
 //go:build unix
 
-package pager
+package extedit
 
 import (
 	"os"
