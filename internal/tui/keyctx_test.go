@@ -1060,7 +1060,11 @@ func keyContexts() []keyContext {
 
 // reserved are the actions of default.yaml that nothing reads yet, each
 // with its reason.
-var reserved = map[string]string{}
+var reserved = map[string]string{
+	"composer.submit": "the composer isn't opened from any screen yet",
+	"composer.cancel": "the composer isn't opened from any screen yet",
+	"composer.edit":   "the composer isn't opened from any screen yet",
+}
 
 // TestEveryActionRead checks that the code reads every action of
 // default.yaml, and only those: walking every state of keyContexts, which

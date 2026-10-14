@@ -1265,6 +1265,14 @@ keys:
     # Also submits a prompt of one line.
     submit_line: [enter]
     cancel: [esc]
+  # The composer of a comment or a review. Enter starts a new line.
+  composer:
+    # Send the text; empty text can't be sent.
+    submit: [ctrl+s]
+    # Close the composer. The text is kept as a draft.
+    cancel: [esc]
+    # Edit the text in your editor ($VISUAL or $EDITOR).
+    edit: [ctrl+o]
   # The file finder.
   finder:
     up: [up, ctrl+p]

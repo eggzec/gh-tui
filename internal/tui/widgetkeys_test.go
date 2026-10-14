@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -32,6 +33,7 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 		{"command_line", cmdline.KeyMap{}},
 		{"help", keyhelp.KeyMap{}},
 		{"prompt", prompt.KeyMap{}},
+		{"composer", composer.KeyMap{}},
 		{"finder", finder.KeyMap{}},
 		{"picker", picker.KeyMap{}},
 		{"filter", filterform.KeyMap{}},
