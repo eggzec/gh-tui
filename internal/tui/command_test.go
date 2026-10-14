@@ -500,6 +500,8 @@ func TestActionCommandsPress(t *testing.T) {
 		cfg.Keys.Set(config.ActionRefresh, []string{})
 		fakes := []*fakeSection{{title: "Files"}}
 		m := New(t.Context(), cfg, Layout{Files: fakes[0]}, WithRepo(testRepo))
+		// drive runs the toast's timer, which would wait out its 4s.
+		m.toast.SetDuration(0)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		runCommand(t, m, "refresh")
 		if !fakes[0].got(isActionPress(config.ActionRefresh)) {

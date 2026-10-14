@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -914,7 +916,20 @@ func TestOneReadPerBody(t *testing.T) {
 // A decoder that panics fails every caller of the image, and what was
 // kept of it is dropped.
 func TestDecodePanicFailsFetch(t *testing.T) {
-	panicking(t, false)
+	// The decoder waits for both callers to be on the one flight: a caller
+	// that came after it ended would find nothing kept, and be offline.
+	gate := make(chan struct{})
+	c := codecs["image/png"]
+	t.Cleanup(func() { codecs["image/png"] = c })
+	p := c
+	p.decode = func(io.Reader) (image.Image, error) {
+		select {
+		case <-gate:
+		case <-t.Context().Done():
+		}
+		panic("decode")
+	}
+	codecs["image/png"] = p
 	store := &mapStore{}
 	_ = store.Put(kindData, storeKey(attachment), pngOf(t, 4, 4))
 	f := New("github.com", WithStore(store), WithOffline(func() bool { return true }))
@@ -925,6 +940,14 @@ func TestDecodePanicFailsFetch(t *testing.T) {
 			errs <- err
 		}()
 	}
+	deadline := time.Now().Add(10 * time.Second)
+	for !f.flying(2) {
+		if time.Now().After(deadline) {
+			t.Fatal("the two callers never shared the flight")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	close(gate)
 	for range 2 {
 		select {
 		case err := <-errs:
@@ -987,6 +1010,18 @@ func (f *Fetcher) sharing(n int) bool {
 	defer f.mu.Unlock()
 	for _, r := range f.reads {
 		if r.waiters == n {
+			return true
+		}
+	}
+	return false
+}
+
+// flying reports whether n callers are waiting on one flight.
+func (f *Fetcher) flying(n int) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, fl := range f.flights {
+		if fl.waiters == n {
 			return true
 		}
 	}
