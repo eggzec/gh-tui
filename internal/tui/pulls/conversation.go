@@ -272,10 +272,22 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	var b strings.Builder
 	// The avatar takes its box from the start, so the line doesn't move
 	// when it arrives.
-	b.WriteString(gutter + m.avatars.Line(c.AvatarURL) + st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())))
+	b.WriteString(gutter + m.avatars.Line(c.AvatarURL))
+	if pulls.IsPending(c) {
+		// The service may not know who the viewer is.
+		who := ui.OneLine(c.Author.Login)
+		if who == "" {
+			who = "you"
+		}
+		b.WriteString(st.commenter.Render(who) + st.age.Render(st.ic.Separator+"sending"+m.icons.Ellipsis))
+	} else {
+		b.WriteString(st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())))
+		// GitHub has no HTML of a comment it hasn't taken yet, so only
+		// the confirmed ones have images to draw.
+		m.bodies.Add(c.ID, c.Body)
+	}
 	bar := gutter + st.bar
 	// The bar takes two cells, and as many stay free on the right.
-	m.bodies.Add(c.ID, c.Body)
 	body := m.thread.Markdown(c.Body, markdown.Room(width, 2*len(gutter)+2))
 	if body != "" {
 		b.WriteByte('\n')

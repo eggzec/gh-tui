@@ -35,6 +35,7 @@ Pull requests
   find file | ctrl+p | ^p | off
   next thread | ) | ) | off
   previous thread | ( | ( | off
+  comment | c | c | off
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off

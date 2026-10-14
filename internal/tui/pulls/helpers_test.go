@@ -758,6 +758,41 @@ func (f *fakeService) ResolveThread(_ core.RepoRef, number int, id string, resol
 	})
 }
 
+// Comment records "comment body", and adds a pending comment to the thread at
+// once, as the service does, before the Op sends it. A failed send fails with
+// sendErr and takes the comment out again; a good one makes it the comment
+// GitHub confirmed. The thread must be set, or the comment shows nowhere.
+func (f *fakeService) Comment(_ core.RepoRef, number int, body, author string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	what := "comment " + body
+	f.ops = append(f.ops, what+" "+strconv.Itoa(number))
+	id := "pending:" + strconv.Itoa(len(f.ops))
+	if f.thread != nil {
+		f.thread = append(slices.Clip(f.thread), core.Comment{ID: id, Author: core.User{Login: author}, Body: body, CreatedAt: clock})
+	}
+	drop := func() {
+		f.thread = slices.DeleteFunc(slices.Clone(f.thread), func(c core.Comment) bool { return c.ID == id })
+	}
+	return optimistic.New(func(context.Context) error {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.sends = append(f.sends, what)
+		if err := cmp.Or(f.sendErr, f.sendErrs[number]); err != nil {
+			return err
+		}
+		if i := slices.IndexFunc(f.thread, func(c core.Comment) bool { return c.ID == id }); i >= 0 {
+			f.thread = slices.Clone(f.thread)
+			f.thread[i].ID = "c-" + id
+		}
+		return nil
+	}, func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		drop()
+	})
+}
+
 // sent returns the changes whose Op was sent, in order.
 func (f *fakeService) sent() []string {
 	f.mu.Lock()

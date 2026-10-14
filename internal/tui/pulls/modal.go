@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -139,6 +140,11 @@ type detailModal struct {
 	// line, in the styles of confirmSt.
 	ask       *ui.Confirm
 	confirmSt ui.ConfirmStyles
+	// comp is the composer of a comment, under the thread of the
+	// Conversation tab while it is open, and drafts keeps what it holds.
+	comp       *composer.Model
+	drafts     composer.Drafts
+	draftScope string
 
 	width, height int
 	theme         ui.Theme
@@ -195,6 +201,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		whoAmI:      s.readViewer,
 		rawKeys:     s.rawKeys,
 		tray:        trayState{store: s.tray},
+		drafts:      s.drafts,
+		draftScope:  s.draftScope,
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -317,7 +325,7 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.thread.SetSize(m.width, m.height)
+	m.layout()
 	m.drawPictures()
 	if m.checks != nil {
 		m.checks.SetSize(m.width, m.height)
@@ -343,6 +351,9 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.runSt = ui.NewRunStyles(t, m.icons)
 	m.confirmSt = t.Confirm(m.icons)
 	m.thread.SetStyles(t.Thread(m.icons))
+	if m.comp != nil {
+		m.comp.SetStyles(t.Prompt(m.icons))
+	}
 	if m.checks != nil {
 		m.checks.SetTheme(t)
 	}
@@ -363,7 +374,7 @@ func (m *detailModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	base := m.thread.View()
+	base := m.composed()
 	switch {
 	case m.find != nil:
 		base = m.find.View()
@@ -434,6 +445,24 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
+	case composer.SubmitMsg, composer.CancelMsg, composer.DiscardedMsg:
+		return m.updateComposer(msg)
+	case commentedMsg:
+		if msg.thread != m.thread.ID() {
+			return nil
+		}
+		return m.thread.Reload()
+	case tea.PasteMsg:
+		if m.comp != nil {
+			// A paste while the text is being confirmed would change what
+			// the question asks about.
+			if m.ask != nil {
+				return nil
+			}
+			var cmd tea.Cmd
+			*m.comp, cmd = m.comp.Update(msg)
+			return cmd
+		}
 	case checks.CloseMsg:
 		// The step has nothing left to dismiss: the modal closes, from
 		// whichever level of the step.
@@ -501,6 +530,12 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		*m.find, cmd = m.find.Update(msg)
 		cmds = append(cmds, cmd)
 	}
+	if _, ok := msg.(tea.MouseMsg); m.comp != nil && !ok {
+		// The draft arrives, and the cursor blinks, as messages of its own.
+		var cmd tea.Cmd
+		*m.comp, cmd = m.comp.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 	return tea.Batch(cmds...)
 }
 
@@ -514,6 +549,13 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.tray.comp != nil {
 		// The composer types, so it takes every key.
 		return m.pressCompose(msg)
+	}
+	if m.comp != nil {
+		// Every key is typing, even the modal's own; esc closes the
+		// composer, not the modal.
+		var cmd tea.Cmd
+		*m.comp, cmd = m.comp.Update(msg)
+		return cmd
 	}
 	if m.find != nil {
 		// The finder types, so it takes every key.
@@ -551,6 +593,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.author()
 	case keymap.Matches(msg, k.Checks) && m.tab != checksTab && m.hasChecks():
 		return m.switchTo(checksTab)
+	case m.onConversation() && keymap.Matches(msg, k.ConvComment):
+		return m.startComment()
 	case k.isChange(msg):
 		return m.change(msg)
 	}
@@ -596,6 +640,10 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
+	// A comment being written is kept, as it is when the app quits.
+	if err := m.saveComment(); err != nil {
+		slog.WarnContext(m.ctx, "comment draft not saved", "span", "tui", "err", ui.ShortPath(err.Error()))
+	}
 	m.back, m.fileJump = nil, 0
 	m.dropFind()
 	if m.refs != nil {
@@ -705,6 +753,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
 	case m.tray.comp != nil:
 		return []keyhelp.Layer{ui.ContextHelp("composer", m.tray.comp.c, true)}
+	case m.comp != nil:
+		return []keyhelp.Layer{ui.ContextHelp("composer", m.comp, true)}
 	case m.find != nil:
 		return []keyhelp.Layer{ui.ContextHelp("finder", m.find, true)}
 	case m.refs != nil:
@@ -738,6 +788,7 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 	k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
 	k.Checks.SetEnabled(k.Checks.Enabled() && m.tab != checksTab && m.hasChecks())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.canReadFiles())
+	k.ConvComment.SetEnabled(k.ConvComment.Enabled() && m.onConversation() && m.loaded)
 	k.NextThread.SetEnabled(k.NextThread.Enabled() && m.readableThreads())
 	k.PrevThread.SetEnabled(k.PrevThread.Enabled() && m.readableThreads())
 	owner := m.keys.owner
