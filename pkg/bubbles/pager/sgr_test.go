@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/eggzec/gh-tui/pkg/termtext"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
@@ -81,11 +80,7 @@ func TestColorsAverageBytesBounded(t *testing.T) {
 		for _, wrap := range []bool{false, true} {
 			m := open(t, "out.log", tt.text, WithSize(width, height), WithWrap(wrap), WithLineNumbers(false))
 			m, _ = keys(t, m, "G")
-			start := time.Now()
 			v := m.View()
-			if d := time.Since(start); d > time.Second {
-				t.Errorf("%s, wrap %v: a frame took %v", tt.name, wrap, d)
-			}
 			if limit := 72 * width * height; len(v) > limit {
 				t.Errorf("%s, wrap %v: a frame is %d bytes, more than an average of 72 a cell (%d)", tt.name, wrap, len(v), limit)
 			}

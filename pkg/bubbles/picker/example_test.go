@@ -2,6 +2,7 @@ package picker_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
@@ -38,6 +39,13 @@ func Example() {
 	// while it is open, and close it on picker.ChosenMsg or
 	// picker.CancelMsg with m.ID(). ChosenMsg.Item.Value holds the repo.
 	_ = m.Init()
+
+	items, _ := search(context.Background(), picker.Query{Text: "dot"})
+	for _, it := range items {
+		fmt.Println(it.Title)
+	}
+	// Output:
+	// octo-org/dotfiles
 }
 
 func Example_local() {
@@ -49,5 +57,7 @@ func Example_local() {
 		{Kind: "Sections", Title: "Notifications"},
 	}))
 	_ = m.Focus()
-	_ = m.View()
+	fmt.Println(m.Len())
+	// Output:
+	// 3
 }

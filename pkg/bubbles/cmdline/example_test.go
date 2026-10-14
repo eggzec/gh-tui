@@ -1,6 +1,7 @@
 package cmdline_test
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
@@ -32,4 +33,10 @@ func Example() {
 	// around m.Height() rows. Close it on cmdline.SubmitMsg, which carries
 	// the command, or cmdline.CancelMsg, with m.ID().
 	_ = m.Open("")
+
+	for _, c := range complete("t", 1) {
+		fmt.Println(c.Text)
+	}
+	// Output:
+	// theme
 }

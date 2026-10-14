@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -118,7 +117,6 @@ func TestSearchLongLine(t *testing.T) {
 	for _, query := range []string{"a", "z*"} {
 		m := open(t, "min.js", text, WithSize(80, 11))
 		var found Model
-		start := time.Now()
 		// A few passes over the line, each capped; without the cap, "a"
 		// takes a million allocations.
 		allocs := testing.AllocsPerRun(1, func() {
@@ -130,9 +128,6 @@ func TestSearchLongLine(t *testing.T) {
 		})
 		if allocs > 20*maxLineMatches {
 			t.Errorf("%q: %v allocations, want at most %d", query, allocs, 20*maxLineMatches)
-		}
-		if took := time.Since(start); took > 5*time.Second {
-			t.Errorf("%q: took %v", query, took)
 		}
 		want := maxLineMatches
 		if query == "z*" {

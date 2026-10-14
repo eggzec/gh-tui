@@ -40,4 +40,9 @@ func Example() {
 	// Return m.Init() from the parent's Init, forward messages to
 	// m.Update, and call m.Reload() when a sync event arrives.
 	_ = m.Init()
+
+	page, next, _ := fetch(context.Background(), "")
+	fmt.Println(render(page[0], false, 80), len(page), next)
+	// Output:
+	// #1 Fix things 3 3
 }

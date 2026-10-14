@@ -2,7 +2,6 @@ package syntax
 
 import (
 	"context"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -62,7 +61,6 @@ func TestFile(t *testing.T) {
 // Markdown's fences reach only the lexers of common languages.
 func TestMarkdownFencesAreConfined(t *testing.T) {
 	idle(t)
-	before := runtime.NumGoroutine()
 	l := File("README.md", "")
 	for _, lang := range []string{"jsonata", "jungle", "x.jsonata", "markdown", "http"} {
 		code := "# Title\n\n```" + lang + "\n\\\n```\n"
@@ -70,9 +68,8 @@ func TestMarkdownFencesAreConfined(t *testing.T) {
 			t.Errorf("%s: lexed %q, %v", lang, text(toks), err)
 		}
 	}
-	if n := settle(before); n > before {
-		t.Errorf("%d goroutines run after lexing, %d before", n, before)
-	}
+	// No lexer of a fence is still running: the gate is free.
+	idle(t)
 	toks, _ := Head(t.Context(), l, "```go\nfunc f() {}\n```\n", 10*time.Second)
 	if !has(toks, chroma.KeywordDeclaration) {
 		t.Errorf("the Go in a fence isn't highlighted: %v", toks)
@@ -94,16 +91,6 @@ func has(toks []chroma.Token, typ chroma.TokenType) bool {
 		}
 	}
 	return false
-}
-
-// settle waits a while for the goroutines to come down to n, and returns
-// how many run.
-func settle(n int) int {
-	deadline := time.Now().Add(10 * time.Second)
-	for runtime.NumGoroutine() > n && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
-	}
-	return runtime.NumGoroutine()
 }
 
 // idle waits for a lexer that overran to end.

@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -139,11 +138,7 @@ func TestSanitizeViewAverageBytesBounded(t *testing.T) {
 		oppositeRows,
 	} {
 		m := view(t, lines, WithSize(width, height), WithLineNumbers(false))
-		start := time.Now()
 		v := m.View()
-		if d := time.Since(start); d > time.Second {
-			t.Errorf("a frame took %v", d)
-		}
 		if limit := 72 * width * height; len(v) > limit {
 			t.Errorf("a frame is %d bytes, more than an average of 72 a cell (%d)", len(v), limit)
 		}

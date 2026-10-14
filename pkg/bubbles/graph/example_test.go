@@ -2,6 +2,7 @@ package graph_test
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 )
@@ -31,4 +32,9 @@ func Example() {
 	// the cursor, to show its diff; enter sends a graph.ChosenMsg. Call
 	// m.Reset(fetch) with the fetch of another branch to show its history.
 	_ = m.Init()
+
+	commits, next, _ := fetch(context.Background(), "")
+	fmt.Printf("%d commits, %q, more: %t\n", len(commits), commits[0].Title, next != "")
+	// Output:
+	// 4 commits, "Merge pull request #1", more: false
 }

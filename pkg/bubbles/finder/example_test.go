@@ -2,6 +2,7 @@ package finder_test
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 )
@@ -26,4 +27,9 @@ func Example() {
 	// while it is open, and close it on finder.ChosenMsg or
 	// finder.CancelMsg with m.ID().
 	_ = m.Init()
+
+	listing, _ := load(context.Background())
+	fmt.Println(len(listing.Items), listing.Items[0].Path)
+	// Output:
+	// 3 cmd/app/main.go
 }
