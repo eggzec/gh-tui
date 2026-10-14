@@ -149,6 +149,8 @@ type detailModal struct {
 	// next composer when the draft can't hold it: there is no store, or it
 	// failed.
 	unsent string
+	// rev is the review step, which takes the modal's place while it is open.
+	rev *reviewState
 
 	width, height int
 	theme         ui.Theme
@@ -380,6 +382,8 @@ func (m *detailModal) View() string {
 	}
 	base := m.composed()
 	switch {
+	case m.rev != nil:
+		base = m.reviewView()
 	case m.tray.list != nil:
 		base = m.trayListView()
 	case m.find != nil:
@@ -453,12 +457,17 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		return m.press(msg)
 	case composer.SubmitMsg, composer.CancelMsg:
 		return m.updateComposer(msg)
+	case reviewedMsg:
+		return m.reviewed(msg)
 	case commentedMsg:
 		if msg.thread != m.thread.ID() {
 			return nil
 		}
 		return tea.Batch(m.thread.Reload(), m.commented(msg))
 	case tea.PasteMsg:
+		if m.rev != nil {
+			return m.pasteReview(msg)
+		}
 		if m.comp != nil {
 			// A paste while the text is being confirmed would change what
 			// the question asks about.
@@ -542,6 +551,9 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		*m.comp, cmd = m.comp.Update(msg)
 		cmds = append(cmds, cmd)
 	}
+	if _, ok := msg.(tea.MouseMsg); !ok {
+		cmds = append(cmds, m.updateSummary(msg))
+	}
 	return tea.Batch(cmds...)
 }
 
@@ -551,6 +563,9 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
+	}
+	if m.rev != nil {
+		return m.pressReview(msg)
 	}
 	if m.tray.comp != nil {
 		// The composer types, so it takes every key.
@@ -590,6 +605,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openRefs()
 	case keymap.Matches(msg, k.Tray) && m.loaded:
 		return m.openTrayList()
+	case keymap.Matches(msg, k.Review) && m.loaded:
+		return m.openReview()
 	case keymap.Matches(msg, k.FindFile) && m.canReadFiles():
 		return m.openFind()
 	case keymap.Matches(msg, k.NextThread) && m.readableThreads():
@@ -654,6 +671,9 @@ func (m *detailModal) Discard() {
 	// A comment being written is kept, as it is when the app quits.
 	if err := m.saveComment(); err != nil {
 		slog.WarnContext(m.ctx, "comment draft not saved", "span", "tui", "err", ui.ShortPath(err.Error()))
+	}
+	if err := m.saveSummary(); err != nil {
+		slog.WarnContext(m.ctx, "review summary draft not saved", "span", "tui", "err", ui.ShortPath(err.Error()))
 	}
 	m.back, m.fileJump = nil, 0
 	m.dropFind()
@@ -762,6 +782,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{m.keys.confirm.LayerFor(*m.ask)}
+	case m.rev != nil:
+		return []keyhelp.Layer{m.reviewLayer()}
 	case m.tray.comp != nil:
 		return []keyhelp.Layer{ui.ContextHelp("composer", m.tray.comp.c, true)}
 	case m.comp != nil:
@@ -810,7 +832,7 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 		return m.filesModalLayer(k, owner)
 	}
 	if m.onChecks() {
-		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.Tray, k.NextTab, k.PrevTab},
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.Tray, k.Review, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
 		l.Bindings = append(l.Bindings, owner)
 		return l

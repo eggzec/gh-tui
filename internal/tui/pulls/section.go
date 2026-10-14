@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
@@ -81,6 +82,10 @@ type Service interface {
 	// request. It shows at once as one that GitHub hasn't confirmed
 	// (pulls.IsPending), and goes if GitHub refuses it.
 	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
+	// SubmitReview sends drafts as one review on the head commit head, with
+	// the verdict event and the summary body. It is not optimistic: nothing
+	// changes in the cache unless GitHub accepts the review.
+	SubmitReview(ctx context.Context, repo core.RepoRef, number int, head string, event core.ReviewEvent, body string, drafts []tray.Draft) error
 }
 
 // ChecksService is what the section needs to show the checks of pull

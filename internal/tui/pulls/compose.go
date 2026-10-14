@@ -127,6 +127,9 @@ func (m *detailModal) composed() string {
 // with the text behind the question, so that a no goes back to it. A draft
 // that could not be saved is warned of, and the text stays in the composer.
 func (m *detailModal) updateComposer(msg tea.Msg) tea.Cmd {
+	if cmd, ok := m.updateSummaryComposer(msg); ok {
+		return cmd
+	}
 	switch msg := msg.(type) {
 	case composer.CancelMsg:
 		if m.comp != nil && msg.ID == m.comp.ID() {

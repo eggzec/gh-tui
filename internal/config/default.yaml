@@ -830,6 +830,9 @@ keys:
     # shows one in the diff, delete_draft deletes it and comment places an
     # outdated one on a line again.
     tray: [t]
+    # Submit the drafts of the review tray as one review, with a verdict and
+    # a summary. It has no key of its own: run it as the :review command.
+    review: []
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:

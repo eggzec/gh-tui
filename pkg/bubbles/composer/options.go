@@ -19,6 +19,7 @@ type settings struct {
 	keys          KeyMap
 	styles        prompt.Styles
 	drafts        Drafts
+	optional      bool
 	// editorCmd is the editor set with WithEditor. getenv reads the
 	// environment for the others, exec runs the editor, and tempDir is where
 	// the file it opens goes; tests fake them.
@@ -66,6 +67,13 @@ func WithStyles(st prompt.Styles) Option {
 // WithDrafts sets where drafts are kept. Without it the composer keeps none.
 func WithDrafts(d Drafts) Option {
 	return func(s *settings) { s.drafts = d }
+}
+
+// WithOptional lets a blank composer be submitted, for text that may be left
+// out, such as the summary of an approval. The text of the [SubmitMsg] is then
+// as written, and may be blank.
+func WithOptional() Option {
+	return func(s *settings) { s.optional = true }
 }
 
 // WithEditor sets the command of the editor that the key bound to Edit

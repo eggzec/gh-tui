@@ -61,6 +61,8 @@ type Model struct {
 	drafts Drafts
 	// restored is whether the text started as a saved draft.
 	restored bool
+	// optional is whether a blank text may be submitted.
+	optional bool
 
 	editorCmd string
 	getenv    func(string) string
@@ -80,6 +82,7 @@ func New(draftKey string, opts ...Option) Model {
 		title:     s.title,
 		keys:      s.keys,
 		drafts:    s.drafts,
+		optional:  s.optional,
 		editorCmd: s.editorCmd,
 		getenv:    s.getenv,
 		exec:      s.exec,
