@@ -1,0 +1,13 @@
+{
+  "data": {
+    "result": null
+  },
+  "errors": [
+    {
+      "type": "UNPROCESSABLE",
+      "path": ["result"],
+      "locations": [{"line": 2, "column": 3}],
+      "message": "User can only have one pending review per pull request"
+    }
+  ]
+}
