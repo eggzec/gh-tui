@@ -46,6 +46,10 @@ type trayState struct {
 	// from is where a range of lines was started, or nil.
 	from *diff.Pos
 	comp *composeState
+	// list is the open list of drafts, or nil, and replacing is the ID of the
+	// outdated draft that the next comment on a line places there.
+	list      *trayList
+	replacing string
 	// readFailed is set when the file of the drafts could not be read, and may
 	// still hold some: nothing is saved over it.
 	readFailed bool
@@ -138,7 +142,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 				}
 			}
 		}
-		return m.showThreadChange()
+		return tea.Batch(m.settleDrafts(), m.showThreadChange())
 	case composer.SubmitMsg:
 		// The comment's composer reports through the same messages.
 		if c := m.tray.comp; c != nil && c.c.ID() == msg.ID {
@@ -231,6 +235,9 @@ func (m *detailModal) draftRows(d tray.Draft, w int) []string {
 	case d.StartLine > 0 && d.StartLine != d.Line:
 		where = fmt.Sprintf(" lines %d-%d", d.StartLine, d.Line)
 	}
+	if d.Outdated {
+		where += " " + draftOutdated
+	}
 	lines := []string{ansi.Truncate(head+m.theme.Accent.Bold(true).Render("draft")+m.st.age.Render(where), w, m.icons.Ellipsis)}
 	indent := strings.Repeat(" ", ansi.StringWidth(head))
 	for raw := range strings.SplitSeq(d.Body, "\n") {
@@ -305,6 +312,7 @@ func (m *detailModal) comment() tea.Cmd {
 	}
 	f := m.files
 	if d, ok := m.draftUnderCursor(); ok {
+		m.tray.replacing = ""
 		return m.openComposer(d, "Edit draft")
 	}
 	head := f.head
@@ -313,6 +321,26 @@ func (m *detailModal) comment() tea.Cmd {
 	}
 	if head == "" {
 		return ui.Notify(toast.Info, "The head commit is not known yet, so there is nothing to comment on.")
+	}
+	if i := slices.IndexFunc(m.tray.drafts, func(o tray.Draft) bool { return o.ID == m.tray.replacing }); i >= 0 {
+		pos, ok := f.diff.Position()
+		if th, onThread := m.threadUnderCursor(); !ok && onThread && th.Line > 0 {
+			side := diff.NewSide
+			if th.Side == core.SideLeft {
+				side = diff.OldSide
+			}
+			pos, ok = diff.Pos{Path: th.Path, Side: side, Line: th.Line}, true
+		}
+		if !ok {
+			return ui.Notify(toast.Info, "Put the cursor on a line to place the draft.")
+		}
+		// The outdated draft moves here, with its text, on the head, even
+		// where a thread is: a re-placed comment is not a reply.
+		d := m.tray.drafts[i]
+		d.Commit, d.Path, d.Side, d.Line, d.StartLine, d.Outdated = head, pos.Path, traySide(pos.Side), pos.Line, 0, false
+		d.Text, _, _ = f.diff.Line(pos)
+		m.tray.replacing = ""
+		return m.openComposer(d, "Place draft")
 	}
 	if th, ok := m.threadUnderCursor(); ok {
 		side := tray.Right
@@ -327,7 +355,6 @@ func (m *detailModal) comment() tea.Cmd {
 		return ui.Notify(toast.Info, "Put the cursor on a line to comment.")
 	}
 	d := tray.Draft{ID: m.newDraftID(), Commit: head, Path: pos.Path, Side: traySide(pos.Side), Line: pos.Line}
-	title := "Draft comment"
 	if from := m.tray.from; from != nil {
 		if from.Path != pos.Path || from.Side != pos.Side {
 			return ui.Notify(toast.Info, "A range stays in one file and on one side.")
@@ -338,7 +365,8 @@ func (m *detailModal) comment() tea.Cmd {
 			d.StartLine = 0
 		}
 	}
-	return m.openComposer(d, title)
+	d.Text, _, _ = f.diff.Line(diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line})
+	return m.openComposer(d, "Draft comment")
 }
 
 // newDraftID returns an ID that no draft has.

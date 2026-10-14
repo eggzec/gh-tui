@@ -293,6 +293,10 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 	// The diff takes a page before it tells of it with a FilesMsg, which is
 	// when the files the jump orders the threads by are in the set.
 	_, told := msg.(diff.FilesMsg)
+	if told {
+		// The pages that came in may settle the drafts of an older head.
+		cmds = append(cmds, m.settleDrafts())
+	}
 	if d := m.fileJump; d != 0 && (told && (f.set.len() > 0 || f.diff.Done()) || f.diff.Err() != nil) {
 		// The files the jump waited for have come in, or won't.
 		m.fileJump = 0
@@ -769,7 +773,7 @@ func (m *detailModal) filesModalLayer(k keyMap, owner key.Binding) keyhelp.Layer
 			k.Refresh = renamed(k.Refresh, "retry")
 		}
 	}
-	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
+	keys := []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.Tray, k.NextTab, k.PrevTab, k.nextPane, k.prevPane, k.jump, k.zoom, k.Open, k.Refresh, k.Back}
 	l := ui.ContextLayer(ctxModal, keys, []key.Binding{k.Merge, k.Close, k.Reopen, k.nextPane, k.zoom, k.Open})
 	l.Bindings = append(l.Bindings, owner)
 	return l

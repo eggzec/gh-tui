@@ -380,6 +380,8 @@ func (m *detailModal) View() string {
 	}
 	base := m.composed()
 	switch {
+	case m.tray.list != nil:
+		base = m.trayListView()
 	case m.find != nil:
 		base = m.find.View()
 	case m.refs != nil:
@@ -561,6 +563,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		*m.comp, cmd = m.comp.Update(msg)
 		return cmd
 	}
+	if m.tray.list != nil {
+		return m.pressTrayList(msg)
+	}
 	if m.find != nil {
 		// The finder types, so it takes every key.
 		var cmd tea.Cmd
@@ -583,6 +588,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, k.References) && m.newRefs != nil:
 		return m.openRefs()
+	case keymap.Matches(msg, k.Tray) && m.loaded:
+		return m.openTrayList()
 	case keymap.Matches(msg, k.FindFile) && m.canReadFiles():
 		return m.openFind()
 	case keymap.Matches(msg, k.NextThread) && m.readableThreads():
@@ -759,6 +766,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.ContextHelp("composer", m.tray.comp.c, true)}
 	case m.comp != nil:
 		return []keyhelp.Layer{ui.ContextHelp("composer", m.comp, true)}
+	case m.tray.list != nil:
+		return []keyhelp.Layer{m.trayListLayer()}
 	case m.find != nil:
 		return []keyhelp.Layer{ui.ContextHelp("finder", m.find, true)}
 	case m.refs != nil:
@@ -801,7 +810,7 @@ func (m *detailModal) modalLayer(k keyMap) keyhelp.Layer {
 		return m.filesModalLayer(k, owner)
 	}
 	if m.onChecks() {
-		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.NextTab, k.PrevTab},
+		l := ui.ContextLayer(ctxModal, []key.Binding{k.Merge, k.Close, k.Reopen, k.ToggleDraft, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.Tray, k.NextTab, k.PrevTab},
 			[]key.Binding{k.Merge, k.Close, k.Reopen, k.NextTab})
 		l.Bindings = append(l.Bindings, owner)
 		return l

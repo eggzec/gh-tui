@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ func TestSaveLoad(t *testing.T) {
 	s := New(filepath.Join(t.TempDir(), "tray"))
 	key := Key("o/r", 4)
 	want := []Draft{
-		{ID: "a", Commit: "abc", Path: "x.go", Side: Right, Line: 5, StartLine: 3, Body: "range", Created: time.Unix(10, 0).UTC()},
+		{ID: "a", Commit: "abc", Path: "x.go", Side: Right, Line: 5, StartLine: 3, Body: "range", Text: "cfg := load()", Outdated: true, Created: time.Unix(10, 0).UTC()},
 		{ID: "b", Commit: "abc", Path: "x.go", ThreadID: "T1", Body: "reply", Created: time.Unix(20, 0).UTC()},
 	}
 	got, err := s.Load(key)
@@ -56,6 +57,24 @@ func TestSaveLoad(t *testing.T) {
 	}
 	if err := s.Save(key, nil); err != nil {
 		t.Errorf("deleting none: %v", err)
+	}
+}
+
+// A draft that is not outdated, or has no text, writes neither, so that a file
+// of drafts from before them reads the same as one written now.
+func TestOutdatedAndTextAreOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
+	s := New(t.TempDir())
+	key := Key("o/r", 7)
+	if err := s.Save(key, []Draft{{ID: "a", Body: "x"}}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(s.path(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "outdated") || strings.Contains(string(data), `"text"`) {
+		t.Errorf("file = %s, want neither outdated nor text", data)
 	}
 }
 

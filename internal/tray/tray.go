@@ -64,6 +64,13 @@ type Draft struct {
 	ThreadID string    `json:"thread_id,omitempty"`
 	Body     string    `json:"body"`
 	Created  time.Time `json:"created"`
+	// Text is the text of the line the draft is on, as the diff showed it when
+	// the draft was written, to tell later whether the line changed.
+	Text string `json:"text,omitempty"`
+	// Outdated is set when the head moved and the line the draft is on is gone
+	// or changed. The draft keeps its commit, and is sent against it unless the
+	// user places it on a line again.
+	Outdated bool `json:"outdated,omitempty"`
 }
 
 // file is the shape of the file of the drafts of a pull request. The key is
