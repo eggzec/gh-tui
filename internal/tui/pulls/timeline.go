@@ -30,22 +30,16 @@ type entry struct {
 	failure error
 }
 
-// at returns when the entry was made.
-func (e entry) at() time.Time {
-	if e.isReview {
-		return e.review.SubmittedAt
-	}
-	return e.comment.CreatedAt
-}
-
 // cursorSep parts the comments' cursor from the time that the page before
-// ends at in the cursor of a page of entries.
+// ends at in the cursor of a page of entries. The time is digits, so the
+// cursor is split at the last separator, and the comments' cursor, a URL,
+// may hold one.
 const cursorSep = "@"
 
 // splitCursor returns the cursor of the comments and the time up to which
 // the reviews were already shown, which is the zero time for the first page.
 func splitCursor(cursor string) (string, time.Time) {
-	inner, nano, ok := strings.Cut(cursor, cursorSep)
+	inner, nano, ok := strings.CutLast(cursor, cursorSep)
 	if !ok {
 		return cursor, time.Time{}
 	}
@@ -160,28 +154,32 @@ func lastAt(comments []core.Comment, after time.Time) time.Time {
 // timeline merges the comments of a page with the reviews submitted after
 // the time after. A page that more follow takes the reviews up to its last
 // comment, and the last page takes the rest. Pending reviews are left out.
+// At the same instant a comment comes before a review, and a review made at
+// the last comment's instant stays on that page, while a page after it takes
+// only the reviews made later than after, so no review shows twice or is lost.
 func timeline(comments []core.Comment, more bool, reviews []core.Review, after time.Time) []entry {
 	upto := lastAt(comments, after)
 	var mine []core.Review
-	for _, r := range reviews {
+	for i := range reviews {
+		r := &reviews[i]
 		if r.State == core.ReviewStatePending || r.SubmittedAt.IsZero() || !r.SubmittedAt.After(after) {
 			continue
 		}
 		if more && r.SubmittedAt.After(upto) {
 			continue
 		}
-		mine = append(mine, r)
+		mine = append(mine, *r)
 	}
 	slices.SortStableFunc(mine, func(a, b core.Review) int { return a.SubmittedAt.Compare(b.SubmittedAt) })
 	out := make([]entry, 0, len(comments)+len(mine))
-	for _, c := range comments {
-		for len(mine) > 0 && mine[0].SubmittedAt.Before(c.CreatedAt) {
+	for i := range comments {
+		for len(mine) > 0 && mine[0].SubmittedAt.Before(comments[i].CreatedAt) {
 			out, mine = append(out, entry{review: mine[0], isReview: true}), mine[1:]
 		}
-		out = append(out, entry{comment: c})
+		out = append(out, entry{comment: comments[i]})
 	}
-	for _, r := range mine {
-		out = append(out, entry{review: r, isReview: true})
+	for i := range mine {
+		out = append(out, entry{review: mine[i], isReview: true})
 	}
 	return out
 }

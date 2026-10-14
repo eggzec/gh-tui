@@ -80,6 +80,13 @@ type fakeService struct {
 	reviews    []core.Review
 	reviewsErr error
 	reviewed   bool
+	// reviewPages, when set, are the pages of reviews by the cursor that
+	// reads them, "" for the first, in place of reviews, and reviewReads are
+	// the cursors Reviews was asked for. commentPages are the same for the
+	// comments, in place of thread.
+	reviewPages  map[string]core.Page[core.Review]
+	reviewReads  []string
+	commentPages map[string]core.Page[core.Comment]
 	// bare are the numbers whose detail counts no checks.
 	bare map[int]bool
 	// changed are the files every pull request changes, or those at the
@@ -236,20 +243,28 @@ func (f *fakeService) Revalidate(ctx context.Context, repo core.RepoRef, number 
 
 // Reviews serves the reviews that are set, on every pull request, in one
 // page, and CachedReviews serves them once Reviews did.
-func (f *fakeService) Reviews(_ context.Context, _ pulls.ReviewsQuery) (core.Page[core.Review], error) {
+func (f *fakeService) Reviews(_ context.Context, q pulls.ReviewsQuery) (core.Page[core.Review], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.reviewReads = append(f.reviewReads, q.Cursor)
 	if f.reviewsErr != nil {
 		return core.Page[core.Review]{}, f.reviewsErr
 	}
 	f.reviewed = true
-	return core.Page[core.Review]{Items: f.reviews}, nil
+	return f.reviewPage(q), nil
 }
 
-func (f *fakeService) CachedReviews(pulls.ReviewsQuery) (core.Page[core.Review], bool) {
+func (f *fakeService) CachedReviews(q pulls.ReviewsQuery) (core.Page[core.Review], bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return core.Page[core.Review]{Items: f.reviews}, f.reviewed
+	return f.reviewPage(q), f.reviewed
+}
+
+func (f *fakeService) reviewPage(q pulls.ReviewsQuery) core.Page[core.Review] {
+	if f.reviewPages != nil {
+		return f.reviewPages[q.Cursor]
+	}
+	return core.Page[core.Review]{Items: f.reviews}
 }
 
 // Comments serves three comments on every pull request, two a page, or
@@ -314,6 +329,9 @@ func readingTabs() Option {
 }
 
 func (f *fakeService) commentPage(q pulls.CommentsQuery) core.Page[core.Comment] {
+	if f.commentPages != nil {
+		return f.commentPages[q.Cursor]
+	}
 	if f.thread != nil {
 		return core.Page[core.Comment]{Items: slices.Clone(f.thread)}
 	}
