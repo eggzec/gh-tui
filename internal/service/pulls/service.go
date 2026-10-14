@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -31,6 +32,9 @@ type API interface {
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
 	GetPullRequest(ctx context.Context, repo core.RepoRef, number int, sizes github.DetailSizes) (core.PullRequestDetail, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
+	// CreateIssueComment posts a comment on the issue number, which for a
+	// pull request is a comment on its conversation.
+	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
@@ -90,6 +94,8 @@ type Service struct {
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
 	keptThreads  *cache.Shelf[core.ThreadPage]
 	now          func() time.Time
+	// pending numbers the comments shown before GitHub confirms them.
+	pending atomic.Uint64
 	// ttl is how long a fetched entry stays fresh.
 	ttl time.Duration
 	// pageSize is the size of a page whose query sets none.
