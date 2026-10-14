@@ -102,9 +102,15 @@ func (m *detailModal) writeTray() error {
 	return m.tray.store.Save(m.trayKey(), m.tray.drafts)
 }
 
-// Save implements ui.Saver: the text of the open composer is kept as a draft
+// Save implements ui.Saver: the text of the open composers is kept as drafts
 // when the app quits.
 func (m *detailModal) Save() error {
+	return errors.Join(m.saveComment(), m.saveReview())
+}
+
+// saveReview keeps the text of the open composer of a review comment as a
+// draft of the tray.
+func (m *detailModal) saveReview() error {
 	c := m.tray.comp
 	if c == nil || m.tray.store == nil || strings.TrimSpace(c.c.Value()) == "" {
 		return nil
@@ -134,9 +140,14 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		}
 		return m.showThreadChange()
 	case composer.SubmitMsg:
-		return m.endCompose(msg.ID, msg.Text)
+		// The comment's composer reports through the same messages.
+		if c := m.tray.comp; c != nil && c.c.ID() == msg.ID {
+			return m.endCompose(msg.ID, msg.Text)
+		}
 	case composer.CancelMsg:
-		return m.endCompose(msg.ID, msg.Text)
+		if c := m.tray.comp; c != nil && c.c.ID() == msg.ID {
+			return m.endCompose(msg.ID, msg.Text)
+		}
 	}
 	var fwd tea.Cmd
 	if c := m.tray.comp; c != nil {

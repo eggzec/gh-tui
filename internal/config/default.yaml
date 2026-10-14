@@ -1110,6 +1110,8 @@ keys:
     bottom: [G, end]
     # Resolve the unresolved thread under the cursor, after a question.
     resolve: [T]
+    # Write a comment on the pull request, after a question.
+    comment: [c]
   # The modal of a pull request: the tree of the files it changes.
   # Expand and collapse fold its directories; enter or expand on a file
   # shows its diff.

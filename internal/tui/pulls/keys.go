@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
@@ -52,6 +53,8 @@ type keyMap struct {
 	NextThread key.Binding
 	PrevThread key.Binding
 
+	// composer are the keys of the composer of a comment.
+	composer composer.KeyMap
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
 	// finder are the keys of the step that finds a changed file.
@@ -77,6 +80,9 @@ type keyMap struct {
 	// of the Conversation tab, and resolve or unresolve the one under the
 	// cursor of the diff.
 	resolve, diffResolve key.Binding
+	// ConvComment opens the composer of a comment on the pull request, on the
+	// Conversation tab of its modal. The list has no such key.
+	ConvComment key.Binding
 	// comment drafts a review comment on the line, range or thread under the
 	// cursor of the diff, or edits the draft there; rangeSel starts a range
 	// of lines; deleteDraft deletes the draft under the cursor.
@@ -132,6 +138,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		FindFile:    ui.In(keys, ctxModal).Binding("global.find_file", "find file"),
 		NextThread:  ui.In(keys, ctxModal).Binding("next_thread", "next thread"),
 		PrevThread:  ui.In(keys, ctxModal).Binding("prev_thread", "previous thread"),
+		composer:    composer.NewKeyMap(ui.Lookup(keys, "composer")),
 		confirm:     ui.NewConfirmKeys(keys),
 		finder:      finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		owner:       list.Binding("global.owner", "author"),
@@ -146,6 +153,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	k.showThread = ui.In(keys, ctxConversation).Binding("global.select", "show in diff")
 	k.resolve = ui.In(keys, ctxConversation).Binding("resolve", "resolve thread")
 	k.diffResolve = ui.In(keys, ctxDiff).Binding("resolve", "resolve thread")
+	k.ConvComment = ui.In(keys, ctxConversation).Binding("comment", "comment")
 	k.comment = ui.In(keys, ctxDiff).Binding("comment", "draft comment")
 	k.rangeSel = ui.In(keys, ctxDiff).Binding("range", "start range")
 	k.deleteDraft = ui.In(keys, ctxDiff).Binding("delete_draft", "delete draft")
@@ -220,7 +228,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
+		{k.Back, k.Select, k.Checks, k.References, k.FindFile, k.NextThread, k.PrevThread, k.ConvComment, k.NextTab, k.PrevTab, k.ClearFilter, k.Refresh, k.Open, k.Filter, k.Sort},
 	}
 }
 
@@ -256,5 +264,6 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.FindFile.SetEnabled(false)
 	k.NextThread.SetEnabled(false)
 	k.PrevThread.SetEnabled(false)
+	k.ConvComment.SetEnabled(false)
 	return k
 }

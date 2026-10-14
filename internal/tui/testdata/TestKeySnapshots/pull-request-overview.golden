@@ -23,6 +23,7 @@ Pull request
   find file | ctrl+p | ^p | on
   next thread | ) | ) | on
   previous thread | ( | ( | on
+  comment | c | c | off
   next tab | ] | ] | on
   previous tab | [ | [ | on
   clear filters | F | F | off

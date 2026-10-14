@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -76,6 +77,10 @@ type Service interface {
 	// ResolveThread marks the review thread id resolved, or open again when
 	// resolved is false.
 	ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op
+	// Comment adds a comment by author to the conversation of a pull
+	// request. It shows at once as one that GitHub hasn't confirmed
+	// (pulls.IsPending), and goes if GitHub refuses it.
+	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
 }
 
 // ChecksService is what the section needs to show the checks of pull
@@ -122,6 +127,11 @@ type Section struct {
 	readViewer Viewer
 	// tray keeps the drafted review comments, or is nil.
 	tray TrayStore
+	// drafts keeps the comments being written, under keys that start with
+	// draftScope, which names the host and the account. Without drafts,
+	// what is written is lost when its composer closes.
+	drafts     composer.Drafts
+	draftScope string
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -191,6 +201,13 @@ func WithClock(now func() time.Time) Option {
 // session takes the place of this one.
 func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
+}
+
+// WithDrafts keeps the comments being written in d. Its keys start with
+// scope, which names the host and the account, so that no account reads
+// the drafts of another.
+func WithDrafts(d composer.Drafts, scope string) Option {
+	return func(s *Section) { s.drafts, s.draftScope = d, scope }
 }
 
 // WithRepos reads what the viewer may do in the repository of a modal
