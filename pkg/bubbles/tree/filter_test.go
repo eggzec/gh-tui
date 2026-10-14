@@ -250,7 +250,11 @@ func TestRename(t *testing.T) {
 	if n, _ := m.At(1); n.ID != "docs" || n.Name != "documents" {
 		t.Errorf("node = %+v", n)
 	}
+	before, rows := m.View(), m.Len()
 	m.Rename("nowhere", "x")
+	if m.View() != before || m.Len() != rows {
+		t.Errorf("renaming a node that is not there changed the tree:\n%s", ansi.Strip(m.View()))
+	}
 }
 
 // A detail leaves its name at least the cells WithMinName says, and is

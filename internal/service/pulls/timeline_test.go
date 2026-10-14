@@ -257,7 +257,10 @@ func TestTimelineKeptByMutation(t *testing.T) {
 	for _, r := range timelineReads {
 		t.Run(r.name, func(t *testing.T) {
 			api := &fakeAPI{mutate: func(context.Context, string, string, core.MergeMethod) (core.PullRequest, error) {
-				return openPull(1), nil
+				// GitHub answers a close with the closed pull request.
+				pr := openPull(1)
+				pr.State = core.StateClosed
+				return pr, nil
 			}}
 			r.serve(api, thread)
 			s := seeded(t, api, func(*core.PullRequest) {})

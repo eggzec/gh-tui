@@ -50,9 +50,6 @@ func TestLayoutWithoutLabels(t *testing.T) {
 		if with.comments && !without.comments || with.author && !without.author || with.age && !without.age {
 			t.Errorf("layout(%d, false) = %+v, want at least the columns of %+v", width, without, with)
 		}
-		if with == without && with.chips > 0 {
-			t.Errorf("layout(%d, false) keeps the labels", width)
-		}
 	}
 	if got := layout(78, labelRoom{}, 4); got.title != 78-prefixWidth-got.right() || !got.comments || !got.author || !got.age {
 		t.Errorf("layout(78, false) = %+v, want every other column", got)

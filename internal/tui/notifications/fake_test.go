@@ -205,16 +205,24 @@ func (f *fakeService) lastList() notifications.ListQuery {
 // release, or the commit.
 func thread(id, repo string, typ core.SubjectType, title, reason string, unread bool, ago time.Duration) core.Notification {
 	r, _ := core.ParseRepoRef(repo)
-	sub := core.Subject{Title: title, Type: typ, WebURL: "https://github.com/" + repo + "/" + id}
+	sub := core.Subject{Title: title, Type: typ}
 	n, _ := strconv.Atoi(id)
+	base := "https://github.com/" + repo
 	switch typ {
-	case core.SubjectIssue, core.SubjectPullRequest:
+	case core.SubjectIssue:
 		sub.Number = n
+		sub.WebURL = base + "/issues/" + id
+	case core.SubjectPullRequest:
+		sub.Number = n
+		sub.WebURL = base + "/pull/" + id
 	case core.SubjectRelease:
 		sub.ReleaseID = int64(n)
+		sub.WebURL = base + "/releases/tag/v" + id
 	case core.SubjectCommit:
 		sub.SHA = "c0ffee" + id
+		sub.WebURL = base + "/commit/" + sub.SHA
 	default:
+		sub.WebURL = base + "/actions/runs/" + id
 	}
 	return core.Notification{
 		ID:        id,

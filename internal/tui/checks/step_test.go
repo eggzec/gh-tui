@@ -331,6 +331,9 @@ func TestJobsPastTheFirstPage(t *testing.T) {
 	if j, ok := s.view.Job(); !ok || j.ID != testJob {
 		t.Fatalf("the check shows job %d, want %d from the second page", j.ID, testJob)
 	}
+	if f.jobPages < 2 {
+		t.Errorf("read %d pages of jobs, want the second page read too", f.jobPages)
+	}
 	h.keys("R")
 	if s.ask == nil || s.ask.Question != "Re-run 2 failed jobs of CI #4812?" {
 		t.Errorf("R asked %+v, want the failed jobs of both pages", s.ask)

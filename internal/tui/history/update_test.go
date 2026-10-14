@@ -735,9 +735,10 @@ func TestPatchNotices(t *testing.T) {
 
 func TestIgnoresOtherModals(t *testing.T) {
 	f := newFake()
-	m, _ := newModal(t, f, 108, 30)
+	m, h := newModal(t, f, 108, 30)
 	other, _ := newModal(t, newFake(), 108, 30)
 	f.took()
+	h.take()
 	before := screen(m)
 	for _, msg := range []tea.Msg{
 		branchesMsg{id: other.id},
@@ -745,9 +746,10 @@ func TestIgnoresOtherModals(t *testing.T) {
 		restMsg{id: other.id, seq: m.seq},
 		headMsg{id: other.id, gen: m.graph.gen, first: "x"},
 	} {
-		_ = m.Update(msg)
+		// Run what the modal returns, so that a read it started would show.
+		h.run(m.Update(msg))
 	}
-	if screen(m) != before || len(f.took()) != 0 {
+	if screen(m) != before || len(f.took()) != 0 || len(h.take()) != 0 {
 		t.Error("the messages of another modal reached this one")
 	}
 }

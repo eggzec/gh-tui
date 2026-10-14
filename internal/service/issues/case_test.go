@@ -81,6 +81,12 @@ func TestLabelsIgnoreCase(t *testing.T) {
 	api := &fakeAPI{t: t}
 	s := prime(t, api)
 	api.addLabels = func(int, []string) ([]core.Label, error) { return []core.Label{enhancement}, nil }
-	_ = s.AddLabels(shouted, 7, []string{"enhancement"})
-	checkIssue7(t, s, "the known label's color", func(it core.Issue) bool { return slices.Contains(it.Labels, enhancement) })
+	has := func(it core.Issue) bool { return slices.Contains(it.Labels, enhancement) }
+	op := s.AddLabels(shouted, 7, []string{"enhancement"})
+	checkIssue7(t, s, "the known label's color before Do", has)
+	if err := op.Do(t.Context()); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	api.checkCalls(t, "AddIssueLabels")
+	checkIssue7(t, s, "the known label's color after Do", has)
 }

@@ -155,22 +155,22 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 		name   string
 		action string
 		steps  []string
-		// asks is what the question says, if it is checked.
+		// asks is what the question says.
 		asks string
 	}{
-		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, ""},
-		{"close a pull request", "pulls.close", []string{"global.pane_2"}, ""},
+		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, "Squash-merge #2 into main?"},
+		{"close a pull request", "pulls.close", []string{"global.pane_2"}, "Close PR #2?"},
 		{"mark read", "notifications.read", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as read?"},
 		{"mark done", "notifications.done", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as done?"},
 		{"mark all read", "notifications.read", []string{"global.notifications"}, "Mark all notifications as read?"},
 		{"star the repository", "repo.star", nil, "Star eggzec/gh-tui?"},
-		{"close an issue", "issues.close", []string{"global.pane_3"}, ""},
-		{"close the issue", "issue_modal.close", []string{"global.pane_3", "global.select"}, ""},
-		{"merge the pull request", "pull_modal.merge", []string{"global.pane_2", "global.select"}, ""},
-		{"close the pull request", "pull_modal.close", []string{"global.pane_2", "global.select"}, ""},
-		{"draft the pull request", "pull_modal.draft", []string{"global.pane_2", "global.select"}, ""},
-		{"re-run the failed jobs", "actions.rerun_failed", []string{"repo.actions"}, ""},
-		{"re-run a run", "actions.rerun", []string{"repo.actions"}, ""},
+		{"close an issue", "issues.close", []string{"global.pane_3"}, "Close issue #1?"},
+		{"close the issue", "issue_modal.close", []string{"global.pane_3", "global.select"}, "Close issue #1?"},
+		{"merge the pull request", "pull_modal.merge", []string{"global.pane_2", "global.select"}, "Squash-merge #2 into main?"},
+		{"close the pull request", "pull_modal.close", []string{"global.pane_2", "global.select"}, "Close PR #2?"},
+		{"draft the pull request", "pull_modal.draft", []string{"global.pane_2", "global.select"}, "Convert PR #2 to a draft?"},
+		{"re-run the failed jobs", "actions.rerun_failed", []string{"repo.actions"}, "Re-run 1 failed job of CI #7?"},
+		{"re-run a run", "actions.rerun", []string{"repo.actions"}, "Re-run all jobs of CI #7?"},
 		{"close the marked pull request", "pulls.close", []string{"global.pane_2", "pulls.mark"}, "Close 1 pull request?"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -202,6 +202,9 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 				runCommand(t, unbound, name)
 				if got := layerNames(unbound.keyLayers()); got != "always, confirm" {
 					t.Errorf(":%s with %s unbound reached %q, want the question its key asks: toasts %s", name, tt.action, got, toasted(unbound))
+				}
+				if tt.asks == "" {
+					t.Fatalf("no question to check:\n%s", ansi.Strip(unbound.View().Content))
 				}
 				if view := ansi.Strip(unbound.View().Content); !strings.Contains(view, tt.asks) {
 					t.Errorf(":%s with %s unbound asks something else than %q:\n%s", name, tt.action, tt.asks, view)
