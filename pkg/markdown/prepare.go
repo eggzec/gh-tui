@@ -226,17 +226,19 @@ func scan(src, hint string, g Glyphs, width int, line func(l string, text bool),
 			}
 			l = p.line(refs(l))
 			text := !c.in(l)
+			from := 0
 			if text {
 				l = linkItem(alert(literal(l), g))
 				if strings.TrimSpace(l) == "" {
 					sp = spans{}
 				}
+				from = sp.open
 				l = sp.bind(l, width)
 			}
 			if !text {
 				sp = spans{}
 			}
-			out = append(out, piece{line: l, text: text})
+			out = append(out, piece{line: l, text: text, from: from, open: sp.open})
 			continue
 		}
 		end := len(lines) - 1
@@ -251,7 +253,7 @@ func scan(src, hint string, g Glyphs, width int, line func(l string, text bool),
 		n++
 		i = end
 	}
-	for _, pc := range footnotes(out, g) {
+	for _, pc := range footnotes(joinSpans(out, width), g) {
 		if pc.block != nil {
 			block(pc.n, *pc.block)
 		} else {
@@ -264,12 +266,107 @@ func scan(src, hint string, g Glyphs, width int, line func(l string, text bool),
 }
 
 // piece is a line of a source that scan passes on, and whether it is text
-// rather than code, or a fenced code block with its index.
+// rather than code, or a fenced code block with its index. from and open are
+// the length of the run of backticks of the code span that is open at the
+// start and at the end of a text line, or 0.
 type piece struct {
-	line  string
-	text  bool
-	block *Block
-	n     int
+	line       string
+	text       bool
+	block      *Block
+	n          int
+	from, open int
+}
+
+// maxSpanLines is how many lines after its first a code span is joined over.
+const maxSpanLines = 4
+
+// joinSpans returns pieces with each code span that runs over several lines
+// on one line, as markdown reads it: a line ending inside a span is a space,
+// before any line break. Soft breaks outside spans stay as they are. The
+// joined line binds its spans again, so one that fits stays whole. A span
+// that never closes, or that closes in a line that starts a block, joins
+// nothing.
+func joinSpans(pieces []piece, width int) []piece {
+	out := make([]piece, 0, len(pieces))
+	for k := 0; k < len(pieces); k++ {
+		pc := pieces[k]
+		if !pc.text || pc.block != nil || pc.from != 0 || pc.open == 0 || opensFence(pc.line) {
+			out = append(out, pc)
+			continue
+		}
+		line, open := pc.line, pc.open
+		for open > 0 {
+			end := spanEnd(pieces, k, open)
+			if end < 0 {
+				break
+			}
+			for _, next := range pieces[k+1 : end+1] {
+				c, _ := continuation(next.line)
+				line += " " + c
+			}
+			k, open = end, pieces[end].open
+		}
+		if line != pc.line {
+			var sp spans
+			pc.line, pc.open = sp.bind(line, width), open
+		}
+		out = append(out, pc)
+	}
+	return out
+}
+
+// opensFence reports whether line opens a fenced code block in a quote or list
+// item, which isn't a span: three backticks start its content, after its
+// indentation and markers.
+func opensFence(line string) bool {
+	s := strings.TrimLeft(line, " ")
+	for {
+		n, _ := marker(s)
+		if n == 0 {
+			break
+		}
+		s = strings.TrimLeft(s[n:], " ")
+	}
+	return run(s) >= 3
+}
+
+// spanEnd returns the index of the piece after pieces[k] in which the code
+// span of n backticks open at its end closes, or -1.
+func spanEnd(pieces []piece, k, n int) int {
+	for j := k + 1; j < len(pieces) && j <= k+maxSpanLines; j++ {
+		if !pieces[j].text || pieces[j].block != nil {
+			return -1
+		}
+		c, ok := continuation(pieces[j].line)
+		if !ok {
+			return -1
+		}
+		if closeRun(c, n) >= 0 {
+			return j
+		}
+	}
+	return -1
+}
+
+// continuation returns what line says after its indentation and quote
+// markers, if it can continue a paragraph: it isn't blank, doesn't start a
+// list item, and isn't a heading or a thematic break.
+func continuation(line string) (string, bool) {
+	s := strings.TrimLeft(line, " ")
+	for {
+		n, quote := marker(s)
+		if n == 0 {
+			break
+		}
+		if !quote {
+			return "", false
+		}
+		s = strings.TrimLeft(s[n:], " ")
+	}
+	if s == "" || heading(s) || rule(s) {
+		return "", false
+	}
+	return s, true
 }
 
 // fence is the opening fence of a code block.
