@@ -349,6 +349,19 @@ func TestSeek(t *testing.T) {
 	assertFits(t, m.View(), 80, 12)
 }
 
+// Seeking a file whose header is already in the window still starts the
+// window at it, so the body shows that file and not the one above.
+func TestSeekFileStartsWindow(t *testing.T) {
+	m := load(t, &source{size: 10, files: sizedFiles(4, 2)}, WithSize(80, 30))
+	if !m.SeekFile("pkg/f1.go") {
+		t.Fatal("SeekFile did not find pkg/f1.go")
+	}
+	first, _, _ := strings.Cut(m.View(), "\n")
+	if !strings.Contains(first, "pkg/f1.go") {
+		t.Errorf("first line of the window = %q, want the header of pkg/f1.go", first)
+	}
+}
+
 func TestSeekFetchesWhatTheWindowShows(t *testing.T) {
 	files := sizedFiles(6, 3)
 	src := &source{size: 2, files: files}
