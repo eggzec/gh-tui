@@ -1272,7 +1272,7 @@ keys:
     # Close the composer. The text is kept as a draft.
     cancel: [esc]
     # Edit the text in your editor ($VISUAL or $EDITOR).
-    edit: [ctrl+o]
+    edit: [ctrl+e]
   # The file finder.
   finder:
     up: [up, ctrl+p]

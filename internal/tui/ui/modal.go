@@ -45,6 +45,15 @@ type Tabbed interface {
 	Tabs() (names []string, active int)
 }
 
+// Saver is a Modal or a section that holds text the user wrote and hasn't
+// sent, such as a comment in a composer. The app calls Save when it quits,
+// by ctrl+c or the q command, without asking, so that quitting loses
+// nothing. Save writes what it holds now, and may block on the disk; a
+// failure is logged and the app quits all the same.
+type Saver interface {
+	Save() error
+}
+
 // Hider is a Modal that works in the background while it is open, such as
 // following a run in progress, which it stops once another modal replaces
 // it: the app calls Hide then. A modal that opened the one in
