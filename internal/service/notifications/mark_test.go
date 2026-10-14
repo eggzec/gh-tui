@@ -119,7 +119,9 @@ func TestMarkSucceeds(t *testing.T) {
 			api := &fakeAPI{}
 			tt.fake(api, nil)
 			s := seeded(api)
-			before := snapshot(s)
+			// before holds the slices the cache has now, and pristine is the
+			// same pages built apart from them.
+			before, pristine := snapshot(s), snapshot(seeded(&fakeAPI{}))
 
 			op := tt.mark(s)
 			checkPages(t, s, tt.want)
@@ -130,8 +132,9 @@ func TestMarkSucceeds(t *testing.T) {
 			if st := state(s, inbox); st != cache.Fresh {
 				t.Errorf("inbox is %v after the change, want fresh", st)
 			}
-			// The change copied the pages rather than editing them.
-			for q, p := range snapshot(seeded(&fakeAPI{})) {
+			// The change copied the pages rather than editing them: an edit in
+			// place would show in the slices that before still holds.
+			for q, p := range pristine {
 				if !equal(before[q], p) {
 					t.Errorf("page %+v was edited in place: %+v", q, before[q])
 				}

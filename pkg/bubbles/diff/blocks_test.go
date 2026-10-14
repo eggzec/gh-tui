@@ -234,20 +234,24 @@ func TestUnplacedBlocks(t *testing.T) {
 // A block waits for its file, and takes its place when the page it is in
 // arrives.
 func TestBlocksWaitForTheirFile(t *testing.T) {
-	src := &source{size: 1, files: []File{goFile("a.go", 1), goFile("b.go", 1)}}
-	m := load(t, src, WithSize(60, 40))
-	m.SetBlocks([]Block{at("late", "b.go", 2)})
+	// Files taller than the view, so that only the first pages are asked for.
+	src := &source{size: 1, files: []File{goFile("a.go", 8), goFile("b.go", 8), goFile("c.go", 8), goFile("d.go", 8)}}
+	m := load(t, src, WithSize(60, 12))
+	m.SetBlocks([]Block{at("late", "d.go", 2)})
 	m = settle(t, m)
-	if m.Files() != 1 || m.Len() != 6 {
-		// The window shows the loading row, which fetches the second page, so
-		// this only holds if it did not.
-		t.Logf("files %d rows %d", m.Files(), m.Len())
+	// The block's file is on a page that has not arrived, so the test starts
+	// from the block waiting.
+	if m.Files() >= 4 {
+		t.Fatalf("%d files fetched before the last page, want fewer than 4", m.Files())
 	}
-	for range 3 {
+	if _, ok := m.layout.BlockRow("late"); ok {
+		t.Fatal("the block has a row before its file is there")
+	}
+	for range 8 {
 		m = keys(t, m, "G")
 	}
-	if m.Files() != 2 {
-		t.Fatalf("%d files fetched, want 2", m.Files())
+	if m.Files() != 4 {
+		t.Fatalf("%d files fetched, want 4", m.Files())
 	}
 	if _, ok := m.layout.BlockRow("late"); !ok {
 		t.Error("the block did not find its file")

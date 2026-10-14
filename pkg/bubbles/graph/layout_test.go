@@ -122,7 +122,7 @@ func TestLayout(t *testing.T) {
 		{
 			name: "repeated parents",
 			commits: []Commit{
-				c("m", "a", "a", ""), c("a"),
+				c("m", "a", "a"), c("a"),
 			},
 			want: []string{"●", "●"},
 		},

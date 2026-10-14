@@ -380,7 +380,8 @@ func TestMutationsInFlightTogetherFailOneByOne(t *testing.T) {
 		if id == "PR_2" {
 			return core.PullRequest{}, errors.Join(errors.New("github: 422"), core.ErrConflict)
 		}
-		pr := openPull(1)
+		// GitHub answers with the pull request that was asked about.
+		pr := openPull(map[string]int{"PR_1": 1, "PR_3": 3}[id])
 		pr.ID = id
 		pr.State = core.StateClosed
 		return pr, nil

@@ -153,8 +153,10 @@ type fake struct {
 	notesLimited bool
 
 	checkReads, runReads, jobReads, noteReads, logReads int
-	invalidated                                         int
-	sent                                                []string
+	// jobPages counts the pages of jobs AllJobs read, one request each.
+	jobPages    int
+	invalidated int
+	sent        []string
 }
 
 func newFake() *fake {
@@ -212,12 +214,41 @@ func (f *fake) AllJobs(_ context.Context, q actionssvc.JobsQuery) (core.Page[cor
 	if f.jobsErr != nil {
 		return core.Page[core.Job]{}, f.jobsErr
 	}
-	return f.allJobs(q), nil
+	// Like the service, read page after page of the default size and join
+	// them, counting each page read.
+	if q.PageSize <= 0 {
+		q.PageSize = actionssvc.DefaultJobPageSize
+	}
+	var all core.Page[core.Job]
+	for range actionssvc.MaxJobPages {
+		p := f.allJobs(q)
+		f.jobPages++
+		all.Items = append(all.Items, p.Items...)
+		all.Next = p.Next
+		if p.Next == "" {
+			break
+		}
+		q.Cursor = p.Next
+	}
+	return all, nil
 }
 
-// allJobs is every page of the jobs of run q.RunID.
+// allJobs is the page of the jobs of run q.RunID that q asks for: with a page
+// size, the cursor is the index of the first job and Next the index after
+// the page; without one, every job.
 func (f *fake) allJobs(q actionssvc.JobsQuery) core.Page[core.Job] {
-	return core.Page[core.Job]{Items: f.jobs[q.RunID]}
+	jobs := f.jobs[q.RunID]
+	if q.PageSize <= 0 {
+		return core.Page[core.Job]{Items: jobs}
+	}
+	from, _ := strconv.Atoi(q.Cursor)
+	from = min(max(from, 0), len(jobs))
+	to := min(from+q.PageSize, len(jobs))
+	page := core.Page[core.Job]{Items: jobs[from:to]}
+	if to < len(jobs) {
+		page.Next = strconv.Itoa(to)
+	}
+	return page
 }
 
 func (f *fake) CachedLog(core.RepoRef, int64) (core.Log, bool) { return core.Log{}, false }
