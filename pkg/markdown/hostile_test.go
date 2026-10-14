@@ -36,7 +36,7 @@ var hostile = map[string]shape{
 	"angles":              func(k int) string { return strings.Repeat("<a ", 1300*k) },
 	"references":          func(k int) string { return strings.Repeat("&#27;[1m", 500*k) },
 	"table columns":       func(k int) string { return tableColumns(3000 * k) },
-	"joined emoji":        func(k int) string { return strings.Repeat("\U0001F468‍", 500*k) },
+	"joined emoji":        func(k int) string { return strings.Repeat("\U0001F468\u200D", 500*k) },
 	"table rows":          func(k int) string { return "|a|\n|-|\n" + strings.Repeat("|"+strings.Repeat("x|", 100)+"\n", 60*k) },
 	"details":             func(k int) string { return strings.Repeat("<details><summary>s</summary>\n", 125*k) },
 	"comments":            func(k int) string { return strings.Repeat("<!--", 1000*k) },
@@ -174,13 +174,13 @@ func BenchmarkHostileRender(b *testing.B) {
 // idle waits for a lexer that was cut short to finish, so the tests after it
 // highlight. One that never finishes holds the gate past any bound, so the
 // wait fails the test when one was reached.
-func idle(t testing.TB) {
-	t.Helper()
+func idle(tb testing.TB) {
+	tb.Helper()
 	select {
 	case lexing <- struct{}{}:
 		<-lexing
 	case <-time.After(slowdown * 10 * time.Second):
-		t.Fatal("a lexer that never finishes was reached: the gate is still held")
+		tb.Fatal("a lexer that never finishes was reached: the gate is still held")
 	}
 }
 
