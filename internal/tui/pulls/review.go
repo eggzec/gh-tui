@@ -36,7 +36,7 @@ const pendingAppearedText = "You have a pending review on GitHub; its comments a
 
 // partialReviewText is what the user reads when a review into their pending
 // review failed part way: what was added stays there.
-const partialReviewText = "Comments that went in before the failure stay in your pending review on GitHub, and leave the drafts."
+const partialReviewText = "Comments added before the failure stay in your pending review on GitHub; their drafts leave the tray."
 
 // reviewStage is the part of the step on view.
 type reviewStage int
@@ -78,8 +78,9 @@ type reviewState struct {
 type reviewedMsg struct {
 	owner *detailModal
 	err   error
-	// sent are the IDs of the drafts that were in the review.
-	sent []string
+	// sent are the IDs of the drafts that were in the review, and before those
+	// of the comments the pending review held when it was planned.
+	sent, before []string
 }
 
 // reviewPlan is what a submit would send.
@@ -175,17 +176,25 @@ func (m *detailModal) startSummary() tea.Cmd {
 	}
 	r.stage = reviewSummary
 	r.comp = composer.New(m.summaryKey(), opts...)
-	if body := m.tray.pending.Body; body != "" && m.drafts != nil {
-		// The pending review's summary starts the text, unless the user kept
-		// a draft of their own, which is read here since a text in the
-		// composer keeps its own draft from being restored.
-		if text, err := m.drafts.Load(m.summaryKey()); err != nil || strings.TrimSpace(text) == "" {
-			r.comp.SetValue(body)
-		}
-	} else if body != "" {
-		r.comp.SetValue(body)
-	}
+	m.prefillSummary()
 	return tea.Batch(r.comp.Init(), r.comp.Focus())
+}
+
+// prefillSummary puts the pending review's summary in the composer of the
+// summary, when the composer is open and still empty, and the user kept no
+// draft of their own. The draft is read here, since a text in the composer
+// keeps its own draft from being restored.
+func (m *detailModal) prefillSummary() {
+	r, body := m.rev, m.tray.pending.Body
+	if r == nil || r.stage == reviewVerdict || body == "" || strings.TrimSpace(r.comp.Value()) != "" {
+		return
+	}
+	if m.drafts != nil {
+		if text, err := m.drafts.Load(m.summaryKey()); err == nil && strings.TrimSpace(text) != "" {
+			return
+		}
+	}
+	r.comp.SetValue(body)
 }
 
 // closeReview closes the step, keeping the summary as a draft.
@@ -398,7 +407,11 @@ func (m *detailModal) sendReview(p reviewPlan) tea.Cmd {
 		} else {
 			err = svc.SubmitReview(ctx, repo, n, p.head, p.event, p.body, p.drafts)
 		}
-		return reviewedMsg{owner: m, err: err, sent: p.sentIDs}
+		before := make([]string, len(p.pending.Comments))
+		for i, c := range p.pending.Comments {
+			before[i] = c.ID
+		}
+		return reviewedMsg{owner: m, err: err, sent: p.sentIDs, before: before}
 	}
 }
 
@@ -426,7 +439,7 @@ func (m *detailModal) reviewed(msg reviewedMsg) tea.Cmd {
 		case m.tray.pending.ID != "":
 			// Steps before the failing one went through: what is in the pending
 			// review now is read again, and those drafts are dropped for it.
-			m.tray.reconcile = msg.sent
+			m.tray.reconcile = &reconcileState{sent: msg.sent, before: msg.before}
 			return tea.Batch(ui.Fail("submit the review of "+num, msg.err), ui.Notify(toast.Warning, partialReviewText), m.loadPending())
 		}
 		return ui.Fail("submit the review of "+num, msg.err)

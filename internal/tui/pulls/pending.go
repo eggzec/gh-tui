@@ -3,6 +3,7 @@ package pulls
 import (
 	"log/slog"
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -55,9 +56,9 @@ func (m *detailModal) receivePending(msg pendingLoadedMsg) tea.Cmd {
 		return nil
 	}
 	var save tea.Cmd
-	if sent := m.tray.reconcile; len(sent) > 0 {
+	if r := m.tray.reconcile; r != nil {
 		m.tray.reconcile = nil
-		if m.leaveAdded(msg.review, sent) {
+		if m.leaveAdded(msg.review, r) {
 			save = m.saveTray()
 		}
 	}
@@ -66,24 +67,28 @@ func (m *detailModal) receivePending(msg pendingLoadedMsg) tea.Cmd {
 		m.tray.pending = msg.review
 	}
 	m.placePending()
+	m.prefillSummary()
 	return tea.Batch(save, m.showThreadChange())
 }
 
-// leaveAdded drops the drafts among sent that a failed review added to the
-// pending review, which are the comments that it holds now and did not before
-// that say what a draft does. It reports whether any went.
-func (m *detailModal) leaveAdded(now core.PendingReview, sent []string) bool {
-	known := make(map[string]bool, len(m.tray.pending.Comments))
-	for _, c := range m.tray.pending.Comments {
-		known[c.ID] = true
-	}
+// sameBody reports whether two comment texts are the same once their line
+// endings and the space around them are set aside, as GitHub may change them.
+func sameBody(a, b string) bool {
+	norm := func(s string) string { return strings.TrimSpace(strings.ReplaceAll(s, "\r\n", "\n")) }
+	return norm(a) == norm(b)
+}
+
+// leaveAdded drops the drafts among those a failed review sent that it added
+// to the pending review, which are the comments that it holds now and did not
+// before that say what a draft does. It reports whether any went.
+func (m *detailModal) leaveAdded(now core.PendingReview, r *reconcileState) bool {
 	gone := false
 	for _, c := range now.Comments {
-		if known[c.ID] {
+		if slices.Contains(r.before, c.ID) {
 			continue
 		}
 		i := slices.IndexFunc(m.tray.drafts, func(d tray.Draft) bool {
-			return !d.OnGitHub && slices.Contains(sent, d.ID) && d.Path == c.Path && d.Body == c.Body &&
+			return !d.OnGitHub && slices.Contains(r.sent, d.ID) && d.Path == c.Path && sameBody(d.Body, c.Body) &&
 				(d.ThreadID != "") == (c.ReplyTo != "") && (d.ThreadID != "" || d.Line == c.Line || c.Line == 0)
 		})
 		if i >= 0 {

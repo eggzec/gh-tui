@@ -94,7 +94,7 @@ var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $
           id isResolved isOutdated path line originalLine
           comments(first: 1) {
             totalCount
-            nodes { author { __typename login ... on User { name } } createdAt bodyText }
+            nodes { author { __typename login ... on User { name } } createdAt bodyText pullRequestReview { state } }
           }
         }
       }
@@ -224,8 +224,20 @@ type reviewThread struct {
 			Author    *actor    `json:"author"`
 			CreatedAt time.Time `json:"createdAt"`
 			BodyText  string    `json:"bodyText"`
+			// Review is the review the comment was made in, null for one that
+			// was not made in a review.
+			Review *struct {
+				State string `json:"state"`
+			} `json:"pullRequestReview"`
 		} `json:"nodes"`
 	} `json:"comments"`
+}
+
+// pending reports whether the thread is in a review that is not submitted,
+// which is the viewer's own: it starts with a comment of one.
+func (t reviewThread) pending() bool {
+	n := t.Comments.Nodes
+	return len(n) > 0 && n[0].Review != nil && strings.EqualFold(n[0].Review.State, "PENDING")
 }
 
 func (t reviewThread) core() core.ReviewThread {
@@ -424,12 +436,15 @@ func (d pullDetail) reviewers() core.Reviewers {
 	return out
 }
 
-// threads summarizes the review threads that were read.
+// threads summarizes the review threads that were read. The viewer's pending
+// review is not among them: its comments are in the review tray, and they
+// block nobody until the review is submitted.
 func (d pullDetail) threads() core.ThreadSummary {
 	t := d.ReviewThreads
+	nodes := slices.DeleteFunc(slices.Clone(t.Nodes), reviewThread.pending)
 	out := core.ThreadSummary{
-		Total:     t.TotalCount,
-		Threads:   convert(t.Nodes, reviewThread.core),
+		Total:     t.TotalCount - (len(t.Nodes) - len(nodes)),
+		Threads:   convert(nodes, reviewThread.core),
 		Truncated: t.TotalCount > len(t.Nodes),
 	}
 	for i := range out.Threads {
