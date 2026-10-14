@@ -17,6 +17,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -73,10 +74,19 @@ type file struct {
 	Drafts  []Draft `json:"drafts"`
 }
 
+// ErrDamaged is what a read error wraps when the file was read but is not
+// drafts this version can use: not JSON, of another version, or of another
+// key. Saving may replace such a file; any other read error, such as a denied
+// or failed read, says nothing of the file, and saving over it could lose
+// drafts.
+var ErrDamaged = errors.New("damaged")
+
 // Store is the drafts in a directory. Writes replace a file whole, so another
-// process never reads half of one; the last to write wins.
+// process never reads half of one; the last to write wins. Calls of one store
+// are serialized, so a delete never lands before a save that was made earlier.
 type Store struct {
 	dir string
+	mu  sync.Mutex
 }
 
 // New returns the store of the drafts in dir. It touches nothing on disk
@@ -98,8 +108,10 @@ func (s *Store) path(key string) string {
 
 // Load returns the drafts under key, or none. A damaged file, or one of
 // another version or of another key, is no drafts either, and the error says
-// why.
+// why, wrapping [ErrDamaged].
 func (s *Store) Load(key string) ([]Draft, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	p := s.path(key)
 	data, err := os.ReadFile(p)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -110,13 +122,13 @@ func (s *Store) Load(key string) ([]Draft, error) {
 	}
 	var f file
 	if err := json.Unmarshal(data, &f); err != nil {
-		return nil, fmt.Errorf("read drafts %s: %w", p, err)
+		return nil, fmt.Errorf("read drafts %s: %w: %w", p, ErrDamaged, err)
 	}
 	if f.Version != Version {
-		return nil, fmt.Errorf("read drafts %s: version %d, want %d", p, f.Version, Version)
+		return nil, fmt.Errorf("read drafts %s: %w: version %d, want %d", p, ErrDamaged, f.Version, Version)
 	}
 	if f.Key != key {
-		return nil, fmt.Errorf("read drafts %s: they are another pull request's", p)
+		return nil, fmt.Errorf("read drafts %s: %w: they are another pull request's", p, ErrDamaged)
 	}
 	return f.Drafts, nil
 }
@@ -124,6 +136,8 @@ func (s *Store) Load(key string) ([]Draft, error) {
 // Save keeps drafts as those under key, replacing what is there. No drafts
 // delete the file. It creates the directory if needed.
 func (s *Store) Save(key string, drafts []Draft) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if len(drafts) == 0 {
 		if err := os.Remove(s.path(key)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("delete drafts: %w", err)
