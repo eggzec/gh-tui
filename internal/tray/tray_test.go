@@ -1,9 +1,12 @@
 package tray
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
@@ -53,6 +56,58 @@ func TestSaveLoad(t *testing.T) {
 	}
 	if err := s.Save(key, nil); err != nil {
 		t.Errorf("deleting none: %v", err)
+	}
+}
+
+// A delete that comes after a save, even when they race, leaves no file.
+func TestDeleteAfterSaveLeavesNoFile(t *testing.T) {
+	t.Parallel()
+	s := New(t.TempDir())
+	key := Key("o/r", 3)
+	for range 50 {
+		if err := s.Save(key, []Draft{{ID: "a", Body: "x"}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Save(key, nil); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(s.path(key)); !errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("stat after the delete = %v, want no file", err)
+		}
+	}
+	// Calls from several goroutines are safe.
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Go(func() {
+			if i%2 == 0 {
+				_ = s.Save(key, []Draft{{ID: "a"}})
+			} else {
+				_, _ = s.Load(key)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+// A file that could not be read for a reason other than its content is not
+// said to be damaged, so that nothing writes over it.
+func TestLoadDamagedOnlyForContent(t *testing.T) {
+	t.Parallel()
+	s := New(t.TempDir())
+	key := Key("o/r", 1)
+	if err := os.WriteFile(s.path(key), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Load(key); !errors.Is(err, ErrDamaged) {
+		t.Errorf("a file that is not JSON: %v, want ErrDamaged", err)
+	}
+	// A directory where the file should be reads with an error of its own.
+	key = Key("o/r", 2)
+	if err := os.Mkdir(s.path(key), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Load(key); err == nil || errors.Is(err, ErrDamaged) {
+		t.Errorf("an unreadable file: %v, want an error that is not ErrDamaged", err)
 	}
 }
 

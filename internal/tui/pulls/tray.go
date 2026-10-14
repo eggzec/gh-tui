@@ -1,7 +1,9 @@
 package pulls
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
@@ -43,6 +46,9 @@ type trayState struct {
 	// from is where a range of lines was started, or nil.
 	from *diff.Pos
 	comp *composeState
+	// readFailed is set when the file of the drafts could not be read, and may
+	// still hold some: nothing is saved over it.
+	readFailed bool
 }
 
 // composeState is the draft being written.
@@ -73,18 +79,27 @@ func (m *detailModal) loadTray() tea.Cmd {
 	}
 }
 
-// saveTray writes the drafts to disk, and warns if it can't.
+// saveTray writes the drafts to disk, and warns if it can't. It writes at
+// once, in Update, as the files are small: writes in commands could land out
+// of order, and bring back a deleted draft or overwrite the one of the quit.
 func (m *detailModal) saveTray() tea.Cmd {
-	store, id, drafts := m.tray.store, m.trayKey(), slices.Clone(m.tray.drafts)
-	if store == nil {
+	if err := m.writeTray(); err != nil {
+		return ui.Notify(toast.Warning, "Couldn't save the drafts: "+err.Error())
+	}
+	return nil
+}
+
+// writeTray writes the drafts to disk, unless there is no store, or the file
+// of the drafts could not be read for a reason that says nothing of its
+// content: writing then could lose the drafts that are in it.
+func (m *detailModal) writeTray() error {
+	if m.tray.store == nil {
 		return nil
 	}
-	return func() tea.Msg {
-		if err := store.Save(id, drafts); err != nil {
-			return ui.Notify(toast.Warning, "Couldn't save the drafts: "+err.Error())()
-		}
-		return nil
+	if m.tray.readFailed {
+		return errors.New("the saved drafts could not be read, so they are left as they are")
 	}
+	return m.tray.store.Save(m.trayKey(), m.tray.drafts)
 }
 
 // Save implements ui.Saver: the text of the open composer is kept as a draft
@@ -95,7 +110,7 @@ func (m *detailModal) Save() error {
 		return nil
 	}
 	m.keepDraft(c.d, c.c.Value())
-	return m.tray.store.Save(m.trayKey(), m.tray.drafts)
+	return m.writeTray()
 }
 
 // update takes the messages of the tray, then the rest of the modal's.
@@ -105,7 +120,10 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if msg.owner != m {
 			return nil
 		}
-		if msg.err == nil {
+		if msg.err != nil {
+			slog.WarnContext(m.ctx, "drafts not read", "span", "tui", "err", ui.ShortPath(msg.err.Error()))
+			m.tray.readFailed = !errors.Is(msg.err, tray.ErrDamaged)
+		} else {
 			// Drafts made before the read came back stay.
 			for i := range msg.drafts {
 				id := msg.drafts[i].ID
@@ -278,15 +296,26 @@ func (m *detailModal) comment() tea.Cmd {
 	if d, ok := m.draftUnderCursor(); ok {
 		return m.openComposer(d, "Edit draft")
 	}
+	head := f.head
+	if head == "" {
+		head = m.detail.HeadSHA
+	}
+	if head == "" {
+		return ui.Notify(toast.Info, "The head commit is not known yet, so there is nothing to comment on.")
+	}
 	if th, ok := m.threadUnderCursor(); ok {
-		d := tray.Draft{ID: m.newDraftID(), Commit: f.head, Path: th.Path, ThreadID: th.ID, Side: tray.Right, Line: th.Line}
+		side := tray.Right
+		if th.Side == core.SideLeft {
+			side = tray.Left
+		}
+		d := tray.Draft{ID: m.newDraftID(), Commit: head, Path: th.Path, ThreadID: th.ID, Side: side, Line: th.Line}
 		return m.openComposer(d, "Draft reply")
 	}
 	pos, ok := f.diff.Position()
 	if !ok {
 		return ui.Notify(toast.Info, "Put the cursor on a line to comment.")
 	}
-	d := tray.Draft{ID: m.newDraftID(), Commit: f.head, Path: pos.Path, Side: traySide(pos.Side), Line: pos.Line}
+	d := tray.Draft{ID: m.newDraftID(), Commit: head, Path: pos.Path, Side: traySide(pos.Side), Line: pos.Line}
 	title := "Draft comment"
 	if from := m.tray.from; from != nil {
 		if from.Path != pos.Path || from.Side != pos.Side {

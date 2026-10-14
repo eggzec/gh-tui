@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -18,11 +19,15 @@ type memTray struct {
 	kept   map[string][]tray.Draft
 	saves  int
 	saveEr error
+	loadEr error
 }
 
 func (s *memTray) Load(key string) ([]tray.Draft, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.loadEr != nil {
+		return nil, s.loadEr
+	}
 	return append([]tray.Draft(nil), s.kept[key]...), nil
 }
 
@@ -214,8 +219,21 @@ func TestTrayReplyEditDelete(t *testing.T) {
 		t.Fatalf("the reply is not under its thread:\n%s", strings.Join(lines, "\n"))
 	}
 
-	// c on the draft edits it in place.
+	// Moving onto the draft row with j from the line above reaches it too,
+	// and c there edits it with its text in the composer.
 	id := draftPrefix + got[0].ID
+	m.files.diff.SeekBlock("t1")
+	press(t, h, "j")
+	if b, ok := m.files.diff.CursorBlock(); !ok || b.ID != id {
+		t.Fatalf("j from the thread put the cursor on %+v, want the draft", b)
+	}
+	press(t, h, "c")
+	if m.tray.comp == nil || m.tray.comp.c.Value() != "agreed" {
+		t.Fatalf("c on the draft reached by j opened %+v, want its text to edit", m.tray.comp)
+	}
+	press(t, h, "esc")
+
+	// c on the draft edits it in place.
 	m.files.diff.SeekBlock(id)
 	press(t, h, "c")
 	if m.tray.comp == nil || m.tray.comp.c.Value() != "agreed" {
@@ -303,6 +321,99 @@ func TestTrayWithoutStoreAndFailingStore(t *testing.T) {
 	}
 	if !told {
 		t.Error("a failed save told the user nothing")
+	}
+}
+
+// A change is written when it is made, so a delete that follows a save leaves
+// the later state, whatever order commands would have run in.
+func TestTrayWritesInOrder(t *testing.T) {
+	t.Parallel()
+	store := &memTray{}
+	_, m := drafting(t, store)
+	m.tray.drafts = []tray.Draft{{ID: "a", Body: "x"}}
+	if cmd := m.saveTray(); cmd != nil {
+		t.Fatalf("a save that worked returned %v", cmd)
+	}
+	if got := store.drafts(); len(got) != 1 {
+		t.Fatalf("kept %+v before any command ran, want the draft", got)
+	}
+	m.tray.drafts = nil
+	m.saveTray()
+	if got := store.drafts(); len(got) != 0 {
+		t.Errorf("kept %+v after the delete, want none", got)
+	}
+}
+
+// A file that could not be read is not written over, but one that was read
+// and is damaged is.
+func TestTrayKeepsAFileItCouldNotRead(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		err   error
+		saves int
+	}{
+		{"denied", errors.New("read drafts: permission denied"), 0},
+		{"damaged", fmt.Errorf("read drafts: %w: bad json", tray.ErrDamaged), 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			store := &memTray{loadEr: tc.err}
+			h, _ := drafting(t, store)
+			down(t, h, rowContext)
+			press(t, h, "c")
+			typeText(t, h, "x")
+			press(t, h, "esc")
+			if store.saves != tc.saves {
+				t.Errorf("%d saves after a load that failed with %v, want %d", store.saves, tc.err, tc.saves)
+			}
+		})
+	}
+}
+
+// A reply is on the side of the thread it answers.
+func TestTrayReplyKeepsTheThreadsSide(t *testing.T) {
+	t.Parallel()
+	th := review("t1", "internal/cache/disk.go", 45, "hubot", "Gone.")
+	th.Side = core.SideLeft
+	store := &memTray{}
+	h, m := drafting(t, store, th)
+	if !m.files.diff.SeekBlock("t1") {
+		t.Fatal("the thread is not in the diff")
+	}
+	press(t, h, "c")
+	typeText(t, h, "ok")
+	press(t, h, "esc")
+	got := store.drafts()
+	if len(got) != 1 || got[0].Side != tray.Left || got[0].Line != 45 {
+		t.Errorf("drafts = %+v, want a reply on the left side of line 45", got)
+	}
+}
+
+// The head comes from the pull request when the files have none, and without
+// one there is no comment.
+func TestTrayHeadFallback(t *testing.T) {
+	t.Parallel()
+	store := &memTray{}
+	h, m := drafting(t, store)
+	m.files.head = ""
+	down(t, h, rowContext)
+	press(t, h, "c")
+	if m.tray.comp == nil || m.tray.comp.d.Commit != "a1b2c3d" {
+		t.Fatalf("composer = %+v, want a draft at the head of the pull request", m.tray.comp)
+	}
+	press(t, h, "esc")
+
+	m.tray.comp = nil
+	m.detail.HeadSHA = ""
+	var told bool
+	for _, msg := range press(t, h, "c") {
+		if n, ok := msg.(ui.NotifyMsg); ok && strings.Contains(n.Text, "head") {
+			told = true
+		}
+	}
+	if m.tray.comp != nil || !told {
+		t.Errorf("c without a head opened %+v and told the user: %v, want a toast only", m.tray.comp, told)
 	}
 }
 
