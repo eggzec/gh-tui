@@ -284,24 +284,26 @@ const maxSpanLines = 4
 // on one line, as markdown reads it: a line ending inside a span is a space,
 // before any line break. Soft breaks outside spans stay as they are. The
 // joined line binds its spans again, so one that fits stays whole. A span
-// that never closes, or that closes in a line that starts a block, joins
-// nothing.
+// never runs over a block boundary: one that never closes, or that closes in
+// a line that starts a block or is a row of a table, joins nothing.
 func joinSpans(pieces []piece, width int) []piece {
+	rows := tableRows(pieces)
 	out := make([]piece, 0, len(pieces))
 	for k := 0; k < len(pieces); k++ {
 		pc := pieces[k]
-		if !pc.text || pc.block != nil || pc.from != 0 || pc.open == 0 || opensFence(pc.line) {
+		if !pc.text || pc.block != nil || pc.from != 0 || pc.open == 0 || rows[k] || opensFence(pc.line) {
 			out = append(out, pc)
 			continue
 		}
 		line, open := pc.line, pc.open
 		for open > 0 {
-			end := spanEnd(pieces, k, open)
+			end := spanEnd(pieces, rows, k, open)
 			if end < 0 {
 				break
 			}
+			depth := quotes(pieces[k].line)
 			for _, next := range pieces[k+1 : end+1] {
-				c, _ := continuation(next.line)
+				c, _ := continuation(next.line, depth)
 				line += " " + c
 			}
 			k, open = end, pieces[end].open
@@ -332,12 +334,13 @@ func opensFence(line string) bool {
 
 // spanEnd returns the index of the piece after pieces[k] in which the code
 // span of n backticks open at its end closes, or -1.
-func spanEnd(pieces []piece, k, n int) int {
+func spanEnd(pieces []piece, rows []bool, k, n int) int {
+	depth := quotes(pieces[k].line)
 	for j := k + 1; j < len(pieces) && j <= k+maxSpanLines; j++ {
-		if !pieces[j].text || pieces[j].block != nil {
+		if !pieces[j].text || pieces[j].block != nil || rows[j] {
 			return -1
 		}
-		c, ok := continuation(pieces[j].line)
+		c, ok := continuation(pieces[j].line, depth)
 		if !ok {
 			return -1
 		}
@@ -349,10 +352,13 @@ func spanEnd(pieces []piece, k, n int) int {
 }
 
 // continuation returns what line says after its indentation and quote
-// markers, if it can continue a paragraph: it isn't blank, doesn't start a
-// list item, and isn't a heading or a thematic break.
-func continuation(line string) (string, bool) {
+// markers, if it can continue a paragraph that is in depth quotes: it isn't
+// blank, doesn't start a list item or a quote of its own, and isn't a heading
+// or a thematic break. It may have fewer quote markers than depth, as a lazy
+// continuation line does.
+func continuation(line string, depth int) (string, bool) {
 	s := strings.TrimLeft(line, " ")
+	q := 0
 	for {
 		n, quote := marker(s)
 		if n == 0 {
@@ -361,12 +367,72 @@ func continuation(line string) (string, bool) {
 		if !quote {
 			return "", false
 		}
+		q++
 		s = strings.TrimLeft(s[n:], " ")
 	}
-	if s == "" || heading(s) || rule(s) {
+	if q > depth || s == "" || heading(s) || rule(s) {
 		return "", false
 	}
 	return s, true
+}
+
+// quotes returns how many quote markers line starts with, after its
+// indentation and any list markers.
+func quotes(line string) int {
+	s := strings.TrimLeft(line, " ")
+	q := 0
+	for {
+		n, quote := marker(s)
+		if n == 0 {
+			return q
+		}
+		if quote {
+			q++
+		}
+		s = strings.TrimLeft(s[n:], " ")
+	}
+}
+
+// tableRows returns which of pieces are rows of a pipe table: its header,
+// its delimiter row, and every line after that up to a blank line or a
+// heading, since each is a row too, with or without pipes. A code span ends
+// with its row.
+func tableRows(pieces []piece) []bool {
+	rows := make([]bool, len(pieces))
+	in := false
+	for k, pc := range pieces {
+		s := ""
+		if pc.text && pc.block == nil {
+			s = inner(pc.line)
+		}
+		switch {
+		case s == "" || heading(s) || rule(s):
+			in = false
+		case in:
+			rows[k] = true
+		case k > 0 && delimiter(s) && pieces[k-1].text && pieces[k-1].block == nil && strings.Contains(inner(pieces[k-1].line), "|"):
+			rows[k-1], rows[k], in = true, true, true
+		}
+	}
+	return rows
+}
+
+// inner returns line after its indentation, and its quote and list markers.
+func inner(line string) string {
+	s := strings.TrimLeft(line, " ")
+	for {
+		n, _ := marker(s)
+		if n == 0 {
+			return s
+		}
+		s = strings.TrimLeft(s[n:], " ")
+	}
+}
+
+// delimiter reports whether s is the delimiter row of a table: dashes with
+// optional colons, and at least one pipe.
+func delimiter(s string) bool {
+	return strings.Contains(s, "|") && strings.Contains(s, "-") && strings.Trim(s, " |:-") == ""
 }
 
 // fence is the opening fence of a code block.
