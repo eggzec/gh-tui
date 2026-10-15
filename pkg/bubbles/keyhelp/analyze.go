@@ -2,6 +2,7 @@ package keyhelp
 
 import (
 	"slices"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -74,23 +75,58 @@ type Loss struct {
 // the key loses it, in a conflict within one layer and shadowed across
 // layers. A binding that loses a key to another is marked so even if its
 // other keys work; one whose keys are all typed is Typed. A binding listed
-// again, with the same keys and help, loses nothing to itself.
+// again, with the same keys and help, loses nothing to itself. A binding
+// listed again in one layer gets one row. So does a disabled one listed
+// again, which is on if any copy is: it stands where the first copy that is
+// on is, in its layer, or where the first copy is when none is on.
+// An enabled binding listed again in a later layer keeps its row there.
 func Analyze(layers []Layer) []Row {
+	rows, _ := analyze(layers)
+	return rows
+}
+
+// analyze is Analyze that also says, for each row, which bindings it stands
+// for: the position of each in the bindings of all layers, counted layer
+// after layer. A row that folds copies lists them all.
+func analyze(layers []Layer) (listed []Row, from [][]int) {
 	type claim struct {
 		b     key.Binding
 		layer int
 	}
 	claimed := make(map[string]claim)
 	var rows []Row
+	var srcs [][]int
+	// dropped marks the rows that a later copy of the same binding replaced.
+	var dropped []bool
+	// firsts is the row that stands for each binding, by what identifies it:
+	// the newest that was added.
+	firsts := make(map[string]int)
 	// typing is the first layer so far that types printable keys, or -1.
 	typing := -1
+	n := -1
 	for li, l := range layers {
 		for _, b := range l.Bindings {
+			n++
 			r := Row{Binding: b, Source: l.Source, Layer: li, Status: Disabled}
+			id := identity(b)
+			first, seen := firsts[id]
 			// A binding without keys, which a state may have switched on,
 			// takes none.
 			if !b.Enabled() || len(b.Keys()) == 0 {
+				if seen {
+					srcs[first] = append(srcs[first], n)
+					continue
+				}
+				firsts[id] = len(rows)
 				rows = append(rows, r)
+				srcs = append(srcs, []int{n})
+				dropped = append(dropped, false)
+				continue
+			}
+			if seen && rows[first].Status != Disabled && rows[first].Layer == li {
+				// A layer that lists a binding twice, such as two key maps
+				// that both have the key that closes, shows it once.
+				srcs[first] = append(srcs[first], n)
 				continue
 			}
 			won := false
@@ -117,13 +153,41 @@ func Analyze(layers []Layer) []Row {
 				won = true
 			}
 			r.Status = status(r.Lost, won)
+			// A copy that is on stands for the binding, in place of one that
+			// is off: a row that works shows where it works, not where an
+			// off twin was listed.
+			off := seen && rows[first].Status == Disabled
+			src := []int{n}
+			if off {
+				dropped[first] = true
+				src = append(slices.Clone(srcs[first]), n)
+			}
+			// The newest row stands for the binding, so that a layer that
+			// lists it again folds into its own row, not an earlier layer's.
+			firsts[id] = len(rows)
 			rows = append(rows, r)
+			srcs = append(srcs, src)
+			dropped = append(dropped, false)
 		}
 		if l.Typing && typing < 0 {
 			typing = li
 		}
 	}
-	return rows
+	kept, keptSrcs := rows[:0], srcs[:0]
+	for i, r := range rows {
+		if !dropped[i] {
+			kept = append(kept, r)
+			keptSrcs = append(keptSrcs, srcs[i])
+		}
+	}
+	return kept, keptSrcs
+}
+
+// identity returns what tells a binding apart in the help: its keys and its
+// key and description as listed.
+func identity(b key.Binding) string {
+	h := b.Help()
+	return strings.Join(b.Keys(), "\x00") + "\x01" + h.Key + "\x01" + h.Desc
 }
 
 // same reports whether a and b are one binding listed twice: the same

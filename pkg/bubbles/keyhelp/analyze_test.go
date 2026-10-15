@@ -128,6 +128,66 @@ func TestAnalyze(t *testing.T) {
 			},
 			want: []want{{desc: "down", status: Active}, {desc: "down", status: Active}},
 		},
+		{
+			name: "a disabled binding listed twice gets one row",
+			layers: []Layer{
+				{Source: "a", Bindings: []key.Binding{off(bind("cancel", "esc")), off(bind("cancel", "esc")), bind("down", "j")}},
+				{Source: "b", Bindings: []key.Binding{off(bind("cancel", "esc"))}},
+			},
+			want: []want{{desc: "cancel", status: Disabled}, {desc: "down", status: Active}},
+		},
+		{
+			name: "a disabled binding with another label or other keys is another row",
+			layers: []Layer{{Source: "a", Bindings: []key.Binding{
+				off(bind("cancel", "esc")), off(bind("close", "esc")), off(bind("cancel", "q")),
+			}}},
+			want: []want{{desc: "cancel", status: Disabled}, {desc: "close", status: Disabled}, {desc: "cancel", status: Disabled}},
+		},
+		{
+			name: "a copy that is on makes the row on, at the place of the first that is on",
+			layers: []Layer{{Source: "a", Bindings: []key.Binding{
+				off(bind("cancel", "esc")), bind("down", "j"), bind("cancel", "esc"), off(bind("cancel", "esc")),
+			}}},
+			want: []want{{desc: "down", status: Active}, {desc: "cancel", status: Active}},
+		},
+		{
+			name: "a copy that is off listed first leaves the row where the copy that is on is",
+			layers: []Layer{{Source: "pager", Bindings: []key.Binding{
+				off(bind("cancel", "esc")), bind("confirm", "enter"), bind("cancel", "esc"),
+			}}},
+			want: []want{{desc: "confirm", status: Active}, {desc: "cancel", status: Active}},
+		},
+		{
+			name: "a copy that is on in a later layer stands for the binding there",
+			layers: []Layer{
+				{Source: "a", Bindings: []key.Binding{off(bind("retry", "r")), bind("down", "j")}},
+				{Source: "b", Bindings: []key.Binding{bind("retry", "r"), off(bind("retry", "r"))}},
+			},
+			want: []want{{desc: "down", status: Active}, {desc: "retry", status: Active}},
+		},
+		{
+			name: "an enabled binding listed twice in one layer gets one row",
+			layers: []Layer{{Source: "a", Bindings: []key.Binding{
+				bind("close", "esc"), bind("down", "j"), bind("close", "esc"),
+			}}},
+			want: []want{{desc: "close", status: Active}, {desc: "down", status: Active}},
+		},
+		{
+			name: "an enabled binding listed twice in a layer after one that lists it once gets one row there",
+			layers: []Layer{
+				{Source: "a", Bindings: []key.Binding{bind("close", "esc")}},
+				{Source: "b", Bindings: []key.Binding{bind("close", "esc"), bind("close", "esc")}},
+			},
+			want: []want{{desc: "close", status: Active}, {desc: "close", status: Active}},
+		},
+		{
+			name: "a copy that is off after one that is on adds no row",
+			layers: []Layer{
+				{Source: "a", Bindings: []key.Binding{bind("retry", "r")}},
+				{Source: "b", Bindings: []key.Binding{off(bind("retry", "r"))}},
+			},
+			want: []want{{desc: "retry", status: Active}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
