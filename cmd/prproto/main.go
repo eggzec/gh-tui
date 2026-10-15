@@ -176,7 +176,341 @@ func fillerLine(n int) string {
 	return ""
 }
 
-var ctxNames = []string{"hunks only", "±10 lines", "full file"}
+var ctxNames = []string{"hunks only", "full file"}
+
+var sel = lipgloss.NewStyle().Background(lipgloss.Color("238")).Render
+
+// ---------- the pager-like diff modal ----------
+
+// dl is one line of the full file with its changes inline; src is the line
+// number in the new file (for a deleted line, the next line that follows).
+type dl struct {
+	text string
+	kind byte
+	src  int
+}
+
+type draft struct{ label, text string }
+
+type vrow struct {
+	text  string
+	li    int
+	draft bool
+}
+
+func fileDoc(f file) []dl {
+	neu := strings.Contains(f.diff, "@@ -0,0")
+	filler := func(n int) dl {
+		if neu {
+			return dl{"+" + fillerLine(n), '+', n}
+		}
+		return dl{" " + fillerLine(n), 'f', n}
+	}
+	var out []dl
+	n := 1
+	for _, h := range parseHunks(f.diff) {
+		for ; n < h.start; n++ {
+			out = append(out, filler(n))
+		}
+		out = append(out, dl{h.hdr, '@', h.start})
+		for _, l := range h.lines {
+			k, src := byte('h'), n
+			switch {
+			case strings.HasPrefix(l, "+"):
+				k = '+'
+				n++
+			case strings.HasPrefix(l, "-"):
+				k = '-'
+			default:
+				n++
+			}
+			out = append(out, dl{l, k, src})
+		}
+	}
+	for ; n <= f.total(); n++ {
+		out = append(out, filler(n))
+	}
+	return out
+}
+
+func styled(x dl) string {
+	switch x.kind {
+	case '@':
+		return cyan(x.text)
+	case '+':
+		return green(x.text)
+	case '-':
+		return red(x.text)
+	case 'f':
+		return dim(x.text)
+	}
+	return x.text
+}
+
+// dview returns the file, the doc indexes shown in the current mode and the
+// screen rows (a draft adds a row under its line).
+func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
+	doc := fileDoc(files[o.arg])
+	var vis []int
+	var rows []vrow
+	for i, x := range doc {
+		if (o.ctx == 0 && x.kind == 'f') || (o.ctx == 1 && x.kind == '@') {
+			continue
+		}
+		vis = append(vis, i)
+		rows = append(rows, vrow{styled(x), len(vis) - 1, false})
+		if d, ok := m.drafts[[2]int{o.arg, i}]; ok {
+			rows = append(rows, vrow{yellow("   ✎ ") + rev(" draft ") + yellow(" "+d.label+": ") + d.text, len(vis) - 1, true})
+		}
+	}
+	return doc, vis, rows
+}
+
+func cursorRow(rows []vrow, li int) int {
+	for i, r := range rows {
+		if r.li == li && !r.draft {
+			return i
+		}
+	}
+	return 0
+}
+
+// fixDiff keeps the cursor on screen.
+func (m *model) fixDiff(o *overlay) {
+	_, _, h := m.ovSize(o)
+	bh := max(1, h-3)
+	_, vis, rows := m.dview(o)
+	o.vcur = max(0, min(o.vcur, len(vis)-1))
+	r := cursorRow(rows, o.vcur)
+	if r < o.scroll {
+		o.scroll = r
+	}
+	if r >= o.scroll+bh {
+		o.scroll = r - bh + 1
+	}
+	o.scroll = max(0, min(o.scroll, len(rows)-bh))
+}
+
+func (m *model) ovSize(o *overlay) (int, int, int) {
+	x, _, w, h := m.ovRect(o)
+	return x, w, h
+}
+
+// hunkTargets are the doc indexes `}` and `{` jump to in the current mode.
+func hunkTargets(doc []dl, mode int) []int {
+	var t []int
+	for i, x := range doc {
+		if x.kind == '@' {
+			t = append(t, i+mode)
+		}
+	}
+	return t
+}
+
+func (m *model) diffStatus(o *overlay) string {
+	if o.cmdOn {
+		return ":" + o.cmd + "▏" + dim("   n next file · p previous file")
+	}
+	_, vis, _ := m.dview(o)
+	s := fmt.Sprintf("%d drafts", len(m.drafts))
+	if o.ranging {
+		s += " · RANGE j/k extend · c comment · esc cancel"
+	} else {
+		s += " · V range · c comment · D delete draft · } { hunk · x mode · :n :p · Z max"
+	}
+	return dim(fmt.Sprintf("L%d/%d · ", o.vcur+1, len(vis)) + s)
+}
+
+func (m *model) drawDiff(o *overlay, w, h int) string {
+	m.fixDiff(o)
+	doc, vis, rows := m.dview(o)
+	bh := max(1, h-3)
+	cd := vis[o.vcur]
+	lo, hi := min(o.anchor, cd), max(o.anchor, cd)
+	var lines []string
+	for i := o.scroll; i < min(len(rows), o.scroll+bh); i++ {
+		r := rows[i]
+		t := r.text
+		pad := func(s string) string { return s + strings.Repeat(" ", max(0, w-4-lipgloss.Width(s))) }
+		if !r.draft {
+			di := vis[r.li]
+			switch {
+			case r.li == o.vcur:
+				t = rev(pad(ansi.Strip(t)))
+			case o.ranging && di >= lo && di <= hi:
+				t = sel(pad(ansi.Strip(t)))
+			}
+		}
+		lines = append(lines, t)
+	}
+	for len(lines) < bh {
+		lines = append(lines, "")
+	}
+	lines = append(lines, m.diffStatus(o))
+	_ = doc
+	f := files[o.arg]
+	title := fmt.Sprintf("Diff · %s (%d/%d) · %s [x] · %d%%", f.path(), o.arg+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
+	return box(title, lines, w, h, true)
+}
+
+// toggleMode switches hunks only / full file keeping the cursor line on the
+// same screen row; a line outside every hunk lands on the nearest hunk line.
+func (m *model) toggleMode(o *overlay) {
+	_, vis, rows := m.dview(o)
+	di, screen := vis[o.vcur], cursorRow(rows, o.vcur)-o.scroll
+	o.ctx = 1 - o.ctx
+	_, vis, rows = m.dview(o)
+	best := 0
+	for i, d := range vis {
+		if abs(d-di) <= abs(vis[best]-di) {
+			best = i
+		}
+	}
+	o.vcur = best
+	o.scroll = max(0, cursorRow(rows, best)-screen)
+	m.fixDiff(o)
+}
+
+func abs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
+func (m *model) moveCursor(o *overlay, d int) {
+	_, vis, _ := m.dview(o)
+	o.vcur = max(0, min(o.vcur+d, len(vis)-1))
+	m.fixDiff(o)
+}
+
+func (m *model) jumpHunk(o *overlay, dir int) {
+	doc, vis, _ := m.dview(o)
+	cd := vis[o.vcur]
+	ts := hunkTargets(doc, o.ctx)
+	to := -1
+	for _, t := range ts {
+		if dir > 0 && t > cd {
+			to = t
+			break
+		}
+		if dir < 0 && t < cd {
+			to = t
+		}
+	}
+	if to < 0 {
+		return
+	}
+	for i, d := range vis {
+		if d == to {
+			o.vcur = i
+		}
+	}
+	m.fixDiff(o)
+}
+
+// diffKey handles a key in the pager-like diff modal.
+func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
+	k := msg.String()
+	if o.compose {
+		switch k {
+		case "esc":
+			o.compose = false
+		case "enter":
+			if strings.TrimSpace(o.ctext) != "" {
+				m.drafts[[2]int{o.arg, o.cend}] = draft{o.clabel, o.ctext}
+			}
+			o.compose, o.ranging = false, false
+		case "backspace":
+			if r := []rune(o.ctext); len(r) > 0 {
+				o.ctext = string(r[:len(r)-1])
+			}
+		default:
+			o.ctext += msg.Text
+		}
+		return nil
+	}
+	if o.cmdOn {
+		switch k {
+		case "esc":
+			o.cmdOn = false
+		case "enter":
+			c := o.cmd
+			o.cmdOn = false
+			switch c {
+			case "n", "next":
+				m.showFile(o, o.arg+1)
+			case "p", "prev", "N":
+				m.showFile(o, o.arg-1)
+			default:
+				return m.say("(prototype) unknown command :" + c)
+			}
+		case "backspace":
+			if o.cmd == "" {
+				o.cmdOn = false
+			} else {
+				o.cmd = o.cmd[:len(o.cmd)-1]
+			}
+		default:
+			o.cmd += msg.Text
+		}
+		return nil
+	}
+	doc, vis, _ := m.dview(o)
+	cd := vis[o.vcur]
+	switch k {
+	case ":":
+		o.cmdOn, o.cmd = true, ""
+	case "esc":
+		if o.ranging {
+			o.ranging = false
+		} else {
+			m.pop()
+		}
+	case "backspace", "q":
+		m.pop()
+	case "Z":
+		o.max = !o.max
+		m.fixDiff(o)
+	case "x":
+		m.toggleMode(o)
+	case "J", "]":
+		m.showFile(o, o.arg+1)
+	case "K", "[":
+		m.showFile(o, o.arg-1)
+	case "}":
+		m.jumpHunk(o, 1)
+	case "{":
+		m.jumpHunk(o, -1)
+	case "V":
+		o.ranging, o.anchor = !o.ranging, cd
+	case "D":
+		delete(m.drafts, [2]int{o.arg, cd})
+	case "c", "enter":
+		lo, hi := cd, cd
+		if o.ranging {
+			lo, hi = min(o.anchor, cd), max(o.anchor, cd)
+		}
+		o.compose, o.ctext, o.cend = true, "", hi
+		a, b := doc[lo].src, doc[hi].src
+		o.clabel = fmt.Sprintf("L%d", a)
+		if a != b {
+			o.clabel = fmt.Sprintf("L%d–%d", a, b)
+		}
+	default:
+		if d := moveDelta(k); d != 0 {
+			m.moveCursor(o, d)
+		}
+	}
+	return nil
+}
+
+func (m *model) drawComposer(o *overlay) (string, int, int, int) {
+	x, y, w, h := m.ovRect(o)
+	cw := min(60, w-4)
+	s := box("New draft comment · "+o.clabel, []string{o.ctext + "▏", dim("enter save draft · esc cancel")}, cw, 4, true)
+	return s, x + (w-cw)/2, y + (h-4)/2, cw
+}
 
 type fl struct {
 	text string
@@ -320,6 +654,17 @@ type overlay struct {
 	cmdOn bool
 	cmd   string
 
+	// pager-like diff: cursor (index into the shown lines), range anchor (doc
+	// index), comment composer, and the Z maximize flag of any overlay
+	vcur    int
+	ranging bool
+	anchor  int
+	compose bool
+	ctext   string
+	clabel  string
+	cend    int
+	max     bool
+
 	title  string
 	items  []string
 	sel    map[string]bool
@@ -336,6 +681,7 @@ type model struct {
 	w, h      int
 	focus     int
 	zoom      bool
+	drafts    map[[2]int]draft
 	scroll    int
 	cur       [6]int
 	stack     []overlay
@@ -351,6 +697,7 @@ type clearToastMsg struct{ id int }
 
 func newModel() *model {
 	m := &model{
+		drafts: map[[2]int]draft{},
 		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"@org/core", "requested"}},
 		dev: []devItem{
 			{"closes", 12, "Calc is slow", "open", "#9"},
@@ -663,7 +1010,7 @@ func (m *model) ovRect(o *overlay) (int, int, int, int) {
 		return (W - w) / 2, max(1, (H-h)/2), w, h
 	}
 	// The header line stays visible above every overlay.
-	if m.narrow() {
+	if m.narrow() || o.max {
 		return 0, 1, W, H - 1
 	}
 	return 4, 2, W - 8, H - 4
@@ -682,8 +1029,7 @@ func (o *overlay) filtered() []string {
 func (m *model) ovContent(o *overlay) (string, []string) {
 	switch o.kind {
 	case "file":
-		f := files[o.arg]
-		return fmt.Sprintf("2 Diff · %s (%d/%d) · %s [x]", f.path(), o.arg+1, len(files), ctxNames[o.ctx]), fileView(f, o.ctx)
+		return "", nil
 	case "combined":
 		var out []string
 		for _, f := range files {
@@ -722,7 +1068,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "help":
 		return "Keys", []string{
 			"tab / shift+tab   next / previous pane      1-6  jump to a pane",
-			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane",
+			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
 			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
@@ -731,9 +1077,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"Files       enter file diff · D combined diff · l focus conversation",
 			"Meta        enter edit the field",
 			"",
-			"In a diff   tab/1/2 panes (files, diff) · enter in files shows that file",
-			"            x cycles context: hunks only / ±10 lines / full file",
-			"            :n / :p (typed like in less) or J / K: next / previous file",
+			"Overlays    Z maximizes the overlay to the whole area (z zooms a pane on the main screen)",
+			"In a diff   a pager: j/k line cursor · } { next/prev hunk · :n :p or J K next/prev file",
+			"            x toggles hunks only / full file (the cursor line stays on its row)",
+			"            V range (j/k extend) · c or enter comment (enter saves a draft, esc cancels)",
+			"            c alone comments the cursor line · D deletes the draft on the cursor line",
 			"In a picker type to filter · ↑/↓ · tab toggles (multi) · enter picks",
 		}
 	}
@@ -767,39 +1115,7 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		}
 		s = box(o.title, lines, w, h, true)
 	case "file":
-		w1 := min(30, w/3)
-		if m.narrow() {
-			w1 = w
-		}
-		var parts []string
-		if o.focus == 0 || !m.narrow() {
-			var lines []string
-			for k, r := range m.rows {
-				if r.dir {
-					lines = append(lines, dim("▾ "+r.label))
-					continue
-				}
-				name := files[r.fi].name
-				if r.fi == o.arg {
-					name = bold(name) + accent(" ◂")
-				}
-				p := "  "
-				if o.focus == 0 && o.cur == k {
-					p = accent("› ")
-				}
-				lines = append(lines, p+name)
-			}
-			off := max(0, o.cur-(h-2)+1)
-			parts = append(parts, box("1 Files", lines[min(off, len(lines)):], w1, h, o.focus == 0))
-		}
-		if o.focus == 1 || !m.narrow() {
-			w2 := w - w1
-			if m.narrow() {
-				w2 = w
-			}
-			parts = append(parts, m.scrollBox(o, w2, h, o.focus == 1))
-		}
-		s = lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+		s = m.drawDiff(o, w, h)
 	default:
 		s = m.scrollBox(o, w, h, true)
 	}
@@ -828,7 +1144,7 @@ func (m *model) rowOf(fi int) int {
 func (m *model) showFile(o *overlay, fi int) {
 	o.arg = max(0, min(fi, len(files)-1))
 	o.cur = m.rowOf(o.arg)
-	o.scroll = 0
+	o.scroll, o.vcur, o.ranging = 0, 0, false
 }
 
 func place(bg []string, ov string, x, y, w int) {
@@ -891,6 +1207,10 @@ func (m *model) render() string {
 		}
 		s, x, y, w := m.drawOverlay(&m.stack[i])
 		place(lines, s, x, y, w)
+		if o := &m.stack[i]; o.kind == "file" && o.compose {
+			s, x, y, w := m.drawComposer(o)
+			place(lines, s, x, y, w)
+		}
 	}
 	lines = append(lines, ansi.Truncate(m.footer(), m.w, "…"))
 	return strings.Join(lines, "\n")
@@ -910,10 +1230,10 @@ func (m *model) footer() string {
 			}
 			return dim("type to filter · ↑/↓ move · enter pick · esc cancel")
 		case "file":
-			if o.cmdOn {
-				return ":" + o.cmd + "▏" + dim("   n next file · p previous file")
+			if o.compose {
+				return dim("type the comment · enter save draft · esc cancel")
 			}
-			return dim("tab/1/2 panes · j/k · enter open file · x context · :n :p · J/K files · esc close")
+			return dim(fmt.Sprintf("%d drafts · j/k · } { hunk · V range · c comment · x mode · :n :p · Z max · esc close", len(m.drafts)))
 		default:
 			return dim("j/k scroll · esc/backspace close")
 		}
@@ -1123,7 +1443,7 @@ func (m *model) paneKey(k string) tea.Cmd {
 		switch k {
 		case "enter":
 			if r := m.rows[m.cur[pFiles]]; !r.dir {
-				m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles], focus: 1})
+				m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
 			}
 		case "D":
 			m.push(overlay{kind: "combined"})
@@ -1204,71 +1524,14 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 			}
 		}
 	case "file":
-		if top.cmdOn {
-			switch k {
-			case "esc":
-				top.cmdOn = false
-			case "enter":
-				c := top.cmd
-				top.cmdOn = false
-				switch c {
-				case "n", "next":
-					m.showFile(top, top.arg+1)
-				case "p", "prev", "N":
-					m.showFile(top, top.arg-1)
-				default:
-					return m.say("(prototype) unknown command :" + c)
-				}
-			case "backspace":
-				if top.cmd == "" {
-					top.cmdOn = false
-				} else {
-					top.cmd = top.cmd[:len(top.cmd)-1]
-				}
-			default:
-				top.cmd += msg.Text
-			}
-			return nil
-		}
-		switch k {
-		case ":":
-			top.cmdOn, top.cmd = true, ""
-		case "esc", "backspace", "q":
-			m.pop()
-		case "tab", "shift+tab":
-			top.focus = 1 - top.focus
-		case "1", "h", "left":
-			top.focus = 0
-		case "2", "l", "right":
-			top.focus = 1
-		case "x":
-			top.ctx = (top.ctx + 1) % len(ctxNames)
-			top.scroll = 0
-		case "]", "J":
-			m.showFile(top, top.arg+1)
-		case "[", "K":
-			m.showFile(top, top.arg-1)
-		case "enter":
-			if top.focus == 0 && !m.rows[top.cur].dir {
-				m.showFile(top, m.rows[top.cur].fi)
-			}
-		default:
-			d := moveDelta(k)
-			if d == 0 {
-				return nil
-			}
-			if top.focus == 0 {
-				top.cur = m.snap(top.cur, d)
-				break
-			}
-			_, _, _, h := m.ovRect(top)
-			_, lines := m.ovContent(top)
-			top.scroll = max(0, min(top.scroll+d, len(lines)-(h-2)))
-		}
+		return m.diffKey(top, msg)
 	default:
 		switch k {
 		case "esc", "backspace", "q":
 			m.pop()
+			return nil
+		case "Z":
+			top.max = !top.max
 			return nil
 		case "?":
 			if top.kind == "help" {
