@@ -112,13 +112,13 @@ func (it *citem) sysText() string {
 		return it.body
 	}
 	n := len(it.commits)
-	s := fmt.Sprintf("%s pushed %d commit", disp(it.who), n)
+	s := fmt.Sprintf("**%s** pushed %d commit", disp(it.who), n)
 	if n != 1 {
 		s += "s"
 	}
-	s += " (" + it.commits[0][0]
+	s += " (**" + it.commits[0][0] + "**"
 	if n > 1 {
-		s += "…" + it.commits[n-1][0]
+		s += "…**" + it.commits[n-1][0] + "**"
 	}
 	s += ")"
 	if it.forced {
@@ -148,43 +148,67 @@ func dimSHA(s string) string {
 	return b.String() + dim(s[at:])
 }
 
-// sysPaint is a system line's text: dim, SHAs bold, "forced" in its colour.
-func sysPaint(s string) string {
-	a, b, ok := strings.Cut(s, "forced")
+// labelHex is the colour GitHub stores for each fake label.
+var labelHex = map[string]string{
+	"bug": "d73a4a", "api": "0e8a16", "docs": "0075ca", "documentation": "0075ca",
+	"enhancement": "a2eeef", "good first issue": "7057ff", "wip": "fbca04",
+	"help wanted": "008672", "question": "d876e3",
+}
+
+// chip is a label as GitHub draws it: its stored colour behind the name, the
+// text black or white by the colour's luminance, one space each side.
+func chip(name string) string {
+	hx, ok := labelHex[name]
 	if !ok {
-		return dimSHA(s)
+		hx = "ededed"
 	}
-	return dimSHA(a) + forcedStyle("forced") + dimSHA(b)
+	var v int
+	fmt.Sscanf(hx, "%x", &v)
+	r, g, b := v>>16&255, v>>8&255, v&255
+	fg := "\x1b[97m"
+	if (299*r+587*g+114*b)/1000 > 140 {
+		fg = "\x1b[30m"
+	}
+	return bgc(r, g, b, 16+36*(r*5/255)+6*(g*5/255)+b*5/255) + fg + " " + name + " " + "\x1b[39;49m"
 }
 
-// sysLines centres a dim system line with a short rule on each side; a line
-// too wide for the pane drops the rules and wraps, centred.
-func sysLines(text string, cw int) []string {
-	paint := sysPaint
-	centre := func(s string, w int) string {
-		return " " + strings.Repeat(" ", max(0, (cw-1-w)/2)) + s
-	}
-	if rule, _ := sysFit(text, cw); rule > 0 {
-		r := dim(strings.Repeat("─", rule))
-		return []string{centre(r+" "+paint(text)+" "+r, len([]rune(text))+2*(rule+1))}
-	}
-	var out []string
-	for _, l := range wrap(text, max(10, cw-4)) {
-		out = append(out, centre(paint(l), len([]rune(l))))
-	}
-	return out
-}
-
-// sysFit gives the rule length a system line fits with (0 when it must wrap)
-// and the column where its text starts.
-func sysFit(text string, cw int) (rule, start int) {
-	for _, rule := range []int{4, 2} {
-		w := len([]rune(text)) + 2*(rule+1)
-		if w <= cw-1 {
-			return rule, 1 + max(0, (cw-1-w)/2) + rule + 1
+// sysPaint is a system line's text: dim, with **keywords** bold in the normal
+// colour, %%labels%% as chips and "forced" in its colour.
+func sysPaint(s string) string {
+	var out strings.Builder
+	for i, p := range strings.Split(s, "**") {
+		if i%2 == 1 {
+			out.WriteString(bold(p))
+			continue
+		}
+		for j, q := range strings.Split(p, "%%") {
+			switch {
+			case j%2 == 1:
+				out.WriteString(chip(q))
+			case strings.Contains(q, "forced"):
+				a, b, _ := strings.Cut(q, "forced")
+				out.WriteString(dim(a) + forcedStyle("forced") + dim(b))
+			default:
+				out.WriteString(dim(q))
+			}
 		}
 	}
-	return 0, 2
+	return out.String()
+}
+
+// sysIcon is the dim Octicon of a timeline row, in the slot a review's icon uses.
+func sysIcon(it *citem) string {
+	switch it.state {
+	case "label":
+		return ic.tag.String()
+	case "review":
+		return ic.eye.String()
+	case "ci":
+		return ic.checkFail.String()
+	case "branch":
+		return ic.branch.String()
+	}
+	return ic.commit.String()
 }
 
 // commitLine is a commit row of an open push, hung under it with the tree
@@ -259,16 +283,19 @@ func newConv() convState {
 		it("review", "comment", "dave", "20h ago", "A couple of questions.",
 			th(20, "+func Add(a, b int) int { return a + b }", false,
 				rp("dave", "20h ago", "Should Add guard against overflow?")),
-				// a comment on the whole second file
-				&thread{id: newID(), fi: 1, line: 0, loc: -1,
-					replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
-		it("sys", "", "ci", "1d ago", "ci: e2e failed on a1b2c3d"),
-		it("sys", "", "alice", "1d ago", "Alice Chen requested a review from Carol Diaz"),
-		it("sys", "", "alice", "1d ago", "Alice Chen added the label bug"),
-		it("sys", "", "alice", "1d ago", "Alice Chen removed the label wip"),
+			// a comment on the whole second file
+			&thread{id: newID(), fi: 1, line: 0, loc: -1,
+				replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
+		it("sys", "ci", "ci", "1d ago", "Check **e2e** failed on **a1b2c3d**"),
+		it("sys", "review", "alice", "1d ago", "**Alice Chen** requested a review from **Carol Diaz**"),
+		it("sys", "review", "alice", "1d ago", "**Alice Chen** requested a review from the team **org/core**"),
+		it("sys", "label", "alice", "1d ago", "**Alice Chen** added the %%bug%% and %%api%% labels"),
+		it("sys", "label", "alice", "1d ago", "**Alice Chen** removed the %%wip%% label"),
+		it("sys", "branch", "alice", "1d ago", "**Alice Chen** changed the base branch from **develop** to **main**"),
 		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake by waiting for the fixture server before the first request"}),
-		it("sys", "", "ci", "5h ago", "ci: unit tests failed on f9e8d7c"),
-		it("sys", "", "alice", "5h ago", "Alice Chen requested a review from Carol Diaz"),
+		it("sys", "ci", "ci", "5h ago", "Check **unit tests** failed on **f9e8d7c**"),
+		it("sys", "review", "alice", "5h ago", "**Alice Chen** requested a review from **Carol Diaz**"),
+		it("sys", "label", "dave", "5h ago", "**Dave Kim** added the %%enhancement%% and %%good first issue%% labels"),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
 		it("comment", "", "ghost-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
 		it("comment", "", "dependabot", "18h ago", "Bumps golang.org/x/net from 0.41.0 to 0.43.0.\n"+
@@ -704,12 +731,8 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	var snip *thread
 	switch r.kind {
 	case "push", "sys":
-		if r.kind == "push" && r.open {
-			head = whoHead(r.it) + sysPaint(strings.TrimPrefix(r.it.sysText(), disp(r.it.who)))
-			right = meta(false, false, r.it.when)
-			break
-		}
-		return sysLines(r.it.sysText(), cw)
+		head = sysIcon(r.it) + " " + sysPaint(r.it.sysText())
+		right = meta(false, false, r.it.when)
 	case "commit":
 		return []string{commitLine(r.commit, cw, gm)}
 	case "run":

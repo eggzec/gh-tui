@@ -84,7 +84,12 @@ var ic = struct {
 	checkOK, checkFail, checkPending                                glyph
 	merged, prOpen, prDraft, prClosed, issueOpen, issueClosed       glyph
 	blocked                                                         glyph
+	commit, tag, eye, branch                                        glyph // timeline rows
 }{
+	commit:       glyph{"", "•", dim},
+	tag:          glyph{"", "#", dim},
+	eye:          glyph{"", "◉", dim},
+	branch:       glyph{"", "⎇", dim},
 	approved:     glyph{"", "✓", icGreen},
 	changes:      glyph{"", "✗", icRed},
 	commented:    glyph{"", "○", dim},
@@ -1833,6 +1838,13 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 				}
 			}
 			v := strings.Join(vals, ", ")
+			if r.label == "Labels" {
+				v = ""
+				for _, l := range vals {
+					v += chip(l) + " "
+				}
+				v = strings.TrimRight(v, " ")
+			}
 			if v == "" {
 				v = dim("none")
 			}
