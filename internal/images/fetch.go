@@ -76,8 +76,12 @@ type Fetcher struct {
 
 	fetches, decodes chan struct{}
 
-	mu     sync.Mutex
-	mem    *memory
+	mu  sync.Mutex
+	mem *memory
+	// bytes holds what was downloaded, by the key of its read, as the
+	// image it was made at one box is not the one wanted at the next, and
+	// the store may be absent. Only the PNG field is used, for its size.
+	bytes  *memory
 	failed *failures
 	// timeout bounds a shared fetch or read.
 	timeout time.Duration
@@ -97,6 +101,7 @@ func New(web string, opts ...Option) *Fetcher {
 		fetches: make(chan struct{}, maxFetches),
 		decodes: make(chan struct{}, maxDecodes),
 		mem:     newMemory(memoryBytes),
+		bytes:   newMemory(memoryBytes),
 		failed:  newFailures(),
 		flights: make(map[string]*flight),
 		reads:   make(map[string]*read),
@@ -186,11 +191,9 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 	data, keep, err := f.share(ctx, src)
 	if err == nil {
 		img, err = f.decode(ctx, data, box)
-		if keep && f.store != nil && (errors.Is(err, ErrFormat) || errors.Is(err, ErrTooLarge)) {
+		if keep && (errors.Is(err, ErrFormat) || errors.Is(err, ErrTooLarge)) {
 			// Kept bytes that don't decode would fail every session.
-			name := storeKey(src.URL)
-			f.store.Delete(kindData, name)
-			f.store.Delete(kindMeta, name)
+			f.forget(src)
 		}
 	}
 	// A read that other flights share runs to the deadline of the flight
@@ -217,6 +220,23 @@ func (f *Fetcher) fly(ctx context.Context, fl *flight, key string, src Source, b
 	close(fl.done)
 }
 
+// forget drops the bytes kept of src, in memory and in the store.
+func (f *Fetcher) forget(src Source) {
+	f.mu.Lock()
+	f.bytes.remove(readKey(src))
+	f.mu.Unlock()
+	if f.store != nil {
+		name := storeKey(src.URL)
+		f.store.Delete(kindData, name)
+		f.store.Delete(kindMeta, name)
+	}
+}
+
+// readKey names the read of the bytes of src.
+func readKey(src Source) string {
+	return src.URL + "\x00" + strconv.Itoa(src.Index) + "\x00" + strconv.FormatBool(src.Private)
+}
+
 // read is the read of the bytes of an image that the flights for it share,
 // as when the same image is wanted at two sizes, such as while a text
 // column widens, so that it is downloaded once.
@@ -233,7 +253,7 @@ type read struct {
 // other flight for the same image: it stops only when every one has
 // gone.
 func (f *Fetcher) share(ctx context.Context, src Source) (data []byte, keep bool, err error) {
-	key := src.URL + "\x00" + strconv.Itoa(src.Index) + "\x00" + strconv.FormatBool(src.Private)
+	key := readKey(src)
 	f.mu.Lock()
 	r, ok := f.reads[key]
 	if !ok {
@@ -242,8 +262,23 @@ func (f *Fetcher) share(ctx context.Context, src Source) (data []byte, keep bool
 		f.reads[key] = r
 		go func() {
 			defer cancel()
-			d, k, e := f.data(rctx, src)
 			f.mu.Lock()
+			kept, held := f.bytes.get(key)
+			f.mu.Unlock()
+			var (
+				d []byte
+				k bool
+				e error
+			)
+			if held {
+				d, k = kept.PNG, true
+			} else {
+				d, k, e = f.data(rctx, src)
+			}
+			f.mu.Lock()
+			if e == nil && k && !held {
+				f.bytes.put(key, Image{PNG: d})
+			}
 			if f.reads[key] == r {
 				delete(f.reads, key)
 			}
