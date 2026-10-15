@@ -49,7 +49,8 @@ func treeWindow(cl, ih int, anc func(int) []int) (int, []int) {
 		off := max(0, cl-(ih-k)+1)
 		p := anc(off)
 		if len(p) <= k || k >= maxK {
-			return off, p[:min(len(p), k)]
+			// The nearest ancestors win over the outermost ones.
+			return off, p[max(0, len(p)-k):]
 		}
 	}
 }
@@ -87,7 +88,7 @@ func (c *convState) convAnc(t int) []int {
 		}
 	}
 	slices.Reverse(out)
-	return out[:min(len(out), maxPins)]
+	return out[max(0, len(out)-maxPins):]
 }
 
 // convPins are the lines pinned when the conversation's first content line

@@ -1144,16 +1144,6 @@ func (m *model) convKey(k string) tea.Cmd {
 				c.open[x.key] = anyClosed
 			}
 		}
-	case "R":
-		switch {
-		case r.kind == "check":
-			return m.rerun(r.commit[0], r.lbl)
-		case r.kind == "sys" && r.it.state == "ci":
-			if sha, label, ok := ciRef(r.it); ok {
-				return m.rerun(sha, label)
-			}
-		}
-		return m.say("R re-runs a check: move to a CI event or a check under a commit")
 	case ")":
 		return m.nextUnresolved(1)
 	case "(":

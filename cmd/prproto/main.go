@@ -1522,6 +1522,10 @@ type overlay struct {
 	arg    int
 	scroll int
 
+	// the run modal of a check: pane, run, job, log scroll, zoom
+	ap, ar, aj, ascroll int
+	az                  bool
+
 	// the diff overlay: pane focus (0 files, 1 diff), cursor in the files
 	// list (an index into model.rows), context mode and the `:` line
 	focus int
@@ -1820,26 +1824,63 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	return nil, 0
 }
 
+// paneTitle is the left of a pane's border line: its digit and name only.
 func (m *model) paneTitle(i int) string {
-	t := fmt.Sprintf("%d %s", i+1, paneNames[i])
-	if i == pFiles {
+	return fmt.Sprintf("%d %s", i+1, paneNames[i])
+}
+
+// paneInfo is the right of the border line: counts, totals and status.
+func (m *model) paneInfo(i, avail int) string {
+	var parts []string
+	switch i {
+	case pFiles:
 		nf, a, d := m.rangeTotals()
-		t += fmt.Sprintf(" %d · \x1b[32m+%d\x1b[39m \x1b[31m−%d\x1b[39m", nf, a, d)
-	}
-	if i == pMain {
+		pm := green(fmt.Sprintf("+%d", a)) + " " + red(fmt.Sprintf("−%d", d))
+		v := m.viewedCount()
+		sep := dim(" · ")
+		vs := []string{
+			dim(fmt.Sprintf("%d files", nf)) + sep + pm,
+			dim(fmt.Sprintf("%d", nf)) + sep + pm,
+		}
+		if v > 0 {
+			vs = []string{
+				vs[0] + sep + dim(fmt.Sprintf("%d viewed", v)),
+				vs[1] + sep + dim(fmt.Sprintf("%d viewed", v)),
+				vs[1] + sep + dim(fmt.Sprintf("%d✓", v)),
+				vs[1],
+			}
+		}
+		for _, s := range vs {
+			if ansi.StringWidth(s) <= avail {
+				return s
+			}
+		}
+		return ""
+	case pMain:
 		n, tot := m.cv.counts()
-		t += fmt.Sprintf(" · %d of %d shown · filter: %s", n, tot, filterNames[m.cv.filter])
+		parts = append(parts, dim(fmt.Sprintf("%d of %d shown", n, tot)), dim("filter: "+filterNames[m.cv.filter]))
 		if m.cv.hideSys {
-			t += " · events hidden"
+			parts = append(parts, dim("events hidden"))
+		}
+	case pDesc:
+		if m.cv.items[0].edited {
+			parts = append(parts, dim("edited"))
+		}
+	case pMerge:
+		if n := len(blockers()); n > 0 {
+			parts = append(parts, dim(fmt.Sprintf("%d blockers", n)))
 		}
 	}
-	if i == pDesc && m.cv.items[0].edited {
-		t += " · edited"
-	}
-	return t
+	return strings.Join(parts, dim(" · "))
 }
 
 func box(title string, lines []string, w, h int, focus bool) string {
+	return boxR(title, "", lines, w, h, focus)
+}
+
+// boxR is box with info on the right of the border line; the info is dropped
+// when it does not fit beside the title.
+func boxR(title, right string, lines []string, w, h int, focus bool) string {
 	col := dim
 	if focus {
 		col = accent
@@ -1849,7 +1890,16 @@ func box(title string, lines []string, w, h int, focus bool) string {
 	if lipgloss.Width(t) > inner {
 		t = ansi.Truncate(t, inner, "")
 	}
-	b := []string{col("╭"+t) + col(strings.Repeat("─", max(0, inner-lipgloss.Width(t)))+"╮")}
+	rs, rw := "", 0
+	if right != "" {
+		rw = ansi.StringWidth(right) + 3
+		if lipgloss.Width(t)+rw > inner {
+			rw = 0
+		} else {
+			rs = " " + right + " " + col("─")
+		}
+	}
+	b := []string{col("╭"+t) + col(strings.Repeat("─", max(0, inner-lipgloss.Width(t)-rw))) + rs + col("╮")}
 	for i := 0; i < h-2; i++ {
 		l := ""
 		if i < len(lines) {
@@ -1874,6 +1924,8 @@ func (m *model) pane(i int) string {
 	ih := max(1, h-2)
 	off := 0
 	title := m.paneTitle(i)
+	// What fits beside "─ title " and the corner on the border line.
+	info := m.paneInfo(i, w-2-ansi.StringWidth(title)-3-3)
 	var pins []string
 	if i == pMain || i == pDesc {
 		off = min(m.scroll, max(0, len(lines)-ih))
@@ -1897,7 +1949,10 @@ func (m *model) pane(i int) string {
 			}
 		}
 		if len(lines) > ih {
-			title += fmt.Sprintf(" · %d%%", (off+ih)*100/len(lines))
+			if info != "" {
+				info += dim(" · ")
+			}
+			info += dim(fmt.Sprintf("%d%%", (off+ih)*100/len(lines)))
 		}
 	} else {
 		var pl []int
@@ -1908,7 +1963,7 @@ func (m *model) pane(i int) string {
 	}
 	end := min(len(lines), off+ih-len(pins))
 	shown := append(pins, lines[off:end]...)
-	return box(title, shown, w, h, m.focus == i && !(m.split() && m.pfocus == 1))
+	return boxR(title, info, shown, w, h, m.focus == i && !(m.split() && m.pfocus == 1))
 }
 
 // ---------- overlays ----------
@@ -2014,10 +2069,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            issues: " + ic.issueOpen.String() + " open · " + ic.issueClosed.String() + " closed · " + ic.blocked.String() + " blocked",
 			"            right edge of a row: ⋯ 3 folded replies,",
 			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
-			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens its log / the reviewer picker /",
+			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens the check's run / the reviewer picker /",
 			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
-			"Checks      under an open commit (Files, Conversation push) and as Merge blockers; enter on a check opens its log (enter/l/h fold a step, esc closes)",
-			"            R on a failed check re-runs it (asks y/n), then it shows pending everywhere · in Conversation, o on a commit shows it in Files",
+			"Checks      under an open commit (Files, Conversation push) and as Merge blockers; enter on a check opens its workflow run (Actions-style modal):",
+			"            Runs | Jobs | Log, cursor on the failing job, log at the first error · tab/shift+tab/1-2-3 pane · j/k g/G · e/E next/prev error · w/W warning · z zoom",
+			"            R re-run failed jobs · J re-run the job (both ask y/n, then pending everywhere) · esc/backspace close · in Conversation, o on a commit shows it in Files",
 			"Commits     enter on a push opens its commits as a thread; enter on a commit shows only it in Files (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
@@ -2326,7 +2382,7 @@ func (m *model) footer() string {
 			}
 			return dim("j/k move · / filter · enter pick · esc cancel")
 		case "log":
-			return dim("j/k move · enter/l/h fold step · R re-run (asks y/n) · Z max · esc/backspace close")
+			return dim("tab/1-3 pane · j/k move · e/E next/prev error · w/W warning · R rerun failed · J rerun job · z zoom · esc/backspace close")
 		case "reply":
 			return dim("type the reply · enter save · esc cancel")
 		case "editpr":
@@ -2343,7 +2399,7 @@ func (m *model) footer() string {
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
-		pMerge:     "j/k blockers · enter fix/open log · R re-run check · M merge · A auto-merge · U update",
+		pMerge:     "j/k blockers · enter fix/open the run of a check · M merge · A auto-merge · U update",
 		pReviewers: "enter fold/jump to comment · e edit group · R re-request · x remove",
 		pDev:       "enter fold/open · a link · x unlink",
 		pFiles:     "enter diff/fold · space select commit/mark viewed · A all · S since review · D combined · c comment",
@@ -2592,11 +2648,6 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.confirm("Enable auto-merge on #42?", "(prototype) would enable auto-merge")
 		case "U":
 			m.confirm("Update branch with main?", "(prototype) would update the branch")
-		case "R":
-			if b := blockers()[m.cur[pMerge]]; b.kind == "check" {
-				return m.rerun(headSHA(), b.text)
-			}
-			return m.say("R re-runs a check: move to a failing check")
 		case "enter":
 			b := blockers()[m.cur[pMerge]]
 			switch b.kind {
@@ -2724,12 +2775,6 @@ func (m *model) paneKey(k string) tea.Cmd {
 			case r.kind == 'k':
 				m.openLog(fcommits[r.ci].sha, r.label)
 			}
-		case "R":
-			r := m.rows[m.cur[pFiles]]
-			if r.kind != 'k' {
-				return m.say("R re-runs a check: open a commit and move to a failing one")
-			}
-			return m.rerun(fcommits[r.ci].sha, r.label)
 		case "A":
 			m.lo, m.hi = 0, len(fcommits)-1
 			m.rebuild()

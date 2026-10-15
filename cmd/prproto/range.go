@@ -177,11 +177,8 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 		}
 		return t
 	case 'G':
-		nf, a, d := m.rangeTotals()
-		t := ind + bold("Files") + dim(fmt.Sprintf(" %d", nf)) + dim(" · ") + green(fmt.Sprintf("+%d", a)) + " " + red(fmt.Sprintf("−%d", d))
-		if v := m.viewedCount(); v > 0 {
-			t += dim(fmt.Sprintf(" · %d viewed", v))
-		}
+		// The totals are in the pane's border title, not repeated here.
+		t := ind + bold("Files")
 		if !m.foldOpen("g:files", true) {
 			t += dim(" ⋯")
 		}
@@ -195,7 +192,12 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 			glyph, sha, subj = accent(commitGlyph), boldAccent(c.sha), c.subj
 		}
 		left := ind + glyph + " " + sha + " " + checkIcon(commitState(c.sha)) + " " + subj
-		return rightAlign(left, dim(c.who+"  "+c.ago), cw)
+		// The subject wins: the author shows only when the whole row fits with it.
+		right := c.who + "  " + c.ago
+		if ansi.StringWidth(left)+1+ansi.StringWidth(right) > cw {
+			right = c.ago
+		}
+		return rightAlign(left, dim(right), cw)
 	case 'k':
 		ck := runOf(fcommits[r.ci].sha, r.label)
 		_, job, _ := strings.Cut(r.label, " / ")
