@@ -130,16 +130,37 @@ func (it *citem) sysText() string {
 // forcedStyle is the dim warning colour of "forced".
 var forcedStyle = sty("130")
 
+var (
+	shaRe   = regexp.MustCompile(`\b[0-9a-f]{7}\b`)
+	boldDim = func(t string) string {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("8")).Bold(true).Render(t)
+	}
+)
+
+// dimSHA is dim text with its short SHAs bold.
+func dimSHA(s string) string {
+	var b strings.Builder
+	at := 0
+	for _, ix := range shaRe.FindAllStringIndex(s, -1) {
+		b.WriteString(dim(s[at:ix[0]]) + boldDim(s[ix[0]:ix[1]]))
+		at = ix[1]
+	}
+	return b.String() + dim(s[at:])
+}
+
+// sysPaint is a system line's text: dim, SHAs bold, "forced" in its colour.
+func sysPaint(s string) string {
+	a, b, ok := strings.Cut(s, "forced")
+	if !ok {
+		return dimSHA(s)
+	}
+	return dimSHA(a) + forcedStyle("forced") + dimSHA(b)
+}
+
 // sysLines centres a dim system line with a short rule on each side; a line
 // too wide for the pane drops the rules and wraps, centred.
 func sysLines(text string, cw int) []string {
-	paint := func(s string) string {
-		a, b, ok := strings.Cut(s, "forced")
-		if !ok {
-			return dim(s)
-		}
-		return dim(a) + forcedStyle("forced") + dim(b)
-	}
+	paint := sysPaint
 	centre := func(s string, w int) string {
 		return " " + strings.Repeat(" ", max(0, (cw-1-w)/2)) + s
 	}
@@ -166,11 +187,10 @@ func sysFit(text string, cw int) (rule, start int) {
 	return 0, 2
 }
 
-// commitLine is a commit row of an open push: it starts where the push line's
-// text does, and a subject too long for the room is cut with an ellipsis.
-func commitLine(text string, c [2]string, cw int, gm string) string {
-	_, start := sysFit(text, cw)
-	left := strings.Repeat(" ", max(0, start-1)) + gm + dim(c[0]) + "  " + c[1]
+// commitLine is a commit row of an open push, hung under it with the tree
+// guides like any other thread.
+func commitLine(c [2]string, cw int, gm string) string {
+	left := gm + boldDim(c[0]) + "  " + c[1]
 	return rightAlign(left, checkIcon(commitState(c[0])), cw)
 }
 
@@ -407,7 +427,7 @@ func segLines(r crow, cw int, gb string, kids bool) []string {
 			out = append(out, pad+l)
 		}
 	case !r.open:
-		out = []string{pad + s.summary + hidden(*s, w)}
+		out = []string{pad + strings.TrimRight(s.summary, " ") + hidden(*s, w)}
 	default:
 		out = append(out, pad+s.summary)
 		if s.text != "" {
@@ -684,9 +704,14 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	var snip *thread
 	switch r.kind {
 	case "push", "sys":
+		if r.kind == "push" && r.open {
+			head = whoHead(r.it) + sysPaint(strings.TrimPrefix(r.it.sysText(), disp(r.it.who)))
+			right = meta(false, false, r.it.when)
+			break
+		}
 		return sysLines(r.it.sysText(), cw)
 	case "commit":
-		return []string{commitLine(r.it.sysText(), r.commit, cw, gm)}
+		return []string{commitLine(r.commit, cw, gm)}
 	case "run":
 		var who []string
 		for _, it := range r.run {

@@ -252,7 +252,7 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 		k := fmt.Sprintf("%s.%d", key, i)
 		descHdr = append(descHdr, descHead{k, off + len(out)})
 		if !descOpen[k] {
-			out = append(out, s.summary+hidden(s, w))
+			out = append(out, strings.TrimRight(s.summary, " ")+hidden(s, w))
 			continue
 		}
 		out = append(out, s.summary)
