@@ -75,6 +75,9 @@ type visitState struct {
 	// nothing of its content, and may still hold something: nothing is saved
 	// over it.
 	readFailed bool
+	// warned is set once the user was told that marks aren't kept after a
+	// failed read, so that it is said once per modal.
+	warned bool
 	// watched is how long the tabs that count showed before the stretch that
 	// began at since, which is running while on is set.
 	watched time.Duration
@@ -297,8 +300,12 @@ func (m *detailModal) writeVisit() error {
 		LastSeen: visits.LastSeen{Head: m.detail.HeadSHA, At: v.opened},
 		Viewed:   maps.Clone(v.prev.Viewed),
 	})
+	if err != nil {
+		// Nothing was written, so a save still to run keeps its turn.
+		return err
+	}
 	v.seq.wrote = v.seq.next
-	return err
+	return nil
 }
 
 // isNew reports whether something that login did at time at arrived since the

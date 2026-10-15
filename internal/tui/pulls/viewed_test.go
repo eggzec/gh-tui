@@ -1,13 +1,18 @@
 package pulls
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/visits"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // blobbed returns a service whose files each have a blob named after their path.
@@ -370,6 +375,125 @@ func TestViewedSavesLandInOrder(t *testing.T) {
 	st, saves := store.state()
 	if saves != 1 || len(st.Viewed) != 2 {
 		t.Errorf("kept %v after %d saves, want the later marks in one save", st.Viewed, saves)
+	}
+}
+
+// toastsOf runs cmd, and the commands of a batch, and returns the toasts they ask
+// for.
+func toastsOf(cmd tea.Cmd) []ui.NotifyMsg {
+	if cmd == nil {
+		return nil
+	}
+	switch msg := cmd().(type) {
+	case tea.BatchMsg:
+		var out []ui.NotifyMsg
+		for _, c := range msg {
+			out = append(out, toastsOf(c)...)
+		}
+		return out
+	case ui.NotifyMsg:
+		return []ui.NotifyMsg{msg}
+	}
+	return nil
+}
+
+func TestViewedBeforeTheVisitLoadsSaysSo(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	m.visit.loaded = false
+	file := m.files.set.list()[0]
+	got := toastsOf(m.toggleViewed(file, false))
+	if len(got) != 1 || got[0].Level != toast.Info || !strings.Contains(got[0].Text, "Still reading") {
+		t.Errorf("toasts = %+v, want one info that the files viewed are still being read", got)
+	}
+	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 || m.files.diff.Collapsed(file.Path) {
+		t.Errorf("the mark changed before the visit loaded: %d saves, %d viewed", saves, m.files.viewed)
+	}
+}
+
+func TestViewedAfterAFailedReadWarnsOnce(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{err: errors.New("unreadable")}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	if !m.visit.readFailed {
+		t.Fatal("the failed read did not set readFailed")
+	}
+	files := m.files.set.list()
+	first := toastsOf(m.toggleViewed(files[0], false))
+	if len(first) != 1 || first[0].Level != toast.Warning || !strings.Contains(first[0].Text, "won't be kept") {
+		t.Errorf("toasts = %+v, want one warning that marks won't be kept", first)
+	}
+	if !m.files.diff.Collapsed(files[0].Path) || m.files.viewed != 1 {
+		t.Error("the mark did not change for the session")
+	}
+	if again := toastsOf(m.toggleViewed(files[1], false)); len(again) != 0 {
+		t.Errorf("a second mark warned again: %+v", again)
+	}
+	if m.files.viewed != 2 {
+		t.Errorf("%d files viewed, want 2", m.files.viewed)
+	}
+	if _, saves := store.state(); saves != 0 {
+		t.Errorf("%d saves over a state that could not be read, want none", saves)
+	}
+}
+
+func TestViewedSaveThatFailsLetsALaterOneRun(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{saveFails: 1}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
+	first := m.saveViewed()
+	m.visit.prev.Viewed = map[string]string{"a.go": "1", "b.go": "2"}
+	second := m.saveViewed()
+	got := toastsOf(first)
+	if len(got) != 1 || got[0].Level != toast.Warning {
+		t.Errorf("toasts = %+v, want one warning for the failed save", got)
+	}
+	second()
+	st, saves := store.state()
+	if saves != 1 || len(st.Viewed) != 2 {
+		t.Errorf("kept %v after %d saves, want the later marks kept after the failure", st.Viewed, saves)
+	}
+}
+
+func TestViewedSaveThatFailsLetsAnOlderOneRun(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{saveFails: 1}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
+	older := m.saveViewed()
+	m.visit.prev.Viewed = map[string]string{"a.go": "1", "b.go": "2"}
+	newer := m.saveViewed()
+	newer()
+	older()
+	st, saves := store.state()
+	if saves != 1 || len(st.Viewed) != 1 {
+		t.Errorf("kept %v after %d saves, want the older marks kept after the newer save failed", st.Viewed, saves)
+	}
+}
+
+func TestVisitWriteThatFailsLetsAPendingSaveRun(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{}
+	_, m, advance := visiting(t, store, nil)
+	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
+	late := m.saveViewed()
+	advance(4 * time.Second)
+	store.mu.Lock()
+	store.saveFails = 1
+	store.mu.Unlock()
+	if err := m.writeVisit(); err == nil {
+		t.Fatal("writeVisit returned no error from a failing store")
+	}
+	late()
+	st, saves := store.state()
+	if saves != 1 || st.Viewed["a.go"] != "1" {
+		t.Errorf("kept %+v after %d saves, want the pending save to keep the marks", st, saves)
 	}
 }
 
