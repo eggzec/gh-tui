@@ -48,6 +48,48 @@ func fgc(r, g, b, c int) string {
 	return fmt.Sprintf("\x1b[38;5;%dm", c)
 }
 
+// tint colours text with a truecolor foreground, 256 colour fallback.
+func tint(r, g, b, c int) func(string) string {
+	return func(s string) string { return fgc(r, g, b, c) + s + "\x1b[39m" }
+}
+
+// Thread state icons: unresolved is a filled dot, resolved a dim check.
+var (
+	openC     = tint(0xe5, 0xc0, 0x7b, 180)
+	resolvedC = tint(0x5c, 0x7a, 0x5c, 65)
+)
+
+const (
+	openIcon     = "●"
+	resolvedIcon = "✓"
+	outdatedIcon = "◌"
+)
+
+// threadIcon is the state icon of a thread.
+func threadIcon(resolved bool) string {
+	if resolved {
+		return resolvedC(resolvedIcon)
+	}
+	return openC(openIcon)
+}
+
+// rightAlign puts right at the right edge of a w wide row. A long row loses
+// the end of left first, then the right part.
+func rightAlign(left, right string, w int) string {
+	if right == "" {
+		return left
+	}
+	rw := ansi.StringWidth(right)
+	if ansi.StringWidth(left)+rw+1 > w {
+		left = ansi.Truncate(left, max(1, w-rw-1), "…")
+	}
+	lw := ansi.StringWidth(left)
+	if lw+rw+1 > w {
+		return ansi.Truncate(left, w, "…")
+	}
+	return left + strings.Repeat(" ", w-lw-rw) + right
+}
+
 // selRow marks the selected row l, w columns wide: the first column becomes
 // the marker, and a focused pane adds a dim background across the row. The
 // row keeps its own foreground colours.
@@ -1446,6 +1488,9 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit the PR, or your comment/reply",
 			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
 			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
+			"Icons       ● unresolved thread · ✓ (dim green) resolved thread, row dimmed · ◌ outdated (code changed)",
+			"            reviews: ✓ approved · ✗ changes requested · ○ commented  (right edge: ⋯ 3 folded replies,",
+			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
 			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",

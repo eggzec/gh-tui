@@ -58,7 +58,7 @@ func fileGlyph(name string) string {
 func threadBlock(t *thread, w int) []string {
 	head := fileGlyph(files[t.fi].name) + " " + files[t.fi].path() + ":" + t.span()
 	if t.outdated {
-		head += " · outdated"
+		head += " " + outdatedIcon
 	}
 	out := []string{dim(head)}
 	doc := fileDoc(files[t.fi], t.fi)
@@ -219,8 +219,12 @@ func (m *model) crows(all bool) []crow {
 	c := &m.cv
 	op := func(k string, def bool) bool { return all || c.isOpen(k, def) }
 	var rows []crow
-	addReplies := func(rl *[]*reply, depth int, parent string, th *thread) {
-		for _, r := range *rl {
+	// skip leaves out the first comment of a thread: its row is the thread's.
+	addReplies := func(rl *[]*reply, depth int, parent string, th *thread, skip int) {
+		for i, r := range *rl {
+			if i < skip {
+				continue
+			}
 			rows = append(rows, crow{key: fmt.Sprintf("rp:%d", r.id), kind: "reply", depth: depth, parent: parent, th: th, rp: r, rl: rl})
 		}
 	}
@@ -243,10 +247,10 @@ func (m *model) crows(all bool) []crow {
 			to := op(tk, !t.resolved)
 			rows = append(rows, crow{key: tk, kind: "thread", depth: depth + 1, parent: key, fold: true, open: to, it: it, th: t})
 			if to {
-				addReplies(&t.replies, depth+2, tk, t)
+				addReplies(&t.replies, depth+2, tk, t, 1)
 			}
 		}
-		addReplies(&it.replies, depth+1, key, nil)
+		addReplies(&it.replies, depth+1, key, nil, 0)
 	}
 	addItem(c.items[0], 0, "")
 	var vis []*citem
@@ -331,28 +335,37 @@ func guides(rows []crow, i int) (first, body string, kids bool) {
 
 func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	closed := r.fold && !r.open
-	fold := func() string {
-		if closed {
-			return dim(" ⋯")
+	// A folded node's dim summary: "⋯ 3" for folded replies.
+	fold := func(n int) string {
+		if !closed || n == 0 {
+			return ""
 		}
-		return ""
+		return fmt.Sprintf("⋯ %d", n)
 	}
 	bw := max(10, cw-3*(r.depth+1)-3)
-	tag := func(edited, pending bool) string {
-		s := ""
-		if pending {
-			s += yellow(" · pending reply")
-		}
+	// meta joins the secondary info of the right edge, dim.
+	meta := func(pending, edited bool, parts ...string) string {
+		var p []string
 		if edited {
-			s += dim(" · edited")
+			p = append(p, "edited")
+		}
+		for _, s := range parts {
+			if s != "" {
+				p = append(p, s)
+			}
+		}
+		s := dim(strings.Join(p, "  "))
+		if pending {
+			s = yellow("pending") + "  " + s
 		}
 		return s
 	}
-	var head string
+	var head, right string
 	var body []string
 	switch r.kind {
 	case "pr":
-		head = bold("#42 "+m.cv.title) + dim(" · alice opened this 3 days ago") + tag(r.it.edited, false) + fold()
+		head = bold("#42 " + m.cv.title)
+		right = meta(false, r.it.edited, "alice · 3d")
 		if r.open {
 			body = wrap(r.it.body, bw)
 		}
@@ -367,72 +380,85 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		if closed {
 			lead = dim("⋯ ")
 		}
-		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", ")+" · "+r.run[0].when+" – "+r.run[len(r.run)-1].when)
+		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", "))
+		right = meta(false, false, r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
-		head = bold(r.it.who) + dim(" commented · "+r.it.when) + tag(r.it.edited, false)
-		if closed {
-			head += dim(fmt.Sprintf(" · %d replies", len(r.it.replies))) + fold()
-		}
+		head = bold(r.it.who) + dim(" commented")
+		right = meta(false, r.it.edited, fold(len(r.it.replies)), r.it.when)
 		body = wrap(r.it.body, bw)
 	case "commit":
-		head = dim("◆ ") + bold(r.it.who) + dim(" pushed a commit · "+r.it.when)
+		head = dim("◆ ") + bold(r.it.who) + dim(" pushed a commit")
+		right = meta(false, false, r.it.when)
 		for _, l := range wrap(r.it.body, bw) {
 			body = append(body, cyan(l))
 		}
 	case "event":
-		head = yellow("● ") + bold(r.it.who) + dim(" · "+r.it.when)
+		head = yellow("● ") + bold(r.it.who)
+		right = meta(false, false, r.it.when)
 		body = wrap(r.it.body, bw)
 	case "review":
 		switch r.it.state {
 		case "approve":
-			head = green("✓ ") + bold(r.it.who) + green(" approved")
+			head = green("✓ ") + bold(r.it.who)
 		case "changes":
-			head = red("✗ ") + bold(r.it.who) + red(" requested changes")
+			head = red("✗ ") + bold(r.it.who)
 		default:
-			head = dim("● ") + bold(r.it.who) + " reviewed"
+			head = dim("○ ") + bold(r.it.who)
 		}
-		head += dim(" · " + r.it.when)
-		if n := len(r.it.threads); n > 0 {
-			un := 0
-			for _, t := range r.it.threads {
-				if !t.resolved {
-					un++
-				}
-			}
-			head += dim(fmt.Sprintf(" · %d threads", n))
-			if un > 0 {
-				head += yellow(fmt.Sprintf(" · %d unresolved", un))
-			}
-		}
-		head += tag(r.it.edited, false)
+		sum := ""
 		if closed {
-			n := len(r.it.replies)
-			for _, t := range r.it.threads {
-				n += len(t.replies)
+			if n := len(r.it.threads); n > 0 {
+				sum = fmt.Sprintf("%d threads ⋯", n)
+			} else {
+				n := len(r.it.replies)
+				sum = fold(n)
 			}
-			head += dim(fmt.Sprintf(" · %d replies", n)) + fold()
 		}
+		right = meta(false, r.it.edited, sum, r.it.when)
 		if r.open {
 			body = wrap(r.it.body, bw)
 		}
 	case "thread":
-		st := yellow("unresolved")
-		if r.th.resolved {
-			st = green("resolved")
+		// The thread is its first comment's author; the file shows only in the
+		// snippet block, and in the summary of a folded thread.
+		first := r.th.replies[0]
+		who := "@" + first.who
+		if closed {
+			head = threadIcon(r.th.resolved) + " " + bold(who) + dim(" · "+r.th.label())
+			if r.th.resolved {
+				head = threadIcon(true) + " " + dim(who+" · "+r.th.label())
+			}
+		} else {
+			line, _, _ := strings.Cut(first.body, "\n")
+			if r.th.resolved {
+				head = threadIcon(true) + " " + dim(who+"  "+line)
+			} else {
+				head = threadIcon(false) + " " + bold(who) + "  " + dim(line)
+			}
 		}
-		head = bold(r.th.label()) + " " + st + dim(fmt.Sprintf(" · %d replies", len(r.th.replies))) + fold()
+		if r.th.outdated {
+			head += " " + dim(outdatedIcon)
+		}
+		right = meta(false, first.edited, fold(len(r.th.replies)-1), first.when)
 		if r.open {
-			body = threadBlock(r.th, cw-3*(r.depth+1)-3)
+			for _, l := range threadBlock(r.th, cw-3*(r.depth+1)-3-2) {
+				if l != "" {
+					l = "  " + dim("▏ ") + l
+				}
+				body = append(body, l)
+			}
+			body = append(body, wrap(first.body, bw)...)
 		}
 	case "reply":
-		head = bold(r.rp.who) + dim(" · "+r.rp.when) + tag(r.rp.edited, r.rp.pending)
+		head = bold(r.rp.who)
+		right = meta(r.rp.pending, r.rp.edited, r.rp.when)
+	}
+	if r.kind == "reply" {
 		body = wrap(r.rp.body, bw)
 	}
-	out := []string{gm + head}
+	out := []string{rightAlign(gm+head, right, cw)}
 	for _, l := range body {
 		switch {
-		case r.kind == "thread" && l != "":
-			l = gb + dim("│  ") + l
 		case kids:
 			l = gb + dim("│  ") + l
 		default:
@@ -711,16 +737,32 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 			if t.fi != fi || t.loc != loc {
 				continue
 			}
-			st := yellow("unresolved")
-			if t.resolved {
-				st = green("resolved")
+			first := t.replies[0]
+			isOpen := m.cv.isOpen(thKey(t), !t.resolved)
+			var text string
+			switch {
+			case !isOpen:
+				text = bold("@"+first.who) + dim(" · "+t.label())
+				if n := len(t.replies) - 1; n > 0 {
+					text += dim(fmt.Sprintf(" ⋯ %d", n))
+				}
+			case t.resolved:
+				text = dim("@" + first.who + ": " + first.body)
+			default:
+				text = bold("@"+first.who) + dim(": ") + first.body
+			}
+			if t.outdated {
+				text += " " + dim(outdatedIcon)
 			}
 			out = append(out, vrow{li: li, draft: true, dk: [3]int{-t.id, 0, 0},
-				text: yellow("   ┌ ") + rev(" thread ") + " " + bold(t.label()) + " " + st + dim(fmt.Sprintf(" · %d replies", len(t.replies)))})
-			if !m.cv.isOpen(thKey(t), !t.resolved) {
+				text: yellow("   ┌ ") + rev(" thread ") + " " + threadIcon(t.resolved) + " " + text})
+			if !isOpen {
 				continue
 			}
 			for i, r := range t.replies {
+				if i == 0 {
+					continue
+				}
 				gl := "├─"
 				if i == len(t.replies)-1 {
 					gl = "╰─"
