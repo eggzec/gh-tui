@@ -83,7 +83,7 @@ func threadBlock(t *thread, w int) []string {
 		}
 		out = append(out, renderDL(x, max(24, w)+4, st))
 	}
-	return append(out, "")
+	return out
 }
 
 type citem struct {
@@ -275,6 +275,7 @@ type crow struct {
 	commit            [2]string // a commit row of an open push: short SHA and subject
 	sg                *seg      // a "seg" row: a details block or text that follows one in a body
 	lvl               int       // nesting of a seg row inside details blocks
+	closes            []int     // levels of the open blocks that end after this seg row, innermost first
 }
 
 // seg is a part of a body: text, or a <details> block with its summary, its
@@ -381,24 +382,29 @@ func segLines(r crow, cw int, gb string, kids bool) []string {
 	if kids {
 		mark = dim("│")
 	}
-	pad := gb + mark + strings.Repeat(" ", max(0, start-lipgloss.Width(gb)-1)) + strings.Repeat(dim("▏ "), r.lvl)
+	base := gb + mark + strings.Repeat(" ", max(0, start-lipgloss.Width(gb)-1))
+	pad := base + strings.Repeat(dim("│ "), r.lvl)
 	w := max(10, cw-start-2*r.lvl)
 	var out []string
 	s := r.sg
-	if !s.det {
+	switch {
+	case !s.det:
 		for _, l := range mdPlain(s.text, w) {
 			out = append(out, pad+l)
 		}
-		return out
-	}
-	if !r.open {
-		return []string{pad + s.summary + dim(" ⋯")}
-	}
-	out = append(out, pad+s.summary)
-	if s.text != "" {
-		for _, l := range mdPlain(s.text, w-2) {
-			out = append(out, pad+dim("▏ ")+l)
+	case !r.open:
+		out = []string{pad + s.summary + hidden(*s, w)}
+	default:
+		out = append(out, pad+s.summary)
+		if s.text != "" {
+			for _, l := range mdPlain(s.text, w-2) {
+				out = append(out, pad+dim("│ ")+l)
+			}
 		}
+	}
+	// The blocks that end with this row close under their own guide.
+	for _, lv := range r.closes {
+		out = append(out, base+strings.Repeat(dim("│ "), lv)+dim("╰─"))
 	}
 	return out
 }
@@ -503,6 +509,8 @@ func (m *model) crows(all bool) []crow {
 			rows = append(rows, crow{key: k, kind: "seg", depth: depth, parent: parent, fold: s.det, open: o, it: it, sg: s, lvl: lvl})
 			if o {
 				addSegs(it, s.rest, lvl+1, depth, k, k)
+				last := &rows[len(rows)-1]
+				last.closes = append(last.closes, lvl)
 			}
 		}
 	}
@@ -747,7 +755,7 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 			tail = strings.TrimLeft(tail, " ")
 		}
 		if tail != "" {
-			rest = wrap(tail, max(10, cw-start))
+			rest = mdPlain(tail, max(10, cw-start))
 		}
 	} else {
 		snip = nil
@@ -795,8 +803,12 @@ func (m *model) convLines(cw int) []string {
 			}
 		}
 		out = append(out, ls...)
-		if r.depth == 0 && i+1 < len(rows) && rows[i+1].depth == 0 {
-			out = append(out, "")
+		// One blank line between top-level items; system lines group tight.
+		if i+1 < len(rows) && rows[i+1].depth == 0 {
+			ev := func(r crow) bool { return r.it != nil && r.it.isEvent() }
+			if !(ev(r) && ev(rows[i+1])) {
+				out = append(out, "")
+			}
 		}
 	}
 	return out

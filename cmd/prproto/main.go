@@ -252,7 +252,7 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 		k := fmt.Sprintf("%s.%d", key, i)
 		descHdr = append(descHdr, descHead{k, off + len(out)})
 		if !descOpen[k] {
-			out = append(out, s.summary+dim(" ⋯"))
+			out = append(out, s.summary+hidden(s, w))
 			continue
 		}
 		out = append(out, s.summary)
@@ -262,10 +262,37 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 		}
 		in = append(in, mdSegs(s.rest, w-2, k, off+len(out)+len(in))...)
 		for _, l := range in {
-			out = append(out, dim("▏ ")+l)
+			out = append(out, dim("│ ")+l)
 		}
+		out = append(out, dim("╰─"))
 	}
 	return out
+}
+
+// segCount is the lines a block hides: its text, and its nested parts, each
+// block as its summary and what it holds.
+func segCount(s seg, w int) int {
+	n := 0
+	if s.text != "" {
+		n = len(mdPlain(s.text, w-2))
+	}
+	for _, c := range s.rest {
+		if c.det {
+			n += 1 + segCount(c, w-2)
+		} else {
+			n += len(mdPlain(c.text, w-2))
+		}
+	}
+	return n
+}
+
+// hidden is the dim marker of a folded block: the ⋯ and its hidden lines.
+func hidden(s seg, w int) string {
+	n := segCount(s, w)
+	if n == 1 {
+		return dim(" ⋯ 1 line")
+	}
+	return dim(fmt.Sprintf(" ⋯ %d lines", n))
 }
 
 // toggleDesc opens (want > 0), closes (want < 0) or flips (0) the details
@@ -327,6 +354,7 @@ func mdPlain(body string, w int) []string {
 			fence = !fence
 		case fence:
 			code = append(code, l)
+		case t == "": // no blank lines inside an item
 		case strings.HasPrefix(t, "#"):
 			out = append(out, bold(strings.TrimSpace(strings.TrimLeft(t, "#"))))
 		case strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* "):
