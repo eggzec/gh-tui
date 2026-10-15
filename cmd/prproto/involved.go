@@ -37,6 +37,44 @@ func (m *model) toggleFold(key string, def bool) {
 	m.fold[key] = !m.foldOpen(key, def)
 }
 
+// nodeMove is l and h in the Involved and Development trees: a header opens
+// or closes like a fold, l on an open node steps to its first child, h on a
+// closed node or a leaf goes to its parent.
+func (m *model) nodeMove(right bool) {
+	p := m.focus
+	var nodes []tnode
+	if p == pReviewers {
+		nodes = m.involved()
+	} else {
+		nodes = m.devNodes()
+	}
+	cur := m.cur[p]
+	n := nodes[cur]
+	if n.kind == "hdr" {
+		def := true
+		if n.grp == "com" {
+			def = len(m.commenters()) <= 3
+		}
+		open := m.foldOpen(n.key, def)
+		if right != open {
+			m.toggleFold(n.key, def)
+			return
+		}
+	}
+	if right {
+		if cur+1 < len(nodes) && nodes[cur+1].depth > n.depth {
+			m.cur[p] = cur + 1
+		}
+		return
+	}
+	for j := cur - 1; j >= 0; j-- {
+		if nodes[j].depth < n.depth {
+			m.cur[p] = j
+			return
+		}
+	}
+}
+
 func hdrText(open bool, name string, n int) string {
 	a := "▾ "
 	if !open {

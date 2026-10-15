@@ -274,9 +274,24 @@ func (m *model) logKey(o *overlay, k string) tea.Cmd {
 	case "enter":
 		sets(!o.stepOpen(step, steps[step]))
 	case "l", "right":
-		sets(true)
+		switch {
+		case !rows[o.pcur].hdr:
+		case !o.stepOpen(step, steps[step]):
+			sets(true)
+		case o.pcur+1 < len(rows) && rows[o.pcur+1].step == step:
+			o.pcur++
+		}
 	case "h", "left":
-		sets(false)
+		switch {
+		case !rows[o.pcur].hdr:
+			for i, r := range rows {
+				if r.hdr && r.step == step {
+					o.pcur = i
+				}
+			}
+		case o.stepOpen(step, steps[step]):
+			sets(false)
+		}
 	case "R":
 		return m.rerun(o.text, o.title)
 	default:

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -142,7 +143,7 @@ func (m *model) rebuild() {
 			}
 		}
 	}
-	rows = append(rows, row{kind: 'G'})
+	rows = append(rows, row{kind: 'r'}, row{kind: 'G'})
 	if m.foldOpen("g:files", true) {
 		rows = append(rows, m.buildFileRows(1)...)
 	}
@@ -158,36 +159,40 @@ func (m *model) rebuild() {
 
 func (m *model) fileRowLine(r row, cw int) string {
 	ind := " " + strings.Repeat("  ", r.depth)
-	arrow := func(open bool) string {
-		if open {
-			return "▾ "
-		}
-		return "▸ "
-	}
 	switch r.kind {
+	case 'r':
+		return dim(strings.Repeat("─", max(0, cw)))
 	case 'g':
+		// A section title, not a tree node: no glyph, the fold shows in what follows.
 		open := m.foldOpen("g:commits", false)
-		t := ind + bold(arrow(open)+"Commits") + " "
+		t := ind + bold("Commits") + " "
 		if !open && m.allSelected() {
-			return t + dim(fmt.Sprintf("all %d commits", len(fcommits)))
+			return t + dim(fmt.Sprintf("all %d commits ⋯", len(fcommits)))
 		}
-		return t + dim(fmt.Sprintf("%d of %d · %s", m.hi-m.lo+1, len(fcommits), m.rangeShas()))
+		t += dim(fmt.Sprintf("%d of %d · %s", m.hi-m.lo+1, len(fcommits), m.rangeShas()))
+		if !open {
+			t += dim(" ⋯")
+		}
+		return t
 	case 'G':
 		nf, a, d := m.rangeTotals()
-		t := ind + bold(arrow(m.foldOpen("g:files", true))+"Files") + dim(fmt.Sprintf(" %d", nf)) + dim(" · ") + green(fmt.Sprintf("+%d", a)) + " " + red(fmt.Sprintf("−%d", d))
+		t := ind + bold("Files") + dim(fmt.Sprintf(" %d", nf)) + dim(" · ") + green(fmt.Sprintf("+%d", a)) + " " + red(fmt.Sprintf("−%d", d))
 		if v := m.viewedCount(); v > 0 {
 			t += dim(fmt.Sprintf(" · %d viewed", v))
+		}
+		if !m.foldOpen("g:files", true) {
+			t += dim(" ⋯")
 		}
 		return t
 	case 'm':
 		return ind + dim("── your last review ──")
 	case 'c':
 		c := fcommits[r.ci]
-		mark, subj := dim("○"), dim(c.subj)
+		glyph, sha, subj := dim(commitGlyph), boldDim(c.sha), dim(c.subj)
 		if m.inRange(r.ci) {
-			mark, subj = accent("●"), c.subj
+			glyph, sha, subj = accent(commitGlyph), boldAccent(c.sha), c.subj
 		}
-		left := ind + mark + " " + checkIcon(commitState(c.sha)) + " " + boldDim(c.sha) + " " + subj
+		left := ind + glyph + " " + sha + " " + checkIcon(commitState(c.sha)) + " " + subj
 		return rightAlign(left, dim(c.who+"  "+c.ago), cw)
 	case 'k':
 		ck := runOf(fcommits[r.ci].sha, r.label)
@@ -234,6 +239,83 @@ func (m *model) filesSpace() {
 		m.hint = "space selects a commit or marks a file viewed"
 	}
 	m.rebuild()
+	// Move on to the next item of the same kind, so space can go down a list.
+	for j := m.cur[pFiles] + 1; j < len(m.rows); j++ {
+		if n := m.rows[j]; r.kind == 'c' && n.kind == 'c' || r.isFile() && n.isFile() {
+			m.cur[pFiles] = j
+			break
+		}
+	}
+}
+
+const commitGlyph = "" // nf-oct-git_commit
+
+var boldAccent = func(t string) string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true).Render(t)
+}
+
+// rowFold says whether a Files row is a fold, with the key and default of its
+// state.
+func (m *model) rowFold(r row) (key string, def, ok bool) {
+	switch r.kind {
+	case 'g':
+		return "g:commits", false, true
+	case 'G':
+		return "g:files", true, true
+	case 'c':
+		sha := fcommits[r.ci].sha
+		return "c:" + sha, false, len(commitChecks(sha)) > 0
+	case 'w':
+		return "w:" + fcommits[r.ci].sha + "|" + r.label, true, true
+	}
+	return "", false, false
+}
+
+// selectable tells whether the cursor can rest on a row of the Files tree.
+func (r row) selectable() bool { return !r.dir && r.kind != 'm' && r.kind != 'r' }
+
+// filesRight is l in the tree: open a closed node, step into an open one.
+// It reports false on a leaf, which leaves the key to the pane.
+func (m *model) filesRight() bool {
+	cur := m.cur[pFiles]
+	r := m.rows[cur]
+	key, def, ok := m.rowFold(r)
+	if !ok {
+		return false
+	}
+	if !m.foldOpen(key, def) {
+		m.toggleFold(key, def)
+		m.rebuild()
+		return true
+	}
+	for j := cur + 1; j < len(m.rows) && m.rows[j].depth > r.depth; j++ {
+		if m.rows[j].selectable() {
+			m.cur[pFiles] = j
+			break
+		}
+	}
+	return true
+}
+
+// filesLeft is h in the tree: close an open node, else go to the parent.
+func (m *model) filesLeft() {
+	cur := m.cur[pFiles]
+	r := m.rows[cur]
+	if key, def, ok := m.rowFold(r); ok && m.foldOpen(key, def) {
+		m.toggleFold(key, def)
+		m.rebuild()
+		return
+	}
+	d := r.depth
+	for j := cur - 1; j >= 0 && d > 0; j-- {
+		if m.rows[j].depth < d {
+			d = m.rows[j].depth
+			if m.rows[j].selectable() {
+				m.cur[pFiles] = j
+				return
+			}
+		}
+	}
 }
 
 // toggleCommit keeps the selection one contiguous range, since GitHub can

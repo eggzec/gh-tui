@@ -238,6 +238,49 @@ var (
 type descHead struct {
 	key  string
 	line int
+	end  int // last line of an open block, else line
+}
+
+// descMove is l and h on the description: a details block opens or closes
+// like a fold, l on an open one steps to its first line, and h on anything
+// else goes up to the block that holds the line.
+func (m *model) descMove(right bool) {
+	w, _ := m.paneDims(pDesc)
+	mdLines(m.cv.items[0].body, w-4)
+	at := -1
+	for i, h := range descHdr {
+		if h.line == m.dcur {
+			at = i
+		}
+	}
+	if at >= 0 {
+		h := descHdr[at]
+		switch {
+		case right && !descOpen[h.key]:
+			descOpen[h.key] = true
+		case right:
+			m.dcur++
+		case descOpen[h.key]:
+			descOpen[h.key] = false
+		default:
+			m.dcur = descParent(m.dcur)
+		}
+	} else if !right {
+		m.dcur = descParent(m.dcur)
+	}
+	m.fixDesc()
+}
+
+// descParent is the summary line of the innermost open block holding line, or
+// the line itself at the top level.
+func descParent(line int) int {
+	p := line
+	for _, h := range descHdr {
+		if descOpen[h.key] && h.line < line && line <= h.end && (p == line || h.line > p) {
+			p = h.line
+		}
+	}
+	return p
 }
 
 // mdLines renders the description: light markdown with details blocks closed
@@ -259,7 +302,8 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 			continue
 		}
 		k := fmt.Sprintf("%s.%d", key, i)
-		descHdr = append(descHdr, descHead{k, off + len(out)})
+		descHdr = append(descHdr, descHead{k, off + len(out), off + len(out)})
+		hi := len(descHdr) - 1
 		if !descOpen[k] {
 			out = append(out, strings.TrimRight(s.summary, " ")+hidden(s, w))
 			continue
@@ -274,6 +318,7 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 			out = append(out, dim("│ ")+l)
 		}
 		out = append(out, dim("╰─"))
+		descHdr[hi].end = off + len(out) - 1
 	}
 	return out
 }
@@ -2470,7 +2515,7 @@ func (m *model) snap(cur, d int) int {
 	if d < 0 {
 		step = -1
 	}
-	for t >= 0 && t < n && (m.rows[t].dir || m.rows[t].kind == 'm') {
+	for t >= 0 && t < n && !m.rows[t].selectable() {
 		t += step
 	}
 	if t < 0 || t >= n {
@@ -2505,6 +2550,16 @@ func (m *model) paneKey(k string) tea.Cmd {
 		m.move(d)
 		return nil
 	}
+	if m.focus == pReviewers || m.focus == pDev {
+		switch k {
+		case "l", "right":
+			m.nodeMove(true)
+			return nil
+		case "h", "left":
+			m.nodeMove(false)
+			return nil
+		}
+	}
 	switch m.focus {
 	case pDesc:
 		if k == "e" {
@@ -2514,9 +2569,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 		case "enter":
 			m.toggleDesc(0)
 		case "l", "right":
-			m.toggleDesc(1)
+			m.descMove(true)
 		case "h", "left":
-			m.toggleDesc(-1)
+			m.descMove(false)
 		}
 	case pMain:
 		return m.convKey(k)
@@ -2679,11 +2734,16 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles], quick: true, compose: true,
 				cfile: r.fi, cend: -1, clo: -1, clabel: files[r.fi].path()})
 		case "l", "right":
+			if m.filesRight() {
+				break
+			}
 			if m.split() {
 				m.pfocus = 1
 			} else {
 				m.focus = pMain
 			}
+		case "h", "left":
+			m.filesLeft()
 		}
 	}
 	return nil
