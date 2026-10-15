@@ -65,6 +65,10 @@ func (s *Service) setStarred(ref core.RepoRef, starred bool) *optimistic.Op {
 		// fetch stored while the request was in flight.
 		s.repos.InvalidateTag(tag)
 		s.lists.InvalidateTag(tag)
+		// What an earlier session kept holds the old count and mark, and
+		// would read as fresh within its TTL after a restart.
+		s.keptRepos.InvalidateTag(tag)
+		s.kept.InvalidateTag(tag)
 		// The viewer's own stars, on their owner page, are cached by the
 		// owners service, which this one doesn't know.
 		if s.stars != nil {

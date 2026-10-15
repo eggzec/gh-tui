@@ -136,6 +136,47 @@ func TestShelfKept(t *testing.T) {
 	}
 }
 
+// InvalidateTag makes the kept entries with the tag read as stale, in a
+// cache that warms from the shelf, and leaves the others and their
+// validators as they are.
+func TestShelfInvalidateTag(t *testing.T) {
+	store := newMemCatalog()
+	s := NewShelf[page](store, "page", 2)
+	at := time.Now()
+	_ = s.Save("a", Entry[page]{ETag: `"a"`, FetchedAt: at, Tags: []string{"x", "all"}})
+	_ = s.Save("b", Entry[page]{ETag: `"b"`, FetchedAt: at, Tags: []string{"y"}})
+	_ = NewShelf[page](store, "other", 2).Save("c", Entry[page]{FetchedAt: at, Tags: []string{"x"}})
+	keptKeys(s) // index them, so the index is updated below
+
+	s.InvalidateTag("x")
+	s.InvalidateTag("x") // again, there is nothing more to do
+
+	c := New[page](WithTTL(time.Hour))
+	for key, want := range map[string]State{"a": Stale, "b": Fresh} {
+		if e, ok := s.Warm(c, key, true); ok {
+			t.Fatalf("Warm(%q, again) served %+v", key, e)
+		}
+		e, st := c.Get(key)
+		if st != want {
+			t.Errorf("state of %q = %v, want %v", key, st, want)
+		}
+		if want := `"` + key + `"`; e.ETag != want {
+			t.Errorf("ETag of %q = %q, want it kept", key, e.ETag)
+		}
+	}
+	if e, ok := NewShelf[page](store, "other", 2).Load("c"); !ok || e.FetchedAt.IsZero() {
+		t.Errorf("entry of another kind = %+v, %t; want it left alone", e, ok)
+	}
+	for k := range s.Kept() {
+		if k.Key == "a" && !k.FetchedAt.IsZero() {
+			t.Errorf("Kept a = %+v, want no FetchedAt", k)
+		}
+	}
+	var nilShelf *Shelf[page]
+	nilShelf.InvalidateTag("x")                                 // a nil shelf keeps nothing
+	NewShelf[page](newMemStore(), "page", 2).InvalidateTag("x") // and a store that can't list nothing to find
+}
+
 func TestShelfKeptWithoutCatalog(t *testing.T) {
 	s := NewShelf[page](newMemStore(), "page", 1)
 	_ = s.Save("k", Entry[page]{})

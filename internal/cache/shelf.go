@@ -218,14 +218,15 @@ func (s *Shelf[V]) Save(key string, e Entry[V]) error {
 	if s == nil {
 		return nil
 	}
-	return s.save(key, e, s.store.Put)
-}
-
-// save is Save with put writing the store.
-func (s *Shelf[V]) save(key string, e Entry[V], put func(kind, key string, data []byte) error) error {
 	if e.FetchedAt.IsZero() {
 		e.FetchedAt = time.Now()
 	}
+	return s.save(key, e, s.store.Put)
+}
+
+// save is Save with put writing the store, and with a zero FetchedAt kept
+// as it is: a kept entry read back with none is stale.
+func (s *Shelf[V]) save(key string, e Entry[V], put func(kind, key string, data []byte) error) error {
 	data, err := json.Marshal(record[V]{
 		Format:       format,
 		Schema:       s.schema,

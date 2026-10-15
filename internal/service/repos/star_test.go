@@ -204,6 +204,55 @@ func TestStarFailureLeavesTheKeptCopyAsItWas(t *testing.T) {
 	}
 }
 
+// TestStarMarksTheKeptCopyStale checks that a confirmed star or unstar makes
+// what is kept on disk stale, so a new session doesn't take the repository,
+// which has the old count, for fresh within its TTL.
+func TestStarMarksTheKeptCopyStale(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		do   func(*Service) error
+		repo core.Repo
+	}{
+		{"star", func(s *Service) error { return s.Star(ghTUI.Ref).Do(t.Context()) }, ghTUI},
+		{"unstar", func(s *Service) error { return s.Unstar(dotfiles.Ref).Do(t.Context()) }, dotfiles},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			store, err := disk.Open(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			list := func(int, string) (core.Page[core.Repo], error) { return page("", ghTUI, dotfiles), nil }
+			get := func(ref core.RepoRef) (core.Repo, error) {
+				if sameRepo(ref, dotfiles.Ref) {
+					return dotfiles, nil
+				}
+				return ghTUI, nil
+			}
+			api := &fakeAPI{t: t, listRepos: list, getRepo: get, star: func(core.RepoRef, bool) error { return nil }}
+			s := New(api, WithStore(store))
+			if _, err := s.List(t.Context(), ListQuery{}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Get(t.Context(), tt.repo.Ref); err != nil {
+				t.Fatal(err)
+			}
+			if err := tt.do(s); err != nil {
+				t.Fatal(err)
+			}
+
+			api = &fakeAPI{t: t, listRepos: list, getRepo: get}
+			ns := New(api, WithStore(store))
+			if got, err := ns.List(t.Context(), ListQuery{}); err != nil || !got.Stale {
+				t.Errorf("kept list = stale %t, %v; want it stale", got.Stale, err)
+			}
+			if _, err := ns.Get(t.Context(), tt.repo.Ref); err != nil {
+				t.Fatal(err)
+			}
+			api.wantCalls(t, "get "+tt.repo.Ref.String())
+		})
+	}
+}
+
 func TestStarAlreadyStarred(t *testing.T) {
 	api := &fakeAPI{t: t}
 	s, _ := seeded(t, api)

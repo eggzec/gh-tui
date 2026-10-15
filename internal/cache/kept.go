@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -147,6 +148,45 @@ func (s *Shelf[V]) read(cat Catalog, name string, usedAt time.Time) indexed {
 	}}
 }
 
+// InvalidateTag marks every kept entry tagged with tag as stale, as
+// Cache.InvalidateTag does in memory: the entry stays, so that a later
+// session shows it at once and then reads it again, but it no longer counts
+// as fetched within the TTL. It is for a change that makes what was kept
+// wrong, which a store that can't list its objects, one that isn't a
+// Catalog, doesn't see.
+func (s *Shelf[V]) InvalidateTag(tag string) {
+	if s == nil {
+		return
+	}
+	cat, ok := s.store.(Catalog)
+	if !ok {
+		return
+	}
+	// The objects are rewritten as they are listed, so list them first.
+	var names []string
+	for name := range cat.List(s.kind) {
+		names = append(names, name)
+	}
+	for _, name := range names {
+		data, ok := cat.Peek(s.kind, name)
+		if !ok {
+			continue
+		}
+		m, err := ReadMeta(data)
+		if err != nil || m.Schema != s.schema || objectName(m.Key) != name || !slices.Contains(m.Tags, tag) || m.FetchedAt.IsZero() {
+			continue
+		}
+		e, ok := s.load(m.Key, s.peek)
+		if !ok {
+			continue
+		}
+		e.FetchedAt = time.Time{}
+		if s.save(m.Key, e, cat.Replace) == nil {
+			s.index.update(name, Kept{Key: m.Key, Source: e.Source, ETag: e.ETag, LastModified: e.LastModified})
+		}
+	}
+}
+
 // Recheck is what Shelf.Recheck found.
 type Recheck int
 
@@ -259,6 +299,9 @@ func (s *Shelf[V]) peek(kind, name string) ([]byte, bool) {
 // replace keeps e under key without counting as a use, if the store can.
 // The shelf is only a shortcut, so a failure is ignored.
 func (s *Shelf[V]) replace(key string, e Entry[V]) {
+	if e.FetchedAt.IsZero() {
+		e.FetchedAt = time.Now()
+	}
 	put := s.store.Put
 	if cat, ok := s.store.(Catalog); ok {
 		put = cat.Replace
