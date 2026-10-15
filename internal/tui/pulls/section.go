@@ -65,6 +65,10 @@ type Service interface {
 	// request, and CommitFiles those of one commit.
 	RangeFiles(ctx context.Context, q pulls.RangeQuery) (core.CompareDetail, error)
 	CommitFiles(ctx context.Context, q pulls.CommitFilesQuery) (core.Page[core.CommitFile], error)
+	// CachedCommits returns the commits of a pull request if they are cached,
+	// without I/O, and Commits reads them, oldest first.
+	CachedCommits(q pulls.CommitsQuery) (core.Page[core.Commit], bool)
+	Commits(ctx context.Context, q pulls.CommitsQuery) (core.Page[core.Commit], error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)

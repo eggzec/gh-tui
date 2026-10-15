@@ -151,6 +151,34 @@ type fakeService struct {
 	scopeErr    error
 	rangeReads  []pulls.RangeQuery
 	commitReads []pulls.CommitFilesQuery
+	// commits are the commits of the pull request, oldest first, which
+	// Commits serves, or commitsErr. CachedCommits serves them only when
+	// commitsCached is set. commitsReads count the reads of Commits.
+	commits       []core.Commit
+	commitsErr    error
+	commitsCached bool
+	commitsReads  int
+}
+
+// CachedCommits serves commits if commitsCached is set.
+func (f *fakeService) CachedCommits(pulls.CommitsQuery) (core.Page[core.Commit], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.commitsCached {
+		return core.Page[core.Commit]{}, false
+	}
+	return core.Page[core.Commit]{Items: f.commits}, true
+}
+
+// Commits serves commits, or commitsErr.
+func (f *fakeService) Commits(context.Context, pulls.CommitsQuery) (core.Page[core.Commit], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commitsReads++
+	if f.commitsErr != nil {
+		return core.Page[core.Commit]{}, f.commitsErr
+	}
+	return core.Page[core.Commit]{Items: f.commits}, nil
 }
 
 // RangeFiles serves the files of the base of q from ranges, or scopeErr.

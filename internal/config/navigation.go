@@ -17,6 +17,8 @@ var navigation = []string{
 	"top", "bottom", "read_on",
 	// Acting on what is under the cursor, and stepping out.
 	"select", "back", "dismiss", "mark",
+	// Choosing which changes the Files tab shows, from a list.
+	"scope",
 	// Moving between panes and tabs.
 	"next_pane", "prev_pane", "next_tab", "prev_tab",
 	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5",
