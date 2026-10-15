@@ -128,7 +128,7 @@ func (m *detailModal) writeTray() error {
 // Save implements ui.Saver: the text of the open composers is kept as drafts
 // when the app quits.
 func (m *detailModal) Save() error {
-	return errors.Join(m.saveComment(), m.saveReview(), m.saveSummary())
+	return errors.Join(m.writeVisit(), m.saveComment(), m.saveReview(), m.saveSummary())
 }
 
 // saveReview keeps the text of the open composer of a review comment as a
@@ -162,6 +162,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return tea.Batch(m.settleDrafts(), m.showThreadChange())
+	case visitLoadedMsg:
+		m.receiveVisit(msg)
+		return nil
 	case pendingLoadedMsg:
 		return m.receivePending(msg)
 	case summaryDraftMsg:

@@ -11,6 +11,24 @@ import (
 	"time"
 )
 
+func TestEmptyIgnoresTheLocationOfTheTime(t *testing.T) {
+	t.Parallel()
+	// A zero instant in another location differs from the zero value under ==.
+	other := State{LastSeen: LastSeen{At: time.Time{}.In(time.FixedZone("x", 3600))}}
+	if !other.Empty() {
+		t.Errorf("State with a zero time in a zone is not Empty")
+	}
+	for name, s := range map[string]State{
+		"head":   {LastSeen: LastSeen{Head: "a"}},
+		"at":     {LastSeen: LastSeen{At: time.Unix(1, 0)}},
+		"viewed": {Viewed: map[string]string{"a": "b"}},
+	} {
+		if s.Empty() {
+			t.Errorf("State with only %s is Empty", name)
+		}
+	}
+}
+
 func TestSaveLoad(t *testing.T) {
 	t.Parallel()
 	s := New(filepath.Join(t.TempDir(), "visits"))

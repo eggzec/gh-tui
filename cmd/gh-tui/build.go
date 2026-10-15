@@ -49,6 +49,7 @@ import (
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/visits"
 	"github.com/eggzec/gh-tui/internal/watch"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -277,6 +278,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	)
 	if dir, err := trayDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
 		pullOpts = append(pullOpts, pulls.WithTray(tray.New(dir)))
+	}
+	// With the disk cache off the section keeps the visits in memory.
+	if dir, err := visitsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
+		pullOpts = append(pullOpts, pulls.WithVisits(visits.New(dir)))
 	}
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
 		pullOpts = append(pullOpts, pulls.WithDrafts(drafts.New(dir), client.Host()+"/"+client.Account()))

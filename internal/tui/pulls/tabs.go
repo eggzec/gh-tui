@@ -210,6 +210,7 @@ func (m *detailModal) switchTo(t modalTab) tea.Cmd {
 	if m.tab == checksTab && m.checks != nil {
 		m.checks.Hide()
 	}
+	m.visit.tick(m.now(), countsAsVisit(t))
 	m.tab = t
 	if t != filesTab {
 		m.fileJump = 0

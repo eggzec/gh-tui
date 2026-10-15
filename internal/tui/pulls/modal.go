@@ -53,7 +53,10 @@ type detailModal struct {
 	rawKeys config.Keymap
 	now     func() time.Time
 	// tray is the review comments drafted and not sent.
-	tray        trayState
+	tray trayState
+	// visit is when the pull request was last looked at, and how long it is
+	// looked at now.
+	visit       visitState
 	mergeMethod core.MergeMethod
 	// remember tells the section the method a merge was confirmed with,
 	// for the merges after it.
@@ -207,6 +210,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 		whoAmI:      s.readViewer,
 		rawKeys:     s.rawKeys,
 		tray:        trayState{store: s.tray},
+		visit:       visitState{store: s.visits},
 		drafts:      s.drafts,
 		draftScope:  s.draftScope,
 	}
@@ -233,11 +237,12 @@ func (s *Section) openDetail(repo core.RepoRef, number int, pr *core.PullRequest
 			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindPull}, true, keys, append(slices.Clone(opts), refs.WithIcons(m.icons))...)
 		}
 	}
-	step := m.loadTray()
+	step := tea.Batch(m.loadTray(), m.loadVisit())
 	if onChecks && m.newChecks != nil {
 		m.tab = checksTab
 		step = tea.Batch(step, m.showChecks())
 	}
+	m.startVisit()
 	if !m.caps.Known {
 		// The app reads those of the selected repository.
 		step = tea.Batch(step, ui.LoadCaps(ctx, s.repos, repo))
@@ -420,6 +425,7 @@ func (m *detailModal) onChecks() bool {
 // Hide implements ui.Hider: the Checks step stops its polls while
 // another modal is open in place of this one.
 func (m *detailModal) Hide() {
+	m.visit.tick(m.now(), false)
 	if m.checks != nil {
 		m.checks.Hide()
 	}
@@ -508,6 +514,10 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		// on view, and otherwise when it shows. The conversation is read
 		// again behind what is cached. The links, if they show, stay over
 		// a Checks step, which stays paused.
+		if msg.Modal == m {
+			// The time the modal was hidden isn't time spent looking at it.
+			m.visit.tick(m.now(), countsAsVisit(m.tab))
+		}
 		switch {
 		case m.refs != nil && msg.Modal == m:
 			return tea.Batch(m.refs.Update(msg), m.get(), m.thread.Reload(), m.reloadThreads())
@@ -668,6 +678,10 @@ func (m *detailModal) close() tea.Cmd {
 // hidden, such as the one a chain of modals leaves behind. The Checks step
 // ends its polls, the reads end, and those held back for the modal go on.
 func (m *detailModal) Discard() {
+	if err := m.writeVisit(); err != nil {
+		slog.WarnContext(m.ctx, "visit not saved", "span", "tui", "err", ui.ShortPath(err.Error()))
+	}
+	m.visit.done = true
 	// A comment being written is kept, as it is when the app quits.
 	if err := m.saveComment(); err != nil {
 		slog.WarnContext(m.ctx, "comment draft not saved", "span", "tui", "err", ui.ShortPath(err.Error()))

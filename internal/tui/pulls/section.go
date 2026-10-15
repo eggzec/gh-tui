@@ -138,6 +138,9 @@ type Section struct {
 	readViewer Viewer
 	// tray keeps the drafted review comments, or is nil.
 	tray TrayStore
+	// visits keeps when each pull request was last looked at. It is in memory
+	// unless WithVisits replaces it.
+	visits VisitStore
 	// drafts keeps the comments being written, under keys that start with
 	// draftScope, which names the host and the account. Without drafts,
 	// what is written is lost when its composer closes.
@@ -236,6 +239,13 @@ func WithTray(store TrayStore) Option {
 	return func(s *Section) { s.tray = store }
 }
 
+// WithVisits keeps when the user last looked at each pull request in store, so
+// that what came since is marked as new when it is opened again. Without it
+// the visits last until the app quits.
+func WithVisits(store VisitStore) Option {
+	return func(s *Section) { s.visits = store }
+}
+
 // Viewer returns the login of the signed-in user. It may do I/O.
 type Viewer func(ctx context.Context) (string, error)
 
@@ -321,6 +331,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		keys:    newKeyMap(keys),
 		rawKeys: keys,
 		now:     time.Now,
+		visits:  &memVisits{},
 		tab:     tabs[0].state,
 		icons:   ui.NewIcons(config.Default().UI.Icons),
 	}
