@@ -60,7 +60,7 @@ func (m *detailModal) listChanged() finder.Load {
 	if f := m.files; f != nil && f.diff.Done() && f.diff.Err() == nil && f.set.len() == f.diff.Files() {
 		have = f.set.list()
 	}
-	fetch := m.fetchFiles(m.detail.HeadSHA, filesScope{}, new(atomic.Bool))
+	fetch := m.fetchFiles(m.detail.HeadSHA, filesScope{}, new(atomic.Bool), nil)
 	var note string
 	if n := m.detail.ChangedFiles; n > core.MaxPullFiles {
 		note = "only the first " + strconv.Itoa(core.MaxPullFiles) + " of " + strconv.Itoa(n)

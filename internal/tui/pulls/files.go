@@ -81,7 +81,10 @@ type filesState struct {
 	// GitHub answered since.
 	kept   *atomic.Bool
 	reread bool
-	focus  filesPane
+	// cut is set by the read of a scope that GitHub cut short, to how many
+	// files it listed, so that the diff says it shows only those.
+	cut   *atomic.Int64
+	focus filesPane
 	// zoom shows the focused pane alone, where both would fit.
 	zoom bool
 
@@ -191,6 +194,7 @@ func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 		scope:  scope,
 		set:    newFileSet(m.icons.Minus),
 		kept:   new(atomic.Bool),
+		cut:    new(atomic.Int64),
 		focus:  diffPane,
 		marks:  map[diff.Status]string{},
 		theme:  m.theme,
@@ -211,7 +215,7 @@ func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 	if scope.kind == scopeAll && m.detail.ChangedFiles > core.MaxPullFiles {
 		opts = append(opts, diff.WithFirstFilesNote(core.MaxPullFiles))
 	}
-	f.diff = diff.New(m.fetchFiles(f.head, scope, f.kept), opts...)
+	f.diff = diff.New(m.fetchFiles(f.head, scope, f.kept, f.cut), opts...)
 	f.diff.SetHeaderMark(f.viewMark)
 	f.diff.SetStatusNote(f.viewedNote)
 	f.tree = tree.New(f.set.children,
@@ -238,11 +242,13 @@ func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 // A page that an earlier session kept is read again at once, which costs
 // a request that GitHub answers with no change in most cases, so that the
 // diff never shows what the pull request no longer has. A page served
-// because GitHub couldn't be reached or limited the read sets kept.
-func (m *detailModal) fetchFiles(head string, scope filesScope, kept *atomic.Bool) diff.Fetch {
+// because GitHub couldn't be reached or limited the read sets kept, and the
+// read of a scope that GitHub cut short sets cut, which all the changes don't
+// use, so that it may be nil for them.
+func (m *detailModal) fetchFiles(head string, scope filesScope, kept *atomic.Bool, cut *atomic.Int64) diff.Fetch {
 	svc, repo, number := m.svc, m.repo, m.number
 	if scope.kind != scopeAll {
-		return m.fetchScoped(head, scope)
+		return m.fetchScoped(head, scope, cut)
 	}
 	return func(ctx context.Context, cursor string) ([]diff.File, string, error) {
 		ctx, end := obs.Begin(ctx, "pull.files")
@@ -327,6 +333,11 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 	if told {
 		// The files that came in fold if they were viewed, as they were left.
 		m.foldViewed(fm.Files)
+		// A new read makes a new diff, so a note is only ever put on, and
+		// all the changes have theirs from the start.
+		if n := int(f.cut.Load()); n > 0 {
+			f.diff.SetFirstFilesNote(n)
+		}
 		// The pages that came in may settle the drafts of an older head.
 		cmds = append(cmds, m.settleDrafts())
 	}

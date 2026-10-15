@@ -11,6 +11,21 @@ func (m *Model) SetHeaderMark(mark func(File) string) { m.headerMark = mark }
 // draw of the line, so it must be cheap. Nil, or an empty string, adds nothing.
 func (m *Model) SetStatusNote(note func() string) { m.statusNote = note }
 
+// SetFirstFilesNote ends the diff with a note row saying that it shows only the
+// first n files, or takes the row away with zero; see [WithFirstFilesNote]. The
+// row comes or goes at once, with the cursor and the window on the rows they
+// were on.
+func (m *Model) SetFirstFilesNote(n int) {
+	n = max(n, 0)
+	if m.layout.firstFiles == n {
+		return
+	}
+	h := m.holdRows()
+	m.layout.firstFiles = n
+	m.restore(h)
+	m.dirty = true
+}
+
 // Collapsed says whether the file at path shows only its header. It is false
 // for a path that has not been fetched.
 func (m Model) Collapsed(path string) bool {

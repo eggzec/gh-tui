@@ -148,6 +148,8 @@ type fakeService struct {
 	// and rangeReads and commitReads are their queries.
 	ranges      map[string]core.CompareDetail
 	commitFiles map[string][]core.CommitFile
+	// commitCut names the SHAs whose files CommitFiles serves as Truncated.
+	commitCut   map[string]bool
 	scopeErr    error
 	rangeReads  []pulls.RangeQuery
 	commitReads []pulls.CommitFilesQuery
@@ -200,7 +202,7 @@ func (f *fakeService) CommitFiles(_ context.Context, q pulls.CommitFilesQuery) (
 	if f.scopeErr != nil {
 		return core.Page[core.CommitFile]{}, f.scopeErr
 	}
-	return core.Page[core.CommitFile]{Items: f.commitFiles[q.SHA]}, nil
+	return core.Page[core.CommitFile]{Items: f.commitFiles[q.SHA], Truncated: f.commitCut[q.SHA]}, nil
 }
 
 // Since serves the comparison for the base of q from sinceCmp, or sinceErr.

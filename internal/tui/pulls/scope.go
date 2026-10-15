@@ -3,6 +3,7 @@ package pulls
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -161,25 +162,30 @@ func (m *detailModal) openSince() tea.Cmd {
 	return tea.Batch(m.setFilesScope(s), m.switchTo(filesTab))
 }
 
-// fetchScoped reads the files of scope, which come in one page.
-func (m *detailModal) fetchScoped(head string, s filesScope) diff.Fetch {
+// fetchScoped reads the files of scope, which come in one page. If GitHub
+// listed fewer files than changed, it sets cut to how many it listed.
+func (m *detailModal) fetchScoped(head string, s filesScope, cut *atomic.Int64) diff.Fetch {
 	svc, repo, number := m.svc, m.repo, m.number
 	return func(ctx context.Context, _ string) ([]diff.File, string, error) {
 		ctx, end := obs.Begin(ctx, "pull.files.scope")
 		var items []core.CommitFile
+		var truncated bool
 		var err error
 		if s.kind == scopeSince {
 			var d core.CompareDetail
 			d, err = svc.RangeFiles(ctx, pulls.RangeQuery{Repo: repo, Base: s.base, Head: head})
-			items = d.Files
+			items, truncated = d.Files, d.Truncated
 		} else {
 			var p core.Page[core.CommitFile]
 			p, err = svc.CommitFiles(ctx, pulls.CommitFilesQuery{Repo: repo, SHA: s.sha})
-			items = p.Items
+			items, truncated = p.Items, p.Truncated
 		}
-		end(err, "span", "tui", "repo", repo.String(), "number", number, "since", s.kind == scopeSince, "files", len(items))
+		end(err, "span", "tui", "repo", repo.String(), "number", number, "since", s.kind == scopeSince, "files", len(items), "truncated", truncated)
 		if err != nil {
 			return nil, "", err
+		}
+		if truncated {
+			cut.Store(int64(len(items)))
 		}
 		return diffFiles(items), "", nil
 	}
