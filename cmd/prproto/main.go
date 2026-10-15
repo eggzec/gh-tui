@@ -221,6 +221,9 @@ func fileDoc(f file, fi int) []dl {
 		out = append(out, dl{text: h.hdr, kind: '@', src: h.start})
 		for _, l := range h.lines {
 			l = strings.ReplaceAll(l, "\t", "    ")
+			if l == "" {
+				l = " "
+			}
 			x := dl{text: l, kind: 'h', src: n}
 			switch {
 			case strings.HasPrefix(l, "+"):
@@ -267,8 +270,17 @@ func fileDoc(f file, fi int) []dl {
 	return out
 }
 
+// afterMark drops the leading +, - or space of a diff line (a blank line may
+// have lost its space).
+func afterMark(s string) string {
+	if s == "" {
+		return ""
+	}
+	return s[1:]
+}
+
 func emphasise(a, b *dl) {
-	ra, rb := []rune(a.text[1:]), []rune(b.text[1:])
+	ra, rb := []rune(afterMark(a.text)), []rune(afterMark(b.text))
 	pre := 0
 	for pre < len(ra) && pre < len(rb) && ra[pre] == rb[pre] {
 		pre++
@@ -351,7 +363,7 @@ func renderDL(x dl, w, st int) string {
 	}
 	gut := num(x.old) + " " + num(x.nw) + " │ "
 	l := lineBG(x.kind, st)
-	body := []rune(x.text[1:])
+	body := []rune(afterMark(x.text))
 	out := l + "\x1b[90m" + gut + "\x1b[39m"
 	if x.kind == 'f' {
 		out += "\x1b[90m"
@@ -381,6 +393,9 @@ func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
 		}
 		vis = append(vis, i)
 		rows = append(rows, vrow{li: len(vis) - 1})
+		if x.loc >= 0 {
+			rows = append(rows, m.threadRows(x.fi, x.loc, len(vis)-1)...)
+		}
 		var ds [][3]int
 		for k := range m.drafts {
 			if k[0] == x.fi && k[1] == x.loc {
@@ -465,7 +480,7 @@ func (m *model) diffStatus(o *overlay) string {
 	if o.ranging {
 		s += " · RANGE j/k extend · c comment · esc cancel"
 	} else {
-		s += " · V range · c comment · ) ( draft · e edit · D delete draft · } { hunk · x mode · :n :p"
+		s += " · V range · c comment · ) ( draft · e edit · D delete draft · on a thread c reply T resolve · } { hunk · x mode · :n :p"
 	}
 	return dim(fmt.Sprintf("L%d/%d · ", o.vcur+1, len(vis)) + s)
 }
@@ -681,6 +696,14 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 	}
 	doc, vis, _ := m.dview(o)
 	cd := vis[o.vcur]
+	if o.ondraft && o.dkey[0] < 0 {
+		if t, ok := m.tgtOfKey(o.dkey); ok {
+			switch k {
+			case "c", "T", "e", "X", "D", "enter":
+				return m.act(k, t)
+			}
+		}
+	}
 	switch k {
 	case ":":
 		o.cmdOn, o.cmd = true, ""
@@ -939,6 +962,11 @@ type overlay struct {
 
 	text  string
 	toast string
+
+	// the reply composer and the PR editor
+	save   func(*model, string, string) tea.Cmd
+	etitle string
+	efield int
 }
 
 type model struct {
@@ -958,14 +986,16 @@ type model struct {
 	dev       []devItem
 	meta      [4]metaRow
 	rows      []row
+	cv        convState
 }
 
 type clearToastMsg struct{ id int }
 
 func newModel() *model {
 	m := &model{
-		drafts: map[[3]int]draft{},
-		pv:     overlay{kind: "file", embed: true},
+		drafts:    map[[3]int]draft{},
+		cv:        newConv(),
+		pv:        overlay{kind: "file", embed: true},
 		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"@org/core", "requested"}},
 		dev: []devItem{
 			{"closes", 12, "Calc is slow", "open", "#9"},
@@ -1060,7 +1090,7 @@ func wrap(s string, w int) []string {
 	return strings.Split(ansi.Wrap(s, max(w, 10), ""), "\n")
 }
 
-func (m *model) convLines(cw int) []string {
+func (m *model) oldConvLines(cw int) []string {
 	var out []string
 	out = append(out, bold("#42 Add calc helper"), dim("alice opened this 3 days ago · feat/calc → main"), "")
 	for _, l := range wrap(description, cw) {
@@ -1219,6 +1249,10 @@ func (m *model) paneTitle(i int) string {
 	if i == pFiles {
 		t += fmt.Sprintf(" (%d)", len(files))
 	}
+	if i == pMain {
+		n, tot := m.cv.counts()
+		t += fmt.Sprintf(" · %d of %d shown · filter: %s", n, tot, filterNames[m.cv.filter])
+	}
 	return t
 }
 
@@ -1350,6 +1384,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
+			"Conversation a tree: j/k move · l/→ open (or into) · h/← close (or to parent) · enter toggle · * open/close all",
+			"            f filter all/unresolved/changes requested/mine · ) ( next/prev unresolved thread",
+			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit the PR, or your comment/reply",
+			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
+			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
 			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
@@ -1397,6 +1436,8 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		s = box(o.title, lines, w, h, true)
 	case "file":
 		s = m.drawDiff(o, w, h)
+	case "reply", "editpr":
+		return m.drawCompose(o)
 	default:
 		s = m.scrollBox(o, w, h, true)
 	}
@@ -1493,7 +1534,7 @@ func (m *model) render() string {
 	if m.w == 0 {
 		return ""
 	}
-	hdr := bold("#42 Add calc helper") + dim(" · ") + green("open") + " · alice " + dim("feat/calc → main") +
+	hdr := bold("#42 "+m.cv.title) + dim(" · ") + green("open") + " · alice " + dim("feat/calc → main") +
 		" · " + green("+120") + " " + red("−8") + " · 6 files"
 	parts := []string{hdr}
 	if m.narrow() {
@@ -1561,6 +1602,10 @@ func (m *model) footer() string {
 				return dim("type to filter · ↑/↓ move · tab toggle · enter apply · esc cancel")
 			}
 			return dim("type to filter · ↑/↓ move · enter pick · esc cancel")
+		case "reply":
+			return dim("type the reply · enter save · esc cancel")
+		case "editpr":
+			return dim("tab title/body · enter newline · ctrl+s save · esc cancel")
 		case "file":
 			if o.compose {
 				return dim("type the comment · enter save draft · esc cancel")
@@ -1571,7 +1616,7 @@ func (m *model) footer() string {
 		}
 	}
 	h := map[int]string{
-		pMain:      "j/k scroll",
+		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
 		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
@@ -1630,6 +1675,7 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 	if k == "ctrl+c" {
 		return tea.Quit
 	}
+	defer m.fixConv()
 	if len(m.stack) > 0 {
 		return m.overlayKey(msg)
 	}
@@ -1707,7 +1753,8 @@ func (m *model) count(p int) int {
 
 func (m *model) move(d int) {
 	if m.focus == pMain {
-		m.scroll = max(0, min(m.scroll+d, m.maxScroll()))
+		rows := m.crows(false)
+		m.setSel(rows, m.selIdx(rows)+d)
 		return
 	}
 	if m.focus == pFiles {
@@ -1744,6 +1791,8 @@ func (m *model) paneKey(k string) tea.Cmd {
 		return nil
 	}
 	switch m.focus {
+	case pMain:
+		return m.convKey(k)
 	case pMerge:
 		i := -1
 		switch k {
@@ -1918,6 +1967,8 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "file":
 		return m.diffKey(top, msg)
+	case "reply", "editpr":
+		return m.composeKey(top, msg)
 	default:
 		switch k {
 		case "esc", "backspace", "q":
