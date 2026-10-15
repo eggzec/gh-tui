@@ -59,6 +59,9 @@ type preview struct {
 	// file the terminal shows. loaded is set once the content arrived.
 	img    fileImage
 	loaded bool
+	// message is set while the pager shows a message in place of the file,
+	// which is drawn in the icons' words and so drawn again when they change.
+	message bool
 	// raw shows a markdown file as its source, rather than rendered by
 	// md.
 	raw bool
@@ -108,6 +111,9 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 // load shows the content at once when it is cached, and fetches it
 // otherwise. A file known by its path alone is found first.
 func (p *preview) load() tea.Cmd {
+	// What the pager showed is gone, whether the load fills it again or
+	// shows the spinner meanwhile.
+	p.message = false
 	if p.entry.SHA == "" {
 		return p.findFile()
 	}
@@ -219,9 +225,14 @@ func (p *preview) show(b core.Blob, err error) tea.Cmd {
 // it shows does, so drawing again keeps the place in the text.
 func (p *preview) draw() tea.Cmd {
 	if !p.img.draw(&p.pager) {
+		// The pager shows the file as it did, unless it shows an image now.
+		if p.img.shown != shownText {
+			p.message = false
+		}
 		return nil
 	}
 	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
+	p.message = !ok
 	cmd = tea.Batch(cmd, p.md.lookUp())
 	if ok {
 		// The search starts from the line, if there is one.
@@ -336,6 +347,12 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&p.icons)
 		p.img.ellipsis = p.icons.Ellipsis
+		if p.message {
+			// The message is drawn in the icons' words; a message has no
+			// place worth keeping, unlike the text of a file.
+			cmd, _ := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
+			return cmd
+		}
 		return nil
 	case blobMsg:
 		if msg.id != p.pager.ID() {
