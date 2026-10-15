@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -53,24 +54,72 @@ func tint(r, g, b, c int) func(string) string {
 	return func(s string) string { return fgc(r, g, b, c) + s + "\x1b[39m" }
 }
 
-// Thread state icons: unresolved is a filled dot, resolved a dim check.
+// The status icons, in one table: GitHub's own Octicons from Nerd Fonts,
+// coloured like GitHub. PRPROTO_ICONS=unicode keeps plain unicode glyphs.
 var (
-	openC     = tint(0xe5, 0xc0, 0x7b, 180)
-	resolvedC = tint(0x5c, 0x7a, 0x5c, 65)
+	plainIcons = os.Getenv("PRPROTO_ICONS") == "unicode"
+	icGreen    = tint(0x3f, 0xb9, 0x50, 71)
+	icRed      = tint(0xf8, 0x51, 0x49, 167)
+	icAmber    = tint(0xd2, 0x99, 0x22, 178)
+	icPurple   = tint(0xa3, 0x71, 0xf7, 141)
+	resolvedC  = tint(0x5c, 0x7a, 0x5c, 65) // dim green
 )
 
-const (
-	openIcon     = "●"
-	resolvedIcon = "✓"
-	outdatedIcon = "◌"
-)
+type glyph struct {
+	nerd, uni string
+	col       func(string) string
+}
+
+// String is the coloured glyph.
+func (g glyph) String() string {
+	if plainIcons {
+		return g.col(g.uni)
+	}
+	return g.col(g.nerd)
+}
+
+var ic = struct {
+	approved, changes, commented, requested, rerequested, dismissed glyph
+	unresolved, resolved, outdated                                  glyph
+	checkOK, checkFail, checkPending                                glyph
+	merged, prOpen, prDraft, prClosed, issueOpen, issueClosed       glyph
+	blocked                                                         glyph
+}{
+	approved:     glyph{"", "✓", icGreen},
+	changes:      glyph{"", "✗", icRed},
+	commented:    glyph{"", "○", dim},
+	requested:    glyph{"", "○", icAmber},
+	rerequested:  glyph{"", "↻", icAmber},
+	dismissed:    glyph{"", "⊘", dim},
+	unresolved:   glyph{"", "●", icAmber},
+	resolved:     glyph{"", "✓", resolvedC},
+	outdated:     glyph{"", "◌", dim},
+	checkOK:      glyph{"", "✓", icGreen},
+	checkFail:    glyph{"", "✗", icRed},
+	checkPending: glyph{"", "●", icAmber},
+	merged:       glyph{"", "◆", icPurple},
+	prOpen:       glyph{"", "●", icGreen},
+	prDraft:      glyph{"", "○", dim},
+	prClosed:     glyph{"", "✗", icRed},
+	issueOpen:    glyph{"", "●", icGreen},
+	issueClosed:  glyph{"", "✓", icPurple},
+	blocked:      glyph{"", "⛔", icRed},
+}
+
+// outdatedIcon is the plain outdated glyph; callers colour it dim.
+var outdatedIcon = func() string {
+	if plainIcons {
+		return ic.outdated.uni
+	}
+	return ic.outdated.nerd
+}()
 
 // threadIcon is the state icon of a thread.
 func threadIcon(resolved bool) string {
 	if resolved {
-		return resolvedC(resolvedIcon)
+		return ic.resolved.String()
 	}
-	return openC(openIcon)
+	return ic.unresolved.String()
 }
 
 // rightAlign puts right at the right edge of a w wide row. A long row loses
@@ -106,15 +155,103 @@ func selRow(l string, w int, focus bool) string {
 const rightW = 36
 
 const (
-	pMain = iota
+	pDesc = iota
+	pMain
 	pMerge
 	pReviewers
 	pDev
 	pFiles
 	pMeta
+	nPanes
 )
 
-var paneNames = []string{"Conversation", "Merge", "Reviewers", "Development", "Files", "Meta"}
+var paneNames = []string{"Description", "Conversation", "Merge", "Reviewers", "Development", "Files", "Meta"}
+
+// users maps a login to its display name; a login missing here has none and
+// shows as itself.
+var users = map[string]string{
+	"alice":   "Alice Chen",
+	"bob":     "Bob Okafor",
+	"carol":   "Carol Diaz",
+	"dave":    "Dave Kim",
+	"erin":    "Erin Novak",
+	"Copilot": "Copilot",
+}
+
+// disp is how a person shows: the full name, else the login; a team
+// (org/slug) shows as "slug team".
+func disp(login string) string {
+	if _, slug, ok := strings.Cut(login, "/"); ok {
+		return slug + " team"
+	}
+	if n := users[login]; n != "" {
+		return n
+	}
+	return login
+}
+
+// dispS is disp with the team tag dim.
+func dispS(login string) string {
+	if _, slug, ok := strings.Cut(login, "/"); ok {
+		return slug + dim(" team")
+	}
+	return disp(login)
+}
+
+// personItem is a picker item for a person: the name and the dim-able login,
+// so typing either matches.
+func personItem(login string) string {
+	if n := disp(login); n != login {
+		return n + "  " + login
+	}
+	return login
+}
+
+// loginOf is the login of a picker item made by personItem.
+func loginOf(item string) string {
+	if _, l, ok := strings.Cut(item, "  "); ok {
+		return l
+	}
+	return item
+}
+
+var inlineCode = regexp.MustCompile("`([^`]+)`")
+
+// mdLines renders light markdown: bold headings, bullets, dim-background inline
+// code and fenced blocks behind a dim left rule.
+func mdLines(body string, w int) []string {
+	w = max(w, 12)
+	codeBG := func(s string) string { return "\x1b[48;5;238m" + s + "\x1b[49m" }
+	inline := func(s string) string {
+		return inlineCode.ReplaceAllStringFunc(s, func(x string) string { return codeBG(strings.Trim(x, "`")) })
+	}
+	var out []string
+	fence := false
+	for _, l := range strings.Split(body, "\n") {
+		t := strings.TrimSpace(l)
+		switch {
+		case strings.HasPrefix(t, "```"):
+			fence = !fence
+		case fence:
+			out = append(out, dim("▏ ")+ansi.Truncate(l, w-2, "…"))
+		case strings.HasPrefix(t, "#"):
+			out = append(out, bold(strings.TrimSpace(strings.TrimLeft(t, "#"))))
+		case strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* "):
+			for i, wl := range wrap(t[2:], w-2) {
+				if i == 0 {
+					out = append(out, dim("• ")+inline(wl))
+				} else {
+					out = append(out, "  "+inline(wl))
+				}
+			}
+		default:
+			for _, wl := range wrap(l, w) {
+				out = append(out, inline(wl))
+			}
+		}
+	}
+	return out
+}
 
 type file struct {
 	dir, name string
@@ -991,7 +1128,36 @@ var timeline = []entry{
 	{"coverage-bot", "comment", "1h ago", "Coverage is 91% (+2%) with this change."},
 }
 
-const description = "Adds a small calc package with Add, Div and Mul helpers, and uses it from the app command. Division by zero still panics for now; the review thread covers what to do about it."
+const description = "## Summary\n" +
+	"\n" +
+	"Adds a small `calc` package with `Add`, `Div` and `Mul` helpers, and uses it from the app command. Division by zero still panics for now; the review thread covers what to do about it.\n" +
+	"\n" +
+	"## Why\n" +
+	"\n" +
+	"The app command had three copies of the same arithmetic, and each one handled edge cases a little differently. One package means one place to fix them, and one place to test.\n" +
+	"\n" +
+	"## Changes\n" +
+	"\n" +
+	"- add `calc.Add`, `calc.Div` and `calc.Mul` in `calc/calc.go`\n" +
+	"- replace the inline arithmetic in `cmd/app/main.go` with calls to the package\n" +
+	"- document the package in `calc/doc.go`\n" +
+	"- return an error from `Div` instead of panicking on a zero divisor\n" +
+	"- keep the old behaviour behind `--legacy-math` until the next release\n" +
+	"\n" +
+	"A call now looks like this:\n" +
+	"\n" +
+	"```go\n" +
+	"q, err := calc.Div(total, count)\n" +
+	"if err != nil {\n" +
+	"\treturn fmt.Errorf(\"average: %w\", err)\n" +
+	"}\n" +
+	"```\n" +
+	"\n" +
+	"## Testing\n" +
+	"\n" +
+	"- `go test ./calc/...` covers every helper, including division by zero\n" +
+	"- ran the app command by hand with empty and non-empty input\n" +
+	"- the `e2e` job is flaky on this branch; a fix is in a separate pull request"
 
 type check struct{ name, state, dur string }
 
@@ -1055,6 +1221,7 @@ type overlay struct {
 	filter string
 	fon    bool // the filter line is open and takes the typing
 	pcur   int
+	people bool // items are personItems: the login shows dim after the name
 	done   func(*model, []string) tea.Cmd
 
 	text  string
@@ -1075,7 +1242,8 @@ type model struct {
 	pfocus    int     // 0 list, 1 diff
 	pvOn      bool
 	scroll    int
-	cur       [6]int
+	dscroll   int // the description pane's scroll
+	cur       [nPanes]int
 	stack     []overlay
 	toast     string
 	toastID   int
@@ -1090,10 +1258,11 @@ type clearToastMsg struct{ id int }
 
 func newModel() *model {
 	m := &model{
+		focus:     pMain,
 		drafts:    map[[3]int]draft{},
 		cv:        newConv(),
 		pv:        overlay{kind: "file", embed: true},
-		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"@org/core", "requested"}},
+		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"org/core", "requested"}},
 		dev: []devItem{
 			{"closes", 12, "Calc is slow", "open", "#9"},
 			{"closes", 15, "Typo in README", "closed", ""},
@@ -1141,9 +1310,16 @@ func (m *model) bodyTop() int {
 }
 func (m *model) bodyH() int { return m.h - m.bodyTop() - 1 }
 
-func (m *model) panelHeights() [6]int {
+// descH is the description pane's height beside the conversation: a third of
+// the body, at least 5 rows.
+func (m *model) descH() int {
 	H := m.bodyH()
-	nat := [6]int{0, 7, max(3, len(m.reviewers)+2), max(3, len(m.dev)+2), 0, 6}
+	return min(max(5, H/3), max(3, H-4))
+}
+
+func (m *model) panelHeights() [nPanes]int {
+	H := m.bodyH()
+	nat := [nPanes]int{pMerge: 7, pReviewers: max(3, len(m.reviewers)+2), pDev: max(3, len(m.dev)+2), pMeta: 6}
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1164,7 +1340,8 @@ func (m *model) panelHeights() [6]int {
 		nat[best]--
 	}
 	nat[pFiles] = max(3, H-sum())
-	nat[pMain] = H
+	nat[pMain] = H - m.descH()
+	nat[pDesc] = m.descH()
 	return nat
 }
 
@@ -1175,8 +1352,8 @@ func (m *model) paneDims(i int) (int, int) {
 	if m.zoomed() {
 		return m.w, m.bodyH()
 	}
-	if i == pMain {
-		return m.w - rightW, m.bodyH()
+	if i == pMain || i == pDesc {
+		return m.w - rightW, m.panelHeights()[i]
 	}
 	return rightW, m.panelHeights()[i]
 }
@@ -1258,12 +1435,14 @@ func (m *model) mrow(pane, i int, text string) string {
 
 func (m *model) paneLines(i, cw int) ([]string, int) {
 	switch i {
+	case pDesc:
+		return mdLines(m.cv.items[0].body, cw), 0
 	case pMain:
 		return m.convLines(cw), 0
 	case pMerge:
 		return []string{
 			yellow("Blocked: changes requested"),
-			m.mrow(i, 0, red("✗")+" 1 of 12 checks failing"+dim("  C")),
+			m.mrow(i, 0, ic.checkFail.String()+" 1 of 12 checks failing"+dim("  C")),
 			m.mrow(i, 1, "Merge (squash)"+dim("  M")),
 			m.mrow(i, 2, "Auto-merge"+dim("  A")),
 			m.mrow(i, 3, "Update branch"+dim("  U")),
@@ -1271,14 +1450,16 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	case pReviewers:
 		var out []string
 		for k, r := range m.reviewers {
-			icon := yellow("○")
+			icon := ic.requested.String()
 			switch r.state {
 			case "approved":
-				icon = green("✓")
+				icon = ic.approved.String()
 			case "changes":
-				icon = red("✗")
+				icon = ic.changes.String()
+			case "re-requested":
+				icon = ic.rerequested.String()
 			}
-			out = append(out, m.mrow(i, k, icon+" "+r.name+dim(" "+r.state)))
+			out = append(out, m.mrow(i, k, icon+" "+dispS(r.name)+dim(" "+r.state)))
 		}
 		if len(out) == 0 {
 			out = append(out, dim("  no reviewers (a to request)"))
@@ -1287,17 +1468,23 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	case pDev:
 		var out []string
 		for k, d := range m.dev {
-			st := green("open")
-			if d.state == "closed" {
-				st = red("closed")
-			}
-			t := fmt.Sprintf("closes #%d ", d.num)
+			st, g := green("open"), ic.issueOpen
 			if d.kind == "pr" {
-				t = fmt.Sprintf("PR #%d ", d.num)
+				g = ic.prOpen
+			}
+			if d.state == "closed" {
+				st, g = red("closed"), ic.issueClosed
+				if d.kind == "pr" {
+					g = ic.prClosed
+				}
+			}
+			t := g.String() + fmt.Sprintf(" closes #%d ", d.num)
+			if d.kind == "pr" {
+				t = g.String() + fmt.Sprintf(" PR #%d ", d.num)
 			}
 			t += st
 			if d.blocked != "" {
-				t += yellow(" ⛔ " + d.blocked)
+				t += " " + ic.blocked.String() + " " + yellow(d.blocked)
 			}
 			out = append(out, m.mrow(i, k, t))
 		}
@@ -1316,7 +1503,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			f := files[r.fi]
 			t := f.name + " " + green(fmt.Sprintf("+%d", f.add)) + " " + red(fmt.Sprintf("−%d", f.del))
 			if f.thread {
-				t += yellow(" ●")
+				t += " " + ic.unresolved.String()
 			}
 			if m.cur[pFiles] == k {
 				w, _ := m.paneDims(pFiles)
@@ -1333,7 +1520,14 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	default:
 		var out []string
 		for k, r := range m.meta {
-			v := strings.Join(r.vals, ", ")
+			vals := r.vals
+			if r.label == "Assignees" {
+				vals = nil
+				for _, l := range r.vals {
+					vals = append(vals, disp(l))
+				}
+			}
+			v := strings.Join(vals, ", ")
 			if v == "" {
 				v = dim("none")
 			}
@@ -1351,6 +1545,9 @@ func (m *model) paneTitle(i int) string {
 	if i == pMain {
 		n, tot := m.cv.counts()
 		t += fmt.Sprintf(" · %d of %d shown · filter: %s", n, tot, filterNames[m.cv.filter])
+	}
+	if i == pDesc && m.cv.items[0].edited {
+		t += " · edited"
 	}
 	return t
 }
@@ -1390,8 +1587,11 @@ func (m *model) pane(i int) string {
 	ih := max(1, h-2)
 	off := 0
 	title := m.paneTitle(i)
-	if i == pMain {
+	if i == pMain || i == pDesc {
 		off = min(m.scroll, max(0, len(lines)-ih))
+		if i == pDesc {
+			off = min(m.dscroll, max(0, len(lines)-ih))
+		}
 		if len(lines) > ih {
 			title += fmt.Sprintf(" · %d%%", (off+ih)*100/len(lines))
 		}
@@ -1453,11 +1653,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "checks":
 		out := []string{red("1 failing"), green("11 passing"), ""}
 		for _, c := range checks {
-			ic := green("✓")
+			g := ic.checkOK
 			if c.state == "fail" {
-				ic = red("✗")
+				g = ic.checkFail
 			}
-			out = append(out, fmt.Sprintf("%s %-18s %s", ic, c.name, dim(c.dur)))
+			out = append(out, fmt.Sprintf("%s %-18s %s", g.String(), c.name, dim(c.dur)))
 		}
 		return "Checks · 12 runs", out
 	case "issue":
@@ -1466,30 +1666,43 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 		if d.kind == "pr" {
 			kind = "Pull request"
 		}
-		st := green("● open")
+		st := ic.issueOpen.String() + " " + green("open")
+		if d.kind == "pr" {
+			st = ic.prOpen.String() + " " + green("open")
+		}
 		if d.state == "closed" {
-			st = red("● closed")
+			st = ic.issueClosed.String() + " " + icPurple("closed")
+			if d.kind == "pr" {
+				st = ic.prClosed.String() + " " + red("closed")
+			}
 		}
 		out := []string{bold(d.title), st}
 		if d.blocked != "" {
-			out = append(out, yellow("⛔ blocked by "+d.blocked+" (open)"))
+			out = append(out, ic.blocked.String()+" "+yellow("blocked by "+d.blocked+" (open)"))
 		}
-		out = append(out, "", "Opened by dave 2 weeks ago. Labels: bug.", "",
+		out = append(out, "", "Opened by Dave Kim 2 weeks ago. Labels: bug.", "",
 			"Fake summary of the issue body. The real one would be the markdown of the description, with the latest comments below it.")
 		return fmt.Sprintf("%s #%d", kind, d.num), out
 	case "help":
 		return "Keys", []string{
-			"tab / shift+tab   next / previous pane      1-6  jump to a pane",
+			"tab / shift+tab   next / previous pane      1-7  jump to a pane",
 			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
+			"Description 1: the PR body as light markdown · j/k pgup/pgdn scroll · e edit title and description",
+			"            (tab/ctrl+s/esc in the editor) · below 120 cols the panes are a strip: description first",
+			"People      shown by full name (login when there is none, a team as \"core team\"); pickers match",
+			"            the name or the login, which shows dim after the name",
 			"Conversation a tree: j/k move · l/→ open (or into) · h/← close (or to parent) · enter toggle · * open/close all",
 			"            f filter all/unresolved/changes requested/mine · ) ( next/prev unresolved thread",
-			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit the PR, or your comment/reply",
+			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit your comment/reply (the PR is edited in Description)",
 			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
 			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
-			"Icons       ● unresolved thread · ✓ (dim green) resolved thread, row dimmed · ◌ outdated (code changed)",
-			"            reviews: ✓ approved · ✗ changes requested · ○ commented  (right edge: ⋯ 3 folded replies,",
+			"Icons       Octicons (PRPROTO_ICONS=unicode for plain glyphs). Threads: " + ic.unresolved.String() + " unresolved · " + ic.resolved.String() + " resolved (row dimmed) · " + ic.outdated.String() + " outdated",
+			"            reviews: " + ic.approved.String() + " approved · " + ic.changes.String() + " changes requested · " + ic.commented.String() + " commented · " + ic.requested.String() + " requested · " + ic.rerequested.String() + " re-requested · " + ic.dismissed.String() + " dismissed",
+			"            checks: " + ic.checkOK.String() + " pass · " + ic.checkFail.String() + " fail · " + ic.checkPending.String() + " pending   PRs: " + ic.prOpen.String() + " open · " + ic.prDraft.String() + " draft · " + ic.merged.String() + " merged · " + ic.prClosed.String() + " closed",
+			"            issues: " + ic.issueOpen.String() + " open · " + ic.issueClosed.String() + " closed · " + ic.blocked.String() + " blocked",
+			"            right edge of a row: ⋯ 3 folded replies,",
 			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
 			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
@@ -1524,6 +1737,12 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		for i := off; i < min(len(fl), off+slots); i++ {
 			p := "  "
 			mk := ""
+			label := fl[i]
+			if o.people {
+				if n, l, ok := strings.Cut(label, "  "); ok {
+					label = n + dim("  "+l)
+				}
+			}
 			if o.multi {
 				mk = "[ ] "
 				if o.sel[fl[i]] {
@@ -1534,7 +1753,7 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 				lines = append(lines, selRow(p+mk+fl[i], w-4, true))
 				continue
 			}
-			lines = append(lines, p+mk+fl[i])
+			lines = append(lines, p+mk+label)
 		}
 		for len(lines) < slots {
 			lines = append(lines, "")
@@ -1660,7 +1879,7 @@ func (m *model) render() string {
 	if m.w == 0 {
 		return ""
 	}
-	hdr := bold("#42 "+m.cv.title) + dim(" · ") + green("open") + " · alice " + dim("feat/calc → main") +
+	hdr := bold("#42 "+m.cv.title) + dim(" · ") + ic.prOpen.String() + " " + green("open") + " · " + disp("alice") + " " + dim("feat/calc → main") +
 		" · " + green("+120") + " " + red("−8") + " · 6 files"
 	parts := []string{hdr}
 	if m.narrow() {
@@ -1688,7 +1907,8 @@ func (m *model) render() string {
 		for i := pMerge; i <= pMeta; i++ {
 			col = append(col, m.pane(i))
 		}
-		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(pMain), lipgloss.JoinVertical(lipgloss.Left, col...)))
+		left := lipgloss.JoinVertical(lipgloss.Left, m.pane(pDesc), m.pane(pMain))
+		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, left, lipgloss.JoinVertical(lipgloss.Left, col...)))
 	}
 	lines := strings.Split(strings.Join(parts, "\n"), "\n")
 	for len(lines) < m.h-1 {
@@ -1745,14 +1965,15 @@ func (m *model) footer() string {
 		}
 	}
 	h := map[int]string{
-		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
+		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
+		pMain:     "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
 		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
 		pFiles:     "enter diff · D combined · l conversation",
 		pMeta:      "enter edit",
 	}[m.focus]
-	return dim(h + " · tab/1-6 focus · z zoom · ? help · q quit")
+	return dim(h + " · tab/1-7 focus · z zoom · ? help · q quit")
 }
 
 // ---------- update ----------
@@ -1833,10 +2054,10 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case "q":
 		return tea.Quit
 	case "tab":
-		m.focus = (m.focus + 1) % 6
+		m.focus = (m.focus + 1) % nPanes
 	case "shift+tab":
-		m.focus = (m.focus + 5) % 6
-	case "1", "2", "3", "4", "5", "6":
+		m.focus = (m.focus + nPanes - 1) % nPanes
+	case "1", "2", "3", "4", "5", "6", "7":
 		m.focus = int(k[0] - '1')
 	case "z":
 		m.zoom = !m.zoom
@@ -1881,9 +2102,16 @@ func (m *model) count(p int) int {
 }
 
 func (m *model) move(d int) {
+	if m.focus == pDesc {
+		w, h := m.paneDims(pDesc)
+		m.dscroll = max(0, min(m.dscroll+d, len(mdLines(m.cv.items[0].body, w-4))-(h-2)))
+		return
+	}
 	if m.focus == pMain {
 		rows := m.crows(false)
-		m.setSel(rows, m.selIdx(rows)+d)
+		if len(rows) > 0 {
+			m.setSel(rows, m.selIdx(rows)+d)
+		}
 		return
 	}
 	if m.focus == pFiles {
@@ -1920,6 +2148,10 @@ func (m *model) paneKey(k string) tea.Cmd {
 		return nil
 	}
 	switch m.focus {
+	case pDesc:
+		if k == "e" {
+			m.editPR()
+		}
 	case pMain:
 		return m.convKey(k)
 	case pMerge:
@@ -1952,12 +2184,12 @@ func (m *model) paneKey(k string) tea.Cmd {
 			var items []string
 			for _, n := range []string{"bob", "carol", "dave", "erin", "Copilot"} {
 				if !slices.ContainsFunc(m.reviewers, func(r reviewer) bool { return r.name == n }) {
-					items = append(items, n)
+					items = append(items, personItem(n))
 				}
 			}
-			m.push(overlay{kind: "picker", title: "Request a reviewer", items: items, done: func(m *model, p []string) tea.Cmd {
-				m.reviewers = append(m.reviewers, reviewer{p[0], "requested"})
-				return m.say("(prototype) requested " + p[0])
+			m.push(overlay{kind: "picker", title: "Request a reviewer", items: items, people: true, done: func(m *model, p []string) tea.Cmd {
+				m.reviewers = append(m.reviewers, reviewer{loginOf(p[0]), "requested"})
+				return m.say("(prototype) requested " + disp(loginOf(p[0])))
 			}})
 		case "R":
 			c := m.cur[pReviewers]
@@ -1966,9 +2198,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 			}
 			r := m.reviewers[c]
 			if r.state == "requested" || r.state == "re-requested" {
-				return m.say("review is already requested from " + r.name)
+				return m.say("review is already requested from " + disp(r.name))
 			}
-			m.confirmDo("Re-request review from @"+strings.TrimPrefix(r.name, "@")+"? ", "(prototype) re-requested "+r.name, func(m *model) tea.Cmd {
+			m.confirmDo("Re-request review from "+disp(r.name)+"? ", "(prototype) re-requested "+disp(r.name), func(m *model) tea.Cmd {
 				m.reviewers[c].state = "re-requested"
 				return nil
 			})
@@ -2021,12 +2253,28 @@ func (m *model) paneKey(k string) tea.Cmd {
 	case pMeta:
 		if k == "enter" {
 			r := m.meta[m.cur[pMeta]]
+			people := r.label == "Assignees"
+			conv := func(s string) string {
+				if people {
+					return personItem(s)
+				}
+				return s
+			}
 			sel := map[string]bool{}
 			for _, v := range r.vals {
-				sel[v] = true
+				sel[conv(v)] = true
+			}
+			var opts []string
+			for _, o := range r.opts {
+				opts = append(opts, conv(o))
 			}
 			idx := m.cur[pMeta]
-			m.push(overlay{kind: "picker", title: r.label, items: r.opts, sel: sel, multi: true, done: func(m *model, p []string) tea.Cmd {
+			m.push(overlay{kind: "picker", title: r.label, items: opts, sel: sel, multi: true, people: people, done: func(m *model, p []string) tea.Cmd {
+				if people {
+					for i := range p {
+						p[i] = loginOf(p[i])
+					}
+				}
 				m.meta[idx].vals = p
 				return m.say("(prototype) updated " + strings.ToLower(r.label))
 			}})

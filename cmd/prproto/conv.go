@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 const me = "alice"
@@ -100,7 +101,7 @@ func (it *citem) sysText() string {
 		return it.body
 	}
 	n := len(it.commits)
-	s := fmt.Sprintf("%s pushed %d commit", it.who, n)
+	s := fmt.Sprintf("%s pushed %d commit", disp(it.who), n)
 	if n != 1 {
 		s += "s"
 	}
@@ -199,6 +200,7 @@ func newConv() convState {
 	}
 	items := []*citem{
 		it("pr", "", "alice", "3d ago", description),
+		// items[0] is the pull request itself: the description pane shows it.
 		it("comment", "", "bob", "3d ago", "Nice start. Can we cover division by zero? I did not see a test for it and the helper looks like it would panic."),
 		push("alice", "3d ago", false, [2]string{"a1b2c3d", "Add calc helper"}, [2]string{"b2c3d4e", "Add tests for Div"}, [2]string{"c3d4e5f", "Add package doc"}),
 		it("comment", "", "alice", "2d ago", "Added a test for it, plus a package doc in doc.go."),
@@ -215,13 +217,13 @@ func newConv() convState {
 			th(20, "+func Add(a, b int) int { return a + b }", false,
 				rp("dave", "20h ago", "Should Add guard against overflow?"))),
 		it("sys", "", "ci", "1d ago", "ci: e2e failed on a1b2c3d"),
-		it("sys", "", "alice", "1d ago", "alice requested a review from carol"),
-		it("sys", "", "alice", "1d ago", "alice added the label bug"),
+		it("sys", "", "alice", "1d ago", "Alice Chen requested a review from Carol Diaz"),
+		it("sys", "", "alice", "1d ago", "Alice Chen added the label bug"),
 		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake"}),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
-		it("comment", "", "coverage-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
+		it("comment", "", "ghost-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
 	}
-	open := map[string]bool{"pr": true}
+	open := map[string]bool{}
 	for _, x := range items {
 		if x.kind == "review" {
 			un := slices.ContainsFunc(x.threads, func(t *thread) bool { return !t.resolved })
@@ -231,7 +233,7 @@ func newConv() convState {
 			open[thKey(t)] = !t.resolved
 		}
 	}
-	return convState{items: items, open: open, title: "Add calc helper", sel: "pr"}
+	return convState{items: items, open: open, title: "Add calc helper"}
 }
 
 type crow struct {
@@ -295,10 +297,7 @@ func (m *model) crows(all bool) []crow {
 	}
 	addItem := func(it *citem, depth int, parent string) {
 		key := itKey(it)
-		if it.kind == "pr" {
-			key = "pr"
-		}
-		fold := it.kind == "review" || it.kind == "pr" || it.kind == "push" || len(it.replies) > 0
+		fold := it.kind == "review" || it.kind == "push" || len(it.replies) > 0
 		open := fold && op(key, it.kind != "push")
 		rows = append(rows, crow{key: key, kind: it.kind, depth: depth, parent: parent, fold: fold, open: open, it: it})
 		if !open {
@@ -317,7 +316,6 @@ func (m *model) crows(all bool) []crow {
 		}
 		addReplies(&it.replies, depth+1, key, nil, 0)
 	}
-	addItem(c.items[0], 0, "")
 	var vis []*citem
 	for _, it := range c.items[1:] {
 		if c.itShown(it) {
@@ -407,7 +405,6 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		}
 		return fmt.Sprintf("⋯ %d", n)
 	}
-	bw := max(10, cw-3*(r.depth+1)-3)
 	// meta joins the secondary info of the right edge, dim.
 	meta := func(pending, edited bool, parts ...string) string {
 		var p []string
@@ -425,8 +422,10 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		}
 		return s
 	}
-	var head, right string
-	var body []string
+	// head is the row up to where the message starts; msg is the text that
+	// follows it on the same line and flows under itself, hanging, below.
+	var head, right, msg string
+	var snip *thread
 	switch r.kind {
 	case "push", "sys":
 		var extra []string
@@ -436,17 +435,11 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 			}
 		}
 		return sysLines(r.it.sysText(), extra, cw)
-	case "pr":
-		head = bold("#42 " + m.cv.title)
-		right = meta(false, r.it.edited, "alice · 3d")
-		if r.open {
-			body = wrap(r.it.body, bw)
-		}
 	case "run":
 		var who []string
 		for _, it := range r.run {
-			if !slices.Contains(who, it.who) {
-				who = append(who, it.who)
+			if n := disp(it.who); !slices.Contains(who, n) {
+				who = append(who, n)
 			}
 		}
 		lead := ""
@@ -456,17 +449,17 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", "))
 		right = meta(false, false, r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
-		head = bold(r.it.who) + dim(" commented")
+		head = bold(disp(r.it.who))
 		right = meta(false, r.it.edited, fold(len(r.it.replies)), r.it.when)
-		body = wrap(r.it.body, bw)
+		msg = r.it.body
 	case "review":
 		switch r.it.state {
 		case "approve":
-			head = green("✓ ") + bold(r.it.who)
+			head = ic.approved.String() + " " + bold(disp(r.it.who))
 		case "changes":
-			head = red("✗ ") + bold(r.it.who)
+			head = ic.changes.String() + " " + bold(disp(r.it.who))
 		default:
-			head = dim("○ ") + bold(r.it.who)
+			head = ic.commented.String() + " " + bold(disp(r.it.who))
 		}
 		sum := ""
 		if closed {
@@ -479,55 +472,80 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		}
 		right = meta(false, r.it.edited, sum, r.it.when)
 		if r.open {
-			body = wrap(r.it.body, bw)
+			msg = r.it.body
 		}
 	case "thread":
 		// The thread is its first comment's author; the file shows only in the
 		// snippet block, and in the summary of a folded thread.
 		first := r.th.replies[0]
-		who := "@" + first.who
+		who := disp(first.who)
 		if closed {
 			head = threadIcon(r.th.resolved) + " " + bold(who) + dim(" · "+r.th.label())
 			if r.th.resolved {
 				head = threadIcon(true) + " " + dim(who+" · "+r.th.label())
 			}
 		} else {
-			// No excerpt: the full body is drawn below.
+			// The root row is the author and the first line of the comment;
+			// the snippet block follows, then the rest of the body.
 			if r.th.resolved {
 				head = threadIcon(true) + " " + dim(who)
 			} else {
 				head = threadIcon(false) + " " + bold(who)
 			}
+			if r.th.outdated {
+				head += " " + dim(outdatedIcon)
+			}
+			msg, snip = first.body, r.th
 		}
-		if r.th.outdated {
+		if closed && r.th.outdated {
 			head += " " + dim(outdatedIcon)
 		}
 		right = meta(false, first.edited, fold(len(r.th.replies)-1), first.when)
-		if r.open {
-			for _, l := range threadBlock(r.th, cw-3*(r.depth+1)-3-2) {
-				if l != "" {
-					l = "  " + dim("▏ ") + l
-				}
-				body = append(body, l)
-			}
-			body = append(body, wrap(first.body, bw)...)
-		}
 	case "reply":
-		head = bold(r.rp.who)
+		head = bold(disp(r.rp.who))
 		right = meta(r.rp.pending, r.rp.edited, r.rp.when)
+		msg = r.rp.body
 	}
-	if r.kind == "reply" {
-		body = wrap(r.rp.body, bw)
+	// The text starts one gap after the head; later lines align under it.
+	var first string
+	var rest []string
+	var block []string
+	start := lipgloss.Width(gm+head) + 2
+	if msg != "" {
+		w1 := max(10, cw-start-lipgloss.Width(right)-2)
+		first = wrap(msg, w1)[0]
+		head += "  " + first
+		tail := strings.TrimPrefix(msg, first)
+		if strings.HasPrefix(tail, "\n") {
+			tail = tail[1:]
+		} else {
+			tail = strings.TrimLeft(tail, " ")
+		}
+		if tail != "" {
+			rest = wrap(tail, max(10, cw-start))
+		}
+	} else {
+		snip = nil
+	}
+	if snip != nil {
+		for _, l := range threadBlock(snip, cw-start-2) {
+			if l != "" {
+				l = dim("▏ ") + l
+			}
+			block = append(block, l)
+		}
+		if len(rest) == 0 && len(block) > 0 && block[len(block)-1] == "" {
+			block = block[:len(block)-1]
+		}
 	}
 	out := []string{rightAlign(gm+head, right, cw)}
-	for _, l := range body {
-		switch {
-		case kids:
-			l = gb + dim("│  ") + l
-		default:
-			l = gb + "   " + l
-		}
-		out = append(out, l)
+	guide := gb + " "
+	if kids {
+		guide = gb + dim("│")
+	}
+	guide += strings.Repeat(" ", max(0, start-lipgloss.Width(guide)))
+	for _, l := range append(block, rest...) {
+		out = append(out, guide+l)
 	}
 	return out
 }
@@ -535,6 +553,10 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 func (m *model) convLines(cw int) []string {
 	c := &m.cv
 	rows := m.crows(false)
+	if len(rows) == 0 {
+		c.first, c.lastLine = 0, 0
+		return []string{dim("  nothing matches this filter (f changes it)")}
+	}
 	si := m.selIdx(rows)
 	c.sel, c.last = rows[si].key, si
 	var out []string
@@ -622,6 +644,14 @@ func rowTgt(r crow) tgt {
 func (m *model) convKey(k string) tea.Cmd {
 	c := &m.cv
 	rows := m.crows(false)
+	if k == "f" {
+		c.filter = (c.filter + 1) % len(filterNames)
+		m.ensureSel()
+		return nil
+	}
+	if len(rows) == 0 {
+		return nil
+	}
 	i := m.selIdx(rows)
 	r := rows[i]
 	switch k {
@@ -691,11 +721,11 @@ func (m *model) act(k string, t tgt) tea.Cmd {
 		case "run":
 			return m.say("open the run and pick a comment to reply to")
 		case "reply":
-			rl, who = t.rl, t.rp.who
+			rl, who = t.rl, disp(t.rp.who)
 		case "thread":
 			rl, who = &t.th.replies, "thread "+t.th.label()
 		default:
-			rl, who = &t.it.replies, t.it.who
+			rl, who = &t.it.replies, disp(t.it.who)
 		}
 		ok := t.openKey
 		m.push(overlay{kind: "reply", title: "Reply to " + who, save: func(m *model, _, txt string) tea.Cmd {
@@ -722,13 +752,6 @@ func (m *model) act(k string, t tgt) tea.Cmd {
 		})
 	case "e":
 		switch {
-		case t.kind == "pr":
-			it := t.it
-			m.push(overlay{kind: "editpr", title: "Edit pull request #42", etitle: m.cv.title, ctext: it.body,
-				save: func(m *model, title, body string) tea.Cmd {
-					m.cv.title, it.body, it.edited = title, body, true
-					return m.say("pull request updated")
-				}})
 		case own && t.kind == "comment":
 			it := t.it
 			m.push(overlay{kind: "reply", title: "Edit your comment", ctext: it.body,
@@ -748,8 +771,6 @@ func (m *model) act(k string, t tgt) tea.Cmd {
 		}
 	case "X", "D":
 		switch {
-		case t.kind == "pr":
-			return m.say("the pull request itself can't be deleted here")
 		case !own:
 			return m.say("you can only edit your own comments")
 		case t.kind == "comment":
@@ -770,6 +791,16 @@ func (m *model) act(k string, t tgt) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// editPR opens the title and description editor of the pull request.
+func (m *model) editPR() {
+	it := m.cv.items[0]
+	m.push(overlay{kind: "editpr", title: "Edit pull request #42", etitle: m.cv.title, ctext: it.body,
+		save: func(m *model, title, body string) tea.Cmd {
+			m.cv.title, it.body, it.edited = title, body, true
+			return m.say("pull request updated")
+		}})
 }
 
 // tgtOfKey is the thread or reply a pager draft key stands for.
@@ -805,14 +836,14 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 			var text string
 			switch {
 			case !isOpen:
-				text = bold("@"+first.who) + dim(" · "+t.label())
+				text = bold(disp(first.who)) + dim(" · "+t.label())
 				if n := len(t.replies) - 1; n > 0 {
 					text += dim(fmt.Sprintf(" ⋯ %d", n))
 				}
 			case t.resolved:
-				text = dim("@" + first.who)
+				text = dim(disp(first.who))
 			default:
-				text = bold("@" + first.who)
+				text = bold(disp(first.who))
 			}
 			if t.outdated {
 				text += " " + dim(outdatedIcon)
@@ -846,7 +877,7 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 					tg += dim(" (edited)")
 				}
 				out = append(out, vrow{li: li, draft: true, dk: [3]int{-t.id, i + 1, 0},
-					text: dim("   "+gl+" ") + bold(r.who) + dim(": ") + r.body + tg})
+					text: dim("   "+gl+" ") + bold(disp(r.who)) + dim(": ") + r.body + tg})
 			}
 		}
 	}
