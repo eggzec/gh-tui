@@ -49,7 +49,8 @@ const (
 type attKind int
 
 const (
-	attReview attKind = iota
+	attSince attKind = iota
+	attReview
 	attFailing
 	attMoreFailing
 	attChanges
@@ -177,6 +178,10 @@ func (m *detailModal) attentionRows() []attention {
 	default:
 		order = []attKind{attConflict, attBehind, attFailing, attMoreFailing, attChanges, attThreads}
 	}
+	if a, ok := m.sinceRow(); ok {
+		by[attSince] = []attention{a}
+	}
+	order = append([]attKind{attSince}, order...)
 	var rows []attention
 	for _, k := range order {
 		rows = append(rows, by[k]...)
@@ -270,6 +275,25 @@ func (m *detailModal) unresolvedBy(login string) int {
 	return n
 }
 
+// sinceRow returns the row that says the head moved since the last visit,
+// which leads to the Files tab.
+func (m *detailModal) sinceRow() (attention, bool) {
+	c := &m.visit.catch
+	var subject string
+	switch {
+	case c.rewritten:
+		subject = "Rewritten since you looked"
+	case c.commits > 0:
+		subject = plural(c.commits, "new commit") + " since you looked"
+	default:
+		return attention{}, false
+	}
+	return attention{
+		kind: attSince, id: "since", glyph: m.theme.Accent.Render(m.catchupGlyph()),
+		subject: subject, reason: "read the changes in Files",
+	}, true
+}
+
 // threadsRow returns the row for the unresolved review threads, which says
 // where the first one is.
 func (m *detailModal) threadsRow() (attention, bool) {
@@ -324,7 +348,7 @@ func (m *detailModal) attend() tea.Cmd {
 		return m.switchTo(checksTab)
 	case attChanges, attThreads:
 		return m.showThread(a.thread)
-	case attReview:
+	case attReview, attSince:
 		return m.switchTo(filesTab)
 	case attConflict, attBehind:
 		return m.openPage("")
@@ -542,6 +566,9 @@ func (m *detailModal) strip(short bool) string {
 			}
 			parts = append(parts, m.theme.Warning.Render(m.icons.Dot)+m.st.author.Render(" "+count))
 		}
+	}
+	if s := m.catchupText(); s != "" {
+		parts = append(parts, m.theme.Accent.Render(s))
 	}
 	return strings.Join(parts, m.st.sep.Render(m.icons.Separator))
 }

@@ -134,7 +134,7 @@ func (m *detailModal) receive(msg detailMsg) tea.Cmd {
 	m.tray.asked = true
 	newer := m.loaded && msg.detail.UpdatedAt.After(m.detail.UpdatedAt)
 	m.detail, m.loaded, m.seen, m.failed = msg.detail, true, true, nil
-	cmds := []tea.Cmd{m.show(), m.showFiles(), m.showThreads()}
+	cmds := []tea.Cmd{m.show(), m.showFiles(), m.showThreads(), m.askSince()}
 	if first || m.tray.pending.ID != "" {
 		// A review started on the web: its comments join the tray. GitHub names
 		// no review of the viewer's while the only one is pending, so the first

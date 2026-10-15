@@ -138,6 +138,22 @@ type fakeService struct {
 	// pending is the pending review that PendingReview reads, if pendingFound.
 	pending      core.PendingReview
 	pendingFound bool
+	// sinceCmp are the comparisons Since serves, by the base it is asked
+	// for, sinceErr fails it, and sinceReads are its queries.
+	sinceCmp   map[string]core.Compare
+	sinceErr   error
+	sinceReads []pulls.SinceQuery
+}
+
+// Since serves the comparison for the base of q from sinceCmp, or sinceErr.
+func (f *fakeService) Since(_ context.Context, q pulls.SinceQuery) (core.Compare, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sinceReads = append(f.sinceReads, q)
+	if f.sinceErr != nil {
+		return core.Compare{}, f.sinceErr
+	}
+	return f.sinceCmp[q.Base], nil
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.
