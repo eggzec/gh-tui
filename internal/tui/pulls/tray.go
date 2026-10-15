@@ -219,14 +219,12 @@ func (m *detailModal) keepDraft(d tray.Draft, body string) {
 // thread for a reply.
 func (m *detailModal) draftBlocks() []diff.Block {
 	blocks := make([]diff.Block, 0, len(m.tray.drafts))
+	scope := m.files.scope
 	for i := range m.tray.drafts {
 		d := m.tray.drafts[i]
-		anchor := diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line}
-		if d.ThreadID != "" {
-			anchor = diff.Pos{Path: d.Path}
-			if th, ok := m.threadByID(d.ThreadID); ok {
-				anchor = threadAnchor(th)
-			}
+		anchor := m.draftAnchor(d)
+		if !scope.shows(anchor) {
+			continue
 		}
 		blocks = append(blocks, diff.Block{
 			ID:     draftPrefix + d.ID,
@@ -235,6 +233,18 @@ func (m *detailModal) draftBlocks() []diff.Block {
 		})
 	}
 	return blocks
+}
+
+// draftAnchor returns where draft d sits in the diff: its line, or its
+// thread's for a reply.
+func (m *detailModal) draftAnchor(d tray.Draft) diff.Pos {
+	if d.ThreadID == "" {
+		return diff.Pos{Path: d.Path, Side: diffSide(d.Side), Line: d.Line}
+	}
+	if th, ok := m.threadByID(d.ThreadID); ok {
+		return threadAnchor(th)
+	}
+	return diff.Pos{Path: d.Path}
 }
 
 // diffSide returns the side of the diff that a draft's side is.
@@ -331,9 +341,15 @@ func (m *detailModal) startRange() tea.Cmd {
 		t.from = nil
 		return ui.Notify(toast.Info, "Range cleared.")
 	}
+	if why := m.files.scope.refusal(nil); why != "" {
+		return ui.Notify(toast.Info, why)
+	}
 	pos, ok := m.files.diff.Position()
 	if !ok {
 		return ui.Notify(toast.Info, "Put the cursor on a line to start a range.")
+	}
+	if why := m.files.scope.refusal(&pos); why != "" {
+		return ui.Notify(toast.Info, why)
 	}
 	t.from = &pos
 	// A range is a new comment, so it ends a placement.
@@ -348,6 +364,9 @@ func (m *detailModal) comment() tea.Cmd {
 		return nil
 	}
 	f := m.files
+	if why := f.scope.refusal(nil); why != "" {
+		return ui.Notify(toast.Info, why)
+	}
 	if d, ok := m.draftUnderCursor(); ok {
 		if d.OnGitHub {
 			return ui.Notify(toast.Info, onGitHubText)
@@ -393,6 +412,9 @@ func (m *detailModal) comment() tea.Cmd {
 	pos, ok := f.diff.Position()
 	if !ok {
 		return ui.Notify(toast.Info, "Put the cursor on a line to comment.")
+	}
+	if why := f.scope.refusal(&pos); why != "" {
+		return ui.Notify(toast.Info, why)
 	}
 	d := tray.Draft{ID: m.newDraftID(), Commit: head, Path: pos.Path, Side: traySide(pos.Side), Line: pos.Line}
 	if from := m.tray.from; from != nil {

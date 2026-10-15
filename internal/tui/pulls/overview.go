@@ -348,8 +348,10 @@ func (m *detailModal) attend() tea.Cmd {
 		return m.switchTo(checksTab)
 	case attChanges, attThreads:
 		return m.showThread(a.thread)
-	case attReview, attSince:
+	case attReview:
 		return m.switchTo(filesTab)
+	case attSince:
+		return m.openSince()
 	case attConflict, attBehind:
 		return m.openPage("")
 	}
@@ -385,7 +387,9 @@ func (m *detailModal) showThread(t core.ReviewThread) tea.Cmd {
 	if m.files == nil {
 		return cmd
 	}
-	return tea.Batch(cmd, m.showLine(diff.Pos{Path: t.Path, Side: diff.NewSide, Line: t.Line}))
+	pos := diff.Pos{Path: t.Path, Side: diff.NewSide, Line: t.Line}
+	reach := m.reachAll(t.Path, &pos)
+	return tea.Batch(cmd, reach, m.showLine(pos))
 }
 
 // pressOverview takes a key on the Overview tab: those that close,

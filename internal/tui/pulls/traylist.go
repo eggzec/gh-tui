@@ -110,11 +110,13 @@ func (m *detailModal) showDraft(id string) tea.Cmd {
 		return nil
 	}
 	path := m.tray.drafts[i].Path
+	anchor := m.draftAnchor(m.tray.drafts[i])
 	cmd := m.switchTo(filesTab)
 	if m.files == nil {
 		return cmd
 	}
-	return tea.Batch(cmd, m.seekDiff(path, func(d *diff.Model) { d.SeekBlock(draftPrefix + id) }))
+	reach := m.reachAll(path, &anchor)
+	return tea.Batch(cmd, reach, m.seekDiff(path, func(d *diff.Model) { d.SeekBlock(draftPrefix + id) }))
 }
 
 // removeDraft deletes draft id, and saves the rest.
@@ -240,6 +242,11 @@ func (m *detailModal) noteText(d *tray.Draft) {
 
 // settleDrafts runs checkDrafts, and saves and shows what it changed.
 func (m *detailModal) settleDrafts() tea.Cmd {
+	// A scope shows some of the changes, so a line it lacks says nothing of
+	// a draft's.
+	if f := m.files; f != nil && f.scope.kind != scopeAll {
+		return nil
+	}
 	if !m.checkDrafts() {
 		return nil
 	}

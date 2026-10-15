@@ -587,6 +587,8 @@ func (m *detailModal) showThreadAt(th *core.Thread) tea.Cmd {
 	if m.files == nil {
 		return cmd
 	}
+	anchor := threadAnchor(th)
+	reach := m.reachAll(th.Path, &anchor)
 	// The diff holds the thread as a block, which waits for its file.
-	return tea.Batch(cmd, m.seekDiff(th.Path, func(d *diff.Model) { d.SeekBlock(th.ID) }))
+	return tea.Batch(cmd, reach, m.seekDiff(th.Path, func(d *diff.Model) { d.SeekBlock(th.ID) }))
 }

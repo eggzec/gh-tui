@@ -41,7 +41,7 @@ func (m *detailModal) threadBlocks() []diff.Block {
 	blocks := make([]diff.Block, 0, len(all))
 	for i := range all {
 		th := &all[i]
-		if th.Path == "" {
+		if th.Path == "" || !m.files.scope.shows(threadAnchor(th)) {
 			continue
 		}
 		blocks = append(blocks, diff.Block{
@@ -64,7 +64,7 @@ func (m *detailModal) applyThreadBlocks() {
 	f.counts = map[string]threadCount{}
 	for i := range m.th.all {
 		th := &m.th.all[i]
-		if th.Path == "" {
+		if th.Path == "" || !f.scope.shows(threadAnchor(th)) {
 			continue
 		}
 		c := f.counts[th.Path]

@@ -36,7 +36,7 @@ func TestViewedInTheDiffFoldsAndMovesOn(t *testing.T) {
 	if !m.files.diff.Collapsed("cmd/gh-tui/main.go") {
 		t.Error("the file viewed is not folded")
 	}
-	if title := plain(m)[0]; !strings.Contains(title, "Files 1/7 viewed") {
+	if title := plain(m)[0]; !strings.Contains(title, "1/7 viewed") {
 		t.Errorf("the tree title is %q, want the count", title)
 	}
 	if !strings.Contains(strings.Join(plain(m), "\n"), "1 viewed") {
@@ -103,7 +103,7 @@ func TestViewedInTheTreeMarksAndUnmarks(t *testing.T) {
 	if st, _ := store.state(); st.Viewed[path] != "sha-"+path {
 		t.Errorf("kept %v, want %q with its blob", st.Viewed, path)
 	}
-	if title := plain(m)[0]; !strings.Contains(title, "Files 1/7 viewed") {
+	if title := plain(m)[0]; !strings.Contains(title, "1/7 viewed") {
 		t.Errorf("the tree title is %q, want the count", title)
 	}
 
