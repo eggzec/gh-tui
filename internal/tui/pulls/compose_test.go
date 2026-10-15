@@ -21,11 +21,13 @@ type memDrafts struct {
 	mu      sync.Mutex
 	drafts  map[string]string
 	deleted []string
+	loads   int
 }
 
 func (d *memDrafts) Load(key string) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.loads++
 	return d.drafts[key], nil
 }
 

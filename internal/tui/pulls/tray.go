@@ -164,6 +164,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.settleDrafts(), m.showThreadChange())
 	case pendingLoadedMsg:
 		return m.receivePending(msg)
+	case summaryDraftMsg:
+		m.receiveSummaryDraft(msg)
+		return nil
 	case composer.SubmitMsg:
 		// The comment's composer reports through the same messages.
 		if c := m.tray.comp; c != nil && c.c.ID() == msg.ID {
