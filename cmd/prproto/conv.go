@@ -28,11 +28,61 @@ type thread struct {
 	id            int
 	fi, line, loc int
 	snippet       string
+	start         int // first commented line when the comment spans several
+	outdated      bool
 	resolved      bool
 	replies       []*reply
 }
 
 func (t *thread) label() string { return fmt.Sprintf("%s:%d", files[t.fi].name, t.line) }
+
+// span is the commented line range, "12" or "11-12".
+func (t *thread) span() string {
+	if t.start > 0 && t.start < t.line {
+		return fmt.Sprintf("%d-%d", t.start, t.line)
+	}
+	return fmt.Sprint(t.line)
+}
+
+func fileGlyph(name string) string {
+	if strings.HasSuffix(name, ".go") {
+		return ""
+	}
+	return ""
+}
+
+// threadBlock draws the code a review thread is on as a block of its own: a
+// header with the file and lines, then the last diff lines up to the
+// commented one, drawn as the diff pager draws them, all behind a dim rule,
+// and a blank line before the first comment.
+func threadBlock(t *thread, w int) []string {
+	head := fileGlyph(files[t.fi].name) + " " + files[t.fi].path() + ":" + t.span()
+	if t.outdated {
+		head += " · outdated"
+	}
+	out := []string{dim(head)}
+	doc := fileDoc(files[t.fi], t.fi)
+	var pick []dl
+	for i := t.loc; i >= 0 && len(pick) < 4; i-- {
+		if k := doc[i].kind; k == '+' || k == '-' || k == 'h' {
+			pick = append([]dl{doc[i]}, pick...)
+		} else if k == '@' {
+			break
+		}
+	}
+	start := t.start
+	if start == 0 {
+		start = t.line
+	}
+	for _, x := range pick {
+		st := 0
+		if x.kind != '-' && x.src >= start && x.src <= t.line {
+			st = 3
+		}
+		out = append(out, renderDL(x, max(24, w)+4, st))
+	}
+	return append(out, "")
+}
 
 type citem struct {
 	id                           int
@@ -78,6 +128,10 @@ func newConv() convState {
 	th := func(line int, snippet string, resolved bool, rs ...*reply) *thread {
 		return &thread{id: newID(), fi: 0, line: line, loc: locFor(0, line), snippet: snippet, resolved: resolved, replies: rs}
 	}
+	span := func(start int, outdated bool, t *thread) *thread {
+		t.start, t.outdated = start, outdated
+		return t
+	}
 	it := func(kind, state, who, when, body string, ths ...*thread) *citem {
 		return &citem{id: newID(), kind: kind, state: state, who: who, when: when, body: body, threads: ths}
 	}
@@ -89,12 +143,12 @@ func newConv() convState {
 		it("comment", "", "dave", "2d ago", "The docs read well to me."),
 		it("review", "approve", "bob", "2d ago", "LGTM once CI is green."),
 		it("review", "changes", "carol", "1d ago", "The Div helper panics on zero. Please return an error instead; see the threads.",
-			th(12, "+	return a / b", false,
+			span(11, false, th(12, "+	return a / b", false,
 				rp("carol", "1d ago", "Return an error instead of panicking?"),
-				rp("alice", "1d ago", "Planning to, wanted to confirm the API first.")),
-			th(30, "+func Mul(a, b int) int { return a * b }", true,
+				rp("alice", "1d ago", "Planning to, wanted to confirm the API first."))),
+			span(0, true, th(30, "+func Mul(a, b int) int { return a * b }", true,
 				rp("carol", "1d ago", "nit: Mul could use a doc example."),
-				rp("alice", "20h ago", "Done, added one."))),
+				rp("alice", "20h ago", "Done, added one.")))),
 		it("review", "comment", "dave", "20h ago", "A couple of questions.",
 			th(20, "+func Add(a, b int) int { return a + b }", false,
 				rp("dave", "20h ago", "Should Add guard against overflow?"))),
@@ -238,17 +292,52 @@ func (m *model) setSel(rows []crow, i int) {
 	m.cv.sel, m.cv.last = rows[i].key, i
 }
 
-func (m *model) crowLines(r crow, cw int) []string {
-	ind := strings.Repeat("  ", r.depth)
-	mark := "  "
-	if r.fold {
-		mark = "▸ "
-		if r.open {
-			mark = "▾ "
+// guides returns the dim tree guides of row i: first for its own line, then
+// for the lines of its body. Column 0 stays free for the selection marker.
+func guides(rows []crow, i int) (first, body string, kids bool) {
+	d := rows[i].depth
+	later := func(k int) bool {
+		for _, x := range rows[i+1:] {
+			if x.depth < k {
+				return false
+			}
+			if x.depth == k {
+				return true
+			}
 		}
-		mark = dim(mark)
+		return false
 	}
-	bw := max(10, cw-len(ind)-4)
+	pre := ""
+	for k := 1; k < d; k++ {
+		if later(k) {
+			pre += dim("│  ")
+		} else {
+			pre += "   "
+		}
+	}
+	first, body = " "+pre, " "+pre
+	if d > 0 {
+		if later(d) {
+			first += dim("├─ ")
+			body += dim("│  ")
+		} else {
+			first += dim("╰─ ")
+			body += "   "
+		}
+	}
+	kids = i+1 < len(rows) && rows[i+1].depth > d
+	return first, body, kids
+}
+
+func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
+	closed := r.fold && !r.open
+	fold := func() string {
+		if closed {
+			return dim(" ⋯")
+		}
+		return ""
+	}
+	bw := max(10, cw-3*(r.depth+1)-3)
 	tag := func(edited, pending bool) string {
 		s := ""
 		if pending {
@@ -263,7 +352,7 @@ func (m *model) crowLines(r crow, cw int) []string {
 	var body []string
 	switch r.kind {
 	case "pr":
-		head = bold("#42 "+m.cv.title) + dim(" · alice opened this 3 days ago") + tag(r.it.edited, false)
+		head = bold("#42 "+m.cv.title) + dim(" · alice opened this 3 days ago") + tag(r.it.edited, false) + fold()
 		if r.open {
 			body = wrap(r.it.body, bw)
 		}
@@ -274,9 +363,16 @@ func (m *model) crowLines(r crow, cw int) []string {
 				who = append(who, it.who)
 			}
 		}
-		head = bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", ")+" · "+r.run[0].when+" – "+r.run[len(r.run)-1].when)
+		lead := ""
+		if closed {
+			lead = dim("⋯ ")
+		}
+		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", ")+" · "+r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
 		head = bold(r.it.who) + dim(" commented · "+r.it.when) + tag(r.it.edited, false)
+		if closed {
+			head += dim(fmt.Sprintf(" · %d replies", len(r.it.replies))) + fold()
+		}
 		body = wrap(r.it.body, bw)
 	case "commit":
 		head = dim("◆ ") + bold(r.it.who) + dim(" pushed a commit · "+r.it.when)
@@ -309,6 +405,13 @@ func (m *model) crowLines(r crow, cw int) []string {
 			}
 		}
 		head += tag(r.it.edited, false)
+		if closed {
+			n := len(r.it.replies)
+			for _, t := range r.it.threads {
+				n += len(t.replies)
+			}
+			head += dim(fmt.Sprintf(" · %d replies", n)) + fold()
+		}
 		if r.open {
 			body = wrap(r.it.body, bw)
 		}
@@ -317,17 +420,25 @@ func (m *model) crowLines(r crow, cw int) []string {
 		if r.th.resolved {
 			st = green("resolved")
 		}
-		head = bold(r.th.label()) + " " + st + dim(fmt.Sprintf(" · %d replies", len(r.th.replies)))
+		head = bold(r.th.label()) + " " + st + dim(fmt.Sprintf(" · %d replies", len(r.th.replies))) + fold()
 		if r.open {
-			body = []string{green(r.th.snippet)}
+			body = threadBlock(r.th, cw-3*(r.depth+1)-3)
 		}
 	case "reply":
 		head = bold(r.rp.who) + dim(" · "+r.rp.when) + tag(r.rp.edited, r.rp.pending)
 		body = wrap(r.rp.body, bw)
 	}
-	out := []string{ind + mark + head}
+	out := []string{gm + head}
 	for _, l := range body {
-		out = append(out, ind+"  "+l)
+		switch {
+		case r.kind == "thread" && l != "":
+			l = gb + dim("│  ") + l
+		case kids:
+			l = gb + dim("│  ") + l
+		default:
+			l = gb + "   " + l
+		}
+		out = append(out, l)
 	}
 	return out
 }
@@ -339,7 +450,8 @@ func (m *model) convLines(cw int) []string {
 	c.sel, c.last = rows[si].key, si
 	var out []string
 	for i, r := range rows {
-		ls := m.crowLines(r, cw)
+		gm, gb, kids := guides(rows, i)
+		ls := m.crowLines(r, cw, gm, gb, kids)
 		if i == si {
 			c.first, c.lastLine = len(out), len(out)+len(ls)-1
 			for j, l := range ls {
@@ -609,6 +721,10 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 				continue
 			}
 			for i, r := range t.replies {
+				gl := "├─"
+				if i == len(t.replies)-1 {
+					gl = "╰─"
+				}
 				tg := ""
 				if r.pending {
 					tg = yellow(" (pending)")
@@ -617,7 +733,7 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 					tg += dim(" (edited)")
 				}
 				out = append(out, vrow{li: li, draft: true, dk: [3]int{-t.id, i + 1, 0},
-					text: dim("   │ ") + bold(r.who) + dim(": ") + r.body + tg})
+					text: dim("   "+gl+" ") + bold(r.who) + dim(": ") + r.body + tg})
 			}
 		}
 	}
