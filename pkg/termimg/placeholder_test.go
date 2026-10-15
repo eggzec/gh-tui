@@ -29,6 +29,9 @@ func TestDiacriticTable(t *testing.T) {
 			want = append(want, rune(r))
 		}
 	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
 	if len(want) != MaxCells || len(diacritics) != MaxCells {
 		t.Fatalf("%d diacritics in the spec, %d here, MaxCells %d", len(want), len(diacritics), MaxCells)
 	}

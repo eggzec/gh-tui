@@ -183,7 +183,10 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 	if !m.lineNumbers {
 		// Only the marks of an inverted search show, in a cell of their
 		// own.
-		b.WriteString(st.on + " " + st.off + " ")
+		b.WriteString(st.on)
+		b.WriteString(" ")
+		b.WriteString(st.off)
+		b.WriteString(" ")
 		return
 	}
 	n := strconv.Itoa(i + 1)

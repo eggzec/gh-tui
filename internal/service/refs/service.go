@@ -193,9 +193,9 @@ func (s *Service) read(ctx context.Context, q Query) (core.References, error) {
 		Closing: p.closing, Mentioned: src.Mentioned,
 		CommentsRead: src.CommentsRead, CommentsTotal: src.CommentsTotal,
 		ReviewsRead: src.ReviewsRead, ReviewsTotal: src.ReviewsTotal,
-		ReadAt: time.Now(),
+		ReadAt:      time.Now(),
+		ItemUpdated: q.Updated,
 	}
-	out.ItemUpdated = q.Updated
 	pending := p.pending
 	if len(pending) > maxResolve {
 		out.Unresolved = len(pending) - maxResolve

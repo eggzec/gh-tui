@@ -188,7 +188,15 @@ func padded(n int) string {
 			b.WriteString("\x1b[22;23;24;27;29;55m")
 		}
 		for _, kind := range []string{"38", "48", "58"} {
-			b.WriteString("\x1b[" + kind + ":2::" + pad(i) + ":" + pad(i/256) + ":" + pad(i+1) + "m")
+			b.WriteString("\x1b[")
+			b.WriteString(kind)
+			b.WriteString(":2::")
+			b.WriteString(pad(i))
+			b.WriteString(":")
+			b.WriteString(pad(i / 256))
+			b.WriteString(":")
+			b.WriteString(pad(i + 1))
+			b.WriteString("m")
 		}
 		b.WriteString("x")
 	}
@@ -206,7 +214,8 @@ func opposite(n int) string {
 	}
 	var b strings.Builder
 	for i := range n {
-		b.WriteString(styles[i%2] + "x")
+		b.WriteString(styles[i%2])
+		b.WriteString("x")
 	}
 	return b.String()
 }

@@ -199,7 +199,7 @@ func New(opts ...Option) (*Client, error) {
 		access: acc,
 		base: &timeoutTransport{
 			base: newLimitTransport(&logTransport{
-				base:        cmp.Or[http.RoundTripper](hc.Transport, http.DefaultTransport),
+				base:        cmp.Or(hc.Transport, http.DefaultTransport),
 				restRoot:    b.restRoot,
 				graphqlPath: b.graphqlPath,
 			}, o.concurrency, foregroundSlots),

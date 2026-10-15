@@ -70,7 +70,9 @@ func (m *Model) configHeader() string {
 	)
 	var b strings.Builder
 	for _, l := range lines {
-		b.WriteString("# " + l + "\n")
+		b.WriteString("# ")
+		b.WriteString(l)
+		b.WriteString("\n")
 	}
 	b.WriteString("\n")
 	return b.String()
@@ -84,7 +86,9 @@ func prefetchTable(p config.PrefetchLayers) string {
 	var b strings.Builder
 	b.WriteString("\n# What each page and kind of item reads ahead, with the setting each\n# value comes from:\n")
 	for _, l := range p.Table() {
-		b.WriteString("#   " + l + "\n")
+		b.WriteString("#   ")
+		b.WriteString(l)
+		b.WriteString("\n")
 	}
 	return b.String()
 }

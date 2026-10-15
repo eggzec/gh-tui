@@ -110,7 +110,8 @@ func lines(n int, l string) string {
 func listLines(n int) string {
 	var b strings.Builder
 	for i := range n {
-		b.WriteString(strings.Repeat("  ", i) + "- x\n")
+		b.WriteString(strings.Repeat("  ", i))
+		b.WriteString("- x\n")
 	}
 	return b.String()
 }

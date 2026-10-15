@@ -314,8 +314,7 @@ func failingChecks(contexts []checksContext) (failing []core.FailingCheck, requi
 		case "CheckRun":
 			run := c.checkRun()
 			outcome = run.Outcome()
-			f = core.FailingCheck{Name: oneLine(run.Name), Run: true, ID: run.ID, Required: run.Required}
-			f.Reason = c.runReason()
+			f = core.FailingCheck{Name: oneLine(run.Name), Run: true, ID: run.ID, Required: run.Required, Reason: c.runReason()}
 		case "StatusContext":
 			st := c.statusContext()
 			outcome = st.Outcome()

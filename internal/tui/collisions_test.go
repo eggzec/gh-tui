@@ -183,7 +183,10 @@ func byFile(lines []string) string {
 	}
 	var b strings.Builder
 	for _, f := range slices.Sorted(maps.Keys(files)) {
-		b.WriteString(f + ":\n" + strings.Join(files[f], "\n") + "\n")
+		b.WriteString(f)
+		b.WriteString(":\n")
+		b.WriteString(strings.Join(files[f], "\n"))
+		b.WriteString("\n")
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }

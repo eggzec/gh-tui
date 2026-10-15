@@ -393,9 +393,13 @@ func (m *Model) imagesSummary() string {
 	case !p.done:
 		b.WriteString("Images are off until the terminal answers.\n")
 	case v.Images:
-		b.WriteString("Images are on.\nReason: " + v.Reason + ".\n")
+		b.WriteString("Images are on.\nReason: ")
+		b.WriteString(v.Reason)
+		b.WriteString(".\n")
 	default:
-		b.WriteString("Images are off.\nReason: " + v.Reason + ".\n")
+		b.WriteString("Images are off.\nReason: ")
+		b.WriteString(v.Reason)
+		b.WriteString(".\n")
 	}
 	terminal := v.Terminal
 	if terminal == "" && !v.Tmux {
@@ -405,18 +409,24 @@ func (m *Model) imagesSummary() string {
 	if terminal == "" {
 		terminal = "unknown"
 	}
-	b.WriteString("Terminal: " + terminalName(terminal) + "\n")
+	b.WriteString("Terminal: ")
+	b.WriteString(terminalName(terminal))
+	b.WriteString("\n")
 	if v.Tmux {
 		b.WriteString("Through tmux: yes\n")
 	} else {
 		b.WriteString("Through tmux: no\n")
 	}
-	b.WriteString("images.enabled: " + p.mode + "\n")
+	b.WriteString("images.enabled: ")
+	b.WriteString(p.mode)
+	b.WriteString("\n")
 	if c := m.graphics.Cell; v.Images && c.Valid() {
 		fmt.Fprintf(&b, "Cell size: %d%s%d pixels\n", c.Width, m.icons.Times, c.Height)
 	}
 	if v.Fix != "" {
-		b.WriteString("To draw them, add this line to tmux.conf:\n" + v.Fix + "\n")
+		b.WriteString("To draw them, add this line to tmux.conf:\n")
+		b.WriteString(v.Fix)
+		b.WriteString("\n")
 		b.WriteString("Then reload tmux's config, as with tmux source-file ~/.tmux.conf, and come back to gh-tui.\n")
 	}
 	return b.String()

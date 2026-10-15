@@ -391,7 +391,12 @@ func TestBodyReadAgain(t *testing.T) {
 	html := htmlOf(func() map[string]string {
 		var b strings.Builder
 		for _, n := range []string{"a", "b", "c"} {
-			b.WriteString(`<img src="https://camo.githubusercontent.com/` + n + `" data-canonical-src="` + external + n + `">`)
+			b.WriteString(`<img src="https://camo.githubusercontent.com/`)
+			b.WriteString(n)
+			b.WriteString(`" data-canonical-src="`)
+			b.WriteString(external)
+			b.WriteString(n)
+			b.WriteString(`">`)
 		}
 		return map[string]string{"IC_1": b.String()}
 	}, &calls)
@@ -893,7 +898,9 @@ func TestOneReadPerBody(t *testing.T) {
 			path := fmt.Sprintf("/1/%d-%s.png?jwt=s%d", i, uuid(i), signed)
 			// The first signatures are refused.
 			good[path] = signed > 1
-			b.WriteString(`<img src="https://private-user-images.githubusercontent.com` + path + `">`)
+			b.WriteString(`<img src="https://private-user-images.githubusercontent.com`)
+			b.WriteString(path)
+			b.WriteString(`">`)
 		}
 		return map[string]string{"IC_1": b.String()}
 	}, &calls)

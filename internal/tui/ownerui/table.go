@@ -114,9 +114,11 @@ func (c Cols) Header(star, tail string) string {
 		text = Truncate(text, w, tail)
 		pad := strings.Repeat(" ", w-ansi.StringWidth(text))
 		if right {
-			b.WriteString(pad + text)
+			b.WriteString(pad)
+			b.WriteString(text)
 		} else {
-			b.WriteString(text + pad)
+			b.WriteString(text)
+			b.WriteString(pad)
 		}
 	}
 	cell(nameHeader, c.name, false)

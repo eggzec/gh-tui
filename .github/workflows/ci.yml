@@ -30,6 +30,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.14
+      - run: make gopls
 
   test:
     runs-on: ubuntu-latest

@@ -34,9 +34,12 @@ func (c *Client) ListPullRequestFiles(ctx context.Context, repo core.RepoRef, nu
 	case res.NotModified:
 		return core.Page[core.CommitFile]{}, res, nil
 	}
-	page := core.Page[core.CommitFile]{Items: convert(items, commitFile.core), Next: res.Next}
-	// Only the pages before the last say where the last is, so the first
-	// reports it, as GetCommit does.
-	page.Truncated = cursor == "" && filesTruncated(res)
+	page := core.Page[core.CommitFile]{
+		Items: convert(items, commitFile.core),
+		Next:  res.Next,
+		// Only the pages before the last say where the last is, so the first
+		// reports it, as GetCommit does.
+		Truncated: cursor == "" && filesTruncated(res),
+	}
 	return page, res, nil
 }

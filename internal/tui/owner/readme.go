@@ -158,9 +158,13 @@ func (s *Section) readmeSource(p *page) string {
 	case r.Source != (core.RepoRef{}):
 		b.WriteString(markdown.Resolve(r.Markdown, s.resolver(r.Readme, p.header.value.Kind)))
 	case p.header.value.Kind == core.OwnerOrg:
-		b.WriteString(escape(login) + " has no profile README. A README.md in the profile folder of its .github repository shows one here.")
+		b.WriteString(escape(login))
+		b.WriteString(" has no profile README. A README.md in the profile folder of its .github repository shows one here.")
 	default:
-		b.WriteString(escape(login) + " has no profile README. A repository " + escape(login+"/"+login) + " with a README.md shows one here.")
+		b.WriteString(escape(login))
+		b.WriteString(" has no profile README. A repository ")
+		b.WriteString(escape(login + "/" + login))
+		b.WriteString(" with a README.md shows one here.")
 	}
 	sd := &p.side
 	for _, list := range []struct {
@@ -168,7 +172,10 @@ func (s *Section) readmeSource(p *page) string {
 		read  sideRead[core.Page[core.Person]]
 	}{{"Sponsors", sd.sponsors}, {"Sponsoring", sd.sponsoring}} {
 		if line := sponsorsLine(list.read.value); list.read.ok && line != "" {
-			b.WriteString("\n\n**" + list.title + "** " + line)
+			b.WriteString("\n\n**")
+			b.WriteString(list.title)
+			b.WriteString("** ")
+			b.WriteString(line)
 		}
 	}
 	return b.String()
