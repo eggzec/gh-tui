@@ -36,6 +36,9 @@ type File struct {
 	Patch string
 	// Truncated says the source cut the patch short or left it out for size.
 	Truncated bool
+	// SHA is the blob SHA of the file after the change. The view carries it
+	// for the caller and does not read it.
+	SHA string
 }
 
 // Side is one side of a diff: the old file or the new one.

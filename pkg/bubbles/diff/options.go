@@ -21,6 +21,7 @@ type settings struct {
 	tabs    int
 
 	highlightLimit int
+	headerMark     func(File) string
 }
 
 // DefaultTabWidth is the width of a tab stop in the lines of a diff.
@@ -86,6 +87,14 @@ func WithContext(ctx context.Context) Option {
 // WithTabWidth sets the width of a tab stop. The default is [DefaultTabWidth].
 func WithTabWidth(n int) Option {
 	return func(s *settings) { s.tabs = max(n, 1) }
+}
+
+// WithHeaderMark draws the string mark returns for a file at the end of the
+// file's header row, such as a check for a file that has been read. mark may
+// style its string; an empty string draws nothing. It runs on every draw of a
+// header, so it must be cheap.
+func WithHeaderMark(mark func(File) string) Option {
+	return func(s *settings) { s.headerMark = mark }
 }
 
 // WithHighlightLimit sets the size in bytes of the text of a file above

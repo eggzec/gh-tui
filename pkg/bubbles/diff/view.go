@@ -297,14 +297,24 @@ func (m Model) fileHeader(f, room int) string {
 	if file.Additions+file.Deletions > 0 {
 		counts = "+" + strconv.Itoa(file.Additions) + " -" + strconv.Itoa(file.Deletions)
 	}
+	mark := ""
+	if m.headerMark != nil {
+		mark = m.headerMark(file)
+	}
 	left := room - 2
 	if counts != "" {
 		left -= len(counts) + 1
+	}
+	if mark != "" {
+		left -= ansi.StringWidth(mark) + 1
 	}
 	name = termtext.Truncate(name, max(left, 1), st.Ellipsis)
 	out := m.wrap.FileHeader.on(termtext.Cells(glyph, 1) + " " + name)
 	if counts != "" {
 		out += " " + m.wrap.Added.on("+"+strconv.Itoa(file.Additions)) + " " + m.wrap.Deleted.on("-"+strconv.Itoa(file.Deletions))
+	}
+	if mark != "" {
+		out += " " + mark
 	}
 	return out
 }

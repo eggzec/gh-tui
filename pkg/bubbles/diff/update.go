@@ -104,8 +104,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.searching {
 		return m.pressSearch(msg)
 	}
-	m.pg.seek = nil
-	m.search.waiting = false
+	m.cancelPending()
 	h := m.bodyHeight()
 	switch {
 	case keymap.Matches(msg, m.keyMap.Up):
