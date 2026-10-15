@@ -58,9 +58,12 @@ type filesState struct {
 	cancel context.CancelFunc
 	// head is the commit the files were read at.
 	head string
-	set  *fileSet
-	diff diff.Model
-	tree tree.Model
+	// scope says which changes the files are: all of them, those since the
+	// last visit, or one commit's.
+	scope filesScope
+	set   *fileSet
+	diff  diff.Model
+	tree  tree.Model
 	// treeStarted says that the tree has loaded its top, which waits for
 	// the first files.
 	treeStarted bool
@@ -127,7 +130,8 @@ func (m *detailModal) showFiles() tea.Cmd {
 	case !m.onFiles() || !m.canReadFiles():
 		return nil
 	}
-	return m.startFiles(nil)
+	// The tab always opens on all the changes.
+	return m.startFiles(nil, filesScope{})
 }
 
 // checkHead reads the files again if the head moved since they were read,
@@ -140,6 +144,9 @@ func (m *detailModal) checkHead() tea.Cmd {
 	}
 	if !f.reread && (m.detail.HeadSHA == "" || m.detail.HeadSHA == f.head) {
 		return nil
+	}
+	if f.scope.kind != scopeAll && m.detail.HeadSHA != f.head {
+		return m.resetScope("The head moved, so Files shows all the changes again.")
 	}
 	return m.reloadFiles()
 }
@@ -160,7 +167,7 @@ func (m *detailModal) reloadFiles() tea.Cmd {
 			keep = &pos
 		}
 	}
-	cmd := m.startFiles(old)
+	cmd := m.startFiles(old, old.scope)
 	f := m.files
 	switch {
 	case keep != nil:
@@ -171,9 +178,9 @@ func (m *detailModal) reloadFiles() tea.Cmd {
 	return cmd
 }
 
-// startFiles starts reading the files of the head the detail shows, in
-// place of those of prev, if any, whose focus and zoom it keeps.
-func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
+// startFiles starts reading the files of the head the detail shows, within
+// scope, in place of those of prev, if any, whose focus and zoom it keeps.
+func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 	// Every read of the tab, the first or of a new head, uses what was read
 	// ahead of it for that head, if anything.
 	m.ahead.Opened(m.detail.HeadSHA)
@@ -181,6 +188,7 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 	f := &filesState{
 		cancel: cancel,
 		head:   m.detail.HeadSHA,
+		scope:  scope,
 		set:    newFileSet(m.icons.Minus),
 		kept:   new(atomic.Bool),
 		focus:  diffPane,
@@ -200,10 +208,10 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 		diff.WithStyles(m.theme.Diff(m.icons)),
 		diff.WithFocused(f.focus == diffPane),
 	}
-	if m.detail.ChangedFiles > core.MaxPullFiles {
+	if scope.kind == scopeAll && m.detail.ChangedFiles > core.MaxPullFiles {
 		opts = append(opts, diff.WithFirstFilesNote(core.MaxPullFiles))
 	}
-	f.diff = diff.New(m.fetchFiles(f.head, f.kept), opts...)
+	f.diff = diff.New(m.fetchFiles(f.head, scope, f.kept), opts...)
 	f.diff.SetHeaderMark(f.viewMark)
 	f.diff.SetStatusNote(f.viewedNote)
 	f.tree = tree.New(f.set.children,
@@ -231,8 +239,11 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 // a request that GitHub answers with no change in most cases, so that the
 // diff never shows what the pull request no longer has. A page served
 // because GitHub couldn't be reached or limited the read sets kept.
-func (m *detailModal) fetchFiles(head string, kept *atomic.Bool) diff.Fetch {
+func (m *detailModal) fetchFiles(head string, scope filesScope, kept *atomic.Bool) diff.Fetch {
 	svc, repo, number := m.svc, m.repo, m.number
+	if scope.kind != scopeAll {
+		return m.fetchScoped(head, scope)
+	}
 	return func(ctx context.Context, cursor string) ([]diff.File, string, error) {
 		ctx, end := obs.Begin(ctx, "pull.files")
 		q := pulls.FilesQuery{Repo: repo, Number: number, Head: head, Cursor: cursor}
@@ -248,15 +259,20 @@ func (m *detailModal) fetchFiles(head string, kept *atomic.Bool) diff.Fetch {
 		if p.Offline || p.Limited {
 			kept.Store(true)
 		}
-		files := make([]diff.File, len(p.Items))
-		for i, f := range p.Items {
-			files[i] = diff.File{
-				Path: f.Path, OldPath: f.PreviousPath, Status: diff.Status(f.Status),
-				Additions: f.Additions, Deletions: f.Deletions, Patch: f.Patch, Truncated: f.PatchTruncated, SHA: f.SHA,
-			}
-		}
-		return files, p.Next, nil
+		return diffFiles(p.Items), p.Next, nil
 	}
+}
+
+// diffFiles returns the files as the diff shows them.
+func diffFiles(items []core.CommitFile) []diff.File {
+	files := make([]diff.File, len(items))
+	for i, f := range items {
+		files[i] = diff.File{
+			Path: f.Path, OldPath: f.PreviousPath, Status: diff.Status(f.Status), SHA: f.SHA,
+			Additions: f.Additions, Deletions: f.Deletions, Patch: f.Patch, Truncated: f.PatchTruncated,
+		}
+	}
+	return files
 }
 
 // updateFiles takes what is not a key: the pages the diff fetched, which
@@ -298,6 +314,9 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 	f.diff, diffCmd = f.diff.Update(msg)
 	f.tree, treeCmd = f.tree.Update(msg)
 	cmds = append(cmds, diffCmd, treeCmd)
+	if cmd := m.scopeGone(); cmd != nil {
+		return tea.Batch(append(cmds, cmd)...)
+	}
 	if !f.treeStarted && f.diff.Err() != nil {
 		// Nothing arrives for the tree to show.
 		cmds = append(cmds, m.growTree(nil))
@@ -756,15 +775,21 @@ func (m *detailModal) paneTitle(p filesPane, w int) string {
 		st = m.theme.Accent.Bold(true)
 	}
 	if p == treePane {
-		title := st.Render("Files")
+		// A scope names the pane in place of Files, and is what gives way to
+		// the count of the files viewed.
+		name := "Files"
+		if f.scope.kind != scopeAll {
+			name = f.scope.label()
+		}
+		var count string
 		if f.viewed > 0 {
 			total := f.set.len()
-			if !f.diff.Done() {
+			if !f.diff.Done() && f.scope.kind == scopeAll {
 				total = max(m.detail.ChangedFiles, total)
 			}
-			title += st.Render(" " + strconv.Itoa(f.viewed) + "/" + strconv.Itoa(total) + " viewed")
+			count = st.Render(strconv.Itoa(f.viewed) + "/" + strconv.Itoa(total) + " viewed")
 		}
-		return ui.Fit(title, w)
+		return ui.Spread(st.Render(name), count, w, m.icons.Ellipsis)
 	}
 	cur, ok := f.diff.CurrentFile()
 	if !ok {
@@ -779,7 +804,7 @@ func (m *detailModal) breadcrumb() string {
 	f := m.files
 	cur, ok := f.diff.CurrentFile()
 	if !ok {
-		return m.theme.Accent.Bold(true).Render("Files")
+		return m.theme.Accent.Bold(true).Render(m.scopedFiles())
 	}
 	n, _ := f.set.index(cur.Path)
 	total := strconv.Itoa(f.set.len())
@@ -787,6 +812,11 @@ func (m *detailModal) breadcrumb() string {
 		total = strconv.Itoa(max(m.detail.ChangedFiles, f.set.len()))
 	}
 	lead := m.theme.Muted.Render(strconv.Itoa(n+1)+"/"+total) + m.theme.Subtle.Render(" "+m.icons.Crumb+" ")
+	if f.scope.kind != scopeAll {
+		// The scope is cut short so that the path and the stat stay.
+		label := termtext.Truncate(f.scope.label(), max(m.width/3, 8), m.icons.Ellipsis)
+		lead = m.theme.Muted.Render(label) + m.theme.Subtle.Render(" "+m.icons.Crumb+" ") + lead
+	}
 	stat := "  " + m.stat(cur)
 	room := max(m.width-ansi.StringWidth(lead)-ansi.StringWidth(stat), 1)
 	p := termtext.OneLine(cur.Path)

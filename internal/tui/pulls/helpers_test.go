@@ -143,6 +143,36 @@ type fakeService struct {
 	sinceCmp   map[string]core.Compare
 	sinceErr   error
 	sinceReads []pulls.SinceQuery
+	// ranges are the files RangeFiles serves, by the base it is asked for,
+	// and commitFiles those CommitFiles serves, by SHA; scopeErr fails both,
+	// and rangeReads and commitReads are their queries.
+	ranges      map[string]core.CompareDetail
+	commitFiles map[string][]core.CommitFile
+	scopeErr    error
+	rangeReads  []pulls.RangeQuery
+	commitReads []pulls.CommitFilesQuery
+}
+
+// RangeFiles serves the files of the base of q from ranges, or scopeErr.
+func (f *fakeService) RangeFiles(_ context.Context, q pulls.RangeQuery) (core.CompareDetail, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rangeReads = append(f.rangeReads, q)
+	if f.scopeErr != nil {
+		return core.CompareDetail{}, f.scopeErr
+	}
+	return f.ranges[q.Base], nil
+}
+
+// CommitFiles serves the files of the commit of q from commitFiles, or scopeErr.
+func (f *fakeService) CommitFiles(_ context.Context, q pulls.CommitFilesQuery) (core.Page[core.CommitFile], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commitReads = append(f.commitReads, q)
+	if f.scopeErr != nil {
+		return core.Page[core.CommitFile]{}, f.scopeErr
+	}
+	return core.Page[core.CommitFile]{Items: f.commitFiles[q.SHA]}, nil
 }
 
 // Since serves the comparison for the base of q from sinceCmp, or sinceErr.

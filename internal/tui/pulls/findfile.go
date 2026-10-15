@@ -60,7 +60,7 @@ func (m *detailModal) listChanged() finder.Load {
 	if f := m.files; f != nil && f.diff.Done() && f.diff.Err() == nil && f.set.len() == f.diff.Files() {
 		have = f.set.list()
 	}
-	fetch := m.fetchFiles(m.detail.HeadSHA, new(atomic.Bool))
+	fetch := m.fetchFiles(m.detail.HeadSHA, filesScope{}, new(atomic.Bool))
 	var note string
 	if n := m.detail.ChangedFiles; n > core.MaxPullFiles {
 		note = "only the first " + strconv.Itoa(core.MaxPullFiles) + " of " + strconv.Itoa(n)
@@ -98,10 +98,12 @@ func (m *detailModal) chooseFile(path string) tea.Cmd {
 		return nil
 	}
 	cmd := m.switchTo(filesTab)
-	f := m.files
-	if f == nil {
+	if m.files == nil {
 		return cmd
 	}
+	// The finder lists all the changed files, which a scope may lack.
+	reach := m.reachAll(path, nil)
+	f := m.files
 	found := f.diff.SeekFile(path)
 	f.setFocus(diffPane)
 	m.layoutFiles()
@@ -116,5 +118,5 @@ func (m *detailModal) chooseFile(path string) tea.Cmd {
 	// Fetches what the seek shows, which the diff does on its next update.
 	f.diff, seek = f.diff.Update(nil)
 	// The tree follows the diff to the file, which it reveals.
-	return tea.Batch(cmd, warn, seek, m.follow(), m.spinWhileLoading())
+	return tea.Batch(cmd, reach, warn, seek, m.follow(), m.spinWhileLoading())
 }

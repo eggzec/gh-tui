@@ -61,6 +61,10 @@ type Service interface {
 	// Since compares the head of a pull request the user last saw with the
 	// head now; a head that a force push removed fails with core.ErrRewritten.
 	Since(ctx context.Context, q pulls.SinceQuery) (core.Compare, error)
+	// RangeFiles reads the files that changed between two commits of a pull
+	// request, and CommitFiles those of one commit.
+	RangeFiles(ctx context.Context, q pulls.RangeQuery) (core.CompareDetail, error)
+	CommitFiles(ctx context.Context, q pulls.CommitFilesQuery) (core.Page[core.CommitFile], error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
