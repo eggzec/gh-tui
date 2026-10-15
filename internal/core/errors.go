@@ -23,6 +23,10 @@ var (
 	// ErrUnsupported is a GitHub Enterprise Server whose version lacks
 	// what was asked, such as a field of a query.
 	ErrUnsupported = errors.New("unsupported")
+	// ErrRewritten is a comparison of two commits of which one is gone, as
+	// the old head of a branch is after a force push. It comes with the
+	// error that GitHub answered, which it wraps.
+	ErrRewritten = errors.New("rewritten")
 )
 
 // RateLimitError reports when the rate limit resets. It matches

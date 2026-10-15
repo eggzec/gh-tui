@@ -62,6 +62,10 @@ type Verification struct {
 // past it are left out, and CommitDetail.FilesTruncated is set.
 const MaxCommitFiles = 3000
 
+// MaxCompareFiles is the most files GitHub lists of a comparison. Files past
+// it are left out, and CompareDetail.Truncated is set.
+const MaxCompareFiles = 300
+
 // CommitDetail is a commit with what it changed against its first parent.
 // Files holds the first page of the changed files; FilesNext is the cursor
 // of the next page, or empty if Files holds them all.
@@ -132,4 +136,16 @@ type Compare struct {
 	Status   CompareStatus
 	AheadBy  int
 	BehindBy int
+}
+
+// CompareDetail is a comparison of two commits with the files that head
+// changed since base. The files come as GitHub lists them, at most
+// MaxCompareFiles, and Truncated says that more changed.
+type CompareDetail struct {
+	Compare
+	// TotalCommits is how many commits lie between base and head, counted
+	// from the merge base.
+	TotalCommits int
+	Files        []CommitFile
+	Truncated    bool
 }
