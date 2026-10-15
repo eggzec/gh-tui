@@ -379,10 +379,80 @@ func TestPendingSummaryKeepsTheSavedDraft(t *testing.T) {
 	if err := d.Save(m.summaryKey(), "saved"); err != nil {
 		t.Fatal(err)
 	}
+	// toSummary drains the reads of the step: the saved draft and its restore.
 	toSummary(t, h, 1, "")
 	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
-	if got := m.rev.comp.Value(); got == "web summary" {
+	if got := m.rev.comp.Value(); got != "saved" {
 		t.Errorf("the summary is %q, want the saved draft kept over the pending review's", got)
+	}
+}
+
+// A pending review that is read before the saved draft is: the prefill waits
+// for the draft, then fills once if the user kept none.
+func TestPendingSummaryPrefillsOnceWhenItLandsBeforeTheSavedDraft(t *testing.T) {
+	t.Parallel()
+	h, m, _ := reviewing(t, kept(), &memDrafts{})
+	runReview(t, h)
+	press(t, h, "down")
+	// The step opens, but the reads it started have not returned.
+	cmd := h.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "" {
+		t.Fatalf("the summary is %q before the saved draft is read, want it empty", got)
+	}
+	drain(t, h, cmd)
+	if got := m.rev.comp.Value(); got != "web summary" {
+		t.Fatalf("the summary is %q once the draft read came back empty, want the pending review's", got)
+	}
+	m.rev.comp.SetValue("")
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "" {
+		t.Errorf("the summary is %q after the user emptied it, want it left empty", got)
+	}
+}
+
+// A saved draft that comes back for a step that is gone, or for an earlier
+// opening of the step, is not taken.
+func TestSummaryDraftOfAnotherStepIsIgnored(t *testing.T) {
+	t.Parallel()
+	h, m, _ := reviewingWith(t, kept(), &memDrafts{}, webPending)
+	toSummary(t, h, 1, "")
+	old := m.rev
+	stale := summaryDraftMsg{owner: m, rev: old, text: "stale"}
+	press(t, h, "esc")
+	if m.rev != nil {
+		t.Fatal("esc left the step open")
+	}
+	m.receiveSummaryDraft(stale)
+	if m.rev != nil {
+		t.Fatal("a draft after the cancel reopened the step")
+	}
+	toSummary(t, h, 1, "")
+	if m.rev == old {
+		t.Fatal("the step was not opened again")
+	}
+	m.receiveSummaryDraft(stale)
+	if m.rev.saved == "stale" {
+		t.Errorf("the saved draft is %q, want the stale one ignored", m.rev.saved)
+	}
+	if got := m.rev.comp.Value(); got != "web summary" {
+		t.Errorf("the summary is %q, want the reopened step's own prefill", got)
+	}
+}
+
+// Once the user has submitted, a pending review that shows up, as a refused
+// submit reads it, leaves the summary as they sent it.
+func TestPendingSummaryIsLeftAloneOnceSubmitted(t *testing.T) {
+	t.Parallel()
+	h, m, _ := reviewing(t, kept(), &memDrafts{})
+	toSummary(t, h, 1, "")
+	submitSummary(t, h)
+	if m.ask == nil {
+		t.Fatal("the submit asked no question")
+	}
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "" {
+		t.Errorf("the summary is %q after the submit, want it left empty", got)
 	}
 }
 
