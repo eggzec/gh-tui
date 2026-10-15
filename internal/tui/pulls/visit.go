@@ -82,6 +82,9 @@ type visitState struct {
 	on      bool
 	// done is set once the modal closed, so that a late save writes nothing.
 	done bool
+	// seq orders the saves of the files viewed against each other and against
+	// the write of the visit.
+	seq saveSeq
 	// catch is what the head of the pull request did since the last visit.
 	catch catchup
 }
@@ -144,6 +147,7 @@ func (m *detailModal) receiveVisit(msg visitLoadedMsg) tea.Cmd {
 	}
 	v.prev = msg.state
 	m.redrawNew()
+	m.foldViewed(nil)
 	return m.askSince()
 }
 
@@ -284,10 +288,17 @@ func (m *detailModal) writeVisit() error {
 	if v.store == nil || v.done || !v.loaded || v.readFailed || v.shown(m.now()) < visitAfter {
 		return nil
 	}
-	return v.store.Save(m.visitKey(), visits.State{
+	// A save of the files viewed that is still to run carries the old visit, so
+	// it is dropped: this one holds the same marks.
+	v.seq.mu.Lock()
+	defer v.seq.mu.Unlock()
+	v.seq.next++
+	err := v.store.Save(m.visitKey(), visits.State{
 		LastSeen: visits.LastSeen{Head: m.detail.HeadSHA, At: v.opened},
 		Viewed:   maps.Clone(v.prev.Viewed),
 	})
+	v.seq.wrote = v.seq.next
+	return err
 }
 
 // isNew reports whether something that login did at time at arrived since the

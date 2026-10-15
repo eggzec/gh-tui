@@ -53,6 +53,18 @@ func TestSetCollapsedKeepsCursor(t *testing.T) {
 	}
 }
 
+func TestSetStatusNoteEndsTheStatus(t *testing.T) {
+	m := load(t, threeFiles())
+	m.SetStatusNote(func() string { return "2 viewed" })
+	if got := m.Status(); got != "file 1/3 · 2 viewed" {
+		t.Errorf("Status() = %q, want the note after the file", got)
+	}
+	m.SetStatusNote(func() string { return "" })
+	if got := m.Status(); got != "file 1/3" {
+		t.Errorf("Status() = %q with an empty note, want none added", got)
+	}
+}
+
 func TestSetCollapsedUnknownPath(t *testing.T) {
 	m := load(t, &source{size: 5, files: sizedFiles(2, 1)})
 	n, cursor := m.Len(), m.Cursor()

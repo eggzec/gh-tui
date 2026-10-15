@@ -6,6 +6,11 @@ import tea "charm.land/bubbletea/v2"
 // file's header row; see [WithHeaderMark]. Nil draws nothing.
 func (m *Model) SetHeaderMark(mark func(File) string) { m.headerMark = mark }
 
+// SetStatusNote sets the function whose string ends the status line, after the
+// position, such as a count of the files that have been read. It runs on every
+// draw of the line, so it must be cheap. Nil, or an empty string, adds nothing.
+func (m *Model) SetStatusNote(note func() string) { m.statusNote = note }
+
 // Collapsed says whether the file at path shows only its header. It is false
 // for a path that has not been fetched.
 func (m Model) Collapsed(path string) bool {

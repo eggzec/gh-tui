@@ -43,6 +43,9 @@ type Icons struct {
 	// Marked marks a row of a list that the user marked, in a cell left of
 	// the row, next to the cursor.
 	Marked string
+	// Changed marks what was changed since the user last looked, such as a
+	// file that changed after it was viewed.
+	Changed string
 	// ChangesRequested marks a pull request whose reviewers asked for
 	// changes, and ReviewRequired one that waits for a review. An approved
 	// one takes Yes.
@@ -140,7 +143,7 @@ func newIcons(set string) Icons {
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
 			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
 			Yes: "✓", No: "✗", Info: "•",
-			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆",
+			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Changed: "↻",
 			ChangesRequested: "±", ReviewRequired: "•",
 			lang: "◉",
 			states: [NumStates]string{
@@ -153,7 +156,7 @@ func newIcons(set string) Icons {
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
 			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
 			Yes: "+", No: "x", Info: "i",
-			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+",
+			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Changed: "~",
 			ChangesRequested: "~", ReviewRequired: "?",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
@@ -174,6 +177,7 @@ func newIcons(set string) Icons {
 			// of the other sets.
 			Cursor: "▌", Folded: "\uf44a", Unfolded: "\uf44b",
 			Marked:           "\uf14a",                           // fa-check_square
+			Changed:          "\uf46a",                           // oct-sync
 			ChangesRequested: "\uf4d2", ReviewRequired: "\uf444", // oct-file_diff, oct-dot_fill
 			langs: nerdLanguages,
 			lang:  "\uf44f",
