@@ -30,6 +30,37 @@ var (
 	rev    = lipgloss.NewStyle().Reverse(true).Render
 )
 
+// Selection colours, all in one place: truecolor with a 256 colour fallback.
+var (
+	selBG     = bgc(0x2a, 0x2f, 0x3a, 236) // the selected row of a focused pane
+	selMark   = fgc(0x61, 0xaf, 0xef, 75)  // the ▌ marker of a focused pane
+	selDim    = fgc(0x5c, 0x63, 0x70, 242) // the ▌ marker of an unfocused pane
+	addCurBG  = bgc(0x0a, 0x3d, 0x0a, 28)  // the cursor on an added line
+	delCurBG  = bgc(0x4f, 0x0a, 0x0a, 88)  // the cursor on a removed line
+	ctxCurBG  = selBG                      // the cursor on a context line
+	selMarker = "▌"
+)
+
+func fgc(r, g, b, c int) string {
+	if truecolor {
+		return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b)
+	}
+	return fmt.Sprintf("\x1b[38;5;%dm", c)
+}
+
+// selRow marks the selected row l, w columns wide: the first column becomes
+// the marker, and a focused pane adds a dim background across the row. The
+// row keeps its own foreground colours.
+func selRow(l string, w int, focus bool) string {
+	rest := ansi.TruncateLeft(l, 1, "")
+	if !focus {
+		return selDim + selMarker + "\x1b[39m" + rest
+	}
+	rest = strings.NewReplacer("\x1b[0m", "\x1b[0m"+selBG, "\x1b[m", "\x1b[m"+selBG).Replace(rest)
+	pad := strings.Repeat(" ", max(0, w-ansi.StringWidth(l)))
+	return selBG + "\x1b[1m" + selMark + selMarker + "\x1b[22;39m" + rest + pad + "\x1b[0m"
+}
+
 const rightW = 36
 
 const (
@@ -322,15 +353,27 @@ func bgc(r, g, b, c int) string {
 	return fmt.Sprintf("\x1b[48;5;%dm", c)
 }
 
-// lineBG: st 0 plain, 1 cursor, 2 highlighted (range or selected draft).
+// lineBG: st 0 plain, 1 cursor, 2 highlighted (range or selected draft),
+// 3 cursor of an unfocused pager (the marker only, no cursor background).
 func lineBG(kind byte, st int) string {
 	switch kind {
 	case '+':
-		return [3]string{bgc(0, 40, 0, 22), bgc(0, 72, 0, 28), bgc(0, 56, 48, 29)}[st]
+		return [4]string{bgc(0, 40, 0, 22), addCurBG, bgc(0, 56, 48, 29), bgc(0, 40, 0, 22)}[st]
 	case '-':
-		return [3]string{bgc(63, 0, 1, 52), bgc(104, 0, 2, 88), bgc(80, 0, 48, 89)}[st]
+		return [4]string{bgc(63, 0, 1, 52), delCurBG, bgc(80, 0, 48, 89), bgc(63, 0, 1, 52)}[st]
 	}
-	return [3]string{"", bgc(56, 56, 56, 238), bgc(32, 32, 80, 17)}[st]
+	return [4]string{"", ctxCurBG, bgc(32, 32, 80, 17), ""}[st]
+}
+
+// curMark is the ▌ column of the pager's cursor row; st 3 is the dim one.
+func curMark(st int) string {
+	switch st {
+	case 1:
+		return "\x1b[1m" + selMark + selMarker + "\x1b[22m"
+	case 3:
+		return selDim + selMarker
+	}
+	return ""
 }
 
 func renderDL(x dl, w, st int) string {
@@ -338,11 +381,13 @@ func renderDL(x dl, w, st int) string {
 	tw := max(0, w-4)
 	switch x.kind {
 	case 'H':
-		s := bold(x.text)
-		if st > 0 {
-			s = rev(x.text)
+		switch st {
+		case 1, 3:
+			return selRow(bold(x.text), tw, st == 1)
+		case 2:
+			return lineBG(' ', st) + x.text + rst
 		}
-		return s
+		return bold(x.text)
 	case '@':
 		fn := ""
 		if _, after, ok := strings.Cut(strings.TrimPrefix(x.text, "@@"), "@@"); ok {
@@ -350,7 +395,10 @@ func renderDL(x dl, w, st int) string {
 		}
 		s := "── " + fn + " "
 		s += strings.Repeat("─", max(0, tw-lipgloss.Width(s)))
-		if st > 0 {
+		switch st {
+		case 1, 3:
+			return selRow(dim(s), tw, st == 1)
+		case 2:
 			return lineBG(' ', st) + "\x1b[90m" + s + rst
 		}
 		return dim(s)
@@ -365,6 +413,9 @@ func renderDL(x dl, w, st int) string {
 	l := lineBG(x.kind, st)
 	body := []rune(afterMark(x.text))
 	out := l + "\x1b[90m" + gut + "\x1b[39m"
+	if mk := curMark(st); mk != "" {
+		out = l + mk + "\x1b[90m" + gut[1:] + "\x1b[39m"
+	}
 	if x.kind == 'f' {
 		out += "\x1b[90m"
 	}
@@ -491,14 +542,14 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 	bh := max(1, h-3)
 	cd := vis[o.vcur]
 	lo, hi := min(o.anchor, cd), max(o.anchor, cd)
+	foc := !o.embed || m.pfocus == 1
 	var lines []string
 	for i := o.scroll; i < min(len(rows), o.scroll+bh); i++ {
 		r := rows[i]
 		t := r.text
-		pad := func(s string) string { return s + strings.Repeat(" ", max(0, w-4-lipgloss.Width(s))) }
 		if r.draft {
 			if o.ondraft && r.dk == o.dkey {
-				t = rev(pad(ansi.Strip(t)))
+				t = selRow(t, w-4, foc)
 			}
 		} else {
 			di := vis[r.li]
@@ -507,6 +558,9 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 			switch {
 			case r.li == o.vcur && !o.ondraft:
 				st = 1
+				if !foc {
+					st = 3
+				}
 			case o.ranging && di >= lo && di <= hi:
 				st = 2
 			case o.ondraft && x.fi == o.dkey[0] && x.loc >= o.dkey[2] && x.loc <= o.dkey[1]:
@@ -527,7 +581,7 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 	} else {
 		title = fmt.Sprintf("Diff · %s (%d/%d) · %s [x] · %d%%", files[cf].path(), cf+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
 	}
-	return box(title, lines, w, h, !o.embed || m.pfocus == 1)
+	return box(title, lines, w, h, foc)
 }
 
 // toggleMode switches hunks only / full file keeping the cursor line on the
@@ -957,6 +1011,7 @@ type overlay struct {
 	sel    map[string]bool
 	multi  bool
 	filter string
+	fon    bool // the filter line is open and takes the typing
 	pcur   int
 	done   func(*model, []string) tea.Cmd
 
@@ -1152,8 +1207,9 @@ func diffLines(d string) []string {
 }
 
 func (m *model) mrow(pane, i int, text string) string {
-	if m.focus == pane && m.cur[pane] == i {
-		return accent("› ") + text
+	if m.cur[pane] == i {
+		w, _ := m.paneDims(pane)
+		return selRow("  "+text, w-4, m.focus == pane)
 	}
 	return "  " + text
 }
@@ -1220,8 +1276,9 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			if f.thread {
 				t += yellow(" ●")
 			}
-			if m.focus == pFiles && m.cur[pFiles] == k {
-				out = append(out, accent("› ")+t)
+			if m.cur[pFiles] == k {
+				w, _ := m.paneDims(pFiles)
+				out = append(out, selRow("  "+t, w-4, m.focus == pFiles))
 				curLine = k
 			} else {
 				out = append(out, "  "+t)
@@ -1402,7 +1459,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            V range (j/k extend) · c or enter comment (enter saves a draft, esc cancels)",
 			"            c alone comments the cursor line · ) ( next/prev draft (j/k also land on drafts)",
 			"            e edits the draft under the cursor · D deletes it (y/n) · a this file / whole patch",
-			"In a picker type to filter · ↑/↓ · tab toggles (multi) · enter picks",
+			"In a picker j/k g/G move · / filters (enter or esc leaves the line) · space toggles (multi) · enter picks · esc closes",
 		}
 	}
 	return "", nil
@@ -1415,15 +1472,12 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 	case "confirm":
 		s = box("Confirm", []string{o.text + "  " + dim("y/n")}, w, h, true)
 	case "picker":
-		lines := []string{accent("› ") + o.filter + "▏", dim(strings.Repeat("─", w-4))}
+		var lines []string
 		fl := o.filtered()
-		slots := max(1, h-4)
+		slots := max(1, h-3)
 		off := max(0, o.pcur-slots+1)
 		for i := off; i < min(len(fl), off+slots); i++ {
 			p := "  "
-			if i == o.pcur {
-				p = accent("› ")
-			}
 			mk := ""
 			if o.multi {
 				mk = "[ ] "
@@ -1431,9 +1485,36 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 					mk = "[x] "
 				}
 			}
+			if i == o.pcur {
+				lines = append(lines, selRow(p+mk+fl[i], w-4, true))
+				continue
+			}
 			lines = append(lines, p+mk+fl[i])
 		}
-		s = box(o.title, lines, w, h, true)
+		for len(lines) < slots {
+			lines = append(lines, "")
+		}
+		fline := dim(strings.Repeat("─", w-4))
+		if o.fon {
+			fline = accent("/") + o.filter + "▏"
+		}
+		lines = append(lines, fline)
+		title := o.title
+		if o.filter != "" {
+			title += " · /" + o.filter
+		}
+		if o.multi {
+			n := 0
+			for _, v := range o.sel {
+				if v {
+					n++
+				}
+			}
+			title += fmt.Sprintf(" · %d of %d", n, len(o.items))
+		} else {
+			title += fmt.Sprintf(" · %d of %d", len(fl), len(o.items))
+		}
+		s = box(title, lines, w, h, true)
 	case "file":
 		s = m.drawDiff(o, w, h)
 	case "reply", "editpr":
@@ -1598,10 +1679,13 @@ func (m *model) footer() string {
 		case "confirm":
 			return dim("y yes · n/esc no")
 		case "picker":
-			if o.multi {
-				return dim("type to filter · ↑/↓ move · tab toggle · enter apply · esc cancel")
+			if o.fon {
+				return dim("type to filter · enter/esc leave the filter line")
 			}
-			return dim("type to filter · ↑/↓ move · enter pick · esc cancel")
+			if o.multi {
+				return dim("j/k move · / filter · space toggle · enter apply · esc cancel")
+			}
+			return dim("j/k move · / filter · enter pick · esc cancel")
 		case "reply":
 			return dim("type the reply · enter save · esc cancel")
 		case "editpr":
@@ -1924,9 +2008,35 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "picker":
 		fl := top.filtered()
+		if top.fon {
+			switch k {
+			case "esc", "enter":
+				top.fon = false
+			case "up", "ctrl+p":
+				top.pcur = max(0, top.pcur-1)
+			case "down", "ctrl+n":
+				top.pcur = max(0, min(top.pcur+1, len(fl)-1))
+			case "backspace":
+				if top.filter == "" {
+					top.fon = false
+				} else {
+					r := []rune(top.filter)
+					top.filter = string(r[:len(r)-1])
+					top.pcur = 0
+				}
+			default:
+				if msg.Text != "" {
+					top.filter += msg.Text
+					top.pcur = 0
+				}
+			}
+			return nil
+		}
 		switch k {
-		case "esc":
+		case "esc", "backspace":
 			m.pop()
+		case "/":
+			top.fon = true
 		case "enter":
 			var picked []string
 			if top.multi {
@@ -1943,26 +2053,17 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 			done := top.done
 			m.pop()
 			return done(m, picked)
-		case "up", "ctrl+p":
+		case "up", "k", "ctrl+p":
 			top.pcur = max(0, top.pcur-1)
-		case "down", "ctrl+n":
+		case "down", "j", "ctrl+n":
 			top.pcur = max(0, min(top.pcur+1, len(fl)-1))
-		case "tab":
+		case "g":
+			top.pcur = 0
+		case "G":
+			top.pcur = max(0, len(fl)-1)
+		case "space", " ":
 			if top.multi && top.pcur < len(fl) {
 				top.sel[fl[top.pcur]] = !top.sel[fl[top.pcur]]
-			}
-		case "backspace":
-			if top.filter == "" {
-				m.pop()
-			} else {
-				r := []rune(top.filter)
-				top.filter = string(r[:len(r)-1])
-				top.pcur = 0
-			}
-		default:
-			if msg.Text != "" {
-				top.filter += msg.Text
-				top.pcur = 0
 			}
 		}
 	case "file":

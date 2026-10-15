@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 const me = "alice"
@@ -344,8 +343,7 @@ func (m *model) convLines(cw int) []string {
 		if i == si {
 			c.first, c.lastLine = len(out), len(out)+len(ls)-1
 			for j, l := range ls {
-				p := ansi.StringWidth(l)
-				ls[j] = rev(ansi.Strip(l) + strings.Repeat(" ", max(0, cw-p)))
+				ls[j] = selRow(l, cw, m.focus == pMain)
 			}
 		}
 		out = append(out, ls...)
