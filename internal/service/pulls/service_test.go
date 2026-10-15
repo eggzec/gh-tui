@@ -34,6 +34,10 @@ type fakeAPI struct {
 	// compare and compareFiles back the two comparisons.
 	compare      func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 	compareFiles func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
+	// commits, commit and commitFiles back the commit reads.
+	commits     func(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Page[core.Commit], github.Response, error)
+	commit      func(ctx context.Context, repo core.RepoRef, sha string) (core.CommitDetail, error)
+	commitFiles func(ctx context.Context, repo core.RepoRef, sha, cursor string) (core.Page[core.CommitFile], error)
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
@@ -155,6 +159,21 @@ func (f *fakeAPI) ListPullRequestReviews(ctx context.Context, repo core.RepoRef,
 func (f *fakeAPI) ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error) {
 	f.called("files")
 	return f.files(ctx, repo, number, cursor, cond)
+}
+
+func (f *fakeAPI) ListPullRequestCommits(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Page[core.Commit], github.Response, error) {
+	f.called("commits")
+	return f.commits(ctx, repo, number, cond)
+}
+
+func (f *fakeAPI) GetCommit(ctx context.Context, repo core.RepoRef, sha string) (core.CommitDetail, error) {
+	f.called("commit")
+	return f.commit(ctx, repo, sha)
+}
+
+func (f *fakeAPI) ListCommitFiles(ctx context.Context, repo core.RepoRef, sha, cursor string) (core.Page[core.CommitFile], error) {
+	f.called("commitfiles")
+	return f.commitFiles(ctx, repo, sha, cursor)
 }
 
 func (f *fakeAPI) ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error) {

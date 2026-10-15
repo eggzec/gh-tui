@@ -123,3 +123,7 @@ type Review struct {
 // MaxPullFiles is the most files GitHub lists of one pull request. Files
 // past it are left out, and the last page of the list is Truncated.
 const MaxPullFiles = 3000
+
+// MaxPullCommits is the most commits GitHub lists of one pull request. Later
+// commits are left out, and the list is Truncated.
+const MaxPullCommits = 250

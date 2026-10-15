@@ -37,6 +37,11 @@ type API interface {
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
+	ListPullRequestCommits(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Page[core.Commit], github.Response, error)
+	// GetCommit returns a commit with the first page of its files, and
+	// ListCommitFiles the rest, from the cursor that says where they go on.
+	GetCommit(ctx context.Context, repo core.RepoRef, sha string) (core.CommitDetail, error)
+	ListCommitFiles(ctx context.Context, repo core.RepoRef, sha, cursor string) (core.Page[core.CommitFile], error)
 	ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
 	// Compare and CompareFiles read how a head relates to a base, the
 	// second with the files it changed.
@@ -95,6 +100,10 @@ type Service struct {
 	reviews  *cache.Cache[core.Page[core.Review]]
 	// files holds the pages of the files a pull request changes, by head.
 	files *cache.Cache[core.Page[core.CommitFile]]
+	// commits holds the commits of a pull request, by head, and commitFiles
+	// the files of a commit, by its SHA, which never go stale.
+	commits     *cache.Cache[core.Page[core.Commit]]
+	commitFiles *cache.Cache[core.Page[core.CommitFile]]
 	// threads holds the pages of the review threads of a pull request, by
 	// head.
 	threads *cache.Cache[core.ThreadPage]
@@ -114,7 +123,10 @@ type Service struct {
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
 	keptThreads  *cache.Shelf[core.ThreadPage]
 	keptRanges   *cache.Shelf[core.CompareDetail]
-	now          func() time.Time
+	keptCommits  *cache.Shelf[core.Page[core.Commit]]
+	// keptCommitFiles is what a commit's SHA names, so it is never revalidated.
+	keptCommitFiles *cache.Shelf[core.Page[core.CommitFile]]
+	now             func() time.Time
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
 	// ttl is how long a fetched entry stays fresh.
@@ -167,8 +179,13 @@ func New(api API, opts ...Option) *Service {
 		keptThreads:  cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
 		keptRanges:   cache.NewShelf[core.CompareDetail](o.store, kindRanges, rangesSchema),
 		now:          time.Now,
-		ttl:          ttl,
-		pageSize:     cmp.Or(o.pageSize, d.PageSize.Pulls),
+
+		commits:         cache.New[core.Page[core.Commit]](mem...),
+		commitFiles:     cache.New[core.Page[core.CommitFile]](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
+		keptCommits:     cache.NewShelf[core.Page[core.Commit]](o.store, kindCommits, commitsSchema),
+		keptCommitFiles: cache.NewShelf[core.Page[core.CommitFile]](o.store, kindCommitFiles, commitFilesSchema),
+		ttl:             ttl,
+		pageSize:        cmp.Or(o.pageSize, d.PageSize.Pulls),
 	}
 	s.detailSizes = github.DetailSizes{
 		Threads:   cmp.Or(o.detailSizes.Threads, d.PageSize.Threads),
@@ -190,6 +207,9 @@ const (
 	kindFiles    = "pullfiles"
 	kindThreads  = "pullthreads"
 	kindRanges   = "pullrange"
+	kindCommits  = "pullcommits"
+
+	kindCommitFiles = "pullcommitfiles"
 
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
@@ -210,6 +230,9 @@ const (
 	threadsSchema = 3
 	// rangesSchema 1 is the first.
 	rangesSchema = 1
+	// commitsSchema and commitFilesSchema 1 are the first.
+	commitsSchema     = 1
+	commitFilesSchema = 1
 )
 
 // maxPageSize is the most items GitHub returns in a page.
@@ -480,6 +503,7 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.comments.InvalidateTag(tag)
 	s.reviews.InvalidateTag(tag)
 	s.files.InvalidateTag(tag)
+	s.commits.InvalidateTag(tag)
 	s.threads.InvalidateTag(tag)
 	s.sinces.InvalidateTag(tag)
 	s.pendings.InvalidateTag(tag)
