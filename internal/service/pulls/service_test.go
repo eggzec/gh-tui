@@ -31,6 +31,9 @@ type fakeAPI struct {
 	files        func(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	threads      func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
 	id           func(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// compare and compareFiles back the two comparisons.
+	compare      func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
+	compareFiles func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
 	// mutate backs every mutation. Method names the mutation; merge also
 	// passes the merge method.
 	mutate func(ctx context.Context, method, id string, how core.MergeMethod) (core.PullRequest, error)
@@ -157,6 +160,16 @@ func (f *fakeAPI) ListPullRequestFiles(ctx context.Context, repo core.RepoRef, n
 func (f *fakeAPI) ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error) {
 	f.called("threads")
 	return f.threads(ctx, repo, number, cursor, first)
+}
+
+func (f *fakeAPI) Compare(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error) {
+	f.called("compare")
+	return f.compare(ctx, repo, base, head, cond)
+}
+
+func (f *fakeAPI) CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error) {
+	f.called("comparefiles")
+	return f.compareFiles(ctx, repo, base, head, cond)
 }
 
 func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {

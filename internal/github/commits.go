@@ -294,6 +294,42 @@ func (c *Client) Compare(ctx context.Context, repo core.RepoRef, base, head stri
 	return core.Compare{Status: core.CompareStatus(cmp.Status), AheadBy: cmp.AheadBy, BehindBy: cmp.BehindBy}, res, nil
 }
 
+// restCompareFiles is a comparison with its commit count and the files it
+// changes, which GitHub lists on the first page.
+type restCompareFiles struct {
+	restCompare
+	TotalCommits int          `json:"total_commits"`
+	Files        []commitFile `json:"files"`
+}
+
+// CompareFiles returns how head relates to base with the files that head
+// changed since the merge base, with their patches. Base and head are
+// named as for Compare. If cond is current, the Response has NotModified set
+// and the comparison is empty.
+//
+// It reads the first page of one commit, which carries the files whole,
+// up to core.MaxCompareFiles, and the counts. GitHub doesn't say how many
+// files changed, so Truncated is set for a list as long as it lists at
+// most, which a comparison of exactly that many files reads as too. The
+// files and counts are those since the merge base of base and head.
+func (c *Client) CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond Conditional) (core.CompareDetail, Response, error) {
+	path := commitsBase(repo) + "/compare/" + url.PathEscape(base) + "..." + url.PathEscape(head) + "?per_page=1"
+	var cmp restCompareFiles
+	res, err := c.Get(ctx, path, cond, &cmp)
+	if err != nil {
+		return core.CompareDetail{}, res, fmt.Errorf("compare files %s...%s: %w", base, head, err)
+	}
+	if res.NotModified {
+		return core.CompareDetail{}, res, nil
+	}
+	return core.CompareDetail{
+		Status: core.CompareStatus(cmp.Status), AheadBy: cmp.AheadBy, BehindBy: cmp.BehindBy,
+		TotalCommits: cmp.TotalCommits,
+		Files:        convert(cmp.Files, commitFile.core),
+		Truncated:    len(cmp.Files) >= core.MaxCompareFiles,
+	}, res, nil
+}
+
 func commitsBase(repo core.RepoRef) string {
 	return "repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name)
 }

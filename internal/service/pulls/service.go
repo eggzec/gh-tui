@@ -38,6 +38,10 @@ type API interface {
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	ListPullRequestThreads(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
+	// Compare and CompareFiles read how a head relates to a base, the
+	// second with the files it changed.
+	Compare(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
+	CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// SetReviewThreadResolved resolves the review thread with node ID id, or
 	// unresolves it.
@@ -94,6 +98,10 @@ type Service struct {
 	// threads holds the pages of the review threads of a pull request, by
 	// head.
 	threads *cache.Cache[core.ThreadPage]
+	// sinces holds the comparisons of the head a user saw with the head now,
+	// and ranges the files between two commits, which never go stale.
+	sinces *cache.Cache[core.Compare]
+	ranges *cache.Cache[core.CompareDetail]
 	// pendings holds the viewer's pending review of a pull request. It is
 	// private and changes on the web, so it is never kept on disk.
 	pendings *cache.Cache[pendingRead]
@@ -105,6 +113,7 @@ type Service struct {
 	keptReviews  *cache.Shelf[core.Page[core.Review]]
 	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
 	keptThreads  *cache.Shelf[core.ThreadPage]
+	keptRanges   *cache.Shelf[core.CompareDetail]
 	now          func() time.Time
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
@@ -147,6 +156,8 @@ func New(api API, opts ...Option) *Service {
 		reviews:      cache.New[core.Page[core.Review]](mem...),
 		threads:      cache.New[core.ThreadPage](mem...),
 		pendings:     cache.New[pendingRead](mem...),
+		sinces:       cache.New[core.Compare](mem...),
+		ranges:       cache.New[core.CompareDetail](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), rangeSize)),
 		files:        cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
 		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
 		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
@@ -154,6 +165,7 @@ func New(api API, opts ...Option) *Service {
 		keptReviews:  cache.NewShelf[core.Page[core.Review]](o.store, kindReviews, reviewsSchema),
 		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.store, kindFiles, filesSchema),
 		keptThreads:  cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
+		keptRanges:   cache.NewShelf[core.CompareDetail](o.store, kindRanges, rangesSchema),
 		now:          time.Now,
 		ttl:          ttl,
 		pageSize:     cmp.Or(o.pageSize, d.PageSize.Pulls),
@@ -177,6 +189,7 @@ const (
 	kindReviews  = "pullreviews"
 	kindFiles    = "pullfiles"
 	kindThreads  = "pullthreads"
+	kindRanges   = "pullrange"
 
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
@@ -195,6 +208,8 @@ const (
 	// threadsSchema 1 is the first, 2 keeps the review of each thread, and 3
 	// whether a thread or a comment is pending.
 	threadsSchema = 3
+	// rangesSchema 1 is the first.
+	rangesSchema = 1
 )
 
 // maxPageSize is the most items GitHub returns in a page.
@@ -466,5 +481,6 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.reviews.InvalidateTag(tag)
 	s.files.InvalidateTag(tag)
 	s.threads.InvalidateTag(tag)
+	s.sinces.InvalidateTag(tag)
 	s.pendings.InvalidateTag(tag)
 }

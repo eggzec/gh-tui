@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -378,6 +379,91 @@ func TestCompareErrors(t *testing.T) {
 			}
 			if got != (core.Compare{}) || res.NotModified != (tt.status == http.StatusNotModified) {
 				t.Errorf("Compare = %+v, %+v", got, res)
+			}
+		})
+	}
+}
+
+// compareFilesBody is a comparison with n modified files.
+func compareFilesBody(n int) string {
+	var b strings.Builder
+	b.WriteString(`{"status":"diverged","ahead_by":2,"behind_by":1,"total_commits":2,"files":[`)
+	for i := range n {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(`{"filename":"f` + strconv.Itoa(i) + `.go","status":"modified","sha":"b` + strconv.Itoa(i) + `","additions":1,"deletions":1,"changes":2,"patch":"@@ -1 +1 @@\n-a\n+b"}`)
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
+
+func TestCompareFiles(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.EscapedPath(); got != "/repos/golang/go/compare/v1.0.0...feat%2Fx" {
+			t.Errorf("path = %s, want both refs as one segment each", got)
+		}
+		if q := r.URL.Query(); q.Get("per_page") != "1" || q.Get("page") != "" {
+			t.Errorf("query = %v, want the first page of one commit, which has the files", q)
+		}
+		if got := r.Header.Get("If-None-Match"); got != `W/"e0"` {
+			t.Errorf("If-None-Match = %q, want the cached ETag", got)
+		}
+		w.Header().Set("ETag", `W/"e1"`)
+		_, _ = w.Write([]byte(compareFilesBody(2)))
+	}))
+
+	got, res, err := c.CompareFiles(t.Context(), golang, "v1.0.0", "feat/x", Conditional{ETag: `W/"e0"`})
+	if err != nil {
+		t.Fatalf("CompareFiles: %v", err)
+	}
+	if got.Status != core.CompareDiverged || got.AheadBy != 2 || got.BehindBy != 1 || got.TotalCommits != 2 || got.Truncated {
+		t.Errorf("CompareFiles = %+v, want a diverged comparison of 2 commits, not truncated", got)
+	}
+	if len(got.Files) != 2 || got.Files[1].Path != "f1.go" || got.Files[1].SHA != "b1" || got.Files[1].Status != core.FileModified || got.Files[1].Patch == "" {
+		t.Errorf("files = %+v, want two with their blobs and patches", got.Files)
+	}
+	if res.ETag != `W/"e1"` {
+		t.Errorf("ETag = %q", res.ETag)
+	}
+}
+
+func TestCompareFilesTruncated(t *testing.T) {
+	for _, tt := range []struct {
+		n    int
+		want bool
+	}{{core.MaxCompareFiles - 1, false}, {core.MaxCompareFiles, true}} {
+		c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(compareFilesBody(tt.n)))
+		}))
+		got, _, err := c.CompareFiles(t.Context(), golang, "a", "b", Conditional{})
+		if err != nil || len(got.Files) != tt.n || got.Truncated != tt.want {
+			t.Errorf("%d files: %d files, truncated %v, err %v; want truncated %v", tt.n, len(got.Files), got.Truncated, err, tt.want)
+		}
+	}
+}
+
+func TestCompareFilesErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		status  int
+		wantErr error
+	}{
+		{name: "not modified", status: http.StatusNotModified},
+		{name: "gone commit", status: http.StatusNotFound, wantErr: core.ErrNotFound},
+		{name: "no common ancestor", status: http.StatusUnprocessableEntity, wantErr: core.ErrConflict},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.status)
+			}))
+			got, res, err := c.CompareFiles(t.Context(), golang, "old", "new", Conditional{ETag: `W/"e1"`})
+			if !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {
+				t.Fatalf("err = %v, want %v", err, tt.wantErr)
+			}
+			if got.Files != nil || got.Status != "" || res.NotModified != (tt.status == http.StatusNotModified) {
+				t.Errorf("CompareFiles = %+v, %+v", got, res)
 			}
 		})
 	}
