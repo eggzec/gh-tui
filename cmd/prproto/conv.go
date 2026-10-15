@@ -104,10 +104,63 @@ type citem struct {
 	threads                      []*thread
 	commits                      [][2]string // a push: short SHA and subject
 	forced                       bool
+	ago                          int   // minutes ago, for merging close events
+	acts                         []act // what a label or review-request event did
+}
+
+// act is one thing an event did: a verb and its targets (**keyword** or %%label%% markup).
+type act struct {
+	verb string
+	objs []string
+}
+
+// mergeEvents joins consecutive events of one actor and kind that are within
+// ten minutes of each other into one line, as GitHub does.
+func mergeEvents(vis []*citem) []*citem {
+	var out []*citem
+	lastAgo := 0
+	for _, it := range vis {
+		if n := len(out); n > 0 && len(it.acts) > 0 {
+			p := out[n-1]
+			if p.kind == "sys" && p.state == it.state && p.who == it.who && len(p.acts) > 0 && abs(p.ago-it.ago) <= 10 && abs(lastAgo-it.ago) <= 10 {
+				cp := *p
+				cp.acts = slices.Clone(p.acts)
+				for _, a := range it.acts {
+					k := len(cp.acts) - 1
+					if cp.acts[k].verb == a.verb {
+						cp.acts[k].objs = append(slices.Clone(cp.acts[k].objs), a.objs...)
+					} else {
+						cp.acts = append(cp.acts, a)
+					}
+				}
+				out[n-1] = &cp
+				lastAgo = it.ago
+				continue
+			}
+		}
+		out = append(out, it)
+		lastAgo = it.ago
+	}
+	return out
 }
 
 // sysText is the plain text of a system line: a push or another event of no human.
 func (it *citem) sysText() string {
+	if len(it.acts) > 0 {
+		var parts []string
+		for _, a := range it.acts {
+			var o string
+			if it.state == "label" {
+				o = strings.Join(a.objs, " ")
+			} else if n := len(a.objs); n > 1 {
+				o = strings.Join(a.objs[:n-1], ", ") + " and " + a.objs[n-1]
+			} else {
+				o = a.objs[0]
+			}
+			parts = append(parts, a.verb+" "+o)
+		}
+		return "**" + disp(it.who) + "** " + strings.Join(parts, " and ")
+	}
 	if it.kind != "push" {
 		return it.body
 	}
@@ -265,6 +318,9 @@ func newConv() convState {
 	push := func(who, when string, forced bool, cs ...[2]string) *citem {
 		return &citem{id: newID(), kind: "push", who: who, when: when, commits: cs, forced: forced}
 	}
+	ev := func(state, who, when string, ago int, as ...act) *citem {
+		return &citem{id: newID(), kind: "sys", state: state, who: who, when: when, ago: ago, acts: as}
+	}
 	items := []*citem{
 		it("pr", "", "alice", "3d ago", description),
 		// items[0] is the pull request itself: the description pane shows it.
@@ -287,15 +343,16 @@ func newConv() convState {
 			&thread{id: newID(), fi: 1, line: 0, loc: -1,
 				replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
 		it("sys", "ci", "ci", "1d ago", "Check **e2e** failed on **a1b2c3d**"),
-		it("sys", "review", "alice", "1d ago", "**Alice Chen** requested a review from **Carol Diaz**"),
-		it("sys", "review", "alice", "1d ago", "**Alice Chen** requested a review from the team **org/core**"),
-		it("sys", "label", "alice", "1d ago", "**Alice Chen** added the %%bug%% and %%api%% labels"),
-		it("sys", "label", "alice", "1d ago", "**Alice Chen** removed the %%wip%% label"),
+		ev("review", "alice", "1d ago", 1440, act{"requested review from", []string{"**Carol Diaz**"}}),
+		ev("review", "alice", "1d ago", 1437, act{"requested review from", []string{"**org/core**"}}),
+		ev("label", "alice", "1d ago", 1436, act{"added", []string{"%%bug%%", "%%api%%"}}),
+		ev("label", "alice", "1d ago", 1434, act{"removed", []string{"%%wip%%"}}),
 		it("sys", "branch", "alice", "1d ago", "**Alice Chen** changed the base branch from **develop** to **main**"),
 		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake by waiting for the fixture server before the first request"}),
 		it("sys", "ci", "ci", "5h ago", "Check **unit tests** failed on **f9e8d7c**"),
-		it("sys", "review", "alice", "5h ago", "**Alice Chen** requested a review from **Carol Diaz**"),
-		it("sys", "label", "dave", "5h ago", "**Dave Kim** added the %%enhancement%% and %%good first issue%% labels"),
+		ev("review", "alice", "5h ago", 300, act{"requested review from", []string{"**Carol Diaz**"}}),
+		ev("label", "dave", "5h ago", 298, act{"added", []string{"%%enhancement%%", "%%good first issue%%"}}),
+		ev("label", "alice", "4h ago", 297, act{"removed", []string{"%%question%%"}}),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
 		it("comment", "", "ghost-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
 		it("comment", "", "dependabot", "18h ago", "Bumps golang.org/x/net from 0.41.0 to 0.43.0.\n"+
@@ -613,6 +670,7 @@ func (m *model) crows(all bool) []crow {
 			vis = append(vis, it)
 		}
 	}
+	vis = mergeEvents(vis)
 	for i := 0; i < len(vis); {
 		j := i
 		for j < len(vis) && vis[j].kind == "comment" {
@@ -733,6 +791,16 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	case "push", "sys":
 		head = sysIcon(r.it) + " " + sysPaint(r.it.sysText())
 		right = meta(false, false, r.it.when)
+		if !(r.kind == "push" && r.open) {
+			// Collapsed system lines are centred, the age stays at the right edge.
+			rw := lipgloss.Width(right)
+			hw := lipgloss.Width(head)
+			pad := max(1, (cw-hw)/2)
+			if pad+hw+rw+1 > cw {
+				pad = max(1, cw-hw-rw-1)
+			}
+			return []string{rightAlign(strings.Repeat(" ", pad)+head, right, cw)}
+		}
 	case "commit":
 		return []string{commitLine(r.commit, cw, gm)}
 	case "run":
