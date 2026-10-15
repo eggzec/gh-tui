@@ -14,7 +14,7 @@ var navigation = []string{
 	// Moving in a list, a tree or a reading view.
 	"up", "down", "left", "right",
 	"page_up", "page_down", "half_page_up", "half_page_down",
-	"top", "bottom",
+	"top", "bottom", "read_on",
 	// Acting on what is under the cursor, and stepping out.
 	"select", "back", "dismiss", "mark",
 	// Moving between panes and tabs.

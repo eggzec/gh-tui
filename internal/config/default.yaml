@@ -1171,6 +1171,10 @@ keys:
     # Mark the file the cursor is in as viewed, which folds it, and go to the
     # next file not viewed, or take the mark off.
     viewed: [v]
+    # Read on: page down, and once the end of the file the cursor is in shows,
+    # mark it as viewed and go to the next file not viewed, from the first file
+    # again after the last. When every file is viewed it goes to the first.
+    read_on: [space]
   # The modal of a release.
   release_modal:
     up: [up, k]

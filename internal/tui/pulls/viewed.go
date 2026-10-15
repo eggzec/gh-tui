@@ -146,6 +146,62 @@ func (m *detailModal) nextUnviewed(path string) string {
 	return ""
 }
 
+// readOn reads on through the diff: it pages down, and once the end of the file
+// the cursor is in shows, it marks that file viewed and moves to the next one
+// not viewed, from the first file again after the last. With every file
+// viewed it pages through the folded headers and, from the last file, moves to
+// the first. Marks are kept only once the visit has loaded,
+// so until then it only pages.
+func (m *detailModal) readOn() tea.Cmd {
+	// A range being drawn is about lines, so reading on waits until it ends.
+	if m.tray.from != nil {
+		return nil
+	}
+	v, f := &m.visit, m.files
+	file, ok := f.diff.CurrentFile()
+	if !ok || !f.diff.FileEndVisible() || (v.store != nil && !v.loaded) {
+		// The page stops at the end of the file, so that the next press sees
+		// the end of the file the cursor is in, not of the one after.
+		cmd := f.diff.PageDownWithinFile()
+		return tea.Batch(cmd, m.follow(), m.spinWhileLoading())
+	}
+	var cmds []tea.Cmd
+	if m.viewingOf(file) != viewedFile {
+		cmds = append(cmds, m.toggleViewed(file, false))
+	}
+	path := m.nextUnviewedWrapping(file.Path)
+	if path == "" {
+		// Every file is viewed, and folded: page on through the headers, and
+		// start over at the first file once the last is reached.
+		files := f.set.list()
+		if len(files) == 0 {
+			return tea.Batch(cmds...)
+		}
+		if file.Path != files[len(files)-1].Path {
+			cmds = append(cmds, f.diff.PageDown(), m.follow(), m.spinWhileLoading())
+			return tea.Batch(cmds...)
+		}
+		path = files[0].Path
+	}
+	cmds = append(cmds, m.showFile(path))
+	return tea.Batch(cmds...)
+}
+
+// nextUnviewedWrapping returns the path of the first file after the one at
+// path that isn't viewed, going on from the first file after the last, or
+// empty when every file is viewed.
+func (m *detailModal) nextUnviewedWrapping(path string) string {
+	files := m.files.set.list()
+	at, _ := m.files.set.index(path)
+	for i := 1; i <= len(files); i++ {
+		file := files[(at+i)%len(files)]
+		if m.viewingOf(file) != viewedFile {
+			return file.Path
+		}
+	}
+	return ""
+}
+
 // saveViewed keeps the marks, with the last visit as it was, in a command that
 // warns if it can't. Nothing is kept over a state that could not be read.
 func (m *detailModal) saveViewed() tea.Cmd {

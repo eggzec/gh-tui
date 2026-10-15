@@ -504,6 +504,9 @@ func (m *detailModal) pressDiff(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	}
+	if !f.diff.Capturing() && keymap.Matches(msg, m.keys.readOn) {
+		return m.readOn()
+	}
 	var cmd tea.Cmd
 	f.diff, cmd = f.diff.Update(msg)
 	return tea.Batch(cmd, m.follow(), m.spinWhileLoading())
@@ -806,7 +809,7 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		// The modal's refresh retries a failed read.
 		keys.Retry.SetEnabled(false)
 		l := ui.ContextHelp(ctxDiff, keys, false)
-		l.Bindings = append(l.Bindings, m.keys.diffViewed, m.resolveBinding())
+		l.Bindings = append(l.Bindings, m.keys.diffViewed, m.keys.readOn, m.resolveBinding())
 		l.Bindings = append(l.Bindings, m.trayBindings()...)
 		// Backspace on an empty search line is the prompt's alone. Listed
 		// here, though off, it would hide the app's back key in help.

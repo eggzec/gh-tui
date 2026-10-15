@@ -152,6 +152,37 @@ func TestFileEndVisible(t *testing.T) {
 	}
 }
 
+func TestPageDownWithinFileStopsAtTheEnd(t *testing.T) {
+	// Windows of 5 to 12 rows put the end of a.go at every phase of a page,
+	// whether its tail is shorter than a window or not.
+	for height := 6; height <= 13; height++ {
+		m := load(t, &source{size: 5, files: []File{goFile("a.go", 8), goFile("b.go", 1)}}, WithSize(60, height))
+		pages := 0
+		for !m.FileEndVisible() {
+			pages++
+			if pages > 30 {
+				t.Fatalf("height %d: the end of a.go never became visible", height)
+			}
+			before := m.Cursor()
+			m = run(t, m, m.PageDownWithinFile())
+			if m.Cursor() <= before {
+				t.Fatalf("height %d: PageDownWithinFile stayed at row %d", height, before)
+			}
+			if f, _ := m.CurrentFile(); f.Path != "a.go" {
+				t.Fatalf("height %d: the cursor left a.go for %s before its end showed", height, f.Path)
+			}
+		}
+		if pages < 2 {
+			t.Errorf("height %d: a.go showed its end after %d pages, want it longer than a window", height, pages)
+		}
+		// With the end in view, the next page goes on into b.go.
+		m = run(t, m, m.PageDownWithinFile())
+		if f, _ := m.CurrentFile(); f.Path != "b.go" {
+			t.Errorf("height %d: the page after the end is in %s, want b.go", height, f.Path)
+		}
+	}
+}
+
 func TestFileEndVisibleCollapsed(t *testing.T) {
 	m := load(t, &source{size: 5, files: []File{goFile("a.go", 6), goFile("b.go", 1)}}, WithSize(60, 6))
 	m.SetCollapsed("a.go", true)

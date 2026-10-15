@@ -52,6 +52,22 @@ func (m *Model) PageDown() tea.Cmd {
 	return m.sync()
 }
 
+// PageDownWithinFile is [Model.PageDown] that stops at the last row of the
+// file the cursor is in when a whole page would cross into the next file while
+// the file's end is not yet in the window, so that the end shows with the cursor
+// still in the file. Once the end shows, it pages on as PageDown does.
+func (m *Model) PageDownWithinFile() tea.Cmd {
+	if f, ok := m.layout.FileAt(m.cursor); ok && !m.FileEndVisible() {
+		next, _ := m.layout.FileRow(f + 1)
+		if m.cursor+m.bodyHeight() >= next {
+			m.cancelPending()
+			m.cursor = next - 1
+			return m.sync()
+		}
+	}
+	return m.PageDown()
+}
+
 // cancelPending drops a seek waiting for pages and a search waiting for a
 // match, which a move of the cursor overrides.
 func (m *Model) cancelPending() {
