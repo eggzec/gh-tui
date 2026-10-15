@@ -121,7 +121,7 @@ var forcedStyle = sty("130")
 
 // sysLines centres a dim system line with a short rule on each side; a line
 // too wide for the pane drops the rules and wraps, centred.
-func sysLines(text string, extra []string, cw int) []string {
+func sysLines(text string, cw int) []string {
 	paint := func(s string) string {
 		a, b, ok := strings.Cut(s, "forced")
 		if !ok {
@@ -132,24 +132,41 @@ func sysLines(text string, extra []string, cw int) []string {
 	centre := func(s string, w int) string {
 		return " " + strings.Repeat(" ", max(0, (cw-1-w)/2)) + s
 	}
+	if rule, _ := sysFit(text, cw); rule > 0 {
+		r := dim(strings.Repeat("─", rule))
+		return []string{centre(r+" "+paint(text)+" "+r, len([]rune(text))+2*(rule+1))}
+	}
 	var out []string
+	for _, l := range wrap(text, max(10, cw-4)) {
+		out = append(out, centre(paint(l), len([]rune(l))))
+	}
+	return out
+}
+
+// sysFit gives the rule length a system line fits with (0 when it must wrap)
+// and the column where its text starts.
+func sysFit(text string, cw int) (rule, start int) {
 	for _, rule := range []int{4, 2} {
 		w := len([]rune(text)) + 2*(rule+1)
 		if w <= cw-1 {
-			r := dim(strings.Repeat("─", rule))
-			out = append(out, centre(r+" "+paint(text)+" "+r, w))
-			break
+			return rule, 1 + max(0, (cw-1-w)/2) + rule + 1
 		}
 	}
-	if out == nil {
-		for _, l := range wrap(text, max(10, cw-4)) {
-			out = append(out, centre(paint(l), len([]rune(l))))
-		}
+	return 0, 2
+}
+
+// commitLine is a commit row of an open push: it starts where the push line's
+// text does, and a subject too long for the room is cut with an ellipsis.
+func commitLine(text string, c [2]string, cw int) string {
+	_, start := sysFit(text, cw)
+	room := cw - start - len(c[0]) - 3
+	subj := []rune(c[1])
+	if room < 1 {
+		subj = nil
+	} else if len(subj) > room {
+		subj = append(subj[:room-1], '…')
 	}
-	for _, l := range extra {
-		out = append(out, centre(dim(l), len([]rune(l))))
-	}
-	return out
+	return strings.Repeat(" ", start) + dim(c[0]+"  "+string(subj))
 }
 
 type convState struct {
@@ -158,6 +175,7 @@ type convState struct {
 	sel      string
 	last     int
 	filter   int
+	hideSys  bool // system events (pushes, CI, labels, review requests) hidden
 	title    string
 	first    int // first and last line of the selected row in the last render
 	lastLine int
@@ -219,7 +237,10 @@ func newConv() convState {
 		it("sys", "", "ci", "1d ago", "ci: e2e failed on a1b2c3d"),
 		it("sys", "", "alice", "1d ago", "Alice Chen requested a review from Carol Diaz"),
 		it("sys", "", "alice", "1d ago", "Alice Chen added the label bug"),
-		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake"}),
+		it("sys", "", "alice", "1d ago", "Alice Chen removed the label wip"),
+		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake by waiting for the fixture server before the first request"}),
+		it("sys", "", "ci", "5h ago", "ci: unit tests failed on f9e8d7c"),
+		it("sys", "", "alice", "5h ago", "Alice Chen requested a review from Carol Diaz"),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
 		it("comment", "", "ghost-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
 	}
@@ -245,6 +266,48 @@ type crow struct {
 	rp                *reply
 	rl                *[]*reply
 	run               []*citem
+	commit            [2]string // a commit row of an open push: short SHA and subject
+}
+
+// isEvent reports an entry of no human: a push or another event.
+func (it *citem) isEvent() bool { return it.kind == "push" || it.kind == "sys" }
+
+// openThread opens the diff pager on the file of a review thread, with the
+// cursor on its line; the thread shows inline there.
+func (m *model) openThread(t *thread) tea.Cmd {
+	m.push(overlay{kind: "file", arg: t.fi, cur: m.rowOf(t.fi)})
+	o := &m.stack[len(m.stack)-1]
+	doc, vis, _ := m.dview(o)
+	for i, d := range vis {
+		if t.loc >= 0 && doc[d].fi == t.fi && doc[d].loc == t.loc {
+			o.vcur = i
+			break
+		}
+	}
+	m.fixDiff(o)
+	return nil
+}
+
+// inThreadRange reports a diff line that a review thread comments on.
+func (m *model) inThreadRange(x dl) bool {
+	if x.kind != '+' && x.kind != 'h' && x.kind != 'f' {
+		return false
+	}
+	for _, it := range m.cv.items {
+		for _, t := range it.threads {
+			if t.fi != x.fi || t.loc < 0 || t.outdated {
+				continue
+			}
+			lo := t.line
+			if t.start > 0 {
+				lo = t.start
+			}
+			if x.src >= lo && x.src <= t.line {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (c *convState) thShown(t *thread) bool {
@@ -258,6 +321,9 @@ func (c *convState) thShown(t *thread) bool {
 }
 
 func (c *convState) itShown(it *citem) bool {
+	if c.hideSys && it.isEvent() {
+		return false
+	}
 	switch c.filter {
 	case 1:
 		return slices.ContainsFunc(it.threads, c.thShown)
@@ -302,6 +368,11 @@ func (m *model) crows(all bool) []crow {
 		rows = append(rows, crow{key: key, kind: it.kind, depth: depth, parent: parent, fold: fold, open: open, it: it})
 		if !open {
 			return
+		}
+		if it.kind == "push" {
+			for n, cm := range it.commits {
+				rows = append(rows, crow{key: fmt.Sprintf("cm:%d:%d", it.id, n), kind: "commit", depth: depth + 1, parent: key, it: it, commit: cm})
+			}
 		}
 		for _, t := range it.threads {
 			if !c.thShown(t) {
@@ -428,13 +499,9 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	var snip *thread
 	switch r.kind {
 	case "push", "sys":
-		var extra []string
-		if r.open {
-			for _, c := range r.it.commits {
-				extra = append(extra, c[0]+"  "+c[1])
-			}
-		}
-		return sysLines(r.it.sysText(), extra, cw)
+		return sysLines(r.it.sysText(), cw)
+	case "commit":
+		return []string{commitLine(r.it.sysText(), r.commit, cw)}
 	case "run":
 		var who []string
 		for _, it := range r.run {
@@ -644,8 +711,13 @@ func rowTgt(r crow) tgt {
 func (m *model) convKey(k string) tea.Cmd {
 	c := &m.cv
 	rows := m.crows(false)
-	if k == "f" {
+	switch k {
+	case "f":
 		c.filter = (c.filter + 1) % len(filterNames)
+		m.ensureSel()
+		return nil
+	case "s":
+		c.hideSys = !c.hideSys
 		m.ensureSel()
 		return nil
 	}
@@ -672,8 +744,11 @@ func (m *model) convKey(k string) tea.Cmd {
 				}
 			}
 		}
-	case "enter":
-		if r.fold {
+	case "enter", "o":
+		if r.kind == "thread" {
+			return m.openThread(r.th)
+		}
+		if k == "enter" && r.fold {
 			c.open[r.key] = !r.open
 		}
 	case "*":
@@ -683,8 +758,6 @@ func (m *model) convKey(k string) tea.Cmd {
 				c.open[x.key] = anyClosed
 			}
 		}
-	case "f":
-		c.filter = (c.filter + 1) % len(filterNames)
 	case ")":
 		return m.nextUnresolved(1)
 	case "(":

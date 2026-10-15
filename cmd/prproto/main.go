@@ -551,6 +551,8 @@ func curMark(st int) string {
 		return "\x1b[1m" + selMark + selMarker + "\x1b[22m"
 	case 3:
 		return selDim + selMarker
+	case 4: // a line a review thread comments on
+		return selMark + selMarker
 	}
 	return ""
 }
@@ -589,7 +591,7 @@ func renderDL(x dl, w, st int) string {
 		return fmt.Sprintf("%4d", n)
 	}
 	gut := num(x.old) + " " + num(x.nw) + " │ "
-	l := lineBG(x.kind, st)
+	l := lineBG(x.kind, st&3)
 	body := []rune(afterMark(x.text))
 	out := l + "\x1b[90m" + gut + "\x1b[39m"
 	if mk := curMark(st); mk != "" {
@@ -744,6 +746,8 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 				st = 2
 			case o.ondraft && x.fi == o.dkey[0] && x.loc >= o.dkey[2] && x.loc <= o.dkey[1]:
 				st = 2
+			case m.inThreadRange(x):
+				st = 4
 			}
 			t = renderDL(x, w, st)
 		}
@@ -1545,6 +1549,9 @@ func (m *model) paneTitle(i int) string {
 	if i == pMain {
 		n, tot := m.cv.counts()
 		t += fmt.Sprintf(" · %d of %d shown · filter: %s", n, tot, filterNames[m.cv.filter])
+		if m.cv.hideSys {
+			t += " · events hidden"
+		}
 	}
 	if i == pDesc && m.cv.items[0].edited {
 		t += " · edited"
@@ -1693,8 +1700,10 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            (tab/ctrl+s/esc in the editor) · below 120 cols the panes are a strip: description first",
 			"People      shown by full name (login when there is none, a team as \"core team\"); pickers match",
 			"            the name or the login, which shows dim after the name",
-			"Conversation a tree: j/k move · l/→ open (or into) · h/← close (or to parent) · enter toggle · * open/close all",
-			"            f filter all/unresolved/changes requested/mine · ) ( next/prev unresolved thread",
+			"Conversation a tree: j/k move · l/→ open (or into) · h/← close (or to parent) · enter toggle (not on a thread) · * open/close all",
+			"            enter/o on a thread opens the diff on its line (x full file, esc back to this row); fold a thread with l/h",
+			"            f filter all/unresolved/changes requested/mine · s show/hide system events (pushes, CI, labels, review requests)",
+			"            ) ( next/prev unresolved thread; enter on a push opens its commits, aligned under the text",
 			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit your comment/reply (the PR is edited in Description)",
 			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
 			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
