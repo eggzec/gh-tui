@@ -72,6 +72,21 @@ type reviewState struct {
 	sending bool
 	// skipped is how many drafts the outdated stage says are not sent.
 	skipped int
+	// saved is the draft of the summary that the disk held when the summary
+	// stage opened, and savedRead is set once it has been read.
+	saved     string
+	savedRead bool
+	// prefilled is set once the pending review's summary had its chance to fill
+	// the composer, so that a summary the user then empties stays empty.
+	prefilled bool
+}
+
+// summaryDraftMsg carries the saved draft of the summary to the review step
+// that asked.
+type summaryDraftMsg struct {
+	owner *detailModal
+	rev   *reviewState
+	text  string
 }
 
 // reviewedMsg reports that GitHub answered the review sent by the modal.
@@ -176,23 +191,50 @@ func (m *detailModal) startSummary() tea.Cmd {
 	}
 	r.stage = reviewSummary
 	r.comp = composer.New(m.summaryKey(), opts...)
+	r.saved, r.savedRead, r.prefilled = "", m.drafts == nil, false
 	m.prefillSummary()
-	return tea.Batch(r.comp.Init(), r.comp.Focus())
+	return tea.Batch(r.comp.Init(), r.comp.Focus(), m.loadSummaryDraft())
+}
+
+// loadSummaryDraft reads the saved draft of the summary, off the update loop,
+// since a text in the composer keeps its own draft from being restored and the
+// prefill must know whether the user kept one.
+func (m *detailModal) loadSummaryDraft() tea.Cmd {
+	if m.drafts == nil {
+		return nil
+	}
+	drafts, name, r := m.drafts, m.summaryKey(), m.rev
+	return func() tea.Msg {
+		text, err := drafts.Load(name)
+		if err != nil {
+			text = ""
+		}
+		return summaryDraftMsg{owner: m, rev: r, text: text}
+	}
+}
+
+// receiveSummaryDraft takes the saved draft that was read for the open step.
+func (m *detailModal) receiveSummaryDraft(msg summaryDraftMsg) {
+	if msg.owner != m || msg.rev != m.rev || m.rev == nil {
+		return
+	}
+	m.rev.saved, m.rev.savedRead = msg.text, true
+	m.prefillSummary()
 }
 
 // prefillSummary puts the pending review's summary in the composer of the
-// summary, when the composer is open and still empty, and the user kept no
-// draft of their own. The draft is read here, since a text in the composer
-// keeps its own draft from being restored.
+// summary, once per review step: when the composer is open and still empty,
+// and the user kept no draft of their own. It waits for the saved draft and
+// for the pending review, and a summary that the user empties afterwards is
+// not filled again.
 func (m *detailModal) prefillSummary() {
 	r, body := m.rev, m.tray.pending.Body
-	if r == nil || r.stage == reviewVerdict || body == "" || strings.TrimSpace(r.comp.Value()) != "" {
+	if r == nil || r.stage == reviewVerdict || r.prefilled || !r.savedRead || body == "" {
 		return
 	}
-	if m.drafts != nil {
-		if text, err := m.drafts.Load(m.summaryKey()); err == nil && strings.TrimSpace(text) != "" {
-			return
-		}
+	r.prefilled = true
+	if strings.TrimSpace(r.comp.Value()) != "" || strings.TrimSpace(r.saved) != "" {
+		return
 	}
 	r.comp.SetValue(body)
 }

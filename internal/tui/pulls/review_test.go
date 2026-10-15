@@ -352,6 +352,57 @@ func TestPendingSummaryFillsAnEmptyComposer(t *testing.T) {
 	}
 }
 
+func TestPendingSummaryFillsOnlyOncePerStep(t *testing.T) {
+	t.Parallel()
+	d := &memDrafts{}
+	h, m, svc := reviewing(t, kept(), d)
+	svc.setPending(webPending)
+	toSummary(t, h, 1, "")
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	m.rev.comp.SetValue("")
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got != "" {
+		t.Errorf("the summary is %q after the user emptied it, want it left empty", got)
+	}
+	// A new step may fill again.
+	press(t, h, "esc")
+	toSummary(t, h, 1, "")
+	if got := m.rev.comp.Value(); got != "web summary" {
+		t.Errorf("the summary of a new step is %q, want the pending review's", got)
+	}
+}
+
+func TestPendingSummaryKeepsTheSavedDraft(t *testing.T) {
+	t.Parallel()
+	d := &memDrafts{}
+	h, m, _ := reviewing(t, kept(), d)
+	if err := d.Save(m.summaryKey(), "saved"); err != nil {
+		t.Fatal(err)
+	}
+	toSummary(t, h, 1, "")
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	if got := m.rev.comp.Value(); got == "web summary" {
+		t.Errorf("the summary is %q, want the saved draft kept over the pending review's", got)
+	}
+}
+
+func TestPendingReadLoadsNoDraft(t *testing.T) {
+	t.Parallel()
+	d := &memDrafts{}
+	h, m, _ := reviewing(t, kept(), d)
+	toSummary(t, h, 1, "")
+	d.mu.Lock()
+	before := d.loads
+	d.mu.Unlock()
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	m.receivePending(pendingLoadedMsg{owner: m, review: webPending, ok: true})
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.loads != before {
+		t.Errorf("the pending reads loaded %d drafts, want none", d.loads-before)
+	}
+}
+
 func TestLeaveAddedUsesTheReadTheReviewWasPlannedOn(t *testing.T) {
 	t.Parallel()
 	_, m, _ := reviewing(t, kept(reviewLine), &memDrafts{})
