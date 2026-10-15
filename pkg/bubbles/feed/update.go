@@ -89,8 +89,10 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
 	case keymap.Matches(msg, m.markKeys.Mark) && m.canMark():
+		// Marking moves on as the down key does, so that a run of rows
+		// takes one key each; on the last row the cursor stays.
 		m.toggleMark()
-		return nil
+		m.sel++
 	case keymap.Matches(msg, m.promptKeys.Cancel):
 		// Esc peels one layer at a time: the find, then the filter, then
 		// the marks. The prompt, which comes before them all, takes its

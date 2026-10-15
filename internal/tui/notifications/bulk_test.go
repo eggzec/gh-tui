@@ -20,7 +20,12 @@ func markRows(t *testing.T, s *Section, rows ...int) {
 		for ; at < r; at++ {
 			press(t, s, "down")
 		}
+		// Marking moves the cursor on to the next row.
 		press(t, s, "space")
+		at++
+	}
+	if len(rows) > 0 {
+		press(t, s, "up")
 	}
 }
 
