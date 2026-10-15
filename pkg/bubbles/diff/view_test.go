@@ -39,6 +39,23 @@ func TestView(t *testing.T) {
 			return load(t, &source{size: 5, files: []File{goFile("small.go", 1), goFile("big.go", 4), goFile("tail.go", 1)}},
 				WithSize(60, 12), WithCollapseOver(10))
 		}},
+		{"marked", func(t *testing.T) Model {
+			t.Helper()
+			return load(t, &source{size: 5, files: []File{goFile("seen.go", 1), goFile("unseen.go", 1), {
+				Path: "a/very/long/path/to/the/seen/file/in/the/tree.go", Status: StatusModified, Additions: 1, Deletions: 1, Patch: patch(1), SHA: "abc",
+			}}}, WithSize(50, 14), WithHeaderMark(func(f File) string {
+				if f.Path == "unseen.go" {
+					return ""
+				}
+				return "✓"
+			}))
+		}},
+		{"collapsed_by_call", func(t *testing.T) Model {
+			t.Helper()
+			m := load(t, &source{size: 5, files: []File{goFile("a.go", 1), goFile("b.go", 2), goFile("c.go", 1)}}, WithSize(60, 14))
+			m.SetCollapsed("b.go", true)
+			return m
+		}},
 		{"sticky", func(t *testing.T) Model {
 			t.Helper()
 			m := load(t, &source{size: 5, files: []File{goFile("a.go", 6), goFile("b.go", 2)}}, WithSize(60, 8))

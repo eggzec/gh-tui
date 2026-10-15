@@ -1,0 +1,14 @@
+▌ ▾ seen.go +1 -1 ✓                               
+  @@ -1,3 +1,3 @@ func f0() {                     
+    1  ctx a0                                     
+    2 -old b0                                     
+    2 +new b0                                     
+    3  ctx c0                                     
+  ▾ unseen.go +1 -1                               
+  @@ -1,3 +1,3 @@ func f0() {                     
+    1  ctx a0                                     
+    2 -old b0                                     
+    2 +new b0                                     
+    3  ctx c0                                     
+  ▾ a/very/long/path/to/the/seen/file/in/… +1 -1 ✓
+file 1/3                                          
