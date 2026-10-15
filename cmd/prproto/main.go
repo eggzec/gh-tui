@@ -520,12 +520,15 @@ func (f file) total() int {
 
 // buildRows lays the files out as a tree: at each level the folders come
 // first, then the files, each kind in alphabetical order.
-func buildRows() []row {
+func (m *model) buildFileRows(depth0 int) []row {
 	var out []row
 	var walk func(prefix string, depth int)
 	walk = func(prefix string, depth int) {
 		var subs []string
-		for _, f := range files {
+		for i, f := range files {
+			if !m.fileIn(i) {
+				continue
+			}
 			if rest, ok := strings.CutPrefix(f.dir, prefix); ok && rest != "" {
 				seg, _, _ := strings.Cut(rest, "/")
 				if !slices.Contains(subs, seg) {
@@ -540,7 +543,7 @@ func buildRows() []row {
 		}
 		var here []int
 		for i, f := range files {
-			if f.dir == prefix {
+			if f.dir == prefix && m.fileIn(i) {
 				here = append(here, i)
 			}
 		}
@@ -549,7 +552,7 @@ func buildRows() []row {
 			out = append(out, row{fi: i, depth: depth})
 		}
 	}
-	walk("", 0)
+	walk("", depth0)
 	return out
 }
 
@@ -711,10 +714,14 @@ func emphasise(a, b *dl) {
 // style header before each file.
 func (m *model) docFor(o *overlay) []dl {
 	if !o.all {
-		return fileDoc(files[o.arg], o.arg)
+		return fileDoc(m.rangeFile(o.arg), o.arg)
 	}
 	var out []dl
-	for i, f := range files {
+	for i := range files {
+		if !m.fileIn(i) {
+			continue
+		}
+		f := m.rangeFile(i)
 		p := f.path()
 		out = append(out, dl{text: "diff --git a/" + p + " b/" + p, kind: 'H', fi: i, loc: -1})
 		out = append(out, fileDoc(f, i)...)
@@ -970,10 +977,11 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 	lines = append(lines, m.diffStatus(o))
 	cf := doc[cd].fi
 	var title string
+	pos, tot := m.rangePos(cf)
 	if o.all {
-		title = fmt.Sprintf("Whole patch · %s (%d/%d) · %s [x] · %d%%", files[cf].path(), cf+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
+		title = fmt.Sprintf("Whole patch · %s · %s (%d/%d) · %s [x] · %d%%", m.rangeLabel(), files[cf].path(), pos, tot, ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
 	} else {
-		title = fmt.Sprintf("Diff · %s (%d/%d) · %s [x] · %d%%", files[cf].path(), cf+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
+		title = fmt.Sprintf("Diff · %s · %s (%d/%d) · %s [x] · %d%%", m.rangeLabel(), files[cf].path(), pos, tot, ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
 	}
 	return box(title, lines, w, h, foc)
 }
@@ -1339,7 +1347,14 @@ type row struct {
 	fi    int
 	label string
 	depth int // nesting: a folder's files sit one deeper than the folder
+	// kind is 0 for a folder or a file, else 'g' the Commits header, 'c' a
+	// commit (ci), 'k' one of its checks (ci, fi), 'm' the last-review marker,
+	// 'G' the Files header.
+	kind byte
+	ci   int
 }
+
+func (r row) isFile() bool { return r.kind == 0 && !r.dir }
 
 type entry struct{ who, kind, when, body string }
 
@@ -1605,6 +1620,10 @@ type model struct {
 	fold      map[string]bool
 	rows      []row
 	cv        convState
+	lo, hi    int // the selected commits, a contiguous range (indexes into fcommits)
+	pvSel     [2]int
+	viewed    map[string]bool
+	hint      string
 }
 
 type clearToastMsg struct{ id int }
@@ -1625,8 +1644,16 @@ func newModel() *model {
 		labels:    []string{"bug", "api"},
 		prState:   "open",
 	}
-	m.rows = buildRows()
-	m.cur[pFiles] = 0
+	m.lo, m.hi = 0, len(fcommits)-1
+	m.pvSel = [2]int{m.lo, m.hi}
+	m.viewed = map[string]bool{}
+	for _, f := range files {
+		if f.name == "doc.go" || f.name == "README.md" {
+			m.viewed[f.path()] = true
+		}
+	}
+	m.rebuild()
+	m.cur[pFiles] = m.snap(1, 1)
 	return m
 }
 
@@ -1802,28 +1829,13 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		return m.treeLines(i, cw, m.devNodes())
 	case pFiles:
 		var out []string
-		curLine := 0
 		for k, r := range m.rows {
-			if r.dir {
-				out = append(out, " "+strings.Repeat("  ", r.depth)+dim("▾ "+r.label))
-				continue
-			}
-			f := files[r.fi]
-			t := f.name + " " + green(fmt.Sprintf("+%d", f.add)) + " " + red(fmt.Sprintf("−%d", f.del))
-			if f.thread {
-				t += " " + ic.unresolved.String()
-			}
-			ind := " " + strings.Repeat("  ", r.depth)
+			t := m.fileRowLine(r, cw)
 			if m.cur[pFiles] == k {
 				w, _ := m.paneDims(pFiles)
-				out = append(out, selRow(ind+t, w-4, m.focus == pFiles))
-				curLine = k
-			} else {
-				out = append(out, ind+t)
+				t = selRow(t, w-4, m.focus == pFiles)
 			}
-		}
-		if m.cur[pFiles] > curLine {
-			curLine = m.cur[pFiles]
+			out = append(out, t)
 		}
 		return out, m.cur[pFiles]
 	}
@@ -1833,7 +1845,8 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 func (m *model) paneTitle(i int) string {
 	t := fmt.Sprintf("%d %s", i+1, paneNames[i])
 	if i == pFiles {
-		t += fmt.Sprintf(" %d · \x1b[32m+120\x1b[39m \x1b[31m−8\x1b[39m", len(files))
+		nf, a, d := m.rangeTotals()
+		t += fmt.Sprintf(" %d · \x1b[32m+%d\x1b[39m \x1b[31m−%d\x1b[39m", nf, a, d)
 	}
 	if i == pMain {
 		n, tot := m.cv.counts()
@@ -2029,11 +2042,14 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens its log / the reviewer picker /",
 			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
 			"Checks      C (anywhere) lists all checks, failing first: j/k · enter the log · esc/backspace back",
-			"Commits     enter on a push opens its commits as a thread; enter on a commit opens its diff (status icon at the end of the row)",
+			"Commits     enter on a push opens its commits as a thread; enter on a commit shows only it in Files (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
 			"Development enter issue summary · a link issue · x unlink",
-			"Files       enter file diff · D combined diff · c draft a comment on the file · l focus conversation",
+			"Files       one tree: Commits group (● selected ○ not, checks one level down) and Files group; enter diff/fold",
+			"            space on a commit toggles it (the range stays contiguous; a middle one selects only itself)",
+			"            space on a file marks it viewed · A select all commits · S since your last review",
+			"            D combined diff · c draft a comment on the file · l focus conversation",
 			"Meta        enter edit the field",
 			"",
 			"Overlays    Z maximizes the overlay to the whole area (z zooms a pane on the main screen)",
@@ -2154,7 +2170,7 @@ func (m *model) scrollBox(o *overlay, w, h int, focus bool) string {
 
 func (m *model) rowOf(fi int) int {
 	for k, r := range m.rows {
-		if !r.dir && r.fi == fi {
+		if r.isFile() && r.fi == fi {
 			return k
 		}
 	}
@@ -2176,7 +2192,17 @@ func (m *model) nextFile(o *overlay, d int) {
 		m.jumpFile(o, d)
 		return
 	}
-	m.showFile(o, o.arg+d)
+	fi := o.arg
+	for {
+		fi += d
+		if fi < 0 || fi >= len(files) {
+			return
+		}
+		if m.fileIn(fi) {
+			break
+		}
+	}
+	m.showFile(o, fi)
 }
 
 // leave closes the pager, or hands the focus back to the files list.
@@ -2206,7 +2232,7 @@ func (m *model) confirmDo(text, toast string, fn func(*model) tea.Cmd) {
 // split: the zoomed files panel shows the list and the pager side by side.
 func (m *model) split() bool { return m.zoom && !m.narrow() && m.focus == pFiles }
 
-const listW = 32
+const listW = 46
 
 func place(bg []string, ov string, x, y, w int) {
 	for i, l := range strings.Split(ov, "\n") {
@@ -2366,8 +2392,11 @@ func (m *model) footer() string {
 		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
 		pReviewers: "enter fold/jump to comment · e edit group · R re-request · x remove",
 		pDev:       "enter fold/open · a link · x unlink",
-		pFiles:     "enter diff · D combined · c comment on file · l conversation",
+		pFiles:     "enter diff/fold · space select commit/mark viewed · A all · S since review · D combined · c comment",
 	}[m.focus]
+	if m.hint != "" && m.focus == pFiles {
+		return dim(m.hint)
+	}
 	return dim(h + " · L labels · tab/1-6 focus · z zoom · ? help · q quit")
 }
 
@@ -2421,6 +2450,7 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return tea.Quit
 	}
 	defer m.fixConv()
+	m.hint = ""
 	if len(m.stack) > 0 {
 		return m.overlayKey(msg)
 	}
@@ -2475,13 +2505,29 @@ func (m *model) syncPV() {
 		m.pvOn = false
 		return
 	}
-	if m.pvOn {
+	if m.pvOn && m.pvSel == [2]int{m.lo, m.hi} {
 		return
 	}
-	m.pvOn, m.pfocus = true, 0
-	if r := m.rows[m.cur[pFiles]]; !r.dir {
-		m.showFile(&m.pv, r.fi)
+	if !m.pvOn {
+		m.pfocus = 0
 	}
+	m.pvOn, m.pvSel = true, [2]int{m.lo, m.hi}
+	r := m.rows[m.cur[pFiles]]
+	fi := m.pv.arg
+	if r.isFile() {
+		fi = r.fi
+	}
+	if !m.fileIn(fi) {
+		for i := range files {
+			if m.fileIn(i) {
+				fi = i
+				break
+			}
+		}
+	}
+	keep := m.cur[pFiles]
+	m.showFile(&m.pv, fi)
+	m.cur[pFiles] = keep
 }
 
 func (m *model) count(p int) int {
@@ -2526,7 +2572,7 @@ func (m *model) snap(cur, d int) int {
 	if d < 0 {
 		step = -1
 	}
-	for t >= 0 && t < n && m.rows[t].dir {
+	for t >= 0 && t < n && (m.rows[t].dir || m.rows[t].kind == 'm') {
 		t += step
 	}
 	if t < 0 || t >= n {
@@ -2553,6 +2599,10 @@ func (m *model) requestReviewer() {
 }
 
 func (m *model) paneKey(k string) tea.Cmd {
+	if m.focus == pFiles && k == "space" {
+		m.filesSpace()
+		return nil
+	}
 	if d := moveDelta(k); d != 0 {
 		m.move(d)
 		return nil
@@ -2643,8 +2693,11 @@ func (m *model) paneKey(k string) tea.Cmd {
 			}
 		case "x":
 			if nd := m.involved()[m.cur[pReviewers]]; nd.grp == "rev" && nd.kind == "person" {
-				m.reviewers = slices.Delete(m.reviewers, nd.idx, nd.idx+1)
-				m.cur[pReviewers] = max(0, min(m.cur[pReviewers], m.count(pReviewers)-1))
+				m.confirmDo("Remove "+disp(nd.key)+" from the reviewers? ", "(prototype) removed "+disp(nd.key), func(m *model) tea.Cmd {
+					m.reviewers = slices.Delete(m.reviewers, nd.idx, nd.idx+1)
+					m.cur[pReviewers] = max(0, min(m.cur[pReviewers], m.count(pReviewers)-1))
+					return nil
+				})
 			}
 		}
 	case pDev:
@@ -2668,25 +2721,45 @@ func (m *model) paneKey(k string) tea.Cmd {
 				}})
 		case "x":
 			if nd := m.devNodes()[m.cur[pDev]]; nd.kind == "issue" || nd.kind == "pr" {
-				m.dev = slices.Delete(m.dev, nd.idx, nd.idx+1)
-				m.cur[pDev] = max(0, min(m.cur[pDev], m.count(pDev)-1))
+				m.confirmDo(fmt.Sprintf("Unlink #%d? ", nd.num), fmt.Sprintf("(prototype) unlinked #%d", nd.num), func(m *model) tea.Cmd {
+					m.dev = slices.Delete(m.dev, nd.idx, nd.idx+1)
+					m.cur[pDev] = max(0, min(m.cur[pDev], m.count(pDev)-1))
+					return nil
+				})
 			}
 		}
 	case pFiles:
 		switch k {
 		case "enter":
-			if r := m.rows[m.cur[pFiles]]; !r.dir {
+			r := m.rows[m.cur[pFiles]]
+			switch {
+			case r.isFile():
 				if m.split() {
 					m.showFile(&m.pv, r.fi)
 				} else {
 					m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
 				}
+			case r.kind == 'g':
+				m.toggleFold("g:commits", false)
+				m.rebuild()
+			case r.kind == 'G':
+				m.toggleFold("g:files", true)
+				m.rebuild()
+			case r.kind == 'c':
+				m.toggleFold("c:"+fcommits[r.ci].sha, false)
+				m.rebuild()
 			}
+		case "A":
+			m.lo, m.hi = 0, len(fcommits)-1
+			m.rebuild()
+		case "S":
+			m.lo, m.hi = lastReview, len(fcommits)-1
+			m.rebuild()
 		case "D":
 			m.push(overlay{kind: "file", all: true})
 		case "c":
 			r := m.rows[m.cur[pFiles]]
-			if r.dir {
+			if !r.isFile() {
 				return m.say("move to a file to comment on it")
 			}
 			m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles], quick: true, compose: true,

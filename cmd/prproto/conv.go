@@ -542,6 +542,10 @@ func (it *citem) isEvent() bool { return it.kind == "push" || it.kind == "sys" }
 // openThread opens the diff pager on the file of a review thread, with the
 // cursor on its line; the thread shows inline there.
 func (m *model) openThread(t *thread) tea.Cmd {
+	if !m.fileIn(t.fi) {
+		m.lo, m.hi = 0, len(fcommits)-1 // a thread outside the range needs the whole PR
+		m.rebuild()
+	}
 	m.push(overlay{kind: "file", arg: t.fi, cur: m.rowOf(t.fi)})
 	o := &m.stack[len(m.stack)-1]
 	doc, vis, _ := m.dview(o)
@@ -1096,7 +1100,7 @@ func (m *model) convKey(k string) tea.Cmd {
 			return m.openThread(r.th)
 		}
 		if r.kind == "commit" {
-			m.push(overlay{kind: "commit", title: r.commit[0], text: r.commit[1]})
+			m.focusCommit(r.commit[0])
 			return nil
 		}
 		if k == "enter" && r.fold {
