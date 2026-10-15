@@ -190,7 +190,13 @@ func keyDiff() string {
 		for i := range 14 {
 			fmt.Fprintf(&b, " context %d %s\n", i, wide)
 		}
-		b.WriteString("-removed " + wide + "\n+added " + wide + "\n+added again " + wide + "\n")
+		b.WriteString("-removed ")
+		b.WriteString(wide)
+		b.WriteString("\n+added ")
+		b.WriteString(wide)
+		b.WriteString("\n+added again ")
+		b.WriteString(wide)
+		b.WriteString("\n")
 		for i := range 14 {
 			fmt.Fprintf(&b, " context %d %s\n", 14+i, wide)
 		}

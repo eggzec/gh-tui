@@ -392,7 +392,11 @@ func compareFilesBody(n int) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(`{"filename":"f` + strconv.Itoa(i) + `.go","status":"modified","sha":"b` + strconv.Itoa(i) + `","additions":1,"deletions":1,"changes":2,"patch":"@@ -1 +1 @@\n-a\n+b"}`)
+		b.WriteString(`{"filename":"f`)
+		b.WriteString(strconv.Itoa(i))
+		b.WriteString(`.go","status":"modified","sha":"b`)
+		b.WriteString(strconv.Itoa(i))
+		b.WriteString(`","additions":1,"deletions":1,"changes":2,"patch":"@@ -1 +1 @@\n-a\n+b"}`)
 	}
 	b.WriteString(`]}`)
 	return b.String()

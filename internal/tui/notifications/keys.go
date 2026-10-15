@@ -52,13 +52,13 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ClearFilter: screen.Binding("clear_filter", "clear filters"),
 		Refresh:     screen.Binding("global.refresh", "refresh"),
 		confirm:     ui.NewConfirmKeys(keys),
+		// The section matches these keys first, so the list gets only the
+		// keys it leaves it. Refresh retries what failed, so the list's error
+		// row names its keys.
+		feed:   feed.NewKeyMap(screen),
+		mark:   feed.NewMarkKeys(screen),
+		search: ui.SearchPromptKeys(keys),
 	}
-	// The section matches these keys first, so the list gets only the
-	// keys it leaves it. Refresh retries what failed, so the list's error
-	// row names its keys.
-	k.feed = feed.NewKeyMap(screen)
-	k.mark = feed.NewMarkKeys(screen)
-	k.search = ui.SearchPromptKeys(keys)
 	return k
 }
 

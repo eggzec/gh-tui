@@ -637,7 +637,8 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 	var b strings.Builder
 	// The avatar takes its box from the start, so the line doesn't move
 	// when it arrives.
-	b.WriteString("  " + m.avatars.Line(c.AvatarURL))
+	b.WriteString("  ")
+	b.WriteString(m.avatars.Line(c.AvatarURL))
 	if issuesvc.IsPending(c) {
 		// The service may not know who the viewer is.
 		who := ui.OneLine(c.Author.Login)

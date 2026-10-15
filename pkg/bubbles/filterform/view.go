@@ -542,7 +542,10 @@ func (m *Model) helpView(w int) string {
 	for i, it := range items {
 		h := it.Help()
 		ps[i] = named{name(h.Key), name(h.Desc)}
-		b.WriteString(ps[i].key + "\x00" + ps[i].desc + "\x00")
+		b.WriteString(ps[i].key)
+		b.WriteString("\x00")
+		b.WriteString(ps[i].desc)
+		b.WriteString("\x00")
 	}
 	if c := &m.cache.help; c.ok && c.key == b.String() && c.width == w {
 		return c.line

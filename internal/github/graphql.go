@@ -318,10 +318,13 @@ func (c *Client) firstRefusal(ctx context.Context, item GraphQLErrorItem) bool {
 		repo = cl.repo
 	}
 	var kind strings.Builder
-	kind.WriteString(repo + " " + item.Type)
+	kind.WriteString(repo)
+	kind.WriteString(" ")
+	kind.WriteString(item.Type)
 	for _, seg := range item.Path {
 		if _, index := seg.(float64); !index {
-			kind.WriteString(" " + fmt.Sprint(seg))
+			kind.WriteString(" ")
+			fmt.Fprint(&kind, seg)
 		}
 	}
 	_, seen := c.refusals.LoadOrStore(kind.String(), struct{}{})

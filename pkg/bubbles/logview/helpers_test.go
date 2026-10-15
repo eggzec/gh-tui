@@ -2,6 +2,7 @@ package logview
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -98,7 +99,7 @@ func sections(lines []Line, steps []step) []Section {
 		}
 	}
 	end := len(lines)
-	for s := len(out) - 1; s >= 0; s-- {
+	for s := range slices.Backward(out) {
 		if steps[s].first == "" {
 			// A skipped step is empty, where the next one starts.
 			out[s].Start = end

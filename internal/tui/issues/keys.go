@@ -85,13 +85,12 @@ func newKeyMap(keys config.Keymap) keyMap {
 		confirm:     ui.NewConfirmKeys(keys),
 		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:       list.Binding("global.owner", "author"),
+		// The section and the modal match their own keys first, so the feed
+		// and the thread get only the keys they leave them.
+		feed:   feed.NewKeyMap(list),
+		mark:   feed.NewMarkKeys(list),
+		search: ui.SearchPromptKeys(keys),
 	}
-
-	// The section and the modal match their own keys first, so the feed
-	// and the thread get only the keys they leave them.
-	k.feed = feed.NewKeyMap(list)
-	k.mark = feed.NewMarkKeys(list)
-	k.search = ui.SearchPromptKeys(keys)
 
 	tk := thread.NewKeyMap(ui.In(keys, ctxModal))
 	tk.Retry = retry(k.Refresh)

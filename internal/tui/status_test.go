@@ -101,7 +101,10 @@ func TestStatusBar(t *testing.T) {
 					if got := lipgloss.Width(line); got != w {
 						t.Errorf("at %d columns the bar is %d wide", w, got)
 					}
-					b.WriteString(strconv.Itoa(w) + ": " + line + "\n")
+					b.WriteString(strconv.Itoa(w))
+					b.WriteString(": ")
+					b.WriteString(line)
+					b.WriteString("\n")
 				}
 				golden.RequireEqual(t, b.String())
 			})

@@ -106,11 +106,14 @@ func (r *renders) count() int {
 // renderComment wraps the body at width, as a caller's renderer would.
 func renderComment(c comment, width int) string {
 	var b strings.Builder
-	b.WriteString("  @" + c.author + "\n")
+	b.WriteString("  @")
+	b.WriteString(c.author)
+	b.WriteString("\n")
 	line := "   "
 	for w := range strings.FieldsSeq(c.body) {
 		if len(line)+len(w)+1 > width && line != "   " {
-			b.WriteString(line + "\n")
+			b.WriteString(line)
+			b.WriteString("\n")
 			line = "   "
 		}
 		line += " " + w

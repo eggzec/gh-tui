@@ -280,13 +280,16 @@ func color(kind string, args []string) (string, bool) {
 		return "", false
 	}
 	var b strings.Builder
-	b.WriteString(kind + ";" + strings.TrimLeft(args[0], "0"))
+	b.WriteString(kind)
+	b.WriteString(";")
+	b.WriteString(strings.TrimLeft(args[0], "0"))
 	for _, n := range nums {
 		v, ok := byteValue(n)
 		if !ok {
 			return "", false
 		}
-		b.WriteString(";" + v)
+		b.WriteString(";")
+		b.WriteString(v)
 	}
 	return b.String(), true
 }

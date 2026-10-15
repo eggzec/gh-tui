@@ -65,9 +65,12 @@ func fenced(lang, src string) Block {
 		if out.Len() > 0 {
 			out.WriteByte('\n')
 		}
-		out.WriteString(fence + lang + "\n")
+		out.WriteString(fence)
+		out.WriteString(lang)
+		out.WriteString("\n")
 		for _, l := range body[:n] {
-			out.WriteString(l + "\n")
+			out.WriteString(l)
+			out.WriteString("\n")
 		}
 		out.WriteString(fence)
 		body = body[n:]

@@ -101,10 +101,10 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		notes:       notes.Binding("annotations", "annotations"),
 		Confirm:     ui.NewConfirmKeys(keys),
 		form:        ui.FilterFormKeys(keys, "actions_filter"),
+		// The modal's own keys come before those of the lists and the log.
+		Next: modal.Binding("global.next_pane", "pane"),
+		Prev: modal.Binding("global.prev_pane", "previous pane"),
 	}
-	// The modal's own keys come before those of the lists and the log.
-	k.Next = modal.Binding("global.next_pane", "pane")
-	k.Prev = modal.Binding("global.prev_pane", "previous pane")
 	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
 		k.Panes[i] = modal.Binding(a, paneTitles[i])
 	}

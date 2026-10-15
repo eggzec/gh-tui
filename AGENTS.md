@@ -525,7 +525,8 @@ Before you commit, run these on the packages you changed only, plus their
 direct dependents if you changed an exported API. Don't run the whole
 module's suite locally: CI runs `go test -race ./...`, lint, bench, schema
 and cross-compilation on every PR and is the gate. gopls diagnostics must be
-clean. To check that every commit on a branch builds on its own:
+clean, hints too: `make gopls` checks them as CI does. To check that every
+commit on a branch builds on its own:
 
 ```sh
 git rebase -x 'go build ./... && go vet ./internal/foo/...' origin/main
