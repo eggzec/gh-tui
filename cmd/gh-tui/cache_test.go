@@ -148,6 +148,28 @@ func TestHistoryPath(t *testing.T) {
 	}
 }
 
+func TestVisitsDir(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.Default().Cache.Disk
+	cfg.Dir = root
+	a, err := visitsDir(cfg, "GitHub.com", "acct1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "github.com", entryDir, "acct1", "visits"); a != want {
+		t.Errorf("visitsDir = %q, want %q, in the account's entry", a, want)
+	}
+	b, _ := visitsDir(cfg, "github.com", "acct2")
+	c, _ := visitsDir(cfg, "ghe.example:8443", "acct1")
+	if a == b || a == c {
+		t.Errorf("accounts share visits: %q, %q, %q", a, b, c)
+	}
+	cfg.Enabled = false
+	if p, err := visitsDir(cfg, "github.com", "acct1"); p != "" || err != nil {
+		t.Errorf("visitsDir with the disk cache off = %q, %v, want none", p, err)
+	}
+}
+
 func TestDiskCacheKeepsTheHistory(t *testing.T) {
 	cfg := config.Default().Cache.Disk
 	cfg.Dir = t.TempDir()
