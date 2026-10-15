@@ -8,6 +8,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -285,6 +287,50 @@ func TestLandingStopsOnBlur(t *testing.T) {
 		}
 		close(f.hold)
 	})
+}
+
+// Moving the focus to another pane stops the reads ahead of the pane that
+// lost it, though the dashboard stays on view.
+func TestLandingStopsOnFocusMove(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		keys []string
+	}{
+		{"repositories", []string{"down"}},
+		{"pinned", []string{"1"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				f := &landingFake{}
+				s := landingSection(t, f, landingOn(t))
+				f.holdReads()
+				var reads tea.Cmd
+				for _, k := range tt.keys {
+					reads = s.Update(keyPress(k))
+				}
+				done := make(chan struct{})
+				go func() {
+					run(t, s, reads)
+					close(done)
+				}()
+				// The cursor rests.
+				time.Sleep(time.Second)
+				synctest.Wait()
+				ctxs := f.inFlight()
+				if len(ctxs) == 0 {
+					t.Fatal("no reads in flight")
+				}
+				s.Update(keyPress("3"))
+				<-done
+				for i, ctx := range ctxs {
+					if ctx.Err() == nil {
+						t.Errorf("read %d goes on after the focus moved", i)
+					}
+				}
+				close(f.hold)
+			})
+		})
+	}
 }
 
 // By default neither pane reads ahead, since a repository costs a few
