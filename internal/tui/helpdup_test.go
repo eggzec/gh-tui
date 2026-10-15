@@ -2,15 +2,15 @@ package tui
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
 )
 
 // TestHelpListsNoRowTwice opens the help in every context of keys and checks
-// that no row is listed twice: not a key that works, and not a key that is
-// off, such as the back key where there is nothing to go back to.
+// that no row, with the same keys and label, is listed twice: not a key that
+// works, and not a key that is off, such as the back key where there is
+// nothing to go back to.
 func TestHelpListsNoRowTwice(t *testing.T) {
 	t.Parallel()
 	for _, c := range keyContexts() {
@@ -25,7 +25,7 @@ func TestHelpListsNoRowTwice(t *testing.T) {
 				seen := map[string]int{}
 				for _, r := range m.keyhelp.Rows() {
 					h := r.Binding.Help()
-					if h.Desc == "" || !slices.ContainsFunc(r.Binding.Keys(), func(k string) bool { return slices.Contains(m.keys.Back.Keys(), k) }) {
+					if h.Desc == "" {
 						continue
 					}
 					id := fmt.Sprintf("%v %q %q", r.Binding.Keys(), h.Key, h.Desc)

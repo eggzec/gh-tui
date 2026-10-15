@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -181,6 +182,32 @@ func TestSetters(t *testing.T) {
 	m.Blur()
 	if m.Focused() || m.Init() != nil || m.Width() != 80 || m.Height() != 24 {
 		t.Error("Blur, Init or the size is off")
+	}
+}
+
+// TestFilterByConfigPathAfterFold checks that a row that folds copies is
+// found by the action of each, and that the rows after it keep theirs.
+func TestFilterByConfigPathAfterFold(t *testing.T) {
+	ls := []Layer{{
+		Source: "a",
+		Bindings: []key.Binding{
+			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
+			key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
+			key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge")),
+		},
+		Actions: [][]string{{"checks.dismiss"}, {"logview.close"}, {"pulls.merge"}},
+	}}
+	m := newKeyed(WithLayers(ls), WithSize(80, 24))
+	m.Focus()
+	for _, tt := range []struct{ typed, want string }{
+		{"keys.pulls.merge", "merge"},
+		{"keys.checks.dismiss", "close"},
+		{"keys.logview.close", "close"},
+	} {
+		got := typeText(t, m, tt.typed).Shown()
+		if len(got) != 1 || got[0].Binding.Help().Desc != tt.want {
+			t.Errorf("%q shows %d rows, want only %q", tt.typed, len(got), tt.want)
+		}
 	}
 }
 

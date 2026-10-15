@@ -194,16 +194,28 @@ func (m Model) filtered() bool { return m.input.Value() != "" || m.key != "" }
 // analyze finds the rows of the layers and the text the query matches in
 // each.
 func (m *Model) analyze() {
-	m.rows = Analyze(m.layers)
+	var srcs [][]int
+	m.rows, srcs = analyze(m.layers)
 	m.hay = make([]string, len(m.rows))
-	m.actions = m.actions[:0]
+	var all [][]string
 	for _, l := range m.layers {
 		for i := range l.Bindings {
 			var a []string
 			if i < len(l.Actions) {
 				a = l.Actions[i]
 			}
-			m.actions = append(m.actions, a)
+			all = append(all, a)
+		}
+	}
+	// A row that folds copies is found by the action of each.
+	m.actions = make([][]string, len(m.rows))
+	for i, s := range srcs {
+		for _, n := range s {
+			for _, a := range all[n] {
+				if !slices.Contains(m.actions[i], a) {
+					m.actions[i] = append(m.actions[i], a)
+				}
+			}
 		}
 	}
 	for i, r := range m.rows {
