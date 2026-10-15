@@ -247,6 +247,25 @@ func TestDismissRefusesPrintableKeys(t *testing.T) {
 	}
 }
 
+// TestDismissOnlyAtTopLevel checks that no host or profile layer can bind the
+// global dismiss key, a printable one or not, so that a key that types never
+// becomes dismiss for one host or account.
+func TestDismissOnlyAtTopLevel(t *testing.T) {
+	for _, tt := range []struct{ name, file, want string }{
+		{"a letter under a host", "hosts:\n  ghe.corp.com:\n    keys:\n      global:\n        dismiss: [x]\n", "hosts.ghe.corp.com: line 3: keys can only be set at the top level"},
+		{"a letter under a profile", "profiles:\n  work:\n    accounts: [a@github.com]\n    keys:\n      global:\n        dismiss: [q]\n", "profiles.work: line 4: keys can only be set at the top level"},
+		{"esc under a host", "hosts:\n  ghe.corp.com:\n    keys:\n      global:\n        dismiss: [esc]\n", "hosts.ghe.corp.com: line 3: keys can only be set at the top level"},
+		{"the top level's keys through an anchor", "keys: &k\n  global:\n    dismiss: [esc]\nhosts:\n  github.com:\n    keys: *k\n", "hosts.github.com: line 6: keys can only be set at the top level"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(writeConfig(t, tt.file))
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Load = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
 // TestKeysOfWidgetsAreChecked checks that the keys of the filter form and
 // the widgets that take every key are known, so that a key of the global
 // context that one of them uses is refused, and a user's key for one of

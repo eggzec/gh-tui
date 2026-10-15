@@ -88,6 +88,7 @@ func TestSet(t *testing.T) {
 		{key: "history.row", value: "nope", err: `history.row[0]: unknown field "nope"`},
 		{key: "repos", value: "cli/cli, eggzec/gh-tui", want: "[cli/cli, eggzec/gh-tui]"},
 		{key: "keys.global.quit", value: "x", err: `unknown setting "keys.global.quit"`},
+		{key: "keys.global.dismiss", value: "x", err: `unknown setting "keys.global.dismiss"`},
 		{key: "nope", value: "x", err: `unknown setting "nope"`},
 	}
 	for _, tt := range tests {
