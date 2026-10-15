@@ -169,7 +169,7 @@ const (
 	nPanes
 )
 
-var paneNames = []string{"Description", "Conversation", "Merge", "Reviewers · Assignees", "Development", "Files"}
+var paneNames = []string{"Description", "Conversation", "Merge", "Involved", "Development", "Files"}
 
 var (
 	assigneeOpts = []string{"alice", "bob", "carol", "dave"}
@@ -1471,7 +1471,7 @@ type devItem struct {
 	kind         string // closes or pr
 	num          int
 	title, state string
-	blocked      string
+	by           []devItem // issues that block this one
 }
 
 type overlay struct {
@@ -1546,6 +1546,7 @@ type model struct {
 	assignees []string
 	labels    []string
 	prState   string // open, draft, merged or closed
+	fold      map[string]bool
 	rows      []row
 	cv        convState
 }
@@ -1560,9 +1561,9 @@ func newModel() *model {
 		pv:        overlay{kind: "file", embed: true},
 		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"org/core", "requested"}},
 		dev: []devItem{
-			{"closes", 12, "Calc is slow", "open", "#9"},
-			{"closes", 15, "Typo in README", "closed", ""},
-			{"pr", 40, "Refactor arithmetic", "open", ""},
+			{kind: "closes", num: 12, title: "Calc is slow", state: "open", by: []devItem{{kind: "closes", num: 9, title: "Slow benchmark", state: "open"}}},
+			{kind: "closes", num: 15, title: "Typo in README", state: "closed"},
+			{kind: "pr", num: 40, title: "Refactor arithmetic", state: "open"},
 		},
 		assignees: []string{"alice"},
 		labels:    []string{"bug", "api"},
@@ -1612,7 +1613,7 @@ func (m *model) descH() int {
 
 func (m *model) panelHeights() [nPanes]int {
 	H := m.bodyH()
-	nat := [nPanes]int{pMerge: 9, pReviewers: max(4, len(m.reviewers)+max(1, len(m.assignees))+3), pDev: max(3, len(m.dev)+2)}
+	nat := [nPanes]int{pMerge: 10, pReviewers: max(4, len(m.involved())+2), pDev: max(3, len(m.devNodes())+2)}
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1733,7 +1734,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	case pMain:
 		return m.convLines(cw), 0
 	case pMerge:
-		var out []string
+		out := []string{"  " + bold("feat/calc") + dim(" → ") + bold("main")}
 		for k, b := range blockers() {
 			var icon string
 			switch b.kind {
@@ -1754,67 +1755,11 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			acts = "Merge " + dim("M") + " · Auto " + dim("A") + " · Update " + dim("U")
 		}
 		out = append(out, dim("  "+strings.Repeat("─", min(5, max(0, cw-2)))), ansi.Truncate("  "+acts, cw, "…"))
-		return out, m.cur[i]
+		return out, m.cur[i] + 1
 	case pReviewers:
-		var out []string
-		for k, r := range m.reviewers {
-			icon := ic.requested.String()
-			switch r.state {
-			case "approved":
-				icon = ic.approved.String()
-			case "changes":
-				icon = ic.changes.String()
-			case "re-requested":
-				icon = ic.rerequested.String()
-			}
-			out = append(out, m.mrow(i, k, icon+" "+dispS(r.name)+dim(" "+r.state)))
-		}
-		if len(out) == 0 {
-			out = append(out, dim("  no reviewers (a to request)"))
-		}
-		out = append(out, dim("Assignees"))
-		n := len(m.reviewers)
-		for k, a := range m.assignees {
-			out = append(out, m.mrow(i, n+k, "  "+disp(a)))
-		}
-		if len(m.assignees) == 0 {
-			out = append(out, m.mrow(i, n, dim("none (enter to assign)")))
-		}
-		line := m.cur[i]
-		if line >= n {
-			line += 1
-			if n == 0 {
-				line += 1
-			}
-		}
-		return out, line
+		return m.treeLines(i, cw, m.involved())
 	case pDev:
-		var out []string
-		for k, d := range m.dev {
-			st, g := green("open"), ic.issueOpen
-			if d.kind == "pr" {
-				g = ic.prOpen
-			}
-			if d.state == "closed" {
-				st, g = red("closed"), ic.issueClosed
-				if d.kind == "pr" {
-					g = ic.prClosed
-				}
-			}
-			t := g.String() + fmt.Sprintf(" closes #%d ", d.num)
-			if d.kind == "pr" {
-				t = g.String() + fmt.Sprintf(" PR #%d ", d.num)
-			}
-			t += st
-			if d.blocked != "" {
-				t += " " + ic.blocked.String() + " " + yellow(d.blocked)
-			}
-			out = append(out, m.mrow(i, k, t))
-		}
-		if len(out) == 0 {
-			out = append(out, dim("  nothing linked (a to link)"))
-		}
-		return out, m.cur[i]
+		return m.treeLines(i, cw, m.devNodes())
 	case pFiles:
 		var out []string
 		curLine := 0
@@ -1847,7 +1792,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 func (m *model) paneTitle(i int) string {
 	t := fmt.Sprintf("%d %s", i+1, paneNames[i])
 	if i == pFiles {
-		t += fmt.Sprintf(" (%d)", len(files))
+		t += fmt.Sprintf(" %d · \x1b[32m+120\x1b[39m \x1b[31m−8\x1b[39m", len(files))
 	}
 	if i == pMain {
 		n, tot := m.cv.counts()
@@ -1872,7 +1817,7 @@ func box(title string, lines []string, w, h int, focus bool) string {
 	if lipgloss.Width(t) > inner {
 		t = ansi.Truncate(t, inner, "")
 	}
-	b := []string{col("╭" + t + strings.Repeat("─", max(0, inner-lipgloss.Width(t))) + "╮")}
+	b := []string{col("╭"+t) + col(strings.Repeat("─", max(0, inner-lipgloss.Width(t)))+"╮")}
 	for i := 0; i < h-2; i++ {
 		l := ""
 		if i < len(lines) {
@@ -1985,8 +1930,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			}
 		}
 		out := []string{bold(d.title), st}
-		if d.blocked != "" {
-			out = append(out, ic.blocked.String()+" "+yellow("blocked by "+d.blocked+" (open)"))
+		for _, b := range d.by {
+			out = append(out, ic.blocked.String()+" "+yellow(fmt.Sprintf("blocked by #%d (%s)", b.num, b.state)))
 		}
 		out = append(out, "", "Opened by Dave Kim 2 weeks ago. Labels: bug.", "",
 			"Fake summary of the issue body. The real one would be the markdown of the description, with the latest comments below it.")
@@ -1994,7 +1939,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "help":
 		return "Keys", []string{
 			"tab / shift+tab   next / previous pane      1-7  jump to a pane",
-			"L                 labels picker (from anywhere)   Reviewers · Assignees: enter on an assignee row opens the assignees picker",
+			"L                 labels picker (from anywhere)   Involved: enter folds a group or jumps to the person's latest comment; a requests a reviewer, e edits assignees",
 			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
@@ -2232,8 +2177,7 @@ func (m *model) header() string {
 		g = ic.prClosed
 	}
 	sep := dim(" · ")
-	base := g.String() + " " + bold("#42 "+m.cv.title) + sep + disp("alice") + sep + bold("feat/calc") + dim(" → ") + bold("main") +
-		sep + green("+120") + " " + red("−8") + sep + "6 files"
+	base := g.String() + " " + bold("#42 "+m.cv.title)
 	room := m.w - ansi.StringWidth(base) - 3
 	var chips []string
 	for i, l := range m.labels {
@@ -2356,8 +2300,8 @@ func (m *model) footer() string {
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
 		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
-		pReviewers: "a request · R re-request · x remove · enter assignees",
-		pDev:       "enter open · a link · x unlink",
+		pReviewers: "enter fold/jump to comment · a request reviewer · e assignees · R re-request · x remove",
+		pDev:       "enter fold/open · a link · x unlink",
 		pFiles:     "enter diff · D combined · c comment on file · l conversation",
 	}[m.focus]
 	return dim(h + " · L labels · tab/1-6 focus · z zoom · ? help · q quit")
@@ -2481,9 +2425,9 @@ func (m *model) count(p int) int {
 	case pMerge:
 		return len(blockers())
 	case pReviewers:
-		return len(m.reviewers) + max(1, len(m.assignees))
+		return len(m.involved())
 	case pDev:
-		return len(m.dev)
+		return len(m.devNodes())
 	case pFiles:
 		return len(m.rows)
 	}
@@ -2597,10 +2541,11 @@ func (m *model) paneKey(k string) tea.Cmd {
 		case "a":
 			m.requestReviewer()
 		case "R":
-			c := m.cur[pReviewers]
-			if c >= len(m.reviewers) {
+			nd := m.involved()[m.cur[pReviewers]]
+			if nd.grp != "rev" || nd.kind != "person" {
 				return nil
 			}
+			c := nd.idx
 			r := m.reviewers[c]
 			if r.state == "requested" || r.state == "re-requested" {
 				return m.say("review is already requested from " + disp(r.name))
@@ -2609,21 +2554,39 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.reviewers[c].state = "re-requested"
 				return nil
 			})
+		case "e":
+			m.pickAssignees()
 		case "enter":
-			if m.cur[pReviewers] >= len(m.reviewers) {
-				m.pickAssignees()
+			nd := m.involved()[m.cur[pReviewers]]
+			switch nd.kind {
+			case "hdr":
+				m.toggleFold(nd.key, nd.grp != "com" || len(m.commenters()) <= 3)
+			case "person":
+				if t := m.showPerson(nd.key); t != "" {
+					return m.say(t)
+				}
+			case "empty":
+				if nd.grp == "rev" {
+					m.requestReviewer()
+				} else {
+					m.pickAssignees()
+				}
 			}
 		case "x":
-			if c := m.cur[pReviewers]; c < len(m.reviewers) {
-				m.reviewers = slices.Delete(m.reviewers, c, c+1)
-				m.cur[pReviewers] = max(0, min(c, len(m.reviewers)-1))
+			if nd := m.involved()[m.cur[pReviewers]]; nd.grp == "rev" && nd.kind == "person" {
+				m.reviewers = slices.Delete(m.reviewers, nd.idx, nd.idx+1)
+				m.cur[pReviewers] = max(0, min(m.cur[pReviewers], m.count(pReviewers)-1))
 			}
 		}
 	case pDev:
 		switch k {
 		case "enter":
-			if len(m.dev) > 0 {
-				m.push(overlay{kind: "issue", arg: m.cur[pDev]})
+			nd := m.devNodes()[m.cur[pDev]]
+			switch nd.kind {
+			case "hdr":
+				m.toggleFold("dev:"+nd.grp, true)
+			case "issue", "pr", "blocker":
+				return m.say(fmt.Sprintf("(prototype) would open #%d", nd.num))
 			}
 		case "a":
 			m.push(overlay{kind: "picker", title: "Link an issue", items: []string{"#21 Docs for calc", "#22 Rounding bug", "#23 Add CLI flag"},
@@ -2631,13 +2594,13 @@ func (m *model) paneKey(k string) tea.Cmd {
 					var n int
 					fmt.Sscanf(p[0], "#%d", &n)
 					_, title, _ := strings.Cut(p[0], " ")
-					m.dev = append(m.dev, devItem{"closes", n, title, "open", ""})
+					m.dev = append(m.dev, devItem{kind: "closes", num: n, title: title, state: "open"})
 					return m.say("(prototype) linked " + p[0])
 				}})
 		case "x":
-			if c := m.cur[pDev]; c < len(m.dev) {
-				m.dev = slices.Delete(m.dev, c, c+1)
-				m.cur[pDev] = max(0, min(c, len(m.dev)-1))
+			if nd := m.devNodes()[m.cur[pDev]]; nd.kind == "issue" || nd.kind == "pr" {
+				m.dev = slices.Delete(m.dev, nd.idx, nd.idx+1)
+				m.cur[pDev] = max(0, min(m.cur[pDev], m.count(pDev)-1))
 			}
 		}
 	case pFiles:

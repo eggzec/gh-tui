@@ -328,6 +328,7 @@ func newConv() convState {
 		push("alice", "3d ago", false, [2]string{"a1b2c3d", "Add calc helper"}, [2]string{"b2c3d4e", "Add tests for Div"}, [2]string{"c3d4e5f", "Add package doc"}),
 		it("comment", "", "alice", "2d ago", "Added a test for it, plus a package doc in doc.go."),
 		it("comment", "", "dave", "2d ago", "The docs read well to me."),
+		it("comment", "", "erin", "2d ago", "Could the README mention the zero case too?"),
 		it("review", "approve", "bob", "2d ago", "LGTM once CI is green."),
 		it("review", "changes", "carol", "1d ago", "The Div helper panics on zero. Please return an error instead; see the threads.",
 			span(11, false, th(12, "+	return a / b", false,
