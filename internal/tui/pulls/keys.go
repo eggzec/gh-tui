@@ -96,6 +96,9 @@ type keyMap struct {
 	// viewed and diffViewed mark the file under the cursor of the tree, or
 	// the one the cursor of the diff is in, as viewed, or take the mark off.
 	viewed, diffViewed key.Binding
+	// readOn pages down the diff, and at the end of a file marks it viewed and
+	// moves to the next file not viewed.
+	readOn key.Binding
 	// nextPane and prevPane move the focus between the tree and the diff
 	// of the Files tab, panes focus one of them, and jump stands for the
 	// keys of panes in help. zoom shows the focused one alone. The modal
@@ -180,6 +183,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	k.diff = diff.NewKeyMap(ui.In(keys, ctxDiff))
 	k.viewed = files.Binding("viewed", "viewed")
 	k.diffViewed = ui.In(keys, ctxDiff).Binding("viewed", "viewed")
+	k.readOn = ui.In(keys, ctxDiff).Binding("read_on", "read on")
 
 	overview := ui.In(keys, ctxOverview)
 	k.overview = ui.NewMoveKeys(overview)

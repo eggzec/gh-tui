@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -157,6 +158,200 @@ func TestViewedIsIgnoredWhileARangeIsOpen(t *testing.T) {
 	press(t, h, "v")
 	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
 		t.Errorf("v with a range open marked a file: %d saves, %d viewed", saves, m.files.viewed)
+	}
+}
+
+func TestReadOnPagesInTheMiddleOfAFile(t *testing.T) {
+	t.Parallel()
+	svc := blobbed()
+	extra := make([]string, 40)
+	for i := range extra {
+		extra[i] = "+\tx()"
+	}
+	svc.changed[0].Patch = mainPatch(extra...)
+	store := &memVisitStore{}
+	h, m := filedWith(t, svc, 100, 12, WithVisits(store))
+	press(t, h, "[")
+	before := m.files.diff.Cursor()
+	press(t, h, "space")
+	if got := mustPos(t, m); !strings.Contains(got, "main.go") {
+		t.Errorf("space left the diff at %q, want the same file", got)
+	}
+	if after := m.files.diff.Cursor(); after <= before {
+		t.Errorf("space left the cursor at row %d, want it below row %d", after, before)
+	}
+	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
+		t.Errorf("space in the middle of a file marked it: %d saves, %d viewed", saves, m.files.viewed)
+	}
+}
+
+func TestReadOnMarksAFileOfSeveralWindows(t *testing.T) {
+	t.Parallel()
+	// Lengths that put the end of the file at every phase of a page, among them
+	// tails shorter than a window.
+	for n := 40; n < 56; n++ {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			t.Parallel()
+			svc := blobbed()
+			extra := make([]string, n)
+			for i := range extra {
+				extra[i] = "+\tx()"
+			}
+			svc.changed[0].Patch = mainPatch(extra...)
+			store := &memVisitStore{}
+			h, m := filedWith(t, svc, 100, 12, WithVisits(store))
+			press(t, h, "[")
+			for presses := 1; m.files.viewed == 0; presses++ {
+				if presses > 30 {
+					t.Fatal("space never marked the first file")
+				}
+				press(t, h, "space")
+				got := mustPos(t, m)
+				if m.files.viewed == 0 && !strings.Contains(got, "main.go") {
+					t.Fatalf("space left the first file at %q before marking it", got)
+				}
+			}
+			if got := mustPos(t, m); !strings.Contains(got, "disk.go") {
+				t.Errorf("after marking, the diff is at %q, want the next file", got)
+			}
+			if st, saves := store.state(); saves != 1 || st.Viewed["cmd/gh-tui/main.go"] == "" {
+				t.Errorf("kept %+v after %d saves, want the first file", st, saves)
+			}
+		})
+	}
+}
+
+func TestReadOnMarksAtTheEndAndMovesToTheNextUnviewed(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	press(t, h, "space")
+	if got := mustPos(t, m); !strings.Contains(got, "disk.go") {
+		t.Errorf("space left the diff at %q, want the next file", got)
+	}
+	st, saves := store.state()
+	if saves != 1 || st.Viewed["cmd/gh-tui/main.go"] != "sha-cmd/gh-tui/main.go" {
+		t.Errorf("kept %+v after %d saves, want the first file with its blob", st, saves)
+	}
+	if !m.files.diff.Collapsed("cmd/gh-tui/main.go") {
+		t.Error("the file read is not folded")
+	}
+}
+
+func TestReadOnWrapsToAnUnviewedFile(t *testing.T) {
+	t.Parallel()
+	viewed := map[string]string{}
+	for _, f := range blobbed().changed[1:] {
+		viewed[f.Path] = "sha-" + f.Path
+	}
+	store := &memVisitStore{kept: map[string]visits.State{visits.Key(repo.String(), 142): {Viewed: viewed}}}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	press(t, h, "G")
+	last := mustPos(t, m)
+	if last == "cmd/gh-tui/main.go" {
+		t.Fatal("G stayed in the first file")
+	}
+	press(t, h, "space")
+	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+		t.Errorf("space left the diff at %q, want the first file, the only one not viewed", got)
+	}
+	if want := len(m.files.set.list()) - 1; m.files.viewed != want {
+		t.Errorf("%d files viewed, want %d: all but the first", m.files.viewed, want)
+	}
+}
+
+// allViewed returns a store that has every file of blobbed viewed.
+func allViewed() *memVisitStore {
+	viewed := map[string]string{}
+	for _, f := range blobbed().changed {
+		viewed[f.Path] = "sha-" + f.Path
+	}
+	return &memVisitStore{kept: map[string]visits.State{visits.Key(repo.String(), 142): {Viewed: viewed}}}
+}
+
+func TestReadOnWithEveryFileViewedGoesToTheFirst(t *testing.T) {
+	t.Parallel()
+	store := allViewed()
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	press(t, h, "G")
+	if got := mustPos(t, m); got == "cmd/gh-tui/main.go" {
+		t.Fatal("G stayed in the first file")
+	}
+	press(t, h, "space")
+	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+		t.Errorf("space left the diff at %q, want the first file", got)
+	}
+	if _, saves := store.state(); saves != 0 {
+		t.Errorf("reading on over viewed files saved %d times, want none", saves)
+	}
+}
+
+func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
+	t.Parallel()
+	store := allViewed()
+	// A window of 3 rows pages through the folded headers a few at a time.
+	h, m := filedWith(t, blobbed(), 100, 5, WithVisits(store))
+	press(t, h, "[")
+	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+		t.Fatalf("the diff is at %q, want the first file", got)
+	}
+	last := m.files.set.list()[len(m.files.set.list())-1].Path
+	moved, wrapped := false, false
+	for range 20 {
+		before := m.files.diff.Cursor()
+		press(t, h, "space")
+		got := mustPos(t, m)
+		if got != "cmd/gh-tui/main.go" {
+			moved = true
+		}
+		if moved && got == "cmd/gh-tui/main.go" {
+			wrapped = true
+			break
+		}
+		if m.files.diff.Cursor() <= before && got != last {
+			t.Fatalf("space stuck at row %d in %q", before, got)
+		}
+	}
+	if !moved || !wrapped {
+		t.Errorf("space moved on %v and wrapped to the first file %v, want both", moved, wrapped)
+	}
+	if _, saves := store.state(); saves != 0 {
+		t.Errorf("reading on over viewed files saved %d times, want none", saves)
+	}
+}
+
+func TestReadOnOnlyPagesBeforeTheVisitLoads(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	m.visit.loaded = false
+	press(t, h, "space")
+	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
+		t.Errorf("space before the visit loaded marked a file: %d saves, %d viewed", saves, m.files.viewed)
+	}
+	if m.files.diff.Collapsed("cmd/gh-tui/main.go") {
+		t.Error("the first file is folded before the visit loaded")
+	}
+}
+
+func TestReadOnIsIgnoredWhileARangeIsOpen(t *testing.T) {
+	t.Parallel()
+	store := &memVisitStore{}
+	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	press(t, h, "[")
+	down(t, h, rowContext)
+	press(t, h, "V")
+	if m.tray.from == nil {
+		t.Fatal("V started no range")
+	}
+	at := m.files.diff.Cursor()
+	press(t, h, "space")
+	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 || m.files.diff.Cursor() != at {
+		t.Errorf("space with a range open read on: %d saves, %d viewed", saves, m.files.viewed)
 	}
 }
 
