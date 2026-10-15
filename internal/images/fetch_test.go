@@ -1011,6 +1011,29 @@ func TestOneDownloadForTwoBoxes(t *testing.T) {
 	}
 }
 
+// The same image wanted at a wider box after the first fetch ended, as when
+// the gutter widens, is not downloaded again, kept in a store or not.
+func TestOneDownloadForWiderBox(t *testing.T) {
+	for name, opts := range map[string][]Option{
+		"no store": nil,
+		"store":    {WithStore(&mapStore{m: map[string][]byte{}})},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w, tr := newWeb(t)
+			w.handle("avatars.githubusercontent.com", serve(pngOf(t, 8, 8)))
+			f := New("github.com", append([]Option{WithTransport(tr)}, opts...)...)
+			for _, b := range []Box{{Cols: 10, Rows: 5}, {Cols: 20, Rows: 10}, {Cols: 10, Rows: 5}} {
+				if _, err := f.Fetch(t.Context(), Source{URL: avatar}, b); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if n := w.hits("avatars.githubusercontent.com"); n != 1 {
+				t.Errorf("%d downloads, want 1", n)
+			}
+		})
+	}
+}
+
 // sharing reports whether n flights are waiting on one shared download.
 func (f *Fetcher) sharing(n int) bool {
 	f.mu.Lock()

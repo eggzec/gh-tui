@@ -28,6 +28,16 @@ func (m *memory) get(key string) (Image, bool) {
 	return e.Value.(*memEntry).img, true
 }
 
+func (m *memory) remove(key string) {
+	e, ok := m.byKey[key]
+	if !ok {
+		return
+	}
+	m.size -= e.Value.(*memEntry).img.size()
+	m.order.Remove(e)
+	delete(m.byKey, key)
+}
+
 func (m *memory) put(key string, img Image) {
 	if img.size() > m.max {
 		return
