@@ -36,7 +36,12 @@ type thread struct {
 	replies       []*reply
 }
 
-func (t *thread) label() string { return fmt.Sprintf("%s:%d", files[t.fi].name, t.line) }
+func (t *thread) label() string {
+	if t.line == 0 { // a comment on the whole file
+		return files[t.fi].name
+	}
+	return fmt.Sprintf("%s:%d", files[t.fi].name, t.line)
+}
 
 // span is the commented line range, "12" or "11-12".
 func (t *thread) span() string {
@@ -58,11 +63,17 @@ func fileGlyph(name string) string {
 // commented one, drawn as the diff pager draws them, all behind a dim rule,
 // and a blank line before the first comment.
 func threadBlock(t *thread, w int) []string {
-	head := fileGlyph(files[t.fi].name) + " " + files[t.fi].path() + ":" + t.span()
+	head := fileGlyph(files[t.fi].name) + " " + files[t.fi].path()
+	if t.line > 0 {
+		head += ":" + t.span()
+	}
 	if t.outdated {
 		head += " " + outdatedIcon
 	}
 	out := []string{dim(head)}
+	if t.line == 0 { // a file comment has no code lines
+		return out
+	}
 	doc := fileDoc(files[t.fi], t.fi)
 	var pick []dl
 	for i := t.loc; i >= 0 && len(pick) < 4; i-- {
@@ -227,7 +238,10 @@ func newConv() convState {
 				rp("alice", "20h ago", "Done, added one.")))),
 		it("review", "comment", "dave", "20h ago", "A couple of questions.",
 			th(20, "+func Add(a, b int) int { return a + b }", false,
-				rp("dave", "20h ago", "Should Add guard against overflow?"))),
+				rp("dave", "20h ago", "Should Add guard against overflow?")),
+				// a comment on the whole second file
+				&thread{id: newID(), fi: 1, line: 0, loc: -1,
+					replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
 		it("sys", "", "ci", "1d ago", "ci: e2e failed on a1b2c3d"),
 		it("sys", "", "alice", "1d ago", "Alice Chen requested a review from Carol Diaz"),
 		it("sys", "", "alice", "1d ago", "Alice Chen added the label bug"),

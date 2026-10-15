@@ -342,8 +342,21 @@ func mdPlain(body string, w int) []string {
 		}
 		code = nil
 	}
+	// A source blank line between two text lines stays as one blank; none
+	// next to a code block.
+	gap, lastText := false, false
 	for _, l := range strings.Split(expandTabs(body), "\n") {
 		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "```") || fence {
+			gap, lastText = false, false
+		} else if t == "" {
+			gap = lastText
+		} else {
+			if gap {
+				out = append(out, "")
+			}
+			gap, lastText = false, true
+		}
 		switch {
 		case strings.HasPrefix(t, "```"):
 			if fence {
@@ -354,7 +367,7 @@ func mdPlain(body string, w int) []string {
 			fence = !fence
 		case fence:
 			code = append(code, l)
-		case t == "": // no blank lines inside an item
+		case t == "":
 		case strings.HasPrefix(t, "#"):
 			out = append(out, bold(strings.TrimSpace(strings.TrimLeft(t, "#"))))
 		case strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* "):
@@ -407,7 +420,7 @@ var files = []file{
 +func Sub(a, b int) int { return a - b }
 +
  // end`},
-	{"pkg/calc/", "calc_test.go", 52, 0, false, `@@ -0,0 +1,52 @@
+	{"pkg/calc/", "calc_test.go", 52, 0, true, `@@ -0,0 +1,52 @@
 +package calc
 +
 +import "testing"
@@ -747,24 +760,34 @@ func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
 		if (o.ctx == 0 && x.kind == 'f') || (o.ctx == 1 && x.kind == '@') {
 			continue
 		}
+		if len(vis) == 0 && !o.all { // a file's own comments sit on top of it
+			rows = append(rows, m.anchored(x.fi, -1, 0)...)
+		}
 		vis = append(vis, i)
 		rows = append(rows, vrow{li: len(vis) - 1})
-		if x.loc >= 0 {
-			rows = append(rows, m.threadRows(x.fi, x.loc, len(vis)-1)...)
-		}
-		var ds [][3]int
-		for k := range m.drafts {
-			if k[0] == x.fi && k[1] == x.loc {
-				ds = append(ds, k)
-			}
-		}
-		slices.SortFunc(ds, func(a, b [3]int) int { return a[2] - b[2] })
-		for _, k := range ds {
-			d := m.drafts[k]
-			rows = append(rows, vrow{text: yellow("   ✎ ") + rev(" draft ") + yellow(" "+d.label+": ") + d.text, li: len(vis) - 1, draft: true, dk: k})
+		if x.loc >= 0 || x.kind == 'H' {
+			rows = append(rows, m.anchored(x.fi, x.loc, len(vis)-1)...)
 		}
 	}
 	return doc, vis, rows
+}
+
+// anchored are the thread and draft rows hanging under a pager line, or, for
+// loc -1, on the file itself.
+func (m *model) anchored(fi, loc, li int) []vrow {
+	rows := m.threadRows(fi, loc, li)
+	var ds [][3]int
+	for k := range m.drafts {
+		if k[0] == fi && k[1] == loc {
+			ds = append(ds, k)
+		}
+	}
+	slices.SortFunc(ds, func(a, b [3]int) int { return a[2] - b[2] })
+	for _, k := range ds {
+		d := m.drafts[k]
+		rows = append(rows, vrow{text: yellow("   ✎ ") + rev(" draft ") + yellow(" "+d.label+": ") + d.text, li: li, draft: true, dk: k})
+	}
+	return rows
 }
 
 func cursorRow(rows []vrow, li int) int {
@@ -1015,11 +1038,17 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 		switch k {
 		case "esc":
 			o.compose, o.editing = false, false
+			if o.quick {
+				m.leave(o)
+			}
 		case "enter":
 			if strings.TrimSpace(o.ctext) != "" {
 				m.drafts[[3]int{o.cfile, o.cend, o.clo}] = draft{o.clabel, o.ctext}
 			}
 			o.compose, o.ranging, o.editing = false, false, false
+			if o.quick {
+				m.leave(o)
+			}
 		case "backspace":
 			if r := []rune(o.ctext); len(r) > 0 {
 				o.ctext = string(r[:len(r)-1])
@@ -1131,6 +1160,11 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 		}
 		if o.cend < 0 {
 			o.compose = false
+			if doc[cd].kind == 'H' { // the file header: a comment on the file
+				o.compose, o.ranging = true, false
+				o.cfile, o.cend, o.clo = doc[cd].fi, -1, -1
+				o.clabel = files[doc[cd].fi].path()
+			}
 			return nil
 		}
 		a, b := doc[lo].src, doc[hi].src
@@ -1462,6 +1496,7 @@ type overlay struct {
 	cfile   int
 	clo     int
 	editing bool
+	quick   bool // opened by c on a Files row: closes when the composer ends
 	all     bool // the whole patch instead of one file
 	max     bool
 	ondraft bool   // the cursor is on a draft row
@@ -1986,13 +2021,14 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
 			"Development enter issue summary · a link issue · x unlink",
-			"Files       enter file diff · D combined diff · l focus conversation",
+			"Files       enter file diff · D combined diff · c draft a comment on the file · l focus conversation",
 			"Meta        enter edit the field",
 			"",
 			"Overlays    Z maximizes the overlay to the whole area (z zooms a pane on the main screen)",
 			"In a diff   a pager: j/k line cursor · } { next/prev hunk · :n :p or J K next/prev file",
 			"            x toggles hunks only / full file (the cursor line stays on its row)",
 			"            V range (j/k extend) · c or enter comment (enter saves a draft, esc cancels)",
+			"            file comments show on top of the file (c on a file header in the combined diff)",
 			"            c alone comments the cursor line · ) ( next/prev draft (j/k also land on drafts)",
 			"            e edits the draft under the cursor · D deletes it (y/n) · a this file / whole patch",
 			"In a picker j/k g/G move · / filters (enter or esc leaves the line) · space toggles (multi) · enter picks · esc closes",
@@ -2274,7 +2310,7 @@ func (m *model) footer() string {
 		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
-		pFiles:     "enter diff · D combined · l conversation",
+		pFiles:     "enter diff · D combined · c comment on file · l conversation",
 		pMeta:      "enter edit",
 	}[m.focus]
 	return dim(h + " · tab/1-7 focus · z zoom · ? help · q quit")
@@ -2565,6 +2601,13 @@ func (m *model) paneKey(k string) tea.Cmd {
 			}
 		case "D":
 			m.push(overlay{kind: "file", all: true})
+		case "c":
+			r := m.rows[m.cur[pFiles]]
+			if r.dir {
+				return m.say("move to a file to comment on it")
+			}
+			m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles], quick: true, compose: true,
+				cfile: r.fi, cend: -1, clo: -1, clabel: files[r.fi].path()})
 		case "l", "right":
 			if m.split() {
 				m.pfocus = 1
