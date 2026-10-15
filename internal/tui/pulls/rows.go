@@ -112,6 +112,8 @@ type styles struct {
 	// The detail header and the comments.
 	added, deleted, label, rule, commenter lipgloss.Style
 	bar                                    string
+	// fresh tags what arrived since the last visit.
+	fresh lipgloss.Style
 }
 
 // stateNames name the states of pull requests in the detail header.
@@ -160,6 +162,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		rule:          t.Subtle,
 		commenter:     t.Title,
 		bar:           t.Subtle.Render(icons.Border.Left + " "),
+		fresh:         t.Accent.Bold(true),
 	}
 }
 

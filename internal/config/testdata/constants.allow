@@ -130,6 +130,7 @@ internal/tui/terminal.go:terminalWait  keep: a probe timeout, how long the termi
 internal/browser/browser.go:grace  keep: a mechanism, how long opening the browser listens for its opener to fail at once
 internal/tui/ownerui/filter.go:DefaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/issues/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
+internal/tui/pulls/visit.go:visitAfter  keep: how long the Overview and Files tabs must show for a visit to count, a measure the user has no reason to change
 internal/tui/pulls/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts back; set in the filter modal, not the config
 

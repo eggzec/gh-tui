@@ -233,7 +233,7 @@ func (m *detailModal) renderReview(r core.Review, width int) string {
 	st := &m.st
 	var b strings.Builder
 	b.WriteString(gutter + m.avatars.Line(r.AvatarURL) + st.commenter.Render(ui.OneLine(r.Author.Login)) + " " + st.reviewVerdict(r.State) +
-		st.age.Render(st.ic.Separator+m.dates.Prose(r.SubmittedAt, m.now())))
+		st.age.Render(st.ic.Separator+m.dates.Prose(r.SubmittedAt, m.now())) + m.newTag(r.SubmittedAt, r.Author.Login, true))
 	bar := gutter + st.bar
 	m.bodies.Add(r.ID, r.Body)
 	if body := m.thread.Markdown(r.Body, markdown.Room(width, 2*len(gutter)+2)); body != "" {

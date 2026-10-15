@@ -31,6 +31,7 @@ func (m *detailModal) updateDetail(msg tea.Msg) tea.Cmd {
 	case viewerMsg:
 		if msg.thread == m.thread.ID() {
 			m.viewer = msg.login
+			m.redrawNew()
 		}
 		return nil
 	case threadsMsg:
@@ -290,7 +291,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		}
 		b.WriteString(st.commenter.Render(who) + st.age.Render(st.ic.Separator+"sending"+m.icons.Ellipsis))
 	} else {
-		b.WriteString(st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())))
+		b.WriteString(st.commenter.Render(ui.OneLine(c.Author.Login)) + st.age.Render(st.ic.Separator+m.dates.Prose(c.CreatedAt, m.now())) + m.newTag(c.CreatedAt, c.Author.Login, true))
 		// GitHub has no HTML of a comment it hasn't taken yet, so only
 		// the confirmed ones have images to draw.
 		m.bodies.Add(c.ID, c.Body)

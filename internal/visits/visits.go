@@ -55,9 +55,11 @@ type State struct {
 	Viewed map[string]string `json:"viewed,omitempty"`
 }
 
-// Empty reports whether the state says nothing, which is kept as no file.
+// Empty reports whether the state says nothing, which is kept as no file. The
+// time is compared with IsZero, since a time decoded from a file may be the
+// zero instant and still differ from the zero value under ==.
 func (s State) Empty() bool {
-	return s.LastSeen == LastSeen{} && len(s.Viewed) == 0
+	return s.LastSeen.Head == "" && s.LastSeen.At.IsZero() && len(s.Viewed) == 0
 }
 
 // file is the shape of the file of a pull request. The key is kept to tell a
@@ -128,7 +130,10 @@ func (s *Store) Load(key string) (State, error) {
 }
 
 // Save keeps state as that under key, replacing what is there. An empty state
-// deletes the file. It creates the directory if needed.
+// deletes the file. It creates the directory if needed. Save does not keep
+// state: it is encoded before Save returns. The caller must not change the
+// Viewed map from another goroutine while Save runs, so a caller that shares
+// the map passes a copy.
 func (s *Store) Save(key string, state State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

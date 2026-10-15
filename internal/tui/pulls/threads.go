@@ -424,10 +424,11 @@ func (m *detailModal) threadWho(c *core.ThreadComment, styled bool) string {
 		return ""
 	}
 	who, age := ui.OneLine(c.Author.Login), m.icons.Separator+m.dates.Short(c.At, m.now())
+	tag := m.newTag(c.At, c.Author.Login, styled)
 	if !styled {
-		return who + age
+		return who + age + tag
 	}
-	return m.st.commenter.Render(who) + m.st.age.Render(age)
+	return m.st.commenter.Render(who) + m.st.age.Render(age) + tag
 }
 
 // threadLines renders the rows of thread th in w cells: where it is and what
