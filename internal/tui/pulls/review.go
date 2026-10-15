@@ -203,10 +203,12 @@ func (m *detailModal) loadSummaryDraft() tea.Cmd {
 	if m.drafts == nil {
 		return nil
 	}
-	drafts, name, r := m.drafts, m.summaryKey(), m.rev
+	drafts, name, r, ctx := m.drafts, m.summaryKey(), m.rev, m.ctx
 	return func() tea.Msg {
 		text, err := drafts.Load(name)
 		if err != nil {
+			// No saved draft is the same as none that could be read.
+			slog.DebugContext(ctx, "review summary draft not read", "span", "tui", "err", ui.ShortPath(err.Error()))
 			text = ""
 		}
 		return summaryDraftMsg{owner: m, rev: r, text: text}
@@ -293,6 +295,9 @@ func (m *detailModal) updateSummaryComposer(msg tea.Msg) (tea.Cmd, bool) {
 		if m.ask != nil || r.sending {
 			return nil, true
 		}
+		// What the user submits is final for this step: a pending review that
+		// shows up later, as a refused submit reads it, must not fill the summary.
+		r.prefilled = true
 		return tea.Batch(m.summaryWarning(msg.Err), m.submitReview()), true
 	}
 	return nil, false
