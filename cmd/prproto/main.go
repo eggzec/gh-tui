@@ -235,7 +235,11 @@ type descHead struct {
 // until enter opens them.
 func mdLines(body string, w int) []string {
 	descHdr = nil
-	return mdSegs(parseBody(body), w, "d", 0)
+	out := mdSegs(parseBody(body), w-1, "d", 0)
+	for i, l := range out { // one column for the cursor mark
+		out[i] = " " + l
+	}
+	return out
 }
 
 func mdSegs(segs []seg, w int, key string, off int) []string {
@@ -264,20 +268,33 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 	return out
 }
 
-// toggleDesc opens or closes the first details block at or below the top of
-// the description pane, else the last one above it.
-func (m *model) toggleDesc() {
+// toggleDesc opens (want > 0), closes (want < 0) or flips (0) the details
+// block whose summary is on the cursor line.
+func (m *model) toggleDesc(want int) {
 	w, _ := m.paneDims(pDesc)
 	mdLines(m.cv.items[0].body, w-4)
 	for _, h := range descHdr {
-		if h.line >= m.dscroll {
-			descOpen[h.key] = !descOpen[h.key]
-			return
+		if h.line == m.dcur {
+			descOpen[h.key] = want > 0 || want == 0 && !descOpen[h.key]
+			break
 		}
 	}
-	if n := len(descHdr); n > 0 {
-		descOpen[descHdr[n-1].key] = !descOpen[descHdr[n-1].key]
+	m.fixDesc()
+}
+
+// fixDesc keeps the description cursor on a line and the pane scrolled to it.
+func (m *model) fixDesc() {
+	w, h := m.paneDims(pDesc)
+	n := len(mdLines(m.cv.items[0].body, w-4))
+	ih := max(1, h-2)
+	m.dcur = max(0, min(m.dcur, n-1))
+	if m.dcur < m.dscroll {
+		m.dscroll = m.dcur
 	}
+	if m.dcur >= m.dscroll+ih {
+		m.dscroll = m.dcur - ih + 1
+	}
+	m.dscroll = max(0, min(m.dscroll, n-ih))
 }
 
 // mdPlain renders light markdown: bold headings, bullets, dim-background inline
@@ -1238,6 +1255,8 @@ const description = "## Summary\n" +
 	"}\n" +
 	"```\n" +
 	"\n" +
+	"<details>\n<summary>Sample output</summary>\n\n```\n$ go test -bench . ./calc\nBenchmarkAdd-8   1000000000   0.3 ns/op\nBenchmarkDiv-8   1000000000   0.4 ns/op\nPASS\n```\n</details>\n" +
+	"\n" +
 	"## Testing\n" +
 	"\n" +
 	"- `go test ./calc/...` covers every helper, including division by zero\n" +
@@ -1328,6 +1347,7 @@ type model struct {
 	pvOn      bool
 	scroll    int
 	dscroll   int // the description pane's scroll
+	dcur      int // the description pane's cursor line
 	cur       [nPanes]int
 	stack     []overlay
 	toast     string
@@ -1679,6 +1699,9 @@ func (m *model) pane(i int) string {
 		off = min(m.scroll, max(0, len(lines)-ih))
 		if i == pDesc {
 			off = min(m.dscroll, max(0, len(lines)-ih))
+			if m.dcur < len(lines) {
+				lines[m.dcur] = selRow(lines[m.dcur], w-4, m.focus == pDesc)
+			}
 		}
 		if len(lines) > ih {
 			title += fmt.Sprintf(" · %d%%", (off+ih)*100/len(lines))
@@ -2195,8 +2218,8 @@ func (m *model) count(p int) int {
 
 func (m *model) move(d int) {
 	if m.focus == pDesc {
-		w, h := m.paneDims(pDesc)
-		m.dscroll = max(0, min(m.dscroll+d, len(mdLines(m.cv.items[0].body, w-4))-(h-2)))
+		m.dcur += d
+		m.fixDesc()
 		return
 	}
 	if m.focus == pMain {
@@ -2244,8 +2267,13 @@ func (m *model) paneKey(k string) tea.Cmd {
 		if k == "e" {
 			m.editPR()
 		}
-		if k == "enter" {
-			m.toggleDesc()
+		switch k {
+		case "enter":
+			m.toggleDesc(0)
+		case "l", "right":
+			m.toggleDesc(1)
+		case "h", "left":
+			m.toggleDesc(-1)
 		}
 	case pMain:
 		return m.convKey(k)
