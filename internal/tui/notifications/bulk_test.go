@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -16,16 +17,46 @@ import (
 func markRows(t *testing.T, s *Section, rows ...int) {
 	t.Helper()
 	at := 0
+	moved := false
 	for _, r := range rows {
 		for ; at < r; at++ {
 			press(t, s, "down")
 		}
-		// Marking moves the cursor on to the next row.
+		// Marking moves the cursor on to the next row, unless the row is the
+		// last one.
+		before, _ := s.feed.Selected()
 		press(t, s, "space")
+		after, _ := s.feed.Selected()
+		moved = !reflect.DeepEqual(before, after)
 		at++
 	}
-	if len(rows) > 0 {
+	if moved {
 		press(t, s, "up")
+	}
+}
+
+// Marking the last row of the list leaves the cursor on it.
+func TestMarkLastRowKeepsCursor(t *testing.T) {
+	t.Parallel()
+	probe := newSection(t, newFake(inbox()...), 100, 20)
+	last := 0
+	for {
+		before, _ := probe.feed.Selected()
+		press(t, probe, "down")
+		if after, _ := probe.feed.Selected(); reflect.DeepEqual(before, after) {
+			break
+		}
+		last++
+	}
+	want, _ := probe.feed.Selected()
+
+	s := newSection(t, newFake(inbox()...), 100, 20)
+	markRows(t, s, last)
+	if got, _ := s.feed.Selected(); !reflect.DeepEqual(got, want) {
+		t.Errorf("the cursor is on %+v, want the last row, %+v", got, want)
+	}
+	if got := s.feed.Marks(); got != 1 {
+		t.Errorf("%d rows are marked, want only the last", got)
 	}
 }
 

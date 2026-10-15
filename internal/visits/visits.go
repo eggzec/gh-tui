@@ -49,7 +49,7 @@ type LastSeen struct {
 
 // State is what is kept of a pull request.
 type State struct {
-	LastSeen LastSeen `json:"last_seen"`
+	LastSeen LastSeen `json:"last_seen,omitzero"`
 	// Viewed maps the path of each file the user marked as viewed to the SHA of
 	// its blob then, so that a file that changed since is not taken for seen.
 	Viewed map[string]string `json:"viewed,omitempty"`

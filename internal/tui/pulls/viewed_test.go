@@ -297,7 +297,8 @@ func TestReadOnWithEveryFileViewedGoesToTheFirst(t *testing.T) {
 func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
 	t.Parallel()
 	store := allViewed()
-	// A window of 3 rows pages through the folded headers a few at a time.
+	// A modal 5 rows high leaves a window that pages through the folded
+	// headers a few at a time.
 	h, m := filedWith(t, blobbed(), 100, 5, WithVisits(store))
 	press(t, h, "[")
 	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {

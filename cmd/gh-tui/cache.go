@@ -158,8 +158,8 @@ func trayDir(cfg config.Disk, host, account string) (string, error) {
 // visitsDir returns the directory of what account saw of pull requests of
 // host, when it last looked at each and which files it marked viewed, in its
 // directory of the disk cache, so no account finds another's. It returns ""
-// when the disk cache is off, and a visit then lasts until the pull request's
-// modal closes.
+// when the disk cache is off, and a visit then lasts for the session, in
+// memory.
 func visitsDir(cfg config.Disk, host, account string) (string, error) {
 	if !cfg.Enabled {
 		return "", nil

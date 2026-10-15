@@ -2,6 +2,7 @@ package issues
 
 import (
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -18,16 +19,46 @@ import (
 func markRows(t *testing.T, h *host, rows ...int) {
 	t.Helper()
 	at := 0
+	moved := false
 	for _, r := range rows {
 		for ; at < r; at++ {
 			press(t, h, "down")
 		}
-		// Marking moves the cursor on to the next row.
+		// Marking moves the cursor on to the next row, unless the row is the
+		// last one.
+		before, _ := h.list.Selected()
 		press(t, h, "space")
+		after, _ := h.list.Selected()
+		moved = !reflect.DeepEqual(before, after)
 		at++
 	}
-	if len(rows) > 0 {
+	if moved {
 		press(t, h, "up")
+	}
+}
+
+// Marking the last row of the list leaves the cursor on it.
+func TestMarkLastRowKeepsCursor(t *testing.T) {
+	t.Parallel()
+	probe := started(t, newFakeService(sampleIssues(12)), 80, 20)
+	last := 0
+	for {
+		before, _ := probe.list.Selected()
+		press(t, probe, "down")
+		if after, _ := probe.list.Selected(); reflect.DeepEqual(before, after) {
+			break
+		}
+		last++
+	}
+	want, _ := probe.list.Selected()
+
+	h := started(t, newFakeService(sampleIssues(12)), 80, 20)
+	markRows(t, h, last)
+	if got, _ := h.list.Selected(); !reflect.DeepEqual(got, want) {
+		t.Errorf("the cursor is on #%d, want the last row, #%d", got.Number, want.Number)
+	}
+	if got := h.list.Marks(); got != 1 {
+		t.Errorf("%d rows are marked, want only the last", got)
 	}
 }
 
