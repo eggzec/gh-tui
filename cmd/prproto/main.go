@@ -166,11 +166,15 @@ const (
 	pReviewers
 	pDev
 	pFiles
-	pMeta
 	nPanes
 )
 
-var paneNames = []string{"Description", "Conversation", "Merge", "Reviewers", "Development", "Files", "Meta"}
+var paneNames = []string{"Description", "Conversation", "Merge", "Reviewers · Assignees", "Development", "Files"}
+
+var (
+	assigneeOpts = []string{"alice", "bob", "carol", "dave"}
+	labelOpts    = []string{"bug", "api", "docs", "enhancement", "good first issue"}
+)
 
 // users maps a login to its display name; a login missing here has none and
 // shows as itself.
@@ -1470,12 +1474,6 @@ type devItem struct {
 	blocked      string
 }
 
-type metaRow struct {
-	label string
-	vals  []string
-	opts  []string
-}
-
 type overlay struct {
 	kind   string // file, combined, checks, issue, help, picker, confirm
 	arg    int
@@ -1515,6 +1513,7 @@ type overlay struct {
 	filter string
 	fon    bool // the filter line is open and takes the typing
 	pcur   int
+	chips  bool // items are label names, drawn as colour chips
 	people bool // items are personItems: the login shows dim after the name
 	done   func(*model, []string) tea.Cmd
 
@@ -1544,7 +1543,9 @@ type model struct {
 	toastID   int
 	reviewers []reviewer
 	dev       []devItem
-	meta      [4]metaRow
+	assignees []string
+	labels    []string
+	prState   string // open, draft, merged or closed
 	rows      []row
 	cv        convState
 }
@@ -1563,12 +1564,9 @@ func newModel() *model {
 			{"closes", 15, "Typo in README", "closed", ""},
 			{"pr", 40, "Refactor arithmetic", "open", ""},
 		},
-		meta: [4]metaRow{
-			{"Assignees", []string{"alice"}, []string{"alice", "bob", "carol", "dave"}},
-			{"Labels", []string{"bug", "api"}, []string{"bug", "api", "docs", "enhancement", "good first issue"}},
-			{"Milestone", []string{"v1.2"}, []string{"v1.1", "v1.2", "v2.0"}},
-			{"Project", []string{"Roadmap · Todo"}, []string{"Roadmap · Todo", "Roadmap · Doing", "Roadmap · Done", "Sprint 7 · Backlog"}},
-		},
+		assignees: []string{"alice"},
+		labels:    []string{"bug", "api"},
+		prState:   "open",
 	}
 	// root files come first as plain names, then one folder row per directory
 	for i, f := range files {
@@ -1614,7 +1612,7 @@ func (m *model) descH() int {
 
 func (m *model) panelHeights() [nPanes]int {
 	H := m.bodyH()
-	nat := [nPanes]int{pMerge: 9, pReviewers: max(3, len(m.reviewers)+2), pDev: max(3, len(m.dev)+2), pMeta: 6}
+	nat := [nPanes]int{pMerge: 9, pReviewers: max(4, len(m.reviewers)+max(1, len(m.assignees))+3), pDev: max(3, len(m.dev)+2)}
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1624,7 +1622,7 @@ func (m *model) panelHeights() [nPanes]int {
 	}
 	for sum() > H-5 {
 		best := -1
-		for _, i := range []int{pMerge, pReviewers, pDev, pMeta} {
+		for _, i := range []int{pMerge, pReviewers, pDev} {
 			if nat[i] > 3 && (best < 0 || nat[i] > nat[best]) {
 				best = i
 			}
@@ -1774,7 +1772,22 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		if len(out) == 0 {
 			out = append(out, dim("  no reviewers (a to request)"))
 		}
-		return out, m.cur[i]
+		out = append(out, dim("Assignees"))
+		n := len(m.reviewers)
+		for k, a := range m.assignees {
+			out = append(out, m.mrow(i, n+k, "  "+disp(a)))
+		}
+		if len(m.assignees) == 0 {
+			out = append(out, m.mrow(i, n, dim("none (enter to assign)")))
+		}
+		line := m.cur[i]
+		if line >= n {
+			line += 1
+			if n == 0 {
+				line += 1
+			}
+		}
+		return out, line
 	case pDev:
 		var out []string
 		for k, d := range m.dev {
@@ -1827,31 +1840,8 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			curLine = m.cur[pFiles]
 		}
 		return out, m.cur[pFiles]
-	default:
-		var out []string
-		for k, r := range m.meta {
-			vals := r.vals
-			if r.label == "Assignees" {
-				vals = nil
-				for _, l := range r.vals {
-					vals = append(vals, disp(l))
-				}
-			}
-			v := strings.Join(vals, ", ")
-			if r.label == "Labels" {
-				v = ""
-				for _, l := range vals {
-					v += chip(l) + " "
-				}
-				v = strings.TrimRight(v, " ")
-			}
-			if v == "" {
-				v = dim("none")
-			}
-			out = append(out, m.mrow(i, k, fmt.Sprintf("%-10s %s", r.label, v)))
-		}
-		return out, m.cur[i]
 	}
+	return nil, 0
 }
 
 func (m *model) paneTitle(i int) string {
@@ -2004,6 +1994,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "help":
 		return "Keys", []string{
 			"tab / shift+tab   next / previous pane      1-7  jump to a pane",
+			"L                 labels picker (from anywhere)   Reviewers · Assignees: enter on an assignee row opens the assignees picker",
 			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
@@ -2068,6 +2059,9 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 				if n, l, ok := strings.Cut(label, "  "); ok {
 					label = n + dim("  "+l)
 				}
+			}
+			if o.chips {
+				label = chip(fl[i])
 			}
 			if o.multi {
 				mk = "[ ] "
@@ -2225,13 +2219,55 @@ func (m *model) View() tea.View {
 	return v
 }
 
+// header is one line: state glyph, number, title, author, branches, size and
+// the label chips; the chips that don't fit collapse to a dim +N.
+func (m *model) header() string {
+	g := ic.prOpen
+	switch m.prState {
+	case "draft":
+		g = ic.prDraft
+	case "merged":
+		g = ic.merged
+	case "closed":
+		g = ic.prClosed
+	}
+	sep := dim(" · ")
+	base := g.String() + " " + bold("#42 "+m.cv.title) + sep + disp("alice") + sep + bold("feat/calc") + dim(" → ") + bold("main") +
+		sep + green("+120") + " " + red("−8") + sep + "6 files"
+	room := m.w - ansi.StringWidth(base) - 3
+	var chips []string
+	for i, l := range m.labels {
+		c := chip(l)
+		need := ansi.StringWidth(c)
+		if i > 0 {
+			need++
+		}
+		rest := len(m.labels) - i - 1
+		more := 0
+		if rest > 0 {
+			more = len(fmt.Sprintf(" +%d", rest))
+		}
+		if need+more > room {
+			left := len(m.labels) - len(chips)
+			if len(chips) > 0 || room >= 3 {
+				chips = append(chips, dim(fmt.Sprintf("+%d", left)))
+			}
+			break
+		}
+		room -= need
+		chips = append(chips, c)
+	}
+	if len(chips) > 0 {
+		base += sep + strings.Join(chips, " ")
+	}
+	return ansi.Truncate(base, m.w, "…")
+}
+
 func (m *model) render() string {
 	if m.w == 0 {
 		return ""
 	}
-	hdr := bold("#42 "+m.cv.title) + dim(" · ") + ic.prOpen.String() + " " + green("open") + " · " + disp("alice") + " " + dim("feat/calc → main") +
-		" · " + green("+120") + " " + red("−8") + " · 6 files"
-	parts := []string{hdr}
+	parts := []string{m.header()}
 	if m.narrow() {
 		var names []string
 		for i := range paneNames {
@@ -2254,7 +2290,7 @@ func (m *model) render() string {
 		parts = append(parts, m.pane(m.focus))
 	} else {
 		var col []string
-		for i := pMerge; i <= pMeta; i++ {
+		for i := pMerge; i <= pFiles; i++ {
 			col = append(col, m.pane(i))
 		}
 		left := lipgloss.JoinVertical(lipgloss.Left, m.pane(pDesc), m.pane(pMain))
@@ -2320,12 +2356,11 @@ func (m *model) footer() string {
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
 		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
-		pReviewers: "a request · R re-request · x remove",
+		pReviewers: "a request · R re-request · x remove · enter assignees",
 		pDev:       "enter open · a link · x unlink",
 		pFiles:     "enter diff · D combined · c comment on file · l conversation",
-		pMeta:      "enter edit",
 	}[m.focus]
-	return dim(h + " · tab/1-7 focus · z zoom · ? help · q quit")
+	return dim(h + " · L labels · tab/1-6 focus · z zoom · ? help · q quit")
 }
 
 // ---------- update ----------
@@ -2409,8 +2444,10 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.focus = (m.focus + 1) % nPanes
 	case "shift+tab":
 		m.focus = (m.focus + nPanes - 1) % nPanes
-	case "1", "2", "3", "4", "5", "6", "7":
+	case "1", "2", "3", "4", "5", "6":
 		m.focus = int(k[0] - '1')
+	case "L":
+		m.pickLabels()
 	case "z":
 		m.zoom = !m.zoom
 	case "?":
@@ -2444,13 +2481,11 @@ func (m *model) count(p int) int {
 	case pMerge:
 		return len(blockers())
 	case pReviewers:
-		return len(m.reviewers)
+		return len(m.reviewers) + max(1, len(m.assignees))
 	case pDev:
 		return len(m.dev)
 	case pFiles:
 		return len(m.rows)
-	case pMeta:
-		return 4
 	}
 	return 0
 }
@@ -2574,6 +2609,10 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.reviewers[c].state = "re-requested"
 				return nil
 			})
+		case "enter":
+			if m.cur[pReviewers] >= len(m.reviewers) {
+				m.pickAssignees()
+			}
 		case "x":
 			if c := m.cur[pReviewers]; c < len(m.reviewers) {
 				m.reviewers = slices.Delete(m.reviewers, c, c+1)
@@ -2627,37 +2666,38 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.focus = pMain
 			}
 		}
-	case pMeta:
-		if k == "enter" {
-			r := m.meta[m.cur[pMeta]]
-			people := r.label == "Assignees"
-			conv := func(s string) string {
-				if people {
-					return personItem(s)
-				}
-				return s
-			}
-			sel := map[string]bool{}
-			for _, v := range r.vals {
-				sel[conv(v)] = true
-			}
-			var opts []string
-			for _, o := range r.opts {
-				opts = append(opts, conv(o))
-			}
-			idx := m.cur[pMeta]
-			m.push(overlay{kind: "picker", title: r.label, items: opts, sel: sel, multi: true, people: people, done: func(m *model, p []string) tea.Cmd {
-				if people {
-					for i := range p {
-						p[i] = loginOf(p[i])
-					}
-				}
-				m.meta[idx].vals = p
-				return m.say("(prototype) updated " + strings.ToLower(r.label))
-			}})
-		}
 	}
 	return nil
+}
+
+func (m *model) pickAssignees() {
+	sel := map[string]bool{}
+	for _, v := range m.assignees {
+		sel[personItem(v)] = true
+	}
+	var opts []string
+	for _, o := range assigneeOpts {
+		opts = append(opts, personItem(o))
+	}
+	m.push(overlay{kind: "picker", title: "Assignees", items: opts, sel: sel, multi: true, people: true, done: func(m *model, p []string) tea.Cmd {
+		m.assignees = nil
+		for _, s := range p {
+			m.assignees = append(m.assignees, loginOf(s))
+		}
+		m.cur[pReviewers] = min(m.cur[pReviewers], m.count(pReviewers)-1)
+		return m.say("(prototype) updated assignees")
+	}})
+}
+
+func (m *model) pickLabels() {
+	sel := map[string]bool{}
+	for _, v := range m.labels {
+		sel[v] = true
+	}
+	m.push(overlay{kind: "picker", title: "Labels", items: labelOpts, sel: sel, multi: true, chips: true, done: func(m *model, p []string) tea.Cmd {
+		m.labels = p
+		return m.say("(prototype) updated labels")
+	}})
 }
 
 func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
