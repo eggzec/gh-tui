@@ -295,7 +295,7 @@ func wfLine(gm, sha, wf string, open bool, right string, cw int) string {
 	if right == "" {
 		right = stateWord(st)
 	}
-	left := gm + arrowOf(open) + checkIcon(st) + " " + wf + dim(fmt.Sprintf(" #%d", wfNumber(sha, wf)))
+	left := gm + arrowOf(open) + checkIcon(st) + " " + dim(wfGlyph) + " " + wf + dim(fmt.Sprintf(" #%d", wfNumber(sha, wf)))
 	return rightAlign(left, dim(right), cw)
 }
 

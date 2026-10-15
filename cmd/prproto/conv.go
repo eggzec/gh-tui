@@ -702,6 +702,20 @@ func (m *model) crows(all bool) []crow {
 							rows = append(rows, crow{key: wk + "|" + r.label, kind: "check", depth: depth + 3, parent: wk, it: it, commit: cm, lbl: r.label})
 						}
 					}
+					for _, app := range appNames(cm[0]) {
+						ak := ck + "|app:" + app
+						ao := op(ak, true)
+						rows = append(rows, crow{key: ak, kind: "app", depth: depth + 2, parent: ck, fold: true, open: ao, it: it, commit: cm, lbl: app})
+						if !ao {
+							continue
+						}
+						for _, a := range appRunsIn(cm[0], app) {
+							rows = append(rows, crow{key: ak + "|" + a.name, kind: "arun", depth: depth + 3, parent: ak, it: it, commit: cm, lbl: a.app + " / " + a.name})
+						}
+					}
+					for _, s := range statusesOf(cm[0]) {
+						rows = append(rows, crow{key: ck + "|st:" + s.ctx, kind: "status", depth: depth + 2, parent: ck, it: it, commit: cm, lbl: s.ctx})
+					}
 				}
 			}
 		}
@@ -860,6 +874,13 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		return []string{jobLine(gm, runOf(r.commit[0], r.lbl), cw)}
 	case "wf":
 		return []string{wfLine(gm, r.commit[0], r.lbl, r.open, "", cw)}
+	case "app":
+		return []string{appLine(gm, r.commit[0], r.lbl, r.open, cw)}
+	case "arun":
+		app, name, _ := strings.Cut(r.lbl, " / ")
+		return []string{appRunLine(gm, appRunOf(r.commit[0], app, name), cw)}
+	case "status":
+		return []string{statusLine(gm, statusOf(r.commit[0], r.lbl), cw)}
 	case "run":
 		var who []string
 		for _, it := range r.run {
@@ -1143,6 +1164,13 @@ func (m *model) convKey(k string) tea.Cmd {
 		if r.kind == "thread" {
 			return m.openThread(r.th)
 		}
+		if r.kind == "arun" {
+			m.openApp(r.commit[0], r.lbl)
+			return nil
+		}
+		if r.kind == "status" {
+			return nil
+		}
 		if r.kind == "check" {
 			m.openLog(r.commit[0], r.lbl)
 			return nil
@@ -1166,6 +1194,15 @@ func (m *model) convKey(k string) tea.Cmd {
 			if x.fold {
 				c.open[x.key] = anyClosed
 			}
+		}
+	case "R":
+		switch r.kind {
+		case "arun":
+			return m.rerunApp(r.commit[0], r.lbl)
+		case "status":
+			return m.say("statuses can't be re-run")
+		case "check", "wf":
+			return m.say("jobs are re-run in the Actions modal: enter, then R")
 		}
 	case ")":
 		return m.nextUnresolved(1)

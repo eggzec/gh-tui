@@ -201,8 +201,43 @@ func (m *model) mergePreview(b blocker, cw int) pview {
 			}
 			pv.lines = append(pv.lines, "")
 		}
-		pv.lines = append(pv.lines, dim("enter opens a job's log at the first error; a run shows its summary here"))
+		for _, app := range appNames(sha) {
+			runs := appRunsIn(sha, app)
+			if stateOfApps(runs) == "ok" {
+				continue
+			}
+			pv.lines = append(pv.lines, checkIcon(stateOfApps(runs))+" "+dim(appGlyph)+" "+bold(app))
+			for _, a := range runs {
+				if a.state != "ok" {
+					pv.lines = append(pv.lines, "   "+checkIcon(a.state)+" "+a.name+dim(" "+a.title))
+				}
+			}
+			pv.lines = append(pv.lines, "")
+		}
+		for _, s := range statusesOf(sha) {
+			if s.state != "ok" {
+				pv.lines = append(pv.lines, checkIcon(s.state)+" "+dim(stGlyph)+" "+link(s.url, s.ctx)+dim(" "+s.desc))
+			}
+		}
+		pv.lines = append(pv.lines, "", dim("enter opens a job's log or a check run's page; statuses only show here"))
 		return pv
+	case "app":
+		sha := headSHA()
+		runs := appRunsIn(sha, b.wf)
+		st := stateOfApps(runs)
+		pv := pview{key: "app|" + b.wf + "|" + st, title: b.wf, info: dim(stateWord(st))}
+		pv.lines = append(pv.lines, dim("check runs on "+sha), "")
+		for _, a := range runs {
+			pv.lines = append(pv.lines, checkIcon(a.state)+" "+a.name+dim(" "+stateWord(a.state)+" · "+a.dur), "   "+dim(a.title))
+		}
+		pv.lines = append(pv.lines, "", dim("enter folds the app; enter on a check run opens its page"))
+		return pv
+	case "arun":
+		app, name, _ := strings.Cut(b.label, " / ")
+		return appRunPreview(appRunOf(headSHA(), app, name), cw)
+	case "status":
+		s := statusOf(headSHA(), b.label)
+		return pview{key: "status|" + s.ctx + "|" + s.state, title: s.ctx, info: dim(stateWord(s.state)), lines: statusPage(s)}
 	case "wf":
 		sha := headSHA()
 		jobs := wfJobs(sha, b.wf)

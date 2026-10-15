@@ -2884,6 +2884,8 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.confirm("Update branch with main?", "(prototype) would update the branch")
 			case "arun":
 				m.openApp(headSHA(), b.label)
+			case "status":
+				// a status has no page: its URL is a link to ctrl+click
 			case "checks", "wf", "app":
 				m.toggleFold(b.key, true)
 			case "check":

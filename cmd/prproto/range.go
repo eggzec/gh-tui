@@ -230,18 +230,20 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 	}
 	f := m.rangeFile(r.fi)
 	counts := green(fmt.Sprintf("+%d", f.add)) + " " + red(fmt.Sprintf("−%d", f.del))
+	badge := m.findingBadge(f.path())
+	if badge != "" {
+		badge = " " + badge
+	}
 	if m.viewed[f.path()] {
-		return ind + dim(f.name+" "+ansi.Strip(counts)) + " " + viewedGlyph.String()
+		return ind + dim(f.name+" "+ansi.Strip(counts)) + badge + " " + viewedGlyph.String()
 	}
 	t := ind + f.name + " " + counts
 	if f.thread {
 		t += " " + ic.unresolved.String()
 	}
+	t += badge
 	if changedSinceViewed[f.name] {
 		t += " " + ic.rerequested.String() + dim(" changed since viewed")
-	}
-	if b := m.findingBadge(f.path()); b != "" {
-		t += " " + b
 	}
 	return t
 }

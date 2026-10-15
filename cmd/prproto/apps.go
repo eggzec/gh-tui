@@ -309,16 +309,6 @@ func (m *model) findings(path string) []annot {
 	return out
 }
 
-// findingApp is the app of an annotation of the range's head commit.
-func (m *model) findingApp(n annot) string {
-	for _, a := range appRunsOf(fcommits[m.hi].sha) {
-		if slices.Contains(a.anns, n) {
-			return a.app
-		}
-	}
-	return ""
-}
-
 // findingRows are the dim lines under an annotated diff line, like GitHub's
 // annotations on the Files changed tab: level icon, app and message. They are
 // text only (no cursor stop), so ) and ( keep stepping over threads and drafts.
@@ -385,9 +375,6 @@ func statusLine(gm string, s cstatus, cw int) string {
 	return rightAlign(gm+checkIcon(s.state)+" "+dim(stGlyph)+" "+link(s.url, s.ctx), dim(s.desc), cw)
 }
 
-// wfSummary is the text of a workflow row's glyph prefix: the kind marker.
-func wfKind(s string) string { return dim(wfGlyph) + " " + s }
-
 // ---------- the app check run page ----------
 
 // appPage is the content of an app check run: title, summary and annotations.
@@ -409,6 +396,14 @@ func appPage(a appRun, w int) (head []string, rows []string) {
 		rows = append(rows, fmt.Sprintf("%s:%d  %s %s", n.path, n.line, levelIcon(n.level), n.msg))
 	}
 	return head, rows
+}
+
+// appRunPreview is the page of an app check run in a zoomed preview.
+func appRunPreview(a appRun, cw int) pview {
+	head, rows := appPage(a, cw)
+	pv := pview{key: "arun|" + a.app + a.name + "|" + a.state, title: a.app + " · " + a.name, info: dim(stateWord(a.state) + " · " + a.dur)}
+	pv.lines = append(head, rows...)
+	return pv
 }
 
 func stateText(state string) string {
