@@ -84,7 +84,7 @@ func (m *model) mergeMove(right bool) {
 	bs := m.blockers()
 	cur := clampInt(m.cur[pMerge], 0, len(bs)-1)
 	b := bs[cur]
-	if b.kind == "checks" || b.kind == "wf" {
+	if b.kind == "checks" || b.kind == "wf" || b.kind == "app" {
 		if right != m.foldOpen(b.key, true) {
 			m.toggleFold(b.key, true)
 			return

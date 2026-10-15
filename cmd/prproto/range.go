@@ -133,6 +133,17 @@ func (m *model) rebuild() {
 						rows = append(rows, row{kind: 'k', ci: i, label: r.label, depth: 3})
 					}
 				}
+				for _, app := range appNames(c.sha) {
+					rows = append(rows, row{kind: 'a', ci: i, label: app, depth: 2})
+					if m.foldOpen("a:"+c.sha+"|"+app, true) {
+						for _, a := range appRunsIn(c.sha, app) {
+							rows = append(rows, row{kind: 'p', ci: i, label: a.app + " / " + a.name, depth: 3})
+						}
+					}
+				}
+				for _, s := range statusesOf(c.sha) {
+					rows = append(rows, row{kind: 's', ci: i, label: s.ctx, depth: 2})
+				}
 			}
 		}
 	}
@@ -200,6 +211,15 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 	case 'w':
 		sha := fcommits[r.ci].sha
 		return wfLine(ind, sha, r.label, m.foldOpen("w:"+sha+"|"+r.label, true), "", cw)
+	case 'a':
+		sha := fcommits[r.ci].sha
+		return appLine(ind, sha, r.label, m.foldOpen("a:"+sha+"|"+r.label, true), cw)
+	case 'p':
+		sha := fcommits[r.ci].sha
+		app, name, _ := strings.Cut(r.label, " / ")
+		return appRunLine(ind, appRunOf(sha, app, name), cw)
+	case 's':
+		return statusLine(ind, statusOf(fcommits[r.ci].sha, r.label), cw)
 	}
 	if r.dir {
 		arrow := "▾ "
@@ -219,6 +239,9 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 	}
 	if changedSinceViewed[f.name] {
 		t += " " + ic.rerequested.String() + dim(" changed since viewed")
+	}
+	if b := m.findingBadge(f.path()); b != "" {
+		t += " " + b
 	}
 	return t
 }
@@ -277,6 +300,8 @@ func (m *model) rowFold(r row) (key string, def, ok bool) {
 		return "c:" + sha, false, len(commitChecks(sha)) > 0
 	case 'w':
 		return "w:" + fcommits[r.ci].sha + "|" + r.label, true, true
+	case 'a':
+		return "a:" + fcommits[r.ci].sha + "|" + r.label, true, true
 	}
 	return "", false, false
 }

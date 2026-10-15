@@ -661,6 +661,7 @@ type vrow struct {
 	text  string
 	li    int
 	draft bool
+	find  bool   // a check finding under its line: plain text, never a cursor stop
 	dk    [3]int // for a draft row: file, end doc line, start doc line
 }
 
@@ -881,6 +882,9 @@ func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
 		}
 		vis = append(vis, i)
 		rows = append(rows, vrow{li: len(vis) - 1})
+		if x.loc >= 0 && x.kind != '-' && x.kind != 'H' && x.nw > 0 {
+			rows = append(rows, m.findingRows(x, len(vis)-1)...)
+		}
 		if x.loc >= 0 || x.kind == 'H' {
 			rows = append(rows, m.anchored(x.fi, x.loc, len(vis)-1)...)
 		}
@@ -991,7 +995,9 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 	for i := o.scroll; i < min(len(rows), o.scroll+bh); i++ {
 		r := rows[i]
 		t := r.text
-		if r.draft {
+		if r.find {
+			// the finding line is drawn as it is
+		} else if r.draft {
 			if o.ondraft && r.dk == o.dkey {
 				t = selRow(t, w-4, foc)
 			}
@@ -1497,6 +1503,22 @@ func (m *model) blockers() []blocker {
 			npend++
 		}
 	}
+	for _, a := range appRunsOf(sha) {
+		switch a.state {
+		case "fail":
+			nfail++
+		case "pending":
+			npend++
+		}
+	}
+	for _, s := range statusesOf(sha) {
+		switch s.state {
+		case "fail":
+			nfail++
+		case "pending":
+			npend++
+		}
+	}
 	if nfail+npend > 0 {
 		st, name, n := "fail", "Checks failing", nfail
 		if nfail == 0 {
@@ -1525,6 +1547,30 @@ func (m *model) blockers() []blocker {
 				for _, j := range bad {
 					out = append(out, blocker{kind: "check", depth: 2, wf: wf, label: j.label, state: j.state})
 				}
+			}
+		}
+		for _, app := range appNames(sha) {
+			var bad []appRun
+			runs := appRunsIn(sha, app)
+			for _, a := range runs {
+				if a.state != "ok" {
+					bad = append(bad, a)
+				}
+			}
+			if !open || len(bad) == 0 {
+				continue
+			}
+			ao := m.foldOpen("mb:app:"+app, true)
+			out = append(out, blocker{kind: "app", depth: 1, key: "mb:app:" + app, wf: app, state: stateOfApps(runs), right: fmt.Sprintf("%d of %d checks", len(bad), len(runs))})
+			if ao {
+				for _, a := range bad {
+					out = append(out, blocker{kind: "arun", depth: 2, wf: app, label: a.app + " / " + a.name, state: a.state})
+				}
+			}
+		}
+		for _, s := range statusesOf(sha) {
+			if open && s.state != "ok" {
+				out = append(out, blocker{kind: "status", depth: 1, label: s.ctx, state: s.state})
 			}
 		}
 	}
@@ -1846,6 +1892,13 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 				row = wfLine("", headSHA(), b.wf, m.foldOpen(b.key, true), b.right, cw-ansi.StringWidth(gm))
 			case "check":
 				row = jobLine("", runOf(headSHA(), b.label), cw-ansi.StringWidth(gm))
+			case "app":
+				row = appLine("", headSHA(), b.wf, m.foldOpen(b.key, true), cw-ansi.StringWidth(gm))
+			case "arun":
+				app, name, _ := strings.Cut(b.label, " / ")
+				row = appRunLine("", appRunOf(headSHA(), app, name), cw-ansi.StringWidth(gm))
+			case "status":
+				row = statusLine("", statusOf(headSHA(), b.label), cw-ansi.StringWidth(gm))
 			}
 			if row == "" {
 				var icon string
@@ -2238,6 +2291,8 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		s = box(title, lines, w, h, true)
 	case "log":
 		s = m.drawLog(o, w, h)
+	case "app":
+		s = m.drawApp(o, w, h)
 	case "file":
 		s = m.drawDiff(o, w, h)
 	case "reply", "editpr":
@@ -2493,6 +2548,8 @@ func (m *model) footer() string {
 			return dim("j/k move · / filter · enter pick · esc cancel")
 		case "log":
 			return dim("tab/1-3 pane · j/k move · e/E next/prev error · w/W warning · R rerun failed · J rerun job · z zoom · esc/backspace close")
+		case "app":
+			return dim("j/k move · enter jumps to the annotated line in the diff · R re-request · esc/backspace close")
 		case "reply":
 			return dim("type the reply · enter save · esc cancel")
 		case "editpr":
@@ -2802,6 +2859,17 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.mergeMove(true)
 		case "h", "left":
 			m.mergeMove(false)
+		case "R":
+			bs := m.blockers()
+			b := bs[clampInt(m.cur[pMerge], 0, len(bs)-1)]
+			switch b.kind {
+			case "arun":
+				return m.rerunApp(headSHA(), b.label)
+			case "status":
+				return m.say("statuses can't be re-run")
+			case "check", "wf":
+				return m.say("jobs are re-run in the Actions modal: enter, then R")
+			}
 		case "M":
 			m.confirm("Merge #42 with squash?", "(prototype) would merge")
 		case "A":
@@ -2814,7 +2882,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 			switch b.kind {
 			case "behind":
 				m.confirm("Update branch with main?", "(prototype) would update the branch")
-			case "checks", "wf":
+			case "arun":
+				m.openApp(headSHA(), b.label)
+			case "checks", "wf", "app":
 				m.toggleFold(b.key, true)
 			case "check":
 				m.openLog(headSHA(), b.label)
@@ -2953,6 +3023,21 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.rebuild()
 			case r.kind == 'k':
 				m.openLog(fcommits[r.ci].sha, r.label)
+			case r.kind == 'a':
+				m.toggleFold("a:"+fcommits[r.ci].sha+"|"+r.label, true)
+				m.rebuild()
+			case r.kind == 'p':
+				m.openApp(fcommits[r.ci].sha, r.label)
+			}
+		case "R":
+			r := m.rows[m.cur[pFiles]]
+			switch r.kind {
+			case 'p':
+				return m.rerunApp(fcommits[r.ci].sha, r.label)
+			case 's':
+				return m.say("statuses can't be re-run")
+			case 'k', 'w':
+				return m.say("jobs are re-run in the Actions modal: enter, then R")
 			}
 		case "A":
 			m.lo, m.hi = 0, len(fcommits)-1
@@ -3088,6 +3173,8 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.diffKey(top, msg)
 	case "log":
 		return m.logKey(top, k)
+	case "app":
+		return m.appKey(top, k)
 	case "reply", "editpr":
 		return m.composeKey(top, msg)
 	default:

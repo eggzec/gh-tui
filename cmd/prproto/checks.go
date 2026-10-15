@@ -263,7 +263,7 @@ func commitIcon(sha string) string {
 	if len(commitChecks(sha)) == 0 {
 		return ""
 	}
-	return checkIcon(commitState(sha))
+	return checkIcon(allState(sha))
 }
 
 // jobName is the job part of a "workflow / job" label.
