@@ -63,6 +63,9 @@ const starsTag = "stars"
 // viewer gave or took back changes theirs. The pages stay in the Cached
 // reads, and the next read of each goes to GitHub, even while it is fresh.
 // Pages of other accounts are read again too, which costs one request each.
+// The pages an earlier session kept go stale too, so that a later session
+// doesn't take them for fresh.
 func (s *Service) InvalidateStars() {
 	s.repos.mem.InvalidateTag(starsTag)
+	s.repos.kept.InvalidateTag(starsTag)
 }
