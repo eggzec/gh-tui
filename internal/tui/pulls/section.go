@@ -58,6 +58,9 @@ type Service interface {
 	// CurrentFiles reports whether Files would answer without a request.
 	// It does no I/O.
 	CurrentFiles(q pulls.FilesQuery) bool
+	// Since compares the head of a pull request the user last saw with the
+	// head now; a head that a force push removed fails with core.ErrRewritten.
+	Since(ctx context.Context, q pulls.SinceQuery) (core.Compare, error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)

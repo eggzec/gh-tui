@@ -163,7 +163,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(m.settleDrafts(), m.showThreadChange())
 	case visitLoadedMsg:
-		m.receiveVisit(msg)
+		return m.receiveVisit(msg)
+	case sinceMsg:
+		m.receiveSince(msg)
 		return nil
 	case pendingLoadedMsg:
 		return m.receivePending(msg)
