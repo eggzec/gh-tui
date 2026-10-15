@@ -471,23 +471,13 @@ func missingScope(reason string) string {
 	return ""
 }
 
-// ssoReason matches GitHub's reason for refusing a token that isn't
-// authorized for an organization's SAML single sign-on.
-var ssoReason = regexp.MustCompile(`\b(?:SAML|SSO)\b`)
-
 // SSO reports whether err is an organization refusing the token until it
 // is authorized for the organization's single sign-on, rather than any
 // other refusal.
-func SSO(err error) bool {
-	p := core.Explain("", err)
-	return p != nil && p.Kind == core.Forbidden && sso(p)
-}
+func SSO(err error) bool { return core.SSORefusal(err) }
 
-// sso reports whether p is an organization's SSO: GitHub said so in its
-// headers, or its reason names SSO, as a GraphQL error's does.
-func sso(p *core.Problem) bool {
-	return p.SSO || ssoReason.MatchString(p.Reason)
-}
+// sso reports whether p is an organization's SSO.
+func sso(p *core.Problem) bool { return p.ViaSSO() }
 
 // lowerFirst lowers the first letter of s, a sentence of the app's own,
 // to follow a colon, unless its first word is a name such as GitHub.

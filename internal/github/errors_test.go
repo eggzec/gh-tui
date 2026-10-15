@@ -116,6 +116,28 @@ func graphqlReply(typ, msg string, h map[string]string) http.HandlerFunc {
 	}
 }
 
+// An organization whose SSO the token isn't authorized for refuses its
+// teams, which isn't that only members see them.
+func TestOrgTeamsSSO(t *testing.T) {
+	sso := map[string]string{"X-GitHub-SSO": "required; url=https://github.com/orgs/eggzec/sso?authorization_request=x"}
+	for name, h := range map[string]http.Handler{
+		"graphql error":   graphqlReply("FORBIDDEN", ssoMessage, nil),
+		"with header":     graphqlReply("FORBIDDEN", ssoMessage, sso),
+		"http 403":        reply(403, sso, ssoMessage),
+		"http 403 no url": reply(403, nil, ssoMessage),
+	} {
+		_, err := newTestClient(t, h).OrgTeams(t.Context(), "eggzec", 10, "")
+		if !errors.Is(err, core.ErrForbidden) || !core.SSORefusal(err) || errors.Is(err, errMembersOnly) {
+			t.Errorf("%s: OrgTeams = %v, want an SSO refusal that isn't for members only", name, err)
+		}
+	}
+	// A refusal that names no SSO stays one.
+	_, err := newTestClient(t, graphqlReply("FORBIDDEN", "Forbidden", nil)).OrgTeams(t.Context(), "eggzec", 10, "")
+	if !errors.Is(err, core.ErrForbidden) || core.SSORefusal(err) {
+		t.Errorf("OrgTeams = %v, want a plain refusal", err)
+	}
+}
+
 // TestErrorKinds sends requests to recorded answers of GitHub and checks
 // what core.Explain makes of the errors, and what Unreachable and Refused
 // say of them.

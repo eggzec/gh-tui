@@ -168,6 +168,43 @@ func TestTeamsMembersOnly(t *testing.T) {
 	}
 }
 
+// samlRefusalError is a GraphQL refusal that names an organization's SAML
+// enforcement in its reason, as GitHub words it, with no SSO header.
+type samlRefusalError struct{}
+
+func (samlRefusalError) Error() string { return "graphql: " + samlRefusalError{}.Reason() }
+func (samlRefusalError) Reason() string {
+	return "Resource protected by organization SAML enforcement. You must grant your Personal Access token access to this organization."
+}
+func (samlRefusalError) Is(target error) bool { return target == core.ErrForbidden }
+
+// Teams that an organization's SSO refuses to the token aren't for members
+// only: the refusal isn't held, so authorizing the token shows them at once.
+func TestTeamsSSONotHeld(t *testing.T) {
+	for name, refusal := range map[string]error{
+		"header": &core.SSOError{URL: "https://github.com/orgs/charm/sso"},
+		"reason": fmt.Errorf("list teams of charm: %w", samlRefusalError{}),
+	} {
+		teams := ownerReadNamed(t, "teams")
+		api := &fakeAPI{t: t}
+		teams.fake(api, refusal)
+		s := New(api)
+		ctx := t.Context()
+		for range 2 {
+			if _, err := teams.read(ctx, s, true); !errors.Is(err, core.ErrForbidden) || !core.SSORefusal(err) {
+				t.Fatalf("%s: read = %v, want the SSO refusal", name, err)
+			}
+		}
+		if n := len(api.Calls()); n != 2 {
+			t.Errorf("%s: %d calls, want the teams asked about each time", name, n)
+		}
+		teams.fake(api, nil)
+		if got, err := teams.read(ctx, s, true); err != nil || !got.ok {
+			t.Errorf("%s: read after authorizing = %+v, %v; want the teams", name, got, err)
+		}
+	}
+}
+
 // ownerReadNamed is the ownerRead called name.
 func ownerReadNamed(t *testing.T, name string) ownerRead {
 	t.Helper()
