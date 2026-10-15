@@ -24,6 +24,9 @@ const prAuthor = "alice"
 // foldOpen tells whether a group is unfolded; def is its state until the user
 // toggles it.
 func (m *model) foldOpen(key string, def bool) bool {
+	if m.defFolds {
+		return def
+	}
 	if v, ok := m.fold[key]; ok {
 		return v
 	}

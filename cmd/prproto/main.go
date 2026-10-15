@@ -1624,6 +1624,10 @@ type model struct {
 	pvOn      bool
 	pvScroll  int    // scroll of the list panes' preview
 	pvKey     string // what that preview shows; a new one resets its scroll
+	pcs       map[string]*pconv // Conversation views inside previews, by what they show
+	pcOn      bool              // m.cv and m.scroll hold a preview's view (see inPC)
+	pcSize    [2]int            // its width and height, borders included
+	defFolds  bool              // foldOpen answers with the default (pane heights)
 	scroll    int
 	dscroll   int // the description pane's scroll
 	dcur      int // the description pane's cursor line
@@ -1694,7 +1698,11 @@ func (m *model) descH() int {
 
 func (m *model) panelHeights() [nPanes]int {
 	H := m.bodyH()
+	// The natural heights come from the folds as they start, so opening a
+	// group scrolls inside its pane and never resizes the layout.
+	m.defFolds = true
 	nat := [nPanes]int{pMerge: 11, pReviewers: max(4, len(m.involved())+2), pDev: max(3, len(m.devNodes())+2)}
+	m.defFolds = false
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1721,6 +1729,9 @@ func (m *model) panelHeights() [nPanes]int {
 }
 
 func (m *model) paneDims(i int) (int, int) {
+	if m.pcOn && i == pMain {
+		return m.pcSize[0], m.pcSize[1]
+	}
 	if m.sub() && i == m.focus {
 		return listW, m.bodyH()
 	}
@@ -2478,6 +2489,9 @@ func (m *model) footer() string {
 	}
 	if m.sub() {
 		if m.pfocus == 1 {
+			if m.lpane() && m.preview(m.w-listW-4).conv != nil {
+				return dim("preview: j/k line · h/l enter fold · * all · ) ( unresolved · c T e X act · tab list · 1-6 pane · z unzoom · ? help")
+			}
 			return dim("preview: j/k g/G pgup/pgdn scroll · tab/shift+tab back to the list · 1-6 other pane · z unzoom · ? help · q quit")
 		}
 		return dim(h + " · tab preview · 1-6 other pane · z unzoom · ? help · q quit")
@@ -2568,6 +2582,9 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 		if m.pfocus == 1 && !global {
+			if pv := m.preview(m.w - listW - 4); pv.conv != nil {
+				return m.pcKey(pv, k)
+			}
 			if d := moveDelta(k); d != 0 {
 				m.pvScroll = max(0, m.pvScroll+d)
 			}

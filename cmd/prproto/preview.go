@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -17,12 +18,134 @@ type pview struct {
 	key, title, info string
 	lines            []string
 	off              int // where it starts scrolled when the row changes
+
+	// A preview of reviews and comments is the Conversation itself, narrowed
+	// to conv's items, under the fixed head lines.
+	head []string
+	conv *convSpec
+}
+
+// convSpec says which items of the Conversation a preview shows; key names the
+// view, which keeps its folds, cursor and scroll while the row stays hovered.
+type convSpec struct {
+	key    string
+	keepIt func(*citem) bool
+	keepTh func(*thread) bool
+}
+
+// pconv is the state of one such view.
+type pconv struct {
+	cv     convState
+	scroll int
+}
+
+// convFocus tells whether the Conversation view being drawn or handled has the
+// focus: the pane itself, or the preview when it has the tab focus.
+func (m *model) convFocus() bool {
+	if m.pcOn {
+		return m.pfocus == 1
+	}
+	return m.focus == pMain
+}
+
+// pcFor returns the view of spec, started on its first use.
+func (m *model) pcFor(spec *convSpec) *pconv {
+	if m.pcs == nil {
+		m.pcs = map[string]*pconv{}
+	}
+	p := m.pcs[spec.key]
+	if p == nil {
+		p = &pconv{cv: convState{open: map[string]bool{}, hideSys: true, noRuns: true, keepIt: spec.keepIt, keepTh: spec.keepTh}}
+		m.pcs[spec.key] = p
+	}
+	return p
+}
+
+// inPC runs fn with the view p standing in for the Conversation (m.cv and
+// m.scroll), w x h being its box. Every Conversation function then works on
+// the preview as it does on the pane: rows, folds, cursor, pins and keys.
+func (m *model) inPC(p *pconv, w, h int, fn func()) {
+	p.cv.items = m.cv.items
+	m.cv, p.cv = p.cv, m.cv
+	m.scroll, p.scroll = p.scroll, m.scroll
+	m.pcOn, m.pcSize = true, [2]int{w, h}
+	defer func() {
+		m.cv, p.cv = p.cv, m.cv
+		m.scroll, p.scroll = p.scroll, m.scroll
+		m.pcOn = false
+	}()
+	fn()
+}
+
+// pcInner is the height of the Conversation inside the preview box: the box
+// without its border and head lines.
+func (m *model) pcInner(pv pview, h int) int { return max(1, h-2-len(pv.head)) }
+
+// convPreview draws the Conversation view of pv in a box of w x h.
+func (m *model) convPreview(pv pview, w, h int) string {
+	ih := m.pcInner(pv, h)
+	var body []string
+	info := pv.info
+	m.inPC(m.pcFor(pv.conv), w, ih+2, func() {
+		all := m.convLines(w - 4)
+		off := min(m.scroll, m.scrollMax(len(all), ih))
+		var pins []string
+		for _, j := range m.convPins(off) {
+			if j == m.cv.first && m.convFocus() {
+				pins = append(pins, all[j])
+			} else {
+				pins = append(pins, pinRow(all[j], w-4))
+			}
+		}
+		pins = pins[:min(len(pins), max(0, ih-1))]
+		end := min(len(all), off+ih-len(pins))
+		body = append(append(slices.Clone(pv.head), pins...), all[off:end]...)
+		if len(all) > ih {
+			if info != "" {
+				info += dim(" · ")
+			}
+			info += dim(fmt.Sprintf("%d%%", (off+ih)*100/len(all)))
+		}
+	})
+	return boxR(pv.title, info, body, w, h, m.pfocus == 1)
+}
+
+// pcKey handles a key in the focused Conversation preview with the
+// Conversation's own key handling: the cursor moves line by line, h/l/enter
+// fold, * folds all, ) ( jump between unresolved threads, and c T e X act on
+// the row as they do in the pane. f and s (filter, events) do nothing here,
+// since the preview is already narrowed.
+func (m *model) pcKey(pv pview, k string) tea.Cmd {
+	w, h := m.w-listW, m.bodyH()
+	var cmd tea.Cmd
+	m.inPC(m.pcFor(pv.conv), w, m.pcInner(pv, h)+2, func() {
+		switch d := moveDelta(k); {
+		case k == "f" || k == "s":
+		case d != 0:
+			if rows := m.crows(false); len(rows) > 0 {
+				m.setSel(rows, m.selIdx(rows)+d)
+			}
+		default:
+			cmd = m.convKey(k)
+		}
+		m.fixConv()
+	})
+	return cmd
+}
+
+// anyItem tells whether the Conversation has an item that spec keeps.
+func (m *model) anyItem(spec *convSpec) bool {
+	c := convState{keepIt: spec.keepIt, keepTh: spec.keepTh, hideSys: true}
+	return slices.ContainsFunc(m.cv.items[1:], c.itShown)
 }
 
 // previewBox draws the preview beside the zoomed list.
 func (m *model) previewBox() string {
 	w, h := m.w-listW, m.bodyH()
 	pv := m.preview(w - 4)
+	if pv.conv != nil {
+		return m.convPreview(pv, w, h)
+	}
 	if pv.key != m.pvKey {
 		m.pvKey, m.pvScroll = pv.key, pv.off
 	}
@@ -57,37 +180,6 @@ func (m *model) preview(cw int) pview {
 }
 
 func rule(cw int) string { return dim(strings.Repeat("─", max(1, cw))) }
-
-// convBlocks renders, with the Conversation's own row renderer, the rows that
-// match and what hangs under them, each block flush left.
-func (m *model) convBlocks(all bool, match func(crow) bool, cw int) []string {
-	c := &m.cv
-	f, hs := c.filter, c.hideSys
-	c.filter, c.hideSys = 0, false
-	rows := m.crows(all)
-	c.filter, c.hideSys = f, hs
-	var out []string
-	for i := 0; i < len(rows); i++ {
-		if !match(rows[i]) {
-			continue
-		}
-		j := i + 1
-		for j < len(rows) && rows[j].depth > rows[i].depth {
-			j++
-		}
-		blk := slices.Clone(rows[i:j])
-		for k := range blk {
-			blk[k].depth -= rows[i].depth
-		}
-		for k, r := range blk {
-			gm, gb, kids := guides(blk, k)
-			out = append(out, m.crowLines(r, cw, gm, gb, kids)...)
-		}
-		out = append(out, "")
-		i = j - 1
-	}
-	return out
-}
 
 // ---------- Merge ----------
 
@@ -158,7 +250,8 @@ func (m *model) mergePreview(b blocker, cw int) pview {
 		}
 		pv.title = disp(it.who) + " · changes requested"
 		pv.info = dim(it.when)
-		pv.lines = m.convBlocks(false, func(r crow) bool { return r.kind == "review" && r.it == it }, cw)
+		pv.key = fmt.Sprint("changes|", it.id)
+		pv.conv = &convSpec{key: pv.key, keepIt: func(x *citem) bool { return x == it }}
 		return pv
 	case "conflict":
 		pv := pview{key: "conflict", title: "Conflicts with main"}
@@ -384,20 +477,17 @@ func (m *model) involvedPreview(nd tnode, cw int) pview {
 			roles = append(roles, "assignee")
 		}
 		pv.info = dim(strings.Join(roles, " · "))
+		said := func(t *thread) bool { return slices.ContainsFunc(t.replies, func(p *reply) bool { return p.who == login }) }
+		spec := &convSpec{key: "person|" + login, keepTh: said, keepIt: func(x *citem) bool {
+			return (x.kind == "comment" || x.kind == "review") && (x.who == login || slices.ContainsFunc(x.threads, said))
+		}}
 		pv.lines = append(pv.lines, rule(cw))
-		blocks := m.convBlocks(true, func(r crow) bool {
-			switch r.kind {
-			case "comment", "review":
-				return r.it.who == login
-			case "thread":
-				return slices.ContainsFunc(r.th.replies, func(p *reply) bool { return p.who == login })
-			}
-			return false
-		}, cw)
-		if len(blocks) == 0 {
-			blocks = []string{dim("no comments or reviews from " + disp(login) + " in this pull request")}
+		if !m.anyItem(spec) {
+			pv.lines = append(pv.lines, dim("no comments or reviews from "+disp(login)+" in this pull request"))
+			return pv
 		}
-		pv.lines = append(pv.lines, blocks...)
+		pv.head, pv.lines = pv.lines, nil
+		pv.conv = spec
 		return pv
 	}
 	return pview{key: "iempty", title: "Involved", lines: []string{dim("nobody yet"), "", dim("enter requests or assigns")}}

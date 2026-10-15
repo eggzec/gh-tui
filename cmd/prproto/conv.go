@@ -289,6 +289,14 @@ type convState struct {
 	filter   int
 	hideSys  bool // system events (pushes, CI, labels, review requests) hidden
 	title    string
+
+	// A preview shows the same Conversation, narrowed to some items: keepIt
+	// and keepTh say which items and threads stay, noRuns turns off the
+	// folded runs of comments.
+	keepIt func(*citem) bool
+	keepTh func(*thread) bool
+	noRuns bool
+
 	first    int // first and last line of the selected row in the last render
 	lastLine int
 
@@ -593,6 +601,9 @@ func (m *model) inThreadRange(x dl) bool {
 }
 
 func (c *convState) thShown(t *thread) bool {
+	if c.keepTh != nil && !c.keepTh(t) {
+		return false
+	}
 	switch c.filter {
 	case 1:
 		return !t.resolved
@@ -604,6 +615,9 @@ func (c *convState) thShown(t *thread) bool {
 
 func (c *convState) itShown(it *citem) bool {
 	if c.hideSys && it.isEvent() {
+		return false
+	}
+	if c.keepIt != nil && !c.keepIt(it) {
 		return false
 	}
 	switch c.filter {
@@ -715,7 +729,7 @@ func (m *model) crows(all bool) []crow {
 		for j < len(vis) && vis[j].kind == "comment" {
 			j++
 		}
-		if j-i >= 2 {
+		if j-i >= 2 && !c.noRuns {
 			rk := fmt.Sprintf("run:%d", vis[i].id)
 			ro := op(rk, false)
 			rows = append(rows, crow{key: rk, kind: "run", fold: true, open: ro, run: vis[i:j]})
@@ -987,7 +1001,7 @@ func (m *model) convLines(cw int) []string {
 		if i == si {
 			c.first, c.lastLine = len(out), len(out)+len(ls)-1
 			for j, l := range ls {
-				ls[j] = selRow(l, cw, m.focus == pMain)
+				ls[j] = selRow(l, cw, m.convFocus())
 			}
 		}
 		out = append(out, ls...)
