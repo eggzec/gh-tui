@@ -1134,6 +1134,9 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
+    # Mark the file under the cursor as viewed, or take the mark off. It is
+    # kept on this machine only, and holds while the file stays as it was.
+    viewed: [v]
   # The modal of a pull request: the diff of the files it changes. Enter
   # folds the file whose header the cursor is on.
   pull_diff:
@@ -1165,6 +1168,9 @@ keys:
     comment: [c]
     range: [V]
     delete_draft: [D]
+    # Mark the file the cursor is in as viewed, which folds it, and go to the
+    # next file not viewed, or take the mark off.
+    viewed: [v]
   # The modal of a release.
   release_modal:
     up: [up, k]

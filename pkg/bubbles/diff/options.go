@@ -22,6 +22,7 @@ type settings struct {
 
 	highlightLimit int
 	headerMark     func(File) string
+	statusNote     func() string
 }
 
 // DefaultTabWidth is the width of a tab stop in the lines of a diff.

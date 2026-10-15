@@ -93,6 +93,9 @@ type keyMap struct {
 	// cursor of the diff, or edits the draft there; rangeSel starts a range
 	// of lines; deleteDraft deletes the draft under the cursor.
 	comment, rangeSel, deleteDraft key.Binding
+	// viewed and diffViewed mark the file under the cursor of the tree, or
+	// the one the cursor of the diff is in, as viewed, or take the mark off.
+	viewed, diffViewed key.Binding
 	// nextPane and prevPane move the focus between the tree and the diff
 	// of the Files tab, panes focus one of them, and jump stands for the
 	// keys of panes in help. zoom shows the focused one alone. The modal
@@ -175,6 +178,8 @@ func newKeyMap(keys config.Keymap) keyMap {
 	// A file shows its diff, and a directory folds.
 	k.tree.Open = files.Binding("global.select", "show diff")
 	k.diff = diff.NewKeyMap(ui.In(keys, ctxDiff))
+	k.viewed = files.Binding("viewed", "viewed")
+	k.diffViewed = ui.In(keys, ctxDiff).Binding("viewed", "viewed")
 
 	overview := ui.In(keys, ctxOverview)
 	k.overview = ui.NewMoveKeys(overview)

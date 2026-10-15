@@ -91,6 +91,13 @@ type filesState struct {
 	// shows them with.
 	counts map[string]threadCount
 	dot    string
+	// viewing says whether the user viewed a file, and viewed counts the
+	// files that count as viewed, among those read. seen and changed are the
+	// marks of a file viewed, and one that changed since, rendered in the
+	// theme.
+	viewing       func(diff.File) viewing
+	viewed        int
+	seen, changed string
 }
 
 // loading reports whether the first page of files is on its way.
@@ -180,7 +187,10 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 		marks:  map[diff.Status]string{},
 		theme:  m.theme,
 		dot:    m.icons.Dot,
+
+		viewing: m.viewingOf,
 	}
+	f.styleViewed(m.theme, m.icons)
 	if prev != nil {
 		f.focus, f.zoom, f.folded = prev.focus, prev.zoom, prev.folded
 	}
@@ -194,6 +204,8 @@ func (m *detailModal) startFiles(prev *filesState) tea.Cmd {
 		opts = append(opts, diff.WithFirstFilesNote(core.MaxPullFiles))
 	}
 	f.diff = diff.New(m.fetchFiles(f.head, f.kept), opts...)
+	f.diff.SetHeaderMark(f.viewMark)
+	f.diff.SetStatusNote(f.viewedNote)
 	f.tree = tree.New(f.set.children,
 		tree.WithContext(ctx),
 		tree.WithKeyMap(m.keys.tree),
@@ -240,7 +252,7 @@ func (m *detailModal) fetchFiles(head string, kept *atomic.Bool) diff.Fetch {
 		for i, f := range p.Items {
 			files[i] = diff.File{
 				Path: f.Path, OldPath: f.PreviousPath, Status: diff.Status(f.Status),
-				Additions: f.Additions, Deletions: f.Deletions, Patch: f.Patch, Truncated: f.PatchTruncated,
+				Additions: f.Additions, Deletions: f.Deletions, Patch: f.Patch, Truncated: f.PatchTruncated, SHA: f.SHA,
 			}
 		}
 		return files, p.Next, nil
@@ -292,8 +304,10 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 	}
 	// The diff takes a page before it tells of it with a FilesMsg, which is
 	// when the files the jump orders the threads by are in the set.
-	_, told := msg.(diff.FilesMsg)
+	fm, told := msg.(diff.FilesMsg)
 	if told {
+		// The files that came in fold if they were viewed, as they were left.
+		m.foldViewed(fm.Files)
 		// The pages that came in may settle the drafts of an older head.
 		cmds = append(cmds, m.settleDrafts())
 	}
@@ -451,6 +465,14 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	f.settling = ""
 	var cmd tea.Cmd
 	if f.focus == treePane {
+		if keymap.Matches(msg, k.viewed) {
+			if n, ok := f.tree.Selected(); ok {
+				if file, ok := n.Value.(diff.File); ok {
+					return m.toggleViewed(file, false)
+				}
+			}
+			return nil
+		}
 		if keymap.Matches(msg, k.tree.Collapse, k.tree.ToggleAll) {
 			f.folded = true
 		}
@@ -472,6 +494,16 @@ func (m *detailModal) searchingDiff() bool {
 // pressDiff gives a key to the diff.
 func (m *detailModal) pressDiff(msg tea.KeyPressMsg) tea.Cmd {
 	f := m.files
+	// A range being drawn is about lines, so v waits until it ends.
+	if !f.diff.Capturing() && keymap.Matches(msg, m.keys.diffViewed) {
+		if m.tray.from != nil {
+			return nil
+		}
+		if file, ok := f.diff.CurrentFile(); ok {
+			return m.toggleViewed(file, true)
+		}
+		return nil
+	}
 	var cmd tea.Cmd
 	f.diff, cmd = f.diff.Update(msg)
 	return tea.Batch(cmd, m.follow(), m.spinWhileLoading())
@@ -566,6 +598,7 @@ func (m *detailModal) restyleFiles() {
 	f.diff.SetStyles(m.theme.Diff(m.icons))
 	f.tree.SetStyles(m.theme.Tree(m.icons))
 	f.dot = m.icons.Dot
+	f.styleViewed(m.theme, m.icons)
 	// The blocks are drawn in the theme when they are rendered.
 	m.applyThreadBlocks()
 	f.spin.Style = m.theme.Accent
@@ -613,6 +646,9 @@ func (f *filesState) mark(s diff.Status) string {
 func (f *filesState) icon(n tree.Node, _ bool) string {
 	if file, ok := n.Value.(diff.File); ok {
 		s := f.mark(file.Status)
+		if v := f.viewMark(file); v != "" {
+			s += " " + v
+		}
 		if t := f.threadMarkOf(file.Path, f.dot); t != "" {
 			s += " " + t
 		}
@@ -717,7 +753,15 @@ func (m *detailModal) paneTitle(p filesPane, w int) string {
 		st = m.theme.Accent.Bold(true)
 	}
 	if p == treePane {
-		return ui.Fit(st.Render("Files"), w)
+		title := st.Render("Files")
+		if f.viewed > 0 {
+			total := f.set.len()
+			if !f.diff.Done() {
+				total = max(m.detail.ChangedFiles, total)
+			}
+			title += st.Render(" " + strconv.Itoa(f.viewed) + "/" + strconv.Itoa(total) + " viewed")
+		}
+		return ui.Fit(title, w)
 	}
 	cur, ok := f.diff.CurrentFile()
 	if !ok {
@@ -762,14 +806,16 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		// The modal's refresh retries a failed read.
 		keys.Retry.SetEnabled(false)
 		l := ui.ContextHelp(ctxDiff, keys, false)
-		l.Bindings = append(l.Bindings, m.resolveBinding())
+		l.Bindings = append(l.Bindings, m.keys.diffViewed, m.resolveBinding())
 		l.Bindings = append(l.Bindings, m.trayBindings()...)
 		// Backspace on an empty search line is the prompt's alone. Listed
 		// here, though off, it would hide the app's back key in help.
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), keys.CancelEmpty.Keys()) })
 		return l
 	}
-	return ui.ContextHelp(ctxFiles, m.keys.tree, false)
+	l := ui.ContextHelp(ctxFiles, m.keys.tree, false)
+	l.Bindings = append(l.Bindings, m.keys.viewed)
+	return l
 }
 
 // filesModalLayer returns the layer of the keys of the modal while the

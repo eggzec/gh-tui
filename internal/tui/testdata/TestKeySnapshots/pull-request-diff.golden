@@ -55,6 +55,7 @@ Diff
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
+  viewed | v | v | on
   resolve thread | T | T | off
   draft comment | c | c | on
   start range | V | V | on

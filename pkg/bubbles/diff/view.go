@@ -107,6 +107,11 @@ func (m Model) Status() string {
 		more = "+"
 	}
 	parts = append(parts, fmt.Sprintf("file %d/%d%s", f+1, m.layout.Files(), more))
+	if m.statusNote != nil {
+		if note := m.statusNote(); note != "" {
+			parts = append(parts, note)
+		}
+	}
 	return strings.Join(parts, m.styles.Separator)
 }
 
