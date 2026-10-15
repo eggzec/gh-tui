@@ -1966,7 +1966,7 @@ func (m *model) footer() string {
 	}
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
-		pMain:     "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
+		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
 		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
