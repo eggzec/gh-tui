@@ -152,7 +152,7 @@ func selRow(l string, w int, focus bool) string {
 	if !focus {
 		return selDim + selMarker + "\x1b[39m" + rest
 	}
-	rest = strings.NewReplacer("\x1b[0m", "\x1b[0m"+selBG, "\x1b[m", "\x1b[m"+selBG).Replace(rest)
+	rest = strings.NewReplacer("\x1b[0m", "\x1b[0m"+selBG, "\x1b[m", "\x1b[m"+selBG, "\x1b[39;49m", "\x1b[39;49m"+selBG).Replace(rest)
 	pad := strings.Repeat(" ", max(0, w-ansi.StringWidth(l)))
 	return selBG + "\x1b[1m" + selMark + selMarker + "\x1b[22;39m" + rest + pad + "\x1b[0m"
 }
@@ -173,8 +173,18 @@ var paneNames = []string{"Description", "Conversation", "Merge", "Involved", "De
 
 var (
 	assigneeOpts = []string{"alice", "bob", "carol", "dave"}
-	labelOpts    = []string{"bug", "api", "docs", "enhancement", "good first issue"}
+	labelOpts    = []string{"bug", "api", "docs", "enhancement", "good first issue", "wip", "help wanted", "question", "documentation"}
 )
+
+// labelDesc is the description GitHub shows beside a label; the picker's
+// search matches it too.
+var labelDesc = map[string]string{
+	"bug": "Something isn't working", "api": "Changes to the public API",
+	"docs": "Improvements to the docs", "documentation": "Improvements or additions to documentation",
+	"enhancement": "New feature or request", "good first issue": "Good for newcomers",
+	"wip": "Work in progress", "help wanted": "Extra attention is needed",
+	"question": "Further information is requested",
+}
 
 // users maps a login to its display name; a login missing here has none and
 // shows as itself.
@@ -1664,7 +1674,10 @@ type overlay struct {
 	filter string
 	fon    bool // the filter line is open and takes the typing
 	pcur   int
-	chips  bool // items are label names, drawn as colour chips
+	view   []string // the rows in display order, see filtered
+	nsel   int      // how many leading rows were selected when view was made
+	vready bool     // view is current for filter
+	chips  bool     // items are label names, drawn as colour chips
 	people bool // items are personItems: the login shows dim after the name
 	done   func(*model, []string) tea.Cmd
 
@@ -2137,15 +2150,45 @@ func (m *model) ovRect(o *overlay) (int, int, int, int) {
 	return 4, 2, W - 8, H - 4
 }
 
+// filtered is the picker's rows in display order. A multi picker lists the
+// selected items first, each group by name; the order is worked out when the
+// picker opens, when the query changes and on every toggle (resort); the
+// cursor follows an item, not a row. Matching is a case-insensitive
+// substring of the item, which holds the name and, for labels, the
+// description.
 func (o *overlay) filtered() []string {
-	var out []string
+	if o.vready {
+		return o.view
+	}
+	var sel, rest []string
+	q := strings.ToLower(o.filter)
 	for _, it := range o.items {
-		if strings.Contains(strings.ToLower(it), strings.ToLower(o.filter)) {
-			out = append(out, it)
+		hay := it
+		if o.chips {
+			hay += " " + labelDesc[it]
+		}
+		if !strings.Contains(strings.ToLower(hay), q) {
+			continue
+		}
+		if o.multi && o.sel[it] {
+			sel = append(sel, it)
+		} else {
+			rest = append(rest, it)
 		}
 	}
-	return out
+	if o.multi {
+		byName := func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) }
+		slices.SortStableFunc(sel, byName)
+		slices.SortStableFunc(rest, byName)
+	}
+	o.nsel = len(sel)
+	o.view = append(sel, rest...)
+	o.vready = true
+	return o.view
 }
+
+// resort makes the next filtered call order the rows again.
+func (o *overlay) resort() { o.vready = false }
 
 func (m *model) ovContent(o *overlay) (string, []string) {
 	switch o.kind {
@@ -2255,8 +2298,25 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		var lines []string
 		fl := o.filtered()
 		slots := max(1, h-3)
-		off := max(0, o.pcur-slots+1)
-		for i := off; i < min(len(fl), off+slots); i++ {
+		// rows holds an index into fl, or -1 for the rule between the
+		// selected group and the rest.
+		var rows []int
+		curRow := 0
+		for i := range fl {
+			if o.multi && i == o.nsel && i > 0 {
+				rows = append(rows, -1)
+			}
+			if i == o.pcur {
+				curRow = len(rows)
+			}
+			rows = append(rows, i)
+		}
+		off := max(0, curRow-slots+1)
+		for _, i := range rows[min(off, len(rows)):min(len(rows), off+slots)] {
+			if i < 0 {
+				lines = append(lines, "  "+dim(strings.Repeat("─", max(0, w-8))))
+				continue
+			}
 			p := "  "
 			mk := ""
 			label := fl[i]
@@ -2267,6 +2327,9 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 			}
 			if o.chips {
 				label = chip(fl[i])
+				if d := labelDesc[fl[i]]; d != "" {
+					label += dim("  " + d)
+				}
 			}
 			if o.multi {
 				mk = "[ ] "
@@ -2275,7 +2338,7 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 				}
 			}
 			if i == o.pcur {
-				lines = append(lines, selRow(p+mk+fl[i], w-4, true))
+				lines = append(lines, selRow(p+mk+label, w-4, true))
 				continue
 			}
 			lines = append(lines, p+mk+label)
@@ -2283,15 +2346,17 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 		for len(lines) < slots {
 			lines = append(lines, "")
 		}
-		fline := dim(strings.Repeat("─", w-4))
-		if o.fon {
-			fline = accent("/") + o.filter + "▏"
+		count := dim(fmt.Sprintf("%d of %d", len(fl), len(o.items)))
+		fline := dim(strings.Repeat("─", max(0, w-4-ansi.StringWidth(count)-2))) + "  " + count
+		if o.fon || o.filter != "" {
+			fline = accent("/") + o.filter
+			if o.fon {
+				fline += "▏"
+			}
+			fline += "  " + count
 		}
 		lines = append(lines, fline)
 		title := o.title
-		if o.filter != "" {
-			title += " · /" + o.filter
-		}
 		if o.multi {
 			n := 0
 			for _, v := range o.sel {
@@ -2299,9 +2364,7 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 					n++
 				}
 			}
-			title += fmt.Sprintf(" · %d of %d", n, len(o.items))
-		} else {
-			title += fmt.Sprintf(" · %d of %d", len(fl), len(o.items))
+			title += fmt.Sprintf(" · %d selected", n)
 		}
 		s = box(title, lines, w, h, true)
 	case "log":
@@ -2555,7 +2618,7 @@ func (m *model) footer() string {
 			return dim("y yes · n/esc no")
 		case "picker":
 			if o.fon {
-				return dim("type to filter · enter/esc leave the filter line")
+				return dim("type to filter · esc clears, then leaves · enter keeps the filter")
 			}
 			if o.multi {
 				return dim("j/k move · / filter · space toggle · enter apply · esc cancel")
@@ -3112,8 +3175,17 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		fl := top.filtered()
 		if top.fon {
 			switch k {
-			case "esc", "enter":
+			case "enter":
 				top.fon = false
+			case "esc":
+				// The first esc clears the query, the second leaves the line.
+				if top.filter == "" {
+					top.fon = false
+				} else {
+					top.filter = ""
+					top.pcur = 0
+					top.resort()
+				}
 			case "up", "ctrl+p":
 				top.pcur = max(0, top.pcur-1)
 			case "down", "ctrl+n":
@@ -3125,17 +3197,25 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 					r := []rune(top.filter)
 					top.filter = string(r[:len(r)-1])
 					top.pcur = 0
+					top.resort()
 				}
 			default:
 				if msg.Text != "" {
 					top.filter += msg.Text
 					top.pcur = 0
+					top.resort()
 				}
 			}
 			return nil
 		}
 		switch k {
 		case "esc", "backspace":
+			if k == "esc" && top.filter != "" {
+				top.filter = ""
+				top.pcur = 0
+				top.resort()
+				return nil
+			}
 			m.pop()
 		case "/":
 			top.fon = true
@@ -3165,7 +3245,18 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 			top.pcur = max(0, len(fl)-1)
 		case "space", " ":
 			if top.multi && top.pcur < len(fl) {
-				top.sel[fl[top.pcur]] = !top.sel[fl[top.pcur]]
+				// Toggle, then re-sort and follow the item that was next
+				// (the same item on the last row), by name not by row.
+				cur := fl[top.pcur]
+				next := cur
+				if top.pcur+1 < len(fl) {
+					next = fl[top.pcur+1]
+				}
+				top.sel[cur] = !top.sel[cur]
+				top.resort()
+				if i := slices.Index(top.filtered(), next); i >= 0 {
+					top.pcur = i
+				}
 			}
 		}
 	case "file":
