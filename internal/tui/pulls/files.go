@@ -484,6 +484,9 @@ func (m *detailModal) pressFiles(msg tea.KeyPressMsg) tea.Cmd {
 	f.settling = ""
 	var cmd tea.Cmd
 	if f.focus == treePane {
+		if keymap.Matches(msg, k.scope) {
+			return m.openScope()
+		}
 		if keymap.Matches(msg, k.viewed) {
 			if n, ok := f.tree.Selected(); ok {
 				if file, ok := n.Value.(diff.File); ok {
@@ -525,6 +528,9 @@ func (m *detailModal) pressDiff(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	if !f.diff.Capturing() && keymap.Matches(msg, m.keys.readOn) {
 		return m.readOn()
+	}
+	if !f.diff.Capturing() && keymap.Matches(msg, m.keys.diffScope) {
+		return m.openScope()
 	}
 	var cmd tea.Cmd
 	f.diff, cmd = f.diff.Update(msg)
@@ -717,7 +723,9 @@ func (m *detailModal) filesView() string {
 		if i > 0 {
 			b.WriteByte('\n')
 		}
-		b.WriteString(left[i] + sep + right[i])
+		b.WriteString(left[i])
+		b.WriteString(sep)
+		b.WriteString(right[i])
 	}
 	return b.String()
 }
@@ -839,7 +847,7 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		// The modal's refresh retries a failed read.
 		keys.Retry.SetEnabled(false)
 		l := ui.ContextHelp(ctxDiff, keys, false)
-		l.Bindings = append(l.Bindings, m.keys.diffViewed, m.keys.readOn, m.resolveBinding())
+		l.Bindings = append(l.Bindings, m.keys.diffViewed, m.keys.readOn, m.keys.diffScope, m.resolveBinding())
 		l.Bindings = append(l.Bindings, m.trayBindings()...)
 		// Backspace on an empty search line is the prompt's alone. Listed
 		// here, though off, it would hide the app's back key in help.
@@ -847,7 +855,7 @@ func (m *detailModal) filesLayer() keyhelp.Layer {
 		return l
 	}
 	l := ui.ContextHelp(ctxFiles, m.keys.tree, false)
-	l.Bindings = append(l.Bindings, m.keys.viewed)
+	l.Bindings = append(l.Bindings, m.keys.viewed, m.keys.scope)
 	return l
 }
 

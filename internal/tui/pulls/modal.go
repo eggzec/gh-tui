@@ -137,6 +137,9 @@ type detailModal struct {
 	stopFind context.CancelFunc
 	// findHead is the head the finder listed the files of.
 	findHead string
+	// scopeReady is where the picker of the scope gets the commits it lists,
+	// while it shows.
+	scopeReady chan commitsRead
 	// findErr says why the changed files couldn't be listed.
 	findErr func(error) (text, hint string)
 	// ask is the change waiting for the user to confirm it, on the last
@@ -501,7 +504,12 @@ func (m *detailModal) updateMain(msg tea.Msg) tea.Cmd {
 		if m.find == nil || msg.ID != m.find.ID() {
 			return nil
 		}
+		if s, ok := msg.Item.Value.(filesScope); ok {
+			return m.chooseScope(s)
+		}
 		return m.chooseFile(msg.Item.Path)
+	case commitsMsg:
+		return m.receiveCommits(msg)
 	case finder.CancelMsg:
 		if m.find == nil || msg.ID != m.find.ID() {
 			return nil

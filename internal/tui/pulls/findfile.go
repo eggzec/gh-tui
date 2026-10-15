@@ -49,7 +49,7 @@ func (m *detailModal) dropFind() {
 	}
 	m.find.Close()
 	m.stopFind()
-	m.find, m.stopFind = nil, nil
+	m.find, m.stopFind, m.scopeReady = nil, nil, nil
 }
 
 // listChanged returns what the finder loads: the files in the diff when it
