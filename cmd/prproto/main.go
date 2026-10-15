@@ -1267,9 +1267,131 @@ type check struct{ name, state, dur string }
 
 var checks = []check{
 	{"build (linux)", "ok", "1m12s"}, {"build (macos)", "ok", "2m01s"}, {"build (windows)", "ok", "2m40s"},
-	{"test", "ok", "3m22s"}, {"lint", "ok", "0m48s"}, {"vet", "ok", "0m20s"},
+	{"test (linux)", "fail", "3m22s"}, {"lint", "fail", "0m48s"}, {"vet", "ok", "0m20s"},
 	{"bench", "ok", "4m10s"}, {"schema", "ok", "0m09s"}, {"cross-compile", "ok", "1m55s"},
-	{"codeql", "ok", "5m03s"}, {"docs", "ok", "0m31s"}, {"e2e", "fail", "3m02s"},
+	{"codeql", "ok", "5m03s"}, {"docs", "ok", "0m31s"}, {"e2e", "pending", "2m10s"},
+}
+
+// checkIcon is the glyph of a check state.
+func checkIcon(state string) string {
+	switch state {
+	case "fail":
+		return ic.checkFail.String()
+	case "pending":
+		return ic.checkPending.String()
+	}
+	return ic.checkOK.String()
+}
+
+// sortedChecks lists the check indexes with the failing first, then the
+// pending ones, then the passing ones.
+func sortedChecks() []int {
+	idx := make([]int, len(checks))
+	for i := range idx {
+		idx[i] = i
+	}
+	rank := func(i int) int {
+		switch checks[i].state {
+		case "fail":
+			return 0
+		case "pending":
+			return 1
+		}
+		return 2
+	}
+	slices.SortStableFunc(idx, func(a, b int) int { return rank(a) - rank(b) })
+	return idx
+}
+
+func checkByName(name string) int {
+	return slices.IndexFunc(checks, func(c check) bool { return c.name == name })
+}
+
+// A blocker is one row of the merge box.
+type blocker struct {
+	kind  string // check, review, changes, conflict
+	text  string
+	right string
+	check int
+}
+
+func blockers() []blocker {
+	return []blocker{
+		{"check", "ci / test (linux)", "failing", checkByName("test (linux)")},
+		{"check", "ci / lint", "failing", checkByName("lint")},
+		{"review", "Review required: core team", "", 0},
+		{"changes", "Changes requested: Carol Diaz", "", 0},
+		{"conflict", "Conflicts with main", "", 0},
+	}
+}
+
+// checkLog is a fake log of a check run.
+func checkLog(c check) []string {
+	var out []string
+	ts := func(n int) string { return dim(fmt.Sprintf("12:%02d:%02d ", 4+n/60, n%60)) }
+	n := 0
+	step := func(s string) {
+		out = append(out, ts(n)+bold(cyan("▶ "+s)))
+		n += 3
+	}
+	line := func(s string) {
+		out = append(out, ts(n)+s)
+		n++
+	}
+	step("Set up job")
+	line("Runner: ubuntu-24.04, 4 cores")
+	step("Checkout")
+	line("Fetching the repository at f9e8d7c")
+	step("Set up Go 1.25")
+	line("Using the cached toolchain")
+	step("Run " + c.name)
+	for i := 1; i <= 24; i++ {
+		line(fmt.Sprintf("=== RUN   TestCase%02d", i))
+		if c.state == "fail" && i == 17 {
+			line(red("--- FAIL: TestCase17 (0.02s)"))
+			line(red("    calc_test.go:41: Div(1, 0) panicked: runtime error: integer divide by zero"))
+			line(red("FAIL"))
+			line(red("Error: Process completed with exit code 1."))
+			out = append(out, "", red("✗ "+c.name+" failed after "+c.dur))
+			return out
+		}
+		if c.state == "pending" && i == 20 {
+			line(dim("… the job is still running"))
+			return out
+		}
+		line(green(fmt.Sprintf("--- PASS: TestCase%02d (0.0%ds)", i, i%7)))
+	}
+	line(green("PASS"))
+	out = append(out, "", green("✓ "+c.name+" passed in "+c.dur))
+	return out
+}
+
+// commitState is the fake combined status of a commit.
+func commitState(sha string) string {
+	switch sha {
+	case "a1b2c3d", "f9e8d7c":
+		return "fail"
+	case "c3d4e5f":
+		return "pending"
+	}
+	return "ok"
+}
+
+// commitDiff is a fake diff of one commit: a subset of the files.
+func commitDiff(sha, subj string) []string {
+	n := 0
+	for _, r := range sha {
+		n += int(r)
+	}
+	out := []string{bold("commit " + sha), "Author: Alice Chen", "", "    " + subj, "",
+		checkIcon(commitState(sha)) + " " + dim("status: "+commitState(sha)), ""}
+	for k := range 2 {
+		f := files[(n+k)%len(files)]
+		out = append(out, bold(accent(fmt.Sprintf("━━ %s  +%d −%d", f.path(), f.add, f.del))))
+		out = append(out, diffLines(f.diff)...)
+		out = append(out, "")
+	}
+	return out
 }
 
 type reviewer struct{ name, state string }
@@ -1424,7 +1546,7 @@ func (m *model) descH() int {
 
 func (m *model) panelHeights() [nPanes]int {
 	H := m.bodyH()
-	nat := [nPanes]int{pMerge: 7, pReviewers: max(3, len(m.reviewers)+2), pDev: max(3, len(m.dev)+2), pMeta: 6}
+	nat := [nPanes]int{pMerge: 9, pReviewers: max(3, len(m.reviewers)+2), pDev: max(3, len(m.dev)+2), pMeta: 6}
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1545,13 +1667,28 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 	case pMain:
 		return m.convLines(cw), 0
 	case pMerge:
-		return []string{
-			yellow("Blocked: changes requested"),
-			m.mrow(i, 0, ic.checkFail.String()+" 1 of 12 checks failing"+dim("  C")),
-			m.mrow(i, 1, "Merge (squash)"+dim("  M")),
-			m.mrow(i, 2, "Auto-merge"+dim("  A")),
-			m.mrow(i, 3, "Update branch"+dim("  U")),
-		}, m.cur[i] + 1
+		var out []string
+		for k, b := range blockers() {
+			var icon string
+			switch b.kind {
+			case "check":
+				icon = ic.checkFail.String()
+			case "review":
+				icon = ic.requested.String()
+			case "changes":
+				icon = ic.changes.String()
+			default:
+				icon = ic.blocked.String()
+			}
+			row := rightAlign(icon+" "+b.text, dim(b.right), cw-2)
+			out = append(out, m.mrow(i, k, ansi.Truncate(row, cw-2, "…")))
+		}
+		acts := "Merge (squash) " + dim("M") + " · Auto-merge " + dim("A") + " · Update branch " + dim("U")
+		if cw < 54 {
+			acts = "Merge " + dim("M") + " · Auto " + dim("A") + " · Update " + dim("U")
+		}
+		out = append(out, dim("  "+strings.Repeat("─", min(5, max(0, cw-2)))), ansi.Truncate("  "+acts, cw, "…"))
+		return out, m.cur[i]
 	case pReviewers:
 		var out []string
 		for k, r := range m.reviewers {
@@ -1761,16 +1898,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			out = append(out, "")
 		}
 		return "Combined diff · 6 files · +120 −8", out
-	case "checks":
-		out := []string{red("1 failing"), green("11 passing"), ""}
-		for _, c := range checks {
-			g := ic.checkOK
-			if c.state == "fail" {
-				g = ic.checkFail
-			}
-			out = append(out, fmt.Sprintf("%s %-18s %s", g.String(), c.name, dim(c.dur)))
-		}
-		return "Checks · 12 runs", out
+	case "log":
+		c := checks[o.arg]
+		return "ci / " + c.name + " · " + c.state, checkLog(c)
+	case "commit":
+		return "Commit " + o.title + " · " + o.text, commitDiff(o.title, o.text)
 	case "issue":
 		d := m.dev[o.arg]
 		kind := "Issue"
@@ -1819,7 +1951,10 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            issues: " + ic.issueOpen.String() + " open · " + ic.issueClosed.String() + " closed · " + ic.blocked.String() + " blocked",
 			"            right edge of a row: ⋯ 3 folded replies,",
 			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
-			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
+			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens its log / the reviewer picker /",
+			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
+			"Checks      C (anywhere) lists all checks, failing first: j/k · enter the log · esc/backspace back",
+			"Commits     enter on a push opens its commits as a thread; enter on a commit opens its diff (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
 			"Development enter issue summary · a link issue · x unlink",
@@ -1894,6 +2029,30 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 			title += fmt.Sprintf(" · %d of %d", len(fl), len(o.items))
 		}
 		s = box(title, lines, w, h, true)
+	case "checks":
+		var lines []string
+		slots := max(1, h-2)
+		off := max(0, o.pcur-slots+1)
+		order := sortedChecks()
+		for i := off; i < min(len(order), off+slots); i++ {
+			c := checks[order[i]]
+			row := rightAlign(checkIcon(c.state)+" "+c.name, dim(c.dur), w-6)
+			if i == o.pcur {
+				lines = append(lines, selRow("  "+row, w-4, true))
+				continue
+			}
+			lines = append(lines, "  "+row)
+		}
+		nf, np := 0, 0
+		for _, c := range checks {
+			switch c.state {
+			case "fail":
+				nf++
+			case "pending":
+				np++
+			}
+		}
+		s = box(fmt.Sprintf("Checks · %d runs · %d failing · %d pending", len(checks), nf, np), lines, w, h, true)
 	case "file":
 		s = m.drawDiff(o, w, h)
 	case "reply", "editpr":
@@ -2066,6 +2225,8 @@ func (m *model) footer() string {
 				return dim("j/k move · / filter · space toggle · enter apply · esc cancel")
 			}
 			return dim("j/k move · / filter · enter pick · esc cancel")
+		case "checks":
+			return dim("j/k move · enter log · Z max · esc/backspace back")
 		case "reply":
 			return dim("type the reply · enter save · esc cancel")
 		case "editpr":
@@ -2082,7 +2243,7 @@ func (m *model) footer() string {
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
-		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
+		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
 		pFiles:     "enter diff · D combined · l conversation",
@@ -2178,6 +2339,8 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.zoom = !m.zoom
 	case "?":
 		m.push(overlay{kind: "help"})
+	case "C":
+		m.push(overlay{kind: "checks"})
 	default:
 		return m.paneKey(k)
 	}
@@ -2203,7 +2366,7 @@ func (m *model) syncPV() {
 func (m *model) count(p int) int {
 	switch p {
 	case pMerge:
-		return 4
+		return len(blockers())
 	case pReviewers:
 		return len(m.reviewers)
 	case pDev:
@@ -2257,6 +2420,19 @@ func (m *model) confirm(text, toast string) {
 	m.push(overlay{kind: "confirm", text: text, toast: toast})
 }
 
+func (m *model) requestReviewer() {
+	var items []string
+	for _, n := range []string{"bob", "carol", "dave", "erin", "Copilot"} {
+		if !slices.ContainsFunc(m.reviewers, func(r reviewer) bool { return r.name == n }) {
+			items = append(items, personItem(n))
+		}
+	}
+	m.push(overlay{kind: "picker", title: "Request a reviewer", items: items, people: true, done: func(m *model, p []string) tea.Cmd {
+		m.reviewers = append(m.reviewers, reviewer{loginOf(p[0]), "requested"})
+		return m.say("(prototype) requested " + disp(loginOf(p[0])))
+	}})
+}
+
 func (m *model) paneKey(k string) tea.Cmd {
 	if d := moveDelta(k); d != 0 {
 		m.move(d)
@@ -2278,42 +2454,37 @@ func (m *model) paneKey(k string) tea.Cmd {
 	case pMain:
 		return m.convKey(k)
 	case pMerge:
-		i := -1
 		switch k {
-		case "C":
-			i = 0
 		case "M":
-			i = 1
-		case "A":
-			i = 2
-		case "U":
-			i = 3
-		case "enter":
-			i = m.cur[pMerge]
-		}
-		switch i {
-		case 0:
-			m.push(overlay{kind: "checks"})
-		case 1:
 			m.confirm("Merge #42 with squash?", "(prototype) would merge")
-		case 2:
+		case "A":
 			m.confirm("Enable auto-merge on #42?", "(prototype) would enable auto-merge")
-		case 3:
+		case "U":
 			m.confirm("Update branch with main?", "(prototype) would update the branch")
+		case "enter":
+			b := blockers()[m.cur[pMerge]]
+			switch b.kind {
+			case "check":
+				m.push(overlay{kind: "log", arg: b.check})
+			case "review":
+				m.requestReviewer()
+			case "changes":
+				m.focus = pMain
+				rows := m.crows(false)
+				for j, r := range rows {
+					if r.kind == "review" && r.it.state == "changes" {
+						m.setSel(rows, j)
+						break
+					}
+				}
+			default:
+				return m.say("(prototype) would open conflict info")
+			}
 		}
 	case pReviewers:
 		switch k {
 		case "a":
-			var items []string
-			for _, n := range []string{"bob", "carol", "dave", "erin", "Copilot"} {
-				if !slices.ContainsFunc(m.reviewers, func(r reviewer) bool { return r.name == n }) {
-					items = append(items, personItem(n))
-				}
-			}
-			m.push(overlay{kind: "picker", title: "Request a reviewer", items: items, people: true, done: func(m *model, p []string) tea.Cmd {
-				m.reviewers = append(m.reviewers, reviewer{loginOf(p[0]), "requested"})
-				return m.say("(prototype) requested " + disp(loginOf(p[0])))
-			}})
+			m.requestReviewer()
 		case "R":
 			c := m.cur[pReviewers]
 			if c >= len(m.reviewers) {
@@ -2484,6 +2655,20 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "file":
 		return m.diffKey(top, msg)
+	case "checks":
+		order := sortedChecks()
+		switch k {
+		case "esc", "backspace", "q":
+			m.pop()
+		case "enter":
+			m.push(overlay{kind: "log", arg: order[top.pcur]})
+		case "Z":
+			top.max = !top.max
+		default:
+			if d := moveDelta(k); d != 0 {
+				top.pcur = max(0, min(top.pcur+d, len(order)-1))
+			}
+		}
 	case "reply", "editpr":
 		return m.composeKey(top, msg)
 	default:

@@ -157,16 +157,10 @@ func sysFit(text string, cw int) (rule, start int) {
 
 // commitLine is a commit row of an open push: it starts where the push line's
 // text does, and a subject too long for the room is cut with an ellipsis.
-func commitLine(text string, c [2]string, cw int) string {
+func commitLine(text string, c [2]string, cw int, gm string) string {
 	_, start := sysFit(text, cw)
-	room := cw - start - len(c[0]) - 3
-	subj := []rune(c[1])
-	if room < 1 {
-		subj = nil
-	} else if len(subj) > room {
-		subj = append(subj[:room-1], '…')
-	}
-	return strings.Repeat(" ", start) + dim(c[0]+"  "+string(subj))
+	left := strings.Repeat(" ", max(0, start-1)) + gm + dim(c[0]) + "  " + c[1]
+	return rightAlign(left, checkIcon(commitState(c[0])), cw)
 }
 
 type convState struct {
@@ -670,7 +664,7 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	case "push", "sys":
 		return sysLines(r.it.sysText(), cw)
 	case "commit":
-		return []string{commitLine(r.it.sysText(), r.commit, cw)}
+		return []string{commitLine(r.it.sysText(), r.commit, cw, gm)}
 	case "run":
 		var who []string
 		for _, it := range r.run {
@@ -929,6 +923,10 @@ func (m *model) convKey(k string) tea.Cmd {
 	case "enter", "o":
 		if r.kind == "thread" {
 			return m.openThread(r.th)
+		}
+		if r.kind == "commit" {
+			m.push(overlay{kind: "commit", title: r.commit[0], text: r.commit[1]})
+			return nil
 		}
 		if k == "enter" && r.fold {
 			c.open[r.key] = !r.open
