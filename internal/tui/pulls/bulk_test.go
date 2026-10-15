@@ -3,6 +3,7 @@ package pulls
 import (
 	"errors"
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -20,16 +21,46 @@ import (
 func markRows(t *testing.T, h *host, rows ...int) {
 	t.Helper()
 	at := 0
+	moved := false
 	for _, r := range rows {
 		for ; at < r; at++ {
 			press(t, h, "down")
 		}
-		// Marking moves the cursor on to the next row.
+		// Marking moves the cursor on to the next row, unless the row is the
+		// last one.
+		before, _ := h.feed.Selected()
 		press(t, h, "space")
+		after, _ := h.feed.Selected()
+		moved = !reflect.DeepEqual(before, after)
 		at++
 	}
-	if len(rows) > 0 {
+	if moved {
 		press(t, h, "up")
+	}
+}
+
+// Marking the last row of the list leaves the cursor on it.
+func TestMarkLastRowKeepsCursor(t *testing.T) {
+	t.Parallel()
+	probe := started(t, newFakeService(), 80, 20)
+	last := 0
+	for {
+		before, _ := probe.feed.Selected()
+		press(t, probe, "down")
+		if after, _ := probe.feed.Selected(); reflect.DeepEqual(before, after) {
+			break
+		}
+		last++
+	}
+	want, _ := probe.feed.Selected()
+
+	h := started(t, newFakeService(), 80, 20)
+	markRows(t, h, last)
+	if got, _ := h.feed.Selected(); !reflect.DeepEqual(got, want) {
+		t.Errorf("the cursor is on #%d, want the last row, #%d", got.Number, want.Number)
+	}
+	if got := markedNumbers(h); !slices.Equal(got, []int{want.Number}) {
+		t.Errorf("marked %v, want only the last row, #%d", got, want.Number)
 	}
 }
 

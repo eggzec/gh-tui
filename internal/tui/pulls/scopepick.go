@@ -86,6 +86,10 @@ func (m *detailModal) openScope() tea.Cmd {
 		finder.WithStyles(m.theme.Finder(m.icons)),
 		finder.WithPlaceholder("Type to find a commit"),
 		finder.WithNoun("scope", "scopes"),
+		finder.WithStart(func(it finder.Item) bool {
+			s, ok := it.Value.(filesScope)
+			return ok && sameScope(s, current)
+		}),
 		finder.WithErrorText(m.findErr),
 	)
 	f.Focus()

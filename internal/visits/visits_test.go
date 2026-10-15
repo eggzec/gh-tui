@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -100,6 +102,34 @@ func TestSaveKeepsEitherPart(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: Load = %v, %v; want %v", name, got, err, want)
 		}
+	}
+}
+
+// A state with only viewed files is written without the empty last_seen, and
+// a file that has one, as earlier versions wrote it, still decodes.
+func TestLastSeenIsOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
+	s := New(t.TempDir())
+	key := Key("o/r", 7)
+	want := State{Viewed: map[string]string{"a.go": "b1"}}
+	if err := s.Save(key, want); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(s.path(key))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "last_seen") {
+		t.Errorf("file = %s, want no last_seen", data)
+	}
+
+	old := `{"version":` + strconv.Itoa(Version) + `,"key":"` + key + `","last_seen":{},"viewed":{"a.go":"b1"}}`
+	if err := os.WriteFile(s.path(key), []byte(old), fileMode); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Load(key)
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("Load of a file with an empty last_seen = %v, %v; want %v", got, err, want)
 	}
 }
 

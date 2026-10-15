@@ -30,6 +30,7 @@ type settings struct {
 	recentPaths   []string
 	icons         Icons
 	links         Links
+	start         func(Item) bool
 }
 
 // DefaultSyncLimit is how many paths the finder matches in Update by
@@ -110,6 +111,13 @@ func WithRecent(paths []string) Option {
 // the empty one in a command.
 func WithSyncLimit(n int) Option {
 	return func(s *settings) { s.syncLimit = max(n, 0) }
+}
+
+// WithStart puts the selection on the first row for which is returns true,
+// once the paths are listed, instead of on the first row. A query typed
+// afterwards selects its best match as usual.
+func WithStart(is func(Item) bool) Option {
+	return func(s *settings) { s.start = is }
 }
 
 // WithIcons draws an icon before every path. Finders have no icons by

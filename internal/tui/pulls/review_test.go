@@ -436,7 +436,7 @@ func TestSummaryDraftOfAnotherStepIsIgnored(t *testing.T) {
 		t.Errorf("the saved draft is %q, want the stale one ignored", m.rev.saved)
 	}
 	if got := m.rev.comp.Value(); got != "web summary" {
-		t.Errorf("the summary is %q, want the reopened step's own prefill", got)
+		t.Errorf("the summary is %q, want the draft esc saved, restored by the reopened step", got)
 	}
 }
 

@@ -122,6 +122,32 @@ func TestScopePickerMarksTheCurrentScope(t *testing.T) {
 	}
 }
 
+// The picker opens on the row of the current scope.
+func TestScopePickerStartsOnTheCurrentScope(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		scope filesScope
+		row   int
+	}{
+		{"all", filesScope{}, 0},
+		{"since", filesScope{kind: scopeSince, base: "old", commits: 2}, 1},
+		{"commit", filesScope{kind: scopeCommit, sha: "2222222bbbb", subject: "second change"}, 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			h, m, _ := pickerModal(t, tt.scope, true, true)
+			press(t, h, "w")
+			if m.find == nil {
+				t.Fatal("no picker is open")
+			}
+			if got := m.find.Index(); got != tt.row {
+				t.Errorf("the cursor is on row %d, want the current scope's row %d", got, tt.row)
+			}
+		})
+	}
+}
+
 func TestScopePickerChoosesTheScope(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {

@@ -81,6 +81,44 @@ func TestCatchupSaysCommitsAndCommentsSinceTheLastVisit(t *testing.T) {
 	}
 }
 
+// A comparison for a head that is no longer the pull request's, or that
+// another modal asked for, is not taken.
+func TestCatchupIgnoresStaleAndForeignComparisons(t *testing.T) {
+	t.Parallel()
+	h, m, svc := catching(t, lastSeen("old"), 100, aheadBy(2))
+	if m.visit.catch.commits != 2 {
+		t.Fatalf("commits = %d, want 2 before the head moves", m.visit.catch.commits)
+	}
+	// The head moves: the comparison is asked again, for the new head.
+	m.detail.HeadSHA = "e5f6a7b"
+	m.visit.catch.commits = 0
+	drain(t, h, m.askSince())
+	if n := len(svc.sinceReads); n != 2 {
+		t.Fatalf("Since read %d times, want again for the new head", n)
+	}
+	if q := svc.sinceReads[1]; q.Base != "old" || q.Head != "e5f6a7b" {
+		t.Fatalf("Since asked %+v, want old...e5f6a7b", q)
+	}
+	if m.visit.catch.commits != 2 {
+		t.Fatalf("commits = %d, want 2 from the new head", m.visit.catch.commits)
+	}
+
+	// The answer for the old head comes late.
+	m.receiveSince(sinceMsg{owner: m, head: "a1b2c3d", cmp: core.Compare{Status: core.CompareAhead, AheadBy: 7}})
+	if m.visit.catch.commits != 2 {
+		t.Errorf("a comparison of the old head set commits to %d, want it ignored", m.visit.catch.commits)
+	}
+	// An answer for another modal's head.
+	m.receiveSince(sinceMsg{owner: &detailModal{}, head: "e5f6a7b", cmp: core.Compare{Status: core.CompareAhead, AheadBy: 9}})
+	if m.visit.catch.commits != 2 {
+		t.Errorf("a comparison of another owner set commits to %d, want it ignored", m.visit.catch.commits)
+	}
+	m.receiveSince(sinceMsg{owner: &detailModal{}, head: "e5f6a7b", err: core.ErrRewritten})
+	if m.visit.catch.rewritten {
+		t.Error("an error of another owner marked the head rewritten, want it ignored")
+	}
+}
+
 func TestCatchupRowLeadsToFiles(t *testing.T) {
 	t.Parallel()
 	h, m, _ := catching(t, lastSeen("old"), 100, aheadBy(2))

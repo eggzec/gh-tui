@@ -24,6 +24,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.corpus = msg.corpus
 		m.recent = m.corpus.ranks(m.recentPaths)
 		cmd := m.match()
+		m.selectStart()
 		return m, cmd
 	case matchMsg:
 		if msg.id != m.id || msg.seq != m.seq {
@@ -151,6 +152,24 @@ func (m *Model) show(res *result) {
 	m.sel, m.top = 0, 0
 	m.rows = nil
 	m.render()
+}
+
+// selectStart moves the selection to the row that WithStart asks for, if the
+// listing is shown with the query still empty.
+func (m *Model) selectStart() {
+	if m.start == nil || m.res == nil || m.input.Value() != "" {
+		return
+	}
+	for i, ix := range m.res.items {
+		if !m.start(m.corpus.items[ix]) {
+			continue
+		}
+		m.sel = i
+		m.scroll()
+		m.rows = nil
+		m.render()
+		return
+	}
 }
 
 // tick starts the spinner unless it is running.

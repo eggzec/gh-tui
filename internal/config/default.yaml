@@ -140,6 +140,9 @@ cache:
     trees: 32MiB
     # The memory that the changes of commits take, and likewise, apart
     # from them, the changes of pull requests: each is kept up to this much.
+    # The changes between two commits of a pull request, which the Files tab
+    # reads for the changes since the last visit, have a budget of their own
+    # of the same size, so the worst case is twice this setting.
     diffs: 32MiB
     # The memory that the logs of jobs take.
     logs: 64MiB
@@ -671,7 +674,8 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    # Mark the pull request under the cursor, or unmark it. Esc unmarks
+    # Mark the pull request under the cursor, or unmark it, and move to the
+    # next row. Esc unmarks
     # them all, after it has cleared a search and a quick filter. While
     # some are marked, close, reopen and draft act on all of them, with one
     # question that says how many are left out; merge still acts on the
@@ -710,7 +714,8 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    # Mark the issue under the cursor, or unmark it. Esc unmarks them all,
+    # Mark the issue under the cursor, or unmark it, and move to the next
+    # row. Esc unmarks them all,
     # after it has cleared a search and a quick filter. While some are
     # marked, close and reopen act on all of them, with one question that
     # says how many are left out.
@@ -736,7 +741,8 @@ keys:
     prev_match: [N]
     filter: [f]
     clear_filter: [F]
-    # Mark the notification under the cursor, or unmark it. Esc unmarks
+    # Mark the notification under the cursor, or unmark it, and move to the
+    # next row. Esc unmarks
     # them all, after it has cleared a search and a quick filter. While
     # some are marked, read and done act on all of them, with one question
     # that says how many are left out.
