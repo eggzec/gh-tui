@@ -160,6 +160,39 @@ func TestFilesScopeSinceReadsTheRange(t *testing.T) {
 	}
 }
 
+// A scope whose files GitHub cut short says that the diff shows only the first
+// of them, as all the changes do, and a scope it listed whole says nothing.
+func TestFilesScopeNotesTheFirstFilesWhenCut(t *testing.T) {
+	t.Parallel()
+	const note = "showing the first 1 files"
+	tests := []struct {
+		name  string
+		scope filesScope
+		cut   bool
+	}{
+		{"since, cut", sinceOld, true},
+		{"since, whole", sinceOld, false},
+		{"commit, cut", filesScope{kind: scopeCommit, sha: "c0ffee", subject: "fix parser"}, true},
+		{"commit, whole", filesScope{kind: scopeCommit, sha: "c0ffee", subject: "fix parser"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			svc := newFakeService()
+			file := core.CommitFile{Path: "a.go", Status: "modified", SHA: "blob", Additions: 1, Deletions: 1, Patch: "@@ -1 +1 @@\n-a\n+b\n"}
+			svc.ranges = map[string]core.CompareDetail{"old": {Files: []core.CommitFile{file}, Truncated: tt.cut}}
+			svc.commitFiles = map[string][]core.CommitFile{"c0ffee": {file}}
+			svc.commitCut = map[string]bool{"c0ffee": tt.cut}
+			h, m := filed(t, svc, 100, 30)
+			m.tab = filesTab
+			drain(t, h, m.setFilesScope(tt.scope))
+			if got := strings.Contains(strings.Join(plain(m), "\n"), note); got != tt.cut {
+				t.Errorf("the view has the note %v, want %v:\n%s", got, tt.cut, strings.Join(plain(m), "\n"))
+			}
+		})
+	}
+}
+
 func TestFilesScopeCommitReadsTheCommitAndRefusesComments(t *testing.T) {
 	t.Parallel()
 	h, m, svc := scoped(t, filesScope{kind: scopeCommit, sha: "c0ffee", subject: "fix parser"})

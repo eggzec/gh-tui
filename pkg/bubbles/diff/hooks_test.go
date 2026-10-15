@@ -53,6 +53,51 @@ func TestSetCollapsedKeepsCursor(t *testing.T) {
 	}
 }
 
+func TestSetFirstFilesNote(t *testing.T) {
+	const note = "showing the first 3000 files"
+	m := load(t, threeFiles(), WithSize(80, 40))
+	m.SeekFile("b.go")
+	m = keys(t, m, "down", "down")
+	rows, cursor := m.Len(), m.Cursor()
+	if strings.Contains(m.View(), note) {
+		t.Fatalf("the view has the note before it is set:\n%s", m.View())
+	}
+
+	m.SetFirstFilesNote(3000)
+	if got := m.Len(); got != rows+1 {
+		t.Errorf("Len() = %d with the note, want %d", got, rows+1)
+	}
+	if got := m.Cursor(); got != cursor {
+		t.Errorf("cursor on row %d after the note came, want %d", got, cursor)
+	}
+	if !strings.Contains(m.View(), note) {
+		t.Errorf("the view lacks %q:\n%s", note, m.View())
+	}
+
+	m.SetFirstFilesNote(0)
+	if got := m.Len(); got != rows {
+		t.Errorf("Len() = %d without the note, want %d", got, rows)
+	}
+	if got := m.Cursor(); got != cursor {
+		t.Errorf("cursor on row %d after the note went, want %d", got, cursor)
+	}
+	if strings.Contains(m.View(), note) {
+		t.Errorf("the view still has the note:\n%s", m.View())
+	}
+}
+
+func TestSetFirstFilesNoteUnderTheCursor(t *testing.T) {
+	m := load(t, threeFiles(), WithSize(80, 40), WithFirstFilesNote(5))
+	m = keys(t, m, "G")
+	if m.Cursor() != m.Len()-1 {
+		t.Fatalf("cursor on row %d of %d, want the note, the last", m.Cursor(), m.Len())
+	}
+	m.SetFirstFilesNote(0)
+	if got, last := m.Cursor(), m.Len()-1; got != last {
+		t.Errorf("cursor on row %d after the note went, want the last row, %d", got, last)
+	}
+}
+
 func TestSetStatusNoteEndsTheStatus(t *testing.T) {
 	m := load(t, threeFiles())
 	m.SetStatusNote(func() string { return "2 viewed" })
