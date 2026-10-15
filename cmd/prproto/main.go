@@ -1771,7 +1771,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            ) ( next/prev unresolved thread; enter on a push opens its commits, aligned under the text",
 			"            <details> blocks in bodies are one row \"Title ⋯\": l/→ open · h/← close · * all (blocks too); open ones nest under a dim rule",
 			"            Description pane: enter opens/closes the first details block at or below the top line",
-			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit your comment/reply (the PR is edited in Description)",
+			"            c reply on a thread (flat, at its end) or quote reply on a comment/review (new comment, GitHub has no reply there) · T resolve/reopen a thread (y/n) · e edit your comment/reply (the PR is edited in Description)",
 			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
 			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
 			"Icons       Octicons (PRPROTO_ICONS=unicode for plain glyphs). Threads: " + ic.unresolved.String() + " unresolved · " + ic.resolved.String() + " resolved (row dimmed) · " + ic.outdated.String() + " outdated",
@@ -2042,7 +2042,7 @@ func (m *model) footer() string {
 	}
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
-		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c reply · T resolve · e edit · X delete",
+		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
 		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
 		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",

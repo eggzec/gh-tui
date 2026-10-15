@@ -91,7 +91,6 @@ type citem struct {
 	kind, state, who, when, body string
 	edited                       bool
 	threads                      []*thread
-	replies                      []*reply
 	commits                      [][2]string // a push: short SHA and subject
 	forced                       bool
 }
@@ -471,8 +470,7 @@ func (c *convState) itShown(it *citem) bool {
 	case 2:
 		return it.state == "changes"
 	case 3:
-		return it.who == me || slices.ContainsFunc(it.replies, func(r *reply) bool { return r.who == me }) ||
-			slices.ContainsFunc(it.threads, c.thShown)
+		return it.who == me || slices.ContainsFunc(it.threads, c.thShown)
 	}
 	return true
 }
@@ -516,7 +514,7 @@ func (m *model) crows(all bool) []crow {
 	}
 	addItem := func(it *citem, depth int, parent string) {
 		key := itKey(it)
-		fold := it.kind == "review" || it.kind == "push" || len(it.replies) > 0
+		fold := it.kind == "review" || it.kind == "push"
 		open := fold && op(key, it.kind != "push")
 		rows = append(rows, crow{key: key, kind: it.kind, depth: depth, parent: parent, fold: fold, open: open, it: it})
 		if hasBlock(it.body) && (it.kind == "comment" || open) {
@@ -545,7 +543,6 @@ func (m *model) crows(all bool) []crow {
 				addReplies(&t.replies, depth+2, tk, t, 1)
 			}
 		}
-		addReplies(&it.replies, depth+1, key, nil, 0)
 	}
 	var vis []*citem
 	for _, it := range c.items[1:] {
@@ -555,7 +552,7 @@ func (m *model) crows(all bool) []crow {
 	}
 	for i := 0; i < len(vis); {
 		j := i
-		for j < len(vis) && vis[j].kind == "comment" && len(vis[j].replies) == 0 {
+		for j < len(vis) && vis[j].kind == "comment" {
 			j++
 		}
 		if j-i >= 2 {
@@ -689,7 +686,7 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		right = meta(false, false, r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
 		head = whoHead(r.it)
-		right = meta(false, r.it.edited, fold(len(r.it.replies)), r.it.when)
+		right = meta(false, r.it.edited, r.it.when)
 		msg = leadText(r.it.body)
 	case "seg":
 		return segLines(r, cw, gb, kids)
@@ -700,7 +697,7 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 			if n := len(r.it.threads); n > 0 {
 				sum = fmt.Sprintf("%d threads ⋯", n)
 			} else {
-				n := len(r.it.replies)
+				n := 0
 				sum = fold(n)
 			}
 		}
@@ -878,6 +875,21 @@ func rowTgt(r crow) tgt {
 	return t
 }
 
+// replyVerb names what c does on the row under the cursor.
+func (m *model) replyVerb() string {
+	rows := m.crows(false)
+	if len(rows) == 0 {
+		return "reply"
+	}
+	switch rows[m.selIdx(rows)].kind {
+	case "reply", "thread":
+		return "reply"
+	case "pr", "comment", "review", "seg":
+		return "quote reply"
+	}
+	return "reply"
+}
+
 func (m *model) convKey(k string) tea.Cmd {
 	c := &m.cv
 	rows := m.crows(false)
@@ -941,6 +953,21 @@ func (m *model) convKey(k string) tea.Cmd {
 
 // ---------- actions shared by the tree and the diff pager ----------
 
+// quote opens the composer for a new top-level comment quoting it: GitHub
+// has no reply to an issue comment or a review body.
+func (m *model) quote(it *citem) tea.Cmd {
+	var q strings.Builder
+	for _, l := range strings.Split(strings.TrimSpace(it.body), "\n") {
+		q.WriteString("> " + l + "\n")
+	}
+	q.WriteString("\n")
+	m.push(overlay{kind: "reply", title: "Quote reply to " + disp(it.who), ctext: q.String(), save: func(m *model, _, txt string) tea.Cmd {
+		m.cv.items = append(m.cv.items, &citem{id: newID(), kind: "comment", who: me, when: "now", body: txt})
+		return m.say("comment added (pending)")
+	}})
+	return nil
+}
+
 type tgt struct {
 	kind, openKey string
 	it            *citem
@@ -963,14 +990,16 @@ func (m *model) act(k string, t tgt) tea.Cmd {
 		switch t.kind {
 		case "run":
 			return m.say("open the run and pick a comment to reply to")
+		case "push", "sys":
+			return m.say("events take no reply")
 		case "reply":
-			rl, who = t.rl, disp(t.rp.who)
+			rl, who = &t.th.replies, disp(t.rp.who)+" in thread "+t.th.label()
 		case "thread":
 			rl, who = &t.th.replies, "thread "+t.th.label()
 		default:
-			rl, who = &t.it.replies, disp(t.it.who)
+			return m.quote(t.it)
 		}
-		ok := t.openKey
+		ok := thKey(t.th)
 		m.push(overlay{kind: "reply", title: "Reply to " + who, save: func(m *model, _, txt string) tea.Cmd {
 			*rl = append(*rl, &reply{id: newID(), who: me, when: "now", body: txt, pending: true})
 			m.cv.open[ok] = true
