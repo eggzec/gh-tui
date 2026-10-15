@@ -162,6 +162,9 @@ func (it *citem) sysText() string {
 		return "**" + disp(it.who) + "** " + strings.Join(parts, " and ")
 	}
 	if it.kind != "push" {
+		if it.state == "ci" {
+			return ciText(it)
+		}
 		return it.body
 	}
 	n := len(it.commits)
@@ -257,6 +260,9 @@ func sysIcon(it *citem) string {
 	case "review":
 		return ic.eye.String()
 	case "ci":
+		if sha, label, ok := ciRef(it); ok {
+			return checkIcon(runOf(sha, label).state)
+		}
 		return ic.checkFail.String()
 	case "branch":
 		return ic.branch.String()
@@ -266,8 +272,12 @@ func sysIcon(it *citem) string {
 
 // commitLine is a commit row of an open push, hung under it with the tree
 // guides like any other thread.
-func commitLine(c [2]string, cw int, gm string) string {
-	left := gm + boldDim(c[0]) + "  " + c[1]
+func commitLine(c [2]string, cw int, gm string, open bool) string {
+	arrow := "▸ "
+	if open {
+		arrow = "▾ "
+	}
+	left := gm + dim(arrow) + boldDim(c[0]) + "  " + c[1]
 	return rightAlign(left, checkIcon(commitState(c[0])), cw)
 }
 
@@ -351,14 +361,14 @@ func newConv() convState {
 			// a comment on the whole second file
 			&thread{id: newID(), fi: 1, line: 0, loc: -1,
 				replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
-		it("sys", "ci", "ci", "1d ago", "Check **e2e** failed on **a1b2c3d**"),
+		it("sys", "ci", "ci", "1d ago", "Check **ci / test (linux)** failed on **a1b2c3d**"),
 		ev("review", "alice", "1d ago", 1440, act{"requested review from", []string{"**Carol Diaz**"}}),
 		ev("review", "alice", "1d ago", 1437, act{"requested review from", []string{"**org/core**"}}),
 		ev("label", "alice", "1d ago", 1436, act{"added", []string{"%%bug%%", "%%api%%"}}),
 		ev("label", "alice", "1d ago", 1434, act{"removed", []string{"%%wip%%"}}),
 		it("sys", "branch", "alice", "1d ago", "**Alice Chen** changed the base branch from **develop** to **main**"),
 		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake by waiting for the fixture server before the first request"}),
-		it("sys", "ci", "ci", "5h ago", "Check **unit tests** failed on **f9e8d7c**"),
+		it("sys", "ci", "ci", "5h ago", "Check **ci / test (linux)** failed on **f9e8d7c**"),
 		ev("review", "alice", "5h ago", 300, act{"requested review from", []string{"**Carol Diaz**"}}),
 		ev("label", "dave", "5h ago", 298, act{"added", []string{"%%enhancement%%", "%%good first issue%%"}}),
 		ev("label", "alice", "4h ago", 297, act{"removed", []string{"%%question%%"}}),
@@ -392,6 +402,7 @@ func newConv() convState {
 
 type crow struct {
 	key, kind, parent string
+	lbl               string // a check row: its label
 	depth             int
 	fold, open        bool
 	it                *citem
@@ -662,7 +673,14 @@ func (m *model) crows(all bool) []crow {
 		}
 		if it.kind == "push" {
 			for n, cm := range it.commits {
-				rows = append(rows, crow{key: fmt.Sprintf("cm:%d:%d", it.id, n), kind: "commit", depth: depth + 1, parent: key, it: it, commit: cm})
+				ck := fmt.Sprintf("cm:%d:%d", it.id, n)
+				co := op(ck, false)
+				rows = append(rows, crow{key: ck, kind: "commit", depth: depth + 1, parent: key, fold: true, open: co, it: it, commit: cm})
+				if co {
+					for _, r := range commitChecks(cm[0]) {
+						rows = append(rows, crow{key: ck + "|" + r.label, kind: "check", depth: depth + 2, parent: ck, it: it, commit: cm, lbl: r.label})
+					}
+				}
 			}
 		}
 		for _, t := range it.threads {
@@ -815,7 +833,10 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 			return []string{rightAlign(strings.Repeat(" ", pad)+head, right, cw)}
 		}
 	case "commit":
-		return []string{commitLine(r.commit, cw, gm)}
+		return []string{commitLine(r.commit, cw, gm, r.open)}
+	case "check":
+		ck := runOf(r.commit[0], r.lbl)
+		return []string{rightAlign(gm+checkIcon(ck.state)+" "+checkLabel(r.lbl), dim(stateWord(ck.state)+" · "+ck.dur), cw)}
 	case "run":
 		var who []string
 		for _, it := range r.run {
@@ -1099,7 +1120,17 @@ func (m *model) convKey(k string) tea.Cmd {
 		if r.kind == "thread" {
 			return m.openThread(r.th)
 		}
-		if r.kind == "commit" {
+		if r.kind == "check" {
+			m.openLog(r.commit[0], r.lbl)
+			return nil
+		}
+		if r.kind == "sys" && r.it.state == "ci" {
+			if sha, label, ok := ciRef(r.it); ok {
+				m.openLog(sha, label)
+				return nil
+			}
+		}
+		if r.kind == "commit" && k == "o" {
 			m.focusCommit(r.commit[0])
 			return nil
 		}
@@ -1113,6 +1144,16 @@ func (m *model) convKey(k string) tea.Cmd {
 				c.open[x.key] = anyClosed
 			}
 		}
+	case "R":
+		switch {
+		case r.kind == "check":
+			return m.rerun(r.commit[0], r.lbl)
+		case r.kind == "sys" && r.it.state == "ci":
+			if sha, label, ok := ciRef(r.it); ok {
+				return m.rerun(sha, label)
+			}
+		}
+		return m.say("R re-runs a check: move to a CI event or a check under a commit")
 	case ")":
 		return m.nextUnresolved(1)
 	case "(":

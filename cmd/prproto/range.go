@@ -24,8 +24,6 @@ var fcommits = []fcommit{
 // lastReview is the first commit pushed after the viewer's last review.
 const lastReview = 2
 
-var checkNames = []string{"build", "test", "lint"}
-
 var viewedGlyph = glyph{"", "✓", dim}
 
 // hunkCommit says which commit made a hunk (the fake data owns hunks by a rule).
@@ -114,19 +112,6 @@ func (m *model) rangeLabel() string {
 	return fmt.Sprintf("%d of %d commits · %s", m.hi-m.lo+1, len(fcommits), m.rangeShas())
 }
 
-func commitChecks(sha string) [][2]string {
-	st := commitState(sha)
-	var out [][2]string
-	for _, n := range checkNames {
-		s := "ok"
-		if st == "fail" && n == "test" || st == "pending" && n == "lint" {
-			s = st
-		}
-		out = append(out, [2]string{n, s})
-	}
-	return out
-}
-
 // rebuild lays the tree out again for the current range and folds, keeping the
 // cursor on the same row when it still exists.
 func (m *model) rebuild() {
@@ -143,8 +128,16 @@ func (m *model) rebuild() {
 			}
 			rows = append(rows, row{kind: 'c', ci: i, depth: 1})
 			if m.foldOpen("c:"+c.sha, false) {
-				for k := range checkNames {
-					rows = append(rows, row{kind: 'k', ci: i, fi: k, depth: 2})
+				wf := ""
+				for _, r := range commitChecks(c.sha) {
+					w, _, _ := strings.Cut(r.label, " / ")
+					if w != wf {
+						wf = w
+						rows = append(rows, row{kind: 'w', ci: i, label: w, depth: 2})
+					}
+					if m.foldOpen("w:"+c.sha+"|"+w, true) {
+						rows = append(rows, row{kind: 'k', ci: i, label: r.label, depth: 3})
+					}
 				}
 			}
 		}
@@ -197,8 +190,16 @@ func (m *model) fileRowLine(r row, cw int) string {
 		left := ind + mark + " " + checkIcon(commitState(c.sha)) + " " + boldDim(c.sha) + " " + subj
 		return rightAlign(left, dim(c.who+"  "+c.ago), cw)
 	case 'k':
-		ck := commitChecks(fcommits[r.ci].sha)[r.fi]
-		return ind + checkIcon(ck[1]) + " " + dim(ck[0]+" · "+ck[1])
+		ck := runOf(fcommits[r.ci].sha, r.label)
+		_, job, _ := strings.Cut(r.label, " / ")
+		return rightAlign(ind+checkIcon(ck.state)+" "+job, dim(stateWord(ck.state)+" · "+ck.dur), cw)
+	case 'w':
+		sha := fcommits[r.ci].sha
+		arrow := "▸ "
+		if m.foldOpen("w:"+sha+"|"+r.label, true) {
+			arrow = "▾ "
+		}
+		return ind + dim(arrow) + r.label
 	}
 	if r.dir {
 		return ind + dim("▾ "+r.label)

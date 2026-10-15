@@ -1405,15 +1405,6 @@ const description = "## Summary\n" +
 	"- ran the app command by hand with empty and non-empty input\n" +
 	"- the `e2e` job is flaky on this branch; a fix is in a separate pull request"
 
-type check struct{ name, state, dur string }
-
-var checks = []check{
-	{"build (linux)", "ok", "1m12s"}, {"build (macos)", "ok", "2m01s"}, {"build (windows)", "ok", "2m40s"},
-	{"test (linux)", "fail", "3m22s"}, {"lint", "fail", "0m48s"}, {"vet", "ok", "0m20s"},
-	{"bench", "ok", "4m10s"}, {"schema", "ok", "0m09s"}, {"cross-compile", "ok", "1m55s"},
-	{"codeql", "ok", "5m03s"}, {"docs", "ok", "0m31s"}, {"e2e", "pending", "2m10s"},
-}
-
 // checkIcon is the glyph of a check state.
 func checkIcon(state string) string {
 	switch state {
@@ -1425,98 +1416,30 @@ func checkIcon(state string) string {
 	return ic.checkOK.String()
 }
 
-// sortedChecks lists the check indexes with the failing first, then the
-// pending ones, then the passing ones.
-func sortedChecks() []int {
-	idx := make([]int, len(checks))
-	for i := range idx {
-		idx[i] = i
-	}
-	rank := func(i int) int {
-		switch checks[i].state {
-		case "fail":
-			return 0
-		case "pending":
-			return 1
-		}
-		return 2
-	}
-	slices.SortStableFunc(idx, func(a, b int) int { return rank(a) - rank(b) })
-	return idx
-}
-
-func checkByName(name string) int {
-	return slices.IndexFunc(checks, func(c check) bool { return c.name == name })
-}
-
 // A blocker is one row of the merge box.
 type blocker struct {
 	kind  string // check, review, changes, conflict
 	text  string
 	right string
-	check int
+	state string // of a check blocker
 }
 
+// blockers lists the required checks of the head commit that don't pass, then
+// the other things that stop a merge.
 func blockers() []blocker {
-	return []blocker{
-		{"check", "ci / test (linux)", "failing", checkByName("test (linux)")},
-		{"check", "ci / lint", "failing", checkByName("lint")},
-		{"review", "Review required: core team", "", 0},
-		{"changes", "Changes requested: Carol Diaz", "", 0},
-		{"conflict", "Conflicts with main", "", 0},
-	}
-}
-
-// checkLog is a fake log of a check run.
-func checkLog(c check) []string {
-	var out []string
-	ts := func(n int) string { return dim(fmt.Sprintf("12:%02d:%02d ", 4+n/60, n%60)) }
-	n := 0
-	step := func(s string) {
-		out = append(out, ts(n)+bold(cyan("▶ "+s)))
-		n += 3
-	}
-	line := func(s string) {
-		out = append(out, ts(n)+s)
-		n++
-	}
-	step("Set up job")
-	line("Runner: ubuntu-24.04, 4 cores")
-	step("Checkout")
-	line("Fetching the repository at f9e8d7c")
-	step("Set up Go 1.25")
-	line("Using the cached toolchain")
-	step("Run " + c.name)
-	for i := 1; i <= 24; i++ {
-		line(fmt.Sprintf("=== RUN   TestCase%02d", i))
-		if c.state == "fail" && i == 17 {
-			line(red("--- FAIL: TestCase17 (0.02s)"))
-			line(red("    calc_test.go:41: Div(1, 0) panicked: runtime error: integer divide by zero"))
-			line(red("FAIL"))
-			line(red("Error: Process completed with exit code 1."))
-			out = append(out, "", red("✗ "+c.name+" failed after "+c.dur))
-			return out
+	var out []blocker
+	for _, l := range []string{"ci / test (linux)", "ci / lint"} {
+		st := runOf(headSHA(), l).state
+		right := "failing"
+		if st == "pending" {
+			right = "running"
 		}
-		if c.state == "pending" && i == 20 {
-			line(dim("… the job is still running"))
-			return out
-		}
-		line(green(fmt.Sprintf("--- PASS: TestCase%02d (0.0%ds)", i, i%7)))
+		out = append(out, blocker{"check", l, right, st})
 	}
-	line(green("PASS"))
-	out = append(out, "", green("✓ "+c.name+" passed in "+c.dur))
-	return out
-}
-
-// commitState is the fake combined status of a commit.
-func commitState(sha string) string {
-	switch sha {
-	case "a1b2c3d", "f9e8d7c":
-		return "fail"
-	case "c3d4e5f":
-		return "pending"
-	}
-	return "ok"
+	return append(out,
+		blocker{kind: "review", text: "Review required: core team"},
+		blocker{kind: "changes", text: "Changes requested: Carol Diaz"},
+		blocker{kind: "conflict", text: "Conflicts with main"})
 }
 
 // commitDiff is a fake diff of one commit: a subset of the files.
@@ -1573,6 +1496,7 @@ type overlay struct {
 	quick   bool // opened by c on a Files row: closes when the composer ends
 	all     bool // the whole patch instead of one file
 	max     bool
+	open    map[int]bool // the log: steps the reader folded or opened
 	ondraft bool   // the cursor is on a draft row
 	dkey    [3]int // which draft
 	embed   bool   // the pager shown beside the zoomed files list
@@ -1806,7 +1730,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			var icon string
 			switch b.kind {
 			case "check":
-				icon = ic.checkFail.String()
+				icon = checkIcon(b.state)
 			case "review":
 				icon = ic.requested.String()
 			case "changes":
@@ -1985,9 +1909,6 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			out = append(out, "")
 		}
 		return "Combined diff · 6 files · +120 −8", out
-	case "log":
-		c := checks[o.arg]
-		return "ci / " + c.name + " · " + c.state, checkLog(c)
 	case "commit":
 		return "Commit " + o.title + " · " + o.text, commitDiff(o.title, o.text)
 	case "issue":
@@ -2041,7 +1962,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
 			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens its log / the reviewer picker /",
 			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
-			"Checks      C (anywhere) lists all checks, failing first: j/k · enter the log · esc/backspace back",
+			"Checks      under an open commit (Files, Conversation push) and as Merge blockers; enter on a check opens its log (enter/l/h fold a step, esc closes)",
+			"            R on a failed check re-runs it (asks y/n), then it shows pending everywhere · in Conversation, o on a commit shows it in Files",
 			"Commits     enter on a push opens its commits as a thread; enter on a commit shows only it in Files (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
@@ -2124,30 +2046,8 @@ func (m *model) drawOverlay(o *overlay) (string, int, int, int) {
 			title += fmt.Sprintf(" · %d of %d", len(fl), len(o.items))
 		}
 		s = box(title, lines, w, h, true)
-	case "checks":
-		var lines []string
-		slots := max(1, h-2)
-		off := max(0, o.pcur-slots+1)
-		order := sortedChecks()
-		for i := off; i < min(len(order), off+slots); i++ {
-			c := checks[order[i]]
-			row := rightAlign(checkIcon(c.state)+" "+c.name, dim(c.dur), w-6)
-			if i == o.pcur {
-				lines = append(lines, selRow("  "+row, w-4, true))
-				continue
-			}
-			lines = append(lines, "  "+row)
-		}
-		nf, np := 0, 0
-		for _, c := range checks {
-			switch c.state {
-			case "fail":
-				nf++
-			case "pending":
-				np++
-			}
-		}
-		s = box(fmt.Sprintf("Checks · %d runs · %d failing · %d pending", len(checks), nf, np), lines, w, h, true)
+	case "log":
+		s = m.drawLog(o, w, h)
 	case "file":
 		s = m.drawDiff(o, w, h)
 	case "reply", "editpr":
@@ -2371,8 +2271,8 @@ func (m *model) footer() string {
 				return dim("j/k move · / filter · space toggle · enter apply · esc cancel")
 			}
 			return dim("j/k move · / filter · enter pick · esc cancel")
-		case "checks":
-			return dim("j/k move · enter log · Z max · esc/backspace back")
+		case "log":
+			return dim("j/k move · enter/l/h fold step · R re-run (asks y/n) · Z max · esc/backspace close")
 		case "reply":
 			return dim("type the reply · enter save · esc cancel")
 		case "editpr":
@@ -2389,7 +2289,7 @@ func (m *model) footer() string {
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
-		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
+		pMerge:     "j/k blockers · enter fix/open log · R re-run check · M merge · A auto-merge · U update",
 		pReviewers: "enter fold/jump to comment · e edit group · R re-request · x remove",
 		pDev:       "enter fold/open · a link · x unlink",
 		pFiles:     "enter diff/fold · space select commit/mark viewed · A all · S since review · D combined · c comment",
@@ -2490,8 +2390,6 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		m.zoom = !m.zoom
 	case "?":
 		m.push(overlay{kind: "help"})
-	case "C":
-		m.push(overlay{kind: "checks"})
 	default:
 		return m.paneKey(k)
 	}
@@ -2630,11 +2528,16 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.confirm("Enable auto-merge on #42?", "(prototype) would enable auto-merge")
 		case "U":
 			m.confirm("Update branch with main?", "(prototype) would update the branch")
+		case "R":
+			if b := blockers()[m.cur[pMerge]]; b.kind == "check" {
+				return m.rerun(headSHA(), b.text)
+			}
+			return m.say("R re-runs a check: move to a failing check")
 		case "enter":
 			b := blockers()[m.cur[pMerge]]
 			switch b.kind {
 			case "check":
-				m.push(overlay{kind: "log", arg: b.check})
+				m.openLog(headSHA(), b.text)
 			case "review":
 				m.requestReviewer()
 			case "changes":
@@ -2748,7 +2651,18 @@ func (m *model) paneKey(k string) tea.Cmd {
 			case r.kind == 'c':
 				m.toggleFold("c:"+fcommits[r.ci].sha, false)
 				m.rebuild()
+			case r.kind == 'w':
+				m.toggleFold("w:"+fcommits[r.ci].sha+"|"+r.label, true)
+				m.rebuild()
+			case r.kind == 'k':
+				m.openLog(fcommits[r.ci].sha, r.label)
 			}
+		case "R":
+			r := m.rows[m.cur[pFiles]]
+			if r.kind != 'k' {
+				return m.say("R re-runs a check: open a commit and move to a failing one")
+			}
+			return m.rerun(fcommits[r.ci].sha, r.label)
 		case "A":
 			m.lo, m.hi = 0, len(fcommits)-1
 			m.rebuild()
@@ -2883,20 +2797,8 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "file":
 		return m.diffKey(top, msg)
-	case "checks":
-		order := sortedChecks()
-		switch k {
-		case "esc", "backspace", "q":
-			m.pop()
-		case "enter":
-			m.push(overlay{kind: "log", arg: order[top.pcur]})
-		case "Z":
-			top.max = !top.max
-		default:
-			if d := moveDelta(k); d != 0 {
-				top.pcur = max(0, min(top.pcur+d, len(order)-1))
-			}
-		}
+	case "log":
+		return m.logKey(top, k)
 	case "reply", "editpr":
 		return m.composeKey(top, msg)
 	default:
