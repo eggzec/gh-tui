@@ -20,8 +20,8 @@ import (
 // memory and confirmed with their ETag once the TTL runs out. The files
 // between two commits never change, so they are kept for good, by the SHAs.
 
-// errNotSHA is a range that is read by something other than the full SHAs
-// of its two commits, which are what make its files immutable.
+// errNotSHA is a range, or the files of a commit, that is read by something
+// other than the full SHAs, which are what make its files immutable.
 var errNotSHA = errors.New("not a full commit SHA")
 
 // SinceQuery selects the comparison of the head of a pull request now with
