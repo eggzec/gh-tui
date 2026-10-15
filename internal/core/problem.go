@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strconv"
 	"time"
 )
@@ -100,6 +101,24 @@ func (p *Problem) Error() string {
 // Unwrap returns the error the problem explains.
 func (p *Problem) Unwrap() error {
 	return p.Err
+}
+
+// ssoReason matches GitHub's reason for refusing a token that isn't
+// authorized for an organization's SAML single sign-on.
+var ssoReason = regexp.MustCompile(`\b(?:SAML|SSO)\b`)
+
+// ViaSSO reports whether p is an organization's SSO: GitHub said so in its
+// headers, or its reason names SSO, as a GraphQL error's does.
+func (p *Problem) ViaSSO() bool {
+	return p.SSO || ssoReason.MatchString(p.Reason)
+}
+
+// SSORefusal reports whether err is an organization refusing the token
+// until it is authorized for the organization's single sign-on, rather than
+// any other refusal.
+func SSORefusal(err error) bool {
+	p := Explain("", err)
+	return p != nil && p.Kind == Forbidden && p.ViaSSO()
 }
 
 // SubjectError names what an error is about, such as the pull request

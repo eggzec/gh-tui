@@ -171,7 +171,9 @@ func (s *Service) FreshTeams(q TeamsQuery) bool {
 // Only an organization's members see its teams: for anyone else Teams
 // fails with an error matching core.ErrForbidden, which is how the page
 // learns that the teams are for members only rather than that something
-// went wrong. Nothing of them is then kept, and the answer holds for
+// went wrong. An organization's SSO refusing the token fails the same way
+// but is told apart (core.SSORefusal) and never held. Nothing of the teams
+// is then kept, and the answer holds for
 // TTLs.People without a request, or until Invalidate, or
 // InvalidateLogin of the organization, as a refresh of its page does.
 func (s *Service) Teams(ctx context.Context, q TeamsQuery) (core.Page[core.Team], error) {
@@ -184,7 +186,10 @@ func (s *Service) Teams(ctx context.Context, q TeamsQuery) (core.Page[core.Team]
 	p, err := read(ctx, s, &s.teams, q.Login, "teams", q.key(), q.Again, whole(func(ctx context.Context) (core.Page[core.Team], error) {
 		return s.api.OrgTeams(ctx, q.Login, q.PageSize, q.Cursor)
 	}))
-	if errors.Is(err, core.ErrForbidden) {
+	// An organization's SSO refuses the token, not the viewer: that isn't
+	// for members only, and authorizing the token must show the teams at
+	// once.
+	if errors.Is(err, core.ErrForbidden) && !core.SSORefusal(err) {
 		s.membersOnly.Set(login, cache.Entry[error]{Value: err, Tags: tags(login)})
 	}
 	return p, err
