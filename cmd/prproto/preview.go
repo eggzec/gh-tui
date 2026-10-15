@@ -462,7 +462,7 @@ func (m *model) devPreview(nd tnode, cw int) pview {
 		ex := mdPlain(body, cw)
 		pv.lines = append(pv.lines, ex[:min(len(ex), 6)]...)
 		if len(ex) > 6 {
-			pv.lines = append(pv.lines, dim("⋯"))
+			pv.lines[len(pv.lines)-1] += dim("  ⋯")
 		}
 		return pv
 	}

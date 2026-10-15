@@ -315,7 +315,7 @@ func mdSegs(segs []seg, w int, key string, off int) []string {
 		descHdr = append(descHdr, descHead{k, off + len(out), off + len(out)})
 		hi := len(descHdr) - 1
 		if !descOpen[k] {
-			out = append(out, strings.TrimRight(s.summary, " ")+hidden(s, w))
+			out = append(out, withFold(strings.TrimRight(s.summary, " "), hidden(s, w), w))
 			continue
 		}
 		out = append(out, s.summary)
@@ -350,13 +350,37 @@ func segCount(s seg, w int) int {
 	return n
 }
 
-// hidden is the dim marker of a folded block: the ⋯ and its hidden lines.
+// hidden is the marker of a folded block: the ⋯ and its hidden lines.
 func hidden(s seg, w int) string {
 	n := segCount(s, w)
 	if n == 1 {
-		return dim(" ⋯ 1 line")
+		return "⋯ 1 line"
 	}
-	return dim(fmt.Sprintf(" ⋯ %d lines", n))
+	return fmt.Sprintf("⋯ %d lines", n)
+}
+
+// replyMark is the marker of a folded thread: the ⋯ and its hidden replies.
+func replyMark(n int) string {
+	if n == 1 {
+		return "⋯ 1 reply"
+	}
+	return fmt.Sprintf("⋯ %d replies", n)
+}
+
+// withFold draws a folded row: its text, then the dim marker at the end, all
+// in w columns. A long text is cut with one "…" before the marker; when even
+// that leaves no room, the marker goes.
+func withFold(text, marker string, w int) string {
+	mw := ansi.StringWidth(marker) + 2
+	switch {
+	case marker == "":
+		return ansi.Truncate(text, max(1, w), "…")
+	case ansi.StringWidth(text)+mw <= w:
+		return text + "  " + dim(marker)
+	case w-mw >= 8:
+		return ansi.Truncate(text, w-mw, "…") + "  " + dim(marker)
+	}
+	return ansi.Truncate(text, max(1, w), "…")
 }
 
 // toggleDesc opens (want > 0), closes (want < 0) or flips (0) the details
@@ -2255,8 +2279,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            reviews: " + ic.approved.String() + " approved · " + ic.changes.String() + " changes requested · " + ic.commented.String() + " commented · " + ic.requested.String() + " requested · " + ic.rerequested.String() + " re-requested · " + ic.dismissed.String() + " dismissed",
 			"            checks: " + ic.checkOK.String() + " pass · " + ic.checkFail.String() + " fail · " + ic.checkPending.String() + " pending   PRs: " + ic.prOpen.String() + " open · " + ic.prDraft.String() + " draft · " + ic.merged.String() + " merged · " + ic.prClosed.String() + " closed",
 			"            issues: " + ic.issueOpen.String() + " open · " + ic.issueClosed.String() + " closed · " + ic.blocked.String() + " blocked",
-			"            right edge of a row: ⋯ 3 folded replies,",
-			"            2 threads ⋯ folded review, ⋯ 3 comments folded run, then edited and age like 20h, 2d)",
+			"            end of a folded row, after its text: ⋯ 3 replies (thread), ⋯ 2 threads (review), ⋯ (run of comments), ⋯ 12 lines (details);",
+			"            the right edge keeps edited and the age like 20h, 2d",
 			"Merge       a blocker per row (failing check, missing review, changes requested, conflict): enter opens the check's run / the reviewer picker /",
 			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
 			"Checks      under an open commit (Files, Conversation push) and as Merge blockers; enter on a check opens its workflow run (Actions-style modal):",

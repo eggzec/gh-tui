@@ -539,7 +539,7 @@ func segLines(r crow, cw int, gb string, kids bool) []string {
 			out = append(out, pad+l)
 		}
 	case !r.open:
-		out = []string{pad + strings.TrimRight(s.summary, " ") + hidden(*s, w)}
+		out = []string{pad + withFold(strings.TrimRight(s.summary, " "), hidden(*s, w), w)}
 	default:
 		out = append(out, pad+s.summary)
 		if s.text != "" {
@@ -838,13 +838,14 @@ func guides(rows []crow, i int) (first, body string, kids bool) {
 
 func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	closed := r.fold && !r.open
-	// A folded node's dim summary: "⋯ 3" for folded replies.
+	// A folded node's trailing marker, drawn after its text: "⋯ 3 replies".
 	fold := func(n int) string {
 		if !closed || n == 0 {
 			return ""
 		}
-		return fmt.Sprintf("⋯ %d", n)
+		return replyMark(n)
 	}
+	ft := ""
 	// meta joins the secondary info of the right edge, dim.
 	meta := func(pending, edited bool, parts ...string) string {
 		var p []string
@@ -903,11 +904,10 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 				who = append(who, n)
 			}
 		}
-		lead := ""
 		if closed {
-			lead = dim("⋯ ")
+			ft = "⋯"
 		}
-		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", "))
+		head = bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", "))
 		right = meta(false, false, r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
 		head = whoHead(r.it)
@@ -917,16 +917,10 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		return segLines(r, cw, gb, kids)
 	case "review":
 		head = whoHead(r.it)
-		sum := ""
-		if closed {
-			if n := len(r.it.threads); n > 0 {
-				sum = fmt.Sprintf("%d threads ⋯", n)
-			} else {
-				n := 0
-				sum = fold(n)
-			}
+		if n := len(r.it.threads); closed && n > 0 {
+			ft = fmt.Sprintf("⋯ %d threads", n)
 		}
-		right = meta(false, r.it.edited, sum, r.it.when)
+		right = meta(false, r.it.edited, r.it.when)
 		if r.open {
 			msg = leadText(r.it.body)
 		}
@@ -956,11 +950,15 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		if closed && r.th.outdated {
 			head += " " + dim(outdatedIcon)
 		}
-		right = meta(false, first.edited, fold(len(r.th.replies)-1), first.when)
+		ft = fold(len(r.th.replies) - 1)
+		right = meta(false, first.edited, first.when)
 	case "reply":
 		head = bold(disp(r.rp.who))
 		right = meta(r.rp.pending, r.rp.edited, r.rp.when)
 		msg = r.rp.body
+	}
+	if ft != "" {
+		head = withFold(head, ft, cw-lipgloss.Width(gm)-lipgloss.Width(right)-2)
 	}
 	// The text starts one gap after the head; later lines align under it.
 	var first string
@@ -1380,7 +1378,7 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 			case !isOpen:
 				text = bold(disp(first.who)) + dim(" · "+t.label())
 				if n := len(t.replies) - 1; n > 0 {
-					text += dim(fmt.Sprintf(" ⋯ %d", n))
+					text += "  " + dim(replyMark(n))
 				}
 			case t.resolved:
 				text = dim(disp(first.who))
