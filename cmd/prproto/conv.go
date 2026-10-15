@@ -281,6 +281,10 @@ type convState struct {
 	title    string
 	first    int // first and last line of the selected row in the last render
 	lastLine int
+
+	// What the last render drew, for the pinned rows: the row of each line,
+	// the first line of each row and the index of its parent row (-1 for none).
+	lineRow, rowFirst, rowPar []int
 }
 
 var filterNames = []string{"all", "unresolved", "changes requested", "mine"}
@@ -329,6 +333,10 @@ func newConv() convState {
 		it("comment", "", "alice", "2d ago", "Added a test for it, plus a package doc in doc.go."),
 		it("comment", "", "dave", "2d ago", "The docs read well to me."),
 		it("comment", "", "erin", "2d ago", "Could the README mention the zero case too?"),
+		it("comment", "", "frank", "2d ago", "Is this meant to replace the helpers in cmd/tools too?"),
+		it("comment", "", "gina", "2d ago", "+1 on moving the arithmetic into one package."),
+		it("comment", "", "hugo", "2d ago", "Please keep the exported names short."),
+		it("comment", "", "ivy", "2d ago", "Benchmarks would be nice to have."),
 		it("review", "approve", "bob", "2d ago", "LGTM once CI is green."),
 		it("review", "changes", "carol", "1d ago", "The Div helper panics on zero. Please return an error instead; see the threads.",
 			span(11, false, th(12, "+	return a / b", false,
@@ -919,14 +927,29 @@ func (m *model) convLines(cw int) []string {
 	rows := m.crows(false)
 	if len(rows) == 0 {
 		c.first, c.lastLine = 0, 0
+		c.lineRow, c.rowFirst, c.rowPar = nil, nil, nil
 		return []string{dim("  nothing matches this filter (f changes it)")}
 	}
 	si := m.selIdx(rows)
 	c.sel, c.last = rows[si].key, si
 	var out []string
+	pos := map[string]int{}
+	for i, r := range rows {
+		pos[r.key] = i
+	}
+	c.lineRow, c.rowFirst, c.rowPar = c.lineRow[:0], c.rowFirst[:0], c.rowPar[:0]
 	for i, r := range rows {
 		gm, gb, kids := guides(rows, i)
 		ls := m.crowLines(r, cw, gm, gb, kids)
+		par := -1
+		if p, ok := pos[r.parent]; ok && r.parent != "" && p < i {
+			par = p
+		}
+		c.rowFirst = append(c.rowFirst, len(out))
+		c.rowPar = append(c.rowPar, par)
+		for range ls {
+			c.lineRow = append(c.lineRow, i)
+		}
 		if i == si {
 			c.first, c.lastLine = len(out), len(out)+len(ls)-1
 			for j, l := range ls {
@@ -939,6 +962,7 @@ func (m *model) convLines(cw int) []string {
 			ev := func(r crow) bool { return r.it != nil && r.it.isEvent() }
 			if !(ev(r) && ev(rows[i+1])) {
 				out = append(out, "")
+				c.lineRow = append(c.lineRow, i+1)
 			}
 		}
 	}
@@ -954,8 +978,12 @@ func (m *model) fixConv() {
 	if c.first < m.scroll {
 		m.scroll = c.first
 	}
-	if c.lastLine >= m.scroll+ih {
-		m.scroll = min(c.first, c.lastLine-ih+1)
+	for range 3 {
+		vis := ih - len(m.convPins(m.scroll))
+		if c.lastLine < m.scroll+vis {
+			break
+		}
+		m.scroll = min(c.first, c.lastLine-vis+1)
 	}
 	m.scroll = max(0, min(m.scroll, m.maxScroll()))
 }

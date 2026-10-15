@@ -492,10 +492,65 @@ var files = []file{
 +Run the app with the calc helpers:
 +
 +    app --dry-run`},
+	{"pkg/calc/internal/", "round.go", 12, 0, false, `@@ -0,0 +1,12 @@
++package internal
++
++import "math"
++
++// Round rounds x half away from zero.
++func Round(x float64) int {
++	if x < 0 {
++		return int(math.Ceil(x - 0.5))
++	}
++	return int(math.Floor(x + 0.5))
++}`},
+	{"docs/", "guide.md", 6, 1, false, `@@ -1,4 +1,9 @@
+ # Guide
+-Old intro.
++Use the calc package from your own code.
++
++    calc.Add(1, 2)
++
++Division by zero returns an error.`},
 }
 
 func (f file) total() int {
-	return map[string]int{"calc.go": 60, "calc_test.go": 52, "doc.go": 8, "main.go": 45, "flags.go": 40, "README.md": 30}[f.name]
+	return map[string]int{"calc.go": 60, "calc_test.go": 52, "doc.go": 8, "main.go": 45, "flags.go": 40, "README.md": 30, "round.go": 12, "guide.md": 20}[f.name]
+}
+
+// buildRows lays the files out as a tree: at each level the folders come
+// first, then the files, each kind in alphabetical order.
+func buildRows() []row {
+	var out []row
+	var walk func(prefix string, depth int)
+	walk = func(prefix string, depth int) {
+		var subs []string
+		for _, f := range files {
+			if rest, ok := strings.CutPrefix(f.dir, prefix); ok && rest != "" {
+				seg, _, _ := strings.Cut(rest, "/")
+				if !slices.Contains(subs, seg) {
+					subs = append(subs, seg)
+				}
+			}
+		}
+		slices.Sort(subs)
+		for _, s := range subs {
+			out = append(out, row{dir: true, label: s, depth: depth})
+			walk(prefix+s+"/", depth+1)
+		}
+		var here []int
+		for i, f := range files {
+			if f.dir == prefix {
+				here = append(here, i)
+			}
+		}
+		slices.SortFunc(here, func(a, b int) int { return strings.Compare(files[a].name, files[b].name) })
+		for _, i := range here {
+			out = append(out, row{fi: i, depth: depth})
+		}
+	}
+	walk("", 0)
+	return out
 }
 
 type hunk struct {
@@ -1283,6 +1338,7 @@ type row struct {
 	dir   bool
 	fi    int
 	label string
+	depth int // nesting: a folder's files sit one deeper than the folder
 }
 
 type entry struct{ who, kind, when, body string }
@@ -1569,23 +1625,7 @@ func newModel() *model {
 		labels:    []string{"bug", "api"},
 		prState:   "open",
 	}
-	// root files come first as plain names, then one folder row per directory
-	for i, f := range files {
-		if f.dir == "" {
-			m.rows = append(m.rows, row{fi: i})
-		}
-	}
-	last := "?"
-	for i, f := range files {
-		if f.dir == "" {
-			continue
-		}
-		if f.dir != last {
-			m.rows = append(m.rows, row{dir: true, label: f.dir})
-			last = f.dir
-		}
-		m.rows = append(m.rows, row{fi: i})
-	}
+	m.rows = buildRows()
 	m.cur[pFiles] = 0
 	return m
 }
@@ -1765,7 +1805,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		curLine := 0
 		for k, r := range m.rows {
 			if r.dir {
-				out = append(out, dim("▾ "+r.label))
+				out = append(out, strings.Repeat("  ", r.depth)+dim("▾ "+r.label))
 				continue
 			}
 			f := files[r.fi]
@@ -1773,12 +1813,13 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			if f.thread {
 				t += " " + ic.unresolved.String()
 			}
+			ind := strings.Repeat("  ", r.depth)
 			if m.cur[pFiles] == k {
 				w, _ := m.paneDims(pFiles)
-				out = append(out, selRow("  "+t, w-4, m.focus == pFiles))
+				out = append(out, selRow(ind+t, w-4, m.focus == pFiles))
 				curLine = k
 			} else {
-				out = append(out, "  "+t)
+				out = append(out, ind+t)
 			}
 		}
 		if m.cur[pFiles] > curLine {
@@ -1833,7 +1874,7 @@ func box(title string, lines []string, w, h int, focus bool) string {
 
 func (m *model) maxScroll() int {
 	w, h := m.paneDims(pMain)
-	return max(0, len(m.convLines(w-4))-(h-2))
+	return m.scrollMax(len(m.convLines(w-4)), h-2)
 }
 
 func (m *model) pane(i int) string {
@@ -1842,8 +1883,22 @@ func (m *model) pane(i int) string {
 	ih := max(1, h-2)
 	off := 0
 	title := m.paneTitle(i)
+	var pins []string
 	if i == pMain || i == pDesc {
 		off = min(m.scroll, max(0, len(lines)-ih))
+		if i == pMain {
+			off = min(m.scroll, m.scrollMax(len(lines), ih))
+			for _, j := range m.convPins(off) {
+				if j == m.cv.first && m.focus == pMain {
+					pins = append(pins, lines[j])
+				} else {
+					pins = append(pins, pinRow(lines[j], w-4))
+				}
+			}
+			if len(pins) > ih-1 {
+				pins = pins[:max(0, ih-1)]
+			}
+		}
 		if i == pDesc {
 			off = min(m.dscroll, max(0, len(lines)-ih))
 			if m.dcur < len(lines) {
@@ -1854,10 +1909,15 @@ func (m *model) pane(i int) string {
 			title += fmt.Sprintf(" · %d%%", (off+ih)*100/len(lines))
 		}
 	} else {
-		off = max(0, cl-ih+1)
+		var pl []int
+		off, pl = treeWindow(cl, ih, depthAnc(m.paneDepths(i)))
+		for _, j := range pl {
+			pins = append(pins, pinRow(lines[j], w-4))
+		}
 	}
-	end := min(len(lines), off+ih)
-	return box(title, lines[off:end], w, h, m.focus == i && !(m.split() && m.pfocus == 1))
+	end := min(len(lines), off+ih-len(pins))
+	shown := append(pins, lines[off:end]...)
+	return box(title, shown, w, h, m.focus == i && !(m.split() && m.pfocus == 1))
 }
 
 // ---------- overlays ----------
@@ -1902,7 +1962,11 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 		return "", nil
 	case "combined":
 		var out []string
-		for _, f := range files {
+		for _, r := range m.rows {
+			if r.dir {
+				continue
+			}
+			f := files[r.fi]
 			out = append(out, bold(accent(fmt.Sprintf("━━ %s  +%d −%d", f.path(), f.add, f.del))))
 			out = append(out, diffLines(f.diff)...)
 			out = append(out, "")
@@ -1939,7 +2003,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "help":
 		return "Keys", []string{
 			"tab / shift+tab   next / previous pane      1-7  jump to a pane",
-			"L                 labels picker (from anywhere)   Involved: enter folds a group or jumps to the person's latest comment; a requests a reviewer, e edits assignees",
+			"L                 labels picker (from anywhere)   Involved: enter folds a group or jumps to the person's latest comment; e edits the reviewers or assignees group under the cursor, R re-requests, x removes a reviewer",
 			"j k ↑ ↓ pgup pgdn scroll or move            z    zoom the focused pane (main screen)",
 			"esc / backspace   close the top overlay     q    quit",
 			"",
@@ -2300,7 +2364,7 @@ func (m *model) footer() string {
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
 		pMerge:     "j/k blockers · enter fix/open · C checks · M merge · A auto-merge · U update",
-		pReviewers: "enter fold/jump to comment · a request reviewer · e assignees · R re-request · x remove",
+		pReviewers: "enter fold/jump to comment · e edit group · R re-request · x remove",
 		pDev:       "enter fold/open · a link · x unlink",
 		pFiles:     "enter diff · D combined · c comment on file · l conversation",
 	}[m.focus]
@@ -2538,8 +2602,6 @@ func (m *model) paneKey(k string) tea.Cmd {
 		}
 	case pReviewers:
 		switch k {
-		case "a":
-			m.requestReviewer()
 		case "R":
 			nd := m.involved()[m.cur[pReviewers]]
 			if nd.grp != "rev" || nd.kind != "person" {
@@ -2555,7 +2617,14 @@ func (m *model) paneKey(k string) tea.Cmd {
 				return nil
 			})
 		case "e":
-			m.pickAssignees()
+			switch m.involved()[m.cur[pReviewers]].grp {
+			case "rev":
+				m.requestReviewer()
+			case "asg":
+				m.pickAssignees()
+			default:
+				return m.say("this group has nothing to edit")
+			}
 		case "enter":
 			nd := m.involved()[m.cur[pReviewers]]
 			switch nd.kind {
