@@ -1488,7 +1488,8 @@ func blockers() []blocker {
 	return append(out,
 		blocker{kind: "review", text: "Review required: core team"},
 		blocker{kind: "changes", text: "Changes requested: Carol Diaz"},
-		blocker{kind: "conflict", text: "Conflicts with main"})
+		blocker{kind: "conflict", text: "Conflicts with main"},
+		blocker{kind: "behind", text: "Branch is 3 commits behind main"})
 }
 
 // commitDiff is a fake diff of one commit: a subset of the files.
@@ -1582,6 +1583,8 @@ type model struct {
 	pv        overlay // the embedded pager of the zoomed files panel
 	pfocus    int     // 0 list, 1 diff
 	pvOn      bool
+	pvScroll  int    // scroll of the list panes' preview
+	pvKey     string // what that preview shows; a new one resets its scroll
 	scroll    int
 	dscroll   int // the description pane's scroll
 	dcur      int // the description pane's cursor line
@@ -1657,7 +1660,7 @@ func (m *model) descH() int {
 
 func (m *model) panelHeights() [nPanes]int {
 	H := m.bodyH()
-	nat := [nPanes]int{pMerge: 10, pReviewers: max(4, len(m.involved())+2), pDev: max(3, len(m.devNodes())+2)}
+	nat := [nPanes]int{pMerge: 11, pReviewers: max(4, len(m.involved())+2), pDev: max(3, len(m.devNodes())+2)}
 	sum := func() int {
 		s := 0
 		for _, v := range nat {
@@ -1684,7 +1687,7 @@ func (m *model) panelHeights() [nPanes]int {
 }
 
 func (m *model) paneDims(i int) (int, int) {
-	if m.split() && i == pFiles {
+	if m.sub() && i == m.focus {
 		return listW, m.bodyH()
 	}
 	if m.zoomed() {
@@ -1963,7 +1966,7 @@ func (m *model) pane(i int) string {
 	}
 	end := min(len(lines), off+ih-len(pins))
 	shown := append(pins, lines[off:end]...)
-	return boxR(title, info, shown, w, h, m.focus == i && !(m.split() && m.pfocus == 1))
+	return boxR(title, info, shown, w, h, m.focus == i && !(m.sub() && m.pfocus == 1))
 }
 
 // ---------- overlays ----------
@@ -2076,7 +2079,10 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            R re-run failed jobs · J re-run the job (both ask y/n, then pending everywhere) · esc/backspace close · in Conversation, o on a commit shows it in Files",
 			"Commits     enter on a push opens its commits as a thread; enter on a commit shows only it in Files (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
-			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
+			"Zoom        z maximizes a pane; at 100+ cols Files, Merge, Involved and Development split list | preview of the hovered row",
+			"            (diff / blocker detail / person's comments / issue or PR summary), read-only, live with the cursor; below 100 cols no preview",
+			"            tab/shift+tab move between the list and the preview (the focused one scrolls with j/k g/G); 1-6 switch the maximized pane; z unzooms,",
+			"            after which tab cycles the panes again. In the Files diff enter loads the file",
 			"Development enter issue summary · a link issue · x unlink",
 			"Files       one tree: Commits group (● selected ○ not, checks one level down) and Files group; enter diff/fold",
 			"            space on a commit toggles it (the range stays contiguous; a middle one selects only itself)",
@@ -2240,7 +2246,21 @@ func (m *model) confirmDo(text, toast string, fn func(*model) tea.Cmd) {
 }
 
 // split: the zoomed files panel shows the list and the pager side by side.
-func (m *model) split() bool { return m.zoom && !m.narrow() && m.focus == pFiles }
+// previewMin is the narrowest screen that splits a zoomed pane into the list
+// and a preview; below it the zoomed pane is the list alone.
+const previewMin = 100
+
+// split is the zoomed Files pane: tree | diff.
+func (m *model) split() bool { return m.zoomed() && m.w >= previewMin && m.focus == pFiles }
+
+// lpane is a zoomed list pane (Merge, Involved, Development): list | preview of
+// the hovered row.
+func (m *model) lpane() bool {
+	return m.zoomed() && m.w >= previewMin && (m.focus == pMerge || m.focus == pReviewers || m.focus == pDev)
+}
+
+// sub says the zoomed view has two sub-panes, which tab moves between.
+func (m *model) sub() bool { return m.split() || m.lpane() }
 
 const listW = 46
 
@@ -2330,6 +2350,8 @@ func (m *model) render() string {
 		_ = h
 		_, _, dw, dh := m.ovRect(&m.pv)
 		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(pFiles), m.drawDiff(&m.pv, dw, dh)))
+	} else if m.lpane() {
+		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(m.focus), m.previewBox()))
 	} else if m.zoomed() {
 		parts = append(parts, m.pane(m.focus))
 	} else {
@@ -2407,6 +2429,12 @@ func (m *model) footer() string {
 	if m.hint != "" && m.focus == pFiles {
 		return dim(m.hint)
 	}
+	if m.sub() {
+		if m.pfocus == 1 {
+			return dim("preview: j/k g/G pgup/pgdn scroll · tab/shift+tab back to the list · 1-6 other pane · z unzoom · ? help · q quit")
+		}
+		return dim(h + " · tab preview · 1-6 other pane · z unzoom · ? help · q quit")
+	}
 	return dim(h + " · L labels · tab/1-6 focus · z zoom · ? help · q quit")
 }
 
@@ -2465,24 +2493,38 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.overlayKey(msg)
 	}
 	defer m.syncPV()
+	// Moving to another pane, or leaving the zoom, puts the focus back on the list.
+	was := m.focus
+	defer func() {
+		if m.focus != was || !m.sub() {
+			m.pfocus = 0
+		}
+	}()
+	// Keys that keep their meaning in the preview of a zoomed pane.
+	global := k == "z" || k == "?" || k == "q" || k == "L" || (len(k) == 1 && k[0] >= '1' && k[0] <= '6')
 	if m.split() {
 		p := &m.pv
 		if m.pfocus == 1 && (p.compose || p.cmdOn) {
 			return m.diffKey(p, msg)
 		}
-		switch k {
-		case "tab", "shift+tab":
+		if k == "tab" || k == "shift+tab" {
 			m.pfocus = 1 - m.pfocus
 			return nil
-		case "1":
-			m.pfocus = 0
-			return nil
-		case "2":
-			m.pfocus = 1
+		}
+		if m.pfocus == 1 && !global {
+			return m.diffKey(p, msg)
+		}
+	}
+	if m.lpane() {
+		if k == "tab" || k == "shift+tab" {
+			m.pfocus = 1 - m.pfocus
 			return nil
 		}
-		if m.pfocus == 1 && k != "z" && k != "?" {
-			return m.diffKey(p, msg)
+		if m.pfocus == 1 && !global {
+			if d := moveDelta(k); d != 0 {
+				m.pvScroll = max(0, m.pvScroll+d)
+			}
+			return nil
 		}
 	}
 	switch k {
@@ -2651,6 +2693,8 @@ func (m *model) paneKey(k string) tea.Cmd {
 		case "enter":
 			b := blockers()[m.cur[pMerge]]
 			switch b.kind {
+			case "behind":
+				m.confirm("Update branch with main?", "(prototype) would update the branch")
 			case "check":
 				m.openLog(headSHA(), b.text)
 			case "review":
