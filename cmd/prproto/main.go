@@ -1805,7 +1805,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		curLine := 0
 		for k, r := range m.rows {
 			if r.dir {
-				out = append(out, strings.Repeat("  ", r.depth)+dim("▾ "+r.label))
+				out = append(out, " "+strings.Repeat("  ", r.depth)+dim("▾ "+r.label))
 				continue
 			}
 			f := files[r.fi]
@@ -1813,7 +1813,7 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 			if f.thread {
 				t += " " + ic.unresolved.String()
 			}
-			ind := strings.Repeat("  ", r.depth)
+			ind := " " + strings.Repeat("  ", r.depth)
 			if m.cur[pFiles] == k {
 				w, _ := m.paneDims(pFiles)
 				out = append(out, selRow(ind+t, w-4, m.focus == pFiles))
@@ -2522,15 +2522,15 @@ func (m *model) move(d int) {
 func (m *model) snap(cur, d int) int {
 	n := len(m.rows)
 	t := max(0, min(cur+d, n-1))
-	if m.rows[t].dir {
-		if d >= 0 {
-			t++
-		} else {
-			t--
-		}
-		if t < 0 || t >= n || m.rows[t].dir {
-			t = cur
-		}
+	step := 1
+	if d < 0 {
+		step = -1
+	}
+	for t >= 0 && t < n && m.rows[t].dir {
+		t += step
+	}
+	if t < 0 || t >= n {
+		return cur
 	}
 	return t
 }
