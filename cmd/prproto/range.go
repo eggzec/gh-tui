@@ -191,7 +191,11 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 		if m.inRange(r.ci) {
 			glyph, sha, subj = accent(commitGlyph), boldAccent(c.sha), c.subj
 		}
-		left := ind + glyph + " " + sha + " " + checkIcon(commitState(c.sha)) + " " + subj
+		left := ind + glyph + " " + sha + " "
+		if st := commitIcon(c.sha); st != "" {
+			left += st + " "
+		}
+		left += subj
 		// The subject wins: the author shows only when the whole row fits with it.
 		right := c.who + "  " + c.ago
 		if ansi.StringWidth(left)+1+ansi.StringWidth(right) > cw {
@@ -199,16 +203,10 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 		}
 		return rightAlign(left, dim(right), cw)
 	case 'k':
-		ck := runOf(fcommits[r.ci].sha, r.label)
-		_, job, _ := strings.Cut(r.label, " / ")
-		return rightAlign(ind+checkIcon(ck.state)+" "+job, dim(stateWord(ck.state)+" · "+ck.dur), cw)
+		return jobLine(ind, runOf(fcommits[r.ci].sha, r.label), cw)
 	case 'w':
 		sha := fcommits[r.ci].sha
-		arrow := "▸ "
-		if m.foldOpen("w:"+sha+"|"+r.label, true) {
-			arrow = "▾ "
-		}
-		return ind + dim(arrow) + r.label
+		return wfLine(ind, sha, r.label, m.foldOpen("w:"+sha+"|"+r.label, true), "", cw)
 	}
 	if r.dir {
 		arrow := "▾ "

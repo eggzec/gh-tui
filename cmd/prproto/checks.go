@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -252,6 +253,56 @@ func wfJobs(sha, wf string) []run {
 }
 
 func runNumber(i int) int { return 1204 - i*3 }
+
+// The run → job tree is drawn the same everywhere (Files, Conversation, Merge):
+// a workflow row, then its jobs, after the shared guides gm.
+
+// commitIcon is the combined status icon of a commit, folded or open; a commit
+// with no checks has none.
+func commitIcon(sha string) string {
+	if len(commitChecks(sha)) == 0 {
+		return ""
+	}
+	return checkIcon(commitState(sha))
+}
+
+// jobName is the job part of a "workflow / job" label.
+func jobName(label string) string {
+	if _, j, ok := strings.Cut(label, " / "); ok {
+		return j
+	}
+	return label
+}
+
+// wfNumber is the run number of a workflow of a commit.
+func wfNumber(sha, wf string) int {
+	return runNumber(max(0, slices.Index(wfs(sha), wf)))
+}
+
+// arrowOf is the fold arrow of a tree row.
+func arrowOf(open bool) string {
+	if open {
+		return dim("▾ ")
+	}
+	return dim("▸ ")
+}
+
+// wfLine draws a workflow run row: fold arrow, status icon, name, run number
+// and, on the right, right or else the run's status. The icon stays when the
+// row is open.
+func wfLine(gm, sha, wf string, open bool, right string, cw int) string {
+	st := worst(wfJobs(sha, wf))
+	if right == "" {
+		right = stateWord(st)
+	}
+	left := gm + arrowOf(open) + checkIcon(st) + " " + wf + dim(fmt.Sprintf(" #%d", wfNumber(sha, wf)))
+	return rightAlign(left, dim(right), cw)
+}
+
+// jobLine draws a job row of a run.
+func jobLine(gm string, ck run, cw int) string {
+	return rightAlign(gm+checkIcon(ck.state)+" "+jobName(ck.label), dim(stateWord(ck.state)+" · "+ck.dur), cw)
+}
 
 // openLog opens the run of a check: cursor on its failing job and the log at
 // the first error.

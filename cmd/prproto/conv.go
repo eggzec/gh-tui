@@ -278,7 +278,7 @@ func commitLine(c [2]string, cw int, gm string, open bool) string {
 		arrow = "▾ "
 	}
 	left := gm + dim(arrow) + boldDim(c[0]) + "  " + c[1]
-	return rightAlign(left, checkIcon(commitState(c[0])), cw)
+	return rightAlign(left, commitIcon(c[0]), cw)
 }
 
 type convState struct {
@@ -677,8 +677,16 @@ func (m *model) crows(all bool) []crow {
 				co := op(ck, false)
 				rows = append(rows, crow{key: ck, kind: "commit", depth: depth + 1, parent: key, fold: true, open: co, it: it, commit: cm})
 				if co {
-					for _, r := range commitChecks(cm[0]) {
-						rows = append(rows, crow{key: ck + "|" + r.label, kind: "check", depth: depth + 2, parent: ck, it: it, commit: cm, lbl: r.label})
+					for _, wf := range wfs(cm[0]) {
+						wk := ck + "|" + wf
+						wo := op(wk, true)
+						rows = append(rows, crow{key: wk, kind: "wf", depth: depth + 2, parent: ck, fold: true, open: wo, it: it, commit: cm, lbl: wf})
+						if !wo {
+							continue
+						}
+						for _, r := range wfJobs(cm[0], wf) {
+							rows = append(rows, crow{key: wk + "|" + r.label, kind: "check", depth: depth + 3, parent: wk, it: it, commit: cm, lbl: r.label})
+						}
 					}
 				}
 			}
@@ -835,8 +843,9 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	case "commit":
 		return []string{commitLine(r.commit, cw, gm, r.open)}
 	case "check":
-		ck := runOf(r.commit[0], r.lbl)
-		return []string{rightAlign(gm+checkIcon(ck.state)+" "+checkLabel(r.lbl), dim(stateWord(ck.state)+" · "+ck.dur), cw)}
+		return []string{jobLine(gm, runOf(r.commit[0], r.lbl), cw)}
+	case "wf":
+		return []string{wfLine(gm, r.commit[0], r.lbl, r.open, "", cw)}
 	case "run":
 		var who []string
 		for _, it := range r.run {

@@ -1467,23 +1467,62 @@ func checkIcon(state string) string {
 
 // A blocker is one row of the merge box.
 type blocker struct {
-	kind  string // check, review, changes, conflict
+	kind  string // checks, wf, check (a job), review, changes, conflict, behind
 	text  string
 	right string
-	state string // of a check blocker
+	state string // of a checks, wf or check row
+	depth int
+	key   string // fold key of a checks or wf row
+	wf    string // workflow of a wf or check row
+	label string // "workflow / job" of a check row
 }
 
-// blockers lists the required checks of the head commit that don't pass, then
-// the other things that stop a merge.
-func blockers() []blocker {
+// blockers lists the checks of the head commit that don't pass as one tree,
+// Checks failing → workflow run → its failing jobs (the passing jobs of a run
+// are folded away; the run's preview lists them all), then the other things
+// that stop a merge. The failing parts start open.
+func (m *model) blockers() []blocker {
 	var out []blocker
-	for _, l := range []string{"ci / test (linux)", "ci / lint"} {
-		st := runOf(headSHA(), l).state
-		right := "failing"
-		if st == "pending" {
-			right = "running"
+	sha := headSHA()
+	var nfail, npend int
+	for _, r := range commitChecks(sha) {
+		switch r.state {
+		case "fail":
+			nfail++
+		case "pending":
+			npend++
 		}
-		out = append(out, blocker{"check", l, right, st})
+	}
+	if nfail+npend > 0 {
+		st, name, n := "fail", "Checks failing", nfail
+		if nfail == 0 {
+			st, name, n = "pending", "Checks running", npend
+		}
+		open := m.foldOpen("mb:checks", true)
+		txt := checkIcon(st) + " " + name + dim(fmt.Sprintf(" %d", n))
+		if nfail > 0 && npend > 0 {
+			txt += dim(fmt.Sprintf(" · %d running", npend))
+		}
+		out = append(out, blocker{kind: "checks", text: arrowOf(open) + txt, state: st, key: "mb:checks"})
+		for _, wf := range wfs(sha) {
+			var bad []run
+			jobs := wfJobs(sha, wf)
+			for _, j := range jobs {
+				if j.state != "ok" {
+					bad = append(bad, j)
+				}
+			}
+			if !open || len(bad) == 0 {
+				continue
+			}
+			wo := m.foldOpen("mb:wf:"+wf, true)
+			out = append(out, blocker{kind: "wf", depth: 1, key: "mb:wf:" + wf, wf: wf, state: worst(jobs), right: fmt.Sprintf("%d of %d jobs", len(bad), len(jobs))})
+			if wo {
+				for _, j := range bad {
+					out = append(out, blocker{kind: "check", depth: 2, wf: wf, label: j.label, state: j.state})
+				}
+			}
+		}
 	}
 	return append(out,
 		blocker{kind: "review", text: "Review required: core team"},
@@ -1777,20 +1816,39 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		return m.convLines(cw), 0
 	case pMerge:
 		out := []string{"  " + bold("feat/calc") + dim(" → ") + bold("main")}
-		for k, b := range blockers() {
-			var icon string
+		bs := m.blockers()
+		crs := make([]crow, len(bs))
+		for k, b := range bs {
+			crs[k].depth = b.depth
+		}
+		for k, b := range bs {
+			gm, _, _ := guides(crs, k)
+			var row string
 			switch b.kind {
+			case "checks":
+				row = rightAlign(b.text, dim(b.right), cw-ansi.StringWidth(gm))
+			case "wf":
+				row = wfLine("", headSHA(), b.wf, m.foldOpen(b.key, true), b.right, cw-ansi.StringWidth(gm))
 			case "check":
-				icon = checkIcon(b.state)
-			case "review":
-				icon = ic.requested.String()
-			case "changes":
-				icon = ic.changes.String()
-			default:
-				icon = ic.blocked.String()
+				row = jobLine("", runOf(headSHA(), b.label), cw-ansi.StringWidth(gm))
 			}
-			row := rightAlign(icon+" "+b.text, dim(b.right), cw-2)
-			out = append(out, m.mrow(i, k, ansi.Truncate(row, cw-2, "…")))
+			if row == "" {
+				var icon string
+				switch b.kind {
+				case "review":
+					icon = ic.requested.String()
+				case "changes":
+					icon = ic.changes.String()
+				default:
+					icon = ic.blocked.String()
+				}
+				row = rightAlign(icon+" "+b.text, dim(b.right), cw-ansi.StringWidth(gm))
+			}
+			l := ansi.Truncate(gm+row, cw, "…")
+			if m.cur[i] == k {
+				l = selRow(l, cw, m.focus == i)
+			}
+			out = append(out, l)
 		}
 		acts := "Merge (squash) " + dim("M") + " · Auto-merge " + dim("A") + " · Update branch " + dim("U")
 		if cw < 54 {
@@ -1865,7 +1923,13 @@ func (m *model) paneInfo(i, avail int) string {
 			parts = append(parts, dim("edited"))
 		}
 	case pMerge:
-		if n := len(blockers()); n > 0 {
+		n := 0
+		for _, b := range m.blockers() {
+			if b.depth == 0 {
+				n++
+			}
+		}
+		if n > 0 {
 			parts = append(parts, dim(fmt.Sprintf("%d blockers", n)))
 		}
 	}
@@ -2404,7 +2468,7 @@ func (m *model) footer() string {
 	h := map[int]string{
 		pDesc:      "j/k scroll · pgup/pgdn page · e edit title and description",
 		pMain:      "j/k move · h/l fold · * all · f filter · ) ( unresolved · c " + m.replyVerb() + " · T resolve · e edit · X delete",
-		pMerge:     "j/k blockers · enter fix/open the run of a check · M merge · A auto-merge · U update",
+		pMerge:     "j/k blockers · h/l fold · enter fold run / open a job's log / fix · M merge · A auto-merge · U update",
 		pReviewers: "enter fold/jump to comment · e edit group · R re-request · x remove",
 		pDev:       "enter fold/open · a link · x unlink",
 		pFiles:     "enter diff/fold · space select commit/mark viewed · A all · S since review · D combined · c comment",
@@ -2571,7 +2635,7 @@ func (m *model) syncPV() {
 func (m *model) count(p int) int {
 	switch p {
 	case pMerge:
-		return len(blockers())
+		return len(m.blockers())
 	case pReviewers:
 		return len(m.involved())
 	case pDev:
@@ -2672,6 +2736,10 @@ func (m *model) paneKey(k string) tea.Cmd {
 		return m.convKey(k)
 	case pMerge:
 		switch k {
+		case "l", "right":
+			m.mergeMove(true)
+		case "h", "left":
+			m.mergeMove(false)
 		case "M":
 			m.confirm("Merge #42 with squash?", "(prototype) would merge")
 		case "A":
@@ -2679,12 +2747,15 @@ func (m *model) paneKey(k string) tea.Cmd {
 		case "U":
 			m.confirm("Update branch with main?", "(prototype) would update the branch")
 		case "enter":
-			b := blockers()[m.cur[pMerge]]
+			bs := m.blockers()
+			b := bs[clampInt(m.cur[pMerge], 0, len(bs)-1)]
 			switch b.kind {
 			case "behind":
 				m.confirm("Update branch with main?", "(prototype) would update the branch")
+			case "checks", "wf":
+				m.toggleFold(b.key, true)
 			case "check":
-				m.openLog(headSHA(), b.text)
+				m.openLog(headSHA(), b.label)
 			case "review":
 				m.requestReviewer()
 			case "changes":

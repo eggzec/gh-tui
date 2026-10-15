@@ -43,7 +43,7 @@ func (m *model) preview(cw int) pview {
 	var pv pview
 	switch m.focus {
 	case pMerge:
-		bs := blockers()
+		bs := m.blockers()
 		pv = m.mergePreview(bs[clampInt(m.cur[pMerge], 0, len(bs)-1)], cw)
 	case pReviewers:
 		ns := m.involved()
@@ -93,11 +93,40 @@ func (m *model) convBlocks(all bool, match func(crow) bool, cw int) []string {
 
 func (m *model) mergePreview(b blocker, cw int) pview {
 	switch b.kind {
+	case "checks":
+		sha := headSHA()
+		pv := pview{key: "checks|" + b.state + fmt.Sprint(m.blockers()), title: b.text, info: dim("failing runs of the head commit " + sha)}
+		for _, wf := range wfs(sha) {
+			jobs := wfJobs(sha, wf)
+			if worst(jobs) == "ok" {
+				continue
+			}
+			pv.lines = append(pv.lines, checkIcon(worst(jobs))+" "+bold(wf)+dim(fmt.Sprintf(" #%d · %s", wfNumber(sha, wf), stateWord(worst(jobs)))))
+			for _, j := range jobs {
+				if j.state != "ok" {
+					pv.lines = append(pv.lines, "   "+checkIcon(j.state)+" "+jobName(j.label)+dim(" "+stateWord(j.state)+" · "+j.dur))
+				}
+			}
+			pv.lines = append(pv.lines, "")
+		}
+		pv.lines = append(pv.lines, dim("enter opens a job's log at the first error; a run shows its summary here"))
+		return pv
+	case "wf":
+		sha := headSHA()
+		jobs := wfJobs(sha, b.wf)
+		st := worst(jobs)
+		pv := pview{key: "wf|" + b.wf + "|" + st, title: fmt.Sprintf("%s · run #%d", b.wf, wfNumber(sha, b.wf)), info: dim(stateWord(st))}
+		pv.lines = append(pv.lines, dim("on push · "+sha), "")
+		for _, j := range jobs {
+			pv.lines = append(pv.lines, checkIcon(j.state)+" "+jobName(j.label)+dim(" "+stateWord(j.state)+" · "+j.dur))
+		}
+		pv.lines = append(pv.lines, "", dim("enter folds the run; enter on a job opens its log"))
+		return pv
 	case "check":
 		sha := headSHA()
-		r := runOf(sha, b.text)
-		wf, job, _ := strings.Cut(b.text, " / ")
-		pv := pview{key: "check|" + b.text + "|" + r.state,
+		r := runOf(sha, b.label)
+		wf, job, _ := strings.Cut(b.label, " / ")
+		pv := pview{key: "check|" + b.label + "|" + r.state,
 			title: fmt.Sprintf("%s · %s · run #%d", wf, job, runNumber(max(0, slices.Index(wfs(sha), wf)))),
 			info:  dim(stateWord(r.state) + " · " + r.dur)}
 		for i, l := range logLines(sha, r) {
