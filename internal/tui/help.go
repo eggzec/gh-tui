@@ -127,7 +127,11 @@ func (m *Model) layersNow() []keyhelp.Layer {
 				// The key returns to the modal this one replaced; a modal
 				// that has steps of its own lists it with them.
 				back.SetEnabled(back.Enabled() && m.modalBack())
-				always.Bindings = append(always.Bindings, back)
+				// Off, it is a row only if the modal doesn't list the key,
+				// off, itself.
+				if back.Enabled() || !listsKeyOff(inner, back) {
+					always.Bindings = append(always.Bindings, back)
+				}
 			}
 			always.Bindings = append(always.Bindings, m.refused(inner)...)
 		}
@@ -239,6 +243,16 @@ func (m *Model) opensHelp(msg tea.KeyPressMsg) bool {
 // disabled one doesn't answer the key, so it doesn't hide b.
 func listsKey(layers []keyhelp.Layer, b key.Binding) bool {
 	return slices.ContainsFunc(layers, func(l keyhelp.Layer) bool { return takesKey(l, b) })
+}
+
+// listsKeyOff reports whether a disabled binding of layers has a key of b,
+// which the help shows as off in the layer that lists it.
+func listsKeyOff(layers []keyhelp.Layer, b key.Binding) bool {
+	return slices.ContainsFunc(layers, func(l keyhelp.Layer) bool {
+		return slices.ContainsFunc(l.Bindings, func(x key.Binding) bool {
+			return !x.Enabled() && slices.ContainsFunc(x.Keys(), func(k string) bool { return slices.Contains(b.Keys(), k) })
+		})
+	})
 }
 
 // capturing reports whether l is the keys of what takes every key while
