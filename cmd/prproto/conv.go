@@ -90,6 +90,65 @@ type citem struct {
 	edited                       bool
 	threads                      []*thread
 	replies                      []*reply
+	commits                      [][2]string // a push: short SHA and subject
+	forced                       bool
+}
+
+// sysText is the plain text of a system line: a push or another event of no human.
+func (it *citem) sysText() string {
+	if it.kind != "push" {
+		return it.body
+	}
+	n := len(it.commits)
+	s := fmt.Sprintf("%s pushed %d commit", it.who, n)
+	if n != 1 {
+		s += "s"
+	}
+	s += " (" + it.commits[0][0]
+	if n > 1 {
+		s += "…" + it.commits[n-1][0]
+	}
+	s += ")"
+	if it.forced {
+		s += " · forced"
+	}
+	return s
+}
+
+// forcedStyle is the dim warning colour of "forced".
+var forcedStyle = sty("130")
+
+// sysLines centres a dim system line with a short rule on each side; a line
+// too wide for the pane drops the rules and wraps, centred.
+func sysLines(text string, extra []string, cw int) []string {
+	paint := func(s string) string {
+		a, b, ok := strings.Cut(s, "forced")
+		if !ok {
+			return dim(s)
+		}
+		return dim(a) + forcedStyle("forced") + dim(b)
+	}
+	centre := func(s string, w int) string {
+		return " " + strings.Repeat(" ", max(0, (cw-1-w)/2)) + s
+	}
+	var out []string
+	for _, rule := range []int{4, 2} {
+		w := len([]rune(text)) + 2*(rule+1)
+		if w <= cw-1 {
+			r := dim(strings.Repeat("─", rule))
+			out = append(out, centre(r+" "+paint(text)+" "+r, w))
+			break
+		}
+	}
+	if out == nil {
+		for _, l := range wrap(text, max(10, cw-4)) {
+			out = append(out, centre(paint(l), len([]rune(l))))
+		}
+	}
+	for _, l := range extra {
+		out = append(out, centre(dim(l), len([]rune(l))))
+	}
+	return out
 }
 
 type convState struct {
@@ -135,10 +194,13 @@ func newConv() convState {
 	it := func(kind, state, who, when, body string, ths ...*thread) *citem {
 		return &citem{id: newID(), kind: kind, state: state, who: who, when: when, body: body, threads: ths}
 	}
+	push := func(who, when string, forced bool, cs ...[2]string) *citem {
+		return &citem{id: newID(), kind: "push", who: who, when: when, commits: cs, forced: forced}
+	}
 	items := []*citem{
 		it("pr", "", "alice", "3d ago", description),
 		it("comment", "", "bob", "3d ago", "Nice start. Can we cover division by zero? I did not see a test for it and the helper looks like it would panic."),
-		it("commit", "", "alice", "3d ago", "Add calc helper (a1b2c3d)"),
+		push("alice", "3d ago", false, [2]string{"a1b2c3d", "Add calc helper"}, [2]string{"b2c3d4e", "Add tests for Div"}, [2]string{"c3d4e5f", "Add package doc"}),
 		it("comment", "", "alice", "2d ago", "Added a test for it, plus a package doc in doc.go."),
 		it("comment", "", "dave", "2d ago", "The docs read well to me."),
 		it("review", "approve", "bob", "2d ago", "LGTM once CI is green."),
@@ -152,7 +214,10 @@ func newConv() convState {
 		it("review", "comment", "dave", "20h ago", "A couple of questions.",
 			th(20, "+func Add(a, b int) int { return a + b }", false,
 				rp("dave", "20h ago", "Should Add guard against overflow?"))),
-		it("event", "", "ci", "1d ago", "e2e failed on a1b2c3d"),
+		it("sys", "", "ci", "1d ago", "ci: e2e failed on a1b2c3d"),
+		it("sys", "", "alice", "1d ago", "alice requested a review from carol"),
+		it("sys", "", "alice", "1d ago", "alice added the label bug"),
+		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake"}),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
 		it("comment", "", "coverage-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
 	}
@@ -233,8 +298,8 @@ func (m *model) crows(all bool) []crow {
 		if it.kind == "pr" {
 			key = "pr"
 		}
-		fold := it.kind == "review" || it.kind == "pr" || len(it.replies) > 0
-		open := fold && op(key, true)
+		fold := it.kind == "review" || it.kind == "pr" || it.kind == "push" || len(it.replies) > 0
+		open := fold && op(key, it.kind != "push")
 		rows = append(rows, crow{key: key, kind: it.kind, depth: depth, parent: parent, fold: fold, open: open, it: it})
 		if !open {
 			return
@@ -363,6 +428,14 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	var head, right string
 	var body []string
 	switch r.kind {
+	case "push", "sys":
+		var extra []string
+		if r.open {
+			for _, c := range r.it.commits {
+				extra = append(extra, c[0]+"  "+c[1])
+			}
+		}
+		return sysLines(r.it.sysText(), extra, cw)
 	case "pr":
 		head = bold("#42 " + m.cv.title)
 		right = meta(false, r.it.edited, "alice · 3d")
@@ -385,16 +458,6 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 	case "comment":
 		head = bold(r.it.who) + dim(" commented")
 		right = meta(false, r.it.edited, fold(len(r.it.replies)), r.it.when)
-		body = wrap(r.it.body, bw)
-	case "commit":
-		head = dim("◆ ") + bold(r.it.who) + dim(" pushed a commit")
-		right = meta(false, false, r.it.when)
-		for _, l := range wrap(r.it.body, bw) {
-			body = append(body, cyan(l))
-		}
-	case "event":
-		head = yellow("● ") + bold(r.it.who)
-		right = meta(false, false, r.it.when)
 		body = wrap(r.it.body, bw)
 	case "review":
 		switch r.it.state {
