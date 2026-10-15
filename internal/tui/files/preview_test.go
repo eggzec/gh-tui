@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -67,6 +68,72 @@ func TestPreview(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A message in the preview, such as a link's arrow or the key that opens a
+// file in the browser, is drawn again when the icons change, and the text
+// of a file isn't.
+func TestPreviewSettingsIcons(t *testing.T) {
+	ascii := ui.NewIcons(config.IconsASCII)
+	c, err := config.Default().Set("ui.icons", config.IconsASCII)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		row  int
+		want string
+	}{
+		{"symlink", rowLink, "Symbolic link " + ascii.Arrow + " AGENTS.md"},
+		{"binary", rowGoMod, "Binary file, not shown" + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
+		{"too large", rowReadme, "Too large to preview" + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			h := openRow(t, sampleFake(), tt.row)
+			if got := h.modal(); strings.Contains(got, tt.want) {
+				t.Fatalf("preview = %q, already has %q", got, tt.want)
+			}
+			h.run(func() tea.Msg { return ui.SettingsMsg{Config: c} })
+			if got := h.modal(); !strings.Contains(got, tt.want) {
+				t.Errorf("preview = %q, want %q in it", got, tt.want)
+			}
+		})
+	}
+	t.Run("reloading keeps the spinner", func(t *testing.T) {
+		t.Parallel()
+		f := sampleFake()
+		sha := f.trees[treeKey(ghTUI, "")].Entries[rowGoMod].SHA
+		f.blobErrs = map[string]error{sha: core.ErrOffline}
+		h := openRow(t, f, rowGoMod)
+		p := h.top().(*preview)
+		if !p.message {
+			t.Fatal("the failed load is no message")
+		}
+		// The read again, whose fetch is not run, so the load is pending.
+		_ = p.Update(ui.OnlineMsg{})
+		before := ansi.Strip(p.View())
+		_ = p.Update(ui.SettingsMsg{Config: c})
+		if p.message {
+			t.Error("the pending load is a message")
+		}
+		if got := ansi.Strip(p.View()); got != before {
+			t.Errorf("preview = %q, want it as it was while loading: %q", got, before)
+		}
+	})
+	t.Run("text keeps its place", func(t *testing.T) {
+		t.Parallel()
+		h := openRow(t, sampleFake(), rowAgents)
+		p := h.top().(*preview)
+		if p.message {
+			t.Fatal("the text of a file is a message")
+		}
+		h.run(func() tea.Msg { return ui.SettingsMsg{Config: c} })
+		if p.message {
+			t.Error("the text of a file became a message")
+		}
+	})
 }
 
 // sampleSize returns the size of row i in the sample tree.
