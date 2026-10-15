@@ -1210,15 +1210,6 @@ func (m *model) convKey(k string) tea.Cmd {
 				c.open[x.key] = anyClosed
 			}
 		}
-	case "R":
-		switch r.kind {
-		case "arun":
-			return m.rerunApp(r.commit[0], r.lbl)
-		case "status":
-			return m.say("statuses can't be re-run")
-		case "check", "wf", "mx":
-			return m.say("jobs are re-run in the Actions modal: enter, then R")
-		}
 	case ")":
 		return m.nextUnresolved(1)
 	case "(":

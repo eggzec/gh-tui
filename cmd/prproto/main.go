@@ -2218,7 +2218,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            the review in Conversation / conflict info · M merge · A auto-merge · U update branch",
 			"Checks      under an open commit (Files, Conversation push) and as Merge blockers; enter on a check opens its workflow run (Actions-style modal):",
 			"            Runs | Jobs | Log, cursor on the failing job, log at the first error · tab/shift+tab/1-2-3 pane · j/k g/G · e/E next/prev error · w/W warning · z zoom",
-			"            R re-run failed jobs · J re-run the job (both ask y/n, then pending everywhere) · esc/backspace close · in Conversation, o on a commit shows it in Files",
+			"            R re-run failed jobs · J re-run the job (both ask y/n, then pending everywhere) · esc/backspace close · re-running lives only here and in the app check run modal (R re-request check suite) · in Conversation, o on a commit shows it in Files",
 			"Commits     enter on a push opens its commits as a thread; enter on a commit shows only it in Files (status icon at the end of the row)",
 			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
 			"Zoom        z maximizes a pane; at 100+ cols Files, Merge, Involved and Development split list | preview of the hovered row",
@@ -2874,17 +2874,6 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.mergeMove(true)
 		case "h", "left":
 			m.mergeMove(false)
-		case "R":
-			bs := m.blockers()
-			b := bs[clampInt(m.cur[pMerge], 0, len(bs)-1)]
-			switch b.kind {
-			case "arun":
-				return m.rerunApp(headSHA(), b.label)
-			case "status":
-				return m.say("statuses can't be re-run")
-			case "check", "wf", "matrix":
-				return m.say("jobs are re-run in the Actions modal: enter, then R")
-			}
 		case "M":
 			m.confirm("Merge #42 with squash?", "(prototype) would merge")
 		case "A":
@@ -3048,16 +3037,6 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.rebuild()
 			case r.kind == 'p':
 				m.openApp(fcommits[r.ci].sha, r.label)
-			}
-		case "R":
-			r := m.rows[m.cur[pFiles]]
-			switch r.kind {
-			case 'p':
-				return m.rerunApp(fcommits[r.ci].sha, r.label)
-			case 's':
-				return m.say("statuses can't be re-run")
-			case 'k', 'w', 'x':
-				return m.say("jobs are re-run in the Actions modal: enter, then R")
 			}
 		case "A":
 			m.lo, m.hi = 0, len(fcommits)-1
