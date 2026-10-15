@@ -290,13 +290,26 @@ func mdPlain(body string, w int) []string {
 	}
 	var out []string
 	fence := false
-	for _, l := range strings.Split(body, "\n") {
+	lang := ""
+	var code []string
+	flush := func() {
+		for _, c := range highlight(lang, code) {
+			out = append(out, dim("▏ ")+ansi.Truncate(c, w-2, "…"))
+		}
+		code = nil
+	}
+	for _, l := range strings.Split(expandTabs(body), "\n") {
 		t := strings.TrimSpace(l)
 		switch {
 		case strings.HasPrefix(t, "```"):
+			if fence {
+				flush()
+			} else {
+				lang = strings.TrimSpace(strings.TrimLeft(t, "`"))
+			}
 			fence = !fence
 		case fence:
-			out = append(out, dim("▏ ")+ansi.Truncate(l, w-2, "…"))
+			code = append(code, l)
 		case strings.HasPrefix(t, "#"):
 			out = append(out, bold(strings.TrimSpace(strings.TrimLeft(t, "#"))))
 		case strings.HasPrefix(t, "- ") || strings.HasPrefix(t, "* "):
@@ -312,6 +325,9 @@ func mdPlain(body string, w int) []string {
 				out = append(out, inline(wl))
 			}
 		}
+	}
+	if fence {
+		flush()
 	}
 	return out
 }
@@ -1430,7 +1446,7 @@ func (m *model) paneDims(i int) (int, int) {
 // ---------- content ----------
 
 func wrap(s string, w int) []string {
-	return strings.Split(ansi.Wrap(s, max(w, 10), ""), "\n")
+	return strings.Split(ansi.Wrap(expandTabs(s), max(w, 10), ""), "\n")
 }
 
 func (m *model) oldConvLines(cw int) []string {
@@ -1479,7 +1495,7 @@ func (m *model) oldConvLines(cw int) []string {
 
 func diffLines(d string) []string {
 	var out []string
-	for _, l := range strings.Split(d, "\n") {
+	for _, l := range strings.Split(expandTabs(d), "\n") {
 		switch {
 		case strings.HasPrefix(l, "@@"):
 			out = append(out, cyan(l))

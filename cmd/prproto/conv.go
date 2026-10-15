@@ -309,7 +309,7 @@ func parseBody(body string) []seg {
 		}
 		txt = nil
 	}
-	lines := strings.Split(body, "\n")
+	lines := strings.Split(expandTabs(body), "\n")
 	for i := 0; i < len(lines); i++ {
 		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(lines[i])), "<details") {
 			txt = append(txt, lines[i])
