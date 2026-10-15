@@ -565,7 +565,7 @@ func (f file) total() int {
 
 // buildRows lays the files out as a tree: at each level the folders come
 // first, then the files, each kind in alphabetical order.
-func (m *model) buildFileRows(depth0 int) []row {
+func (m *model) buildFileRows(depth0 int, all bool) []row {
 	var out []row
 	var walk func(prefix string, depth int)
 	walk = func(prefix string, depth int) {
@@ -584,7 +584,7 @@ func (m *model) buildFileRows(depth0 int) []row {
 		slices.Sort(subs)
 		for _, s := range subs {
 			out = append(out, row{dir: true, label: s, depth: depth, path: prefix + s})
-			if !m.foldOpen("d:"+prefix+s, true) {
+			if !all && !m.foldOpen("d:"+prefix+s, true) {
 				continue
 			}
 			walk(prefix+s+"/", depth+1)
@@ -765,10 +765,7 @@ func (m *model) docFor(o *overlay) []dl {
 		return fileDoc(m.rangeFile(o.arg), o.arg)
 	}
 	var out []dl
-	for i := range files {
-		if !m.fileIn(i) {
-			continue
-		}
+	for _, i := range m.treeOrder() {
 		f := m.rangeFile(i)
 		p := f.path()
 		out = append(out, dl{text: "diff --git a/" + p + " b/" + p, kind: 'H', fi: i, loc: -1})
@@ -1110,7 +1107,14 @@ func (m *model) jumpFile(o *overlay, dir int) {
 	}
 	if to >= 0 {
 		m.goDoc(o, to)
+		m.syncTree(doc[to].fi)
 	}
+}
+
+// syncTree puts the Files cursor on a file, opening its folders.
+func (m *model) syncTree(fi int) {
+	m.reveal(fi)
+	m.cur[pFiles] = m.rowOf(fi)
 }
 
 // toggleAll switches between this file and the whole patch, keeping the
@@ -2267,28 +2271,54 @@ func (m *model) showFile(o *overlay, fi int) {
 	o.arg = max(0, min(fi, len(files)-1))
 	o.cur = m.rowOf(o.arg)
 	o.scroll, o.vcur, o.ranging, o.ondraft = 0, 0, false, false
-	if o.embed {
-		m.cur[pFiles] = o.cur
-	}
+	m.cur[pFiles] = o.cur
 }
 
-// nextFile moves to the next or previous file, or file header in the whole patch.
+// treeOrder lists the files of the range as the Files tree shows them, top to
+// bottom, as if every folder were open.
+func (m *model) treeOrder() []int {
+	var out []int
+	for _, r := range m.buildFileRows(1, true) {
+		if r.isFile() {
+			out = append(out, r.fi)
+		}
+	}
+	return out
+}
+
+// reveal opens the folders above a file, so the tree has a row for it.
+func (m *model) reveal(fi int) {
+	if !m.foldOpen("g:files", true) {
+		m.toggleFold("g:files", true)
+	}
+	prefix := ""
+	for _, s := range strings.Split(strings.TrimSuffix(files[fi].dir, "/"), "/") {
+		if s == "" {
+			continue
+		}
+		prefix += s
+		if !m.foldOpen("d:"+prefix, true) {
+			m.toggleFold("d:"+prefix, true)
+		}
+		prefix += "/"
+	}
+	m.rebuild()
+}
+
+// nextFile moves to the next or previous file of the tree, or file header in
+// the whole patch.
 func (m *model) nextFile(o *overlay, d int) {
 	if o.all {
 		m.jumpFile(o, d)
 		return
 	}
-	fi := o.arg
-	for {
-		fi += d
-		if fi < 0 || fi >= len(files) {
-			return
-		}
-		if m.fileIn(fi) {
-			break
-		}
+	order := m.treeOrder()
+	i := slices.Index(order, o.arg) + d
+	if i < 0 || i >= len(order) {
+		return
 	}
-	m.showFile(o, fi)
+	m.reveal(order[i])
+	m.showFile(o, order[i])
 }
 
 // leave closes the pager, or hands the focus back to the files list.
@@ -2510,9 +2540,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toast = ""
 		}
 	case tea.KeyPressMsg:
-		return m, m.key(msg)
+		cmd := m.key(msg)
+		m.followHover()
+		return m, cmd
 	}
 	return m, nil
+}
+
+// followHover keeps the zoomed diff on the file the tree cursor rests on. A
+// folder, commit or check row leaves the last file's diff in place.
+func (m *model) followHover() {
+	if len(m.stack) > 0 || !m.split() || !m.pvOn || m.pfocus != 0 || m.cur[pFiles] >= len(m.rows) {
+		return
+	}
+	if r := m.rows[m.cur[pFiles]]; r.isFile() && r.fi != m.pv.arg {
+		keep := m.cur[pFiles]
+		m.showFile(&m.pv, r.fi)
+		m.cur[pFiles] = keep
+	}
 }
 
 func (m *model) say(s string) tea.Cmd {
@@ -2868,15 +2913,29 @@ func (m *model) paneKey(k string) tea.Cmd {
 		}
 	case pFiles:
 		switch k {
+		case "J", "K":
+			d := 1
+			if k == "K" {
+				d = -1
+			}
+			order := m.treeOrder()
+			if len(order) == 0 {
+				break
+			}
+			i := 0
+			if r := m.rows[m.cur[pFiles]]; r.isFile() {
+				i = slices.Index(order, r.fi) + d
+			} else if d < 0 {
+				i = len(order) - 1
+			}
+			if i >= 0 && i < len(order) {
+				m.syncTree(order[i])
+			}
 		case "enter":
 			r := m.rows[m.cur[pFiles]]
 			switch {
 			case r.isFile():
-				if m.split() {
-					m.showFile(&m.pv, r.fi)
-				} else {
-					m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
-				}
+				m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
 			case r.dir:
 				m.toggleFold("d:"+r.path, true)
 				m.rebuild()

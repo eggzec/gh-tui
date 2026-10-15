@@ -88,15 +88,8 @@ func (m *model) viewedCount() int {
 }
 
 func (m *model) rangePos(fi int) (pos, tot int) {
-	for i := range files {
-		if m.fileIn(i) {
-			tot++
-			if i <= fi {
-				pos = tot
-			}
-		}
-	}
-	return max(pos, 1), tot
+	order := m.treeOrder()
+	return max(slices.Index(order, fi)+1, 1), len(order)
 }
 
 func (m *model) rangeShas() string {
@@ -145,7 +138,7 @@ func (m *model) rebuild() {
 	}
 	rows = append(rows, row{kind: 'r'}, row{kind: 'G'})
 	if m.foldOpen("g:files", true) {
-		rows = append(rows, m.buildFileRows(1)...)
+		rows = append(rows, m.buildFileRows(1, false)...)
 	}
 	m.rows = rows
 	cur := min(m.cur[pFiles], len(rows)-1)
@@ -246,6 +239,14 @@ func (m *model) filesSpace() {
 	}
 	m.rebuild()
 	// Move on to the next item of the same kind, so space can go down a list.
+	// The next file is the tree's, opening the folder it sits in.
+	if r.isFile() {
+		order := m.treeOrder()
+		if i := slices.Index(order, r.fi) + 1; i > 0 && i < len(order) {
+			m.syncTree(order[i])
+		}
+		return
+	}
 	for j := m.cur[pFiles] + 1; j < len(m.rows); j++ {
 		if n := m.rows[j]; r.kind == 'c' && n.kind == 'c' || r.isFile() && n.isFile() {
 			m.cur[pFiles] = j
