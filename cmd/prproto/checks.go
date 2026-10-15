@@ -20,7 +20,9 @@ type run struct{ label, state, dur string }
 
 var checkDefs = []run{
 	{"ci / build (linux)", "ok", "1m12s"},
-	{"ci / test (linux)", "ok", "3m22s"},
+	{"ci / test (ubuntu-latest, 1.22)", "ok", "3m22s"},
+	{"ci / test (macos-latest, 1.22)", "ok", "4m10s"},
+	{"ci / test (windows-latest, 1.22)", "ok", "5m31s"},
 	{"ci / lint", "ok", "0m48s"},
 	{"codeql / analyze", "ok", "5m03s"},
 }
@@ -50,7 +52,7 @@ func commitChecks(sha string) []run {
 	for _, d := range checkDefs {
 		r := d
 		switch {
-		case base == "fail" && d.label == "ci / test (linux)",
+		case base == "fail" && d.label == "ci / test (ubuntu-latest, 1.22)",
 			base == "fail" && sha == headSHA() && d.label == "ci / lint":
 			r.state = "fail"
 		case base == "pending" && d.label == "ci / lint":
@@ -299,9 +301,130 @@ func wfLine(gm, sha, wf string, open bool, right string, cw int) string {
 	return rightAlign(left, dim(right), cw)
 }
 
-// jobLine draws a job row of a run.
+// jobLine draws a job row of a run; a matrix leg shows its values only.
 func jobLine(gm string, ck run, cw int) string {
-	return rightAlign(gm+checkIcon(ck.state)+" "+jobName(ck.label), dim(stateWord(ck.state)+" · "+ck.dur), cw)
+	name := jobName(ck.label)
+	if isLeg(ck.label) {
+		name = legName(ck.label)
+	}
+	return rightAlign(gm+checkIcon(ck.state)+" "+name, dim(stateWord(ck.state)+" · "+ck.dur), cw)
+}
+
+// ---------- matrix jobs ----------
+//
+// GitHub names the legs of a matrix job `name (values)`. Every Actions tree
+// groups them with jobNodes: workflow run → job → legs. A job with one leg, or
+// none, is a plain leaf with no extra level.
+
+// matrixName is the job name of a label before its " (values)".
+func matrixName(label string) string {
+	n, _, _ := strings.Cut(jobName(label), " (")
+	return n
+}
+
+// legName is the values of a leg: "ubuntu-latest, 1.22".
+func legName(label string) string {
+	_, v, ok := strings.Cut(jobName(label), " (")
+	if !ok {
+		return jobName(label)
+	}
+	return strings.TrimSuffix(v, ")")
+}
+
+// jobNode is one job of a run with its legs; a plain job has one run.
+type jobNode struct {
+	wf, name string
+	legs     []run
+}
+
+func (n jobNode) matrix() bool { return len(n.legs) > 1 }
+
+func (n jobNode) state() string { return worst(n.legs) }
+
+// count tells how many legs are in a state.
+func (n jobNode) count(state string) int {
+	c := 0
+	for _, l := range n.legs {
+		if l.state == state {
+			c++
+		}
+	}
+	return c
+}
+
+// summary is the matrix node's status: "1 of 3 failing".
+func (n jobNode) summary() string {
+	switch {
+	case n.count("fail") > 0:
+		return fmt.Sprintf("%d of %d failing", n.count("fail"), len(n.legs))
+	case n.count("pending") > 0:
+		return fmt.Sprintf("%d of %d running", n.count("pending"), len(n.legs))
+	}
+	return fmt.Sprintf("%d passing", len(n.legs))
+}
+
+// bad is the legs that are not passing.
+func (n jobNode) bad() []run {
+	var out []run
+	for _, l := range n.legs {
+		if l.state != "ok" {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// key names the fold of a matrix node under the fold key of its run.
+func (n jobNode) key(base string) string { return base + "|mx:" + n.name }
+
+// jobNodes groups the jobs of one workflow run by job name, in order.
+func jobNodes(sha, wf string) []jobNode {
+	var out []jobNode
+	for _, r := range wfJobs(sha, wf) {
+		name := matrixName(r.label)
+		if k := len(out) - 1; k >= 0 && out[k].name == name {
+			out[k].legs = append(out[k].legs, r)
+			continue
+		}
+		out = append(out, jobNode{wf: wf, name: name, legs: []run{r}})
+	}
+	return out
+}
+
+// nodeOf finds a job node of a run by its name.
+func nodeOf(sha, wf, name string) jobNode {
+	for _, n := range jobNodes(sha, wf) {
+		if n.name == name {
+			return n
+		}
+	}
+	return jobNode{wf: wf, name: name}
+}
+
+// isLeg tells whether a label is a leg of a matrix (the same for every commit).
+func isLeg(label string) bool {
+	c := 0
+	for _, d := range checkDefs {
+		if strings.HasPrefix(d.label, strings.SplitN(label, " / ", 2)[0]+" / ") && matrixName(d.label) == matrixName(label) {
+			c++
+		}
+	}
+	return c > 1
+}
+
+// mxLine draws a matrix node row: fold arrow, combined icon, job name and, on
+// the right, how many legs fail.
+func mxLine(gm string, n jobNode, open bool, cw int) string {
+	return rightAlign(gm+arrowOf(open)+checkIcon(n.state())+" "+n.name, dim(n.summary()), cw)
+}
+
+// mxPreview lists the legs of a matrix node with status and duration.
+func mxPreview(n jobNode) []string {
+	lines := []string{dim(fmt.Sprintf("%d legs of the matrix", len(n.legs))), ""}
+	for _, l := range n.legs {
+		lines = append(lines, checkIcon(l.state)+" "+legName(l.label)+dim(" "+stateWord(l.state)+" · "+l.dur))
+	}
+	return append(lines, "", dim("enter folds the matrix; enter on a leg opens its log"))
 }
 
 // openLog opens the run of a check: cursor on its failing job and the log at
@@ -388,8 +511,18 @@ func (m *model) drawLog(o *overlay, w, h int) string {
 	}
 	jobsPane := func() string {
 		var ls []string
+		prev := ""
 		for i, j := range jobs {
-			_, name, _ := strings.Cut(j.label, " / ")
+			name := jobName(j.label)
+			if isLeg(j.label) {
+				// The matrix heads its legs; the cursor stays on the legs.
+				if mn := matrixName(j.label); mn != prev {
+					prev = mn
+					n := nodeOf(o.text, wf, mn)
+					ls = append(ls, rightAlign(checkIcon(n.state())+" "+mn, dim(n.summary()), jw-4))
+				}
+				name = "  " + legName(j.label)
+			}
 			d := j.dur
 			if j.state == "pending" {
 				d = "running"

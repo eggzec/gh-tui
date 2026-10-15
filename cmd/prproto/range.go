@@ -122,15 +122,23 @@ func (m *model) rebuild() {
 			}
 			rows = append(rows, row{kind: 'c', ci: i, depth: 1})
 			if m.foldOpen("c:"+c.sha, false) {
-				wf := ""
-				for _, r := range commitChecks(c.sha) {
-					w, _, _ := strings.Cut(r.label, " / ")
-					if w != wf {
-						wf = w
-						rows = append(rows, row{kind: 'w', ci: i, label: w, depth: 2})
+				for _, w := range wfs(c.sha) {
+					rows = append(rows, row{kind: 'w', ci: i, label: w, depth: 2})
+					if !m.foldOpen("w:"+c.sha+"|"+w, true) {
+						continue
 					}
-					if m.foldOpen("w:"+c.sha+"|"+w, true) {
-						rows = append(rows, row{kind: 'k', ci: i, label: r.label, depth: 3})
+					for _, n := range jobNodes(c.sha, w) {
+						d := 3
+						if n.matrix() {
+							rows = append(rows, row{kind: 'x', ci: i, label: w + " / " + n.name, depth: d})
+							if !m.foldOpen(n.key("w:"+c.sha+"|"+w), true) {
+								continue
+							}
+							d++
+						}
+						for _, l := range n.legs {
+							rows = append(rows, row{kind: 'k', ci: i, label: l.label, depth: d})
+						}
 					}
 				}
 				for _, app := range appNames(c.sha) {
@@ -208,6 +216,10 @@ func (m *model) fileRowLine(r row, cw int, first, body string) string {
 		return rightAlign(left, dim(right), cw)
 	case 'k':
 		return jobLine(ind, runOf(fcommits[r.ci].sha, r.label), cw)
+	case 'x':
+		sha := fcommits[r.ci].sha
+		wf, name, _ := strings.Cut(r.label, " / ")
+		return mxLine(ind, nodeOf(sha, wf, name), m.foldOpen(r.mxKey(sha), true), cw)
 	case 'w':
 		sha := fcommits[r.ci].sha
 		return wfLine(ind, sha, r.label, m.foldOpen("w:"+sha+"|"+r.label, true), "", cw)
@@ -300,12 +312,20 @@ func (m *model) rowFold(r row) (key string, def, ok bool) {
 	case 'c':
 		sha := fcommits[r.ci].sha
 		return "c:" + sha, false, len(commitChecks(sha)) > 0
+	case 'x':
+		return r.mxKey(fcommits[r.ci].sha), true, true
 	case 'w':
 		return "w:" + fcommits[r.ci].sha + "|" + r.label, true, true
 	case 'a':
 		return "a:" + fcommits[r.ci].sha + "|" + r.label, true, true
 	}
 	return "", false, false
+}
+
+// mxKey is the fold key of a matrix row.
+func (r row) mxKey(sha string) string {
+	wf, name, _ := strings.Cut(r.label, " / ")
+	return jobNode{name: name}.key("w:" + sha + "|" + wf)
 }
 
 // selectable tells whether the cursor can rest on a row of the Files tree.

@@ -249,6 +249,9 @@ func (m *model) mergePreview(b blocker, cw int) pview {
 		}
 		pv.lines = append(pv.lines, "", dim("enter folds the run; enter on a job opens its log"))
 		return pv
+	case "matrix":
+		n := nodeOf(headSHA(), b.wf, b.label)
+		return pview{key: "matrix|" + b.wf + "|" + b.label + "|" + n.summary(), title: b.wf + " · " + b.label, info: dim(n.summary()), lines: mxPreview(n)}
 	case "check":
 		sha := headSHA()
 		r := runOf(sha, b.label)

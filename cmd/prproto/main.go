@@ -1531,21 +1531,34 @@ func (m *model) blockers() []blocker {
 		}
 		out = append(out, blocker{kind: "checks", text: arrowOf(open) + txt, state: st, key: "mb:checks"})
 		for _, wf := range wfs(sha) {
-			var bad []run
-			jobs := wfJobs(sha, wf)
-			for _, j := range jobs {
-				if j.state != "ok" {
-					bad = append(bad, j)
+			var bad []jobNode
+			nodes := jobNodes(sha, wf)
+			for _, n := range nodes {
+				if n.state() != "ok" {
+					bad = append(bad, n)
 				}
 			}
 			if !open || len(bad) == 0 {
 				continue
 			}
 			wo := m.foldOpen("mb:wf:"+wf, true)
-			out = append(out, blocker{kind: "wf", depth: 1, key: "mb:wf:" + wf, wf: wf, state: worst(jobs), right: fmt.Sprintf("%d of %d jobs", len(bad), len(jobs))})
-			if wo {
-				for _, j := range bad {
-					out = append(out, blocker{kind: "check", depth: 2, wf: wf, label: j.label, state: j.state})
+			out = append(out, blocker{kind: "wf", depth: 1, key: "mb:wf:" + wf, wf: wf, state: worst(wfJobs(sha, wf)), right: fmt.Sprintf("%d of %d jobs", len(bad), len(nodes))})
+			if !wo {
+				continue
+			}
+			// Failing parts start open and the passing legs stay folded away.
+			for _, n := range bad {
+				d := 2
+				if n.matrix() {
+					mk := n.key("mb:wf:" + wf)
+					out = append(out, blocker{kind: "matrix", depth: d, key: mk, wf: wf, label: n.name, state: n.state()})
+					if !m.foldOpen(mk, true) {
+						continue
+					}
+					d++
+				}
+				for _, j := range n.bad() {
+					out = append(out, blocker{kind: "check", depth: d, wf: wf, label: j.label, state: j.state})
 				}
 			}
 		}
@@ -1890,6 +1903,8 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 				row = rightAlign(b.text, dim(b.right), cw-ansi.StringWidth(gm))
 			case "wf":
 				row = wfLine("", headSHA(), b.wf, m.foldOpen(b.key, true), b.right, cw-ansi.StringWidth(gm))
+			case "matrix":
+				row = mxLine("", nodeOf(headSHA(), b.wf, b.label), m.foldOpen(b.key, true), cw-ansi.StringWidth(gm))
 			case "check":
 				row = jobLine("", runOf(headSHA(), b.label), cw-ansi.StringWidth(gm))
 			case "app":
@@ -2867,7 +2882,7 @@ func (m *model) paneKey(k string) tea.Cmd {
 				return m.rerunApp(headSHA(), b.label)
 			case "status":
 				return m.say("statuses can't be re-run")
-			case "check", "wf":
+			case "check", "wf", "matrix":
 				return m.say("jobs are re-run in the Actions modal: enter, then R")
 			}
 		case "M":
@@ -2886,7 +2901,7 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.openApp(headSHA(), b.label)
 			case "status":
 				// a status has no page: its URL is a link to ctrl+click
-			case "checks", "wf", "app":
+			case "checks", "wf", "app", "matrix":
 				m.toggleFold(b.key, true)
 			case "check":
 				m.openLog(headSHA(), b.label)
@@ -3023,6 +3038,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 			case r.kind == 'w':
 				m.toggleFold("w:"+fcommits[r.ci].sha+"|"+r.label, true)
 				m.rebuild()
+			case r.kind == 'x':
+				m.toggleFold(r.mxKey(fcommits[r.ci].sha), true)
+				m.rebuild()
 			case r.kind == 'k':
 				m.openLog(fcommits[r.ci].sha, r.label)
 			case r.kind == 'a':
@@ -3038,7 +3056,7 @@ func (m *model) paneKey(k string) tea.Cmd {
 				return m.rerunApp(fcommits[r.ci].sha, r.label)
 			case 's':
 				return m.say("statuses can't be re-run")
-			case 'k', 'w':
+			case 'k', 'w', 'x':
 				return m.say("jobs are re-run in the Actions modal: enter, then R")
 			}
 		case "A":

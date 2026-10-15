@@ -369,14 +369,14 @@ func newConv() convState {
 			// a comment on the whole second file
 			&thread{id: newID(), fi: 1, line: 0, loc: -1,
 				replies: []*reply{rp("dave", "20h ago", "This file needs a table-driven test for the zero case before it merges.")}}),
-		it("sys", "ci", "ci", "1d ago", "Check **ci / test (linux)** failed on **a1b2c3d**"),
+		it("sys", "ci", "ci", "1d ago", "Check **ci / test (ubuntu-latest, 1.22)** failed on **a1b2c3d**"),
 		ev("review", "alice", "1d ago", 1440, act{"requested review from", []string{"**Carol Diaz**"}}),
 		ev("review", "alice", "1d ago", 1437, act{"requested review from", []string{"**org/core**"}}),
 		ev("label", "alice", "1d ago", 1436, act{"added", []string{"%%bug%%", "%%api%%"}}),
 		ev("label", "alice", "1d ago", 1434, act{"removed", []string{"%%wip%%"}}),
 		it("sys", "branch", "alice", "1d ago", "**Alice Chen** changed the base branch from **develop** to **main**"),
 		push("alice", "5h ago", true, [2]string{"d4e5f6a", "Return an error from Div"}, [2]string{"f9e8d7c", "Fix e2e flake by waiting for the fixture server before the first request"}),
-		it("sys", "ci", "ci", "5h ago", "Check **ci / test (linux)** failed on **f9e8d7c**"),
+		it("sys", "ci", "ci", "5h ago", "Check **ci / test (ubuntu-latest, 1.22)** failed on **f9e8d7c**"),
 		ev("review", "alice", "5h ago", 300, act{"requested review from", []string{"**Carol Diaz**"}}),
 		ev("label", "dave", "5h ago", 298, act{"added", []string{"%%enhancement%%", "%%good first issue%%"}}),
 		ev("label", "alice", "4h ago", 297, act{"removed", []string{"%%question%%"}}),
@@ -698,8 +698,20 @@ func (m *model) crows(all bool) []crow {
 						if !wo {
 							continue
 						}
-						for _, r := range wfJobs(cm[0], wf) {
-							rows = append(rows, crow{key: wk + "|" + r.label, kind: "check", depth: depth + 3, parent: wk, it: it, commit: cm, lbl: r.label})
+						for _, n := range jobNodes(cm[0], wf) {
+							d, par := depth+3, wk
+							if n.matrix() {
+								mk := n.key(wk)
+								mo := op(mk, true)
+								rows = append(rows, crow{key: mk, kind: "mx", depth: d, parent: wk, fold: true, open: mo, it: it, commit: cm, lbl: wf + " / " + n.name})
+								if !mo {
+									continue
+								}
+								d, par = d+1, mk
+							}
+							for _, l := range n.legs {
+								rows = append(rows, crow{key: wk + "|" + l.label, kind: "check", depth: d, parent: par, it: it, commit: cm, lbl: l.label})
+							}
 						}
 					}
 					for _, app := range appNames(cm[0]) {
@@ -872,6 +884,9 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		return []string{commitLine(r.commit, cw, gm, r.open)}
 	case "check":
 		return []string{jobLine(gm, runOf(r.commit[0], r.lbl), cw)}
+	case "mx":
+		wf, name, _ := strings.Cut(r.lbl, " / ")
+		return []string{mxLine(gm, nodeOf(r.commit[0], wf, name), r.open, cw)}
 	case "wf":
 		return []string{wfLine(gm, r.commit[0], r.lbl, r.open, "", cw)}
 	case "app":
@@ -1201,7 +1216,7 @@ func (m *model) convKey(k string) tea.Cmd {
 			return m.rerunApp(r.commit[0], r.lbl)
 		case "status":
 			return m.say("statuses can't be re-run")
-		case "check", "wf":
+		case "check", "wf", "mx":
 			return m.say("jobs are re-run in the Actions modal: enter, then R")
 		}
 	case ")":
