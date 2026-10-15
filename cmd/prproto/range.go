@@ -157,8 +157,10 @@ func (m *model) rebuild() {
 	m.cur[pFiles] = m.snap(cur, 0)
 }
 
-func (m *model) fileRowLine(r row, cw int) string {
-	ind := " " + strings.Repeat("  ", r.depth)
+// fileRowLine draws a row after its tree guides: first for its own line, body
+// for a row that is not a node.
+func (m *model) fileRowLine(r row, cw int, first, body string) string {
+	ind := first
 	switch r.kind {
 	case 'r':
 		return dim(strings.Repeat("─", max(0, cw)))
@@ -185,7 +187,7 @@ func (m *model) fileRowLine(r row, cw int) string {
 		}
 		return t
 	case 'm':
-		return ind + dim("── your last review ──")
+		return body + dim("── your last review ──")
 	case 'c':
 		c := fcommits[r.ci]
 		glyph, sha, subj := dim(commitGlyph), boldDim(c.sha), dim(c.subj)
@@ -207,7 +209,11 @@ func (m *model) fileRowLine(r row, cw int) string {
 		return ind + dim(arrow) + r.label
 	}
 	if r.dir {
-		return ind + dim("▾ "+r.label)
+		arrow := "▾ "
+		if !m.foldOpen("d:"+r.path, true) {
+			arrow = "▸ "
+		}
+		return ind + dim(arrow) + r.label + dim("/")
 	}
 	f := m.rangeFile(r.fi)
 	counts := green(fmt.Sprintf("+%d", f.add)) + " " + red(fmt.Sprintf("−%d", f.del))
@@ -257,6 +263,9 @@ var boldAccent = func(t string) string {
 // rowFold says whether a Files row is a fold, with the key and default of its
 // state.
 func (m *model) rowFold(r row) (key string, def, ok bool) {
+	if r.dir {
+		return "d:" + r.path, true, true
+	}
 	switch r.kind {
 	case 'g':
 		return "g:commits", false, true
@@ -272,7 +281,7 @@ func (m *model) rowFold(r row) (key string, def, ok bool) {
 }
 
 // selectable tells whether the cursor can rest on a row of the Files tree.
-func (r row) selectable() bool { return !r.dir && r.kind != 'm' && r.kind != 'r' }
+func (r row) selectable() bool { return r.kind != 'm' && r.kind != 'r' }
 
 // filesRight is l in the tree: open a closed node, step into an open one.
 // It reports false on a leaf, which leaves the key to the pane.

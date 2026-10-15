@@ -583,7 +583,10 @@ func (m *model) buildFileRows(depth0 int) []row {
 		}
 		slices.Sort(subs)
 		for _, s := range subs {
-			out = append(out, row{dir: true, label: s, depth: depth})
+			out = append(out, row{dir: true, label: s, depth: depth, path: prefix + s})
+			if !m.foldOpen("d:"+prefix+s, true) {
+				continue
+			}
 			walk(prefix+s+"/", depth+1)
 		}
 		var here []int
@@ -1391,7 +1394,8 @@ type row struct {
 	dir   bool
 	fi    int
 	label string
-	depth int // nesting: a folder's files sit one deeper than the folder
+	depth int    // nesting: a folder's files sit one deeper than the folder
+	path  string // a folder's path, which names its fold
 	// kind is 0 for a folder or a file, else 'g' the Commits header, 'c' a
 	// commit (ci), 'k' one of its checks (ci, fi), 'm' the last-review marker,
 	// 'G' the Files header.
@@ -1542,9 +1546,9 @@ type overlay struct {
 	all     bool // the whole patch instead of one file
 	max     bool
 	open    map[int]bool // the log: steps the reader folded or opened
-	ondraft bool   // the cursor is on a draft row
-	dkey    [3]int // which draft
-	embed   bool   // the pager shown beside the zoomed files list
+	ondraft bool         // the cursor is on a draft row
+	dkey    [3]int       // which draft
+	embed   bool         // the pager shown beside the zoomed files list
 
 	title  string
 	items  []string
@@ -1798,8 +1802,13 @@ func (m *model) paneLines(i, cw int) ([]string, int) {
 		return m.treeLines(i, cw, m.devNodes())
 	case pFiles:
 		var out []string
+		cr := make([]crow, len(m.rows))
 		for k, r := range m.rows {
-			t := m.fileRowLine(r, cw)
+			cr[k].depth = r.depth
+		}
+		for k, r := range m.rows {
+			first, body, _ := guides(cr, k)
+			t := m.fileRowLine(r, cw, first, body)
 			if m.cur[pFiles] == k {
 				w, _ := m.paneDims(pFiles)
 				t = selRow(t, w-4, m.focus == pFiles)
@@ -1945,7 +1954,7 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 	case "combined":
 		var out []string
 		for _, r := range m.rows {
-			if r.dir {
+			if !r.isFile() {
 				continue
 			}
 			f := files[r.fi]
@@ -2697,6 +2706,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 				} else {
 					m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
 				}
+			case r.dir:
+				m.toggleFold("d:"+r.path, true)
+				m.rebuild()
 			case r.kind == 'g':
 				m.toggleFold("g:commits", false)
 				m.rebuild()
@@ -2734,14 +2746,7 @@ func (m *model) paneKey(k string) tea.Cmd {
 			m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles], quick: true, compose: true,
 				cfile: r.fi, cend: -1, clo: -1, clabel: files[r.fi].path()})
 		case "l", "right":
-			if m.filesRight() {
-				break
-			}
-			if m.split() {
-				m.pfocus = 1
-			} else {
-				m.focus = pMain
-			}
+			m.filesRight()
 		case "h", "left":
 			m.filesLeft()
 		}
