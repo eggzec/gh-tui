@@ -63,14 +63,16 @@ func TestListsMarkRows(t *testing.T) {
 					t.Fatalf("a row is marked at the start:\n%s", screen())
 				}
 
-				press("space")
+				// Space steps the cursor down after it marks, so go back up
+				// to the marked row to see its mark and to unmark it.
+				press("space", "up")
 				if !strings.Contains(screen(), "1 marked") || !strings.Contains(screen(), "▌"+glyph+" ") {
 					t.Fatalf("after space the screen lacks the mark and its count:\n%s", screen())
 				}
 				if !enabled("clear marks") {
 					t.Errorf("help lacks esc, clear marks, with a row marked: %q", layerNames(m.keyLayers()))
 				}
-				press("space")
+				press("space", "up")
 				if marked() || strings.Contains(screen(), "marked") || enabled("clear marks") {
 					t.Fatalf("a second space left the row marked:\n%s", screen())
 				}
@@ -111,8 +113,11 @@ func TestListMarkASCII(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m, _ := c.context(t).reach(t)
 				runCommand(t, m, "set ui.icons="+config.IconsASCII)
-				msg, _ := keyPress("space")
-				driveKeys(t, m, m.key(msg))
+				// The mark key steps down, so go back up to the marked row.
+				for _, k := range []string{"space", "up"} {
+					msg, _ := keyPress(k)
+					driveKeys(t, m, m.key(msg))
+				}
 				ic := ui.NewIcons(config.IconsASCII)
 				if want := ic.Cursor + ic.Marked + " "; !strings.Contains(ansi.Strip(m.View().Content), want) {
 					t.Errorf("the screen lacks the ASCII mark %q:\n%s", want, ansi.Strip(m.View().Content))

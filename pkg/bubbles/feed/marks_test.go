@@ -26,23 +26,52 @@ func TestMarkToggles(t *testing.T) {
 	if got := m.Marks(); got != 1 {
 		t.Fatalf("after space, %d items are marked, want 1", got)
 	}
-	if it, _ := m.Selected(); !m.Marked(it) {
-		t.Errorf("the selected item %s is not marked", it.id)
+	// Marking moves the cursor on to the next row.
+	if got := selectedID(t, m); got != "1" {
+		t.Errorf("selected %s after marking, want 1", got)
 	}
-	// Marking does not move the cursor.
-	if got := selectedID(t, m); got != "0" {
-		t.Errorf("selected %s after marking, want 0", got)
-	}
-	m = keys(t, m, "j", "j", "space")
+	m = keys(t, m, "j", "space")
 	if got := m.Marks(); got != 2 {
 		t.Fatalf("%d items are marked, want 2", got)
 	}
-	m = keys(t, m, "space")
+	if got := selectedID(t, m); got != "3" {
+		t.Errorf("selected %s after marking, want 3", got)
+	}
+	// Unmarking moves on too.
+	m = keys(t, m, "k", "space")
 	if got := m.Marks(); got != 1 {
 		t.Errorf("space on a marked row left %d marks, want 1", got)
 	}
-	if it, _ := m.Selected(); m.Marked(it) {
-		t.Errorf("item %s is still marked", it.id)
+	if got := selectedID(t, m); got != "3" {
+		t.Errorf("selected %s after unmarking, want 3", got)
+	}
+	if !m.Marked(item{id: "0"}) {
+		t.Error("item 0 is not marked")
+	}
+	if m.Marked(item{id: "2"}) {
+		t.Error("item 2 is still marked")
+	}
+}
+
+func TestMarkStaysOnTheLastRow(t *testing.T) {
+	m := marking(t, newSource(3, 10))
+	m = keys(t, m, "G")
+	if got := selectedID(t, m); got != "2" {
+		t.Fatalf("selected %s at the end, want 2", got)
+	}
+	m = keys(t, m, "space")
+	if got := selectedID(t, m); got != "2" {
+		t.Errorf("selected %s after marking the last row, want 2", got)
+	}
+	if got := m.Marks(); got != 1 {
+		t.Errorf("%d items are marked, want 1", got)
+	}
+	m = keys(t, m, "space")
+	if got := selectedID(t, m); got != "2" {
+		t.Errorf("selected %s after unmarking the last row, want 2", got)
+	}
+	if got := m.Marks(); got != 0 {
+		t.Errorf("%d items are marked, want 0", got)
 	}
 }
 
@@ -90,7 +119,7 @@ func TestMarkGutter(t *testing.T) {
 	if m.Gutter() != markedWidth {
 		t.Fatalf("gutter is %d wide, want %d", m.Gutter(), markedWidth)
 	}
-	m = keys(t, m, "space", "j")
+	m = keys(t, m, "space")
 	lines := strings.Split(ansi.Strip(m.View()), "\n")
 	if !strings.HasPrefix(lines[0], " ◆ #0 item 0") {
 		t.Errorf("the marked row reads %q", lines[0])
@@ -111,7 +140,7 @@ func TestMarkGlyphFollowsStyles(t *testing.T) {
 	s.MarkGlyph = "+"
 	m.SetStyles(s)
 	m = keys(t, m, "space")
-	if !strings.Contains(ansi.Strip(m.View()), "▌+ #0 item 0") {
+	if !strings.Contains(ansi.Strip(m.View()), "+ #0 item 0") {
 		t.Errorf("the mark is not the glyph of the styles:\n%s", ansi.Strip(m.View()))
 	}
 }
@@ -119,7 +148,7 @@ func TestMarkGlyphFollowsStyles(t *testing.T) {
 func TestMarksSurviveReload(t *testing.T) {
 	src := newSource(25, 10)
 	m := marking(t, src)
-	m = keys(t, m, "space", "j", "j", "space")
+	m = keys(t, m, "space", "j", "space")
 	// Page down so that another chunk loads, then reload them all.
 	m = keys(t, m, "end")
 	m = keys(t, m, "end")
@@ -148,7 +177,7 @@ func TestMarksSurviveReload(t *testing.T) {
 func TestMarkDroppedWithItsItem(t *testing.T) {
 	src := newSource(10, 10)
 	m := marking(t, src)
-	m = keys(t, m, "space", "j", "space")
+	m = keys(t, m, "space", "space")
 	src.items = src.items[1:]
 	m = run(t, m, m.Reload())
 	if m.Marks() != 1 {
@@ -175,7 +204,7 @@ func TestMarkKeptWhileTheListIsNotLoaded(t *testing.T) {
 func TestMarksSurviveFilter(t *testing.T) {
 	m := marking(t, bugs(10))
 	// Item 0 is plain, item 2 is a bug.
-	m = keys(t, m, "space", "j", "j", "space")
+	m = keys(t, m, "space", "j", "space")
 	m = typed(t, m, "&", "bug", "enter")
 	if m.Shown() != 2 {
 		t.Fatalf("the filter shows %d rows, want 2", m.Shown())
@@ -254,12 +283,12 @@ func TestMarkChip(t *testing.T) {
 	if strings.Contains(ansi.Strip(m.View()), "marked") {
 		t.Error("the chip shows with nothing marked")
 	}
-	m = keys(t, m, "space", "j", "space", "j", "space")
+	m = keys(t, m, "space", "space", "space")
 	last := lastLine(ansi.Strip(m.View()))
 	if !strings.Contains(last, "3 marked") {
 		t.Errorf("the last line reads %q, want the chip %q", last, "3 marked")
 	}
-	m = keys(t, m, "space")
+	m = keys(t, m, "k", "space")
 	if last := lastLine(ansi.Strip(m.View())); !strings.Contains(last, "2 marked") {
 		t.Errorf("the last line reads %q, want the chip %q", last, "2 marked")
 	}
@@ -311,16 +340,16 @@ func TestMarkView(t *testing.T) {
 	}{
 		{"marked rows", func(t *testing.T) Model[item] {
 			t.Helper()
-			return keys(t, marking(t, newSource(10, 10)), "space", "j", "j", "space", "j")
+			return keys(t, marking(t, newSource(10, 10)), "space", "j", "space")
 		}},
 		{"marked rows and a filter", func(t *testing.T) Model[item] {
 			t.Helper()
-			m := keys(t, marking(t, bugs(10)), "space", "j", "j", "space")
+			m := keys(t, marking(t, bugs(10)), "space", "j", "space", "k")
 			return typed(t, m, "&", "bug", "enter")
 		}},
 		{"marked rows blurred", func(t *testing.T) Model[item] {
 			t.Helper()
-			m := keys(t, marking(t, newSource(10, 10)), "space", "j")
+			m := keys(t, marking(t, newSource(10, 10)), "space")
 			m.Blur()
 			return m
 		}},
