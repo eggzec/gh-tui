@@ -429,11 +429,11 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 				head = threadIcon(true) + " " + dim(who+" · "+r.th.label())
 			}
 		} else {
-			line, _, _ := strings.Cut(first.body, "\n")
+			// No excerpt: the full body is drawn below.
 			if r.th.resolved {
-				head = threadIcon(true) + " " + dim(who+"  "+line)
+				head = threadIcon(true) + " " + dim(who)
 			} else {
-				head = threadIcon(false) + " " + bold(who) + "  " + dim(line)
+				head = threadIcon(false) + " " + bold(who)
 			}
 		}
 		if r.th.outdated {
@@ -747,9 +747,9 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 					text += dim(fmt.Sprintf(" ⋯ %d", n))
 				}
 			case t.resolved:
-				text = dim("@" + first.who + ": " + first.body)
+				text = dim("@" + first.who)
 			default:
-				text = bold("@"+first.who) + dim(": ") + first.body
+				text = bold("@" + first.who)
 			}
 			if t.outdated {
 				text += " " + dim(outdatedIcon)
@@ -759,6 +759,14 @@ func (m *model) threadRows(fi, loc, li int) []vrow {
 			if !isOpen {
 				continue
 			}
+			// The header carries no excerpt, so the first comment's body
+			// is drawn once, on its own row.
+			body := first.body
+			if t.resolved {
+				body = dim(body)
+			}
+			out = append(out, vrow{li: li, draft: true, dk: [3]int{-t.id, 1, 0},
+				text: dim("   │ ") + body})
 			for i, r := range t.replies {
 				if i == 0 {
 					continue
