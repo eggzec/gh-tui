@@ -21,6 +21,8 @@ type memVisitStore struct {
 	kept  map[string]visits.State
 	saves int
 	err   error
+	// saveFails is how many of the next saves fail, without keeping anything.
+	saveFails int
 }
 
 func (s *memVisitStore) Load(key string) (visits.State, error) {
@@ -32,6 +34,10 @@ func (s *memVisitStore) Load(key string) (visits.State, error) {
 func (s *memVisitStore) Save(key string, st visits.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.saveFails > 0 {
+		s.saveFails--
+		return errors.New("disk full")
+	}
 	if s.kept == nil {
 		s.kept = map[string]visits.State{}
 	}

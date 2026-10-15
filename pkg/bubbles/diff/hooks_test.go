@@ -16,10 +16,12 @@ func TestSetCollapsedKeepsCursor(t *testing.T) {
 		start     int
 		wantFile  string
 		wantExact bool // the cursor is still on the same row of its file
+		// wantHeader is set when the cursor must be on the header of b.go.
+		wantHeader bool
 	}{
-		{"in a later file", 3, "c.go", true},
-		{"on the header", -1, "b.go", true},
-		{"in the collapsing file", -2, "b.go", false},
+		{"in a later file", 3, "c.go", true, false},
+		{"on the header", -1, "b.go", true, true},
+		{"in the collapsing file", -2, "b.go", false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,6 +46,9 @@ func TestSetCollapsedKeepsCursor(t *testing.T) {
 			}
 			if after, _ := m.Position(); tt.wantExact && after != before {
 				t.Errorf("cursor moved from %+v to %+v", before, after)
+			}
+			if header, _ := m.layout.FileRow(m.layout.FileIndex("b.go")); tt.wantHeader && m.Cursor() != header {
+				t.Errorf("cursor on row %d, want the header of b.go at row %d", m.Cursor(), header)
 			}
 			m.SetCollapsed("b.go", false)
 			if m.Collapsed("b.go") {
@@ -95,6 +100,29 @@ func TestSetFirstFilesNoteUnderTheCursor(t *testing.T) {
 	m.SetFirstFilesNote(0)
 	if got, last := m.Cursor(), m.Len()-1; got != last {
 		t.Errorf("cursor on row %d after the note went, want the last row, %d", got, last)
+	}
+}
+
+func TestSetCollapsedKeepsCursorInViewWhenScrolled(t *testing.T) {
+	// A window of a few rows, scrolled until its top is inside b.go: collapsing
+	// b.go must leave the cursor on its header, and the header in the window.
+	files := []File{goFile("a.go", 2), goFile("b.go", 3), goFile("c.go", 2)}
+	m := load(t, &source{size: 5, files: files}, WithSize(60, 6))
+	m.SeekFile("b.go")
+	m = keys(t, m, "down", "down", "down", "down", "down", "down", "down", "down", "down", "down")
+	header, _ := m.layout.FileRow(m.layout.FileIndex("b.go"))
+	if m.top <= header || m.Cursor() <= header {
+		t.Fatalf("setup: window top %d and cursor %d should both be inside b.go (header at %d)", m.top, m.Cursor(), header)
+	}
+	m.SetCollapsed("b.go", true)
+	if m.Cursor() != header {
+		t.Errorf("cursor on row %d, want the header of b.go at row %d", m.Cursor(), header)
+	}
+	if m.Cursor() < m.top || m.Cursor() >= m.top+m.bodyHeight() {
+		t.Errorf("cursor %d is outside the window of rows %d to %d", m.Cursor(), m.top, m.top+m.bodyHeight()-1)
+	}
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "b.go") {
+		t.Errorf("the header of b.go is not drawn:\n%s", view)
 	}
 }
 
@@ -194,6 +222,36 @@ func TestFileEndVisible(t *testing.T) {
 	}
 	if empty := load(t, &source{size: 5}); empty.FileEndVisible() {
 		t.Error("an empty view reports the end of a file")
+	}
+}
+
+func TestFileEndVisibleEdges(t *testing.T) {
+	tests := []struct {
+		name  string
+		files []File
+		opts  []Option
+		keys  []string
+		want  bool
+	}{
+		{"the last file, with its end in the window", []File{goFile("a.go", 1), goFile("b.go", 1)}, []Option{WithSize(60, 20)}, []string{"G"}, true},
+		{"the last file, with its end below the window", []File{goFile("a.go", 1), goFile("b.go", 6)}, []Option{WithSize(60, 6)}, []string{"J"}, false},
+		{"a file with no patch", []File{{Path: "e.go", Status: StatusModified}}, []Option{WithSize(60, 6)}, nil, true},
+		{"a file with no patch among others", []File{goFile("a.go", 1), {Path: "e.go", Status: StatusModified}, goFile("c.go", 1)}, []Option{WithSize(60, 12)}, []string{"J"}, true},
+		{"the first-files note", []File{goFile("a.go", 1), goFile("b.go", 1)}, []Option{WithSize(60, 20), WithFirstFilesNote(5)}, []string{"G"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := load(t, &source{size: 5, files: tt.files}, tt.opts...)
+			m = keys(t, m, tt.keys...)
+			if tt.name == "the first-files note" {
+				if _, ok := m.CurrentFile(); ok || m.Cursor() != m.Len()-1 {
+					t.Fatalf("setup: cursor on row %d of %d, want the note after the last file", m.Cursor(), m.Len())
+				}
+			}
+			if got := m.FileEndVisible(); got != tt.want {
+				t.Errorf("FileEndVisible() = %v, want %v (cursor %d, top %d, %d rows)", got, tt.want, m.Cursor(), m.top, m.Len())
+			}
+		})
 	}
 }
 

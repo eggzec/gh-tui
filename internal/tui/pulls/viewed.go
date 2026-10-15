@@ -109,7 +109,7 @@ func (m *detailModal) toggleViewed(file diff.File, next bool) tea.Cmd {
 	v, f := &m.visit, m.files
 	if v.store != nil && !v.loaded {
 		// What was kept isn't read yet, and saving now would replace it.
-		return nil
+		return ui.Notify(toast.Info, "Still reading the files you viewed; try again in a moment.")
 	}
 	marks := maps.Clone(v.prev.Viewed)
 	if marks == nil {
@@ -125,6 +125,11 @@ func (m *detailModal) toggleViewed(file diff.File, next bool) tea.Cmd {
 	f.diff.SetCollapsed(file.Path, marked)
 	m.countViewed()
 	cmds := []tea.Cmd{m.saveViewed()}
+	if v.store != nil && v.readFailed && !v.warned {
+		// The mark holds for this session only; say so once, not on every press.
+		v.warned = true
+		cmds = append(cmds, ui.Notify(toast.Warning, "Marks won't be kept: the files viewed couldn't be read."))
+	}
 	if marked && next {
 		if p := m.nextUnviewed(file.Path); p != "" {
 			cmds = append(cmds, m.showFile(p))
@@ -220,11 +225,11 @@ func (m *detailModal) saveViewed() tea.Cmd {
 			// A later save, or the write of the visit, kept something newer.
 			return nil
 		}
-		err := store.Save(key, state)
-		seq.wrote = n
-		if err != nil {
+		if err := store.Save(key, state); err != nil {
+			// Nothing was written, so a later or pending save may still run.
 			return ui.Notify(toast.Warning, "Couldn't save the files viewed: "+err.Error())()
 		}
+		seq.wrote = n
 		return nil
 	}
 }
