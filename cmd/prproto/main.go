@@ -1643,13 +1643,8 @@ func (m *model) Init() tea.Cmd { return nil }
 
 func (m *model) narrow() bool { return m.w < 120 }
 func (m *model) zoomed() bool { return m.zoom || m.narrow() }
-func (m *model) bodyTop() int {
-	if m.narrow() {
-		return 2
-	}
-	return 1
-}
-func (m *model) bodyH() int { return m.h - m.bodyTop() - 1 }
+func (m *model) bodyTop() int { return 1 }
+func (m *model) bodyH() int   { return m.h - m.bodyTop() - 1 }
 
 // descH is the description pane's height beside the conversation: a third of
 // the body, at least 5 rows.
@@ -2332,28 +2327,16 @@ func (m *model) render() string {
 		return ""
 	}
 	parts := []string{m.header()}
-	if m.narrow() {
-		var names []string
-		for i := range paneNames {
-			n := fmt.Sprintf("%d %s", i+1, paneNames[i])
-			if i == m.focus {
-				names = append(names, rev(" "+n+" "))
-			} else {
-				names = append(names, dim(n))
-			}
-		}
-		parts = append(parts, strings.Join(names, " "))
-	}
 	if m.split() {
 		w, h := m.paneDims(pFiles)
 		_ = w
 		_ = h
 		_, _, dw, dh := m.ovRect(&m.pv)
-		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(pFiles), m.drawDiff(&m.pv, dw, dh)))
+		parts = append(parts, m.zoomStrip([]string{m.pane(pFiles), m.drawDiff(&m.pv, dw, dh)}, []bool{m.pfocus == 0, m.pfocus == 1}))
 	} else if m.lpane() {
-		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(m.focus), m.previewBox()))
+		parts = append(parts, m.zoomStrip([]string{m.pane(m.focus), m.previewBox()}, []bool{m.pfocus == 0, m.pfocus == 1}))
 	} else if m.zoomed() {
-		parts = append(parts, m.pane(m.focus))
+		parts = append(parts, m.zoomStrip([]string{m.pane(m.focus)}, []bool{true}))
 	} else {
 		var col []string
 		for i := pMerge; i <= pFiles; i++ {
@@ -2531,9 +2514,14 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 	case "q":
 		return tea.Quit
 	case "tab":
-		m.focus = (m.focus + 1) % nPanes
+		// A zoomed pane without sub-panes keeps the focus; 1-6 switch it.
+		if !m.zoom {
+			m.focus = (m.focus + 1) % nPanes
+		}
 	case "shift+tab":
-		m.focus = (m.focus + nPanes - 1) % nPanes
+		if !m.zoom {
+			m.focus = (m.focus + nPanes - 1) % nPanes
+		}
 	case "1", "2", "3", "4", "5", "6":
 		m.focus = int(k[0] - '1')
 	case "L":
