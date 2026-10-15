@@ -185,9 +185,12 @@ var sel = lipgloss.NewStyle().Background(lipgloss.Color("238")).Render
 // dl is one line of the full file with its changes inline; src is the line
 // number in the new file (for a deleted line, the next line that follows).
 type dl struct {
-	text string
-	kind byte
-	src  int
+	text    string
+	kind    byte // '@' hunk header, '+', '-', 'h' context, 'f' filler, 'H' file header
+	src     int
+	fi, loc int // file index and index within that file's lines (-1 for 'H')
+	old, nw int // gutter line numbers, 0 for blank
+	es, ee  int // rune range of the body to emphasise (the changed words)
 }
 
 type draft struct{ label, text string }
@@ -196,15 +199,18 @@ type vrow struct {
 	text  string
 	li    int
 	draft bool
+	dk    [3]int // for a draft row: file, end doc line, start doc line
 }
 
-func fileDoc(f file) []dl {
-	neu := strings.Contains(f.diff, "@@ -0,0")
+func fileDoc(f file, fi int) []dl {
+	isNew := strings.Contains(f.diff, "@@ -0,0")
+	delta := 0 // added minus removed so far: old number = new number - delta
 	filler := func(n int) dl {
-		if neu {
-			return dl{"+" + fillerLine(n), '+', n}
+		t := strings.ReplaceAll(fillerLine(n), "\t", "    ")
+		if isNew {
+			return dl{text: "+" + t, kind: '+', src: n, nw: n}
 		}
-		return dl{" " + fillerLine(n), 'f', n}
+		return dl{text: " " + t, kind: 'f', src: n, old: n - delta, nw: n}
 	}
 	var out []dl
 	n := 1
@@ -212,45 +218,161 @@ func fileDoc(f file) []dl {
 		for ; n < h.start; n++ {
 			out = append(out, filler(n))
 		}
-		out = append(out, dl{h.hdr, '@', h.start})
+		out = append(out, dl{text: h.hdr, kind: '@', src: h.start})
 		for _, l := range h.lines {
-			k, src := byte('h'), n
+			l = strings.ReplaceAll(l, "\t", "    ")
+			x := dl{text: l, kind: 'h', src: n}
 			switch {
 			case strings.HasPrefix(l, "+"):
-				k = '+'
+				x.kind, x.nw = '+', n
 				n++
+				delta++
 			case strings.HasPrefix(l, "-"):
-				k = '-'
+				x.kind, x.old = '-', n-delta
+				delta--
 			default:
+				x.old, x.nw = n-delta, n
 				n++
 			}
-			out = append(out, dl{l, k, src})
+			out = append(out, x)
 		}
 	}
 	for ; n <= f.total(); n++ {
 		out = append(out, filler(n))
 	}
+	for i := range out {
+		out[i].fi, out[i].loc = fi, i
+	}
+	// emphasise the changed words of a removed line and the added line paired with it
+	for i := 0; i < len(out); {
+		if out[i].kind != '-' {
+			i++
+			continue
+		}
+		j := i
+		for j < len(out) && out[j].kind == '-' {
+			j++
+		}
+		k := j
+		for k < len(out) && out[k].kind == '+' {
+			k++
+		}
+		if j-i == k-j {
+			for p := 0; p < j-i; p++ {
+				emphasise(&out[i+p], &out[j+p])
+			}
+		}
+		i = k
+	}
 	return out
 }
 
-func styled(x dl) string {
-	switch x.kind {
-	case '@':
-		return cyan(x.text)
-	case '+':
-		return green(x.text)
-	case '-':
-		return red(x.text)
-	case 'f':
-		return dim(x.text)
+func emphasise(a, b *dl) {
+	ra, rb := []rune(a.text[1:]), []rune(b.text[1:])
+	pre := 0
+	for pre < len(ra) && pre < len(rb) && ra[pre] == rb[pre] {
+		pre++
 	}
-	return x.text
+	suf := 0
+	for suf < len(ra)-pre && suf < len(rb)-pre && ra[len(ra)-1-suf] == rb[len(rb)-1-suf] {
+		suf++
+	}
+	if pre+suf == 0 || (pre == len(ra) && pre == len(rb)) {
+		return
+	}
+	a.es, a.ee = pre, len(ra)-suf
+	b.es, b.ee = pre, len(rb)-suf
+}
+
+// docFor is the lines of the pager: one file, or the whole patch with a git
+// style header before each file.
+func (m *model) docFor(o *overlay) []dl {
+	if !o.all {
+		return fileDoc(files[o.arg], o.arg)
+	}
+	var out []dl
+	for i, f := range files {
+		p := f.path()
+		out = append(out, dl{text: "diff --git a/" + p + " b/" + p, kind: 'H', fi: i, loc: -1})
+		out = append(out, fileDoc(f, i)...)
+	}
+	return out
+}
+
+// Delta style colours: a background per line kind, a stronger one on the
+// changed words, truecolor with a 256 colour fallback.
+var truecolor = strings.Contains(os.Getenv("COLORTERM"), "truecolor") || strings.Contains(os.Getenv("COLORTERM"), "24bit")
+
+func bgc(r, g, b, c int) string {
+	if truecolor {
+		return fmt.Sprintf("\x1b[48;2;%d;%d;%dm", r, g, b)
+	}
+	return fmt.Sprintf("\x1b[48;5;%dm", c)
+}
+
+// lineBG: st 0 plain, 1 cursor, 2 highlighted (range or selected draft).
+func lineBG(kind byte, st int) string {
+	switch kind {
+	case '+':
+		return [3]string{bgc(0, 40, 0, 22), bgc(0, 72, 0, 28), bgc(0, 56, 48, 29)}[st]
+	case '-':
+		return [3]string{bgc(63, 0, 1, 52), bgc(104, 0, 2, 88), bgc(80, 0, 48, 89)}[st]
+	}
+	return [3]string{"", bgc(56, 56, 56, 238), bgc(32, 32, 80, 17)}[st]
+}
+
+func renderDL(x dl, w, st int) string {
+	const rst = "\x1b[0m"
+	tw := max(0, w-4)
+	switch x.kind {
+	case 'H':
+		s := bold(x.text)
+		if st > 0 {
+			s = rev(x.text)
+		}
+		return s
+	case '@':
+		fn := ""
+		if _, after, ok := strings.Cut(strings.TrimPrefix(x.text, "@@"), "@@"); ok {
+			fn = strings.TrimSpace(after)
+		}
+		s := "── " + fn + " "
+		s += strings.Repeat("─", max(0, tw-lipgloss.Width(s)))
+		if st > 0 {
+			return lineBG(' ', st) + "\x1b[90m" + s + rst
+		}
+		return dim(s)
+	}
+	num := func(n int) string {
+		if n == 0 {
+			return "    "
+		}
+		return fmt.Sprintf("%4d", n)
+	}
+	gut := num(x.old) + " " + num(x.nw) + " │ "
+	l := lineBG(x.kind, st)
+	body := []rune(x.text[1:])
+	out := l + "\x1b[90m" + gut + "\x1b[39m"
+	if x.kind == 'f' {
+		out += "\x1b[90m"
+	}
+	if x.ee > x.es {
+		eb := bgc(0, 96, 0, 34)
+		if x.kind == '-' {
+			eb = bgc(144, 16, 17, 124)
+		}
+		out += string(body[:x.es]) + eb + string(body[x.es:x.ee]) + l + string(body[x.ee:])
+	} else {
+		out += string(body)
+	}
+	pad := max(0, tw-lipgloss.Width(gut)-len(body))
+	return out + strings.Repeat(" ", pad) + rst
 }
 
 // dview returns the file, the doc indexes shown in the current mode and the
 // screen rows (a draft adds a row under its line).
 func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
-	doc := fileDoc(files[o.arg])
+	doc := m.docFor(o)
 	var vis []int
 	var rows []vrow
 	for i, x := range doc {
@@ -258,9 +380,17 @@ func (m *model) dview(o *overlay) ([]dl, []int, []vrow) {
 			continue
 		}
 		vis = append(vis, i)
-		rows = append(rows, vrow{styled(x), len(vis) - 1, false})
-		if d, ok := m.drafts[[2]int{o.arg, i}]; ok {
-			rows = append(rows, vrow{yellow("   ✎ ") + rev(" draft ") + yellow(" "+d.label+": ") + d.text, len(vis) - 1, true})
+		rows = append(rows, vrow{li: len(vis) - 1})
+		var ds [][3]int
+		for k := range m.drafts {
+			if k[0] == x.fi && k[1] == x.loc {
+				ds = append(ds, k)
+			}
+		}
+		slices.SortFunc(ds, func(a, b [3]int) int { return a[2] - b[2] })
+		for _, k := range ds {
+			d := m.drafts[k]
+			rows = append(rows, vrow{text: yellow("   ✎ ") + rev(" draft ") + yellow(" "+d.label+": ") + d.text, li: len(vis) - 1, draft: true, dk: k})
 		}
 	}
 	return doc, vis, rows
@@ -275,13 +405,32 @@ func cursorRow(rows []vrow, li int) int {
 	return 0
 }
 
+// curRow is the screen row of the cursor, which may sit on a draft.
+func curRow(rows []vrow, o *overlay) int {
+	if o.ondraft {
+		for i, r := range rows {
+			if r.draft && r.dk == o.dkey {
+				return i
+			}
+		}
+		o.ondraft = false
+	}
+	return cursorRow(rows, o.vcur)
+}
+
+// selectRow puts the cursor on screen row ri.
+func selectRow(o *overlay, rows []vrow, ri int) {
+	ri = max(0, min(ri, len(rows)-1))
+	o.vcur, o.ondraft, o.dkey = rows[ri].li, rows[ri].draft, rows[ri].dk
+}
+
 // fixDiff keeps the cursor on screen.
 func (m *model) fixDiff(o *overlay) {
 	_, _, h := m.ovSize(o)
 	bh := max(1, h-3)
 	_, vis, rows := m.dview(o)
 	o.vcur = max(0, min(o.vcur, len(vis)-1))
-	r := cursorRow(rows, o.vcur)
+	r := curRow(rows, o)
 	if r < o.scroll {
 		o.scroll = r
 	}
@@ -316,7 +465,7 @@ func (m *model) diffStatus(o *overlay) string {
 	if o.ranging {
 		s += " · RANGE j/k extend · c comment · esc cancel"
 	} else {
-		s += " · V range · c comment · D delete draft · } { hunk · x mode · :n :p · Z max"
+		s += " · V range · c comment · ) ( draft · e edit · D delete draft · } { hunk · x mode · :n :p"
 	}
 	return dim(fmt.Sprintf("L%d/%d · ", o.vcur+1, len(vis)) + s)
 }
@@ -332,14 +481,23 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 		r := rows[i]
 		t := r.text
 		pad := func(s string) string { return s + strings.Repeat(" ", max(0, w-4-lipgloss.Width(s))) }
-		if !r.draft {
-			di := vis[r.li]
-			switch {
-			case r.li == o.vcur:
+		if r.draft {
+			if o.ondraft && r.dk == o.dkey {
 				t = rev(pad(ansi.Strip(t)))
-			case o.ranging && di >= lo && di <= hi:
-				t = sel(pad(ansi.Strip(t)))
 			}
+		} else {
+			di := vis[r.li]
+			x := doc[di]
+			st := 0
+			switch {
+			case r.li == o.vcur && !o.ondraft:
+				st = 1
+			case o.ranging && di >= lo && di <= hi:
+				st = 2
+			case o.ondraft && x.fi == o.dkey[0] && x.loc >= o.dkey[2] && x.loc <= o.dkey[1]:
+				st = 2
+			}
+			t = renderDL(x, w, st)
 		}
 		lines = append(lines, t)
 	}
@@ -347,17 +505,22 @@ func (m *model) drawDiff(o *overlay, w, h int) string {
 		lines = append(lines, "")
 	}
 	lines = append(lines, m.diffStatus(o))
-	_ = doc
-	f := files[o.arg]
-	title := fmt.Sprintf("Diff · %s (%d/%d) · %s [x] · %d%%", f.path(), o.arg+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
-	return box(title, lines, w, h, true)
+	cf := doc[cd].fi
+	var title string
+	if o.all {
+		title = fmt.Sprintf("Whole patch · %s (%d/%d) · %s [x] · %d%%", files[cf].path(), cf+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
+	} else {
+		title = fmt.Sprintf("Diff · %s (%d/%d) · %s [x] · %d%%", files[cf].path(), cf+1, len(files), ctxNames[o.ctx], (o.vcur+1)*100/len(vis))
+	}
+	return box(title, lines, w, h, !o.embed || m.pfocus == 1)
 }
 
 // toggleMode switches hunks only / full file keeping the cursor line on the
 // same screen row; a line outside every hunk lands on the nearest hunk line.
 func (m *model) toggleMode(o *overlay) {
 	_, vis, rows := m.dview(o)
-	di, screen := vis[o.vcur], cursorRow(rows, o.vcur)-o.scroll
+	di, screen := vis[o.vcur], curRow(rows, o)-o.scroll
+	o.ondraft = false
 	o.ctx = 1 - o.ctx
 	_, vis, rows = m.dview(o)
 	best := 0
@@ -379,8 +542,73 @@ func abs(a int) int {
 }
 
 func (m *model) moveCursor(o *overlay, d int) {
+	_, _, rows := m.dview(o)
+	selectRow(o, rows, curRow(rows, o)+d)
+	m.fixDiff(o)
+}
+
+// jumpDraft selects the next (dir 1) or previous draft row.
+func (m *model) jumpDraft(o *overlay, dir int) {
+	_, _, rows := m.dview(o)
+	cur := curRow(rows, o)
+	for i := cur + dir; i >= 0 && i < len(rows); i += dir {
+		if rows[i].draft {
+			selectRow(o, rows, i)
+			m.fixDiff(o)
+			return
+		}
+	}
+}
+
+// goDoc puts the cursor on doc line di if it is shown.
+func (m *model) goDoc(o *overlay, di int) {
 	_, vis, _ := m.dview(o)
-	o.vcur = max(0, min(o.vcur+d, len(vis)-1))
+	o.ondraft = false
+	for i, d := range vis {
+		if d == di {
+			o.vcur = i
+		}
+	}
+	m.fixDiff(o)
+}
+
+// jumpFile moves between the file headers of the whole patch.
+func (m *model) jumpFile(o *overlay, dir int) {
+	doc, vis, _ := m.dview(o)
+	cd := vis[o.vcur]
+	to := -1
+	for i, x := range doc {
+		if x.kind != 'H' {
+			continue
+		}
+		if dir > 0 && i > cd {
+			to = i
+			break
+		}
+		if dir < 0 && i < cd {
+			to = i
+		}
+	}
+	if to >= 0 {
+		m.goDoc(o, to)
+	}
+}
+
+// toggleAll switches between this file and the whole patch, keeping the
+// cursor on the same source line.
+func (m *model) toggleAll(o *overlay) {
+	doc, vis, _ := m.dview(o)
+	x := doc[vis[o.vcur]]
+	o.all = !o.all
+	o.arg, o.ondraft = x.fi, false
+	doc, vis, _ = m.dview(o)
+	best := 0
+	for i, d := range vis {
+		if doc[d].fi == x.fi && abs(doc[d].loc-x.loc) <= abs(doc[vis[best]].loc-x.loc) || doc[vis[best]].fi != x.fi && doc[d].fi == x.fi {
+			best = i
+		}
+	}
+	o.vcur, o.scroll = best, max(0, best-5)
 	m.fixDiff(o)
 }
 
@@ -401,12 +629,7 @@ func (m *model) jumpHunk(o *overlay, dir int) {
 	if to < 0 {
 		return
 	}
-	for i, d := range vis {
-		if d == to {
-			o.vcur = i
-		}
-	}
-	m.fixDiff(o)
+	m.goDoc(o, to)
 }
 
 // diffKey handles a key in the pager-like diff modal.
@@ -415,12 +638,12 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 	if o.compose {
 		switch k {
 		case "esc":
-			o.compose = false
+			o.compose, o.editing = false, false
 		case "enter":
 			if strings.TrimSpace(o.ctext) != "" {
-				m.drafts[[2]int{o.arg, o.cend}] = draft{o.clabel, o.ctext}
+				m.drafts[[3]int{o.cfile, o.cend, o.clo}] = draft{o.clabel, o.ctext}
 			}
-			o.compose, o.ranging = false, false
+			o.compose, o.ranging, o.editing = false, false, false
 		case "backspace":
 			if r := []rune(o.ctext); len(r) > 0 {
 				o.ctext = string(r[:len(r)-1])
@@ -439,9 +662,9 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 			o.cmdOn = false
 			switch c {
 			case "n", "next":
-				m.showFile(o, o.arg+1)
+				m.nextFile(o, 1)
 			case "p", "prev", "N":
-				m.showFile(o, o.arg-1)
+				m.nextFile(o, -1)
 			default:
 				return m.say("(prototype) unknown command :" + c)
 			}
@@ -465,19 +688,34 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 		if o.ranging {
 			o.ranging = false
 		} else {
-			m.pop()
+			m.leave(o)
 		}
 	case "backspace", "q":
-		m.pop()
+		m.leave(o)
 	case "Z":
-		o.max = !o.max
-		m.fixDiff(o)
+		if !o.embed {
+			o.max = !o.max
+			m.fixDiff(o)
+		}
 	case "x":
 		m.toggleMode(o)
+	case "a":
+		m.toggleAll(o)
+	case ")":
+		m.jumpDraft(o, 1)
+	case "(":
+		m.jumpDraft(o, -1)
+	case "e":
+		if !o.ondraft {
+			return m.say("move to a draft to edit it")
+		}
+		d := m.drafts[o.dkey]
+		o.compose, o.editing, o.ctext, o.clabel = true, true, d.text, d.label
+		o.cfile, o.cend, o.clo = o.dkey[0], o.dkey[1], o.dkey[2]
 	case "J", "]":
-		m.showFile(o, o.arg+1)
+		m.nextFile(o, 1)
 	case "K", "[":
-		m.showFile(o, o.arg-1)
+		m.nextFile(o, -1)
 	case "}":
 		m.jumpHunk(o, 1)
 	case "{":
@@ -485,13 +723,32 @@ func (m *model) diffKey(o *overlay, msg tea.KeyPressMsg) tea.Cmd {
 	case "V":
 		o.ranging, o.anchor = !o.ranging, cd
 	case "D":
-		delete(m.drafts, [2]int{o.arg, cd})
+		if !o.ondraft {
+			return m.say("move to a draft to delete it")
+		}
+		key := o.dkey
+		m.confirmDo("Delete the draft "+m.drafts[key].label+"?", "draft deleted", func(m *model) tea.Cmd {
+			delete(m.drafts, key)
+			if o := m.diffTop(); o != nil {
+				o.ondraft = false
+				m.fixDiff(o)
+			}
+			return nil
+		})
 	case "c", "enter":
 		lo, hi := cd, cd
 		if o.ranging {
 			lo, hi = min(o.anchor, cd), max(o.anchor, cd)
 		}
-		o.compose, o.ctext, o.cend = true, "", hi
+		o.compose, o.editing, o.ctext, o.cend = true, false, "", doc[hi].loc
+		o.cfile, o.clo = doc[hi].fi, doc[lo].loc
+		if doc[lo].fi != doc[hi].fi {
+			o.clo = 0
+		}
+		if o.cend < 0 {
+			o.compose = false
+			return nil
+		}
 		a, b := doc[lo].src, doc[hi].src
 		o.clabel = fmt.Sprintf("L%d", a)
 		if a != b {
@@ -663,7 +920,14 @@ type overlay struct {
 	ctext   string
 	clabel  string
 	cend    int
+	cfile   int
+	clo     int
+	editing bool
+	all     bool // the whole patch instead of one file
 	max     bool
+	ondraft bool   // the cursor is on a draft row
+	dkey    [3]int // which draft
+	embed   bool   // the pager shown beside the zoomed files list
 
 	title  string
 	items  []string
@@ -681,7 +945,10 @@ type model struct {
 	w, h      int
 	focus     int
 	zoom      bool
-	drafts    map[[2]int]draft
+	drafts    map[[3]int]draft
+	pv        overlay // the embedded pager of the zoomed files panel
+	pfocus    int     // 0 list, 1 diff
+	pvOn      bool
 	scroll    int
 	cur       [6]int
 	stack     []overlay
@@ -697,7 +964,8 @@ type clearToastMsg struct{ id int }
 
 func newModel() *model {
 	m := &model{
-		drafts: map[[2]int]draft{},
+		drafts: map[[3]int]draft{},
+		pv:     overlay{kind: "file", embed: true},
 		reviewers: []reviewer{{"bob", "approved"}, {"carol", "changes"}, {"@org/core", "requested"}},
 		dev: []devItem{
 			{"closes", 12, "Calc is slow", "open", "#9"},
@@ -711,19 +979,24 @@ func newModel() *model {
 			{"Project", []string{"Roadmap · Todo"}, []string{"Roadmap · Todo", "Roadmap · Doing", "Roadmap · Done", "Sprint 7 · Backlog"}},
 		},
 	}
+	// root files come first as plain names, then one folder row per directory
+	for i, f := range files {
+		if f.dir == "" {
+			m.rows = append(m.rows, row{fi: i})
+		}
+	}
 	last := "?"
 	for i, f := range files {
+		if f.dir == "" {
+			continue
+		}
 		if f.dir != last {
-			l := f.dir
-			if l == "" {
-				l = "./"
-			}
-			m.rows = append(m.rows, row{dir: true, label: l})
+			m.rows = append(m.rows, row{dir: true, label: f.dir})
 			last = f.dir
 		}
 		m.rows = append(m.rows, row{fi: i})
 	}
-	m.cur[pFiles] = 1
+	m.cur[pFiles] = 0
 	return m
 }
 
@@ -769,6 +1042,9 @@ func (m *model) panelHeights() [6]int {
 }
 
 func (m *model) paneDims(i int) (int, int) {
+	if m.split() && i == pFiles {
+		return listW, m.bodyH()
+	}
 	if m.zoomed() {
 		return m.w, m.bodyH()
 	}
@@ -990,13 +1266,16 @@ func (m *model) pane(i int) string {
 		off = max(0, cl-ih+1)
 	}
 	end := min(len(lines), off+ih)
-	return box(title, lines[off:end], w, h, m.focus == i)
+	return box(title, lines[off:end], w, h, m.focus == i && !(m.split() && m.pfocus == 1))
 }
 
 // ---------- overlays ----------
 
 func (m *model) ovRect(o *overlay) (int, int, int, int) {
 	W, H := m.w, m.h-1
+	if o.embed {
+		return listW, m.bodyTop(), W - listW, m.bodyH()
+	}
 	switch o.kind {
 	case "confirm":
 		w := min(W-2, max(40, lipgloss.Width(o.text)+8))
@@ -1072,7 +1351,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"esc / backspace   close the top overlay     q    quit",
 			"",
 			"Merge       enter/C checks · M merge · A auto-merge · U update branch",
-			"Reviewers   a request a reviewer · x remove",
+			"Reviewers   a request a reviewer · R re-request review (asks y/n) · x remove",
+			"Files zoom  z on Files at 120+ cols splits list | diff: tab/1/2 focus · enter loads the file",
 			"Development enter issue summary · a link issue · x unlink",
 			"Files       enter file diff · D combined diff · l focus conversation",
 			"Meta        enter edit the field",
@@ -1081,7 +1361,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"In a diff   a pager: j/k line cursor · } { next/prev hunk · :n :p or J K next/prev file",
 			"            x toggles hunks only / full file (the cursor line stays on its row)",
 			"            V range (j/k extend) · c or enter comment (enter saves a draft, esc cancels)",
-			"            c alone comments the cursor line · D deletes the draft on the cursor line",
+			"            c alone comments the cursor line · ) ( next/prev draft (j/k also land on drafts)",
+			"            e edits the draft under the cursor · D deletes it (y/n) · a this file / whole patch",
 			"In a picker type to filter · ↑/↓ · tab toggles (multi) · enter picks",
 		}
 	}
@@ -1144,8 +1425,49 @@ func (m *model) rowOf(fi int) int {
 func (m *model) showFile(o *overlay, fi int) {
 	o.arg = max(0, min(fi, len(files)-1))
 	o.cur = m.rowOf(o.arg)
-	o.scroll, o.vcur, o.ranging = 0, 0, false
+	o.scroll, o.vcur, o.ranging, o.ondraft = 0, 0, false, false
+	if o.embed {
+		m.cur[pFiles] = o.cur
+	}
 }
+
+// nextFile moves to the next or previous file, or file header in the whole patch.
+func (m *model) nextFile(o *overlay, d int) {
+	if o.all {
+		m.jumpFile(o, d)
+		return
+	}
+	m.showFile(o, o.arg+d)
+}
+
+// leave closes the pager, or hands the focus back to the files list.
+func (m *model) leave(o *overlay) {
+	if o.embed {
+		m.pfocus = 0
+		return
+	}
+	m.pop()
+}
+
+// diffTop is the pager that has the keys now.
+func (m *model) diffTop() *overlay {
+	if n := len(m.stack); n > 0 && m.stack[n-1].kind == "file" {
+		return &m.stack[n-1]
+	}
+	if m.split() {
+		return &m.pv
+	}
+	return nil
+}
+
+func (m *model) confirmDo(text, toast string, fn func(*model) tea.Cmd) {
+	m.push(overlay{kind: "confirm", text: text, toast: toast, done: func(m *model, _ []string) tea.Cmd { return fn(m) }})
+}
+
+// split: the zoomed files panel shows the list and the pager side by side.
+func (m *model) split() bool { return m.zoom && !m.narrow() && m.focus == pFiles }
+
+const listW = 32
 
 func place(bg []string, ov string, x, y, w int) {
 	for i, l := range strings.Split(ov, "\n") {
@@ -1186,7 +1508,13 @@ func (m *model) render() string {
 		}
 		parts = append(parts, strings.Join(names, " "))
 	}
-	if m.zoomed() {
+	if m.split() {
+		w, h := m.paneDims(pFiles)
+		_ = w
+		_ = h
+		_, _, dw, dh := m.ovRect(&m.pv)
+		parts = append(parts, lipgloss.JoinHorizontal(lipgloss.Top, m.pane(pFiles), m.drawDiff(&m.pv, dw, dh)))
+	} else if m.zoomed() {
 		parts = append(parts, m.pane(m.focus))
 	} else {
 		var col []string
@@ -1200,6 +1528,10 @@ func (m *model) render() string {
 		lines = append(lines, "")
 	}
 	lines = lines[:m.h-1]
+	if m.split() && m.pv.compose {
+		s, x, y, w := m.drawComposer(&m.pv)
+		place(lines, s, x, y, w)
+	}
 	for i := range m.stack {
 		for j := 1; j < len(lines); j++ {
 			l := lines[j]
@@ -1241,7 +1573,7 @@ func (m *model) footer() string {
 	h := map[int]string{
 		pMain:      "j/k scroll",
 		pMerge:     "enter/C checks · M merge · A auto-merge · U update",
-		pReviewers: "a request · x remove",
+		pReviewers: "a request · R re-request · x remove",
 		pDev:       "enter open · a link · x unlink",
 		pFiles:     "enter diff · D combined · l conversation",
 		pMeta:      "enter edit",
@@ -1301,6 +1633,27 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 	if len(m.stack) > 0 {
 		return m.overlayKey(msg)
 	}
+	defer m.syncPV()
+	if m.split() {
+		p := &m.pv
+		if m.pfocus == 1 && (p.compose || p.cmdOn) {
+			return m.diffKey(p, msg)
+		}
+		switch k {
+		case "tab", "shift+tab":
+			m.pfocus = 1 - m.pfocus
+			return nil
+		case "1":
+			m.pfocus = 0
+			return nil
+		case "2":
+			m.pfocus = 1
+			return nil
+		}
+		if m.pfocus == 1 && k != "z" && k != "?" {
+			return m.diffKey(p, msg)
+		}
+	}
 	switch k {
 	case "q":
 		return tea.Quit
@@ -1318,6 +1671,22 @@ func (m *model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.paneKey(k)
 	}
 	return nil
+}
+
+// syncPV points the embedded pager at the file under the list cursor when the
+// split appears.
+func (m *model) syncPV() {
+	if !m.split() {
+		m.pvOn = false
+		return
+	}
+	if m.pvOn {
+		return
+	}
+	m.pvOn, m.pfocus = true, 0
+	if r := m.rows[m.cur[pFiles]]; !r.dir {
+		m.showFile(&m.pv, r.fi)
+	}
 }
 
 func (m *model) count(p int) int {
@@ -1412,6 +1781,19 @@ func (m *model) paneKey(k string) tea.Cmd {
 				m.reviewers = append(m.reviewers, reviewer{p[0], "requested"})
 				return m.say("(prototype) requested " + p[0])
 			}})
+		case "R":
+			c := m.cur[pReviewers]
+			if c >= len(m.reviewers) {
+				return nil
+			}
+			r := m.reviewers[c]
+			if r.state == "requested" || r.state == "re-requested" {
+				return m.say("review is already requested from " + r.name)
+			}
+			m.confirmDo("Re-request review from @"+strings.TrimPrefix(r.name, "@")+"? ", "(prototype) re-requested "+r.name, func(m *model) tea.Cmd {
+				m.reviewers[c].state = "re-requested"
+				return nil
+			})
 		case "x":
 			if c := m.cur[pReviewers]; c < len(m.reviewers) {
 				m.reviewers = slices.Delete(m.reviewers, c, c+1)
@@ -1443,12 +1825,20 @@ func (m *model) paneKey(k string) tea.Cmd {
 		switch k {
 		case "enter":
 			if r := m.rows[m.cur[pFiles]]; !r.dir {
-				m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
+				if m.split() {
+					m.showFile(&m.pv, r.fi)
+				} else {
+					m.push(overlay{kind: "file", arg: r.fi, cur: m.cur[pFiles]})
+				}
 			}
 		case "D":
-			m.push(overlay{kind: "combined"})
+			m.push(overlay{kind: "file", all: true})
 		case "l", "right":
-			m.focus = pMain
+			if m.split() {
+				m.pfocus = 1
+			} else {
+				m.focus = pMain
+			}
 		}
 	case pMeta:
 		if k == "enter" {
@@ -1474,8 +1864,11 @@ func (m *model) overlayKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "confirm":
 		switch k {
 		case "y":
-			t := top.toast
+			t, done := top.toast, top.done
 			m.pop()
+			if done != nil {
+				done(m, nil)
+			}
 			return m.say(t)
 		case "n", "esc", "backspace":
 			m.pop()
