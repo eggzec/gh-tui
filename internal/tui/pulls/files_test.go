@@ -233,6 +233,23 @@ func TestEnterOnAFileShowsItsDiff(t *testing.T) {
 	}
 }
 
+func TestEnterOnAFileShowsItsLines(t *testing.T) {
+	h, m := filed(t, newFakeService(), 100, 30)
+	press(t, h, "[")
+	press(t, h, "1")
+	for i := 0; pathOf(m) != "internal/cache/disk.go" && i < 20; i++ {
+		press(t, h, "j")
+	}
+	press(t, h, "enter")
+	view := strings.Join(plain(m), "\n")
+	if !strings.Contains(view, "d.read(key)") {
+		t.Errorf("the diff doesn't show the lines of internal/cache/disk.go:\n%s", view)
+	}
+	if strings.Contains(view, "cache.NewDisk") {
+		t.Errorf("the diff still shows the lines of the first file:\n%s", view)
+	}
+}
+
 func TestTreeFolds(t *testing.T) {
 	h, m := filed(t, newFakeService(), 100, 30)
 	press(t, h, "[")
