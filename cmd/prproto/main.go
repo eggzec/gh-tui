@@ -176,6 +176,8 @@ var users = map[string]string{
 	"dave":    "Dave Kim",
 	"erin":    "Erin Novak",
 	"Copilot": "Copilot",
+
+	"dependabot": "Dependabot",
 }
 
 // disp is how a person shows: the full name, else the login; a team
@@ -217,9 +219,70 @@ func loginOf(item string) string {
 
 var inlineCode = regexp.MustCompile("`([^`]+)`")
 
-// mdLines renders light markdown: bold headings, bullets, dim-background inline
-// code and fenced blocks behind a dim left rule.
+// descOpen is the open details blocks of the description, by their path;
+// descHdr the line of each block's summary in the last render.
+var (
+	descOpen = map[string]bool{}
+	descHdr  []descHead
+)
+
+type descHead struct {
+	key  string
+	line int
+}
+
+// mdLines renders the description: light markdown with details blocks closed
+// until enter opens them.
 func mdLines(body string, w int) []string {
+	descHdr = nil
+	return mdSegs(parseBody(body), w, "d", 0)
+}
+
+func mdSegs(segs []seg, w int, key string, off int) []string {
+	var out []string
+	for i, s := range segs {
+		if !s.det {
+			out = append(out, mdPlain(s.text, w)...)
+			continue
+		}
+		k := fmt.Sprintf("%s.%d", key, i)
+		descHdr = append(descHdr, descHead{k, off + len(out)})
+		if !descOpen[k] {
+			out = append(out, s.summary+dim(" ⋯"))
+			continue
+		}
+		out = append(out, s.summary)
+		var in []string
+		if s.text != "" {
+			in = mdPlain(s.text, w-2)
+		}
+		in = append(in, mdSegs(s.rest, w-2, k, off+len(out)+len(in))...)
+		for _, l := range in {
+			out = append(out, dim("▏ ")+l)
+		}
+	}
+	return out
+}
+
+// toggleDesc opens or closes the first details block at or below the top of
+// the description pane, else the last one above it.
+func (m *model) toggleDesc() {
+	w, _ := m.paneDims(pDesc)
+	mdLines(m.cv.items[0].body, w-4)
+	for _, h := range descHdr {
+		if h.line >= m.dscroll {
+			descOpen[h.key] = !descOpen[h.key]
+			return
+		}
+	}
+	if n := len(descHdr); n > 0 {
+		descOpen[descHdr[n-1].key] = !descOpen[descHdr[n-1].key]
+	}
+}
+
+// mdPlain renders light markdown: bold headings, bullets, dim-background inline
+// code and fenced blocks behind a dim left rule.
+func mdPlain(body string, w int) []string {
 	w = max(w, 12)
 	codeBG := func(s string) string { return "\x1b[48;5;238m" + s + "\x1b[49m" }
 	inline := func(s string) string {
@@ -1148,6 +1211,8 @@ const description = "## Summary\n" +
 	"- return an error from `Div` instead of panicking on a zero divisor\n" +
 	"- keep the old behaviour behind `--legacy-math` until the next release\n" +
 	"\n" +
+	"<details>\n<summary>Benchmarks</summary>\n\n- `Add`: 0.3 ns/op\n- `Div`: 0.4 ns/op\n</details>\n" +
+	"\n" +
 	"A call now looks like this:\n" +
 	"\n" +
 	"```go\n" +
@@ -1704,6 +1769,8 @@ func (m *model) ovContent(o *overlay) (string, []string) {
 			"            enter/o on a thread opens the diff on its line (x full file, esc back to this row); fold a thread with l/h",
 			"            f filter all/unresolved/changes requested/mine · s show/hide system events (pushes, CI, labels, review requests)",
 			"            ) ( next/prev unresolved thread; enter on a push opens its commits, aligned under the text",
+			"            <details> blocks in bodies are one row \"Title ⋯\": l/→ open · h/← close · * all (blocks too); open ones nest under a dim rule",
+			"            Description pane: enter opens/closes the first details block at or below the top line",
 			"            c reply (pending) · T resolve/reopen a thread (y/n) · e edit your comment/reply (the PR is edited in Description)",
 			"            X delete your comment/reply (y/n) · editor: tab field · ctrl+s save · esc cancel",
 			"            threads show in the diff under their line: c reply · T resolve · enter fold · ) ( reach them",
@@ -2160,6 +2227,9 @@ func (m *model) paneKey(k string) tea.Cmd {
 	case pDesc:
 		if k == "e" {
 			m.editPR()
+		}
+		if k == "enter" {
+			m.toggleDesc()
 		}
 	case pMain:
 		return m.convKey(k)

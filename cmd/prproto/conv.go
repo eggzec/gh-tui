@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -243,6 +244,18 @@ func newConv() convState {
 		it("sys", "", "alice", "5h ago", "Alice Chen requested a review from Carol Diaz"),
 		it("comment", "", "alice", "5h ago", "Pushed a fix for the panic, waiting on carol."),
 		it("comment", "", "ghost-bot", "1h ago", "Coverage is 91% (+2%) with this change."),
+		it("comment", "", "dependabot", "18h ago", "Bumps golang.org/x/net from 0.41.0 to 0.43.0.\n"+
+			"<details>\n<summary>Release notes</summary>\n\n"+
+			"- `http2`: fix a stream leak on early server close\n- `html`: parse `<template>` content like browsers do\n- `proxy`: honour `NO_PROXY` with CIDR ranges\n- dependency updates\n"+
+			"</details>\n"+
+			"<details>\n<summary>Changelog</summary>\n\nThe tags between the two versions:\n\n"+
+			"<details>\n<summary>0.42.0</summary>\n\n- `http2`: add `Transport.StrictMaxConcurrentStreams` docs\n- `idna`: update to Unicode 16\n```go\nclient := &http.Client{Transport: &http2.Transport{}}\n```\n</details>\n"+
+			"- `0.43.0`: security fixes only\n"+
+			"</details>\n"+
+			"<details>\n<summary>Commits</summary>\n\n"+
+			"- `3c4a1f2` http2: fix a stream leak on early close\n- `9be07d1` html: parse template content\n- `51aa4e8` proxy: honour NO_PROXY CIDR ranges\n- `e27c9b0` idna: update to Unicode 16\n- `0f6d3aa` all: update dependencies\n"+
+			"</details>\n\n"+
+			"Dependabot will resolve any conflicts with this PR as long as you do not alter it yourself. The compatibility score is 98% based on CI results of other repositories."),
 	}
 	open := map[string]bool{}
 	for _, x := range items {
@@ -267,6 +280,134 @@ type crow struct {
 	rl                *[]*reply
 	run               []*citem
 	commit            [2]string // a commit row of an open push: short SHA and subject
+	sg                *seg      // a "seg" row: a details block or text that follows one in a body
+	lvl               int       // nesting of a seg row inside details blocks
+}
+
+// seg is a part of a body: text, or a <details> block with its summary, its
+// lead text and the parts that follow the lead.
+type seg struct {
+	det     bool
+	summary string
+	text    string
+	rest    []seg
+}
+
+var (
+	sumRe    = regexp.MustCompile(`(?is)<summary>(.*?)</summary>`)
+	detOpen  = regexp.MustCompile(`(?i)^\s*<details[^>]*>`)
+	bots     = map[string]bool{"dependabot": true, "ghost-bot": true}
+	hasBlock = func(s string) bool { return strings.Contains(s, "<details") }
+)
+
+// parseBody splits a markdown body into text and details blocks; blocks nest.
+func parseBody(body string) []seg {
+	var out []seg
+	var txt []string
+	flush := func() {
+		if t := strings.TrimSpace(strings.Join(txt, "\n")); t != "" {
+			out = append(out, seg{text: t})
+		}
+		txt = nil
+	}
+	lines := strings.Split(body, "\n")
+	for i := 0; i < len(lines); i++ {
+		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(lines[i])), "<details") {
+			txt = append(txt, lines[i])
+			continue
+		}
+		depth, j := 1, i+1
+		for ; j < len(lines); j++ {
+			lt := strings.ToLower(strings.TrimSpace(lines[j]))
+			if strings.HasPrefix(lt, "<details") {
+				depth++
+			}
+			if strings.HasPrefix(lt, "</details") {
+				depth--
+				if depth == 0 {
+					break
+				}
+			}
+		}
+		inner := strings.Join(lines[i:min(j, len(lines))], "\n")
+		inner = detOpen.ReplaceAllString(inner, "")
+		s := seg{det: true, summary: "Details"}
+		if mt := sumRe.FindStringSubmatch(inner); mt != nil {
+			s.summary = strings.TrimSpace(mt[1])
+			inner = strings.Replace(inner, mt[0], "", 1)
+		}
+		cs := parseBody(inner)
+		if len(cs) > 0 && !cs[0].det {
+			s.text, cs = cs[0].text, cs[1:]
+		}
+		s.rest = cs
+		flush()
+		out = append(out, s)
+		i = j
+	}
+	flush()
+	return out
+}
+
+// leadText is the part of a body before its first details block.
+func leadText(body string) string {
+	if !hasBlock(body) {
+		return body
+	}
+	if s := parseBody(body); len(s) > 0 && !s[0].det {
+		return s[0].text
+	}
+	return ""
+}
+
+// whoHead is an author's name, with a dim tag for a bot, and a review's icon.
+func whoHead(it *citem) string {
+	h := bold(disp(it.who))
+	if bots[it.who] {
+		h += dim(" bot")
+	}
+	if it.kind == "review" {
+		switch it.state {
+		case "approve":
+			h = ic.approved.String() + " " + h
+		case "changes":
+			h = ic.changes.String() + " " + h
+		default:
+			h = ic.commented.String() + " " + h
+		}
+	}
+	return h
+}
+
+// segLines renders a seg row at its owner's hanging indent: a details block
+// is its summary and a dim fold marker, with its lead text under a dim rule
+// when open.
+func segLines(r crow, cw int, gb string, kids bool) []string {
+	start := lipgloss.Width(gb) + lipgloss.Width(whoHead(r.it)) + 2
+	mark := " "
+	if kids {
+		mark = dim("│")
+	}
+	pad := gb + mark + strings.Repeat(" ", max(0, start-lipgloss.Width(gb)-1)) + strings.Repeat(dim("▏ "), r.lvl)
+	w := max(10, cw-start-2*r.lvl)
+	var out []string
+	s := r.sg
+	if !s.det {
+		for _, l := range mdPlain(s.text, w) {
+			out = append(out, pad+l)
+		}
+		return out
+	}
+	if !r.open {
+		return []string{pad + s.summary + dim(" ⋯")}
+	}
+	out = append(out, pad+s.summary)
+	if s.text != "" {
+		for _, l := range mdPlain(s.text, w-2) {
+			out = append(out, pad+dim("▏ ")+l)
+		}
+	}
+	return out
 }
 
 // isEvent reports an entry of no human: a push or another event.
@@ -361,11 +502,30 @@ func (m *model) crows(all bool) []crow {
 			rows = append(rows, crow{key: fmt.Sprintf("rp:%d", r.id), kind: "reply", depth: depth, parent: parent, th: th, rp: r, rl: rl})
 		}
 	}
+	var addSegs func(it *citem, segs []seg, lvl, depth int, parent, kp string)
+	addSegs = func(it *citem, segs []seg, lvl, depth int, parent, kp string) {
+		for i := range segs {
+			s := &segs[i]
+			k := fmt.Sprintf("%s.%d", kp, i)
+			o := s.det && op(k, false)
+			rows = append(rows, crow{key: k, kind: "seg", depth: depth, parent: parent, fold: s.det, open: o, it: it, sg: s, lvl: lvl})
+			if o {
+				addSegs(it, s.rest, lvl+1, depth, k, k)
+			}
+		}
+	}
 	addItem := func(it *citem, depth int, parent string) {
 		key := itKey(it)
 		fold := it.kind == "review" || it.kind == "push" || len(it.replies) > 0
 		open := fold && op(key, it.kind != "push")
 		rows = append(rows, crow{key: key, kind: it.kind, depth: depth, parent: parent, fold: fold, open: open, it: it})
+		if hasBlock(it.body) && (it.kind == "comment" || open) {
+			segs := parseBody(it.body)
+			if len(segs) > 0 && !segs[0].det {
+				segs = segs[1:]
+			}
+			addSegs(it, segs, 0, depth+1, key, fmt.Sprintf("dt:%d", it.id))
+		}
 		if !open {
 			return
 		}
@@ -434,6 +594,10 @@ func (m *model) setSel(rows []crow, i int) {
 // for the lines of its body. Column 0 stays free for the selection marker.
 func guides(rows []crow, i int) (first, body string, kids bool) {
 	d := rows[i].depth
+	seg := rows[i].kind == "seg"
+	if seg {
+		d--
+	}
 	later := func(k int) bool {
 		for _, x := range rows[i+1:] {
 			if x.depth < k {
@@ -463,7 +627,15 @@ func guides(rows []crow, i int) (first, body string, kids bool) {
 			body += "   "
 		}
 	}
-	kids = i+1 < len(rows) && rows[i+1].depth > d
+	// The guide under a body runs on only to real children, not its seg rows.
+	j := i + 1
+	for j < len(rows) && rows[j].kind == "seg" {
+		j++
+	}
+	kids = j < len(rows) && rows[j].depth > d
+	if seg {
+		return body, body, kids
+	}
 	return first, body, kids
 }
 
@@ -516,18 +688,13 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		head = lead + bold(fmt.Sprintf("%d comments", len(r.run))) + dim(" · "+strings.Join(who, ", "))
 		right = meta(false, false, r.run[0].when+" – "+r.run[len(r.run)-1].when)
 	case "comment":
-		head = bold(disp(r.it.who))
+		head = whoHead(r.it)
 		right = meta(false, r.it.edited, fold(len(r.it.replies)), r.it.when)
-		msg = r.it.body
+		msg = leadText(r.it.body)
+	case "seg":
+		return segLines(r, cw, gb, kids)
 	case "review":
-		switch r.it.state {
-		case "approve":
-			head = ic.approved.String() + " " + bold(disp(r.it.who))
-		case "changes":
-			head = ic.changes.String() + " " + bold(disp(r.it.who))
-		default:
-			head = ic.commented.String() + " " + bold(disp(r.it.who))
-		}
+		head = whoHead(r.it)
 		sum := ""
 		if closed {
 			if n := len(r.it.threads); n > 0 {
@@ -539,7 +706,7 @@ func (m *model) crowLines(r crow, cw int, gm, gb string, kids bool) []string {
 		}
 		right = meta(false, r.it.edited, sum, r.it.when)
 		if r.open {
-			msg = r.it.body
+			msg = leadText(r.it.body)
 		}
 	case "thread":
 		// The thread is its first comment's author; the file shows only in the
@@ -702,6 +869,9 @@ func (m *model) nextUnresolved(dir int) tea.Cmd {
 
 func rowTgt(r crow) tgt {
 	t := tgt{kind: r.kind, it: r.it, th: r.th, rp: r.rp, rl: r.rl, openKey: r.key}
+	if r.kind == "seg" {
+		t.kind, t.openKey = r.it.kind, itKey(r.it)
+	}
 	if r.kind == "reply" {
 		t.openKey = r.parent
 	}
@@ -730,7 +900,7 @@ func (m *model) convKey(k string) tea.Cmd {
 	case "l", "right":
 		if r.fold && !r.open {
 			c.open[r.key] = true
-		} else if r.fold && i+1 < len(rows) && rows[i+1].depth > r.depth {
+		} else if r.fold && i+1 < len(rows) && (rows[i+1].depth > r.depth || rows[i+1].parent == r.key) {
 			m.setSel(rows, i+1)
 		}
 	case "h", "left":
