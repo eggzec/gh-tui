@@ -18,6 +18,10 @@ type Styles struct {
 	// CursorRow styles the cursor row of a focused tree. Only its
 	// background is used, across the full width; it never reverses.
 	CursorRow lipgloss.Style
+	// Pinned styles the lines of the ancestors pinned above a scrolled tree.
+	// Only its background is used, across the full width; the default is a
+	// little darker than the pane and unlike the cursor row.
+	Pinned lipgloss.Style
 	// Guide styles the guides that hang children off their parent.
 	Guide lipgloss.Style
 	// Branch draws a child with siblings after it, Last the last child,
@@ -45,11 +49,13 @@ func DefaultStyles(isDark bool) Styles {
 	accent := ld(lipgloss.Color("#3b63c4"), lipgloss.Color("#61afef"))
 	dim := ld(lipgloss.Color("#8a90a0"), lipgloss.Color("#5c6370"))
 	rowBG := ld(lipgloss.Color("#e4e8f0"), lipgloss.Color("#2a2f3a"))
+	pinBG := ld(lipgloss.Color("#eff1f6"), lipgloss.Color("#1b1f27"))
 	return Styles{
 		Cursor:        lipgloss.NewStyle().Foreground(accent).Bold(true),
 		BlurredCursor: lipgloss.NewStyle().Foreground(dim),
 		CursorGlyph:   "▌",
 		CursorRow:     lipgloss.NewStyle().Background(rowBG),
+		Pinned:        lipgloss.NewStyle().Background(pinBG),
 		Guide:         lipgloss.NewStyle().Foreground(dim),
 		Branch:        "├─ ",
 		Last:          "╰─ ",
@@ -71,7 +77,7 @@ type look struct {
 	branch, last, line, none string
 	cursor, blurred          string
 	open, closed             string
-	bg                       string
+	bg, pin                  string
 }
 
 // pick returns a when ok, else b.
@@ -95,6 +101,7 @@ func (m *Model) setStyles(s Styles) {
 		open:    s.Arrow.Render(termtext.Cells(s.OpenGlyph, 1)),
 		closed:  s.Arrow.Render(termtext.Cells(s.ClosedGlyph, 1)),
 		bg:      background(s.CursorRow),
+		pin:     background(s.Pinned),
 	}
 }
 

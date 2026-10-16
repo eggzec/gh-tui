@@ -16,7 +16,7 @@ func (m Model) View() string {
 	}
 	lines := make([]string, 0, m.height)
 	for _, p := range m.pins {
-		lines = append(lines, m.render(p, 0))
+		lines = append(lines, m.pinned(p))
 	}
 	if len(m.vis) == 0 {
 		lines = append(lines, m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width)))
@@ -56,14 +56,23 @@ func (m Model) render(i, k int) string {
 	}
 	line := glyph + text
 	if i == m.cur && m.focused && m.look.bg != "" {
-		line = m.shade(line)
+		line = m.shade(line, m.look.bg)
 	}
 	return line
 }
 
-// shade draws line on the background of the cursor row.
-func (m Model) shade(line string) string {
-	bg := m.look.bg
+// pinned returns the line of the row at place i of vis as a pin: on the
+// background of the pins, unless it is the cursor row, which is drawn as such.
+func (m Model) pinned(i int) string {
+	line := m.render(i, 0)
+	if i == m.cur || m.look.pin == "" {
+		return line
+	}
+	return m.shade(line, m.look.pin)
+}
+
+// shade draws line on the background bg across the width.
+func (m Model) shade(line, bg string) string {
 	line = strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+bg)
 	line = strings.ReplaceAll(line, "\x1b[0m", "\x1b[0m"+bg)
 	if pad := m.width - ansi.StringWidth(line); pad > 0 {
