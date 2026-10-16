@@ -46,6 +46,7 @@ type API interface {
 	RerunFailedJobs(ctx context.Context, repo core.RepoRef, runID int64) error
 	RerunJob(ctx context.Context, repo core.RepoRef, jobID int64) error
 	CancelRun(ctx context.Context, repo core.RepoRef, runID int64) error
+	RerequestCheckSuite(ctx context.Context, repo core.RepoRef, suiteID int64) error
 }
 
 // Access tells whether the token may do what an operation needs, as the

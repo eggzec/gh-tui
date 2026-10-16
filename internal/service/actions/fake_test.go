@@ -388,6 +388,12 @@ func (f *fakeGitHub) CancelRun(_ context.Context, r core.RepoRef, runID int64) e
 	return nil
 }
 
+func (f *fakeGitHub) RerequestCheckSuite(_ context.Context, r core.RepoRef, suiteID int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.record("RerequestCheckSuite", "%s %d", r, suiteID)
+}
+
 // queueJobs adds n queued jobs to run 2, which is in progress, from ID from
 // on.
 func (f *fakeGitHub) queueJobs(from int64, n int) {

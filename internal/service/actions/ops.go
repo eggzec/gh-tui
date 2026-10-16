@@ -47,6 +47,26 @@ func (s *Service) CancelRun(repo core.RepoRef, runID int64) *optimistic.Op {
 		func(ctx context.Context) error { return s.api.CancelRun(ctx, repo, runID) })
 }
 
+// RerequestSuite asks the App of check suite suiteID of repo to run its
+// checks again on the same commit. It changes nothing at once, as what the
+// App does is its own to say; once GitHub accepts it, the checks cached of
+// the repository are marked stale, so the next read brings the new run. They
+// are matched by the repository, since the checks of a pull request are not
+// keyed by commit.
+func (s *Service) RerequestSuite(repo core.RepoRef, suiteID int64) *optimistic.Op {
+	if err := s.refused(); err != nil {
+		return optimistic.Refused(fmt.Errorf("re-request check suite %d of %s: %w", suiteID, repo, err))
+	}
+	return optimistic.New(func(ctx context.Context) error {
+		if err := s.api.RerequestCheckSuite(ctx, repo, suiteID); err != nil {
+			return fmt.Errorf("re-request check suite %d of %s: %w", suiteID, repo, err)
+		}
+		s.commit.invalidateTag(repoTag(repo))
+		s.checks.InvalidateTag(repoTag(repo))
+		return nil
+	})
+}
+
 // change shows run runID of repo, and its jobs that match, with status at
 // once, and returns the Op that sends the change with send. What names
 // the change in errors. A change the token may not make changes nothing,

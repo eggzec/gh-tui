@@ -156,6 +156,76 @@ func TestCancelRun(t *testing.T) {
 	}
 }
 
+// denyRuns is an Access that refuses every change of runs.
+type denyRuns struct{ err error }
+
+func (d denyRuns) Check(core.Need) error { return d.err }
+
+func TestRerequestSuite(t *testing.T) {
+	f := newFake()
+	f.commits["abc"] = core.CommitChecks{}
+	s := New(f)
+	q := CommitChecksQuery{Repo: repo, SHA: "abc"}
+	pull := ChecksQuery{Repo: repo, Number: 3}
+	if _, err := s.CommitChecks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Checks(t.Context(), pull); err != nil {
+		t.Fatal(err)
+	}
+	f.take()
+
+	op := s.RerequestSuite(repo, 99)
+	if !s.FreshCommitChecks(q) || !s.FreshChecks(pull) {
+		t.Fatal("the checks changed before GitHub accepted the re-request")
+	}
+	if err := op.Do(t.Context()); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	checkCalls(t, f, "RerequestCheckSuite octo-org/hello 99")
+	if s.FreshCommitChecks(q) || s.FreshChecks(pull) {
+		t.Error("the checks of the repository are still fresh after the re-request")
+	}
+	if _, ok := s.CachedCommitChecks(q); !ok {
+		t.Error("the stale checks of the commit were dropped, want them kept until the next read")
+	}
+	if _, err := s.CommitChecks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=false")
+}
+
+func TestRerequestSuiteRefused(t *testing.T) {
+	f := newFake()
+	f.commits["abc"] = core.CommitChecks{}
+	s := New(f)
+	q := CommitChecksQuery{Repo: repo, SHA: "abc"}
+	if _, err := s.CommitChecks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	f.take()
+	refused := &core.RefusedError{Action: "check suite can't be re-requested", Reason: "not accessible", Err: core.ErrConflict}
+	f.failCall("RerequestCheckSuite", refused)
+
+	err := s.RerequestSuite(repo, 99).Do(t.Context())
+	if e, ok := errors.AsType[*core.RefusedError](err); !ok || e.Reason != refused.Reason {
+		t.Fatalf("Do = %v, want the refusal", err)
+	}
+	if !s.FreshCommitChecks(q) {
+		t.Error("a refused re-request marked the checks stale")
+	}
+}
+
+func TestRerequestSuiteNoAccess(t *testing.T) {
+	f := newFake()
+	noAccess := errors.New("token lacks actions scope")
+	s := New(f, WithAccess(denyRuns{noAccess}))
+	if err := s.RerequestSuite(repo, 99).Do(t.Context()); !errors.Is(err, noAccess) {
+		t.Fatalf("Do = %v, want the access error", err)
+	}
+	checkCalls(t, f)
+}
+
 func TestCancelRolledBack(t *testing.T) {
 	f := newFake()
 	s := primed(t, f)

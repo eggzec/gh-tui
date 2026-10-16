@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -35,6 +36,16 @@ func (c *Client) RerunJob(ctx context.Context, repo core.RepoRef, jobID int64) e
 // the jobs running stop.
 func (c *Client) CancelRun(ctx context.Context, repo core.RepoRef, runID int64) error {
 	return c.runAction(ctx, runPath(repo, runID)+"/cancel", "run can't be cancelled")
+}
+
+// RerequestCheckSuite asks the App of check suite suiteID of repo to run
+// its checks again on the same commit. GitHub answers 201 and the App
+// starts a moment later, so a caller reads the checks again to see them.
+// An App that doesn't take re-requests, or a suite GitHub can't re-request,
+// is a *core.RefusedError.
+func (c *Client) RerequestCheckSuite(ctx context.Context, repo core.RepoRef, suiteID int64) error {
+	path := commitsBase(repo) + "/check-suites/" + strconv.FormatInt(suiteID, 10) + "/rerequest"
+	return c.refusableDo(ctx, http.MethodPost, path, nil, "check suite can't be re-requested")
 }
 
 // runAction posts to path. When GitHub refuses, as it does to re-run a

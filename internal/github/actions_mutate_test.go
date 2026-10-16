@@ -20,6 +20,7 @@ func TestRunActions(t *testing.T) {
 		{"rerun failed", func(ctx context.Context, c *Client) error { return c.RerunFailedJobs(ctx, bubbletea, 42) }, "/repos/charmbracelet/bubbletea/actions/runs/42/rerun-failed-jobs", http.StatusCreated},
 		{"rerun job", func(ctx context.Context, c *Client) error { return c.RerunJob(ctx, bubbletea, 7) }, "/repos/charmbracelet/bubbletea/actions/jobs/7/rerun", http.StatusCreated},
 		{"cancel", func(ctx context.Context, c *Client) error { return c.CancelRun(ctx, bubbletea, 42) }, "/repos/charmbracelet/bubbletea/actions/runs/42/cancel", http.StatusAccepted},
+		{"rerequest suite", func(ctx context.Context, c *Client) error { return c.RerequestCheckSuite(ctx, bubbletea, 99) }, "/repos/charmbracelet/bubbletea/check-suites/99/rerequest", http.StatusCreated},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -59,6 +60,18 @@ func TestRunActionsRefused(t *testing.T) {
 			body: `{"message":"Cannot cancel a workflow run that is completed."}`,
 			do:   func(ctx context.Context, c *Client) error { return c.CancelRun(ctx, bubbletea, 42) },
 			want: "run can't be cancelled: Cannot cancel a workflow run that is completed.", refused: true, is: core.ErrConflict,
+		},
+		{
+			name: "suite forbidden", status: http.StatusForbidden,
+			body: `{"message":"Resource not accessible by integration"}`,
+			do:   func(ctx context.Context, c *Client) error { return c.RerequestCheckSuite(ctx, bubbletea, 99) },
+			want: "check suite can't be re-requested: Resource not accessible by integration", refused: true,
+		},
+		{
+			name: "suite unprocessable", status: http.StatusUnprocessableEntity,
+			body: `{"message":"Validation Failed"}`,
+			do:   func(ctx context.Context, c *Client) error { return c.RerequestCheckSuite(ctx, bubbletea, 99) },
+			want: "check suite can't be re-requested: Validation Failed", refused: true,
 		},
 		{
 			name: "no reason", status: http.StatusForbidden, body: `{}`,
