@@ -165,8 +165,29 @@ func (b *builder) workflow(w *workflow) {
 	if number > 0 {
 		text += b.dim(" #" + strconv.Itoa(number))
 	}
-	b.rows = append(b.rows, b.fold(b.id("run", w.id), b.o.Depth, text, b.dim(stateWord(state))))
+	right := stateWord(state)
+	if b.o.Mode == Merge {
+		right = fmt.Sprintf("%d of %d jobs", countNot(states, core.CheckPassing), len(states))
+	}
+	b.rows = append(b.rows, b.fold(b.id("run", w.id), b.o.Depth, text, b.dim(right)))
 	b.rows = append(b.rows, kids...)
+}
+
+// keep says whether a check in state s is shown: all are, but in merge mode
+// those that pass.
+func (b *builder) keep(s core.CheckState) bool {
+	return b.o.Mode != Merge || s != core.CheckPassing
+}
+
+// countNot counts the states other than s.
+func countNot(states []core.CheckState, s core.CheckState) int {
+	n := 0
+	for _, x := range states {
+		if x != s {
+			n++
+		}
+	}
+	return n
 }
 
 // jobOf returns the job that check run cc reports, for grouping.
@@ -193,7 +214,9 @@ func (b *builder) jobs(nodes []core.JobNode, jobs []core.Job, depth int) []foldt
 	var rows []foldtree.Row
 	for _, n := range nodes {
 		if n.Group == nil {
-			rows = append(rows, b.job(jobs[n.Job], n.Label, depth))
+			if b.keep(jobs[n.Job].Outcome()) {
+				rows = append(rows, b.job(jobs[n.Job], n.Label, depth))
+			}
 			continue
 		}
 		g := n.Group
@@ -264,10 +287,15 @@ func (b *builder) took(state core.CheckState, status core.RunStatus, start, end 
 // runs. glyph marks the kind of the group, and is "" for none.
 func (b *builder) group(id, glyph, title string, checks []core.CommitCheck) {
 	states := make([]core.CheckState, len(checks))
-	kids := make([]foldtree.Row, len(checks))
+	kids := make([]foldtree.Row, 0, len(checks))
 	for i := range checks {
 		states[i] = checks[i].Outcome()
-		kids[i] = b.check(&checks[i], states[i])
+		if b.keep(states[i]) {
+			kids = append(kids, b.check(&checks[i], states[i]))
+		}
+	}
+	if len(kids) == 0 {
+		return
 	}
 	state := core.Worst(states...)
 	text := b.line(b.st.icon(state), glyph, b.st.link("", title))
@@ -319,6 +347,9 @@ func (b *builder) noteGlyph(notes []core.Annotation) string {
 // status adds a commit status, which enter does nothing on.
 func (b *builder) status(s core.StatusContext) {
 	state := s.Outcome()
+	if !b.keep(state) {
+		return
+	}
 	text := b.line(b.st.icon(state), b.st.status, b.st.link(s.TargetURL, s.Context))
 	b.rows = append(b.rows, foldtree.Row{
 		ID:    b.o.Prefix + "status/" + s.Context,
