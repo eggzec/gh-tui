@@ -14,19 +14,17 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	avail := m.inner()
 	lines := make([]string, 0, m.height)
+	for _, p := range m.pins {
+		lines = append(lines, m.render(p, 0))
+	}
 	if len(m.vis) == 0 {
 		lines = append(lines, m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width)))
 	}
 	i := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > m.off })
-	for ; i < len(m.vis) && len(lines) < avail; i++ {
-		rows := m.draw(i)
-		for _, l := range rows[max(m.off-m.starts[i], 0):] {
-			if len(lines) == avail {
-				break
-			}
-			lines = append(lines, l)
+	for ; i < len(m.vis) && len(lines) < m.height; i++ {
+		for k := max(m.off-m.starts[i], 0); k < m.lines(i) && len(lines) < m.height; k++ {
+			lines = append(lines, m.render(i, k))
 		}
 	}
 	for len(lines) < m.height {
@@ -38,13 +36,11 @@ func (m Model) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// draw returns the lines of the row at place i of vis, each as wide as the
-// tree. The cursor row of a focused tree has the background of CursorRow
-// across them, resumed after each reset the row's own text makes, and a
-// blurred one only the cursor glyph.
-func (m Model) draw(i int) []string {
+// render returns line k of the row at place i of vis. The cursor row of a
+// focused tree has the background of CursorRow across it, resumed after each
+// reset the row's own text makes, and a blurred one only the cursor glyph.
+func (m Model) render(i, k int) string {
 	r := m.row(i)
-	out := make([]string, m.lines(i))
 	glyph := " "
 	if i == m.cur {
 		glyph = m.look.blurred
@@ -52,20 +48,17 @@ func (m Model) draw(i int) []string {
 			glyph = m.look.cursor
 		}
 	}
-	for k := range out {
-		var text string
-		if k == 0 {
-			text = m.head(r, i)
-		} else if room := m.width - 1 - guideWidth*r.Depth; room > 0 {
-			text = m.body[i] + m.cut(r.Lines[k], room)
-		}
-		line := glyph + text
-		if i == m.cur && m.focused && m.look.bg != "" {
-			line = m.shade(line)
-		}
-		out[k] = line
+	var text string
+	if k == 0 {
+		text = m.head(r, i)
+	} else if room := m.width - 1 - m.bodyw[i]; room > 0 {
+		text = m.body[i] + m.cut(r.Lines[k], room)
 	}
-	return out
+	line := glyph + text
+	if i == m.cur && m.focused && m.look.bg != "" {
+		line = m.shade(line)
+	}
+	return line
 }
 
 // shade draws line on the background of the cursor row.

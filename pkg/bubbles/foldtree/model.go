@@ -5,12 +5,13 @@
 // The caller owns what a row says: it hands over rows in display order, each
 // with its depth and its text already rendered, and the tree owns what the
 // rows have in common. That is the cursor, the folds, the scroll window, the
-// guides that hang children off their parent, and the fold markers at the
-// end of a closed row.
+// guides that hang children off their parent, the ancestors pinned above a
+// scrolled window, and the fold markers at the end of a closed row.
 package foldtree
 
 import (
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -87,11 +88,16 @@ type Model struct {
 	// vis lists the indexes in rows of the rows that show, and starts the
 	// first line of each of them in the whole text, with the total at the
 	// end. first and body are the guides of their first line and of the
-	// rest, in the same order.
+	// rest, in the same order, and bodyw the width in cells of body.
 	vis    []int
 	starts []int
 	first  []string
 	body   []string
+	bodyw  []int
+
+	// pins lists the places in vis of the ancestors of the top row of the
+	// window that stay pinned above it, the nearest last.
+	pins []int
 
 	// sel is the ID of the row under the cursor and cur its place in vis;
 	// off is the line of the text at the top of the window.
@@ -205,9 +211,21 @@ func (m *Model) Reveal(id string) bool {
 	}
 	m.open(r)
 	m.reflow()
-	m.setCur(m.visIndex(id))
+	m.setCur(m.selectable(m.visIndex(id), 1))
 	m.scroll()
 	return true
+}
+
+// SetFolded opens the fold with the given ID, or closes it when closed is
+// true, and keeps the cursor on its row, or on the fold that now hides it. It
+// does nothing when there is no such fold.
+func (m *Model) SetFolded(id string, closed bool) {
+	r := m.rowIndex(id)
+	if r < 0 || !m.rows[r].Fold || m.closed[id] == closed {
+		return
+	}
+	m.closed = withKey(m.closed, id, closed)
+	m.reflow()
 }
 
 // open opens the closed folds above row r.
@@ -246,7 +264,7 @@ func tidy(lines []string) []string {
 		}
 	}
 	if clean {
-		return lines
+		return slices.Clone(lines)
 	}
 	out := make([]string, 0, len(lines))
 	for _, l := range lines {
@@ -335,6 +353,7 @@ func (m *Model) reflow() {
 func (m *Model) guides() {
 	m.first = make([]string, len(m.vis))
 	m.body = make([]string, len(m.vis))
+	m.bodyw = make([]int, len(m.vis))
 	depth := 0
 	for _, r := range m.vis {
 		depth = max(depth, m.rows[r].Depth)
@@ -342,15 +361,19 @@ func (m *Model) guides() {
 	more := make([]bool, depth+2)
 	for i := len(m.vis) - 1; i >= 0; i-- {
 		d := m.rows[m.vis[i]].Depth
-		if d == 0 {
-			m.first[i], m.body[i] = "", ""
-		} else {
+		m.first[i], m.body[i], m.bodyw[i] = "", "", guideWidth*d
+		if d > 0 {
 			var pre strings.Builder
 			for k := 1; k < d; k++ {
 				pre.WriteString(m.look.pick(more[k], m.look.line, m.look.none))
 			}
 			m.first[i] = pre.String() + m.look.pick(more[d], m.look.branch, m.look.last)
 			m.body[i] = pre.String() + m.look.pick(more[d], m.look.line, m.look.none)
+		}
+		// The body of a row that has children carries the guide on to them.
+		if i+1 < len(m.vis) && m.rows[m.vis[i+1]].Depth > d {
+			m.body[i] += m.look.line
+			m.bodyw[i] += guideWidth
 		}
 		more[d] = true
 		for k := d + 1; k < len(more); k++ {
@@ -399,24 +422,66 @@ func (m *Model) setCur(i int) {
 	m.cur, m.sel = i, m.row(i).ID
 }
 
+// maxPins is the most ancestors that stay pinned above a scrolled tree.
+const maxPins = 2
+
 // scroll moves the window the least that shows the row under the cursor, or
-// its first lines when it is taller than the window.
+// its first lines when it is taller than the window, and pins the ancestors
+// of the row at its top. The pins take lines off the window and which rows
+// they are depends on where it is, so the window is settled again with the
+// lines the pins of its last place took, until they take no more than that.
 func (m *Model) scroll() {
-	avail := m.inner()
-	if len(m.vis) == 0 || avail <= 0 {
+	m.pins = nil
+	if len(m.vis) == 0 || m.height <= 0 {
 		m.off = 0
 		return
 	}
 	s, e := m.starts[m.cur], m.starts[m.cur+1]
-	switch {
-	case s < m.off:
-		m.off = s
-	case e > m.off+avail:
-		m.off = min(s, e-avail)
+	for taken := 0; ; {
+		avail := max(m.height-taken, 1)
+		switch {
+		case s < m.off:
+			m.off = s
+		case e > m.off+avail:
+			m.off = min(s, e-avail)
+		}
+		m.off = max(min(m.off, m.starts[len(m.vis)]-avail), 0)
+		pins := m.pinsAt(m.off)
+		if len(pins) <= taken {
+			m.pins = pins
+			return
+		}
+		taken = len(pins)
 	}
-	m.off = max(min(m.off, m.starts[len(m.vis)]-avail), 0)
 }
 
-// inner is the number of lines of the window that show rows. Lines kept for
-// pinned rows are taken off here.
-func (m Model) inner() int { return m.height }
+// pinsAt returns the places in vis of the ancestors to pin above a window
+// that starts at line off, the nearest last: at most [maxPins] of them, and
+// always a line left for the rows. A row the cursor may not rest on is not
+// pinned.
+func (m Model) pinsAt(off int) []int {
+	limit := min(maxPins, m.height-1)
+	top := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > off })
+	if limit <= 0 || top >= len(m.vis) {
+		return nil
+	}
+	var pins []int
+	need := m.row(top).Depth
+	for j := top - 1; j >= 0 && need > 0; j-- {
+		p := m.row(j)
+		if p.Depth >= need {
+			continue
+		}
+		need = p.Depth
+		if !p.Skip {
+			pins = append(pins, j)
+		}
+	}
+	pins = pins[:min(len(pins), limit)]
+	slices.Reverse(pins)
+	return pins
+}
+
+// inner is the number of lines of the window that show rows: what is left
+// when the pinned rows have their lines.
+func (m Model) inner() int { return m.height - len(m.pins) }
