@@ -3,7 +3,6 @@ package pulls
 import (
 	"bytes"
 	"context"
-	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -136,10 +135,6 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 
 	wait("Retry GraphQL requests")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	wait("Cold starts read every page")
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
-	wait("Add a disk layer")
 	tm.Type("M")
 	wait("Squash-merge #135 into main?")
 	tm.Type("y")
@@ -167,48 +162,6 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	}
 	if pr, _ := final.feed.Selected(); pr.Number == 135 {
 		t.Error("the merged pull request is still in the open list")
-	}
-}
-
-func TestProgramMergesFromTheModalOnceConfirmed(t *testing.T) {
-	svc := newFakeService()
-	h := newTest(t, svc, 80, 24)
-	done := make(chan ui.DoneMsg, 1)
-	tm := teatest.NewTestModel(t, app{h: h, done: done}, teatest.WithInitialTermSize(80, 24))
-	wait := func(text string) {
-		t.Helper()
-		teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
-			return bytes.Contains(b, []byte(text))
-		}, teatest.WithDuration(5*time.Second))
-	}
-
-	wait("Add a disk layer")
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	wait("Cold starts read every page")
-	tm.Type("M")
-	wait("Squash-merge #142 into main?")
-	// Keys other than the answer leave the question open.
-	tm.Type("jm")
-	tm.Type("y")
-	select {
-	case msg := <-done:
-		if msg.What != "merge #142" || msg.Err != nil {
-			t.Errorf("done = %+v, want merge #142 without error", msg)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the merge never finished")
-	}
-	wait("Merged")
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
-	wait("Retry GraphQL requests")
-	tm.Type("q")
-
-	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
-	if got := svc.changes(); !slices.Equal(got, []string{"merge squash 142"}) {
-		t.Errorf("changes = %v, want exactly one merge of #142", got)
-	}
-	if final.modal() != nil {
-		t.Error("the modal is still open")
 	}
 }
 

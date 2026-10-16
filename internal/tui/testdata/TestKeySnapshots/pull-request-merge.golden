@@ -1,0 +1,27 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  command | : | : | on
+  maximize | Z | Z | on
+  back | backspace | backspace | off
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  search | S | S | off
+  this repo | . | . | off
+  help | ? | ? | on
+
+Pull request
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
+  Description | 1 | 1 | on
+  Conversation | 2 | 2 | on
+  Merge | 3 | 3 | off
+  Involved | 4 | 4 | on
+  Development | 5 | 5 | on
+  Files | 6 | 6 | on
+  zoom | z | z | off
+  close | esc | esc | on
+  author | @ | @ | on
+
+Merge

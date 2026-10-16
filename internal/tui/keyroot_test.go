@@ -99,7 +99,7 @@ func TestScreenKeysAreDisabledInModalHelp(t *testing.T) {
 }
 
 // TestOwnerKeyOverModals checks that the owner key shows the author of a
-// pull request or an issue from its modal, and is refused over the others.
+// issue or pull request from its modal, and is refused over the others.
 func TestOwnerKeyOverModals(t *testing.T) {
 	t.Parallel()
 	for _, steps := range [][]string{{"global.pane_2", "global.select"}, {"global.pane_3", "global.select"}} {

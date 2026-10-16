@@ -28,7 +28,7 @@ func winner(layers []keyhelp.Layer, k string) string {
 // own keys before the feed's and the thread's, and the answer alone while
 // a change waits for one.
 func TestKeyLayersOrder(t *testing.T) {
-	h := started(t, newFakeService(), 80, 20)
+	h := started(t, newFakeService(), 160, 50)
 	for k, want := range map[string]string{
 		"]": ui.PullsTitle + ": next state", "r": ui.PullsTitle + ": refresh",
 		"M": ui.PullsTitle + ": merge", "j": ui.PullsTitle + ": down",
@@ -49,28 +49,10 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m == nil {
 		t.Fatal("enter opened no pull request")
 	}
-	for k, want := range map[string]string{
-		"esc": "Pull request: close", "r": "Pull request: refresh", "j": "Overview: down", "]": "Pull request: next tab", "enter": "Overview: go",
-	} {
+	for k, want := range map[string]string{"esc": "Pull request: close", "tab": "Pull request: next pane", "3": "Pull request: Merge"} {
 		if got := winner(m.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the modal, want %q", k, got, want)
 		}
-	}
-	m.tab = conversationTab
-	if got := winner(m.KeyLayers(), "j"); got != "Conversation: down" {
-		t.Errorf("j reaches %q in the conversation, want its own", got)
-	}
-	m.tab = overviewTab
-	press(t, h, "M")
-	if m.ask == nil {
-		t.Fatal("M didn't ask to merge")
-	}
-	if got := winner(m.KeyLayers(), "esc"); got != "Confirm: no" {
-		t.Errorf("esc reaches %q while asking, want the answer", got)
-	}
-	press(t, h, "esc")
-	if m.ask != nil || h.modal() != m {
-		t.Error("esc while asking didn't just drop the question")
 	}
 	press(t, h, "esc")
 	if h.modal() != nil {

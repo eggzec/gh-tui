@@ -427,14 +427,13 @@ func TestHelpKeyReachesWaitingPager(t *testing.T) {
 }
 
 // A pull request opened from the links of another modal has a modal to
-// return to, and the help lists the back key on its Files tab, where it is
-// on: no binding of the tab's own, such as the one that closes an empty
-// search line with the same key, may hide it.
+// return to, and the help lists the back key on its files pane, where it is
+// on: no binding of the pane's own may hide it.
 func TestHelpListsBackOnPullDiff(t *testing.T) {
 	t.Parallel()
 	var diffCtx keyContext
 	for _, c := range keyContexts() {
-		if c.name == "pull request: diff" {
+		if c.name == "pull request: files" {
 			diffCtx = c
 		}
 	}

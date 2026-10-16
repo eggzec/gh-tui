@@ -6,39 +6,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-var _ ui.Actor = (*detailModal)(nil)
+var _ ui.Actor = (*panesModal)(nil)
 
-// Act implements ui.Actor. The quit key closes the modal from any step of
-// it, the back key steps back from the links, out of what the Checks tab
-// opened, or from a jump to the diff, and the owner key shows the page of
-// the author; every other intent is the app's to refuse while the modal is
-// open.
-func (m *detailModal) Act(action string) (tea.Cmd, bool) {
+// Act implements ui.Actor. The quit key closes the modal and the owner key
+// shows the page of the author; every other intent is the app's to refuse
+// while the modal is open.
+func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	switch action {
 	case ui.ActQuit:
 		return m.close(), true
-	case ui.ActBack:
-		// The links step back to the tab they were opened over. Otherwise
-		// the app returns to the modal this one replaced, unless the
-		// Checks tab shows a log, annotations or a detail to step out of.
-		if m.refs != nil {
-			if m.refs.TakesKeys() {
-				return nil, false
-			}
-			return m.closeRefs(), true
-		}
-		if m.onChecks() && !m.checks.TakesKeys() && m.checks.StepOut() {
-			return nil, true
-		}
-		// A jump to the diff steps back to where it started.
-		if m.ask == nil && m.find == nil && !m.searchingDiff() && (!m.onChecks() || !m.checks.TakesKeys()) {
-			return m.popReturn()
-		}
-		return nil, false
 	case "owner":
-		if m.ask != nil || m.refs != nil || m.find != nil || m.onChecks() && m.checks.TakesKeys() {
-			return nil, false
-		}
 		return m.author(), true
 	}
 	return nil, false
@@ -46,7 +23,7 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 
 // author closes the modal and shows the page of the author of the pull
 // request, which shows in place of the screen behind it.
-func (m *detailModal) author() tea.Cmd {
+func (m *panesModal) author() tea.Cmd {
 	if ui.Author(m.detail.Author) == "" {
 		return nil
 	}

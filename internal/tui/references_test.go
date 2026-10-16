@@ -35,20 +35,20 @@ func runReferences(t *testing.T, m *Model) {
 	driveKeys(t, m, m.key(enter))
 }
 
-// The links of a pull request, picked, replace its modal, and the back key
+// The links of an issue, picked, replace its modal, and the back key
 // returns to them as they were left; the next one returns to the
-// conversation, and esc closes the modal.
+// issue, and esc closes the modal.
 func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
 		pr := m.modal
 		if pr == nil {
-			t.Fatal("no pull request opened")
+			t.Fatal("no issue opened")
 		}
 		thread := pr.View()
-		tapAction(t, m, "pull_modal.references")
+		tapAction(t, m, "issue_modal.references")
 		if got := layerNames(m.keyLayers()); got != "global, references" {
 			t.Fatalf("the keys after # reach %q, want the links'", got)
 		}
@@ -56,7 +56,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		driveKeys(t, m, m.key(press("j")))
 		driveKeys(t, m, m.key(press("j")))
 		links := ansi.Strip(pr.View())
-		if !strings.Contains(links, "Closes (1)") || !strings.Contains(links, "Mentioned in (3)") {
+		if !strings.Contains(links, "Closed by (1)") || !strings.Contains(links, "Mentioned in (3)") {
 			t.Fatalf("the modal doesn't show the links:\n%s", links)
 		}
 
@@ -69,7 +69,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		// Back returns to the links, with the cursor where it was.
 		tapAction(t, m, config.ActionBack)
 		if m.modal != pr {
-			t.Fatalf("back returned to %v, want the pull request", m.topModal())
+			t.Fatalf("back returned to %v, want the issue", m.topModal())
 		}
 		if got := ansi.Strip(pr.View()); got != links {
 			t.Errorf("the links changed while the item was open:\n%s\n---\n%s", links, got)
@@ -77,9 +77,9 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		if d, ok := item.(ui.Discarder); ok {
 			d.Discard()
 		}
-		// Back again steps out of the links, to the tab they covered.
+		// Back again steps out of the links, to the issue they covered.
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr || layerNames(m.keyLayers()) != "global, pull_modal, pull_overview" {
+		if m.modal != pr || layerNames(m.keyLayers()) != "global, issue_modal" {
 			t.Fatalf("the second back left the keys at %q", layerNames(m.keyLayers()))
 		}
 		if got := pr.View(); got != thread {
@@ -143,9 +143,9 @@ func TestReferencesFilterTypesKeys(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
 		pr := m.modal
-		tapAction(t, m, "pull_modal.references")
+		tapAction(t, m, "issue_modal.references")
 		tapAction(t, m, "references.quick_filter")
 		for _, r := range "qx" {
 			driveKeys(t, m, m.key(press(string(r))))
@@ -169,30 +169,22 @@ func TestReferencesCommand(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(c *config.Config) {
-			c.Keys.Set("pull_modal.references", []string{})
+			c.Keys.Set("issue_modal.references", []string{})
 		})
 		runReferences(t, m)
 		if !hasToast(m, "references works in the PR and issue modals.") {
 			t.Errorf("toast = %q, want the refusal", toasted(m))
 		}
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
-		pr := m.modal
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
+		issue := m.modal
 		runReferences(t, m)
-		if got := layerNames(m.keyLayers()); m.modal != pr || got != "global, references" {
+		if got := layerNames(m.keyLayers()); m.modal != issue || got != "global, references" {
 			t.Fatalf("the command left the keys at %q", got)
 		}
 		// Again it changes nothing.
 		runReferences(t, m)
 		if got := layerNames(m.keyLayers()); got != "global, references" {
 			t.Errorf("the command again left the keys at %q", got)
-		}
-
-		driveKeys(t, m, m.key(press("esc")))
-		driveKeys(t, m, m.key(press("esc")))
-		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		runReferences(t, m)
-		if got := layerNames(m.keyLayers()); got != "global, references" {
-			t.Errorf("over an issue the command left the keys at %q", got)
 		}
 	})
 }
@@ -226,8 +218,8 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
-		tapAction(t, m, "pull_modal.references")
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
+		tapAction(t, m, "issue_modal.references")
 		tapAction(t, m, "references.quick_filter")
 		tapAction(t, m, config.ActionCommand)
 		if m.line.Focused() {
@@ -238,15 +230,12 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 		}
 	})
 	for _, steps := range [][]string{
-		{"pull_check_log.find"},
-		{"pull_check_log.option"},
-		{"pull_check_log.rerun_failed"},
+		{"actions_log.find"},
+		{"actions_log.option"},
 	} {
 		synctest.Test(t, func(t *testing.T) {
 			m := newKeysApp(t, true)
-			driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2, Checks: true} })
-			tapAction(t, m, config.ActionSelect)
-			for _, s := range steps {
+			for _, s := range append([]string{"repo.actions", "global.next_pane", "global.next_pane"}, steps...) {
 				tapAction(t, m, s)
 			}
 			tapAction(t, m, config.ActionCommand)
@@ -257,45 +246,39 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 	}
 }
 
-// A pull request or issue modal that shows its links is still the modal of
-// the pull request or issue: going back to it keeps ui.maximized, and the
-// refusals name it.
+// An issue modal that shows its links is still the modal of the issue:
+// going back to it keeps ui.maximized, and the refusals name it.
 func TestReferencesModalKeepsItsContext(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Maximized = []string{"pull_modal"} })
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
+		m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Maximized = []string{"issue_modal"} })
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
 		pr := m.modal
 		if !m.maximized {
-			t.Fatal("the pull request didn't open maximized")
+			t.Fatal("the issue didn't open maximized")
 		}
-		tapAction(t, m, "pull_modal.references")
-		if got := modalContext(pr); got != "pull_modal" {
-			t.Errorf("modalContext of the links = %q, want pull_modal", got)
+		tapAction(t, m, "issue_modal.references")
+		if got := modalContext(pr); got != "issue_modal" {
+			t.Errorf("modalContext of the links = %q, want issue_modal", got)
 		}
-		if got := m.modalName(pr); got != "the pull request" {
+		if got := m.modalName(pr); got != "the issue" {
 			t.Errorf("the links are named %q", got)
 		}
 		tapAction(t, m, config.ActionOwner)
-		if want := "Close the pull request first to use the owner page."; !hasToast(m, want) {
+		if want := "Close the issue first to use the owner page."; !hasToast(m, want) {
 			t.Errorf("toast = %q, want %q", toasted(m), want)
 		}
-		// Open an item in place of the modal, which isn't maximized, and
-		// come back.
+		// Open an item in place of the modal, and come back.
+		driveKeys(t, m, m.key(press("*")))
+		driveKeys(t, m, m.key(press("j")))
+		driveKeys(t, m, m.key(press("j")))
 		driveKeys(t, m, m.key(enter))
-		if m.modal == pr || m.maximized {
-			t.Fatalf("the item opened as %v, maximized %v", m.topModal(), m.maximized)
+		if m.modal == pr {
+			t.Fatalf("the item opened as %v", m.topModal())
 		}
 		tapAction(t, m, config.ActionBack)
 		if m.modal != pr || !m.maximized {
-			t.Errorf("back returned to %v, maximized %v; want the pull request, maximized", m.topModal(), m.maximized)
-		}
-		// The same for an issue.
-		tapAction(t, m, config.ActionDismiss)
-		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		tapAction(t, m, "issue_modal.references")
-		if got := m.modalName(m.modal); got != "the issue" {
-			t.Errorf("the links of an issue are named %q", got)
+			t.Errorf("back returned to %v, maximized %v; want the issue, maximized", m.topModal(), m.maximized)
 		}
 	})
 }

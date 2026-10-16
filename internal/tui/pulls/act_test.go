@@ -26,6 +26,9 @@ func TestActOwner(t *testing.T) {
 	if got := drain(t, h, cmd); !slices.Contains(got, tea.Msg(ui.OwnerMsg{Login: pr.Author.Login})) {
 		t.Errorf("owner sent %v, want the page of %q", got, pr.Author.Login)
 	}
+	if h.modal() != nil {
+		t.Error("owner should close the modal")
+	}
 }
 
 // TestActQuit checks that the quit intent closes the modal and cancels its

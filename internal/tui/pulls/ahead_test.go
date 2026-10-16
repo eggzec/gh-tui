@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -24,7 +25,7 @@ func (f *fakeService) firstComments() []int {
 	defer f.mu.Unlock()
 	var out []int
 	for _, q := range f.comments {
-		if q == commentsQuery(q.Repo, q.Number) {
+		if q == (pulls.CommentsQuery{Repo: q.Repo, Number: q.Number}) {
 			out = append(out, q.Number)
 		}
 	}
@@ -42,7 +43,7 @@ func TestPrefetchFirstRows(t *testing.T) {
 		svc := newFakeService()
 		// #135 is cached already.
 		svc.cached[135] = true
-		svc.commented[commentsQuery(repo, 135)] = true
+		svc.commented[pulls.CommentsQuery{Repo: repo, Number: 135}] = true
 		started(t, svc, 80, 30, readingAhead(2, 150*time.Millisecond, false))
 
 		// The first three rows but the cached one. The row under the
@@ -195,15 +196,12 @@ func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 			t.Fatal("enter should open the modal, then start its loads")
 		}
 		drain(t, h, seq[0])
-		h.modal().tab = conversationTab
-		view := modalScreen(t, h)
-		for _, want := range []string{"Retry GraphQL requests", "Cold starts read every page", "Does this survive a crash"} {
-			if !strings.Contains(view, want) {
-				t.Errorf("modal lacks %q before any load:\n%s", want, view)
-			}
+		m := h.modal()
+		if m == nil || !m.loaded {
+			t.Fatalf("modal %v waits for its detail, want it read ahead", m)
 		}
-		if strings.Contains(view, "Loading…") {
-			t.Errorf("modal waits for its detail:\n%s", view)
+		if view, title := modalScreen(t, h), svc.find(m.number).Title; !strings.Contains(view, title) {
+			t.Errorf("modal lacks %q before any load:\n%s", title, view)
 		}
 	})
 }
@@ -236,15 +234,12 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 		t.Fatal("the notification should open the modal, then start its loads")
 	}
 	drain(t, h, seq[0])
-	h.modal().tab = conversationTab
-	view := modalScreen(t, h)
-	for _, want := range []string{"Cold starts read every page", "Does this survive a crash", "It writes to a temporary file"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("modal lacks %q before any load:\n%s", want, view)
-		}
+	m := h.modal()
+	if m == nil || !m.loaded {
+		t.Fatalf("modal %v waits for its detail, want what was read ahead", m)
 	}
-	if strings.Contains(view, "Loading…") {
-		t.Errorf("modal waits for what was read ahead:\n%s", view)
+	if view, title := modalScreen(t, h), svc.find(m.number).Title; !strings.Contains(view, title) {
+		t.Errorf("modal lacks %q before any load:\n%s", title, view)
 	}
 }
 

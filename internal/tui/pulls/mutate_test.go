@@ -1,7 +1,6 @@
 package pulls
 
 import (
-	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -47,29 +45,13 @@ func TestMutations(t *testing.T) {
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
-			name: "merge in the modal merges the open pull request",
-			keys: []string{"down", "enter", "M"}, question: "Squash-merge #135 into main?",
-			want: "merge squash 135", what: "merge #135",
-			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
-		},
-		{
 			name: "close closes an open pull request",
 			keys: []string{"X"}, question: "Close PR #142?", want: "close 142", what: "close #142",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateClosed },
 		},
 		{
-			name: "close in the modal",
-			keys: []string{"enter", "X"}, question: "Close PR #142?", want: "close 142", what: "close #142",
-			after: func(pr core.PullRequest) bool { return pr.State == core.StateClosed },
-		},
-		{
 			name: "reopen reopens a closed pull request",
 			keys: []string{"]", "O"}, question: "Reopen PR #93?", want: "reopen 93", what: "reopen #93",
-			after: func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
-		},
-		{
-			name: "reopen in the modal",
-			keys: []string{"]", "enter", "O"}, question: "Reopen PR #93?", want: "reopen 93", what: "reopen #93",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
 		},
 		{
@@ -81,18 +63,6 @@ func TestMutations(t *testing.T) {
 		{
 			name: "toggle draft marks a draft ready",
 			keys: []string{"down", "down", "W"}, question: "Mark PR #128 ready for review?",
-			want: "ready 128", what: "mark #128 ready",
-			after: func(pr core.PullRequest) bool { return !pr.Draft },
-		},
-		{
-			name: "toggle draft in the modal",
-			keys: []string{"enter", "W"}, question: "Convert PR #142 to a draft?",
-			want: "draft 142", what: "convert #142 to draft",
-			after: func(pr core.PullRequest) bool { return pr.Draft },
-		},
-		{
-			name: "mark ready in the modal",
-			keys: []string{"down", "down", "enter", "W"}, question: "Mark PR #128 ready for review?",
 			want: "ready 128", what: "mark #128 ready",
 			after: func(pr core.PullRequest) bool { return !pr.Draft },
 		},
@@ -116,10 +86,6 @@ func TestMutations(t *testing.T) {
 					press(t, s, k)
 				}
 				before, _ := s.target()
-				detail := s.modal()
-				if detail != nil {
-					before = detail.detail.PullRequest
-				}
 				msgs := press(t, s, tt.keys[last])
 				if got := question(s); got != tt.question {
 					t.Fatalf("asks %q, want %q", got, tt.question)
@@ -136,15 +102,12 @@ func TestMutations(t *testing.T) {
 					if got := question(s); got != tt.question || len(svc.changes()) != 0 {
 						t.Fatalf("after other keys asks %q with changes %v", got, svc.changes())
 					}
-					if pr, _ := s.target(); pr.Number != before.Number && detail == nil {
+					if pr, _ := s.target(); pr.Number != before.Number {
 						t.Fatalf("the cursor moved to #%d behind the question", pr.Number)
 					}
 					msgs = append(msgs, press(t, s, answer)...)
 					if got := question(s); got != "" {
 						t.Fatalf("%s left the question %q open", answer, got)
-					}
-					if s.modal() != detail {
-						t.Fatalf("%s changed the modal from %v to %v", answer, detail, s.modal())
 					}
 				}
 
@@ -172,19 +135,13 @@ func TestMutations(t *testing.T) {
 	}
 }
 
-// question returns what the open question asks, in the detail's last line
-// or a modal of its own, or "" when none is open.
+// question returns what the open question asks, or "" when none is open.
 func question(h *host) string {
 	if len(h.modals) == 0 {
 		return ""
 	}
-	switch m := h.modals[len(h.modals)-1].(type) {
-	case *ui.ConfirmModal:
+	if m, ok := h.modals[len(h.modals)-1].(*ui.ConfirmModal); ok {
 		return m.Question()
-	case *detailModal:
-		if m.ask != nil {
-			return m.ask.Question
-		}
 	}
 	return ""
 }
@@ -211,10 +168,7 @@ func TestASecondYesChangesOnce(t *testing.T) {
 	}{
 		{"y y from the list", []string{"M", "y", "y"}, "merge squash 142"},
 		{"y enter from the list", []string{"M", "y", "enter"}, "merge squash 142"},
-		{"y y in the modal", []string{"enter", "M", "y", "y"}, "merge squash 142"},
-		{"y enter in the modal", []string{"enter", "M", "y", "enter"}, "merge squash 142"},
 		{"y y on a draft toggle from the list", []string{"W", "y", "y"}, "draft 142"},
-		{"y y on a draft toggle in the modal", []string{"enter", "W", "y", "y"}, "draft 142"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -259,14 +213,9 @@ func TestYesAsksAgain(t *testing.T) {
 		defer svc.mu.Unlock()
 		e(&svc.pulls[slices.IndexFunc(svc.pulls, func(pr core.PullRequest) bool { return pr.Number == 142 })])
 	}
-	// reread reads #142 again where the question is asked: the modal's
-	// detail, or the list, which shows all states so #142 stays in it.
+	// reread reads the list again, which shows all states so #142 stays in it.
 	reread := func(t *testing.T, s *host) {
 		t.Helper()
-		if m := s.modal(); m != nil {
-			drain(t, s, m.get())
-			return
-		}
 		drain(t, s, s.reload())
 	}
 	tests := []struct {
@@ -279,25 +228,8 @@ func TestYesAsksAgain(t *testing.T) {
 		meddle func(t *testing.T, s *host, svc *fakeService)
 	}{
 		{
-			name: "merged elsewhere, in the modal",
-			lead: []string{"enter", "X"},
-			meddle: func(t *testing.T, s *host, svc *fakeService) {
-				t.Helper()
-				edit(svc, func(pr *core.PullRequest) { pr.State = core.StateMerged })
-				drain(t, s, s.Update(ui.SyncMsg{Key: pulls.SyncKey(repo)}))
-			},
-		},
-		{
 			name: "the merge method changed, from the list",
 			lead: []string{"M"},
-			meddle: func(t *testing.T, s *host, _ *fakeService) {
-				t.Helper()
-				drain(t, s, s.Update(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionWrite, Rebase: true}}))
-			},
-		},
-		{
-			name: "the merge method changed, in the modal",
-			lead: []string{"enter", "M"},
 			meddle: func(t *testing.T, s *host, _ *fakeService) {
 				t.Helper()
 				drain(t, s, s.Update(ui.CapsMsg{Repo: repo, Caps: core.RepoCaps{Known: true, Permission: core.PermissionWrite, Rebase: true}}))
@@ -313,15 +245,6 @@ func TestYesAsksAgain(t *testing.T) {
 			},
 		},
 		{
-			name: "retargeted, in the modal",
-			lead: []string{"enter", "M"},
-			meddle: func(t *testing.T, s *host, svc *fakeService) {
-				t.Helper()
-				edit(svc, func(pr *core.PullRequest) { pr.BaseRef = "release" })
-				reread(t, s)
-			},
-		},
-		{
 			name: "close turned reopen on a shared key, from the list", shared: true,
 			lead: []string{"]", "]", "]", "X"},
 			meddle: func(t *testing.T, s *host, svc *fakeService) {
@@ -331,26 +254,8 @@ func TestYesAsksAgain(t *testing.T) {
 			},
 		},
 		{
-			name: "close turned reopen on a shared key, in the modal", shared: true,
-			lead: []string{"enter", "X"},
-			meddle: func(t *testing.T, s *host, svc *fakeService) {
-				t.Helper()
-				edit(svc, func(pr *core.PullRequest) { pr.State = core.StateClosed })
-				reread(t, s)
-			},
-		},
-		{
 			name: "made a draft elsewhere, from the list",
 			lead: []string{"W"},
-			meddle: func(t *testing.T, s *host, svc *fakeService) {
-				t.Helper()
-				edit(svc, func(pr *core.PullRequest) { pr.Draft = true })
-				reread(t, s)
-			},
-		},
-		{
-			name: "made a draft elsewhere, in the modal",
-			lead: []string{"enter", "W"},
 			meddle: func(t *testing.T, s *host, svc *fakeService) {
 				t.Helper()
 				edit(svc, func(pr *core.PullRequest) { pr.Draft = true })
@@ -407,90 +312,6 @@ func TestYesAsksAgain(t *testing.T) {
 				t.Errorf("sent %v and showed %v, want only %v", svc.changes(), msgs, want)
 			}
 		})
-	}
-}
-
-func TestMutationShowsAtOnce(t *testing.T) {
-	svc := newFakeService()
-	s := started(t, svc, 80, 20)
-	press(t, s, "enter")
-	m := s.modal()
-	press(t, s, "M")
-	cmd := s.Update(keyMsg("y"))
-	if cmd == nil {
-		t.Fatal("confirming the merge returned no command")
-	}
-	// A merge reads the pull request again before it is sent.
-	cmd = s.Update(cmd())
-	if cmd == nil {
-		t.Fatal("the read of the merge returned no command")
-	}
-	// The modal reads the change from the cache before it is sent.
-	if m.detail.State != core.StateMerged || !strings.Contains(modalScreen(t, s), " Merged ") {
-		t.Errorf("modal before sending:\n%s", modalScreen(t, s))
-	}
-	// So does the list behind it, once the modal told the section, still
-	// before GitHub answers.
-	var changed tea.Msg
-	for _, c := range cmd().(tea.BatchMsg) {
-		if c == nil {
-			continue
-		}
-		if msg, ok := c().(changedMsg); ok {
-			changed = msg
-		}
-	}
-	if changed == nil {
-		t.Fatal("the modal didn't tell the section about the change")
-	}
-	drain(t, s, s.Update(changed))
-	if svc.state(142).State != core.StateMerged {
-		t.Fatal("the fake lost the merge")
-	}
-	if strings.Contains(screen(s), "#142") {
-		t.Errorf("the open list still shows #142 as open:\n%s", screen(s))
-	}
-}
-
-func TestMutationFromModalReloadsBoth(t *testing.T) {
-	svc := newFakeService()
-	s := started(t, svc, 80, 20)
-	press(t, s, "enter")
-	lists := len(svc.listed())
-	press(t, s, "W")
-	msgs := press(t, s, "y")
-	if !slices.Contains(msgs, tea.Msg(ui.DoneMsg{From: ui.PullsTitle, What: "convert #142 to draft"})) {
-		t.Fatalf("messages %v, want a DoneMsg", msgs)
-	}
-	// Once after the change and once after the DoneMsg.
-	if got := len(svc.listed()); got < lists+2 {
-		t.Errorf("listed %d times, want at least %d", got, lists+2)
-	}
-	if !strings.Contains(modalScreen(t, s), " Draft ") {
-		t.Errorf("modal after the change:\n%s", modalScreen(t, s))
-	}
-	if pr, _ := s.feed.Selected(); pr.Number != 142 || !pr.Draft {
-		t.Errorf("list shows #%d draft %v, want #142 as a draft", pr.Number, pr.Draft)
-	}
-}
-
-func TestFailedMutationRollsBack(t *testing.T) {
-	svc := newFakeService()
-	svc.sendErr = errors.New("merge conflict")
-	s := started(t, svc, 80, 20)
-	press(t, s, "enter")
-	press(t, s, "M")
-	msgs := press(t, s, "y")
-	done := slices.IndexFunc(msgs, func(m tea.Msg) bool { d, ok := m.(ui.DoneMsg); return ok && d.Err != nil })
-	if done < 0 {
-		t.Fatalf("messages %v, want a failed DoneMsg", msgs)
-	}
-	if m := s.modal(); m.detail.State != core.StateOpen || !strings.Contains(modalScreen(t, s), " Open ") {
-		t.Errorf("after the rollback:\n%s", modalScreen(t, s))
-	}
-	press(t, s, "esc")
-	if pr, _ := s.feed.Selected(); pr.Number != 142 || pr.State != core.StateOpen {
-		t.Errorf("list shows #%d %s, want #142 open", pr.Number, pr.State)
 	}
 }
 
@@ -564,15 +385,10 @@ func TestChangesAreCapitals(t *testing.T) {
 		{"x", ""}, {"m", ""}, {"D", ""},
 	}
 	for _, tt := range tests {
-		for _, modal := range []bool{false, true} {
-			s := started(t, newFakeService(), 80, 20)
-			if modal {
-				press(t, s, "enter")
-			}
-			press(t, s, tt.key)
-			if got := question(s); got != tt.question {
-				t.Errorf("%s asks %q (modal %v), want %q", tt.key, got, modal, tt.question)
-			}
+		s := started(t, newFakeService(), 80, 20)
+		press(t, s, tt.key)
+		if got := question(s); got != tt.question {
+			t.Errorf("%s asks %q, want %q", tt.key, got, tt.question)
 		}
 	}
 }

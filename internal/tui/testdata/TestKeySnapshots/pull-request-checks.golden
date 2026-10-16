@@ -4,6 +4,7 @@ global
   quit | ctrl+c | ^c | on
   command | : | : | on
   maximize | Z | Z | on
+  back | backspace | backspace | off
   dashboard | 0 | 0 | off
   notifications | I | I | off
   search | S | S | off
@@ -11,33 +12,16 @@ global
   help | ? | ? | on
 
 Pull request
-  merge | M | M | on
-  close PR | X | X | on
-  reopen PR | O | O | off
-  convert to draft | W | W | on
-  checks | C | C | off
-  linked items | # | # | on
-  find file | ctrl+p | ^p | on
-  next thread | ) | ) | on
-  previous thread | ( | ( | on
-  drafts | t | t | on
-  submit review |  |  | off
-  next tab | ] | ] | on
-  previous tab | [ | [ | on
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
+  Description | 1 | 1 | on
+  Conversation | 2 | 2 | on
+  Merge | 3 | 3 | off
+  Involved | 4 | 4 | on
+  Development | 5 | 5 | on
+  Files | 6 | 6 | on
+  zoom | z | z | off
+  close | esc | esc | on
   author | @ | @ | on
 
-Checks
-  checks | backspace | backspace | off
-  close | esc | esc | on
-  rerun failed | R | R | on
-  refresh | r | r | on
-  browser | o | o | on
-  log | enter | ↵ | on
-  up | up k | ↑/k | on
-  down | down j | ↓/j | on
-  page up | ctrl+b pgup | ^b/pgup | on
-  page down | ctrl+f pgdown | ^f/pgdn | on
-  ½ page up | ctrl+u | ^u | on
-  ½ page down | ctrl+d | ^d | on
-  first | g home | g/home | on
-  last | G end | G/end | on
+Merge

@@ -14,19 +14,17 @@ var navigation = []string{
 	// Moving in a list, a tree or a reading view.
 	"up", "down", "left", "right",
 	"page_up", "page_down", "half_page_up", "half_page_down",
-	"top", "bottom", "read_on",
+	"top", "bottom",
 	// Acting on what is under the cursor, and stepping out.
 	"select", "back", "dismiss", "mark",
-	// Choosing which changes the Files tab shows, from a list.
+	// Choosing which changes the Files pane shows, from a list.
 	"scope",
 	// Moving between panes and tabs.
 	"next_pane", "prev_pane", "next_tab", "prev_tab",
-	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5",
+	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5", "pane_6",
 	// Moving between matches, and the choices of a search page, which has
 	// no such actions yet.
 	"next_match", "prev_match", "results", "kinds",
-	// Jumping between the review threads of a pull request.
-	"next_thread", "prev_thread",
 	// quit is the q command, and command opens the line that commands
 	// are typed in.
 	"quit", "command",
@@ -52,8 +50,7 @@ func Commandable(action string) bool {
 }
 
 // ActionContexts returns the contexts whose actions include a command
-// named name, in the order of [Contexts], such as "pulls" and
-// "pull_modal" for "merge".
+// named name, in the order of [Contexts], such as "pulls" for "merge".
 func ActionContexts(keys Keymap, name string) []Context {
 	var out []Context
 	for _, c := range contexts {

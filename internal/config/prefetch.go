@@ -102,7 +102,7 @@ type PullsKinds struct {
 	// OtherTabs is the first page of the state tabs not shown yet.
 	OtherTabs Layer `yaml:"other_tabs,omitempty"`
 	// Files is the first page of the files an open pull request changes,
-	// which its Files tab shows.
+	// which its Files pane shows.
 	Files Layer `yaml:"files,omitempty"`
 }
 

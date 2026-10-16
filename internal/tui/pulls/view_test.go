@@ -2,12 +2,10 @@ package pulls
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/exp/golden"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -39,16 +37,6 @@ func TestView(t *testing.T) {
 			svc.pulls = nil
 			return started(t, svc, 80, 4).View()
 		}},
-		{"files 80", filesView(76, 21, config.IconsUnicode)},
-		{"files 120", filesView(116, 37, config.IconsUnicode)},
-		{"files ascii", filesView(100, 24, config.IconsASCII)},
-		{"modal at 80 columns", func(t *testing.T) string {
-			t.Helper()
-			s := started(t, newFakeService(), 80, 30)
-			press(t, s, "enter")
-			s.modal().tab = conversationTab
-			return s.modal().View()
-		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -62,7 +50,8 @@ func TestDetailHeader(t *testing.T) {
 		t.Run(strconv.Itoa(width), func(t *testing.T) {
 			s := started(t, newFakeService(), width, 30)
 			press(t, s, "enter")
-			golden.RequireEqual(t, s.modal().detailHeader(width))
+			s.modal().SetSize(width, 30)
+			golden.RequireEqual(t, s.modal().header())
 		})
 	}
 }
@@ -114,13 +103,6 @@ func TestConfirmView(t *testing.T) {
 		s := started(t, svc, width, 30, WithMergeMethod(core.MergeCommit))
 		return s
 	}
-	t.Run("long merge in the modal at 80 columns", func(t *testing.T) {
-		s := long(t, 80)
-		press(t, s, "enter")
-		press(t, s, "M")
-		lines := strings.Split(s.modal().View(), "\n")
-		golden.RequireEqual(t, strings.Join(lines[len(lines)-2:], "\n"))
-	})
 	t.Run("long merge from the list at 80 columns", func(t *testing.T) {
 		s := long(t, 80)
 		press(t, s, "M")
@@ -133,13 +115,6 @@ func TestConfirmView(t *testing.T) {
 	})
 	for _, width := range []int{80, 120} {
 		w := strconv.Itoa(width)
-		t.Run("merge in the modal at "+w+" columns", func(t *testing.T) {
-			s := started(t, newFakeService(), width, 30)
-			press(t, s, "enter")
-			press(t, s, "M")
-			v := s.modal().View()
-			golden.RequireEqual(t, v[strings.LastIndexByte(v, '\n')+1:])
-		})
 		t.Run("close from the list at "+w+" columns", func(t *testing.T) {
 			s := started(t, newFakeService(), width, 30)
 			press(t, s, "X")

@@ -277,9 +277,6 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 		{"star the repository", "repo.star", nil, "Star eggzec/gh-tui?"},
 		{"close an issue", "issues.close", []string{"global.pane_3"}, "Close issue #1?"},
 		{"close the issue", "issue_modal.close", []string{"global.pane_3", "global.select"}, "Close issue #1?"},
-		{"merge the pull request", "pull_modal.merge", []string{"global.pane_2", "global.select"}, "Squash-merge #2 into main?"},
-		{"close the pull request", "pull_modal.close", []string{"global.pane_2", "global.select"}, "Close PR #2?"},
-		{"draft the pull request", "pull_modal.draft", []string{"global.pane_2", "global.select"}, "Convert PR #2 to a draft?"},
 		{"re-run the failed jobs", "actions.rerun_failed", []string{"repo.actions"}, "Re-run 1 failed job of CI #7?"},
 		{"re-run a run", "actions.rerun", []string{"repo.actions"}, "Re-run all jobs of CI #7?"},
 		{"close the marked pull request", "pulls.close", []string{"global.pane_2", "pulls.mark"}, "Close 1 pull request?"},
@@ -336,8 +333,8 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		line  string
 		want  string
 	}{
-		{"on the dashboard", false, nil, "merge", "merge works in Pull requests (Repository) and Pull request modal."},
-		{"on the files", true, nil, "merge", "merge works in Pull requests (Repository) and Pull request modal."},
+		{"on the dashboard", false, nil, "merge", "merge works in Pull requests (Repository)."},
+		{"on the files", true, nil, "merge", "merge works in Pull requests (Repository)."},
 		{"over history", true, []string{"repo.history"}, "merge", "Close History first to use merge."},
 		{"over the issue", true, []string{"global.pane_3", "global.select"}, "merge", "Close the issue first to use merge."},
 		{"history on the dashboard", false, nil, "history", "history works in Repository screen."},
@@ -388,8 +385,7 @@ func TestActionCommandsResolveInTheFocusedChain(t *testing.T) {
 	}{
 		{"pull requests", []string{"global.pane_2"}, "close", "pulls.close"},
 		{"issues", []string{"global.pane_3"}, "close", "issues.close"},
-		{"the pull request", []string{"global.pane_2", "global.select"}, "close", "pull_modal.close"},
-		{"checks fall through", []string{"global.pane_2", "global.select"}, "merge", "pull_modal.merge"},
+		{"the issue", []string{"global.pane_3", "global.select"}, "close", "issue_modal.close"},
 		{"global", []string{"global.pane_2"}, "refresh", "global.refresh"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -495,9 +491,9 @@ func TestActionCommandsSayWhenNothingHappens(t *testing.T) {
 func TestModalRefusesWhatItDoesNotOwn(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "global.pane_2", "global.select", "pull_modal.references")
+		m := keysAfter(t, true, "global.pane_3", "global.select", "issue_modal.references")
 		if got := layerNames(m.keyLayers()); !strings.Contains(got, "references") {
-			t.Skipf("the pull request has no linked items to show here: %s", got)
+			t.Skipf("the issue has no linked items to show here: %s", got)
 		}
 		runCommand(t, m, "merge")
 		if want := "Close " + m.modalName(m.topModal()) + " first to use merge."; !hasToast(m, want) {
@@ -512,24 +508,24 @@ func TestModalRefusesWhatItDoesNotOwn(t *testing.T) {
 func TestInnermostContextResolvesFirst(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "global.pane_2", "global.select", "global.next_tab", "global.pane_1")
+		m := keysAfter(t, true, "repo.actions")
 		chain := m.focusChain()
-		pane := slices.IndexFunc(chain, func(ctx string) bool { return ctx == "pull_files" })
-		modal := slices.Index(chain, "pull_modal")
-		if pane < 0 || modal < 0 {
-			t.Fatalf("the focus chain is %v, want the files and the pull request in it", chain)
+		pane := slices.Index(chain, "actions_runs")
+		screen := slices.Index(chain, "actions")
+		if pane < 0 || screen < 0 {
+			t.Fatalf("the focus chain is %v, want the runs and the actions in it", chain)
 		}
-		if pane > modal {
-			t.Fatalf("the focus chain is %v, want the pane before its modal", chain)
+		if pane > screen {
+			t.Fatalf("the focus chain is %v, want the pane before its screen", chain)
 		}
-		m.cfg.Keys.Set("pull_files.merge", []string{"ctrl+g"})
-		if got, ok := m.resolveAction("merge"); !ok || got != "pull_files.merge" {
-			t.Errorf("merge resolves to %q, %v, want the pane's", got, ok)
+		m.cfg.Keys.Set("actions_runs.rerun", []string{"ctrl+g"})
+		if got, ok := m.resolveAction("rerun"); !ok || got != "actions_runs.rerun" {
+			t.Errorf("rerun resolves to %q, %v, want the pane's", got, ok)
 		}
-		m.cfg.Keys.Set("pull_files.merge", nil)
-		delete(m.cfg.Keys["pull_files"], "merge")
-		if got, ok := m.resolveAction("merge"); !ok || got != "pull_modal.merge" {
-			t.Errorf("merge resolves to %q, %v, want the modal's", got, ok)
+		m.cfg.Keys.Set("actions_runs.rerun", nil)
+		delete(m.cfg.Keys["actions_runs"], "rerun")
+		if got, ok := m.resolveAction("rerun"); !ok || got != "actions.rerun" {
+			t.Errorf("rerun resolves to %q, %v, want the screen's", got, ok)
 		}
 	})
 }

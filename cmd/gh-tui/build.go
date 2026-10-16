@@ -15,7 +15,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/cmdhist"
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/drafts"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -33,7 +32,6 @@ import (
 	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
-	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -49,7 +47,6 @@ import (
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/internal/visits"
 	"github.com/eggzec/gh-tui/internal/watch"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -261,14 +258,13 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		// A kept header names the viewer as well as a fresh one.
 		return dashSvc.Header(ctx, dashsvc.HeaderQuery{})
 	})
-	// The pull requests and issues show the links of an item in a step of
-	// their modals.
+	// The issues show the links of an item in a step of their modals.
 	refOpts := []refsui.Option{refsui.WithVoice(voice), refsui.WithHost(webHost), refsui.WithPageSize(size.References)}
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(pics), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
-			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots), pulls.WithReferences(refSvc, refOpts...),
+			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots),
 		}
 		issueOpts = []issues.Option{
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(pics), issues.WithFacets(facetSvc),
@@ -276,16 +272,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
 		}
 	)
-	if dir, err := trayDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
-		pullOpts = append(pullOpts, pulls.WithTray(tray.New(dir)))
-	}
-	// With the disk cache off the section keeps the visits in memory.
-	if dir, err := visitsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
-		pullOpts = append(pullOpts, pulls.WithVisits(visits.New(dir)))
-	}
-	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
-		pullOpts = append(pullOpts, pulls.WithDrafts(drafts.New(dir), client.Host()+"/"+client.Account()))
-	}
 	// The notifications screen and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the
 	// repository screen do, with one opener: whichever is on view reads

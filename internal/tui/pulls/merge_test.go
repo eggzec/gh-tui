@@ -47,13 +47,12 @@ func confirmKeys(h *host) []string {
 	return uitest.Enabled(top.KeyLayers())
 }
 
-// entries are where a merge is asked: the list, and the modal.
+// entries are where a merge is asked: the list.
 var entries = []struct {
 	name string
 	keys []string
 }{
 	{"list", []string{"M"}},
-	{"modal", []string{"enter", "M"}},
 }
 
 func TestMergeMethodCycles(t *testing.T) {
@@ -140,9 +139,7 @@ func TestMethodKeyIsHelpedInTheMergeQuestionOnly(t *testing.T) {
 		want bool
 	}{
 		{"merge", []string{"M"}, true},
-		{"merge in the modal", []string{"enter", "M"}, true},
 		{"close", []string{"X"}, false},
-		{"close in the modal", []string{"enter", "X"}, false},
 		{"draft", []string{"W"}, false},
 	} {
 		t.Run(e.name, func(t *testing.T) {
@@ -431,23 +428,6 @@ func TestMergeWaitsForTheDetailOfARow(t *testing.T) {
 			t.Errorf("asks %q, want nothing asked", got)
 		}
 	})
-	t.Run("the modal asks once the detail arrives", func(t *testing.T) {
-		svc := newFakeService()
-		stand(svc, core.MergeInfo{Status: core.MergeClean, Queue: core.MergeQueue{Enabled: true}}, core.ReviewApproved, core.ChecksSuccess)
-		h := started(t, svc, 120, 20)
-		drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps}))
-		press(t, h, "enter")
-		m := h.modal()
-		m.seen = false
-		msgs := press(t, h, "M")
-		if !slices.Contains(msgs, info("Checking #142…")) || question(h) != "" {
-			t.Fatalf("messages %v and question %q, want the wait said and nothing asked", msgs, question(h))
-		}
-		drain(t, h, h.Update(detailMsg{thread: m.thread.ID(), detail: svc.detail(142)}))
-		if got, want := question(h), "Add #142 to the merge queue for main?"; got != want {
-			t.Errorf("asks %q, want %q", got, want)
-		}
-	})
 }
 
 // The wait says its ellipsis in the icon set, so the ASCII set shows no
@@ -462,18 +442,6 @@ func TestMergeWaitUsesTheIconEllipsis(t *testing.T) {
 		svc.mu.Lock()
 		clear(svc.cached)
 		svc.mu.Unlock()
-		msgs := press(t, h, "M")
-		if !slices.Contains(msgs, info("Checking #142...")) {
-			t.Errorf("messages %v, want the wait said with ASCII dots", msgs)
-		}
-	})
-	t.Run("the modal", func(t *testing.T) {
-		svc := newFakeService()
-		stand(svc, core.MergeInfo{Status: core.MergeClean}, core.ReviewApproved, core.ChecksSuccess)
-		h := started(t, svc, 120, 20, ascii)
-		drain(t, h, h.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps}))
-		press(t, h, "enter")
-		h.modal().seen = false
 		msgs := press(t, h, "M")
 		if !slices.Contains(msgs, info("Checking #142...")) {
 			t.Errorf("messages %v, want the wait said with ASCII dots", msgs)
@@ -516,29 +484,6 @@ func TestMergeReadsAnAgedDetailOnce(t *testing.T) {
 		}
 		if got := svc.got(); len(got) != 1 || got[0] != 142 || len(svc.revalidated) != 1 {
 			t.Errorf("read %v and revalidated %v, want one read of #142", got, svc.revalidated)
-		}
-		if got, want := question(h), "Squash-merge #142 into main?"; got != want {
-			t.Errorf("asks %q, want %q", got, want)
-		}
-	})
-	t.Run("modal", func(t *testing.T) {
-		svc := newFakeService()
-		stand(svc, core.MergeInfo{Status: core.MergeClean}, core.ReviewApproved, core.ChecksSuccess)
-		h, _ := asking(t, svc, writeCaps, "enter")
-		svc.mu.Lock()
-		svc.stale[142] = true
-		svc.gets = nil
-		svc.mu.Unlock()
-		first := h.Update(keyMsg("M"))
-		if second := h.Update(keyMsg("M")); second != nil {
-			t.Error("the second key started something while the first waits")
-		}
-		msgs := drain(t, h, first)
-		if !slices.Contains(msgs, info("Checking #142…")) {
-			t.Errorf("messages %v, want the short wait said", msgs)
-		}
-		if got := svc.got(); len(got) != 1 {
-			t.Errorf("read %v, want one read", got)
 		}
 		if got, want := question(h), "Squash-merge #142 into main?"; got != want {
 			t.Errorf("asks %q, want %q", got, want)
@@ -631,40 +576,6 @@ func TestMergeNeedsAStatusThatIsKnown(t *testing.T) {
 			})
 		}
 	}
-	t.Run("the modal reads once more", func(t *testing.T) {
-		svc := newFakeService()
-		stand(svc, core.MergeInfo{Status: core.MergeUnknown}, core.ReviewApproved, core.ChecksSuccess)
-		h, _ := asking(t, svc, admin, "enter")
-		before := len(svc.revalidated)
-		msgs := press(t, h, "M")
-		if got := len(svc.revalidated) - before; got != 1 {
-			t.Errorf("read %d more times, want once", got)
-		}
-		if !slices.Contains(msgs, info("Checking #142…")) {
-			t.Errorf("messages %v, want the short wait said", msgs)
-		}
-	})
-	t.Run("GitHub has settled by the second read", func(t *testing.T) {
-		svc := newFakeService()
-		stand(svc, core.MergeInfo{Status: core.MergeUnknown}, core.ReviewApproved, core.ChecksSuccess)
-		h, _ := asking(t, svc, writeCaps, "enter")
-		stand(svc, core.MergeInfo{Status: core.MergeClean}, core.ReviewApproved, core.ChecksSuccess)
-		press(t, h, "M")
-		if got, want := question(h), "Squash-merge #142 into main?"; got != want {
-			t.Errorf("asks %q, want %q", got, want)
-		}
-	})
-	t.Run("the modal's read fails", func(t *testing.T) {
-		svc := newFakeService()
-		h, _ := asking(t, svc, admin, "enter")
-		svc.mu.Lock()
-		svc.getErr, svc.stale[142] = errors.New("boom"), true
-		svc.mu.Unlock()
-		msgs := press(t, h, "M")
-		if !slices.ContainsFunc(msgs, func(m tea.Msg) bool { _, ok := m.(ui.FailMsg); return ok }) || question(h) != "" {
-			t.Errorf("messages %v and question %q, want the failure told and nothing asked", msgs, question(h))
-		}
-	})
 }
 
 // A yes reads the pull request again and asks again of what it finds.

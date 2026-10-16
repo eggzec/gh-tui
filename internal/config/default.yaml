@@ -140,9 +140,8 @@ cache:
     trees: 32MiB
     # The memory that the changes of commits take, and likewise, apart
     # from them, the changes of pull requests: each is kept up to this much.
-    # The changes between two commits of a pull request, which the Files tab
-    # reads for the changes since the last visit, have a budget of their own
-    # of the same size, so the worst case is twice this setting.
+    # The changes between two commits of a pull request have a budget of
+    # their own of the same size, so the worst case is twice this setting.
     diffs: 32MiB
     # The memory that the logs of jobs take.
     logs: 64MiB
@@ -326,8 +325,8 @@ prefetch:
     # pending checks once it opens.
     checks: {enabled: false, window: {before: 0, after: 2}}
     # The first page of the files an open pull request changes, 100 with
-    # their patches, a request, read once its modal rests on another tab
-    # than Files for this long, so that the Files tab opens at once. The
+    # their patches, a request, read once its modal rests on another pane
+    # than Files for this long, so that the Files pane opens at once. The
     # rows of the list never read theirs, and the next pages are read as
     # the diff scrolls.
     files: {rest: 300ms}
@@ -567,14 +566,15 @@ keys:
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
     # a user or an organization; the query and the results on the search
-    # page; branches, graph and commit in History; the files and the diff on
-    # the Files tab of a pull request; and runs, jobs and log in Actions. A
-    # digit with no such pane there does nothing, and never switches screens.
+    # page; branches, graph and commit in History; the panes of the modal of
+    # a pull request; and runs, jobs and log in Actions. A digit with no such
+    # pane there does nothing, and never switches screens.
     pane_1: ["1"]
     pane_2: ["2"]
     pane_3: ["3"]
     pane_4: ["4"]
     pane_5: ["5"]
+    pane_6: ["6"]
 
   # Dashboard: the pinned repositories, as cards.
   dashboard_pinned:
@@ -812,33 +812,6 @@ keys:
     top: [g, home]
     bottom: [G, end]
 
-  # The modal of a pull request, on any of its steps.
-  pull_modal:
-    # As in the list.
-    merge: [M]
-    close: [X]
-    reopen: [O]
-    draft: [W]
-    # Show the checks of the pull request.
-    checks: [C]
-    # Show the issues and pull requests linked to it, over the tab on view,
-    # and those that mention it. Quoted, since an unquoted # starts a
-    # comment.
-    references: ["#"]
-    # Jump to the next and previous review thread, from any tab: on Files
-    # and Conversation they step through the threads, wrapping at the ends,
-    # and elsewhere ")" goes to the first thread in the diff and "(" to the
-    # last. Backspace returns to where a jump from another tab started;
-    # jumps within Files and Conversation leave no return point.
-    next_thread: [")"]
-    prev_thread: ["("]
-    # List the comments drafted on the pull request, in the review tray: enter
-    # shows one in the diff, delete_draft deletes it and comment places an
-    # outdated one on a line again.
-    tray: [t]
-    # Submit the drafts of the review tray as one review, with a verdict and
-    # a summary. It has no key of its own: run it as the :review command.
-    review: []
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:
@@ -1100,17 +1073,6 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-  # The modal of a pull request: the overview. Move the cursor through
-  # what needs attention; enter goes to where it is dealt with.
-  pull_overview:
-    up: [up, k]
-    down: [down, j]
-    page_up: [ctrl+b, pgup]
-    page_down: [ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: [g, home]
-    bottom: [G, end]
   # The modal of a pull request: the conversation.
   pull_conversation:
     up: [up, k]
@@ -1143,49 +1105,7 @@ keys:
     # Mark the file under the cursor as viewed, or take the mark off. The mark
     # is kept on GitHub, so it shows on the web and on your other machines.
     viewed: [v]
-    # Pick which changes the tab shows: all, those since the last visit, or
-    # one commit.
-    scope: [w]
-  # The modal of a pull request: the diff of the files it changes. Enter
-  # folds the file whose header the cursor is on.
-  pull_diff:
-    up: [up, k]
-    down: [down, j]
-    left: [left, h]
-    right: [right, l]
-    page_up: [b, ctrl+b, pgup]
-    page_down: [ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: [g, home]
-    bottom: [G, end]
-    next_file: [J]
-    prev_file: [K]
-    next_hunk: ["}"]
-    prev_hunk: ["{"]
-    # Search the lines of every file of the diff, and move between matches.
-    find: [/]
-    next_match: [n]
-    prev_match: [N]
-    # Resolve the thread under the cursor, or unresolve it if it is resolved,
-    # after a question.
-    resolve: [T]
-    # Draft a review comment on the line under the cursor, or on the range
-    # started with range, or as a reply to the thread there, or edit the
-    # draft there. Nothing is sent. Range starts a range of lines (press it
-    # again to clear it), and delete_draft deletes the draft under the cursor.
-    comment: [c]
-    range: [V]
-    delete_draft: [D]
-    # Mark the file the cursor is in as viewed, which folds it, and go to the
-    # next file not viewed, or take the mark off. The mark is kept on GitHub.
-    viewed: [v]
-    # Read on: page down, and once the end of the file the cursor is in shows,
-    # mark it as viewed and go to the next file not viewed, from the first file
-    # again after the last. When every file is viewed it goes to the first.
-    read_on: [space]
-    # Pick which changes the tab shows: all, those since the last visit, or
-    # one commit.
+    # Pick which changes the pane shows: all of them, or those of one commit.
     scope: [w]
   # The modal of a release.
   release_modal:

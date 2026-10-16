@@ -15,12 +15,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
-	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
-	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -58,25 +55,9 @@ type Service interface {
 	// CurrentFiles reports whether Files would answer without a request.
 	// It does no I/O.
 	CurrentFiles(q pulls.FilesQuery) bool
-	// Since compares the head of a pull request the user last saw with the
-	// head now; a head that a force push removed fails with core.ErrRewritten.
-	Since(ctx context.Context, q pulls.SinceQuery) (core.Compare, error)
-	// RangeFiles reads the files that changed between two commits of a pull
-	// request, and CommitFiles those of one commit.
-	RangeFiles(ctx context.Context, q pulls.RangeQuery) (core.CompareDetail, error)
-	CommitFiles(ctx context.Context, q pulls.CommitFilesQuery) (core.Page[core.CommitFile], error)
-	// CachedCommits returns the commits of a pull request if they are cached,
-	// without I/O, and Commits reads them, oldest first.
-	CachedCommits(q pulls.CommitsQuery) (core.Page[core.Commit], bool)
-	Commits(ctx context.Context, q pulls.CommitsQuery) (core.Page[core.Commit], error)
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
-	// Viewed reads the viewer's marks on the files of a pull request, which
-	// GitHub keeps, and CachedViewed returns them from memory, if they are
-	// there, without a request.
-	Viewed(ctx context.Context, q pulls.ViewedQuery) (core.PullViewed, error)
-	CachedViewed(q pulls.ViewedQuery) (core.PullViewed, bool)
 
 	// The changes are shown in the cache at once. The returned Op sends
 	// them. A merge is pinned to head, the commit it was confirmed for.
@@ -91,25 +72,6 @@ type Service interface {
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op
 	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
-	// ResolveThread marks the review thread id resolved, or open again when
-	// resolved is false.
-	ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op
-	// SetViewed marks the file at path viewed on GitHub, or takes the mark off.
-	SetViewed(q pulls.ViewedQuery, path string, viewed bool) *optimistic.Op
-	// Comment adds a comment by author to the conversation of a pull
-	// request. It shows at once as one that GitHub hasn't confirmed
-	// (pulls.IsPending), and goes if GitHub refuses it.
-	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
-	// SubmitReview sends drafts as one review on the head commit head, with
-	// the verdict event and the summary body. It is not optimistic: nothing
-	// changes in the cache unless GitHub accepts the review.
-	SubmitReview(ctx context.Context, repo core.RepoRef, number int, head string, event core.ReviewEvent, body string, drafts []tray.Draft) error
-	// PendingReview reads the user's pending review of a pull request, such as
-	// one started on the web, and reports whether they have one.
-	PendingReview(ctx context.Context, repo core.RepoRef, number int) (core.PendingReview, bool, error)
-	// SubmitIntoPending adds drafts to the pending review that PendingReview
-	// read and submits it, as SubmitReview does for a review of its own.
-	SubmitIntoPending(ctx context.Context, repo core.RepoRef, number int, head string, pending core.PendingReview, event core.ReviewEvent, body string, drafts []tray.Draft) error
 }
 
 // ChecksService is what the section needs to show the checks of pull
@@ -135,10 +97,6 @@ type Section struct {
 	// has no such step.
 	checks     ChecksService
 	checksOpts []checks.Option
-	// refs reads the links of the modal's References step, and refsOpts
-	// configure the step. Without refs, the modal has no such step.
-	refs     refs.Service
-	refsOpts []refs.Option
 	// mergeMethod is how merge merges, if the repository allows it: the
 	// method last merged with in this session, or else the configured
 	// one. Without either, the repository's.
@@ -154,19 +112,8 @@ type Section struct {
 	// readViewer reads the login of the signed-in user, whom the filter
 	// offers as @me.
 	readViewer Viewer
-	// tray keeps the drafted review comments, or is nil.
-	tray TrayStore
-	// visits keeps when each pull request was last looked at. It is in memory
-	// unless WithVisits replaces it.
-	visits VisitStore
-	// drafts keeps the comments being written, under keys that start with
-	// draftScope, which names the host and the account. Without drafts,
-	// what is written is lost when its composer closes.
-	drafts     composer.Drafts
-	draftScope string
-
-	repo    core.RepoRef
-	hasRepo bool
+	repo       core.RepoRef
+	hasRepo    bool
 	// tab is the state shown, or empty for all of them, and query the
 	// other filters, in GitHub's search syntax; chips are those for the
 	// pane's title.
@@ -235,33 +182,12 @@ func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
 }
 
-// WithDrafts keeps the comments being written in d. Its keys start with
-// scope, which names the host and the account, so that no account reads
-// the drafts of another.
-func WithDrafts(d composer.Drafts, scope string) Option {
-	return func(s *Section) { s.drafts, s.draftScope = d, scope }
-}
-
 // WithRepos reads what the viewer may do in the repository of a modal
 // from r, when it isn't the selected one, whose caps the app sends in a
 // ui.CapsMsg. Until they are known, every change is offered, and GitHub
 // refuses what it doesn't allow.
 func WithRepos(r ui.Repos) Option {
 	return func(s *Section) { s.repos = r }
-}
-
-// WithTray keeps the review comments that the user drafts in the diff of a
-// pull request in store, so that they come back when it is opened again.
-// Without it the drafts last until the modal closes.
-func WithTray(store TrayStore) Option {
-	return func(s *Section) { s.tray = store }
-}
-
-// WithVisits keeps when the user last looked at each pull request in store, so
-// that what came since is marked as new when it is opened again. Without it
-// the visits last until the app quits.
-func WithVisits(store VisitStore) Option {
-	return func(s *Section) { s.visits = store }
 }
 
 // Viewer returns the login of the signed-in user. It may do I/O.
@@ -349,7 +275,6 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		keys:    newKeyMap(keys),
 		rawKeys: keys,
 		now:     time.Now,
-		visits:  &memVisits{},
 		tab:     tabs[0].state,
 		icons:   ui.NewIcons(config.Default().UI.Icons),
 	}

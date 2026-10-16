@@ -10,9 +10,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 )
 
-// The frame of the modal of a pull request shows its title and both tabs
-// at 80 columns, and the tabs are plain text where icons are.
-func TestPullModalTabs(t *testing.T) {
+// The frame of the panes modal of a pull request at 80, 120 and 160 columns,
+// where all six panes sit side by side, and with plain text where icons are.
+func TestPullModalFrame(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		name          string
@@ -21,6 +21,7 @@ func TestPullModalTabs(t *testing.T) {
 	}{
 		{"80", config.IconsUnicode, 80, 24},
 		{"120", config.IconsUnicode, 120, 36},
+		{"160", config.IconsUnicode, 160, 40},
 		{"ascii", config.IconsASCII, 80, 24},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -28,14 +28,15 @@ func TestDetailHeaderLinks(t *testing.T) {
 	s := started(t, newFakeService(), 120, 30)
 	press(t, s, "enter")
 	m := s.modal()
+	m.SetSize(80, 30)
 	for _, host := range uitest.Hosts {
 		m.detail.URL = ui.WebURL(host, "o/r/pull/142")
 		m.detail.Title = uitest.HostileTitle
-		links := uitest.Links(t, m.detailHeader(80))
-		if len(links) != 2 || links[0] != m.detail.URL || links[1] != m.detail.URL {
-			t.Errorf("%s: header links to %q, want the title and the number to %q", host, links, m.detail.URL)
+		links := uitest.Links(t, m.header())
+		if len(links) != 1 || links[0] != m.detail.URL {
+			t.Errorf("%s: header links to %q, want the number and title to %q", host, links, m.detail.URL)
 		}
-		if h := m.detailHeader(80); strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
+		if h := m.header(); strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
 			t.Errorf("%s: header carries the title's escapes: %q", host, h)
 		}
 	}

@@ -109,7 +109,7 @@ func TestKeysByContext(t *testing.T) {
 		{"action of another context", "keys:\n  issues:\n    merge: [M]\n", "line 3: keys.issues.merge: unknown action"},
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
-		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge, keys.pull_modal.merge: unbind or rebind them there"},
+		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge: unbind or rebind them there"},
 		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "line 3: keys.global.zoom: B is also keys.repo.history: unbind or rebind them there"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -375,9 +375,8 @@ func TestChecksKeysArePanesOfThePullModal(t *testing.T) {
 		}
 	}
 	for _, tt := range []struct{ file, want string }{
-		{"keys:\n  pull_check_log:\n    rerun_failed: [M]\n", "line 3: keys.pull_check_log.rerun_failed: M is already keys.pull_modal.merge, which works in every pane of the Pull request modal"},
-		{"keys:\n  pull_check_log:\n    prev_warning: [W]\n", "line 3: keys.pull_check_log.prev_warning: W is already keys.pull_modal.draft, which works in every pane of the Pull request modal"},
-		{"keys:\n  pull_check_list:\n    rerun_failed: [C]\n", "line 3: keys.pull_check_list.rerun_failed: C is already keys.pull_modal.checks, which works in every pane of the Pull request modal"},
+		{"keys:\n  pull_check_log:\n    rerun_failed: [r]\n", "line 3: keys.pull_check_log.rerun_failed: r is already keys.global.refresh"},
+		{"keys:\n  pull_check_list:\n    rerun_failed: [z]\n", "line 3: keys.pull_check_list.rerun_failed: z is already keys.global.zoom"},
 	} {
 		if _, _, err := loadBase(writeConfig(t, tt.file)); err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("Load(%q) = %v, want %q", tt.file, err, tt.want)
@@ -412,13 +411,12 @@ func TestEmptyKeysDontPanic(t *testing.T) {
 	}
 }
 
-// The log of the checks has no key for the previous warning by default, as
-// the pull request modal uses W to draft; the Actions log, which is not in
-// that modal, keeps it.
+// The log of the checks has no key for the previous warning by default; the
+// Actions log keeps it.
 func TestCheckLogWarningHasNoDefaultKey(t *testing.T) {
 	keys := Default().Keys
 	for action, want := range map[string][]string{
-		"pull_modal.draft": {"W"}, "pull_check_log.prev_warning": {}, "actions_log.prev_warning": {"W"},
+		"pull_check_log.prev_warning": {}, "actions_log.prev_warning": {"W"},
 	} {
 		if got := keys.Of(action); !slices.Equal(got, want) && (len(got) != 0 || len(want) != 0) {
 			t.Errorf("%s = %q, want %q", action, got, want)

@@ -13,6 +13,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -29,7 +30,6 @@ var (
 // fakeService serves pull requests from memory, a page at a time, and
 // records what it was asked.
 type fakeService struct {
-	viewedFake
 	mu       sync.Mutex
 	pulls    []core.PullRequest
 	pageSize int
@@ -128,93 +128,8 @@ type fakeService struct {
 	// threadCache are the pages CachedThreads serves, by cursor.
 	threadCache map[string]core.ThreadPage
 	// summaries are the thread counts the detail of a pull request has, by
-	// number, and ResolveThread moves them. sends are the changes of the
-	// threads that were sent.
+	// number, and ResolveThread moves them.
 	summaries map[int]core.ThreadSummary
-	sends     []string
-	// submitted are the reviews that SubmitReview was given, and submitErr
-	// fails it.
-	submitted []reviewCall
-	submitErr error
-	// pending is the pending review that PendingReview reads, if pendingFound.
-	pending      core.PendingReview
-	pendingFound bool
-	// sinceCmp are the comparisons Since serves, by the base it is asked
-	// for, sinceErr fails it, and sinceReads are its queries.
-	sinceCmp   map[string]core.Compare
-	sinceErr   error
-	sinceReads []pulls.SinceQuery
-	// ranges are the files RangeFiles serves, by the base it is asked for,
-	// and commitFiles those CommitFiles serves, by SHA; scopeErr fails both,
-	// and rangeReads and commitReads are their queries.
-	ranges      map[string]core.CompareDetail
-	commitFiles map[string][]core.CommitFile
-	// commitCut names the SHAs whose files CommitFiles serves as Truncated.
-	commitCut   map[string]bool
-	scopeErr    error
-	rangeReads  []pulls.RangeQuery
-	commitReads []pulls.CommitFilesQuery
-	// commits are the commits of the pull request, oldest first, which
-	// Commits serves, or commitsErr. CachedCommits serves them only when
-	// commitsCached is set. commitsReads count the reads of Commits.
-	commits       []core.Commit
-	commitsErr    error
-	commitsCached bool
-	commitsReads  int
-}
-
-// CachedCommits serves commits if commitsCached is set.
-func (f *fakeService) CachedCommits(pulls.CommitsQuery) (core.Page[core.Commit], bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if !f.commitsCached {
-		return core.Page[core.Commit]{}, false
-	}
-	return core.Page[core.Commit]{Items: f.commits}, true
-}
-
-// Commits serves commits, or commitsErr.
-func (f *fakeService) Commits(context.Context, pulls.CommitsQuery) (core.Page[core.Commit], error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.commitsReads++
-	if f.commitsErr != nil {
-		return core.Page[core.Commit]{}, f.commitsErr
-	}
-	return core.Page[core.Commit]{Items: f.commits}, nil
-}
-
-// RangeFiles serves the files of the base of q from ranges, or scopeErr.
-func (f *fakeService) RangeFiles(_ context.Context, q pulls.RangeQuery) (core.CompareDetail, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.rangeReads = append(f.rangeReads, q)
-	if f.scopeErr != nil {
-		return core.CompareDetail{}, f.scopeErr
-	}
-	return f.ranges[q.Base], nil
-}
-
-// CommitFiles serves the files of the commit of q from commitFiles, or scopeErr.
-func (f *fakeService) CommitFiles(_ context.Context, q pulls.CommitFilesQuery) (core.Page[core.CommitFile], error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.commitReads = append(f.commitReads, q)
-	if f.scopeErr != nil {
-		return core.Page[core.CommitFile]{}, f.scopeErr
-	}
-	return core.Page[core.CommitFile]{Items: f.commitFiles[q.SHA], Truncated: f.commitCut[q.SHA]}, nil
-}
-
-// Since serves the comparison for the base of q from sinceCmp, or sinceErr.
-func (f *fakeService) Since(_ context.Context, q pulls.SinceQuery) (core.Compare, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.sinceReads = append(f.sinceReads, q)
-	if f.sinceErr != nil {
-		return core.Compare{}, f.sinceErr
-	}
-	return f.sinceCmp[q.Base], nil
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.
@@ -234,13 +149,6 @@ func (f *fakeService) CachedThreads(q pulls.ThreadsQuery) (core.ThreadPage, bool
 	defer f.mu.Unlock()
 	p, ok := f.threadCache[q.Cursor]
 	return p, ok
-}
-
-// threadReadCount returns how many pages of threads were read.
-func (f *fakeService) threadReadCount() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return len(f.threadReads)
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -624,13 +532,22 @@ func (h *host) Update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// modal returns the detail open on top, or nil.
-func (h *host) modal() *detailModal {
+// modal returns the pull request open on top, or nil.
+func (h *host) modal() *panesModal {
 	if len(h.modals) == 0 {
 		return nil
 	}
-	m, _ := h.modals[len(h.modals)-1].(*detailModal)
+	m, _ := h.modals[len(h.modals)-1].(*panesModal)
 	return m
+}
+
+// modalScreen returns the text of the modal open on top, without styles.
+func modalScreen(tb testing.TB, h *host) string {
+	tb.Helper()
+	if len(h.modals) == 0 {
+		tb.Fatal("no modal is open")
+	}
+	return ansi.Strip(h.modals[len(h.modals)-1].View())
 }
 
 // newTest returns a sized, focused section over svc that has not started.
@@ -809,81 +726,6 @@ func (f *fakeService) ConvertToDraft(_ core.RepoRef, number int) *optimistic.Op 
 	return f.change("draft", number, func(pr *core.PullRequest) { pr.Draft = true })
 }
 
-// ResolveThread records "resolve id" or "unresolve id", and moves the thread
-// counts of the detail of pull request number at once, as the service does,
-// before the Op sends it. A failed send fails with sendErr, and rolls the
-// counts back.
-func (f *fakeService) ResolveThread(_ core.RepoRef, number int, id string, resolved bool) *optimistic.Op {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	what, step := "unresolve "+id, 1
-	if resolved {
-		what, step = "resolve "+id, -1
-	}
-	f.ops = append(f.ops, what)
-	before, had := f.summaries[number]
-	if had {
-		after := before
-		after.Unresolved += step
-		after.Resolved -= step
-		f.summaries[number] = after
-	}
-	return optimistic.New(func(context.Context) error {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		f.sends = append(f.sends, what)
-		return cmp.Or(f.sendErr, f.sendErrs[number])
-	}, func() {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		if had {
-			f.summaries[number] = before
-		}
-	})
-}
-
-// Comment records "comment body", and adds a pending comment to the thread at
-// once, as the service does, before the Op sends it. A failed send fails with
-// sendErr and takes the comment out again; a good one makes it the comment
-// GitHub confirmed. The thread must be set, or the comment shows nowhere.
-func (f *fakeService) Comment(_ core.RepoRef, number int, body, author string) *optimistic.Op {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	what := "comment " + body
-	f.ops = append(f.ops, what+" "+strconv.Itoa(number))
-	id := "pending:" + strconv.Itoa(len(f.ops))
-	if f.thread != nil {
-		f.thread = append(slices.Clip(f.thread), core.Comment{ID: id, Author: core.User{Login: author}, Body: body, CreatedAt: clock})
-	}
-	drop := func() {
-		f.thread = slices.DeleteFunc(slices.Clone(f.thread), func(c core.Comment) bool { return c.ID == id })
-	}
-	return optimistic.New(func(context.Context) error {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		f.sends = append(f.sends, what)
-		if err := cmp.Or(f.sendErr, f.sendErrs[number]); err != nil {
-			return err
-		}
-		if i := slices.IndexFunc(f.thread, func(c core.Comment) bool { return c.ID == id }); i >= 0 {
-			f.thread = slices.Clone(f.thread)
-			f.thread[i].ID = "c-" + id
-		}
-		return nil
-	}, func() {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		drop()
-	})
-}
-
-// sent returns the changes whose Op was sent, in order.
-func (f *fakeService) sent() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.sends)
-}
-
 func (f *fakeService) changes() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -948,11 +790,4 @@ func (f *fakeService) filesPage(q pulls.FilesQuery) core.Page[core.CommitFile] {
 		p.Next = strconv.Itoa(end)
 	}
 	return p
-}
-
-// fileReadCount returns how many pages of files were read.
-func (f *fakeService) fileReadCount() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return len(f.fileReads)
 }
