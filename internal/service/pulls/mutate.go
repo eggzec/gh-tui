@@ -18,28 +18,28 @@ import (
 // change, every list page of the repository is marked stale for that reason,
 // and because the change reorders pull requests by update time.
 
-// Merge merges pull request number of repo with method. A head other than
-// "" pins the merge to that commit, the head the user saw, so that GitHub
-// refuses it if new commits were pushed since.
-func (s *Service) Merge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+// Merge merges pull request number of repo with method, with the commit
+// message msg. A head other than "" pins the merge to that commit, the head
+// the user saw, so that GitHub refuses it if new commits were pushed since.
+func (s *Service) Merge(repo core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op {
 	now := s.now()
 	return s.change("merge", repo, number, func(pr *core.PullRequest) {
 		pr.State, pr.MergedAt = core.StateMerged, now
 	}, func(ctx context.Context, id string) (core.PullRequest, error) {
-		return s.api.MergePullRequest(ctx, id, method, head)
+		return s.api.MergePullRequest(ctx, id, method, msg, head)
 	})
 }
 
 // AutoMerge turns auto-merge on for pull request number of repo: GitHub
-// merges it with method once its checks pass and its reviews are in. A head
-// other than "" pins it to that commit.
-func (s *Service) AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+// merges it with method and the commit message msg once its checks pass and
+// its reviews are in. A head other than "" pins it to that commit.
+func (s *Service) AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op {
 	return s.changeMerge("enable auto-merge on", repo, number, func(m *core.MergeInfo) {
 		m.AutoMerge = &core.AutoMerge{Method: method}
 		// The viewer who turned it on may turn it off, and not on again.
 		m.CanDisableAutoMerge, m.CanAutoMerge = true, false
 	}, func(ctx context.Context, id string) (core.PullRequest, error) {
-		return s.api.AutoMergePullRequest(ctx, id, method, head)
+		return s.api.AutoMergePullRequest(ctx, id, method, msg, head)
 	})
 }
 

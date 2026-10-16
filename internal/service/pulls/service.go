@@ -72,8 +72,8 @@ type API interface {
 	// review's reviewID say, and submits it.
 	PendingReview(ctx context.Context, repo core.RepoRef, number int) (core.PendingReview, bool, error)
 	SubmitPendingReview(ctx context.Context, pullID, reviewID string, event core.ReviewEvent, body string, threads []github.ReviewThreadDraft, replies []github.ReviewReplyDraft) error
-	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
-	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error)
+	MergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error)
+	AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error)
 	StopAutoMergePullRequest(ctx context.Context, id string) (core.PullRequest, error)
 	EnqueuePullRequest(ctx context.Context, id, head string) (core.PullRequest, error)
 	ClosePullRequest(ctx context.Context, id string) (core.PullRequest, error)

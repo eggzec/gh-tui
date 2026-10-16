@@ -451,12 +451,12 @@ func pullMutation(field string) string {
 }
 
 var (
-	mergePullMutation = `mutation MergePullRequest($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) {
-  result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { pullRequest { ...pullFields } }
+	mergePullMutation = `mutation MergePullRequest($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID, $headline: String, $body: String) {
+  result: mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body}) { pullRequest { ...pullFields } }
 }
 ` + pullFields
-	autoMergePullMutation = `mutation EnablePullRequestAutoMerge($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID) {
-  result: enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head}) { pullRequest { ...pullFields } }
+	autoMergePullMutation = `mutation EnablePullRequestAutoMerge($id: ID!, $method: PullRequestMergeMethod!, $head: GitObjectID, $headline: String, $body: String) {
+  result: enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body}) { pullRequest { ...pullFields } }
 }
 ` + pullFields
 	stopAutoMergePullMutation = pullMutation("disablePullRequestAutoMerge")
@@ -497,8 +497,8 @@ func (c *Client) mutatePull(ctx context.Context, what, query string, vars map[st
 // commit: if the head branch has moved on since, GitHub refuses, and the
 // error is a *core.RefusedError that says new commits were pushed, so
 // that a merge never takes in commits the user didn't see.
-func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
-	vars, err := mergeVars("merge", id, method, head)
+func (c *Client) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error) {
+	vars, err := mergeVars("merge", id, method, msg, head)
 	if err != nil {
 		return core.PullRequest{}, err
 	}
@@ -514,8 +514,8 @@ func (c *Client) MergePullRequest(ctx context.Context, id string, method core.Me
 // are in. A head other than "" pins it to that commit, as for
 // MergePullRequest. With a merge queue on the base branch, GitHub ignores
 // the method.
-func (c *Client) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
-	vars, err := mergeVars("enable auto-merge on", id, method, head)
+func (c *Client) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error) {
+	vars, err := mergeVars("enable auto-merge on", id, method, msg, head)
 	if err != nil {
 		return core.PullRequest{}, err
 	}
@@ -562,16 +562,22 @@ func (c *Client) EnqueuePullRequest(ctx context.Context, id, head string) (core.
 
 // mergeVars returns the variables of a merge mutation of the pull request
 // with node ID id, or an error, which what names, for a method GitHub
-// doesn't know.
-func mergeVars(what, id string, method core.MergeMethod, head string) (map[string]any, error) {
+// doesn't know. Without a title or body in msg, GitHub's own are used.
+func mergeVars(what, id string, method core.MergeMethod, msg core.MergeMessage, head string) (map[string]any, error) {
 	switch method {
 	case core.MergeCommit, core.MergeSquash, core.MergeRebase:
 	default:
 		return nil, fmt.Errorf("%s pull request %s: unknown merge method %q", what, id, method)
 	}
-	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method)), "head": nil}
+	vars := map[string]any{"id": id, "method": strings.ToUpper(string(method)), "head": nil, "headline": nil, "body": nil}
 	if head != "" {
 		vars["head"] = head
+	}
+	if msg.Title != "" {
+		vars["headline"] = msg.Title
+	}
+	if msg.SendBody {
+		vars["body"] = msg.Body
 	}
 	return vars, nil
 }

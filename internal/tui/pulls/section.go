@@ -60,12 +60,13 @@ type Service interface {
 	Invalidate(repo core.RepoRef)
 
 	// The changes are shown in the cache at once. The returned Op sends
-	// them. A merge is pinned to head, the commit it was confirmed for.
-	Merge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op
+	// them. A merge is pinned to head, the commit it was confirmed for, and
+	// takes msg as its commit message.
+	Merge(repo core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op
 	// AutoMerge turns on merging once the checks pass, StopAutoMerge turns
 	// it off, and Enqueue adds the pull request to the merge queue of its
 	// base branch. Like Merge, they are pinned to head.
-	AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op
+	AutoMerge(repo core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op
 	StopAutoMerge(repo core.RepoRef, number int) *optimistic.Op
 	Enqueue(repo core.RepoRef, number int, head string) *optimistic.Op
 	Close(repo core.RepoRef, number int) *optimistic.Op

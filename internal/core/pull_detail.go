@@ -89,6 +89,14 @@ type AutoMerge struct {
 	EnabledAt time.Time
 }
 
+// MergeMessage is the commit message of a merge. An empty Title means
+// GitHub's default title; Body is sent only when SendBody is set, since an
+// empty body is a message of its own.
+type MergeMessage struct {
+	Title, Body string
+	SendBody    bool
+}
+
 // MergeQueue says whether the base branch of a pull request has a merge
 // queue, and where the pull request is in it.
 type MergeQueue struct {
