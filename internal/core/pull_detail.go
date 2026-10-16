@@ -139,8 +139,8 @@ type ReviewRequest struct {
 	CodeOwner bool
 }
 
-// Verdict is the latest review of one person, in a state that took a side
-// unless it is one of Reviewers.Latest.
+// Verdict is the latest review of one person. In Reviewers.Verdicts it took
+// a side; in Reviewers.Latest it may only have commented.
 type Verdict struct {
 	Author      User
 	State       ReviewState
@@ -165,7 +165,8 @@ type Reviewers struct {
 	// Empty if they have none.
 	Viewer ReviewState
 	// ViewerCommit is the commit the viewer's latest review was made on, or
-	// empty if they have none or it is gone.
+	// empty if they have none or it is gone. It follows Viewer, so a pending
+	// review's commit is there too.
 	ViewerCommit string
 	// Latest is the latest review of each reviewer in any state, a review
 	// that only commented too, and LatestTotal how many there are.

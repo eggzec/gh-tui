@@ -285,21 +285,29 @@ func TestKeptMutation(t *testing.T) {
 // TestKeptDetailOfSchemaSixIsMiss checks that a detail kept before the
 // commits of reviews, the latest reviews of every state, the names of teams
 // and the time of the last edit were read is read again: those fields are
-// empty in it, and nothing else would make it refetch.
+// empty in it, and nothing else would make it refetch. The entry is one a
+// first session kept, and the list still shows its version, so it would
+// cost nothing to read if its schema were the current one.
 func TestKeptDetailOfSchemaSixIsMiss(t *testing.T) {
 	v := &versioned{updated: epoch, checks: core.ChecksSuccess}
 	store := openStore(t)
+	firstSession(t, v, store)
+
 	key := detailKey(repo, 1)
+	kept, ok := cache.NewShelf[core.PullRequestDetail](store, kindDetail, detailSchema).Load(key)
+	if !ok {
+		t.Fatal("the first session kept no detail")
+	}
 	old := cache.NewShelf[core.PullRequestDetail](store, kindDetail, 6)
-	if err := old.Save(key, cache.Entry[core.PullRequestDetail]{Value: core.PullRequestDetail{PullRequest: v.pull()}}); err != nil {
+	if err := old.Save(key, kept); err != nil {
 		t.Fatal(err)
 	}
 
 	api := v.api()
-	s := New(api, WithStore(store))
-	if _, err := s.Get(t.Context(), repo, 1); err != nil {
-		t.Fatal(err)
-	}
+	s := New(api, WithStore(cachetest.Aged(store, time.Hour)))
+	list(t, s, openList)
+	relist(t, s, openList)
+	readDetail(t, s)
 	if n := api.count("get"); n != 1 {
 		t.Errorf("get called %d times, want 1: the detail of schema 6 is a miss", n)
 	}
