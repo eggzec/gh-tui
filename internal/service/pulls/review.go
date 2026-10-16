@@ -210,6 +210,7 @@ func (s *Service) reviewSubmitted(repo core.RepoRef, number int) {
 	forget(s.comments, s.keptComments, key)
 	forget(s.timelines, s.keptTimelines, key)
 	s.details.Invalidate(key)
+	s.pullCommits.InvalidateTag(key)
 	s.keptDetails.Delete(key)
 	s.lists.InvalidateTag(repoTag(repo))
 	// The review that was sent was the viewer's one pending review, which

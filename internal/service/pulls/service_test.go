@@ -78,6 +78,29 @@ type fakeAPI struct {
 	pendingReview core.PendingReview
 	pendingFound  bool
 	pendingErr    error
+	// pullCommits and pullCommitsErr are what ListPullCommits answers, and
+	// viewers the logins it was asked for. viewer and viewerErr back
+	// ViewerLogin.
+	pullCommits    core.PullCommits
+	pullCommitsErr error
+	viewers        []string
+	viewer         string
+	viewerErr      error
+}
+
+func (f *fakeAPI) ListPullCommits(_ context.Context, _ core.RepoRef, _ int, viewer string) (core.PullCommits, error) {
+	f.called("pullcommits")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.viewers = append(f.viewers, viewer)
+	return f.pullCommits, f.pullCommitsErr
+}
+
+func (f *fakeAPI) ViewerLogin(context.Context) (string, error) {
+	f.called("viewer")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.viewer, f.viewerErr
 }
 
 // submitted is one call of SubmitReview.
