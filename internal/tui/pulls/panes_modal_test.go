@@ -52,8 +52,8 @@ func TestPanesPress(t *testing.T) {
 		m := openedPanes(t, 160)
 		m.sub[panes.Merge-1] = panes.Preview
 		m.press(keyMsg("3"))
-		if m.focus != panes.Merge || m.sub[panes.Merge-1] != panes.Whole {
-			t.Errorf("3 left focus %v and box %v, want Merge and Whole", m.focus, m.sub[panes.Merge-1])
+		if m.focus != panes.Merge || m.sub[panes.Merge-1] != panes.List {
+			t.Errorf("3 left focus %v and box %v, want Merge and List", m.focus, m.sub[panes.Merge-1])
 		}
 	})
 
@@ -66,7 +66,7 @@ func TestPanesPress(t *testing.T) {
 		}
 		focus := m.focus
 		m.press(keyMsg("tab"))
-		if m.focus != focus || m.sub[focus-1] != panes.Whole {
+		if m.focus != focus || m.sub[focus-1] != panes.List {
 			t.Errorf("tab on a zoomed pane with no preview moved to %v, box %v", m.focus, m.sub[focus-1])
 		}
 		m.press(keyMsg("z"))

@@ -1098,6 +1098,17 @@ keys:
     resolve: [T]
     # Write a comment on the pull request, after a question.
     comment: [c]
+  # The modal of a pull request: the preview beside the list of a zoomed
+  # pane. It only scrolls.
+  pull_preview:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
   # The modal of a pull request: the tree of the files it changes.
   # Expand and collapse fold its directories; enter or expand on a file
   # shows its diff.

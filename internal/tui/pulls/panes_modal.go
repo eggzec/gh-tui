@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -51,6 +52,13 @@ type panesModal struct {
 	focus panes.Pane
 	zoom  bool
 	sub   [panes.Count]panes.Role
+
+	// slots are what the panes are made of. hover is the row each pane's
+	// preview shows, and previews how far each row's preview is scrolled,
+	// kept while the modal lives.
+	slots    [panes.Count]slot
+	hover    [panes.Count]hovered
+	previews map[previewKey]int
 
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
@@ -102,7 +110,10 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		number: number,
 		other:  showRepo || !s.hasRepo || !repo.Same(s.repo),
 		focus:  panes.Conversation,
+		slots:  slots,
 		id:     panesIDs.Add(1),
+
+		previews: map[previewKey]int{},
 		ctx:    ctx,
 		cancel: cancel,
 		resume: resume,
@@ -186,7 +197,9 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
-		return m.press(msg)
+		cmd := m.press(msg)
+		m.follow()
+		return cmd
 	case tea.PasteMsg:
 		if m.top() != nil {
 			return m.pressOverlay(msg)
@@ -208,6 +221,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(core.Target{Repo: m.repo, Number: m.number}.String(), msg.err))
 	}
 	m.detail, m.loaded = msg.detail, true
+	m.follow()
 	return nil
 }
 
@@ -222,15 +236,63 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.prev):
 		m.step(l, -1)
 	case isDigit:
-		m.focus, m.sub[p-1] = p, panes.Whole
+		m.focus = p
+		m.resetSub()
 	case keymap.Matches(msg, k.zoom):
 		if m.canZoom() {
 			m.zoom = !m.zoom
+			m.resetSub()
 		}
 	case keymap.Matches(msg, k.back):
 		return m.close()
+	case m.inPreview(l):
+		m.scrollPreview(l, msg)
 	}
 	return nil
+}
+
+// resetSub gives the list of every pane the focus, as a change of pane or of
+// the zoom does.
+func (m *panesModal) resetSub() {
+	for i := range m.sub {
+		m.sub[i] = panes.List
+	}
+}
+
+// scrollPreview scrolls the focused pane's preview, which has the focus in l,
+// as far as its text goes. The offset stays with the row shown.
+func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
+	b, ok := l.Box(m.focus, panes.Preview)
+	s := m.slots[m.focus-1]
+	if !ok || s.preview == nil {
+		return
+	}
+	rows := b.Rect.Inner().H
+	last := max(0, strings.Count(s.preview(m, b), "\n")+1-rows)
+	k := m.keys.scroll
+	pk := previewKey{m.focus, m.hover[m.focus-1].id}
+	off := m.previews[pk]
+	switch {
+	case keymap.Matches(msg, k.Up):
+		off--
+	case keymap.Matches(msg, k.Down):
+		off++
+	case keymap.Matches(msg, k.PageUp):
+		off -= rows
+	case keymap.Matches(msg, k.PageDown):
+		off += rows
+	case keymap.Matches(msg, k.HalfPageUp):
+		off -= max(1, rows/2)
+	case keymap.Matches(msg, k.HalfPageDown):
+		off += max(1, rows/2)
+	case keymap.Matches(msg, k.Home):
+		off = 0
+	case keymap.Matches(msg, k.End):
+		off = last
+	default:
+		return
+	}
+	m.previews[pk] = min(max(off, 0), last)
 }
 
 // layout returns the layout of the panes.
@@ -269,10 +331,11 @@ func (m *panesModal) step(l panes.Layout, delta int) {
 	switch {
 	case !l.Zoomed:
 		m.focus = panes.Pane((int(m.focus)-1+delta+panes.Count)%panes.Count + 1)
+		m.resetSub()
 	case m.canStep(l):
 		i := m.focus - 1
 		if m.sub[i] == panes.Preview {
-			m.sub[i] = panes.Whole
+			m.sub[i] = panes.List
 		} else {
 			m.sub[i] = panes.Preview
 		}
@@ -284,7 +347,7 @@ func (m *panesModal) context(l panes.Layout) string {
 	if m.inPreview(l) {
 		return ctxPreview
 	}
-	return slots[m.focus-1].context
+	return m.slots[m.focus-1].context
 }
 
 // close closes the modal, and stops its reads.
