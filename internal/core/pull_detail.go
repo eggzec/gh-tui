@@ -129,6 +129,8 @@ type ReviewRequest struct {
 	User User
 	// Team is the team asked, as org/slug, or empty for a person.
 	Team string
+	// TeamName is the display name of the team, or empty.
+	TeamName string
 	// Unknown reports that neither is set: the reviewer is one the token
 	// may not see, such as a private team, or one of a kind the read
 	// doesn't know.
@@ -137,11 +139,14 @@ type ReviewRequest struct {
 	CodeOwner bool
 }
 
-// Verdict is the latest review of one person that took a side.
+// Verdict is the latest review of one person, in a state that took a side
+// unless it is one of Reviewers.Latest.
 type Verdict struct {
 	Author      User
 	State       ReviewState
 	SubmittedAt time.Time
+	// Commit is the commit the review was made on, or empty when it is gone.
+	Commit string
 }
 
 // Reviewers is who was asked to review a pull request and what each
@@ -159,6 +164,13 @@ type Reviewers struct {
 	// means a review they started, on the web, that is not yet submitted.
 	// Empty if they have none.
 	Viewer ReviewState
+	// ViewerCommit is the commit the viewer's latest review was made on, or
+	// empty if they have none or it is gone.
+	ViewerCommit string
+	// Latest is the latest review of each reviewer in any state, a review
+	// that only commented too, and LatestTotal how many there are.
+	Latest      []Verdict
+	LatestTotal int
 }
 
 // ReviewThread is a conversation on a line or file of a pull request's

@@ -30,6 +30,7 @@
         "changedFiles": 7,
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "FAILURE"}}}]},
         "body": "Lists pull requests with their checks.",
+        "lastEditedAt": "2026-09-21T08:00:00Z",
         "baseRefOid": "2222222222222222222222222222222222222222",
         "isCrossRepository": true,
         "headRepository": {"nameWithOwner": "octocat/gh-tui"},
@@ -65,19 +66,26 @@
           "totalCount": 4,
           "nodes": [
             {"asCodeOwner": true, "requestedReviewer": {"__typename": "User", "login": "hubot", "name": "Hubot"}},
-            {"asCodeOwner": false, "requestedReviewer": {"__typename": "Team", "combinedSlug": "eggzec/core"}},
+            {"asCodeOwner": false, "requestedReviewer": {"__typename": "Team", "combinedSlug": "eggzec/core", "teamName": "Core team"}},
             {"asCodeOwner": false, "requestedReviewer": null}
           ]
         },
         "latestOpinionatedReviews": {
           "totalCount": 3,
           "nodes": [
-            {"author": {"__typename": "User", "login": "hubot", "name": "Hubot"}, "state": "CHANGES_REQUESTED", "submittedAt": "2026-09-22T12:00:00Z"},
-            {"author": {"__typename": "User", "login": "monalisa", "name": null}, "state": "APPROVED", "submittedAt": "2026-09-22T15:30:00Z"},
-            {"author": {"__typename": "Bot", "login": "copilot", "name": null}, "state": "DISMISSED", "submittedAt": "2026-09-22T16:00:00Z"}
+            {"author": {"__typename": "User", "login": "hubot", "name": "Hubot"}, "state": "CHANGES_REQUESTED", "submittedAt": "2026-09-22T12:00:00Z", "commit": {"oid": "3333333333333333333333333333333333333333"}},
+            {"author": {"__typename": "User", "login": "monalisa", "name": null}, "state": "APPROVED", "submittedAt": "2026-09-22T15:30:00Z", "commit": {"oid": "4444444444444444444444444444444444444444"}},
+            {"author": {"__typename": "Bot", "login": "copilot", "name": null}, "state": "DISMISSED", "submittedAt": "2026-09-22T16:00:00Z", "commit": null}
           ]
         },
-        "viewerLatestReview": {"state": "PENDING"},
+        "latestReviews": {
+          "totalCount": 4,
+          "nodes": [
+            {"author": {"__typename": "User", "login": "hubot", "name": "Hubot"}, "state": "COMMENTED", "submittedAt": "2026-09-22T17:00:00Z", "commit": {"oid": "1111111111111111111111111111111111111111"}},
+            {"author": {"__typename": "User", "login": "monalisa", "name": null}, "state": "APPROVED", "submittedAt": "2026-09-22T15:30:00Z", "commit": {"oid": "4444444444444444444444444444444444444444"}}
+          ]
+        },
+        "viewerLatestReview": {"state": "PENDING", "commit": {"oid": "5555555555555555555555555555555555555555"}},
         "reviewThreads": {
           "totalCount": 5,
           "pageInfo": {"hasNextPage": true, "endCursor": "Y3Vyc29yOjM="},

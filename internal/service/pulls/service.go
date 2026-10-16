@@ -222,8 +222,9 @@ const (
 	listSchema = 5
 	// detailSchema 4 keeps the head commit, 5 whether the author is an
 	// app, and 6 the merge state, reviewers, review threads and failing
-	// checks.
-	detailSchema = 6
+	// checks, and 7 the commit of each review, the reviews that only
+	// commented, a team's name and when the description was edited.
+	detailSchema = 7
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
 	// and 4 keeps the avatar of each comment's author.
 	commentsSchema = 4

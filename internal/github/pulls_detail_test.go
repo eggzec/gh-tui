@@ -29,6 +29,21 @@ func TestGetPullRequestDetail(t *testing.T) {
 		}
 	})
 
+	t.Run("description edit", func(t *testing.T) {
+		if want := pullTime("2026-09-21T08:00:00Z"); !got.BodyEditedAt.Equal(want) {
+			t.Errorf("body edited at %v, want %v", got.BodyEditedAt, want)
+		}
+	})
+
+	t.Run("query selects the panes' fields", func(t *testing.T) {
+		q := reqs()[0].Query
+		for _, f := range []string{"latestReviews(", "viewerLatestReview { state commit { oid } }", "lastEditedAt", "combinedSlug teamName: name"} {
+			if !strings.Contains(q, f) {
+				t.Errorf("detail query lacks %q", f)
+			}
+		}
+	})
+
 	t.Run("merge", func(t *testing.T) {
 		want := core.MergeInfo{
 			Mergeable:           core.MergeableYes,
@@ -63,18 +78,27 @@ func TestGetPullRequestDetail(t *testing.T) {
 		want := core.Reviewers{
 			Requested: []core.ReviewRequest{
 				{User: core.User{Login: "hubot", Name: "Hubot"}, CodeOwner: true},
-				{Team: "eggzec/core"},
+				{Team: "eggzec/core", TeamName: "Core team"},
 				// A reviewer the token may not see, such as a private team.
 				{Unknown: true},
 			},
 			RequestedTotal: 4,
 			Verdicts: []core.Verdict{
-				{Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateChangesRequested, SubmittedAt: pullTime("2026-09-22T12:00:00Z")},
-				{Author: core.User{Login: "monalisa"}, State: core.ReviewStateApproved, SubmittedAt: pullTime("2026-09-22T15:30:00Z")},
+				{Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateChangesRequested, SubmittedAt: pullTime("2026-09-22T12:00:00Z"), Commit: strings.Repeat("3", 40)},
+				{Author: core.User{Login: "monalisa"}, State: core.ReviewStateApproved, SubmittedAt: pullTime("2026-09-22T15:30:00Z"), Commit: strings.Repeat("4", 40)},
+				// A review whose commit is gone has none.
 				{Author: core.User{Login: "copilot", Bot: true}, State: core.ReviewStateDismissed, SubmittedAt: pullTime("2026-09-22T16:00:00Z")},
 			},
 			VerdictsTotal: 3,
-			Viewer:        core.ReviewStatePending,
+			// Hubot's latest review only commented, so it is here and not in
+			// the verdicts.
+			Latest: []core.Verdict{
+				{Author: core.User{Login: "hubot", Name: "Hubot"}, State: core.ReviewStateCommented, SubmittedAt: pullTime("2026-09-22T17:00:00Z"), Commit: strings.Repeat("1", 40)},
+				{Author: core.User{Login: "monalisa"}, State: core.ReviewStateApproved, SubmittedAt: pullTime("2026-09-22T15:30:00Z"), Commit: strings.Repeat("4", 40)},
+			},
+			LatestTotal:  4,
+			Viewer:       core.ReviewStatePending,
+			ViewerCommit: strings.Repeat("5", 40),
 		}
 		if !reflect.DeepEqual(got.Reviewers, want) {
 			t.Errorf("reviewers = %+v, want %+v", got.Reviewers, want)
