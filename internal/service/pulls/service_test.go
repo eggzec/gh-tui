@@ -91,6 +91,8 @@ type fakeAPI struct {
 	viewerErr      error
 	// viewedFake backs the viewed marks.
 	viewedFake
+	// commentOpsFake backs the edits, replies and deletes of comments.
+	commentOpsFake
 }
 
 func (f *fakeAPI) ListPullCommits(_ context.Context, _ core.RepoRef, _ int, viewer string) (core.PullCommits, error) {
