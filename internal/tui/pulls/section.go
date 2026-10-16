@@ -59,6 +59,10 @@ type Service interface {
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
 
+	// MergeTexts reads the commit messages GitHub would use to merge a pull
+	// request. It is not cached.
+	MergeTexts(ctx context.Context, repo core.RepoRef, number int) (core.MergeTexts, error)
+
 	// The changes are shown in the cache at once. The returned Op sends
 	// them. A merge is pinned to head, the commit it was confirmed for, and
 	// takes msg as its commit message.

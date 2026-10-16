@@ -97,6 +97,13 @@ type MergeMessage struct {
 	SendBody    bool
 }
 
+// MergeTexts are the commit messages GitHub would use to merge a pull
+// request for the viewer, with a merge commit and with a squash. Rebasing
+// keeps each commit's message, so it has none.
+type MergeTexts struct {
+	Merge, Squash MergeMessage
+}
+
 // MergeQueue says whether the base branch of a pull request has a merge
 // queue, and where the pull request is in it.
 type MergeQueue struct {

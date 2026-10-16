@@ -60,6 +60,9 @@ type API interface {
 	CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
 	BehindCommits(ctx context.Context, repo core.RepoRef, head, base string) (core.BaseCommits, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// PullMergeTexts reads the commit messages GitHub would use to merge a
+	// pull request, for the viewer.
+	PullMergeTexts(ctx context.Context, repo core.RepoRef, number int) (core.MergeTexts, error)
 	// SetReviewThreadResolved resolves the review thread with node ID id, or
 	// unresolves it.
 	SetReviewThreadResolved(ctx context.Context, id string, resolved bool) error

@@ -95,6 +95,14 @@ type fakeAPI struct {
 	viewedFake
 	// commentOpsFake backs the edits, replies and deletes of comments.
 	commentOpsFake
+	// mergeTexts and mergeTextsErr are what PullMergeTexts answers.
+	mergeTexts    core.MergeTexts
+	mergeTextsErr error
+}
+
+func (f *fakeAPI) PullMergeTexts(context.Context, core.RepoRef, int) (core.MergeTexts, error) {
+	f.called("mergetexts")
+	return f.mergeTexts, f.mergeTextsErr
 }
 
 func (f *fakeAPI) ListPullCommits(_ context.Context, _ core.RepoRef, _ int, viewer string) (core.PullCommits, error) {
