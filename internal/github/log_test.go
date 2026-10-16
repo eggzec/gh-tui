@@ -100,6 +100,8 @@ func TestOperation(t *testing.T) {
 		{listReposQuery, "ListRepos"},
 		{pullChecksQuery, "PullChecks"},
 		{commitChecksQuery, "CommitChecks"},
+		{commitContextsQuery, "CommitContexts"},
+		{commitContextsNotesQuery, "CommitContextsNotes"},
 		{closePullMutation, "ClosePullRequest"},
 		{mergePullMutation, "MergePullRequest"},
 		{"query($a: Int) { x }", "query"},

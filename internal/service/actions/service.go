@@ -31,6 +31,7 @@ import (
 
 // API is the part of the GitHub client that the service uses.
 type API interface {
+	commitChecksAPI
 	ListRuns(ctx context.Context, repo core.RepoRef, f core.RunFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Run], github.Response, error)
 	GetRun(ctx context.Context, repo core.RepoRef, runID int64, cond github.Conditional) (core.Run, github.Response, error)
 	ListWorkflows(ctx context.Context, repo core.RepoRef, cursor string, perPage int, cond github.Conditional) (core.Page[core.Workflow], github.Response, error)
@@ -73,6 +74,7 @@ type Service struct {
 	logs        *cache.Cache[core.Log]
 	checks      *cache.Cache[core.Checks]
 	annotations *cache.Cache[core.Page[core.Annotation]]
+	commit      commitCache
 
 	keptRuns      *cache.Shelf[core.Page[core.Run]]
 	keptWorkflows *cache.Shelf[core.Page[core.Workflow]]
@@ -124,6 +126,7 @@ func New(api API, opts ...Option) *Service {
 		logs:        cache.New[core.Log](capacity, cache.WithMaxSize(cmp.Or(o.logMemory, int64(d.Cache.Memory.Logs)), logSize)),
 		checks:      cache.New[core.Checks](std...),
 		annotations: cache.New[core.Page[core.Annotation]](std...),
+		commit:      newCommitCache(cmp.Or(o.liveTTL, d.Cache.TTL.ActionsRunning), ttl, capacity),
 
 		keptRuns:      cache.NewShelf[core.Page[core.Run]](o.store, kindRuns, schema),
 		keptWorkflows: cache.NewShelf[core.Page[core.Workflow]](o.store, kindWorkflows, schema),
@@ -147,6 +150,7 @@ func (s *Service) Invalidate(repo core.RepoRef) {
 	s.liveJobs.InvalidateTag(tag)
 	s.checks.InvalidateTag(tag)
 	s.annotations.InvalidateTag(tag)
+	s.commit.invalidateTag(tag)
 }
 
 // SyncKey names changes to the runs of repo in sync events, such as those
