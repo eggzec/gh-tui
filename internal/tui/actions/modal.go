@@ -21,6 +21,7 @@ package actions
 import (
 	"context"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -90,7 +91,9 @@ type Modal struct {
 	run    core.Run
 	hasRun bool
 	jobs   jobs
-	log    jobview.Model
+	// wantJob is the job the first jobs shown open on, until they are.
+	wantJob int64
+	log     jobview.Model
 	// seq counts the moves of the cursor of the runs, so that only the
 	// last rest reads jobs.
 	seq int
@@ -183,7 +186,14 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap
 	m.filter = o.filter
 	m.caps = ui.CachedCaps(o.repos, repo)
 	m.runs = m.newRuns()
+	if o.run != 0 {
+		m.runs.Seek(strconv.FormatInt(o.run, 10))
+	}
+	m.wantJob = o.job
 	m.setFocus(runsPane)
+	if o.jobsFocused {
+		m.setFocus(jobsPane)
+	}
 	return m
 }
 

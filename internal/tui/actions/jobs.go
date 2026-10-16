@@ -243,7 +243,13 @@ func (m *Modal) setJobs(p core.Page[core.Job], rest bool) tea.Cmd {
 		}
 		j.cursor = j.lineOf(max(i, 0))
 	default:
-		j.cursor = j.lineOf(firstJob(j.items))
+		i := firstJob(j.items)
+		if k := slices.IndexFunc(j.items, func(x core.Job) bool { return x.ID == m.wantJob }); m.wantJob != 0 && k >= 0 {
+			i = k
+			j.reveal(k)
+		}
+		m.wantJob = 0
+		j.cursor = j.lineOf(i)
 	}
 	// A read in flight still clears loading when it arrives, so that a
 	// poll that shows the cached jobs meanwhile doesn't let a wake start
