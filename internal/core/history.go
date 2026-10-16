@@ -138,6 +138,16 @@ type Compare struct {
 	BehindBy int
 }
 
+// BaseCommits are the commits of a base branch that a head branch lacks, as
+// a pull request that is behind its base sees them.
+type BaseCommits struct {
+	// AheadBy is how many commits the base has that the head lacks. It can
+	// exceed len(Commits), which GitHub lists a page of at most.
+	AheadBy int
+	// Commits are the first of them, oldest first.
+	Commits []Commit
+}
+
 // CompareDetail is a comparison of two commits with the files that head
 // changed since base. The files come as GitHub lists them, at most
 // MaxCompareFiles, and Truncated says that more changed.

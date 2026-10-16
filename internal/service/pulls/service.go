@@ -48,6 +48,7 @@ type API interface {
 	// second with the files it changed.
 	Compare(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 	CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
+	BehindCommits(ctx context.Context, repo core.RepoRef, head, base string) (core.BaseCommits, error)
 	PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error)
 	// SetReviewThreadResolved resolves the review thread with node ID id, or
 	// unresolves it.
@@ -112,6 +113,9 @@ type Service struct {
 	// the files of a commit, by its SHA, which never go stale.
 	commits     *cache.Cache[core.Page[core.Commit]]
 	commitFiles *cache.Cache[core.Page[core.CommitFile]]
+	// behinds holds the commits of a base that a head lacks, by the SHAs of
+	// both, which never go stale.
+	behinds *cache.Cache[core.BaseCommits]
 	// threads holds the pages of the review threads of a pull request, by
 	// head.
 	threads *cache.Cache[core.ThreadPage]
@@ -143,6 +147,7 @@ type Service struct {
 	// never revalidated. The parsed rules hold a compiled expression, which
 	// can't be stored, so the file is parsed again after it is read.
 	keptOwners *cache.Shelf[core.CodeownersFile]
+	keptBehind *cache.Shelf[core.BaseCommits]
 	now        func() time.Time
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
@@ -206,6 +211,8 @@ func New(api API, opts ...Option) *Service {
 		keptCommits:     cache.NewShelf[core.Page[core.Commit]](o.store, kindCommits, commitsSchema),
 		keptCommitFiles: cache.NewShelf[core.Page[core.CommitFile]](o.store, kindCommitFiles, commitFilesSchema),
 		keptOwners:      cache.NewShelf[core.CodeownersFile](o.store, kindOwners, ownersSchema),
+		behinds:         cache.New[core.BaseCommits](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
+		keptBehind:      cache.NewShelf[core.BaseCommits](o.store, kindBehind, behindSchema),
 		ttl:             ttl,
 		pageSize:        cmp.Or(o.pageSize, d.PageSize.Pulls),
 	}
@@ -233,6 +240,7 @@ const (
 
 	kindCommitFiles = "pullcommitfiles"
 	kindOwners      = "pullowners"
+	kindBehind      = "pullbehind"
 
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
@@ -260,6 +268,8 @@ const (
 	commitFilesSchema = 1
 	// ownersSchema 1 is the first.
 	ownersSchema = 1
+	// behindSchema 1 is the first.
+	behindSchema = 1
 )
 
 // maxPageSize is the most items GitHub returns in a page.

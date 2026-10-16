@@ -124,6 +124,7 @@ var restCalls = []restCall{
 	{Func: "refusableDo", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs"},
 	{Func: "refusableDo", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/actions/jobs/{job_id}/rerun"},
 	{Func: "refusableDo", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/actions/runs/{run_id}/cancel"},
+	{Func: "BehindCommits", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/compare/{basehead}", Query: []string{"per_page"}, Decode: restCompareCommits{}},
 	{Func: "refusableDo", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/check-suites/{check_suite_id}/rerequest"},
 	{Func: "refusableDo", Method: http.MethodPut, Path: "/repos/{owner}/{repo}/pulls/{pull_number}/update-branch"},
 	{Func: "logLocationOf", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/actions/jobs/{job_id}/logs"},

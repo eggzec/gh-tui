@@ -36,6 +36,8 @@ type fakeAPI struct {
 	// compare and compareFiles back the two comparisons.
 	compare      func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 	compareFiles func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
+	// behind backs BehindCommits.
+	behind func(ctx context.Context, repo core.RepoRef, head, base string) (core.BaseCommits, error)
 	// commits, commit and commitFiles back the commit reads.
 	commits     func(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Page[core.Commit], github.Response, error)
 	commit      func(ctx context.Context, repo core.RepoRef, sha string) (core.CommitDetail, error)
@@ -198,6 +200,11 @@ func (f *fakeAPI) Compare(ctx context.Context, repo core.RepoRef, base, head str
 func (f *fakeAPI) CompareFiles(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error) {
 	f.called("comparefiles")
 	return f.compareFiles(ctx, repo, base, head, cond)
+}
+
+func (f *fakeAPI) BehindCommits(ctx context.Context, repo core.RepoRef, head, base string) (core.BaseCommits, error) {
+	f.called("behind")
+	return f.behind(ctx, repo, head, base)
 }
 
 func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number int) (string, error) {
