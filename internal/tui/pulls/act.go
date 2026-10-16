@@ -4,19 +4,55 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 var _ ui.Actor = (*panesModal)(nil)
 
-// Act implements ui.Actor. The quit key closes the modal and the owner key
-// shows the page of the author; every other intent is the app's to refuse
-// while the modal is open.
+// Act implements ui.Actor. The quit key closes the modal from anywhere. With
+// an overlay open, the keys are its: back and dismiss close a viewer, clearing
+// what is transient first, and reach any other overlay as keys, which close
+// themselves; the owner key waits. The maximize key flips a viewer. Without an
+// overlay, dismiss closes the modal and the owner key shows the page of the
+// author. Every other intent is the app's to refuse while the modal is open.
 func (m *panesModal) Act(action string) (tea.Cmd, bool) {
-	switch action {
-	case ui.ActQuit:
+	if action == ui.ActQuit {
 		return m.close(), true
+	}
+	o := m.top()
+	if o == nil {
+		switch action {
+		case ui.ActDismiss:
+			return m.close(), true
+		case "owner":
+			return m.author(), true
+		}
+		return nil, false
+	}
+	viewer := o.kind() == panes.Viewer
+	switch action {
+	case ui.ActBack:
+		if viewer {
+			m.pop()
+		}
+		return nil, true
+	case ui.ActDismiss:
+		if !viewer {
+			return nil, false
+		}
+		if !o.clear() {
+			m.pop()
+		}
+		return nil, true
+	case ui.ActMaximize:
+		if !viewer {
+			return nil, false
+		}
+		top := &m.overlays[len(m.overlays)-1]
+		top.maximized = !top.maximized
+		return nil, true
 	case "owner":
-		return m.author(), true
+		return nil, true
 	}
 	return nil, false
 }

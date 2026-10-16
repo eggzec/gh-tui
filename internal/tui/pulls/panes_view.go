@@ -26,6 +26,8 @@ const (
 type drawnPanes struct {
 	key drawKey
 	out string
+	// dim is out as the panes show behind an overlay, once it was needed.
+	dim string
 }
 
 // drawKey is everything the drawn panes depend on.
@@ -46,6 +48,8 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.frames.Border = m.icons.Border
 	m.frames.Ellipsis = m.icons.Ellipsis
 	m.chips = ui.NewLabelChips(m.st.label, t.Dark, m.icons.Ellipsis, headerChipName)
+	m.dim = t.Subtle.Faint(true)
+	m.cst = t.Confirm(m.icons)
 	m.gen++
 }
 
@@ -58,10 +62,18 @@ func (m *panesModal) View() string {
 	lines := make([]string, 0, 3)
 	lines = append(lines, m.header())
 	if m.height >= 3 {
-		lines = append(lines, m.panes(l))
+		out := m.panes(l)
+		if m.top() != nil {
+			out = m.covered(out)
+		}
+		lines = append(lines, out)
 	}
 	if m.height >= 2 {
-		lines = append(lines, m.footer(l))
+		if m.top() != nil {
+			lines = append(lines, m.overlayFooter())
+		} else {
+			lines = append(lines, m.footer(l))
+		}
 	}
 	return strings.Join(lines, "\n")
 }
@@ -76,7 +88,7 @@ func (m *panesModal) panes(l panes.Layout) string {
 	out := m.frames.Draw(l, func(b panes.Box) panes.Content {
 		return slots[b.Pane-1].content(m, b)
 	})
-	m.drawn = drawnPanes{k, out}
+	m.drawn = drawnPanes{key: k, out: out}
 	return out
 }
 

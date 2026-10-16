@@ -301,6 +301,11 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		takes := m.modalTakesKeys()
 		if !takes && keymap.Matches(msg, m.keys.Maximize) {
+			if actor, ok := mod.(ui.Actor); ok {
+				if cmd, handled := actor.Act(ui.ActMaximize); handled {
+					return cmd
+				}
+			}
 			m.toggleMaximized()
 			return nil
 		}
