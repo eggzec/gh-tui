@@ -55,6 +55,11 @@ type Options struct {
 	// their name.
 	Viewer string
 
+	// hide is the groups that are left out, inverted from the model's shown so
+	// that the zero Options shows every group; the model sets it, and a
+	// preview ignores it.
+	hide [NumGroups]bool
+
 	// preview draws a narrowed view: each comment is a row of its own, with no
 	// run, and a review is open.
 	preview bool

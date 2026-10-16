@@ -113,7 +113,7 @@ func TestTree(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := shape(tree(Data{Items: tc.items, Threads: tc.threads}, false)); got != tc.want {
+			if got := shape(tree(Data{Items: tc.items, Threads: tc.threads}, Options{})); got != tc.want {
 				t.Errorf("tree = %q, want %q", got, tc.want)
 			}
 		})

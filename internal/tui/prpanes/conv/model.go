@@ -110,9 +110,15 @@ type Model struct {
 	// options; with the width they say when rows must be built again.
 	version int
 	optsVer int
-	views   map[string]*view
-	cur     string
-	built   func()
+	// shown is the groups the filter shows, and shape counts the changes of
+	// the filter, which build the rows of the conversation again. hint is the
+	// key that changes the filter, for the text of an empty conversation.
+	shown [NumGroups]bool
+	shape int
+	hint  string
+	views map[string]*view
+	cur   string
+	built func()
 }
 
 // New returns a conversation that reads src when started with [Model.Init]. It
@@ -125,6 +131,9 @@ func New(src Source, opts ...Option) Model {
 		views: map[string]*view{},
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
+	for g := range m.shown {
+		m.shown[g] = true
+	}
 	for _, o := range opts {
 		o(&m)
 	}

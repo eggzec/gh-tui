@@ -45,6 +45,15 @@ ui:
   # preview, text and filter. The maximize key toggles the one that is
   # open, whichever way it opened.
   maximized: []
+  # The conversation of a pull request.
+  conversation:
+    # The kinds of events it shows when it opens; the filter can change that
+    # while it is open. Choose from comments, reviews (with their threads),
+    # pushes, labels, people (assignments and review requests), state
+    # (ready, draft, merged, closed, reopened, locked), branch (renames, base
+    # changes, deleted head), references and milestones. For now it draws only
+    # comments and reviews, so the other kinds change nothing yet.
+    filter: [comments, reviews, pushes, labels, people, state, branch, references, milestones]
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them

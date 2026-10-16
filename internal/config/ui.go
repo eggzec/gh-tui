@@ -27,6 +27,8 @@ type UI struct {
 	// name of its key context, such as "history". The maximize key
 	// toggles the one that is open, whichever way it opened.
 	Maximized []string `yaml:"maximized"`
+	// Conversation is how the conversation of a pull request opens.
+	Conversation Conversation `yaml:"conversation"`
 }
 
 // Toast is how long a toast stays before it goes on its own. An error
@@ -60,7 +62,7 @@ func (u UI) validate() error {
 	if u.Toast.Info < minToast {
 		errs = append(errs, fmt.Errorf("ui.toast.info: must be at least %v, got %v", minToast, u.Toast.Info))
 	}
-	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized())
+	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate())
 	return errors.Join(errs...)
 }
 
