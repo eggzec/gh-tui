@@ -549,8 +549,8 @@ keys:
     repo: ["."]
     # Open the file finder of the repository screen, which finds a file by
     # some letters of its path, or in the modal of a pull request, the
-    # finder of the files it changes, which shows the diff of the one
-    # chosen. ctrl+p is the key of editors.
+    # finder of the files it changes, which focuses the Files pane on the
+    # one chosen. ctrl+p is the key of editors.
     find_file: [ctrl+p]
     # Show the focused pane of the dashboard, the repository screen, the
     # page of a user or an organization, or a modal such as Actions,

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -72,6 +73,11 @@ type panesModal struct {
 	sending bool
 	sendCtx context.Context
 
+	// found is the path the finder chose, for the Files pane to select, and
+	// findErr says why the changed files couldn't be listed.
+	found   string
+	findErr func(error) (text, hint string)
+
 	// id names the modal to the messages of its reads.
 	id int64
 	// ctx bounds the reads, and resume lets the reads ahead go on once the
@@ -134,6 +140,9 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	if onChecks {
 		m.focus = panes.Merge
 	}
+	findVoice := s.voice
+	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
+	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
 	m.SetTheme(s.theme)
 	switch {
 	case cached:
@@ -283,6 +292,8 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.close()
 	case keymap.Matches(msg, k.review):
 		return m.openReview()
+	case keymap.Matches(msg, k.find):
+		return m.openFind()
 	case m.inPreview(l):
 		m.scrollPreview(l, msg)
 	}
