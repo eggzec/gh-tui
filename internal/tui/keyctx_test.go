@@ -161,6 +161,12 @@ func (keyPulls) Threads(context.Context, pullsvc.ThreadsQuery) (core.ThreadPage,
 func (keyPulls) CachedThreads(pullsvc.ThreadsQuery) (core.ThreadPage, bool) {
 	return core.ThreadPage{}, true
 }
+func (keyPulls) CachedViewed(pullsvc.ViewedQuery) (core.PullViewed, bool) {
+	return core.PullViewed{}, false
+}
+func (keyPulls) Viewed(context.Context, pullsvc.ViewedQuery) (core.PullViewed, error) {
+	return core.PullViewed{Supported: true}, nil
+}
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
