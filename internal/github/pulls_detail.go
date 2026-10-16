@@ -41,6 +41,7 @@ var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $
     pullRequest(number: $number) {
       ...pullFields
       body
+      lastEditedAt
       baseRefOid
       isCrossRepository
       headRepository { nameWithOwner }
@@ -78,15 +79,19 @@ var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $
             ... on User { login name }
             ... on Bot { login }
             ... on Mannequin { login }
-            ... on Team { combinedSlug }
+            ... on Team { combinedSlug teamName: name }
           }
         }
       }
       latestOpinionatedReviews(first: $reviewers) {
         totalCount
-        nodes { author { __typename login ... on User { name } } state submittedAt }
+        nodes { author { __typename login ... on User { name } } state submittedAt commit { oid } }
       }
-      viewerLatestReview { state }
+      latestReviews(first: $reviewers) {
+        totalCount
+        nodes { author { __typename login ... on User { name } } state submittedAt commit { oid } }
+      }
+      viewerLatestReview { state commit { oid } }
       reviewThreads(first: $threads) {
         totalCount
         pageInfo { hasNextPage endCursor }
@@ -121,9 +126,11 @@ var getPullQuery = fmt.Sprintf(`query GetPull($owner: String!, $name: String!, $
 // pullDetail is the JSON shape of the pull request in getPullQuery.
 type pullDetail struct {
 	pull
-	Body              string `json:"body"`
-	BaseRefOid        string `json:"baseRefOid"`
-	IsCrossRepository bool   `json:"isCrossRepository"`
+	Body string `json:"body"`
+	// LastEditedAt is null for a description that was never edited.
+	LastEditedAt      *time.Time `json:"lastEditedAt"`
+	BaseRefOid        string     `json:"baseRefOid"`
+	IsCrossRepository bool       `json:"isCrossRepository"`
 	// HeadRepository is null once a fork is deleted.
 	HeadRepository *struct {
 		NameWithOwner string `json:"nameWithOwner"`
@@ -181,15 +188,25 @@ type pullDetail struct {
 			RequestedReviewer *struct {
 				actor
 				CombinedSlug string `json:"combinedSlug"`
+				// TeamName is the display name of a team, aliased since a
+				// user's name is the actor's.
+				TeamName string `json:"teamName"`
 			} `json:"requestedReviewer"`
 		} `json:"nodes"`
 	} `json:"reviewRequests"`
 	LatestOpinionatedReviews struct {
-		TotalCount int      `json:"totalCount"`
-		Nodes      []review `json:"nodes"`
+		TotalCount int            `json:"totalCount"`
+		Nodes      []detailReview `json:"nodes"`
 	} `json:"latestOpinionatedReviews"`
+	// LatestReviews holds the latest review of each reviewer of any state,
+	// the ones that only commented too.
+	LatestReviews struct {
+		TotalCount int            `json:"totalCount"`
+		Nodes      []detailReview `json:"nodes"`
+	} `json:"latestReviews"`
 	ViewerLatestReview *struct {
-		State string `json:"state"`
+		State  string     `json:"state"`
+		Commit *reviewSHA `json:"commit"`
 	} `json:"viewerLatestReview"`
 	ReviewThreads struct {
 		TotalCount int            `json:"totalCount"`
@@ -208,6 +225,27 @@ type pullDetail struct {
 			} `json:"statusCheckRollup"`
 		} `json:"commit"`
 	}] `json:"headCommit"`
+}
+
+// reviewSHA is the commit a review was made on.
+type reviewSHA struct {
+	Oid string `json:"oid"`
+}
+
+// detailReview is a review of the detail query with the commit it was made
+// on, null for one whose commit is gone.
+type detailReview struct {
+	review
+	Commit *reviewSHA `json:"commit"`
+}
+
+func (r detailReview) verdict() core.Verdict {
+	c := r.core()
+	v := core.Verdict{Author: c.Author, State: c.State, SubmittedAt: c.SubmittedAt}
+	if r.Commit != nil {
+		v.Commit = r.Commit.Oid
+	}
+	return v
 }
 
 // reviewThread is a thread of review comments on a diff.
@@ -283,6 +321,9 @@ func (d pullDetail) core() core.PullRequestDetail {
 		PullRequest: pr,
 		BaseSHA:     d.BaseRefOid,
 		CrossRepo:   d.IsCrossRepository,
+	}
+	if d.LastEditedAt != nil {
+		out.BodyEditedAt = *d.LastEditedAt
 	}
 	if d.HeadRepository != nil {
 		out.HeadRepo = oneLine(d.HeadRepository.NameWithOwner)
@@ -420,6 +461,7 @@ func (d pullDetail) reviewers() core.Reviewers {
 			req.Unknown = true
 		case r.Typename == "Team":
 			req.Team = oneLine(r.CombinedSlug)
+			req.TeamName = oneLine(r.TeamName)
 		case r.Login != "":
 			req.User = r.core()
 		default:
@@ -428,11 +470,17 @@ func (d pullDetail) reviewers() core.Reviewers {
 		out.Requested = append(out.Requested, req)
 	}
 	for _, r := range d.LatestOpinionatedReviews.Nodes {
-		c := r.core()
-		out.Verdicts = append(out.Verdicts, core.Verdict{Author: c.Author, State: c.State, SubmittedAt: c.SubmittedAt})
+		out.Verdicts = append(out.Verdicts, r.verdict())
+	}
+	out.LatestTotal = d.LatestReviews.TotalCount
+	for _, r := range d.LatestReviews.Nodes {
+		out.Latest = append(out.Latest, r.verdict())
 	}
 	if v := d.ViewerLatestReview; v != nil {
 		out.Viewer = core.ReviewState(strings.ToLower(v.State))
+		if v.Commit != nil {
+			out.ViewerCommit = v.Commit.Oid
+		}
 	}
 	return out
 }

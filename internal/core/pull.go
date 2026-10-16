@@ -72,6 +72,8 @@ type PullRequestDetail struct {
 	CrossRepo bool
 	// Milestone is the title of its milestone, or empty.
 	Milestone string
+	// BodyEditedAt is when its description was last edited, zero if never.
+	BodyEditedAt time.Time
 }
 
 // CheckCounts counts the checks of a commit, its check runs and commit
