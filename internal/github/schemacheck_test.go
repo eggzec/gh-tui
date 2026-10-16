@@ -96,6 +96,9 @@ var graphqlOperations = map[string]string{
 	"issueMentionsQuery":        issueMentionsQuery,
 	"resolveReferencesQuery":    resolveReferencesQuery,
 	"codeownersQuery":           codeownersQuery,
+	"pullLinksQuery":            pullLinksQuery,
+	"issuePreviewQuery":         issuePreviewQuery,
+	"pullPreviewQuery":          pullPreviewQuery,
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on
@@ -189,6 +192,9 @@ var graphqlOptional = []string{
 	"CheckSuite.app",
 	"WorkflowRun.runNumber",
 	"CheckRun.annotations",
+	// Issue dependencies are on github.com only, so a server without them
+	// shows no blockers.
+	"Issue.blockedBy",
 }
 
 // missingField matches gqlparser's message for a field the schema lacks.

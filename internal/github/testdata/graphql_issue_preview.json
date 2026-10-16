@@ -1,0 +1,33 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "issue": {
+        "id": "I_10", "number": 10, "title": "Token refresh fails", "state": "CLOSED", "stateReason": "NOT_PLANNED",
+        "url": "https://github.com/eggzec/gh-tui/issues/10",
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat"},
+        "createdAt": "2026-09-01T10:00:00Z",
+        "body": "The token is not refreshed.",
+        "labels": {"nodes": [{"name": "bug", "color": "d73a4a"}]},
+        "blockedBy": {
+          "totalCount": 4,
+          "nodes": [
+            {
+              "id": "I_5", "number": 5, "title": "Refactor the auth module", "state": "OPEN", "stateReason": null,
+              "url": "https://github.com/eggzec/gh-tui/issues/5",
+              "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+            }
+          ]
+        },
+        "comments": {
+          "totalCount": 9,
+          "nodes": [
+            {"author": {"login": "alice"}, "body": "Same here.", "createdAt": "2026-09-02T10:00:00Z"},
+            {"author": null, "body": "From a deleted account.", "createdAt": "2026-09-03T10:00:00Z"}
+          ]
+        }
+      }
+    }
+  }
+}

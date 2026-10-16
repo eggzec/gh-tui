@@ -1,0 +1,35 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "id": "PR_20", "number": 20, "title": "Refresh tokens early", "state": "MERGED", "isDraft": false,
+        "url": "https://github.com/eggzec/gh-tui/pull/20",
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat"},
+        "headRefName": "fix/refresh",
+        "baseRefName": "main",
+        "additions": 40,
+        "deletions": 3,
+        "changedFiles": 5,
+        "reviewDecision": "CHANGES_REQUESTED",
+        "body": "Refreshes the token\nbefore it expires.",
+        "labels": {"nodes": [{"name": "bug", "color": "d73a4a"}]},
+        "latestOpinionatedReviews": {
+          "nodes": [
+            {"author": {"login": "alice"}, "state": "APPROVED"},
+            {"author": {"login": "bob"}, "state": "CHANGES_REQUESTED"}
+          ]
+        },
+        "statusCheckRollup": {
+          "state": "PENDING",
+          "contexts": {
+            "totalCount": 4,
+            "checkRunCountsByState": [{"count": 2, "state": "SUCCESS"}, {"count": 1, "state": "IN_PROGRESS"}],
+            "statusContextCountsByState": [{"count": 1, "state": "SUCCESS"}]
+          }
+        }
+      }
+    }
+  }
+}
