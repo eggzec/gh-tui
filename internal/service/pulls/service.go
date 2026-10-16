@@ -83,6 +83,7 @@ type API interface {
 	// ListTeamMembers the members of a team of an organization.
 	GetCodeowners(ctx context.Context, repo core.RepoRef, base string) (core.CodeownersFile, error)
 	ListTeamMembers(ctx context.Context, org, slug string) (core.Page[core.Person], error)
+	reviewersAPI
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -134,6 +135,9 @@ type Service struct {
 	// never changes, and members the members of a team, which do.
 	owners  *cache.Cache[OwnersFile]
 	members *cache.Cache[TeamMembers]
+	// reviewerTeams holds the teams to ask for a review, by organization and
+	// text.
+	reviewerTeams *cache.Cache[ReviewerTeams]
 	// pendings holds the viewer's pending review of a pull request. It is
 	// private and changes on the web, so it is never kept on disk.
 	pendings *cache.Cache[pendingRead]
@@ -209,6 +213,7 @@ func New(api API, opts ...Option) *Service {
 		pullCommits:   cache.New[core.PullCommits](mem...),
 		owners:        cache.New[OwnersFile](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
 		members:       cache.New[TeamMembers](mem...),
+		reviewerTeams: cache.New[ReviewerTeams](mem...),
 		sinces:        cache.New[core.Compare](mem...),
 		ranges:        cache.New[core.CompareDetail](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), rangeSize)),
 		files:         cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
