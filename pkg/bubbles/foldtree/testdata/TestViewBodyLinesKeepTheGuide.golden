@@ -1,0 +1,10 @@
+▌Review                           
+ ├─ alice  src/main.go:12         
+ │  the first line of a comment   
+ │  the second line               
+ ╰─ bob  a last thread            
+    with a body                   
+    of two lines                  
+ summary                          
+ of a top-level row               
+                                  
