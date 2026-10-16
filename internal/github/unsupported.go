@@ -24,6 +24,8 @@ type unsupported struct {
 	mu sync.Mutex
 	// sent maps a query to the query sent in its place.
 	sent map[string]string
+	// told holds the keys that first has been asked about.
+	told map[string]bool
 }
 
 // rewrite returns what to send for query: query itself, unless it selects
@@ -42,6 +44,19 @@ func (u *unsupported) remember(query, sent string) {
 		u.sent = map[string]string{}
 	}
 	u.sent[query] = sent
+}
+
+// first reports whether it is the first time of the session that it is asked
+// about key, so that a read that finds the same field missing says so once.
+func (u *unsupported) first(key string) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.told == nil {
+		u.told = map[string]bool{}
+	}
+	was := u.told[key]
+	u.told[key] = true
+	return !was
 }
 
 // schemaCodes are the codes of GitHub's errors of a query that its schema

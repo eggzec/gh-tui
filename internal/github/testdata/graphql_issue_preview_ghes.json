@@ -1,0 +1,17 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "issue": {
+        "id": "I_10", "number": 10, "title": "Token refresh fails", "state": "OPEN", "stateReason": null,
+        "url": "https://ghes.example.com/eggzec/gh-tui/issues/10",
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat"},
+        "createdAt": "2026-09-01T10:00:00Z",
+        "body": "The token is not refreshed.",
+        "labels": {"nodes": []},
+        "comments": {"totalCount": 0, "nodes": []}
+      }
+    }
+  }
+}

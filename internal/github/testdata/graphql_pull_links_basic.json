@@ -1,0 +1,71 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "id": "PR_self",
+        "closingIssuesReferences": {
+          "totalCount": 30,
+          "nodes": [
+            {
+              "id": "I_10", "number": 10, "title": "Token refresh fails", "state": "OPEN", "stateReason": null,
+              "url": "https://github.com/eggzec/gh-tui/issues/10",
+              "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+              "blockedBy": {
+                "totalCount": 12,
+                "nodes": [
+                  {
+                    "id": "I_5", "number": 5, "title": "Refactor the auth module", "state": "CLOSED", "stateReason": "COMPLETED",
+                    "url": "https://github.com/eggzec/gh-tui/issues/5",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  }
+                ]
+              },
+              "closedByPullRequestsReferences": {
+                "totalCount": 4,
+                "nodes": [
+                  {
+                    "id": "PR_self", "number": 7, "title": "Fix the token refresh", "state": "OPEN", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/7",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  },
+                  {
+                    "id": "PR_21", "number": 21, "title": "Try another refresh", "state": "OPEN", "isDraft": true,
+                    "url": "https://github.com/eggzec/gh-tui/pull/21",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  },
+                  {
+                    "id": "PR_20", "number": 20, "title": "Refresh tokens early", "state": "MERGED", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/20",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  }
+                ]
+              }
+            },
+            {
+              "id": "I_11", "number": 11, "title": "Cache the token", "state": "CLOSED", "stateReason": "NOT_PLANNED",
+              "url": "https://github.com/acme/lib/issues/11",
+              "repository": {"name": "lib", "owner": {"login": "acme"}},
+              "blockedBy": {"totalCount": 0, "nodes": []},
+              "closedByPullRequestsReferences": {
+                "totalCount": 2,
+                "nodes": [
+                  {
+                    "id": "PR_20", "number": 20, "title": "Refresh tokens early", "state": "MERGED", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/20",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  },
+                  {
+                    "id": "PR_self", "number": 7, "title": "Fix the token refresh", "state": "OPEN", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/7",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "id": "PR_self",
+        "closingIssuesReferences": {
+          "totalCount": 1,
+          "nodes": [
+            {
+              "id": "I_10", "number": 10, "title": "Token refresh fails", "state": "OPEN", "stateReason": null,
+              "url": "https://github.com/eggzec/gh-tui/issues/10",
+              "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+              "blockedBy": {"totalCount": 0, "nodes": []},
+              "closedByPullRequestsReferences": {
+                "totalCount": 5,
+                "nodes": [
+                  {
+                    "id": "PR_lib_3", "number": 3, "title": "Cache early", "state": "OPEN", "isDraft": false,
+                    "url": "https://github.com/acme/lib/pull/3",
+                    "repository": {"name": "lib", "owner": {"login": "acme"}}
+                  },
+                  {
+                    "id": "PR_20", "number": 20, "title": "Refresh tokens early", "state": "MERGED", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/20",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  },
+                  null,
+                  {
+                    "id": "PR_lib_8", "number": 8, "title": "Cache later", "state": "OPEN", "isDraft": false,
+                    "url": "https://github.com/acme/lib/pull/8",
+                    "repository": {"name": "lib", "owner": {"login": "acme"}}
+                  },
+                  {
+                    "id": "PR_9", "number": 9, "title": "Try a refresh", "state": "CLOSED", "isDraft": false,
+                    "url": "https://github.com/eggzec/gh-tui/pull/9",
+                    "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "errors": [
+    {
+      "type": "FORBIDDEN",
+      "path": ["repository", "pullRequest", "closingIssuesReferences", "nodes", 0, "closedByPullRequestsReferences", "nodes", 2],
+      "message": "Resource protected by organization SAML enforcement."
+    }
+  ]
+}

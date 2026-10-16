@@ -1,0 +1,30 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "issue": {
+        "id": "I_10", "number": 10, "title": "Token refresh fails", "state": "OPEN", "stateReason": null,
+        "url": "https://github.com/eggzec/gh-tui/issues/10",
+        "repository": {"name": "gh-tui", "owner": {"login": "eggzec"}},
+        "author": {"login": "octocat"},
+        "createdAt": "2026-09-01T10:00:00Z",
+        "body": "The token is not refreshed.",
+        "labels": {"nodes": []},
+        "blockedBy": {"totalCount": 1, "nodes": [null]},
+        "comments": {
+          "totalCount": 1,
+          "nodes": [
+            {"author": {"login": "alice"}, "body": "Same here.", "createdAt": "2026-09-02T10:00:00Z"}
+          ]
+        }
+      }
+    }
+  },
+  "errors": [
+    {
+      "type": "FORBIDDEN",
+      "path": ["repository", "issue", "blockedBy", "nodes", 0],
+      "message": "Resource protected by organization SAML enforcement."
+    }
+  ]
+}
