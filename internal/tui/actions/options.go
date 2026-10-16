@@ -27,6 +27,10 @@ type options struct {
 	viewer Viewer
 	repos  ui.Repos
 	filter core.RunFilter
+	// run and job are the IDs of the run and the job the modal opens on, if
+	// not zero; jobsFocused opens it on the jobs.
+	run, job    int64
+	jobsFocused bool
 	// dates tell when the runs started.
 	dates ui.Dates
 	// voice words the errors of the runs and the log; New makes one of
@@ -105,6 +109,26 @@ func WithFollow(f Follow) Option {
 // a branch that failed. The default shows every run.
 func WithFilter(f core.RunFilter) Option {
 	return func(o *options) { o.filter = f }
+}
+
+// WithRun opens the modal on the run with ID id, reading the pages of the
+// runs until it is listed. If it never is, such as when it was deleted, the
+// modal opens on the first run. The default is the first run.
+func WithRun(id int64) Option {
+	return func(o *options) { o.run = id }
+}
+
+// WithJob opens the modal on the job with ID id, a check run's database ID,
+// among the jobs of the run it opens on, and shows its log. If the run has
+// no such job, the modal opens on the job it opens on by default.
+func WithJob(id int64) Option {
+	return func(o *options) { o.job = id }
+}
+
+// WithJobsFocused opens the modal with the jobs focused, rather than the
+// runs.
+func WithJobsFocused() Option {
+	return func(o *options) { o.jobsFocused = true }
 }
 
 // WithViewer sets how the modal learns who the user is, for the Mine tab

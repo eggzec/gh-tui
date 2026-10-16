@@ -176,6 +176,11 @@ func (m *Modal) current(r core.Run) core.Run {
 func (m *Modal) updateRuns(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.runs, cmd = m.runs.Update(msg)
+	if m.runs.Seeking() {
+		// The run to open on isn't listed yet: showing the first would read
+		// its jobs for nothing.
+		return cmd
+	}
 	return tea.Batch(cmd, m.selectRun(), m.readJobsAround())
 }
 
