@@ -44,7 +44,18 @@ var pullThreadsQuery = fmt.Sprintf(`query PullThreads($owner: String!, $name: St
           comments(first: %d) {
             totalCount
             nodes {
-              id
+              %s
+            }
+          }
+        }
+      }
+    }
+  }
+}`, threadComments, pullThreadCommentFields)
+
+// pullThreadCommentFields selects what a pullThreadComment holds. The reply
+// to a thread reads the same, so that its comment decodes alike.
+const pullThreadCommentFields = `id
               author { __typename login ... on User { name } }
               createdAt lastEditedAt body url
               path diffHunk
@@ -52,14 +63,7 @@ var pullThreadsQuery = fmt.Sprintf(`query PullThreads($owner: String!, $name: St
               line originalLine startLine originalStartLine
               viewerCanUpdate viewerCanDelete
               replyTo { id }
-              pullRequestReview { id state }
-            }
-          }
-        }
-      }
-    }
-  }
-}`, threadComments)
+              pullRequestReview { id state }`
 
 // pullThread is the JSON shape of a review thread in pullThreadsQuery.
 type pullThread struct {

@@ -99,6 +99,14 @@ var graphqlOperations = map[string]string{
 	"pullLinksQuery":            pullLinksQuery,
 	"issuePreviewQuery":         issuePreviewQuery,
 	"pullPreviewQuery":          pullPreviewQuery,
+
+	"editPullMutation":            editPullMutation,
+	"replyThreadMutation":         replyThreadMutation,
+	"editIssueCommentMutation":    editIssueCommentMutation,
+	"editReviewCommentMutation":   editReviewCommentMutation,
+	"editReviewMutation":          editReviewMutation,
+	"deleteIssueCommentMutation":  deleteIssueCommentMutation,
+	"deleteReviewCommentMutation": deleteReviewCommentMutation,
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on
