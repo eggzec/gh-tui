@@ -139,6 +139,11 @@ type rowStyles struct {
 	comment, ellipsis string
 }
 
+// newChips returns the label chips these styles draw.
+func (st rowStyles) newChips() ui.LabelChips {
+	return ui.NewLabelChips(st.label, st.dark, st.ellipsis, chipName)
+}
+
 // stateNames name the states of issues in the detail header.
 var stateNames = map[ui.State]string{
 	ui.IssueOpen: "Open", ui.IssueClosed: "Closed", ui.IssueNotPlanned: "Closed as not planned",
@@ -239,7 +244,7 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 		if i > 0 {
 			b.WriteByte(' ')
 		}
-		b.WriteString(ch.text)
+		b.WriteString(ch)
 	}
 	if more != "" {
 		if shown > 0 {
@@ -252,10 +257,9 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 // fitLabels returns the chips of up to n labels that fit in width cells
 // together with the count of the labels they leave out, that count, and
 // the width they all take.
-func (s *Section) fitLabels(labels []core.Label, n, width int) (chips [2]chip, shown int, more string, w int) {
+func (s *Section) fitLabels(labels []core.Label, n, width int) (chips [2]string, shown int, more string, w int) {
 	for _, l := range labels[:min(len(labels), n, len(chips))] {
-		ch := s.chips.get(l)
-		cw := ch.width
+		ch, cw := s.chips.Get(l)
 		if shown > 0 {
 			cw++
 		}
