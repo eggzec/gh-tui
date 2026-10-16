@@ -2,6 +2,7 @@ package picker
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -19,6 +20,9 @@ type result struct {
 	// matches holds the byte offsets in title of the runes that match the
 	// query, in order.
 	matches []int
+	// marked is whether the item was marked when order last sorted it. It
+	// is only kept for a picker that lists the marked first.
+	marked bool
 }
 
 func newResult(it Item) result {
@@ -38,6 +42,9 @@ func results(items []Item) []result {
 type row struct {
 	header string
 	item   int
+	// rule is the line between the marked items and the rest. Like a header
+	// it has no item, so it is never selected.
+	rule bool
 }
 
 // typedHeader heads the row of the typed item.
@@ -82,9 +89,14 @@ func searched(items []Item, text string) []result {
 	return out
 }
 
-// show lists rs, grouped by kind, and selects the first.
+// show lists rs, grouped by kind or with the marked first, and selects the
+// first.
 func (m *Model) show(rs []result) {
-	group(rs)
+	if m.markedFirst() {
+		m.order(rs)
+	} else {
+		group(rs)
+	}
 	m.listed = rs
 	m.sel, m.top = 0, 0
 	m.rebuild()
@@ -103,13 +115,20 @@ func (m *Model) rebuild() {
 	m.results = rs
 	// Copies of the model share the old slices, so these are new ones.
 	m.rows, m.itemRow = make([]row, 0, len(rs)+4), make([]int, 0, len(rs))
-	for i, r := range rs {
+	for i := range rs {
+		r := &rs[i]
 		switch {
 		case m.typedAt && i == len(rs)-1:
 			// A header of its own, so the row doesn't read as part of the
 			// last group, unless the picker shows no headers.
 			if m.headers {
 				m.rows = append(m.rows, row{header: typedHeader, item: -1})
+			}
+		case m.markedFirst():
+			// The rule between the two groups stands in for kind headers,
+			// since the order doesn't keep kinds together.
+			if i > 0 && rs[i-1].marked && !r.marked {
+				m.rows = append(m.rows, row{item: -1, rule: true})
 			}
 		case m.headers && r.Kind != "" && (i == 0 || rs[i-1].Kind != r.Kind):
 			m.rows = append(m.rows, row{header: r.Kind, item: -1})
@@ -132,7 +151,8 @@ func (m Model) typedItem() (Item, bool) {
 	// Only what is listed counts, which is what the scope shows: the same
 	// text may be offered again in another scope, which is intended.
 	want := strings.TrimSpace(text)
-	for _, r := range m.listed {
+	for i := range m.listed {
+		r := &m.listed[i]
 		if strings.EqualFold(strings.TrimSpace(r.Title), want) {
 			return Item{}, false
 		}
@@ -155,9 +175,9 @@ func (m *Model) retype() {
 // keeps the order within each kind.
 func group(rs []result) {
 	order := make(map[string]int)
-	for _, r := range rs {
-		if _, ok := order[r.Kind]; !ok {
-			order[r.Kind] = len(order)
+	for i := range rs {
+		if _, ok := order[rs[i].Kind]; !ok {
+			order[rs[i].Kind] = len(order)
 		}
 	}
 	if len(order) < 2 {
@@ -166,6 +186,44 @@ func group(rs []result) {
 	slices.SortStableFunc(rs, func(a, b result) int {
 		return cmp.Compare(order[a.Kind], order[b.Kind])
 	})
+}
+
+// markedFirst reports whether the picker lists the marked items first.
+func (m Model) markedFirst() bool { return m.marked && m.first }
+
+// order sorts rs in place: the marked items first, then the rest, each by
+// title ignoring case. Ties go by exact title, then by value, so the order
+// never depends on how the items arrived. It also records which are marked.
+func (m Model) order(rs []result) {
+	type keyed struct {
+		r    result
+		fold string
+	}
+	ks := make([]keyed, len(rs))
+	for i := range rs {
+		rs[i].marked = m.isMarked(rs[i].Value)
+		ks[i] = keyed{rs[i], strings.ToLower(rs[i].title)}
+	}
+	slices.SortStableFunc(ks, func(a, b keyed) int {
+		if a.r.marked != b.r.marked {
+			if a.r.marked {
+				return -1
+			}
+			return 1
+		}
+		if c := cmp.Compare(a.fold, b.fold); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.r.title, b.r.title); c != 0 {
+			return c
+		}
+		// Only items with the very same title get here. A value breaks the
+		// tie, since any other key would depend on the arrival order.
+		return cmp.Compare(fmt.Sprint(a.r.Value), fmt.Sprint(b.r.Value))
+	})
+	for i := range ks {
+		rs[i] = ks[i].r
+	}
 }
 
 // clean puts text on one line without escape sequences.

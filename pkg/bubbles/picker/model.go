@@ -11,6 +11,7 @@ package picker
 import (
 	"context"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -248,11 +249,48 @@ func (m Model) typingMode() bool {
 }
 
 // SetMarked sets the values of the rows that are marked, which need not be
-// in the list. The selection and the scroll stay.
+// in the list. The selection and the scroll stay. A picker made with
+// [WithMarkedFirst] sorts again, so an item that changes sides moves; the
+// selection stays on the same item, found by its Value, and scrolls into view.
 func (m *Model) SetMarked(values []any) {
+	if !m.markedFirst() {
+		m.marks = slices.Clone(values)
+		m.lines = make([]string, len(m.rows))
+		m.render()
+		return
+	}
+	// The typed item, if selected, is outside listed and stays where it is.
+	tracked := m.sel >= 0 && m.sel < len(m.listed)
+	var stay any
+	if tracked {
+		stay = m.listed[m.sel].Value
+	}
 	m.marks = slices.Clone(values)
-	m.lines = make([]string, len(m.rows))
+	// A new slice, since copies of the model share the old one.
+	m.listed = slices.Clone(m.listed)
+	m.order(m.listed)
+	m.rebuild()
+	if tracked {
+		for i := range m.listed {
+			if equal(m.listed[i].Value, stay) {
+				m.sel = i
+				break
+			}
+		}
+		m.scroll()
+	}
 	m.render()
+}
+
+// Title returns name with the number of marked values after it, such as
+// "Labels · 2 selected", for a parent that heads the picker. The count is of
+// the marked values, whether or not the list shows them, such as those a
+// filter hides. A picker made without [WithMarkedFirst] returns name as it is.
+func (m Model) Title(name string) string {
+	if !m.markedFirst() {
+		return name
+	}
+	return name + " · " + strconv.Itoa(len(m.marks)) + " selected"
 }
 
 // SetSize sets the width and height, frame included.

@@ -3,6 +3,7 @@ package picker
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,6 +33,24 @@ func BenchmarkView(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = m.View()
+	}
+}
+
+// BenchmarkSetMarked toggles one mark in a picker that lists the marked
+// first, so every call sorts the items again and rebuilds the rows.
+func BenchmarkSetMarked(b *testing.B) {
+	items := benchItems(300)
+	for i := range items {
+		items[i].Value = i
+	}
+	m := open(b, nil, WithItems(items), WithMarks("[x]", "[ ]"), WithMarkedFirst(true), WithSize(80, 30))
+	marked := []any{3, 40, 150}
+	m.SetMarked(marked)
+	with := append(slices.Clone(marked), 200)
+	b.ReportAllocs()
+	for b.Loop() {
+		m.SetMarked(with)
+		m.SetMarked(marked)
 	}
 }
 
