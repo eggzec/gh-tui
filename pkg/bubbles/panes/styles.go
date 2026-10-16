@@ -2,11 +2,13 @@ package panes
 
 import "charm.land/lipgloss/v2"
 
-// Styles holds how the frames look.
+// Styles holds how the frames look. The styles only colour and weigh text:
+// padding, margins or a width on one would break the widths of the frames.
 type Styles struct {
 	// Border is the glyphs of the frame. The default is rounded; use
 	// lipgloss.ASCIIBorder for terminals without line drawing. Each glyph
-	// is one cell wide.
+	// is one cell wide and none is empty, so lipgloss.NormalBorder and its
+	// like fit but a hidden or wide-glyph border does not.
 	Border lipgloss.Border
 	// Edge colours the border of an unfocused box, EdgeFocus the focused one.
 	Edge, EdgeFocus lipgloss.Style

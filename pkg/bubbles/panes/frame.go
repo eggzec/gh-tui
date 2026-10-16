@@ -8,8 +8,8 @@ import (
 
 // Content is what the caller puts in one box.
 type Content struct {
-	// Title is the left part of the top border. When empty, a box that is
-	// not a Preview shows its pane's Title.
+	// Title is the left part of the top border. When empty, Draw gives a box
+	// that is not a Preview its pane's Title, so a caller cannot ask for none.
 	Title string
 	// Info are the forms of the right-hand info of the top border, the
 	// longest first. The first that fits is drawn, and none when none
@@ -18,9 +18,12 @@ type Content struct {
 	Info []string
 	// Body is the content, lines joined by "\n". Lines beyond the inner
 	// height are dropped, and lines wider than the inner width are cut with
-	// an ellipsis. Tabs are expanded to stops of 4.
+	// an ellipsis. Tabs are expanded to stops of 4. Other control characters,
+	// such as "\r", are not removed and break the widths: the caller strips
+	// them.
 	Body string
-	// Focus draws the border in the focus colour.
+	// Focus draws the border in the focus colour. Frame reads it; Draw sets
+	// it from the layout and ignores what the caller gave.
 	Focus bool
 }
 
@@ -41,7 +44,7 @@ func (s Styles) frame(c Content, w, h int) []string {
 		return blank
 	}
 	b, e := s.Border, s.edge(c.Focus)
-	side := e.Render(b.Left)
+	side, right := e.Render(b.Left), e.Render(b.Right)
 	lines := make([]string, 0, h)
 	lines = append(lines, s.top(c, w))
 	inner := w - 2
@@ -51,7 +54,7 @@ func (s Styles) frame(c Content, w, h int) []string {
 		if i < len(body) {
 			line = expandTabs(body[i])
 		}
-		lines = append(lines, side+s.pad(line, inner)+e.Render(b.Right))
+		lines = append(lines, side+s.pad(line, inner)+right)
 	}
 	return append(lines, e.Render(b.BottomLeft+strings.Repeat(b.Bottom, inner)+b.BottomRight))
 }
@@ -102,17 +105,49 @@ func (s Styles) top(c Content, w int) string {
 	return e.Render(b.TopLeft) + left + dashes + info + e.Render(b.TopRight)
 }
 
-// cut cuts a line to w cells with an ellipsis, and closes a hyperlink the
-// cut left open so that it does not run on into the border.
+// cut cuts a line to w cells with an ellipsis, and seals it.
 func (s Styles) cut(line string, w int) string {
-	if ansi.StringWidth(line) <= w {
+	if ansi.StringWidth(line) > w {
+		line = ansi.Truncate(line, w, s.Ellipsis)
+	}
+	return seal(line)
+}
+
+// seal closes the hyperlink and the style a line leaves open, cut or not, so
+// that neither runs on into the border and the padding after it.
+func seal(line string) string {
+	if !strings.Contains(line, "\x1b") {
 		return line
 	}
-	out := ansi.Truncate(line, w, s.Ellipsis)
-	if linkOpen(out) {
-		out += "\x1b]8;;\x1b\\"
+	if linkOpen(line) {
+		line += "\x1b]8;;\x1b\\"
 	}
-	return out
+	if sgrOpen(line) {
+		line += "\x1b[m"
+	}
+	return line
+}
+
+// sgrOpen reports whether s ends with a style that was set and not reset.
+func sgrOpen(s string) bool {
+	open := false
+	for {
+		i := strings.Index(s, "\x1b[")
+		if i < 0 {
+			return open
+		}
+		s = s[i+2:]
+		end := strings.IndexFunc(s, func(r rune) bool { return r >= 0x40 && r <= 0x7e })
+		if end < 0 {
+			return open
+		}
+		if s[end] == 'm' {
+			// "m" and "0m" reset; anything with another digit sets something.
+			// "1;0" counts as open, which only costs a reset too many.
+			open = strings.ContainsAny(s[:end], "123456789")
+		}
+		s = s[end+1:]
+	}
 }
 
 // linkOpen reports whether s ends inside an OSC 8 hyperlink.

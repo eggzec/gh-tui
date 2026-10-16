@@ -2,6 +2,7 @@ package panes
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -13,10 +14,12 @@ type stripForm struct {
 	width int
 }
 
-// stripForms are the strip from the longest form to the shortest: full
+// stripForms yields the strip from the longest form to the shortest: full
 // names, short names, short names without separators, then digits with the
 // current pane in brackets. The current pane is accented, the others dim.
-func (s Styles) stripForms(cur Pane) []stripForm {
+// Each form is built when the loop asks for it, so a loop that stops at the
+// first form that fits builds no more.
+func (s Styles) stripForms(cur Pane) iter.Seq[stripForm] {
 	build := func(name func(Pane) string, sep string, digits bool) stripForm {
 		parts := make([]string, 0, Count)
 		for p := Description; p <= Files; p++ {
@@ -38,11 +41,17 @@ func (s Styles) stripForms(cur Pane) []stripForm {
 		text := strings.Join(parts, s.StripSep.Render(sep))
 		return stripForm{text: text, width: ansi.StringWidth(text)}
 	}
-	return []stripForm{
-		build(Pane.Name, " · ", false),
-		build(Pane.Short, " · ", false),
-		build(Pane.Short, " ", false),
-		build(nil, " ", true),
+	return func(yield func(stripForm) bool) {
+		for _, f := range []func() stripForm{
+			func() stripForm { return build(Pane.Name, " · ", false) },
+			func() stripForm { return build(Pane.Short, " · ", false) },
+			func() stripForm { return build(Pane.Short, " ", false) },
+			func() stripForm { return build(nil, " ", true) },
+		} {
+			if !yield(f()) {
+				return
+			}
+		}
 	}
 }
 
@@ -66,28 +75,43 @@ func (s Styles) stripLine(widths []int, focus []bool, f stripForm) (string, bool
 		at += w
 		seam[at-1], seam[at] = true, true
 	}
+	// Glyphs gather in a run while the colour stays the same, and each run
+	// is rendered once; cells are visited from left to right.
 	box, edge := 0, widths[0]
-	cell := func(i int, g string) string {
+	var out, run strings.Builder
+	runFocus := focus[0]
+	flush := func() {
+		if run.Len() > 0 {
+			out.WriteString(s.edge(runFocus).Render(run.String()))
+			run.Reset()
+		}
+	}
+	cell := func(i int, g string) {
 		for i >= edge {
 			box++
 			edge += widths[box]
 		}
-		return s.edge(focus[box]).Render(g)
+		if focus[box] != runFocus {
+			flush()
+			runFocus = focus[box]
+		}
+		run.WriteString(g)
 	}
 	b := s.Border
-	var out strings.Builder
-	out.WriteString(cell(0, b.BottomLeft+b.Bottom+" "))
+	cell(0, b.BottomLeft+b.Bottom+" ")
+	flush() // the strip has colours of its own
 	out.WriteString(f.text)
-	out.WriteString(cell(3+f.width, " "))
+	cell(3+f.width, " ")
 	for i := end; i < total; i++ {
 		switch {
 		case i == total-1:
-			out.WriteString(cell(i, b.BottomRight))
+			cell(i, b.BottomRight)
 		case seam[i]:
-			out.WriteString(cell(i, b.MiddleBottom))
+			cell(i, b.MiddleBottom)
 		default:
-			out.WriteString(cell(i, b.Bottom))
+			cell(i, b.Bottom)
 		}
 	}
+	flush()
 	return out.String(), true
 }

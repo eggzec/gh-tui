@@ -78,6 +78,11 @@ type Rect struct{ X, Y, W, H int }
 
 // Inner is the rectangle for a box's content: inside the border and the one
 // column of padding on each side. It is empty when the box is too small.
+//
+// It always assumes that padding. Frame leaves the padding out of a box
+// under 5 cells wide, to give the content the room, so such a box shows up
+// to 2 cells where Inner is empty or narrower; callers that fill a box that
+// small are better off not drawing content in it.
 func (r Rect) Inner() Rect {
 	return Rect{X: r.X + 2, Y: r.Y + 1, W: max(0, r.W-4), H: max(0, r.H-2)}
 }
@@ -125,7 +130,10 @@ type Layout struct {
 	// Zoomed is set when one pane fills the area (and carries the pane
 	// strip), either because of Spec.Zoom or because the area is narrow.
 	Zoomed bool
-	Boxes  []Box
+	// Focus is the focused pane, as Compute settled it. Draw draws the boxes
+	// of this pane as focused; a Layout built by hand with no Focus has none.
+	Focus Pane
+	Boxes []Box
 }
 
 // Compute lays out the area of s. Boxes never leave the area, and a box
@@ -135,7 +143,7 @@ func Compute(s Spec) Layout {
 	if !s.Focus.Valid() {
 		s.Focus = Description
 	}
-	l := Layout{Width: w, Height: h, Zoomed: s.Zoom || w < WideMin}
+	l := Layout{Width: w, Height: h, Zoomed: s.Zoom || w < WideMin, Focus: s.Focus}
 	if l.Zoomed {
 		l.Boxes = zoomed(s.Focus, w, h)
 	} else {
@@ -157,6 +165,9 @@ func (l Layout) Box(p Pane, r Role) (Box, bool) {
 	return Box{}, false
 }
 
+// zoomed is one pane over the whole area, or a list beside its preview for
+// the panes below Merge's number. Description and Conversation never split,
+// deliberately: they have no sub-panes, so there is nothing to preview.
 func zoomed(p Pane, w, h int) []Box {
 	if w < SplitMin || p < Merge {
 		return []Box{{Pane: p, Rect: Rect{0, 0, w, h}}}
@@ -192,8 +203,10 @@ func descriptionHeight(h int) int {
 }
 
 // rightHeights are the heights of the right column. Merge, Involved and
-// Development shrink, tallest first, until Files has at least its three
-// lines.
+// Development shrink one line at a time, tallest first (Merge winning ties),
+// while their sum is more than h-5, and never below 3 lines each. Files gets
+// what is left, but at least 3 lines: so at least 5 whenever the three above
+// can shrink that far, and fewer only when h is under 14.
 func rightHeights(h, invRows, devRows int) (merge, inv, dev, files int) {
 	hs := [3]int{11, max(4, invRows+2), max(3, devRows+2)}
 	for hs[0]+hs[1]+hs[2] > h-5 {

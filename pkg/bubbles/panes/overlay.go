@@ -16,9 +16,13 @@ const (
 
 // The most a wide picker takes.
 const (
-	pickerWidth  = 46
+	pickerWidth  = ListWidth
 	pickerHeight = 14
 )
+
+// minViewerHeight is the fewest lines an inset viewer may have: its border
+// and three lines of content. Under it a viewer fills the area instead.
+const minViewerHeight = 5
 
 // Overlay describes an overlay to place.
 type Overlay struct {
@@ -33,8 +37,9 @@ type Overlay struct {
 
 // OverlayRect places an overlay in an area of w by h cells, the panes' area
 // without the footer. Viewers and pickers fill the area when it is narrower
-// than WideMin, and viewers also when maximized. The rectangle always lies
-// inside the area.
+// than WideMin, and viewers also when maximized or when the inset would leave
+// them under minViewerHeight lines. The rectangle always lies inside the
+// area.
 func OverlayRect(o Overlay, w, h int) Rect {
 	w, h = max(0, w), max(0, h)
 	full := Rect{0, 0, w, h}
@@ -46,6 +51,9 @@ func OverlayRect(o Overlay, w, h int) Rect {
 			return full
 		}
 		r = Rect{4, 2, w - 8, h - 4}
+		if r.H < minViewerHeight || r.W < 1 {
+			return full
+		}
 	case Picker:
 		if !wide {
 			return full

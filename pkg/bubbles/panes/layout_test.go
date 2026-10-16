@@ -72,7 +72,7 @@ func TestComputeHeights(t *testing.T) {
 			},
 		},
 		{
-			"few rows keep the minimum heights",
+			"no default rows for Involved and Development keep their minimum heights",
 			Spec{Width: 120, Height: 40, Focus: Description},
 			map[Pane]Rect{
 				Merge: {84, 0, 36, 11}, Involved: {84, 11, 36, 4},
