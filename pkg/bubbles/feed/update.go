@@ -102,8 +102,9 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	default:
 		return nil
 	}
-	// The user moved, so a Reload no longer needs to follow the item.
-	m.anchored = false
+	// The user moved, so a Reload no longer needs to follow the item, and a
+	// seek no longer moves the cursor away from where they put it.
+	m.anchored, m.seeking = false, false
 	// A filter does not read ahead, since rows it hides would have it
 	// fetch every chunk: moving down from its last row, or from where it
 	// shows none, fetches the next one.
@@ -169,6 +170,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	stale, kept := errors.Is(msg.err, ErrStale), errors.Is(msg.err, ErrKept)
 	if msg.err != nil && !stale && !kept {
 		c.err, c.kept = msg.err, false
+		m.seeking = false
 		m.refreshError()
 		return nil
 	}
@@ -198,7 +200,11 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 			m.sel, m.top = i, i-m.anchorRow
 		}
 	}
-	cmd := m.sync()
+	var seek tea.Cmd
+	if m.seeking {
+		seek = m.seekStep()
+	}
+	cmd := tea.Batch(seek, m.sync())
 	if !stale {
 		return cmd
 	}

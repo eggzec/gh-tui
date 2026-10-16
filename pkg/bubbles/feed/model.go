@@ -109,6 +109,9 @@ type Model[T any] struct {
 	anchor    string
 	anchorRow int
 	anchored  bool
+	// seek is the key of the item [Model.Seek] looks for, while seeking.
+	seek    string
+	seeking bool
 
 	spin     spinner.Model
 	spinning bool
@@ -185,7 +188,7 @@ func (m *Model[T]) Reset() tea.Cmd {
 	m.tail = chunk[T]{}
 	m.done = false
 	m.sel, m.top = 0, 0
-	m.anchored = false
+	m.anchored, m.seeking = false, false
 	// The new items are not the ones the find and the filter looked at.
 	m.query, m.hits, m.filter, m.rows, m.note, m.marks = "", nil, "", nil, "", nil
 	m.closePrompt()
