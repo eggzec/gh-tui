@@ -1,0 +1,45 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "resetAt": "2026-09-23T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "page": {
+          "pageInfo": {"hasNextPage": true, "endCursor": "CUR1"},
+          "nodes": [
+            {"__typename": "PullRequestCommit", "url": "https://github.com/eggzec/gh-tui/pull/42/commits/aaa111",
+             "pullCommit": {"oid": "aaa111aaa111", "abbreviatedOid": "aaa111a", "messageHeadline": "feat: first", "committedDate": "2026-09-20T09:00:00Z",
+                            "author": {"name": "Mona L", "user": {"login": "monalisa", "name": "Mona Lisa"}}}},
+            {"__typename": "PullRequestCommit", "url": "u",
+             "pullCommit": {"oid": "bbb222", "abbreviatedOid": "bbb222", "messageHeadline": "fix: second", "committedDate": "2026-09-20T09:30:00Z",
+                            "author": {"name": "Git Only", "user": null}}},
+            {"__typename": "IssueComment", "id": "IC_1", "author": {"__typename": "User", "login": "hubot", "avatarUrl": "https://avatars/hubot", "name": "Hubot"},
+             "body": "Looks **good**", "createdAt": "2026-09-20T10:00:00Z", "updatedAt": "2026-09-20T10:05:00Z",
+             "url": "https://github.com/eggzec/gh-tui/pull/42#issuecomment-1", "viewerCanUpdate": true, "viewerCanDelete": false},
+            {"__typename": "SubscribedEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T10:01:00Z"},
+            {"__typename": "PullRequestReview", "id": "PRR_1", "author": {"__typename": "Bot", "login": "copilot", "avatarUrl": "https://avatars/copilot"},
+             "state": "CHANGES_REQUESTED", "body": "Please fix", "createdAt": "2026-09-20T11:00:00Z", "submittedAt": "2026-09-20T11:02:00Z",
+             "url": "https://github.com/eggzec/gh-tui/pull/42#pullrequestreview-1", "commit": {"oid": "bbb222", "abbreviatedOid": "bbb222"}},
+            {"__typename": "PullRequestReview", "id": "PRR_2", "author": {"__typename": "User", "login": "monalisa", "avatarUrl": "a"},
+             "state": "PENDING", "body": "draft", "createdAt": "2026-09-20T11:10:00Z", "submittedAt": null, "url": "u", "commit": null},
+            {"__typename": "HeadRefForcePushedEvent", "actor": {"__typename": "User", "login": "monalisa", "name": "Mona Lisa"}, "createdAt": "2026-09-20T12:00:00Z",
+             "beforeCommit": {"oid": "bbb222"}, "afterCommit": {"oid": "ccc333"}},
+            {"__typename": "LabeledEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:10:00Z",
+             "label": {"name": "bug", "color": "d73a4a", "description": "Something broke"}},
+            {"__typename": "UnlabeledEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:11:00Z",
+             "label": {"name": "wip", "color": "ededed", "description": ""}},
+            {"__typename": "AssignedEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:20:00Z",
+             "assignee": {"__typename": "User", "login": "monalisa", "name": "Mona Lisa"}},
+            {"__typename": "UnassignedEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:21:00Z",
+             "assignee": {"__typename": "Bot", "login": "dependabot"}},
+            {"__typename": "ReviewRequestedEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:30:00Z",
+             "requestedReviewer": {"__typename": "User", "login": "octocat", "name": "The Octocat"}},
+            {"__typename": "ReviewRequestRemovedEvent", "actor": {"__typename": "User", "login": "hubot"}, "createdAt": "2026-09-20T12:31:00Z",
+             "requestedReviewer": {"__typename": "Team", "combinedSlug": "eggzec/core"}},
+            {"__typename": "ConvertToDraftEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-20T13:00:00Z"},
+            {"__typename": "ReadyForReviewEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-20T13:05:00Z"}
+          ]
+        }
+      }
+    }
+  }
+}
