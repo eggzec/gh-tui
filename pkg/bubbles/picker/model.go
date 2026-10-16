@@ -339,29 +339,28 @@ func (m *Model) SetKeyMap(k KeyMap) {
 }
 
 // withState disables the bindings the picker has no use for: the scope
-// keys without scopes, and the keys that focus the input without a filter
+// keys without scopes, and the key that starts the search without a filter
 // line.
 func (m Model) withState(k KeyMap) KeyMap {
 	keymap.Enable(&k.NextScope, len(m.scopes) > 0)
 	keymap.Enable(&k.PrevScope, len(m.scopes) > 0)
 	if m.noFilterLine {
-		k.Normal.Insert.SetEnabled(false)
-		k.Normal.Append.SetEnabled(false)
+		k.Normal.Search.SetEnabled(false)
 	}
 	return k
 }
 
 // ShortHelp implements help.KeyMap. A picker with modes lists the keys of
-// the mode it is in, and says that esc leaves insert mode.
+// the mode it is in, and says what enter and esc do while it searches.
 func (m Model) ShortHelp() []key.Binding {
 	if !m.modes {
 		return m.keys.ShortHelp()
 	}
 	k := m.keys
 	if m.typing {
-		return []key.Binding{k.Up, k.Down, k.Choose, m.leaveHelp(), k.NextScope}
+		return []key.Binding{k.Up, k.Down, m.keepHelp(), m.clearHelp(), k.NextScope}
 	}
-	return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Insert, k.Choose, k.Cancel, k.NextScope}
+	return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Search, k.Choose, k.Cancel, k.NextScope}
 }
 
 // FullHelp implements help.KeyMap. A picker with modes lists the keys of
@@ -374,20 +373,28 @@ func (m Model) FullHelp() [][]key.Binding {
 	if m.typing {
 		return [][]key.Binding{
 			{k.Up, k.Down, k.PageUp, k.PageDown},
-			{k.Choose, m.leaveHelp(), k.NextScope, k.PrevScope},
+			{m.keepHelp(), m.clearHelp(), k.NextScope, k.PrevScope},
 		}
 	}
 	return [][]key.Binding{
 		{n.Up, n.Down, n.PageUp, n.PageDown, n.HalfPageUp, n.HalfPageDown, n.Top, n.Bottom},
-		{k.Choose, k.Cancel, k.NextScope, k.PrevScope, n.Insert, n.Append},
+		{k.Choose, k.Cancel, k.NextScope, k.PrevScope, n.Search, n.Toggle, n.Back},
 	}
 }
 
-// leaveHelp is the cancel key as insert mode has it: it leaves for normal
-// mode instead of closing the picker.
-func (m Model) leaveHelp() key.Binding {
+// keepHelp is the choose key as the search has it: it keeps the query and
+// returns to the list instead of choosing.
+func (m Model) keepHelp() key.Binding {
+	c := m.keys.Choose
+	c.SetHelp(c.Help().Key, "keeps it")
+	return c
+}
+
+// clearHelp is the cancel key as the search has it: it clears the query,
+// and leaves the search once it is empty.
+func (m Model) clearHelp() key.Binding {
 	c := m.keys.Cancel
-	c.SetHelp(c.Help().Key, "normal")
+	c.SetHelp(c.Help().Key, "clears, then leaves")
 	return c
 }
 

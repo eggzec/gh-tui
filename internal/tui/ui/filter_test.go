@@ -362,9 +362,9 @@ func TestFilterModalHelpASCII(t *testing.T) {
 		{"choice", nil, "h/l change"},
 		{"person list", []string{"j"}, "space list"},
 		{"person list open", []string{"space"}, "j/k move"},
-		{"person filter", []string{"i"}, "up/down move"},
+		{"person filter", []string{"/"}, "up/down move"},
 		{"labels list open", []string{"esc", "esc", "j", "space"}, "j/k move"},
-		{"labels filter", []string{"i"}, "up/down move"},
+		{"labels filter", []string{"/"}, "up/down move"},
 		{"toggle", []string{"esc", "esc", "j"}, "space toggle"},
 		{"text", []string{"j"}, "i insert"},
 		{"insert", []string{"i"}, "INSERT"},
@@ -503,7 +503,7 @@ func TestFilterModalRoomForTheLastRow(t *testing.T) {
 		want  string
 	}{
 		{"language", filterform.Field{Key: "language", Label: "Language", Kind: filterform.Choice, Qualifier: "language", Options: langs}, []string{"space"}, 8, "Lang7"},
-		{"actor", filterform.Field{Key: "actor", Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Options: []filterform.Item{{Label: "@me", Value: "@me"}}}, []string{"space", "i", "z", "z"}, 1, `use "zz"`},
+		{"actor", filterform.Field{Key: "actor", Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Options: []filterform.Item{{Label: "@me", Value: "@me"}}}, []string{"space", "/", "z", "z"}, 1, `use "zz"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

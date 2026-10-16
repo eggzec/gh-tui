@@ -30,7 +30,8 @@ type KeyMap struct {
 
 // NormalKeyMap holds the key bindings of normal mode, where the input is
 // blurred and letters move instead of typing. Normal mode also takes the
-// map's Choose and Cancel.
+// map's Choose, which picks or applies, and Cancel, which first clears a
+// kept query.
 type NormalKeyMap struct {
 	Up           key.Binding `keymap:"up" help:"up"`
 	Down         key.Binding `keymap:"down" help:"down"`
@@ -40,11 +41,16 @@ type NormalKeyMap struct {
 	HalfPageDown key.Binding `keymap:"half_page_down" help:"half page down"`
 	Top          key.Binding `keymap:"top" help:"top"`
 	Bottom       key.Binding `keymap:"bottom" help:"bottom"`
-	// Insert and Append focus the input, with the cursor at the start or at
-	// the end of the query. They are disabled when the picker has no
-	// filter line.
-	Insert key.Binding `keymap:"insert" help:"filter"`
-	Append key.Binding `keymap:"append" help:"filter at end"`
+	// Search focuses the input, with the cursor at the end of the query. It
+	// is disabled when the picker has no filter line.
+	Search key.Binding `keymap:"search" help:"search"`
+	// Toggle is for the parent, which checks the item under the cursor: the
+	// picker never acts on it. It is here so that the help and the hints
+	// come from one place.
+	Toggle key.Binding `keymap:"toggle" help:"toggle"`
+	// Back sends a CancelMsg, like Cancel, but never clears a kept query
+	// first.
+	Back key.Binding `keymap:"back" help:"cancel"`
 }
 
 // NewKeyMap returns the key bindings that look gives for the actions

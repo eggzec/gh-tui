@@ -217,7 +217,8 @@ func TestMarkedFirstToggle(t *testing.T) {
 			}
 			m := firstPicker(t, items, tt.marked...)
 			if tt.filter != "" {
-				m = typeText(t, m, "i"+tt.filter)
+				m = typeText(t, m, "/"+tt.filter)
+				m, _ = press(t, m, enter)
 			}
 			if !m.Select(tt.start) {
 				t.Fatalf("%v is not listed: %q", tt.start, titlesOf(m))
@@ -300,8 +301,8 @@ func TestMarkedFirstCursorSkipsTheRule(t *testing.T) {
 			m := open(t, nil, WithItems(fruit), WithMarks("[x]", "[ ]"), WithMarkedFirst(true), WithModes(true), WithSize(40, size))
 			m.SetMarked([]any{"z", "b"})
 			if filter != "" {
-				m = typeText(t, m, "i"+filter)
-				m, _ = press(t, m, esc)
+				m = typeText(t, m, "/"+filter)
+				m, _ = press(t, m, enter)
 			}
 			keys := []any{down, down, down, up, up, pgDown, pgUp, pgDown, up, down, down, down, down, down, down, up}
 			for i, k := range keys {
@@ -381,7 +382,7 @@ func TestViewMarkedFirst(t *testing.T) {
 			m := open(t, nil, opts...)
 			m.SetMarked(tt.marked)
 			if tt.filter != "" {
-				m = typeText(t, m, "i"+tt.filter)
+				m = typeText(t, m, "/"+tt.filter)
 			}
 			v := m.View()
 			assertFits(t, v, w, h)

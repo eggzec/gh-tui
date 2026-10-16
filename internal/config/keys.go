@@ -322,6 +322,9 @@ func validateKeys(ctx, name string, keys []string) error {
 var removedActions = map[string]string{
 	"notifications.read_all": "mark all notifications read with the :read all command, which asks first and needs no key",
 	"confirm.method":         "the merge dialog steps the methods with keys.merge_dialog.prev_method and keys.merge_dialog.next_method",
+	"picker.toggle":          "use keys.picker_normal.toggle; space checks an item in the list, and is typed while searching",
+	"picker_normal.insert":   "use keys.picker_normal.search",
+	"picker_normal.append":   "use keys.picker_normal.search",
 }
 
 // forcedQuit is the key that always quits, from anywhere, and that no

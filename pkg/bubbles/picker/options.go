@@ -141,9 +141,9 @@ func WithContext(ctx context.Context) Option {
 
 // WithModes gives the picker a normal mode, which it starts in and returns
 // to on Focus: the input is blurred, the keys of KeyMap.Normal move, and
-// letters don't type. Normal.Insert and Normal.Append focus the input, and
-// the cancel key blurs it again, keeping the query, before it cancels the
-// picker. Without it, the picker always types.
+// letters don't type. Normal.Search focuses the input; enter returns to the
+// list keeping the query, and the cancel key clears the query, then leaves
+// the search, then cancels the picker. Without it, the picker always types.
 func WithModes(on bool) Option {
 	return func(s *settings) {
 		s.modes = on
@@ -194,7 +194,7 @@ func WithTyped(typed func(text string) (Item, bool)) Option {
 
 // WithFilterLine sets whether the picker draws the input and the line of
 // scopes and result count. Without them the list takes the whole height and
-// the picker never types, so Normal.Insert and Normal.Append are disabled.
+// the picker never types, so Normal.Search is disabled.
 // The default is true.
 func WithFilterLine(show bool) Option {
 	return func(s *settings) {

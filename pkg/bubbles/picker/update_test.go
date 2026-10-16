@@ -581,7 +581,7 @@ func TestNormalModeIgnoresLetters(t *testing.T) {
 	if m.Typing() || m.Capturing() {
 		t.Error("a picker with modes types before i")
 	}
-	m, sent := press(t, m, letter('x'), letter('z'), letter('1'), tab, bksp,
+	m, sent := press(t, m, letter('x'), letter('z'), letter('1'), tab,
 		tea.PasteMsg{Content: "pasted"})
 	if len(sent) != 0 || m.Query().Text != "" || m.Len() != len(catalog) {
 		t.Errorf("sent %v, query %q, len %d; want the picker untouched", sent, m.Query().Text, m.Len())
@@ -617,74 +617,125 @@ func TestNormalModeKeepsScopeAndChordKeys(t *testing.T) {
 	}
 }
 
-func TestInsertAndAppendFocusTheInput(t *testing.T) {
+func TestSearchFocusesTheInputAtTheEnd(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
-	m.input.SetValue("crash")
-	m.input.SetCursor(2)
-	for _, tt := range []struct {
-		key  rune
-		want string
-	}{
-		{'i', "Xcrash"},
-		{'a', "crashX"},
-	} {
-		n, _ := press(t, m, letter(tt.key))
-		if !n.Typing() || !n.Capturing() {
-			t.Errorf("%c: not typing", tt.key)
-		}
-		n, _ = press(t, n, letter('X'))
-		if got := n.Query().Text; got != tt.want {
-			t.Errorf("%c then X: query %q, want %q", tt.key, got, tt.want)
-		}
+	n, _ := press(t, m, letter('/'))
+	if !n.Typing() || !n.Capturing() {
+		t.Error("/ did not start the search")
 	}
-	// SetQuery isn't an API: a query typed earlier is just as good.
-	n := open(t, nil, WithItems(catalog), WithModes(true))
-	n = typeText(t, n, "xyz")
-	if n.Query().Text != "" {
-		t.Fatal("typed in normal mode")
-	}
-	n, _ = press(t, n, letter('i'))
+	// A query kept from an earlier search is continued at its end.
 	n = typeText(t, n, "abc")
-	n, _ = press(t, n, esc, letter('i'), letter('X'))
-	if got := n.Query().Text; got != "Xabc" {
-		t.Errorf("i after typing: %q, want Xabc", got)
+	n, _ = press(t, n, enter)
+	if n.Typing() || n.Query().Text != "abc" {
+		t.Fatalf("typing %v, query %q; want the query kept in normal mode", n.Typing(), n.Query().Text)
 	}
-	n, _ = press(t, n, esc, letter('a'), letter('Y'))
-	if got := n.Query().Text; got != "XabcY" {
-		t.Errorf("a after typing: %q, want XabcY", got)
+	n, _ = press(t, n, letter('/'), letter('X'))
+	if got := n.Query().Text; got != "abcX" {
+		t.Errorf("/ after a kept query then X: %q, want abcX", got)
+	}
+	// Letters of normal mode don't type.
+	k := open(t, nil, WithItems(catalog), WithModes(true))
+	k = typeText(t, k, "xyz")
+	if k.Query().Text != "" {
+		t.Errorf("typed in normal mode: %q", k.Query().Text)
 	}
 }
 
-func TestEscLeavesTyping(t *testing.T) {
+func TestSpaceIsTypedInTheSearch(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
-	m, _ = press(t, m, letter('i'))
+	m, _ = press(t, m, letter('/'))
+	m = typeText(t, m, "fix")
+	m, sent := press(t, m, space)
+	if len(sent) != 0 || m.Query().Text != "fix " {
+		t.Errorf("sent %v, query %q; want a space typed", sent, m.Query().Text)
+	}
+}
+
+func TestEnterKeepsTheQuery(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('/'))
 	m = typeText(t, m, "crash")
-	m, sent := press(t, m, esc)
+	m, sent := press(t, m, enter)
 	if len(sent) != 0 {
-		t.Fatalf("the first esc sent %v", sent)
+		t.Fatalf("enter in the search sent %v", sent)
 	}
 	if m.Typing() || m.Query().Text != "crash" || m.Len() != 2 {
 		t.Errorf("typing %v, query %q, len %d; want normal mode with the query kept and filtered", m.Typing(), m.Query().Text, m.Len())
 	}
-	// j moves in the narrowed list instead of typing.
+	// j moves in the narrowed list instead of typing, and enter chooses.
 	m, _ = press(t, m, letter('j'))
-	if got := chosen(t, m); got != fix.Title {
-		t.Errorf("selected %q, want the second result", got)
+	m, sent = press(t, m, enter)
+	if len(sent) != 1 || sent[0] != (ChosenMsg{ID: m.ID(), Item: fix}) {
+		t.Errorf("enter in the list sent %v, want the second result chosen", sent)
+	}
+}
+
+func TestEscClearsTheQueryBeforeLeaving(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('/'))
+	m = typeText(t, m, "crash")
+	m, sent := press(t, m, esc)
+	if len(sent) != 0 || !m.Typing() || m.Query().Text != "" || m.Len() != len(catalog) {
+		t.Errorf("first esc: sent %v, typing %v, query %q, len %d; want it cleared and still searching", sent, m.Typing(), m.Query().Text, m.Len())
+	}
+	m, sent = press(t, m, esc)
+	if len(sent) != 0 || m.Typing() {
+		t.Errorf("second esc: sent %v, typing %v; want normal mode", sent, m.Typing())
 	}
 	m, sent = press(t, m, esc)
 	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
-		t.Errorf("the second esc sent %v, want a CancelMsg", sent)
+		t.Errorf("third esc sent %v, want a CancelMsg", sent)
+	}
+}
+
+func TestEscInNormalModeClearsAKeptQuery(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('/'))
+	m = typeText(t, m, "crash")
+	m, _ = press(t, m, enter)
+	m, sent := press(t, m, esc)
+	if len(sent) != 0 || m.Typing() || m.Query().Text != "" || m.Len() != len(catalog) {
+		t.Errorf("sent %v, typing %v, query %q, len %d; want the query cleared", sent, m.Typing(), m.Query().Text, m.Len())
+	}
+	m, sent = press(t, m, esc)
+	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
+		t.Errorf("second esc sent %v, want a CancelMsg", sent)
+	}
+}
+
+func TestBackspaceInNormalModeCloses(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('/'))
+	m = typeText(t, m, "crash")
+	m, _ = press(t, m, enter)
+	m, sent := press(t, m, bksp)
+	if len(sent) != 1 || sent[0] != (CancelMsg{ID: m.ID()}) {
+		t.Errorf("backspace sent %v, want a CancelMsg even with a kept query", sent)
+	}
+}
+
+func TestBackspaceOnAnEmptyQueryLeavesTheSearch(t *testing.T) {
+	m := open(t, nil, WithItems(catalog), WithModes(true))
+	m, _ = press(t, m, letter('/'))
+	m = typeText(t, m, "ab")
+	m, _ = press(t, m, bksp, bksp)
+	if !m.Typing() || m.Query().Text != "" {
+		t.Fatalf("typing %v, query %q; want an empty query still searched", m.Typing(), m.Query().Text)
+	}
+	m, sent := press(t, m, bksp)
+	if len(sent) != 0 || m.Typing() {
+		t.Errorf("sent %v, typing %v; want normal mode", sent, m.Typing())
 	}
 }
 
 func TestTypingWithModesKeepsToday(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
-	m, _ = press(t, m, letter('i'))
+	m, _ = press(t, m, letter('/'))
 	m = typeText(t, m, "crash")
 	m, _ = press(t, m, ctrlN)
 	m, _ = press(t, m, down)
-	if got := chosen(t, m); got != fix.Title {
-		t.Errorf("selected %q, want the second result", got)
+	if left, _ := press(t, m, enter); chosen(t, left) != fix.Title {
+		t.Errorf("selected %q, want the second result", chosen(t, left))
 	}
 	m, _ = press(t, m, letter('j'))
 	if m.Query().Text != "crashj" {
@@ -694,7 +745,7 @@ func TestTypingWithModesKeepsToday(t *testing.T) {
 
 func TestFocusReturnsToNormalMode(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
-	m, _ = press(t, m, letter('i'))
+	m, _ = press(t, m, letter('/'))
 	m.Blur()
 	if m.Typing() {
 		t.Error("typing while blurred")
@@ -713,9 +764,9 @@ func TestFocusReturnsToNormalMode(t *testing.T) {
 func TestResultLandsInNormalMode(t *testing.T) {
 	f := &fakeSearch{}
 	m := open(t, f.search, WithModes(true), WithDebounce(time.Hour))
-	m, _ = press(t, m, letter('i'))
+	m, _ = press(t, m, letter('/'))
 	m, _ = m.Update(letter('c'))
-	m, _ = press(t, m, esc)
+	m, _ = press(t, m, enter)
 	// The search for "c" was already on its way when esc came.
 	m, _ = run(t, m, m.searchCmd())
 	if m.Typing() || m.Loading() {
@@ -732,7 +783,7 @@ func TestResultLandsInNormalMode(t *testing.T) {
 
 func TestSetKeyMapWhileTyping(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
-	m, _ = press(t, m, letter('i'))
+	m, _ = press(t, m, letter('/'))
 	k := testKeys(t)
 	k.Cancel.SetKeys("ctrl+g")
 	m.SetKeyMap(k)
@@ -755,7 +806,7 @@ func TestPasteMsg(t *testing.T) {
 	if m.Query().Text != "" {
 		t.Errorf("paste in normal mode: query %q", m.Query().Text)
 	}
-	m, _ = press(t, m, letter('i'), tea.PasteMsg{Content: "crash"})
+	m, _ = press(t, m, letter('/'), tea.PasteMsg{Content: "crash"})
 	if m.Query().Text != "crash" || m.Len() != 2 {
 		t.Errorf("paste while typing: query %q, len %d", m.Query().Text, m.Len())
 	}
@@ -773,6 +824,7 @@ func TestModesOffUnchanged(t *testing.T) {
 		{"letters type", []tea.Msg{letter('j'), letter('k')}, "", "jk"},
 		{"g and G type", []tea.Msg{letter('g'), letter('G')}, "", "gG"},
 		{"i and a type", []tea.Msg{letter('i'), letter('a')}, "", "ia"},
+		{"slash and space type", []tea.Msg{letter('/'), space}, "", "/ "},
 		{"ctrl+n moves", []tea.Msg{ctrlN}, dotfiles.Title, ""},
 		{"down moves", []tea.Msg{down, down}, dotfiles.Title, ""},
 		{"pgup and pgdown move", []tea.Msg{pgDown, pgUp}, ghTUI.Title, ""},
@@ -879,7 +931,7 @@ func TestTypedItem(t *testing.T) {
 		return m.results[m.Len()-1].Title
 	}
 	typing := func(m Model) Model {
-		m, _ = press(t, m, letter('i'))
+		m, _ = press(t, m, letter('/'))
 		return m
 	}
 
@@ -953,7 +1005,7 @@ func TestTypedItem(t *testing.T) {
 	t.Run("stays listed in normal mode", func(t *testing.T) {
 		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
 		m = typeText(t, m, "crash")
-		m, _ = press(t, m, esc)
+		m, _ = press(t, m, enter)
 		if m.Len() != 3 || last(m) != `use "crash"` {
 			t.Errorf("len %d, last %q in normal mode, want the typed item", m.Len(), last(m))
 		}
@@ -964,10 +1016,10 @@ func TestTypedItem(t *testing.T) {
 			t.Errorf("sent %v, want %v", sent, want)
 		}
 	})
-	t.Run("enter after esc chooses what was typed", func(t *testing.T) {
+	t.Run("a second enter chooses what was typed", func(t *testing.T) {
 		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
 		m = typeText(t, m, "newlabel")
-		m, _ = press(t, m, esc)
+		m, _ = press(t, m, enter)
 		_, sent := press(t, m, enter)
 		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "newlabel"`, Value: "typed:newlabel"}}
 		if len(sent) != 1 || sent[0] != want {
@@ -1039,7 +1091,7 @@ func TestTypedItem(t *testing.T) {
 	t.Run("chosen with enter", func(t *testing.T) {
 		m := typing(open(t, nil, WithItems(catalog), WithModes(true), WithTyped(use)))
 		m = typeText(t, m, "crash")
-		m, _ = press(t, m, down, down)
+		m, _ = press(t, m, down, down, enter)
 		_, sent := press(t, m, enter)
 		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "crash"`, Value: "typed:crash"}}
 		if len(sent) != 1 || sent[0] != want {
@@ -1067,13 +1119,13 @@ func TestTypedItem(t *testing.T) {
 
 func TestNoFilterLine(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true), WithFilterLine(false), WithSize(40, 8))
-	if m.KeyMap().Normal.Insert.Enabled() || m.KeyMap().Normal.Append.Enabled() {
-		t.Error("i and a are enabled without a filter line")
+	if m.KeyMap().Normal.Search.Enabled() {
+		t.Error("search is enabled without a filter line")
 	}
 	if m.listHeight() != 6 {
 		t.Errorf("list height %d, want the whole 6", m.listHeight())
 	}
-	m, _ = press(t, m, letter('i'), letter('a'), letter('x'))
+	m, _ = press(t, m, letter('/'), letter('x'))
 	if m.Typing() || m.Capturing() || m.Query().Text != "" {
 		t.Errorf("typing %v, query %q", m.Typing(), m.Query().Text)
 	}

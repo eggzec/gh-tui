@@ -26,6 +26,7 @@ var (
 	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
 	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	bksp     = tea.KeyPressMsg{Code: tea.KeyBackspace}
+	space    = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 )
 
 const (
@@ -62,8 +63,9 @@ func testKeys(tb testing.TB) KeyMap {
 		"picker_normal.half_page_down": {"ctrl+d"},
 		"picker_normal.top":            {"g", "home"},
 		"picker_normal.bottom":         {"G", "end"},
-		"picker_normal.insert":         {"i"},
-		"picker_normal.append":         {"a"},
+		"picker_normal.search":         {"/"},
+		"picker_normal.toggle":         {"space"},
+		"picker_normal.back":           {"backspace"},
 	}
 	return NewKeyMap(keytest.Table(table))
 }

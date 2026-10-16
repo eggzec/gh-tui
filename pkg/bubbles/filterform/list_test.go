@@ -124,9 +124,71 @@ func TestChecklistClearUnchecksAll(t *testing.T) {
 	if strings.Contains(view(m), "[x]") {
 		t.Errorf("the checklist still shows checks:\n%s", view(m))
 	}
-	m, _ = press(t, m, keyJ, space, bksp)
+	m, _ = press(t, m, keyJ, space)
 	if v, _ := m.Value("labels"); len(v.List()) != 1 {
-		t.Errorf("labels = %q after backspace, want the one checked", v.List())
+		t.Errorf("labels = %q after a space, want the one checked", v.List())
+	}
+}
+
+// Backspace closes the dropdown without applying what was checked in it.
+func TestBackspaceClosesChecklistWithoutApplying(t *testing.T) {
+	f := &fakeLoader{}
+	m := open(t, prSpec(f.load))
+	m, _ = press(t, m, down, down, down, space, keyJ, keyJ, space)
+	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"bug", "enhancement", "docs"}) {
+		t.Fatalf("labels = %q, want docs checked before backspace", v.List())
+	}
+	m, _ = press(t, m, bksp)
+	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"bug", "enhancement"}) || m.mode != rowsMode {
+		t.Errorf("labels = %q, mode %v; want the labels as they were and the list closed", v.List(), m.mode)
+	}
+}
+
+// Backspace closes the dropdown at once, where esc first clears the query
+// that enter kept.
+func TestBackspaceClosesListWithKeptQuery(t *testing.T) {
+	kept := func() Model {
+		m := open(t, languageSpec(nil))
+		m, _ = press(t, m, space, keySlash)
+		m = typeText(t, m, "pyth")
+		m, _ = press(t, m, enter)
+		if m.mode != listMode || m.pick.Query().Text != "pyth" {
+			t.Fatalf("mode %v, filter %q; want the list open with the query kept", m.mode, m.pick.Query().Text)
+		}
+		return m
+	}
+	m, _ := press(t, kept(), bksp)
+	if m.mode != rowsMode {
+		t.Errorf("mode %v after backspace; want the list closed", m.mode)
+	}
+	n, _ := press(t, kept(), esc)
+	if n.mode != listMode || n.pick.Query().Text != "" {
+		t.Errorf("mode %v, filter %q after esc; want the query cleared and the list open", n.mode, n.pick.Query().Text)
+	}
+}
+
+// Backspace closes a dropdown whose options are loading or failed to load.
+func TestBackspaceClosesListWhileLoading(t *testing.T) {
+	f := &fakeLoader{}
+	m := open(t, prSpec(f.load))
+	m, _ = press(t, m, down, down, down)
+	m, _ = m.Update(space)
+	if m.picking || !m.Loading() {
+		t.Fatalf("picking %v, loading %v; want the options loading", m.picking, m.Loading())
+	}
+	m, _ = press(t, m, bksp)
+	if m.mode != rowsMode {
+		t.Errorf("mode %v after backspace while loading; want the list closed", m.mode)
+	}
+	g := &fakeLoader{fail: errBoom}
+	n := open(t, prSpec(g.load))
+	n, _ = press(t, n, down, down, down, space)
+	if n.picking || n.mode != listMode {
+		t.Fatalf("picking %v, mode %v; want a failed list open", n.picking, n.mode)
+	}
+	n, _ = press(t, n, bksp)
+	if n.mode != rowsMode {
+		t.Errorf("mode %v after backspace on a failed load; want the list closed", n.mode)
 	}
 }
 
@@ -157,52 +219,57 @@ func TestListClearChoosesEmpty(t *testing.T) {
 func TestDropdownFilterInsert(t *testing.T) {
 	f := &fakeLoader{}
 	m := open(t, prSpec(f.load))
-	m, _ = press(t, m, down, down, down, space, keyI)
+	m, _ = press(t, m, down, down, down, space, keySlash)
 	if !m.Capturing() || m.CapturedBy() != CapturePicker {
-		t.Fatal("i didn't start the filter")
+		t.Fatal("/ didn't start the filter")
 	}
 	m = typeText(t, m, "doc")
 	if m.pick.Len() != 1 {
 		t.Fatalf("the list has %d items, want it narrowed to 1", m.pick.Len())
 	}
-	// esc keeps the filter and goes back to the list, whose keys move.
-	m, _ = press(t, m, esc)
+	// enter keeps the filter and goes back to the list, whose keys move,
+	// and checks nothing.
+	m, _ = press(t, m, enter)
 	if m.Capturing() || m.mode != listMode || m.pick.Query().Text != "doc" {
 		t.Errorf("Capturing %v, mode %v, filter %q; want the list in normal mode, narrowed", m.Capturing(), m.mode, m.pick.Query().Text)
 	}
-	// i again, and enter checks the item, clears the filter and goes back.
-	m, _ = press(t, m, keyI, enter)
+	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"bug", "enhancement"}) {
+		t.Errorf("labels = %q, want nothing checked by enter", v.List())
+	}
+	// Space checks the item and the filter stays.
+	m, _ = press(t, m, space)
 	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"bug", "enhancement", "docs"}) {
 		t.Errorf("labels = %q, want docs checked", v.List())
 	}
-	if m.mode != listMode || m.Capturing() || m.pick.Query().Text != "" || m.pick.Len() != len(labels) {
-		t.Errorf("mode %v, Capturing %v, filter %q, %d items; want the whole list in normal mode", m.mode, m.Capturing(), m.pick.Query().Text, m.pick.Len())
+	if m.mode != listMode || m.Capturing() || m.pick.Query().Text != "doc" {
+		t.Errorf("mode %v, Capturing %v, filter %q; want the narrowed list in normal mode", m.mode, m.Capturing(), m.pick.Query().Text)
 	}
-	if it, _ := m.pick.Selected(); it.Value != "docs" {
-		t.Errorf("highlighted %v, want docs", it.Value)
-	}
-	// Two labels in one go: filter, enter, filter, enter, enter.
+	// esc clears the kept filter and the list stays open.
 	m, _ = press(t, m, esc)
+	if m.mode != listMode || m.pick.Query().Text != "" || m.pick.Len() != len(labels) {
+		t.Errorf("mode %v, filter %q, %d items; want the whole list, still open", m.mode, m.pick.Query().Text, m.pick.Len())
+	}
+	// Two labels in one go: search, enter, space, esc, search, enter, space, enter.
 	n := open(t, prSpec(f.load), WithQuery(""))
-	n, _ = press(t, n, down, down, down, space, keyI)
+	n, _ = press(t, n, down, down, down, space, keySlash)
 	n = typeText(t, n, "bug")
-	n, _ = press(t, n, enter, keyI)
+	n, _ = press(t, n, enter, space, esc, keySlash)
 	n = typeText(t, n, "docs")
-	n, _ = press(t, n, enter, enter)
+	n, _ = press(t, n, enter, space, enter)
 	if v, _ := n.Value("labels"); !slices.Equal(v.List(), []string{"bug", "docs"}) || n.mode != rowsMode {
 		t.Errorf("labels = %q, mode %v; want bug and docs and the list closed", v.List(), n.mode)
 	}
-	// In a list, enter chooses the narrowed item.
+	// In a list, enter keeps the filter and the next enter chooses the narrowed item.
 	l := open(t, languageSpec(nil))
-	l, _ = press(t, l, space, keyI)
+	l, _ = press(t, l, space, keySlash)
 	l = typeText(t, l, "pyth")
-	l, _ = press(t, l, enter)
+	l, _ = press(t, l, enter, enter)
 	if v, _ := l.Value("language"); v.Text() != "python" || l.mode != rowsMode {
 		t.Errorf("language = %q, mode %v; want python", v.Text(), l.mode)
 	}
 	// ↑ and ↓ move while typing, and j and k are letters.
 	k := open(t, languageSpec(nil))
-	k, _ = press(t, k, space, keyI, down, down, keyJ)
+	k, _ = press(t, k, space, keySlash, down, down, keyJ)
 	if it, _ := k.pick.Selected(); k.pick.Query().Text != "j" || it.Value != "java" && it.Value != "javascript" {
 		t.Errorf("filter %q, highlighted %v; want j typed", k.pick.Query().Text, it.Value)
 	}
@@ -210,34 +277,34 @@ func TestDropdownFilterInsert(t *testing.T) {
 
 func TestPersonTypedItem(t *testing.T) {
 	m := open(t, prSpec(nil))
-	m, _ = press(t, m, down, space, keyI)
+	m, _ = press(t, m, down, space, keySlash)
 	m = typeText(t, m, "hubot")
 	if v := view(m); !strings.Contains(v, `↵ use "hubot"`) {
 		t.Fatalf("the typed item isn't offered:\n%s", v)
 	}
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, enter, enter)
 	if v, _ := m.Value("author"); v.Text() != "hubot" || m.mode != rowsMode {
 		t.Errorf("author = %q, mode %v; want the typed login", v.Text(), m.mode)
 	}
 	// Text equal to an item, in any case, is that item.
 	n := open(t, prSpec(nil))
-	n, _ = press(t, n, down, space, keyI)
+	n, _ = press(t, n, down, space, keySlash)
 	n = typeText(t, n, "OctoCat")
 	if v := view(n); strings.Contains(v, "use") {
 		t.Errorf("a typed item is offered for an item that exists:\n%s", v)
 	}
-	n, _ = press(t, n, enter)
+	n, _ = press(t, n, enter, enter)
 	if v, _ := n.Value("author"); v.Text() != "octocat" {
 		t.Errorf("author = %q, want the item", v.Text())
 	}
 	// @me matches the @me item.
 	o := open(t, prSpec(nil), WithQuery("author:octocat"))
-	o, _ = press(t, o, down, space, keyI)
+	o, _ = press(t, o, down, space, keySlash)
 	o = typeText(t, o, "@me")
 	if v := view(o); strings.Contains(v, "use") {
 		t.Errorf("a typed item is offered for @me:\n%s", v)
 	}
-	o, _ = press(t, o, enter)
+	o, _ = press(t, o, enter, enter)
 	if v, _ := o.Value("author"); v.Text() != "@me" {
 		t.Errorf("author = %q, want @me", v.Text())
 	}
@@ -255,12 +322,12 @@ func TestPersonTypedItemAfterFailedSearch(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec)
-	m, _ = press(t, m, space, keyI)
+	m, _ = press(t, m, space, keySlash)
 	m = typeText(t, m, "hubot")
 	if m.pick.Err() == nil {
 		t.Fatal("the search didn't fail")
 	}
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, enter, enter)
 	if v, _ := m.Value("assignee"); v.Text() != "hubot" || m.mode != rowsMode {
 		t.Errorf("assignee = %q, mode %v; want the typed login", v.Text(), m.mode)
 	}
@@ -512,11 +579,11 @@ func TestPersonEnterIsSynchronous(t *testing.T) {
 	}
 	// Enter and then esc: esc closes the form, it isn't taken by the list.
 	n := open(t, prSpec(nil))
-	n, _ = press(t, n, down, space, keyI)
+	n, _ = press(t, n, down, space, keySlash)
 	n = typeText(t, n, "hubot")
-	n, c1 = n.Update(enter)
+	n, _ = press(t, n, enter, enter)
 	n, c2 = n.Update(esc)
-	_, sent = run(t, n, tea.Batch(c1, c2))
+	_, sent = run(t, n, c2)
 	if v, _ := n.Value("author"); v.Text() != "hubot" || len(sent) != 1 {
 		t.Errorf("author = %q, sent %v; want hubot and the form closed", v.Text(), sent)
 	}
@@ -526,9 +593,48 @@ func TestPersonEnterIsSynchronous(t *testing.T) {
 }
 
 // With the group headers off, the typed item has none in the people list.
+// Space is a letter while a checklist's filter types, and toggles in the
+// list once enter has kept the filter.
+func TestChecklistSearchTypesSpace(t *testing.T) {
+	f := &fakeLoader{}
+	m := open(t, prSpec(f.load))
+	m, _ = press(t, m, down, down, down, space, keySlash, keyX, space)
+	if got := m.pick.Query().Text; got != "x " {
+		t.Errorf("filter = %q, want the space typed", got)
+	}
+	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"bug", "enhancement"}) {
+		t.Errorf("labels = %q, want nothing toggled by the space", v.List())
+	}
+	m, _ = press(t, m, esc)
+	if m.mode != listMode || m.pick.Query().Text != "" {
+		t.Errorf("mode %v, filter %q; want the filter cleared and the list open", m.mode, m.pick.Query().Text)
+	}
+}
+
+// Each mode of a list shows the keys that act in it.
+func TestListFooters(t *testing.T) {
+	f := &fakeLoader{}
+	m := open(t, prSpec(f.load), WithSize(100, 18))
+	m, _ = press(t, m, down, down, down, space)
+	for _, want := range []string{"/ search", "space toggle", "↵ apply", "esc cancel"} {
+		if v := view(m); !strings.Contains(v, want) {
+			t.Errorf("the list's footer lacks %q:\n%s", want, v)
+		}
+	}
+	m, _ = press(t, m, keySlash)
+	for _, want := range []string{"type to filter", "↵ keeps it", "esc clears, then leaves"} {
+		if v := view(m); !strings.Contains(v, want) {
+			t.Errorf("the filter's footer lacks %q:\n%s", want, v)
+		}
+	}
+	if v := view(m); strings.Contains(v, "space toggle") {
+		t.Errorf("the filter's footer lists the toggle:\n%s", v)
+	}
+}
+
 func TestPersonListHasNoTypedHeader(t *testing.T) {
 	m := open(t, prSpec(nil), WithSize(80, 14))
-	m, _ = press(t, m, down, space, keyI)
+	m, _ = press(t, m, down, space, keySlash)
 	m = typeText(t, m, "hubot")
 	if v := view(m); strings.Contains(v, "Typed") || !strings.Contains(v, `use "hubot"`) {
 		t.Errorf("the typed item has a header, or is missing:\n%s", v)
