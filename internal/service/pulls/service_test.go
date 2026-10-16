@@ -22,6 +22,7 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 type fakeAPI struct {
 	labelsFake
 	reviewersFake
+	fakeLinked
 	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	// comments and reviews back the timeline reads. The comments answer

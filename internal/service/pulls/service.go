@@ -31,6 +31,7 @@ type API interface {
 	timelineAPI
 	labelsAPI
 	viewedAPI
+	linkedAPI
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
@@ -149,6 +150,12 @@ type Service struct {
 	// pullViewed holds the viewer's viewed marks on the files of a pull
 	// request, by head. The web changes them, so it is never kept on disk.
 	pullViewed *cache.Cache[core.PullViewed]
+	// pullLinks, issuePreviews and pullPreviews hold what a pull request
+	// closes, and the previews of an item. They change on the web, so they are
+	// never kept on disk.
+	pullLinks     *cache.Cache[core.PullLinks]
+	issuePreviews *cache.Cache[core.IssuePreview]
+	pullPreviews  *cache.Cache[core.PullPreview]
 	// viewer is the login of the signed-in user, once read.
 	viewerMu sync.Mutex
 	viewer   string
@@ -216,6 +223,9 @@ func New(api API, opts ...Option) *Service {
 		pendings:      cache.New[pendingRead](mem...),
 		pullCommits:   cache.New[core.PullCommits](mem...),
 		pullViewed:    cache.New[core.PullViewed](mem...),
+		pullLinks:     cache.New[core.PullLinks](mem...),
+		issuePreviews: cache.New[core.IssuePreview](mem...),
+		pullPreviews:  cache.New[core.PullPreview](mem...),
 		owners:        cache.New[OwnersFile](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
 		members:       cache.New[TeamMembers](mem...),
 		reviewerTeams: cache.New[ReviewerTeams](mem...),
@@ -542,6 +552,9 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 	s.pendings.InvalidateTag(key)
 	s.pullCommits.InvalidateTag(key)
 	s.pullViewed.InvalidateTag(key)
+	s.pullLinks.InvalidateTag(key)
+	s.issuePreviews.InvalidateTag(key)
+	s.pullPreviews.InvalidateTag(key)
 	return s.readDetail(ctx, repo, number)
 }
 
@@ -574,4 +587,7 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.pendings.InvalidateTag(tag)
 	s.pullCommits.InvalidateTag(tag)
 	s.pullViewed.InvalidateTag(tag)
+	s.pullLinks.InvalidateTag(tag)
+	s.issuePreviews.InvalidateTag(tag)
+	s.pullPreviews.InvalidateTag(tag)
 }
