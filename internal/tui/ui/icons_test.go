@@ -23,7 +23,7 @@ func marks(ic Icons) []string {
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
 		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded, ic.Marked,
 		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent,
-	}, ic.states[:], ic.runs[:], slices.Collect(maps.Values(ic.langs)))
+	}, ic.states[:], ic.runs[:], ic.glyphs[:], slices.Collect(maps.Values(ic.langs)))
 }
 
 func TestIconsAreOneCellWide(t *testing.T) {
