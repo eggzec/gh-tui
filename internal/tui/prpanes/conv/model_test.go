@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -491,6 +492,64 @@ func TestViewSize(t *testing.T) {
 			check("loaded")
 		})
 	}
+}
+
+// shown loads f at the width and returns what the model draws, without colors
+// or trailing spaces.
+func shown(t *testing.T, f *fake, width int, viewer string) string {
+	t.Helper()
+	o := opts(config.IconsNerd, width)
+	d := newDriver(t, f, WithSize(width, 14), WithOptions(o), WithTreeKeys(treeKeys()), WithViewer(viewer))
+	d.all()
+	lines := strings.Split(ansi.Strip(d.m.View()), "\n")
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " ")
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
+}
+
+func TestPendingReply(t *testing.T) {
+	t.Parallel()
+	// Each subtest reads a fake of its own: a fake counts its reads.
+	f := func() *fake {
+		posted := thread("T1", "R1", 2)
+		posted.Comments[1].Pending = true
+		return newFake(
+			[][]core.TimelineItem{{review("R1", core.ReviewStateChangesRequested)}},
+			[][]core.Thread{{posted}},
+		)
+	}
+	for _, w := range []int{80, 120} {
+		t.Run(strconv.Itoa(w), func(t *testing.T) {
+			t.Parallel()
+			golden.RequireEqual(t, shown(t, f(), w, "dee"))
+		})
+	}
+}
+
+func TestPendingReviewGroup(t *testing.T) {
+	t.Parallel()
+	f := func() *fake {
+		draft := thread("T1", "", 2)
+		draft.Pending = true
+		draft.Comments[0].Pending, draft.Comments[1].Pending = true, true
+		return newFake(
+			[][]core.TimelineItem{{comment("1")}},
+			[][]core.Thread{{draft}},
+		)
+	}
+	for _, w := range []int{80, 120} {
+		t.Run(strconv.Itoa(w), func(t *testing.T) {
+			t.Parallel()
+			golden.RequireEqual(t, shown(t, f(), w, "dee"))
+		})
+	}
+	t.Run("no viewer", func(t *testing.T) {
+		t.Parallel()
+		if got := shown(t, f(), 80, ""); !strings.Contains(got, "your pending review") {
+			t.Errorf("without a viewer the group reads:\n%s", got)
+		}
+	})
 }
 
 // bigFake is a conversation of 300 items and 100 threads.
