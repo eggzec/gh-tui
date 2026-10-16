@@ -51,6 +51,8 @@ func (s *Service) Comment(repo core.RepoRef, number int, body, author string) *o
 		if err != nil {
 			return fmt.Errorf("comment on pull %s#%d: %w", repo, number, err)
 		}
+		// The comment shows in the timeline, whose cached pages lack it.
+		forget(s.timelines, s.keptTimelines, key)
 		s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
 			// A refetch may have dropped the pending comment, or already
 			// brought the real one, or ended the page before it.

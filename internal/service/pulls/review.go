@@ -197,17 +197,18 @@ func (s *Service) pullID(ctx context.Context, repo core.RepoRef, number int) (st
 
 // reviewSubmitted makes the next read of everything that a review changes go
 // to GitHub: the detail's review state and thread counts, the threads, the
-// reviews and the comments (a review shows in the timeline). Entries a kept
-// shelf holds are dropped, since one read within the TTL would be served as
-// fresh, and the list's mark no longer vouches for them. The changed pull
-// request's list pages are marked stale too, for its review decision, and
-// the cached pending review is replaced by none.
+// reviews, the comments and the timeline. Entries a kept shelf holds are
+// dropped, since one read within the TTL would be served as fresh, and the
+// list's mark no longer vouches for them. The changed pull request's list
+// pages are marked stale too, for its review decision, and the cached pending
+// review is replaced by none.
 func (s *Service) reviewSubmitted(repo core.RepoRef, number int) {
 	key := detailKey(repo, number)
 	s.seen.Delete(key)
 	forget(s.threads, s.keptThreads, key)
 	forget(s.reviews, s.keptReviews, key)
 	forget(s.comments, s.keptComments, key)
+	forget(s.timelines, s.keptTimelines, key)
 	s.details.Invalidate(key)
 	s.keptDetails.Delete(key)
 	s.lists.InvalidateTag(repoTag(repo))

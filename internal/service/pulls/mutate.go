@@ -181,6 +181,8 @@ func (s *Service) reconcile(repo core.RepoRef, number int, pr core.PullRequest) 
 		return replace(p, number, func(core.PullRequest) core.PullRequest { return pr })
 	})
 	key := detailKey(repo, number)
+	// The change shows in the timeline as an event, which its pages lack.
+	forget(s.timelines, s.keptTimelines, key)
 	s.details.Mutate(key, func(d core.PullRequestDetail) core.PullRequestDetail {
 		// Mutations don't return the body, and they don't change it.
 		body := d.Body

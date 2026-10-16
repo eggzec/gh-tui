@@ -65,13 +65,16 @@ type TimelineItem struct {
 	Kind TimelineKind
 	// ID is the node ID of a comment or review.
 	ID string
-	// Actor is who did it, empty for a deleted account.
+	// Actor is who did it, empty for a deleted account. For a pushed commit it
+	// is the commit's author, who may not be the one who pushed it.
 	Actor User
 	// AvatarURL is the address of the actor's avatar for a comment or a
 	// review, as GitHub gave it, or empty.
 	AvatarURL string
 	// At is when it happened: when a comment or a review was made, or a
-	// commit was committed.
+	// commit was committed. A pushed commit uses its commit date, not the time
+	// of the push, so At doesn't follow the order of the timeline: callers keep
+	// the order GitHub gave and never sort by At.
 	At        time.Time
 	UpdatedAt time.Time
 	Body      string

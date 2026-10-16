@@ -36,9 +36,10 @@ func (s *Service) vouch(repo core.RepoRef, prs []core.PullRequest) {
 			s.details.Invalidate(key)
 		}
 		if older || had && prev.updated.Before(pr.UpdatedAt) {
-			// Its comments and reviews may have changed too.
+			// Its comments, reviews and timeline may have changed too.
 			s.comments.InvalidateTag(key)
 			s.reviews.InvalidateTag(key)
+			s.timelines.InvalidateTag(key)
 		}
 	}
 }
@@ -113,4 +114,5 @@ func (s *Service) Changed(repo core.RepoRef, number int, updated time.Time) {
 	}
 	s.comments.InvalidateBefore(key, updated)
 	s.reviews.InvalidateBefore(key, updated)
+	s.timelines.InvalidateBefore(key, updated)
 }
