@@ -61,6 +61,7 @@ var graphqlOperations = map[string]string{
 	"addReviewThreadMutation":   addReviewThreadMutation,
 	"pullIDQuery":               pullIDQuery,
 	"pullHeadQuery":             pullHeadQuery,
+	"pullMergeTextQuery":        pullMergeTextQuery,
 	"mergePullMutation":         mergePullMutation,
 	"autoMergePullMutation":     autoMergePullMutation,
 	"stopAutoMergePullMutation": stopAutoMergePullMutation,

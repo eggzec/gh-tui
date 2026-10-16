@@ -113,6 +113,11 @@ type fakeService struct {
 	// merges are what the details say of merging, by number; a pull
 	// request without one merges cleanly.
 	merges map[int]core.MergeInfo
+	// mergeTexts are the default merge messages by number, mergeTextsErr
+	// fails reading them, and textReads are the numbers they were read for.
+	mergeTexts    map[int]core.MergeTexts
+	mergeTextsErr error
+	textReads     []int
 	// stale are the numbers whose cached detail has aged, so that Get
 	// would ask GitHub again.
 	stale map[int]bool
@@ -156,6 +161,15 @@ func (f *fakeService) CachedThreads(q pulls.ThreadsQuery) (core.ThreadPage, bool
 type invalidation struct {
 	repo        core.RepoRef
 	lists, gets int
+}
+
+// MergeTexts serves the default merge message of a pull request from
+// mergeTexts, or fails with mergeTextsErr.
+func (f *fakeService) MergeTexts(_ context.Context, _ core.RepoRef, number int) (core.MergeTexts, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.textReads = append(f.textReads, number)
+	return f.mergeTexts[number], f.mergeTextsErr
 }
 
 func newFakeService() *fakeService {
