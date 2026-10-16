@@ -43,7 +43,7 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 	if index {
 		b.index = make(map[string]*node)
 	}
-	for i, n := range tree(d, o.preview) {
+	for i, n := range tree(d, o) {
 		if i > 0 {
 			b.rows = append(b.rows, foldtree.Row{ID: "b:" + n.id, Lines: []string{""}, Skip: true, Kind: KindBlank})
 		}

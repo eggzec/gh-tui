@@ -11,7 +11,7 @@ import (
 // cacheKey says what the rows of a view were built from. Rows are built
 // again only when it changes, never when the cursor or a fold moves.
 type cacheKey struct {
-	width, data, opts, gen int
+	width, data, opts, gen, shape int
 }
 
 // view is a tree of the conversation, with the state that is its own: cursor,
@@ -33,6 +33,10 @@ type view struct {
 	narrow   Narrow
 	narrowed bool
 	gen      int
+	// base is the text of the tree when it has no rows, as it came, and
+	// nothing says that the filter left none, which the text says instead.
+	base    string
+	nothing bool
 }
 
 // view returns the view with key, made when it is new.
@@ -49,7 +53,7 @@ func (m *Model) view(key string) *view {
 	if m.focused {
 		t.Focus()
 	}
-	v := &view{tree: t, folds: map[string]bool{}}
+	v := &view{tree: t, folds: map[string]bool{}, base: t.Styles().EmptyText}
 	m.views[key] = v
 	return v
 }
@@ -76,17 +80,23 @@ func (m *Model) sync() {
 		return
 	}
 	v := m.views[m.cur]
-	k := cacheKey{m.width, m.version, m.optsVer, v.gen}
+	k := cacheKey{m.width, m.version, m.optsVer, v.gen, m.shape}
+	if v.narrowed {
+		// A preview keeps every group.
+		k.shape = 0
+	}
 	if v.done && v.key == k {
 		return
 	}
-	m.rebuild(v)
+	m.rebuild(v, v.done && v.key.shape != k.shape)
 	v.key, v.done = k, true
 }
 
 // rebuild builds the rows of v and gives them to its tree, which keeps the
-// cursor by ID.
-func (m *Model) rebuild(v *view) {
+// cursor by ID. With reshaped, the filter changed, and the cursor goes where
+// it belongs when its row is gone.
+func (m *Model) rebuild(v *view, reshaped bool) {
+	cur, hadCur := cursorOf(v)
 	for _, r := range v.rows {
 		if !r.Fold {
 			continue
@@ -96,7 +106,7 @@ func (m *Model) rebuild(v *view) {
 		}
 	}
 	o := m.opts
-	o.Width, o.Viewer = m.width, m.viewer
+	o.Width, o.Viewer, o.hide = m.width, m.viewer, m.hide()
 	d := m.dataOf()
 	if v.narrowed {
 		d, o.preview = v.narrow.filter(d), true
@@ -108,10 +118,16 @@ func (m *Model) rebuild(v *view) {
 		}
 	}
 	if !v.narrowed {
+		_, total := m.Shown()
+		v.nothing = len(rows) == 0 && total > 0
 		rows = m.withMore(rows, o)
 	}
 	v.rows, v.nodes = rows, nodes
 	v.tree.SetRows(rows)
+	m.applyEmpty(v)
+	if reshaped && hadCur {
+		m.keepCursor(v, cur)
+	}
 	if m.built != nil {
 		m.built()
 	}

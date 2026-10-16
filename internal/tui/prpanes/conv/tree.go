@@ -33,7 +33,13 @@ func drawn(it *core.TimelineItem) bool {
 
 // tree returns the top-level nodes of d, in the order of its timeline.
 // With preview, a comment stands alone and is never gathered in a run.
-func tree(d Data, preview bool) []*node {
+func tree(d Data, o Options) []*node {
+	preview := o.preview
+	// A narrowed view keeps every group and the order of the timeline.
+	hidden := func(k core.TimelineKind) bool {
+		g, ok := groupOf(k)
+		return ok && !preview && o.hide[g]
+	}
 	byReview := make(map[string][]*node)
 	for i := range d.Threads {
 		if t := &d.Threads[i]; len(t.Comments) > 0 && t.ReviewID != "" {
@@ -59,17 +65,24 @@ func tree(d Data, preview bool) []*node {
 		if !drawn(it) {
 			continue
 		}
+		if it.Kind == core.TimelineReview {
+			attached[it.ID] = true
+		}
+		// A kind that is hidden leaves no gap, so comments that only it
+		// separated join in a run.
+		if hidden(it.Kind) {
+			continue
+		}
 		if it.Kind == core.TimelineComment {
 			run = append(run, &node{kind: KindComment, id: "c:" + it.ID, item: it})
 			continue
 		}
 		flush()
-		attached[it.ID] = true
 		out = append(out, &node{kind: KindReview, id: "r:" + it.ID, item: it, children: byReview[it.ID]})
 	}
 	flush()
 
-	if p := pendingReview(d, attached); p != nil {
+	if p := pendingReview(d, attached); p != nil && !hidden(core.TimelineReview) {
 		out = append(out, p)
 	}
 	return out
