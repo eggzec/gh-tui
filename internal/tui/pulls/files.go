@@ -104,6 +104,15 @@ type filesState struct {
 	viewing       func(diff.File) viewing
 	viewed        int
 	seen, changed string
+	// pv holds the marks GitHub keeps for the head the files are of, once pvIn
+	// says that they were read, or were cached. pvFailed is set when a read
+	// failed, so that it is made again once GitHub answers.
+	pv       core.PullViewed
+	pvIn     bool
+	pvFailed bool
+	// sending holds the paths whose mark or unmark isn't answered yet, each
+	// with the state it was changed to: true for a mark.
+	sending map[string]bool
 }
 
 // loading reports whether the first page of files is on its way.
@@ -205,7 +214,9 @@ func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 	f.styleViewed(m.theme, m.icons)
 	if prev != nil {
 		f.focus, f.zoom, f.folded = prev.focus, prev.zoom, prev.folded
+		f.sending = prev.sending
 	}
+	m.showCachedViewed(f)
 	opts := []diff.Option{
 		diff.WithContext(ctx),
 		diff.WithKeyMap(m.keys.diff),
@@ -235,7 +246,7 @@ func (m *detailModal) startFiles(prev *filesState, scope filesScope) tea.Cmd {
 	// The threads read wait in the diff for their files.
 	m.applyThreadBlocks()
 	m.layoutFiles()
-	return tea.Batch(f.diff.Init(), f.spin.Tick)
+	return tea.Batch(f.diff.Init(), f.spin.Tick, m.readViewed(f))
 }
 
 // fetchFiles reads the pages of the files changed at head, for the diff.
@@ -301,6 +312,11 @@ func (m *detailModal) updateFiles(msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 		f.spin, cmd = f.spin.Update(msg)
 		return cmd
+	case viewedMsg:
+		return m.receiveViewed(msg)
+	case viewedSetMsg:
+		m.viewedSet(msg)
+		return nil
 	case tree.OpenMsg:
 		if msg.ID != f.tree.ID() {
 			return nil
@@ -905,6 +921,9 @@ func (m *detailModal) filesOnline() tea.Cmd {
 	}
 	if f.kept.Swap(false) {
 		f.reread = true
+	}
+	if f.pvFailed {
+		retry = tea.Batch(retry, m.readViewed(f))
 	}
 	return tea.Batch(retry, m.checkHead())
 }

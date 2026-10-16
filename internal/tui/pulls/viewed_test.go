@@ -2,43 +2,72 @@ package pulls
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/internal/visits"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
-// blobbed returns a service whose files each have a blob named after their path.
-func blobbed() *fakeService {
+const (
+	firstFile  = "cmd/gh-tui/main.go"
+	secondFile = "internal/cache/disk.go"
+)
+
+// withFiles returns a service that changes the sample files.
+func withFiles() *fakeService {
 	svc := newFakeService()
 	svc.changed = sampleFiles()
-	for i := range svc.changed {
-		svc.changed[i].SHA = "sha-" + svc.changed[i].Path
-	}
 	return svc
 }
 
-func TestViewedInTheDiffFoldsAndMovesOn(t *testing.T) {
+// restViewed makes GitHub keep every file of the sample but those in except as
+// viewed.
+func restViewed(svc *fakeService, except ...string) {
+	for _, f := range svc.changed {
+		if !slices.Contains(except, f.Path) {
+			svc.holding(core.Viewed, f.Path)
+		}
+	}
+}
+
+// msgsOf runs cmd and the commands of the batches it answers with, and returns
+// the messages they end in.
+func msgsOf(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		var out []tea.Msg
+		for _, c := range batch {
+			out = append(out, msgsOf(c)...)
+		}
+		return out
+	}
+	return []tea.Msg{msg}
+}
+
+func TestViewedInTheDiffMarksOnGitHubFoldsAndMovesOn(t *testing.T) {
 	t.Parallel()
+	svc := withFiles()
 	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	h, m := filedWith(t, svc, 100, 30, WithVisits(store))
 	press(t, h, "[")
 	press(t, h, "v")
 	if got := mustPos(t, m); !strings.Contains(got, "disk.go") {
 		t.Errorf("v left the diff at %q, want the next file", got)
 	}
-	st, saves := store.state()
-	if saves != 1 || st.Viewed["cmd/gh-tui/main.go"] != "sha-cmd/gh-tui/main.go" {
-		t.Errorf("kept %+v after %d saves, want the first file with its blob", st, saves)
+	if got := svc.sets(); len(got) != 1 || got[0] != firstFile+"=true" {
+		t.Errorf("marks sent = %v, want the first file marked", got)
 	}
-	if !m.files.diff.Collapsed("cmd/gh-tui/main.go") {
+	if !m.files.diff.Collapsed(firstFile) {
 		t.Error("the file viewed is not folded")
 	}
 	if title := plain(m)[0]; !strings.Contains(title, "1/7 viewed") {
@@ -47,22 +76,22 @@ func TestViewedInTheDiffFoldsAndMovesOn(t *testing.T) {
 	if !strings.Contains(strings.Join(plain(m), "\n"), "1 viewed") {
 		t.Error("the status line lacks the count of the files viewed")
 	}
+	if _, saves := store.state(); saves != 0 {
+		t.Errorf("v wrote the visit store %d times, want none", saves)
+	}
 }
 
-func TestViewedHoldsOnlyWhileTheBlobStays(t *testing.T) {
+func TestViewedShowsWhatGitHubKeeps(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{kept: map[string]visits.State{
-		visits.Key(repo.String(), 142): {Viewed: map[string]string{
-			"cmd/gh-tui/main.go":     "sha-cmd/gh-tui/main.go",
-			"internal/cache/disk.go": "older",
-		}},
-	}}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	svc.holding(core.Viewed, firstFile)
+	svc.holding(core.ViewedChanged, secondFile)
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
-	if !m.files.diff.Collapsed("cmd/gh-tui/main.go") {
+	if !m.files.diff.Collapsed(firstFile) {
 		t.Error("a file viewed as it is now is not folded")
 	}
-	if m.files.diff.Collapsed("internal/cache/disk.go") {
+	if m.files.diff.Collapsed(secondFile) {
 		t.Error("a file that changed since it was viewed is folded")
 	}
 	if m.files.viewed != 1 {
@@ -70,6 +99,9 @@ func TestViewedHoldsOnlyWhileTheBlobStays(t *testing.T) {
 	}
 	if got := m.viewingOf(m.files.set.list()[1]); got != changedFile {
 		t.Errorf("the changed file is %v, want changedFile", got)
+	}
+	if got := m.files.viewMark(m.files.set.list()[1]); got == "" {
+		t.Error("the changed file shows no mark that it changed since")
 	}
 }
 
@@ -89,8 +121,8 @@ func treeFile(t *testing.T, m *detailModal) string {
 
 func TestViewedInTheTreeMarksAndUnmarks(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	press(t, h, "1")
 	path := treeFile(t, m)
@@ -105,9 +137,6 @@ func TestViewedInTheTreeMarksAndUnmarks(t *testing.T) {
 	if m.files.viewMark(m.files.set.list()[at]) == "" {
 		t.Error("the file viewed in the tree shows no mark")
 	}
-	if st, _ := store.state(); st.Viewed[path] != "sha-"+path {
-		t.Errorf("kept %v, want %q with its blob", st.Viewed, path)
-	}
 	if title := plain(m)[0]; !strings.Contains(title, "1/7 viewed") {
 		t.Errorf("the tree title is %q, want the count", title)
 	}
@@ -116,8 +145,8 @@ func TestViewedInTheTreeMarksAndUnmarks(t *testing.T) {
 	if m.files.diff.Collapsed(path) {
 		t.Error("the file is still folded after v took the mark off")
 	}
-	if st, _ := store.state(); len(st.Viewed) != 0 {
-		t.Errorf("kept %v after the mark was taken off, want none", st.Viewed)
+	if got := svc.sets(); len(got) != 2 || got[0] != path+"=true" || got[1] != path+"=false" {
+		t.Errorf("marks sent = %v, want a mark and an unmark of %q", got, path)
 	}
 	if title := plain(m)[0]; strings.Contains(title, "viewed") {
 		t.Errorf("the tree title is %q, want no count", title)
@@ -129,31 +158,219 @@ func TestViewedInTheTreeMarksAndUnmarks(t *testing.T) {
 
 func TestViewedInTheDiffTakesTheMarkOff(t *testing.T) {
 	t.Parallel()
-	const first = "cmd/gh-tui/main.go"
-	store := &memVisitStore{kept: map[string]visits.State{
-		visits.Key(repo.String(), 142): {Viewed: map[string]string{first: "sha-" + first}},
-	}}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	svc.holding(core.Viewed, firstFile)
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
-	if !m.files.diff.Collapsed(first) || mustPos(t, m) != first {
-		t.Fatalf("the diff is on %q with the first file folded %v, want it folded and under the cursor", mustPos(t, m), m.files.diff.Collapsed(first))
+	if !m.files.diff.Collapsed(firstFile) || mustPos(t, m) != firstFile {
+		t.Fatalf("the diff is on %q with the first file folded %v, want it folded and under the cursor", mustPos(t, m), m.files.diff.Collapsed(firstFile))
 	}
 	press(t, h, "v")
-	if m.files.diff.Collapsed(first) {
+	if m.files.diff.Collapsed(firstFile) {
 		t.Error("the file is still folded after v took the mark off")
 	}
-	if got := mustPos(t, m); got != first {
-		t.Errorf("v moved the diff to %q, want it to stay on %q", got, first)
+	if got := mustPos(t, m); got != firstFile {
+		t.Errorf("v moved the diff to %q, want it to stay on %q", got, firstFile)
 	}
-	if st, _ := store.state(); len(st.Viewed) != 0 {
-		t.Errorf("kept %v after the mark was taken off, want none", st.Viewed)
+	if got := svc.sets(); len(got) != 1 || got[0] != firstFile+"=false" {
+		t.Errorf("marks sent = %v, want an unmark of the first file", got)
+	}
+}
+
+func TestViewedThatGitHubRefusesComesBack(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.viewedSendErr = errors.New("refused")
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	cmd := m.toggleViewed(file, false)
+	if !m.files.diff.Collapsed(file.Path) || m.files.viewed != 1 {
+		t.Fatal("the mark did not show at once")
+	}
+	var failed bool
+	for _, msg := range msgsOf(cmd) {
+		switch msg := msg.(type) {
+		case ui.FailMsg:
+			failed = strings.Contains(msg.What, "mark a file of #142 viewed") && msg.Err != nil
+		case viewedSetMsg:
+			_ = m.Update(msg)
+		}
+	}
+	if !failed {
+		t.Error("the refusal told the user nothing")
+	}
+	if m.files.diff.Collapsed(file.Path) || m.files.viewed != 0 {
+		t.Errorf("the file is still marked after the refusal: folded %v, %d viewed", m.files.diff.Collapsed(file.Path), m.files.viewed)
+	}
+	if got := m.viewingOf(file); got != notViewed {
+		t.Errorf("the file is %v, want notViewed", got)
+	}
+}
+
+func TestViewedUnmarkThatGitHubRefusesComesBack(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.holding(core.Viewed, firstFile)
+	svc.viewedSendErr = errors.New("refused")
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	for _, msg := range msgsOf(m.toggleViewed(file, false)) {
+		if msg, ok := msg.(viewedSetMsg); ok {
+			_ = m.Update(msg)
+		}
+	}
+	if !m.files.diff.Collapsed(file.Path) || m.viewingOf(file) != viewedFile {
+		t.Error("the mark did not come back after GitHub refused to take it off")
+	}
+}
+
+func TestViewedReadThatLandsWhileAMarkIsInFlightKeepsTheMark(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	cmd := m.toggleViewed(file, false)
+	// A read answered before the mark was sent says that nothing is marked.
+	_ = m.Update(viewedMsg{files: m.files, pv: core.PullViewed{Supported: true}})
+	if m.viewingOf(file) != viewedFile || !m.files.diff.Collapsed(file.Path) || m.files.viewed != 1 {
+		t.Error("a read that landed in the meantime took the mark off the screen")
+	}
+	for _, msg := range msgsOf(cmd) {
+		if msg, ok := msg.(viewedSetMsg); ok {
+			_ = m.Update(msg)
+		}
+	}
+	if m.viewingOf(file) != viewedFile || !m.files.diff.Collapsed(file.Path) {
+		t.Error("the mark is gone once GitHub answered")
+	}
+}
+
+func TestViewedReadThatLandsWhileAnUnmarkIsInFlightKeepsItOff(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.holding(core.Viewed, firstFile)
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	cmd := m.toggleViewed(file, false)
+	_ = m.Update(viewedMsg{files: m.files, pv: core.PullViewed{Supported: true, States: map[string]core.ViewedState{firstFile: core.Viewed}}})
+	if m.viewingOf(file) != notViewed {
+		t.Error("a read that landed in the meantime brought the mark back")
+	}
+	for _, msg := range msgsOf(cmd) {
+		if msg, ok := msg.(viewedSetMsg); ok {
+			_ = m.Update(msg)
+		}
+	}
+	if m.viewingOf(file) != notViewed {
+		t.Error("the mark is back once GitHub answered")
+	}
+}
+
+func TestViewedRefusalAfterTheFilesRestartedTakesTheMarkOff(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.viewedSendErr = errors.New("refused")
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	cmd := m.toggleViewed(file, false)
+	// The scope changes before GitHub answers, for the same head.
+	_ = m.startFiles(m.files, m.files.scope)
+	if m.viewingOf(file) != viewedFile {
+		t.Fatal("the files that restarted don't show the mark that is on its way")
+	}
+	for _, msg := range msgsOf(cmd) {
+		if msg, ok := msg.(viewedSetMsg); ok {
+			_ = m.Update(msg)
+		}
+	}
+	if m.viewingOf(file) != notViewed {
+		t.Error("the files that restarted keep a mark that GitHub refused")
+	}
+}
+
+func TestViewedSecondPressWhileOneIsInFlightSendsNothing(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	file := m.files.set.list()[0]
+	// The command isn't run, so the answer to the first isn't in.
+	if m.toggleViewed(file, false) == nil {
+		t.Fatal("the first press did nothing")
+	}
+	if cmd := m.toggleViewed(file, false); cmd != nil {
+		t.Error("a second press of the same file while one is in flight did something")
+	}
+	if got := svc.sets(); len(got) != 1 {
+		t.Errorf("marks sent = %v, want one", got)
+	}
+}
+
+func TestViewedOnAServerWithoutMarksSaysSo(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.viewedOff = true
+	store := &memVisitStore{}
+	h, m := filedWith(t, svc, 100, 30, WithVisits(store))
+	press(t, h, "[")
+	got := toastsOf(m.toggleViewed(m.files.set.list()[0], false))
+	if len(got) != 1 || got[0].Level != toast.Info || !strings.Contains(got[0].Text, "keeps no viewed marks") {
+		t.Errorf("toasts = %+v, want one info that the server keeps no marks", got)
+	}
+	if sets := svc.sets(); len(sets) != 0 || m.files.viewed != 0 || m.files.diff.Collapsed(firstFile) {
+		t.Errorf("a file was marked: sent %v, %d viewed", sets, m.files.viewed)
+	}
+	if _, saves := store.state(); saves != 0 {
+		t.Errorf("the visit store was written %d times, want none", saves)
+	}
+}
+
+func TestViewedBeforeTheMarksAreReadSaysSo(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	m.files.pvIn = false
+	file := m.files.set.list()[0]
+	got := toastsOf(m.toggleViewed(file, false))
+	if len(got) != 1 || got[0].Level != toast.Info || !strings.Contains(got[0].Text, "Still reading") {
+		t.Errorf("toasts = %+v, want one info that the files viewed are still being read", got)
+	}
+	if sets := svc.sets(); len(sets) != 0 || m.files.diff.Collapsed(file.Path) {
+		t.Errorf("the mark changed before the marks were read: sent %v", sets)
+	}
+}
+
+func TestViewedAfterAFailedReadShowsNoMarksAndSaysSo(t *testing.T) {
+	t.Parallel()
+	svc := withFiles()
+	svc.viewedReadErr = errors.New("unreadable")
+	h, m := filedWith(t, svc, 100, 30)
+	press(t, h, "[")
+	if !m.files.pvFailed || m.files.viewed != 0 {
+		t.Fatalf("pvFailed = %v with %d viewed, want a failed read and no marks", m.files.pvFailed, m.files.viewed)
+	}
+	if len(m.files.set.list()) == 0 {
+		t.Fatal("the files are not shown after the failed read")
+	}
+	got := toastsOf(m.toggleViewed(m.files.set.list()[0], false))
+	if len(got) != 1 || !strings.Contains(got[0].Text, "couldn't be read") {
+		t.Errorf("toasts = %+v, want one that the marks couldn't be read", got)
+	}
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("marks sent = %v after a failed read, want none", sets)
 	}
 }
 
 func TestViewedIsIgnoredWhileARangeIsOpen(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	down(t, h, rowContext)
 	press(t, h, "V")
@@ -161,21 +378,20 @@ func TestViewedIsIgnoredWhileARangeIsOpen(t *testing.T) {
 		t.Fatal("V started no range")
 	}
 	press(t, h, "v")
-	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
-		t.Errorf("v with a range open marked a file: %d saves, %d viewed", saves, m.files.viewed)
+	if sets := svc.sets(); len(sets) != 0 || m.files.viewed != 0 {
+		t.Errorf("v with a range open marked a file: sent %v, %d viewed", sets, m.files.viewed)
 	}
 }
 
 func TestReadOnPagesInTheMiddleOfAFile(t *testing.T) {
 	t.Parallel()
-	svc := blobbed()
+	svc := withFiles()
 	extra := make([]string, 40)
 	for i := range extra {
 		extra[i] = "+\tx()"
 	}
 	svc.changed[0].Patch = mainPatch(extra...)
-	store := &memVisitStore{}
-	h, m := filedWith(t, svc, 100, 12, WithVisits(store))
+	h, m := filedWith(t, svc, 100, 12)
 	press(t, h, "[")
 	before := m.files.diff.Cursor()
 	press(t, h, "space")
@@ -185,8 +401,8 @@ func TestReadOnPagesInTheMiddleOfAFile(t *testing.T) {
 	if after := m.files.diff.Cursor(); after <= before {
 		t.Errorf("space left the cursor at row %d, want it below row %d", after, before)
 	}
-	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
-		t.Errorf("space in the middle of a file marked it: %d saves, %d viewed", saves, m.files.viewed)
+	if sets := svc.sets(); len(sets) != 0 || m.files.viewed != 0 {
+		t.Errorf("space in the middle of a file marked it: sent %v, %d viewed", sets, m.files.viewed)
 	}
 }
 
@@ -197,14 +413,13 @@ func TestReadOnMarksAFileOfSeveralWindows(t *testing.T) {
 	for n := 40; n < 56; n++ {
 		t.Run(strconv.Itoa(n), func(t *testing.T) {
 			t.Parallel()
-			svc := blobbed()
+			svc := withFiles()
 			extra := make([]string, n)
 			for i := range extra {
 				extra[i] = "+\tx()"
 			}
 			svc.changed[0].Patch = mainPatch(extra...)
-			store := &memVisitStore{}
-			h, m := filedWith(t, svc, 100, 12, WithVisits(store))
+			h, m := filedWith(t, svc, 100, 12)
 			press(t, h, "[")
 			for presses := 1; m.files.viewed == 0; presses++ {
 				if presses > 30 {
@@ -219,8 +434,8 @@ func TestReadOnMarksAFileOfSeveralWindows(t *testing.T) {
 			if got := mustPos(t, m); !strings.Contains(got, "disk.go") {
 				t.Errorf("after marking, the diff is at %q, want the next file", got)
 			}
-			if st, saves := store.state(); saves != 1 || st.Viewed["cmd/gh-tui/main.go"] == "" {
-				t.Errorf("kept %+v after %d saves, want the first file", st, saves)
+			if sets := svc.sets(); len(sets) != 1 || sets[0] != firstFile+"=true" {
+				t.Errorf("marks sent = %v, want the first file", sets)
 			}
 		})
 	}
@@ -228,38 +443,33 @@ func TestReadOnMarksAFileOfSeveralWindows(t *testing.T) {
 
 func TestReadOnMarksAtTheEndAndMovesToTheNextUnviewed(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	press(t, h, "space")
 	if got := mustPos(t, m); !strings.Contains(got, "disk.go") {
 		t.Errorf("space left the diff at %q, want the next file", got)
 	}
-	st, saves := store.state()
-	if saves != 1 || st.Viewed["cmd/gh-tui/main.go"] != "sha-cmd/gh-tui/main.go" {
-		t.Errorf("kept %+v after %d saves, want the first file with its blob", st, saves)
+	if sets := svc.sets(); len(sets) != 1 || sets[0] != firstFile+"=true" {
+		t.Errorf("marks sent = %v, want the first file", sets)
 	}
-	if !m.files.diff.Collapsed("cmd/gh-tui/main.go") {
+	if !m.files.diff.Collapsed(firstFile) {
 		t.Error("the file read is not folded")
 	}
 }
 
 func TestReadOnWrapsToAnUnviewedFile(t *testing.T) {
 	t.Parallel()
-	viewed := map[string]string{}
-	for _, f := range blobbed().changed[1:] {
-		viewed[f.Path] = "sha-" + f.Path
-	}
-	store := &memVisitStore{kept: map[string]visits.State{visits.Key(repo.String(), 142): {Viewed: viewed}}}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	restViewed(svc, firstFile)
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	press(t, h, "G")
-	last := mustPos(t, m)
-	if last == "cmd/gh-tui/main.go" {
+	if mustPos(t, m) == firstFile {
 		t.Fatal("G stayed in the first file")
 	}
 	press(t, h, "space")
-	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+	if got := mustPos(t, m); got != firstFile {
 		t.Errorf("space left the diff at %q, want the first file, the only one not viewed", got)
 	}
 	if want := len(m.files.set.list()) - 1; m.files.viewed != want {
@@ -267,41 +477,34 @@ func TestReadOnWrapsToAnUnviewedFile(t *testing.T) {
 	}
 }
 
-// allViewed returns a store that has every file of blobbed viewed.
-func allViewed() *memVisitStore {
-	viewed := map[string]string{}
-	for _, f := range blobbed().changed {
-		viewed[f.Path] = "sha-" + f.Path
-	}
-	return &memVisitStore{kept: map[string]visits.State{visits.Key(repo.String(), 142): {Viewed: viewed}}}
-}
-
 func TestReadOnWithEveryFileViewedGoesToTheFirst(t *testing.T) {
 	t.Parallel()
-	store := allViewed()
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	restViewed(svc)
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	press(t, h, "G")
-	if got := mustPos(t, m); got == "cmd/gh-tui/main.go" {
+	if got := mustPos(t, m); got == firstFile {
 		t.Fatal("G stayed in the first file")
 	}
 	press(t, h, "space")
-	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+	if got := mustPos(t, m); got != firstFile {
 		t.Errorf("space left the diff at %q, want the first file", got)
 	}
-	if _, saves := store.state(); saves != 0 {
-		t.Errorf("reading on over viewed files saved %d times, want none", saves)
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("reading on over viewed files sent %v, want none", sets)
 	}
 }
 
 func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
 	t.Parallel()
-	store := allViewed()
+	svc := withFiles()
+	restViewed(svc)
 	// A modal 5 rows high leaves a window that pages through the folded
 	// headers a few at a time.
-	h, m := filedWith(t, blobbed(), 100, 5, WithVisits(store))
+	h, m := filedWith(t, svc, 100, 5)
 	press(t, h, "[")
-	if got := mustPos(t, m); got != "cmd/gh-tui/main.go" {
+	if got := mustPos(t, m); got != firstFile {
 		t.Fatalf("the diff is at %q, want the first file", got)
 	}
 	last := m.files.set.list()[len(m.files.set.list())-1].Path
@@ -310,10 +513,10 @@ func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
 		before := m.files.diff.Cursor()
 		press(t, h, "space")
 		got := mustPos(t, m)
-		if got != "cmd/gh-tui/main.go" {
+		if got != firstFile {
 			moved = true
 		}
-		if moved && got == "cmd/gh-tui/main.go" {
+		if moved && got == firstFile {
 			wrapped = true
 			break
 		}
@@ -324,30 +527,31 @@ func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
 	if !moved || !wrapped {
 		t.Errorf("space moved on %v and wrapped to the first file %v, want both", moved, wrapped)
 	}
-	if _, saves := store.state(); saves != 0 {
-		t.Errorf("reading on over viewed files saved %d times, want none", saves)
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("reading on over viewed files sent %v, want none", sets)
 	}
 }
 
-func TestReadOnOnlyPagesBeforeTheVisitLoads(t *testing.T) {
+func TestReadOnOnlyPagesBeforeTheMarksAreRead(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
-	m.visit.loaded = false
+	m.files.pvIn = false
+	m.files.pvFailed = false
 	press(t, h, "space")
-	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 {
-		t.Errorf("space before the visit loaded marked a file: %d saves, %d viewed", saves, m.files.viewed)
+	if sets := svc.sets(); len(sets) != 0 || m.files.viewed != 0 {
+		t.Errorf("space before the marks were read marked a file: sent %v, %d viewed", sets, m.files.viewed)
 	}
-	if m.files.diff.Collapsed("cmd/gh-tui/main.go") {
-		t.Error("the first file is folded before the visit loaded")
+	if m.files.diff.Collapsed(firstFile) {
+		t.Error("the first file is folded before the marks were read")
 	}
 }
 
 func TestReadOnIsIgnoredWhileARangeIsOpen(t *testing.T) {
 	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
+	svc := withFiles()
+	h, m := filedWith(t, svc, 100, 30)
 	press(t, h, "[")
 	down(t, h, rowContext)
 	press(t, h, "V")
@@ -356,26 +560,8 @@ func TestReadOnIsIgnoredWhileARangeIsOpen(t *testing.T) {
 	}
 	at := m.files.diff.Cursor()
 	press(t, h, "space")
-	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 || m.files.diff.Cursor() != at {
-		t.Errorf("space with a range open read on: %d saves, %d viewed", saves, m.files.viewed)
-	}
-}
-
-func TestViewedSavesLandInOrder(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
-	press(t, h, "[")
-	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
-	first := m.saveViewed()
-	m.visit.prev.Viewed = map[string]string{"a.go": "1", "b.go": "2"}
-	second := m.saveViewed()
-	// Commands run on goroutines of their own, so the later one may go first.
-	second()
-	first()
-	st, saves := store.state()
-	if saves != 1 || len(st.Viewed) != 2 {
-		t.Errorf("kept %v after %d saves, want the later marks in one save", st.Viewed, saves)
+	if sets := svc.sets(); len(sets) != 0 || m.files.viewed != 0 || m.files.diff.Cursor() != at {
+		t.Errorf("space with a range open read on: sent %v, %d viewed", sets, m.files.viewed)
 	}
 }
 
@@ -396,123 +582,4 @@ func toastsOf(cmd tea.Cmd) []ui.NotifyMsg {
 		return []ui.NotifyMsg{msg}
 	}
 	return nil
-}
-
-func TestViewedBeforeTheVisitLoadsSaysSo(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
-	press(t, h, "[")
-	m.visit.loaded = false
-	file := m.files.set.list()[0]
-	got := toastsOf(m.toggleViewed(file, false))
-	if len(got) != 1 || got[0].Level != toast.Info || !strings.Contains(got[0].Text, "Still reading") {
-		t.Errorf("toasts = %+v, want one info that the files viewed are still being read", got)
-	}
-	if _, saves := store.state(); saves != 0 || m.files.viewed != 0 || m.files.diff.Collapsed(file.Path) {
-		t.Errorf("the mark changed before the visit loaded: %d saves, %d viewed", saves, m.files.viewed)
-	}
-}
-
-func TestViewedAfterAFailedReadWarnsOnce(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{err: errors.New("unreadable")}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
-	press(t, h, "[")
-	if !m.visit.readFailed {
-		t.Fatal("the failed read did not set readFailed")
-	}
-	files := m.files.set.list()
-	first := toastsOf(m.toggleViewed(files[0], false))
-	if len(first) != 1 || first[0].Level != toast.Warning || !strings.Contains(first[0].Text, "won't be kept") {
-		t.Errorf("toasts = %+v, want one warning that marks won't be kept", first)
-	}
-	if !m.files.diff.Collapsed(files[0].Path) || m.files.viewed != 1 {
-		t.Error("the mark did not change for the session")
-	}
-	if again := toastsOf(m.toggleViewed(files[1], false)); len(again) != 0 {
-		t.Errorf("a second mark warned again: %+v", again)
-	}
-	if m.files.viewed != 2 {
-		t.Errorf("%d files viewed, want 2", m.files.viewed)
-	}
-	if _, saves := store.state(); saves != 0 {
-		t.Errorf("%d saves over a state that could not be read, want none", saves)
-	}
-}
-
-func TestViewedSaveThatFailsLetsALaterOneRun(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{saveFails: 1}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
-	press(t, h, "[")
-	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
-	first := m.saveViewed()
-	m.visit.prev.Viewed = map[string]string{"a.go": "1", "b.go": "2"}
-	second := m.saveViewed()
-	got := toastsOf(first)
-	if len(got) != 1 || got[0].Level != toast.Warning {
-		t.Errorf("toasts = %+v, want one warning for the failed save", got)
-	}
-	second()
-	st, saves := store.state()
-	if saves != 1 || len(st.Viewed) != 2 {
-		t.Errorf("kept %v after %d saves, want the later marks kept after the failure", st.Viewed, saves)
-	}
-}
-
-func TestViewedSaveThatFailsLetsAnOlderOneRun(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{saveFails: 1}
-	h, m := filedWith(t, blobbed(), 100, 30, WithVisits(store))
-	press(t, h, "[")
-	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
-	older := m.saveViewed()
-	m.visit.prev.Viewed = map[string]string{"a.go": "1", "b.go": "2"}
-	newer := m.saveViewed()
-	newer()
-	older()
-	st, saves := store.state()
-	if saves != 1 || len(st.Viewed) != 1 {
-		t.Errorf("kept %v after %d saves, want the older marks kept after the newer save failed", st.Viewed, saves)
-	}
-}
-
-func TestVisitWriteThatFailsLetsAPendingSaveRun(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{}
-	_, m, advance := visiting(t, store, nil)
-	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
-	late := m.saveViewed()
-	advance(4 * time.Second)
-	store.mu.Lock()
-	store.saveFails = 1
-	store.mu.Unlock()
-	if err := m.writeVisit(); err == nil {
-		t.Fatal("writeVisit returned no error from a failing store")
-	}
-	late()
-	st, saves := store.state()
-	if saves != 1 || st.Viewed["a.go"] != "1" {
-		t.Errorf("kept %+v after %d saves, want the pending save to keep the marks", st, saves)
-	}
-}
-
-func TestViewedSaveAfterTheVisitLeavesTheLastSeen(t *testing.T) {
-	t.Parallel()
-	store := &memVisitStore{kept: map[string]visits.State{
-		visits.Key(repo.String(), 142): {LastSeen: visits.LastSeen{Head: "old", At: clock.Add(-time.Hour)}},
-	}}
-	_, m, advance := visiting(t, store, nil)
-	m.visit.prev.Viewed = map[string]string{"a.go": "1"}
-	late := m.saveViewed()
-	advance(4 * time.Second)
-	if err := m.writeVisit(); err != nil {
-		t.Fatal(err)
-	}
-	late()
-	st, saves := store.state()
-	if saves != 1 || !st.LastSeen.At.Equal(clock) || st.Viewed["a.go"] != "1" {
-		t.Errorf("kept %+v after %d saves, want the new last seen with the marks", st, saves)
-	}
 }

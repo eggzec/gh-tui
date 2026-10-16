@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,9 +20,8 @@ func TestEmptyIgnoresTheLocationOfTheTime(t *testing.T) {
 		t.Errorf("State with a zero time in a zone is not Empty")
 	}
 	for name, s := range map[string]State{
-		"head":   {LastSeen: LastSeen{Head: "a"}},
-		"at":     {LastSeen: LastSeen{At: time.Unix(1, 0)}},
-		"viewed": {Viewed: map[string]string{"a": "b"}},
+		"head": {LastSeen: LastSeen{Head: "a"}},
+		"at":   {LastSeen: LastSeen{At: time.Unix(1, 0)}},
 	} {
 		if s.Empty() {
 			t.Errorf("State with only %s is Empty", name)
@@ -35,10 +33,7 @@ func TestSaveLoad(t *testing.T) {
 	t.Parallel()
 	s := New(filepath.Join(t.TempDir(), "visits"))
 	key := Key("o/r", 4)
-	want := State{
-		LastSeen: LastSeen{Head: "abc", At: time.Unix(10, 0).UTC()},
-		Viewed:   map[string]string{"a.go": "b1", "dir/b.go": "b2"},
-	}
+	want := State{LastSeen: LastSeen{Head: "abc", At: time.Unix(10, 0).UTC()}}
 	got, err := s.Load(key)
 	if err != nil || !got.Empty() {
 		t.Fatalf("Load before any save = %v, %v", got, err)
@@ -86,50 +81,20 @@ func TestSaveLoad(t *testing.T) {
 	}
 }
 
-// Either part of a state is kept without the other.
-func TestSaveKeepsEitherPart(t *testing.T) {
-	t.Parallel()
-	s := New(t.TempDir())
-	for name, want := range map[string]State{
-		"seen":   {LastSeen: LastSeen{Head: "abc", At: time.Unix(1, 0).UTC()}},
-		"viewed": {Viewed: map[string]string{"a.go": "b1"}},
-	} {
-		key := Key("o/"+name, 1)
-		if err := s.Save(key, want); err != nil {
-			t.Fatal(err)
-		}
-		got, err := s.Load(key)
-		if err != nil || !reflect.DeepEqual(got, want) {
-			t.Errorf("%s: Load = %v, %v; want %v", name, got, err, want)
-		}
-	}
-}
-
-// A state with only viewed files is written without the empty last_seen, and
-// a file that has one, as earlier versions wrote it, still decodes.
-func TestLastSeenIsOmittedWhenEmpty(t *testing.T) {
+// A file that earlier versions wrote with the files viewed still decodes: the
+// files, which GitHub keeps now, are left out.
+func TestOldViewedFilesAreIgnored(t *testing.T) {
 	t.Parallel()
 	s := New(t.TempDir())
 	key := Key("o/r", 7)
-	want := State{Viewed: map[string]string{"a.go": "b1"}}
-	if err := s.Save(key, want); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(s.path(key))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), "last_seen") {
-		t.Errorf("file = %s, want no last_seen", data)
-	}
-
-	old := `{"version":` + strconv.Itoa(Version) + `,"key":"` + key + `","last_seen":{},"viewed":{"a.go":"b1"}}`
+	old := `{"version":` + strconv.Itoa(Version) + `,"key":"` + key + `","last_seen":{"head":"abc"},"viewed":{"a.go":"b1"}}`
 	if err := os.WriteFile(s.path(key), []byte(old), fileMode); err != nil {
 		t.Fatal(err)
 	}
+	want := State{LastSeen: LastSeen{Head: "abc"}}
 	got, err := s.Load(key)
 	if err != nil || !reflect.DeepEqual(got, want) {
-		t.Errorf("Load of a file with an empty last_seen = %v, %v; want %v", got, err, want)
+		t.Errorf("Load of a file with viewed files = %v, %v; want %v", got, err, want)
 	}
 }
 
@@ -138,7 +103,7 @@ func TestDeleteAfterSaveLeavesNoFile(t *testing.T) {
 	t.Parallel()
 	s := New(t.TempDir())
 	key := Key("o/r", 3)
-	state := State{Viewed: map[string]string{"a.go": "b1"}}
+	state := State{LastSeen: LastSeen{Head: "abc"}}
 	for range 50 {
 		if err := s.Save(key, state); err != nil {
 			t.Fatal(err)

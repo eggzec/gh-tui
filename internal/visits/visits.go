@@ -1,6 +1,5 @@
-// Package visits keeps, for each pull request, when the user last looked at it
-// and which of its files they marked as viewed, so that it can show what is new
-// since and tick the files already seen.
+// Package visits keeps, for each pull request, when the user last looked at it,
+// so that it can show what is new since.
 //
 // Each pull request has a small JSON file of its own in a directory, named by
 // a hash of its key, with a version so that a later version can change its
@@ -50,16 +49,13 @@ type LastSeen struct {
 // State is what is kept of a pull request.
 type State struct {
 	LastSeen LastSeen `json:"last_seen,omitzero"`
-	// Viewed maps the path of each file the user marked as viewed to the SHA of
-	// its blob then, so that a file that changed since is not taken for seen.
-	Viewed map[string]string `json:"viewed,omitempty"`
 }
 
 // Empty reports whether the state says nothing, which is kept as no file. The
 // time is compared with IsZero, since a time decoded from a file may be the
 // zero instant and still differ from the zero value under ==.
 func (s State) Empty() bool {
-	return s.LastSeen.Head == "" && s.LastSeen.At.IsZero() && len(s.Viewed) == 0
+	return s.LastSeen.Head == "" && s.LastSeen.At.IsZero()
 }
 
 // file is the shape of the file of a pull request. The key is kept to tell a
@@ -131,9 +127,7 @@ func (s *Store) Load(key string) (State, error) {
 
 // Save keeps state as that under key, replacing what is there. An empty state
 // deletes the file. It creates the directory if needed. Save does not keep
-// state: it is encoded before Save returns. The caller must not change the
-// Viewed map from another goroutine while Save runs, so a caller that shares
-// the map passes a copy.
+// state: it is encoded before Save returns.
 func (s *Store) Save(key string, state State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -88,7 +88,6 @@ func TestVisitCountsOverviewAndFilesTogether(t *testing.T) {
 	store := &memVisitStore{kept: map[string]visits.State{
 		visits.Key(repo.String(), 142): {
 			LastSeen: visits.LastSeen{Head: "old", At: clock.Add(-time.Hour)},
-			Viewed:   map[string]string{"a.go": "b1"},
 		},
 	}}
 	h, m, advance := visiting(t, store, nil)
@@ -102,9 +101,6 @@ func TestVisitCountsOverviewAndFilesTogether(t *testing.T) {
 	}
 	if got.LastSeen.Head != "a1b2c3d" || !got.LastSeen.At.Equal(clock) {
 		t.Errorf("LastSeen = %+v, want head a1b2c3d opened at %v", got.LastSeen, clock)
-	}
-	if got.Viewed["a.go"] != "b1" {
-		t.Errorf("Viewed = %v, want the files kept", got.Viewed)
 	}
 }
 

@@ -3,7 +3,6 @@ package pulls
 import (
 	"errors"
 	"log/slog"
-	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -45,9 +44,7 @@ type memVisits struct {
 func (s *memVisits) Load(key string) (visits.State, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	st := s.kept[key]
-	st.Viewed = maps.Clone(st.Viewed)
-	return st, nil
+	return s.kept[key], nil
 }
 
 func (s *memVisits) Save(key string, state visits.State) error {
@@ -56,7 +53,6 @@ func (s *memVisits) Save(key string, state visits.State) error {
 	if s.kept == nil {
 		s.kept = map[string]visits.State{}
 	}
-	state.Viewed = maps.Clone(state.Viewed)
 	s.kept[key] = state
 	return nil
 }
@@ -75,9 +71,6 @@ type visitState struct {
 	// nothing of its content, and may still hold something: nothing is saved
 	// over it.
 	readFailed bool
-	// warned is set once the user was told that marks aren't kept after a
-	// failed read, so that it is said once per modal.
-	warned bool
 	// watched is how long the tabs that count showed before the stretch that
 	// began at since, which is running while on is set.
 	watched time.Duration
@@ -85,9 +78,6 @@ type visitState struct {
 	on      bool
 	// done is set once the modal closed, so that a late save writes nothing.
 	done bool
-	// seq orders the saves of the files viewed against each other and against
-	// the write of the visit.
-	seq saveSeq
 	// catch is what the head of the pull request did since the last visit.
 	catch catchup
 }
@@ -150,7 +140,6 @@ func (m *detailModal) receiveVisit(msg visitLoadedMsg) tea.Cmd {
 	}
 	v.prev = msg.state
 	m.redrawNew()
-	m.foldViewed(nil)
 	return m.askSince()
 }
 
@@ -283,29 +272,16 @@ func (v *visitState) shown(now time.Time) time.Duration {
 }
 
 // writeVisit keeps this visit, if it counts: the head that shows now, and the
-// time the modal opened. What was kept of the files viewed stays. It writes at
-// once, as the files are small and the modal may be gone before a command
-// would run.
+// time the modal opened. It writes at once, as the files are small and the modal
+// may be gone before a command would run.
 func (m *detailModal) writeVisit() error {
 	v := &m.visit
 	if v.store == nil || v.done || !v.loaded || v.readFailed || v.shown(m.now()) < visitAfter {
 		return nil
 	}
-	// A save of the files viewed that is still to run carries the old visit, so
-	// it is dropped: this one holds the same marks.
-	v.seq.mu.Lock()
-	defer v.seq.mu.Unlock()
-	v.seq.next++
-	err := v.store.Save(m.visitKey(), visits.State{
+	return v.store.Save(m.visitKey(), visits.State{
 		LastSeen: visits.LastSeen{Head: m.detail.HeadSHA, At: v.opened},
-		Viewed:   maps.Clone(v.prev.Viewed),
 	})
-	if err != nil {
-		// Nothing was written, so a save still to run keeps its turn.
-		return err
-	}
-	v.seq.wrote = v.seq.next
-	return nil
 }
 
 // isNew reports whether something that login did at time at arrived since the

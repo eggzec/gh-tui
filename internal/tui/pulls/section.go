@@ -72,6 +72,11 @@ type Service interface {
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
+	// Viewed reads the viewer's marks on the files of a pull request, which
+	// GitHub keeps, and CachedViewed returns them from memory, if they are
+	// there, without a request.
+	Viewed(ctx context.Context, q pulls.ViewedQuery) (core.PullViewed, error)
+	CachedViewed(q pulls.ViewedQuery) (core.PullViewed, bool)
 
 	// The changes are shown in the cache at once. The returned Op sends
 	// them. A merge is pinned to head, the commit it was confirmed for.
@@ -89,6 +94,8 @@ type Service interface {
 	// ResolveThread marks the review thread id resolved, or open again when
 	// resolved is false.
 	ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op
+	// SetViewed marks the file at path viewed on GitHub, or takes the mark off.
+	SetViewed(q pulls.ViewedQuery, path string, viewed bool) *optimistic.Op
 	// Comment adds a comment by author to the conversation of a pull
 	// request. It shows at once as one that GitHub hasn't confirmed
 	// (pulls.IsPending), and goes if GitHub refuses it.

@@ -1140,8 +1140,8 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
-    # Mark the file under the cursor as viewed, or take the mark off. It is
-    # kept on this machine only, and holds while the file stays as it was.
+    # Mark the file under the cursor as viewed, or take the mark off. The mark
+    # is kept on GitHub, so it shows on the web and on your other machines.
     viewed: [v]
     # Pick which changes the tab shows: all, those since the last visit, or
     # one commit.
@@ -1178,7 +1178,7 @@ keys:
     range: [V]
     delete_draft: [D]
     # Mark the file the cursor is in as viewed, which folds it, and go to the
-    # next file not viewed, or take the mark off.
+    # next file not viewed, or take the mark off. The mark is kept on GitHub.
     viewed: [v]
     # Read on: page down, and once the end of the file the cursor is in shows,
     # mark it as viewed and go to the next file not viewed, from the first file
