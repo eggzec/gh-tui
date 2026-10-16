@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -18,7 +17,7 @@ const pendingPrefix = "pending:"
 // IsPending reports whether c is a comment that is shown before GitHub
 // confirmed it.
 func IsPending(c core.Comment) bool {
-	return strings.HasPrefix(c.ID, pendingPrefix)
+	return Unconfirmed(c.ID)
 }
 
 // Comment adds a comment to the conversation of pull request number. Until
