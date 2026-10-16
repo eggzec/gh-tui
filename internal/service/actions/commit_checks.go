@@ -22,7 +22,9 @@ type commitChecksAPI interface {
 // also reads the annotations of the check runs, which a view asks for only
 // where it shows them.
 type CommitChecksQuery struct {
-	Repo  core.RepoRef
+	Repo core.RepoRef
+	// SHA is the full 40-character ID of the commit: the read looks the
+	// object up by it, so an abbreviation finds nothing.
 	SHA   string
 	Notes bool
 }
@@ -109,14 +111,18 @@ func (s *Service) CommitChecks(ctx context.Context, q CommitChecksQuery) (core.C
 		if err != nil {
 			return cache.Entry[core.CommitChecks]{}, err
 		}
-		e := cache.Entry[core.CommitChecks]{Value: c, Tags: []string{repoTag(q.Repo)}}
-		if !c.Pending() {
-			s.commit.done.Set(key, e)
-		}
-		return e, nil
+		return cache.Entry[core.CommitChecks]{Value: c, Tags: []string{repoTag(q.Repo)}}, nil
 	})
 	if err != nil {
 		return core.CommitChecks{}, fmt.Errorf("checks of %s@%s: %w", q.Repo, q.SHA, err)
+	}
+	// Keep the completed checks for long only if no Invalidate came during
+	// the read: Fetch leaves such an entry of live stale, and the long one
+	// would hide it.
+	if !e.Value.Pending() {
+		if _, st := s.commit.live.Get(key); st == cache.Fresh {
+			s.commit.done.Set(key, e)
+		}
 	}
 	return e.Value, nil
 }
