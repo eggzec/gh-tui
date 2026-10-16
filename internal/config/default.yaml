@@ -823,6 +823,11 @@ keys:
     top: [g, home]
     bottom: [G, end]
 
+  # The modal of a pull request, over each of its panes. Review has no key: it
+  # is `:review`, which picks a verdict, takes a summary and sends the review.
+  pull_modal:
+    review: []
+
   # Checks: the list of checks. Each pane of the step re-runs the failed
   # jobs of the run of the check under the cursor, or of the one shown.
   pull_check_list:

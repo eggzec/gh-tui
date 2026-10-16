@@ -64,6 +64,14 @@ type panesModal struct {
 	// last on top. Only it takes keys.
 	overlays []openOverlay
 
+	// caps is what the viewer may do in repo, as far as it is known, and
+	// token says what the token lacks. sending is set while GitHub has a
+	// review, and sendCtx bounds the send, which outlives the modal's reads.
+	caps    core.RepoCaps
+	token   *ui.Token
+	sending bool
+	sendCtx context.Context
+
 	// id names the modal to the messages of its reads.
 	id int64
 	// ctx bounds the reads, and resume lets the reads ahead go on once the
@@ -114,10 +122,14 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		id:     panesIDs.Add(1),
 
 		previews: map[previewKey]int{},
-		ctx:    ctx,
-		cancel: cancel,
-		resume: resume,
-		icons:  s.icons,
+		ctx:      ctx,
+		cancel:   cancel,
+		resume:   resume,
+		icons:    s.icons,
+
+		caps:    s.capsOf(repo),
+		token:   s.voice.Token,
+		sendCtx: s.ctx,
 	}
 	if onChecks {
 		m.focus = panes.Merge
@@ -131,7 +143,19 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	}
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
-	return tea.Sequence(ui.OpenModalOver(m, back), m.revalidate())
+	reads := []tea.Cmd{m.revalidate()}
+	if !m.caps.Known {
+		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
+	}
+	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(reads...))
+}
+
+// capsOf returns what the viewer may do in repo, as far as it is known.
+func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
+	if s.hasRepo && repo.Same(s.repo) {
+		return s.caps
+	}
+	return ui.CachedCaps(s.repos, repo)
 }
 
 // revalidate reads the detail though a cached one is fresh: opening the modal
@@ -184,6 +208,13 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case panesDetailMsg:
 		return m.receive(msg)
+	case reviewedMsg:
+		return m.reviewed(msg)
+	case ui.CapsMsg:
+		if msg.Repo.Same(m.repo) {
+			m.caps = msg.Caps
+		}
+		return nil
 	case ui.OnlineMsg:
 		// What was served kept shows what GitHub has now.
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
@@ -201,6 +232,11 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		m.follow()
 		return cmd
 	case tea.PasteMsg:
+		if m.top() != nil {
+			return m.pressOverlay(msg)
+		}
+	default:
+		// What the overlay on top asked for: the messages of a composer.
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
@@ -245,6 +281,8 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case keymap.Matches(msg, k.back):
 		return m.close()
+	case keymap.Matches(msg, k.review):
+		return m.openReview()
 	case m.inPreview(l):
 		m.scrollPreview(l, msg)
 	}

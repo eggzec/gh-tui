@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -29,10 +30,17 @@ type panesKeys struct {
 	// owner shows the page of the author, which the app's key for the owner
 	// page asks of the modal.
 	owner key.Binding
-	// confirm answers a question that an overlay asks.
+	// confirm answers a question that an overlay asks, and quit closes the
+	// modal from under it, which takes every key.
 	confirm ui.ConfirmKeys
-	// scroll moves through the preview of a zoomed pane.
+	quit    key.Binding
+	// scroll moves through the preview of a zoomed pane, and the cursor of the
+	// verdicts.
 	scroll ui.MoveKeys
+	// review opens the verdicts, choose takes the one under the cursor and
+	// cancel steps back out of them. composer is the keys of the summary.
+	review, choose, cancel key.Binding
+	composer               composer.KeyMap
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -46,7 +54,13 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		help:  modal.Binding("global.help", "help"),
 		owner: modal.Binding("global.owner", "author"),
 
+		review:   modal.Binding("review", "review"),
+		choose:   modal.Binding("global.select", "choose"),
+		cancel:   modal.Binding("global.back", "back"),
+		composer: composer.NewKeyMap(ui.Lookup(keys, "composer")),
+
 		confirm: ui.NewConfirmKeys(keys),
+		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
 	}
 	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
@@ -99,7 +113,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.prev.SetEnabled(k.prev.Enabled() && steps)
 	k.zoom.SetEnabled(k.zoom.Enabled() && m.canZoom())
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
-	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner})
+	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
 	if ctx == ctxPreview {
