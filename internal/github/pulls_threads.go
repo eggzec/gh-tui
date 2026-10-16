@@ -40,13 +40,17 @@ var pullThreadsQuery = fmt.Sprintf(`query PullThreads($owner: String!, $name: St
           diffSide startDiffSide subjectType
           isResolved isOutdated
           resolvedBy { login name }
-          viewerCanResolve viewerCanUnresolve
+          viewerCanResolve viewerCanUnresolve viewerCanReply
           comments(first: %d) {
             totalCount
             nodes {
               id
               author { __typename login ... on User { name } }
               createdAt lastEditedAt body url
+              path diffHunk
+              commit { oid } originalCommit { oid }
+              line originalLine startLine originalStartLine
+              viewerCanUpdate viewerCanDelete
               replyTo { id }
               pullRequestReview { id state }
             }
@@ -75,10 +79,24 @@ type pullThread struct {
 	ResolvedBy         *user `json:"resolvedBy"`
 	ViewerCanResolve   bool  `json:"viewerCanResolve"`
 	ViewerCanUnresolve bool  `json:"viewerCanUnresolve"`
+	ViewerCanReply     bool  `json:"viewerCanReply"`
 	Comments           struct {
 		TotalCount int                 `json:"totalCount"`
 		Nodes      []pullThreadComment `json:"nodes"`
 	} `json:"comments"`
+}
+
+// pullThreadCommit is the JSON shape of a commit in pullThreadsQuery.
+type pullThreadCommit struct {
+	OID string `json:"oid"`
+}
+
+// oid returns the commit's hash, empty for no commit.
+func (c *pullThreadCommit) oid() string {
+	if c == nil {
+		return ""
+	}
+	return c.OID
 }
 
 // pullThreadComment is the JSON shape of a comment in pullThreadsQuery.
@@ -89,7 +107,19 @@ type pullThreadComment struct {
 	LastEdited *time.Time `json:"lastEditedAt"`
 	Body       string     `json:"body"`
 	URL        string     `json:"url"`
-	ReplyTo    *struct {
+	Path       string     `json:"path"`
+	DiffHunk   string     `json:"diffHunk"`
+	// Commit and OriginalCommit are null for a comment whose commit is gone.
+	Commit         *pullThreadCommit `json:"commit"`
+	OriginalCommit *pullThreadCommit `json:"originalCommit"`
+	// The lines are null once the comment is outdated, or on a whole file.
+	Line              int  `json:"line"`
+	OriginalLine      int  `json:"originalLine"`
+	StartLine         int  `json:"startLine"`
+	OriginalStartLine int  `json:"originalStartLine"`
+	ViewerCanUpdate   bool `json:"viewerCanUpdate"`
+	ViewerCanDelete   bool `json:"viewerCanDelete"`
+	ReplyTo           *struct {
 		ID string `json:"id"`
 	} `json:"replyTo"`
 	// Review is the review that the comment was made in, null for a comment
@@ -101,7 +131,14 @@ type pullThreadComment struct {
 }
 
 func (c pullThreadComment) core() core.ThreadComment {
-	out := core.ThreadComment{ID: c.ID, At: c.CreatedAt, Body: c.Body, URL: c.URL}
+	out := core.ThreadComment{
+		ID: c.ID, At: c.CreatedAt, Body: c.Body, URL: c.URL,
+		Path: oneLine(c.Path), DiffHunk: c.DiffHunk,
+		Commit: c.Commit.oid(), OriginalCommit: c.OriginalCommit.oid(),
+		Line: c.Line, OriginalLine: c.OriginalLine,
+		StartLine: c.StartLine, OriginalStartLine: c.OriginalStartLine,
+		ViewerCanUpdate: c.ViewerCanUpdate, ViewerCanDelete: c.ViewerCanDelete,
+	}
 	if c.Author != nil {
 		out.Author = c.Author.core()
 	}
@@ -141,6 +178,7 @@ func (t pullThread) core() core.Thread {
 		Outdated:           t.IsOutdated,
 		ViewerCanResolve:   t.ViewerCanResolve,
 		ViewerCanUnresolve: t.ViewerCanUnresolve,
+		ViewerCanReply:     t.ViewerCanReply,
 		Comments:           convert(t.Comments.Nodes, pullThreadComment.core),
 		TotalComments:      t.Comments.TotalCount,
 		MoreComments:       t.Comments.TotalCount > len(t.Comments.Nodes),

@@ -9,6 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/cache/cachetest"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -233,6 +234,39 @@ func TestThreadsKeptIsReadAgainInANewSession(t *testing.T) {
 	before := len(r.requests())
 	if p := readThreads(t, s, threadsQ); p.Offline || p.Limited || len(r.requests()) != before+1 {
 		t.Errorf("page = %+v after %d requests, want the stale kept page read again", p, len(r.requests())-before)
+	}
+}
+
+// TestThreadsKeptBeforeNewFieldsIsNotServed pins the schema of the kept
+// threads: a page kept by a session before the snippet, commits and
+// permissions of a comment were read lacks them, so it is read again, never
+// served in place of a read that fails.
+func TestThreadsKeptBeforeNewFieldsIsNotServed(t *testing.T) {
+	const before = 3
+	store := openStore(t)
+	key := threadsQ.key(New(nil).detailSizes.Threads)
+	page := core.ThreadPage{Threads: []core.Thread{{ID: "t1", Path: "a.go", Line: 3}}, Total: 1}
+	entry := cache.Entry[core.ThreadPage]{Value: page, FetchedAt: epoch}
+
+	old := cache.NewShelf[core.ThreadPage](store, kindThreads, before)
+	if err := old.Save(key, entry); err != nil {
+		t.Fatalf("keep a page of the old schema: %v", err)
+	}
+	r := &threadServer{}
+	r.fail(errDial)
+	s := New(r.api(), WithStore(cachetest.Aged(store, time.Hour)))
+	if p, err := s.Threads(t.Context(), threadsQ); err == nil {
+		t.Errorf("Threads = %+v, want the read's error, not a page kept before the schema changed", p)
+	}
+
+	// A page of the current schema is served, so the old one was refused for its schema.
+	cur := cache.NewShelf[core.ThreadPage](store, kindThreads, threadsSchema)
+	if err := cur.Save(key, entry); err != nil {
+		t.Fatalf("keep a page of the current schema: %v", err)
+	}
+	s = New(r.api(), WithStore(cachetest.Aged(store, time.Hour)))
+	if p := readThreads(t, s, threadsQ); !p.Offline || len(p.Threads) != 1 {
+		t.Errorf("page = Offline %v, %d threads; want the kept page, offline", p.Offline, len(p.Threads))
 	}
 }
 

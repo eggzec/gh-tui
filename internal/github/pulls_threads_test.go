@@ -20,6 +20,14 @@ func TestListPullRequestThreads(t *testing.T) {
 	if q := reqs()[0].Query; !strings.Contains(q, "comments(first: 100)") {
 		t.Errorf("query does not read 100 comments of each thread:\n%s", q)
 	}
+	for _, field := range []string{
+		"viewerCanReply", "diffHunk", "commit { oid }", "originalCommit { oid }",
+		"line originalLine startLine originalStartLine", "viewerCanUpdate viewerCanDelete",
+	} {
+		if q := reqs()[0].Query; !strings.Contains(q, field) {
+			t.Errorf("query does not read %q:\n%s", field, q)
+		}
+	}
 	if page.Total != 8 || page.Next != "Y3Vyc29yOnYyOpHOAAAF" || len(page.Threads) != 6 {
 		t.Fatalf("page = total %d, next %q, %d threads; want 8, the cursor of the fixture, 6", page.Total, page.Next, len(page.Threads))
 	}
@@ -32,17 +40,28 @@ func TestListPullRequestThreads(t *testing.T) {
 			Line: 42, OriginalLine: 40,
 			Side: core.SideRight, StartSide: core.SideRight,
 			ViewerCanResolve: true,
+			ViewerCanReply:   true,
 			ReviewID:         "PRR_kwDOLnBTf85Rv001",
 			Comments: []core.ThreadComment{
 				{
 					ID: "PRRC_kwDOLnBTf86Ab001", Author: hubot, At: pullTime("2026-09-21T10:00:00Z"),
-					Body: "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
-					URL:  "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
+					Body:           "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
+					URL:            "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
+					Path:           "internal/tui/model.go",
+					DiffHunk:       "@@ -38,6 +38,8 @@ func New() Model {\n \tx := 1\n+\tm := Model{}\n+\treturn m\n }",
+					Commit:         "1111111111111111111111111111111111111111",
+					OriginalCommit: "2222222222222222222222222222222222222222",
+					Line:           42, OriginalLine: 40, StartLine: 41, OriginalStartLine: 39,
+					ViewerCanUpdate: true,
 				},
 				{
 					ID: "PRRC_kwDOLnBTf86Ab002", Author: mona, At: pullTime("2026-09-21T11:30:00Z"),
 					Body: "No, a value keeps it copyable.", URL: "https://github.com/eggzec/gh-tui/pull/42#discussion_r1002",
 					ReplyTo: "PRRC_kwDOLnBTf86Ab001", EditedAt: pullTime("2026-09-21T11:45:00Z"),
+					// A commit that is gone and lines that are null read as empty and 0.
+					Path:         "internal/tui/model.go",
+					DiffHunk:     "@@ -38,6 +38,8 @@ func New() Model {\n \tx := 1\n+\tm := Model{}\n+\treturn m\n }",
+					OriginalLine: 40, ViewerCanDelete: true,
 				},
 			},
 			TotalComments: 2,

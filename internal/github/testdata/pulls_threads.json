@@ -22,6 +22,7 @@
               "resolvedBy": null,
               "viewerCanResolve": true,
               "viewerCanUnresolve": false,
+              "viewerCanReply": true,
               "comments": {
                 "totalCount": 2,
                 "nodes": [
@@ -32,6 +33,16 @@
                     "lastEditedAt": null,
                     "body": "Should this be a **pointer**?\n\n```go\nm := &Model{}\n```",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1001",
+                    "path": "internal/tui/model.go",
+                    "diffHunk": "@@ -38,6 +38,8 @@ func New() Model {\n \tx := 1\n+\tm := Model{}\n+\treturn m\n }",
+                    "commit": {"oid": "1111111111111111111111111111111111111111"},
+                    "originalCommit": {"oid": "2222222222222222222222222222222222222222"},
+                    "line": 42,
+                    "originalLine": 40,
+                    "startLine": 41,
+                    "originalStartLine": 39,
+                    "viewerCanUpdate": true,
+                    "viewerCanDelete": false,
                     "replyTo": null,
                     "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv001", "state": "COMMENTED"}
                   },
@@ -42,6 +53,16 @@
                     "lastEditedAt": "2026-09-21T11:45:00Z",
                     "body": "No, a value keeps it copyable.",
                     "url": "https://github.com/eggzec/gh-tui/pull/42#discussion_r1002",
+                    "path": "internal/tui/model.go",
+                    "diffHunk": "@@ -38,6 +38,8 @@ func New() Model {\n \tx := 1\n+\tm := Model{}\n+\treturn m\n }",
+                    "commit": null,
+                    "originalCommit": null,
+                    "line": null,
+                    "originalLine": 40,
+                    "startLine": null,
+                    "originalStartLine": null,
+                    "viewerCanUpdate": false,
+                    "viewerCanDelete": true,
                     "replyTo": {"id": "PRRC_kwDOLnBTf86Ab001"},
                     "pullRequestReview": {"id": "PRR_kwDOLnBTf85Rv002"}
                   }
