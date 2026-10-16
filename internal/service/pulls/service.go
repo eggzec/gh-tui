@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,6 +40,11 @@ type API interface {
 	ListPullRequestReviews(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.Review], error)
 	ListPullRequestFiles(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	ListPullRequestCommits(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Page[core.Commit], github.Response, error)
+	// ListPullCommits returns the commits with their check states and the
+	// last review that the user named by viewer submitted, and ViewerLogin
+	// names the signed-in user.
+	ListPullCommits(ctx context.Context, repo core.RepoRef, number int, viewer string) (core.PullCommits, error)
+	ViewerLogin(ctx context.Context) (string, error)
 	// GetCommit returns a commit with the first page of its files, and
 	// ListCommitFiles the rest, from the cursor that says where they go on.
 	GetCommit(ctx context.Context, repo core.RepoRef, sha string) (core.CommitDetail, error)
@@ -130,6 +136,13 @@ type Service struct {
 	// pendings holds the viewer's pending review of a pull request. It is
 	// private and changes on the web, so it is never kept on disk.
 	pendings *cache.Cache[pendingRead]
+	// pullCommits holds the commits of a pull request with their check
+	// states, by head. The states change while checks run, so it is never
+	// kept on disk.
+	pullCommits *cache.Cache[core.PullCommits]
+	// viewer is the login of the signed-in user, once read.
+	viewerMu sync.Mutex
+	viewer   string
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
 	keptLists     *cache.Shelf[listPage]
@@ -192,6 +205,7 @@ func New(api API, opts ...Option) *Service {
 		timelines:     cache.New[core.Page[core.TimelineItem]](mem...),
 		keptTimelines: cache.NewShelf[core.Page[core.TimelineItem]](o.store, kindTimeline, timelineSchema),
 		pendings:      cache.New[pendingRead](mem...),
+		pullCommits:   cache.New[core.PullCommits](mem...),
 		owners:        cache.New[OwnersFile](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
 		members:       cache.New[TeamMembers](mem...),
 		sinces:        cache.New[core.Compare](mem...),
@@ -515,6 +529,7 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 	// A thread resolved elsewhere moves nothing that vouches for its page.
 	s.threads.InvalidateTag(key)
 	s.pendings.InvalidateTag(key)
+	s.pullCommits.InvalidateTag(key)
 	return s.readDetail(ctx, repo, number)
 }
 
@@ -545,4 +560,5 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.threads.InvalidateTag(tag)
 	s.sinces.InvalidateTag(tag)
 	s.pendings.InvalidateTag(tag)
+	s.pullCommits.InvalidateTag(tag)
 }
