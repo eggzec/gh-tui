@@ -27,6 +27,7 @@ import (
 // ProbePullRequests is a cheap conditional request that Poll watches. The
 // comments of a pull request are those of its issue, which REST reads.
 type API interface {
+	timelineAPI
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
@@ -98,6 +99,8 @@ type Service struct {
 	// of the pull request they were read at, and REST's validators.
 	comments *cache.Cache[stampedComments]
 	reviews  *cache.Cache[core.Page[core.Review]]
+	// timelines holds the whole timeline of a pull request, read in pages.
+	timelines *cache.Cache[core.Page[core.TimelineItem]]
 	// files holds the pages of the files a pull request changes, by head.
 	files *cache.Cache[core.Page[core.CommitFile]]
 	// commits holds the commits of a pull request, by head, and commitFiles
@@ -116,14 +119,15 @@ type Service struct {
 	pendings *cache.Cache[pendingRead]
 	// The kept ones are what an earlier session read, if the service has
 	// a store. A read that misses memory starts from them.
-	keptLists    *cache.Shelf[listPage]
-	keptDetails  *cache.Shelf[core.PullRequestDetail]
-	keptComments *cache.Shelf[stampedComments]
-	keptReviews  *cache.Shelf[core.Page[core.Review]]
-	keptFiles    *cache.Shelf[core.Page[core.CommitFile]]
-	keptThreads  *cache.Shelf[core.ThreadPage]
-	keptRanges   *cache.Shelf[core.CompareDetail]
-	keptCommits  *cache.Shelf[core.Page[core.Commit]]
+	keptLists     *cache.Shelf[listPage]
+	keptDetails   *cache.Shelf[core.PullRequestDetail]
+	keptComments  *cache.Shelf[stampedComments]
+	keptReviews   *cache.Shelf[core.Page[core.Review]]
+	keptTimelines *cache.Shelf[core.Page[core.TimelineItem]]
+	keptFiles     *cache.Shelf[core.Page[core.CommitFile]]
+	keptThreads   *cache.Shelf[core.ThreadPage]
+	keptRanges    *cache.Shelf[core.CompareDetail]
+	keptCommits   *cache.Shelf[core.Page[core.Commit]]
 	// keptCommitFiles is what a commit's SHA names, so it is never revalidated.
 	keptCommitFiles *cache.Shelf[core.Page[core.CommitFile]]
 	now             func() time.Time
@@ -159,26 +163,28 @@ func New(api API, opts ...Option) *Service {
 	ttl := cmp.Or(o.ttl, d.Cache.TTL.Pulls)
 	mem := []cache.Option{cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))}
 	s := &Service{
-		api:          api,
-		access:       o.access,
-		repos:        o.repos,
-		lists:        cache.New[listPage](mem...),
-		details:      cache.New[core.PullRequestDetail](mem...),
-		comments:     cache.New[stampedComments](mem...),
-		reviews:      cache.New[core.Page[core.Review]](mem...),
-		threads:      cache.New[core.ThreadPage](mem...),
-		pendings:     cache.New[pendingRead](mem...),
-		sinces:       cache.New[core.Compare](mem...),
-		ranges:       cache.New[core.CompareDetail](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), rangeSize)),
-		files:        cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
-		keptLists:    cache.NewShelf[listPage](o.store, kindList, listSchema),
-		keptDetails:  cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
-		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
-		keptReviews:  cache.NewShelf[core.Page[core.Review]](o.store, kindReviews, reviewsSchema),
-		keptFiles:    cache.NewShelf[core.Page[core.CommitFile]](o.store, kindFiles, filesSchema),
-		keptThreads:  cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
-		keptRanges:   cache.NewShelf[core.CompareDetail](o.store, kindRanges, rangesSchema),
-		now:          time.Now,
+		api:           api,
+		access:        o.access,
+		repos:         o.repos,
+		lists:         cache.New[listPage](mem...),
+		details:       cache.New[core.PullRequestDetail](mem...),
+		comments:      cache.New[stampedComments](mem...),
+		reviews:       cache.New[core.Page[core.Review]](mem...),
+		threads:       cache.New[core.ThreadPage](mem...),
+		timelines:     cache.New[core.Page[core.TimelineItem]](mem...),
+		keptTimelines: cache.NewShelf[core.Page[core.TimelineItem]](o.store, kindTimeline, timelineSchema),
+		pendings:      cache.New[pendingRead](mem...),
+		sinces:        cache.New[core.Compare](mem...),
+		ranges:        cache.New[core.CompareDetail](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), rangeSize)),
+		files:         cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
+		keptLists:     cache.NewShelf[listPage](o.store, kindList, listSchema),
+		keptDetails:   cache.NewShelf[core.PullRequestDetail](o.store, kindDetail, detailSchema),
+		keptComments:  cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
+		keptReviews:   cache.NewShelf[core.Page[core.Review]](o.store, kindReviews, reviewsSchema),
+		keptFiles:     cache.NewShelf[core.Page[core.CommitFile]](o.store, kindFiles, filesSchema),
+		keptThreads:   cache.NewShelf[core.ThreadPage](o.store, kindThreads, threadsSchema),
+		keptRanges:    cache.NewShelf[core.CompareDetail](o.store, kindRanges, rangesSchema),
+		now:           time.Now,
 
 		commits:         cache.New[core.Page[core.Commit]](mem...),
 		commitFiles:     cache.New[core.Page[core.CommitFile]](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),

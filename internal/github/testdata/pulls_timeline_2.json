@@ -1,0 +1,34 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4998, "resetAt": "2026-09-23T12:00:00Z"},
+    "repository": {
+      "pullRequest": {
+        "page": {
+          "pageInfo": {"hasNextPage": false, "endCursor": "CUR2"},
+          "nodes": [
+            {"__typename": "RenamedTitleEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:00:00Z",
+             "previousTitle": "wip", "currentTitle": "feat: timeline"},
+            {"__typename": "BaseRefChangedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:05:00Z",
+             "previousRefName": "main", "currentRefName": "release"},
+            {"__typename": "CrossReferencedEvent", "actor": {"__typename": "User", "login": "octocat"}, "createdAt": "2026-09-21T09:10:00Z", "willCloseTarget": true,
+             "source": {"__typename": "PullRequest", "number": 50, "title": "Follow up", "state": "MERGED", "url": "https://github.com/eggzec/other/pull/50",
+                        "repository": {"nameWithOwner": "eggzec/other"}}},
+            {"__typename": "CrossReferencedEvent", "actor": null, "createdAt": "2026-09-21T09:11:00Z", "willCloseTarget": false,
+             "source": {"__typename": "Issue", "number": 7, "title": "A bug", "issueState": "OPEN", "url": "https://github.com/eggzec/gh-tui/issues/7",
+                        "repository": {"nameWithOwner": "eggzec/gh-tui"}}},
+            {"__typename": "ReviewDismissedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:20:00Z", "dismissalMessage": "Addressed"},
+            {"__typename": "LockedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:21:00Z", "lockReason": "TOO_HEATED"},
+            {"__typename": "UnlockedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:22:00Z"},
+            {"__typename": "MilestonedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:30:00Z", "milestoneTitle": "v1"},
+            {"__typename": "DemilestonedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T09:31:00Z", "milestoneTitle": "v0"},
+            {"__typename": "ClosedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T10:00:00Z"},
+            {"__typename": "ReopenedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T10:05:00Z"},
+            {"__typename": "MergedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T11:00:00Z", "mergeRefName": "main",
+             "commit": {"oid": "ddd444ddd444", "abbreviatedOid": "ddd444d"}},
+            {"__typename": "HeadRefDeletedEvent", "actor": {"__typename": "User", "login": "monalisa"}, "createdAt": "2026-09-21T11:01:00Z", "headRefName": "feat/timeline"}
+          ]
+        }
+      }
+    }
+  }
+}

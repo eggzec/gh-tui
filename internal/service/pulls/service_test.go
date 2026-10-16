@@ -31,6 +31,8 @@ type fakeAPI struct {
 	files        func(ctx context.Context, repo core.RepoRef, number int, cursor string, cond github.Conditional) (core.Page[core.CommitFile], github.Response, error)
 	threads      func(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.ThreadPage, error)
 	id           func(ctx context.Context, repo core.RepoRef, number int) (string, error)
+	// timeline backs ListPullRequestTimeline, by cursor.
+	timeline func(cursor string) (core.Page[core.TimelineItem], error)
 	// compare and compareFiles back the two comparisons.
 	compare      func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 	compareFiles func(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.CompareDetail, github.Response, error)
