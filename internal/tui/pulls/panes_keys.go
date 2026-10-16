@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
+	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -41,6 +42,9 @@ type panesKeys struct {
 	// cancel steps back out of them. composer is the keys of the summary.
 	review, choose, cancel key.Binding
 	composer               composer.KeyMap
+	// find opens the finder of the changed files, and finder is its keys.
+	find   key.Binding
+	finder finder.KeyMap
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -58,6 +62,8 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		choose:   modal.Binding("global.select", "choose"),
 		cancel:   modal.Binding("global.back", "back"),
 		composer: composer.NewKeyMap(ui.Lookup(keys, "composer")),
+		find:     modal.Binding("global.find_file", "find file"),
+		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
@@ -113,7 +119,8 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.prev.SetEnabled(k.prev.Enabled() && steps)
 	k.zoom.SetEnabled(k.zoom.Enabled() && m.canZoom())
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
-	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review})
+	k.find.SetEnabled(k.find.Enabled() && m.canFind())
+	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review, k.find})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
 	if ctx == ctxPreview {
