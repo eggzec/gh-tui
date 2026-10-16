@@ -14,8 +14,21 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// Mode says which checks of a commit the rows show.
+type Mode int
+
+const (
+	// All shows every check.
+	All Mode = iota
+	// Merge shows only the checks that don't pass, which is what stands in the
+	// way of a merge, and counts the jobs of a workflow run that don't.
+	Merge
+)
+
 // Options say where and when the rows of a commit are drawn.
 type Options struct {
+	// Mode picks the checks to show; the zero value shows all.
+	Mode Mode
 	// Depth is the depth of the top rows: under a commit row, its depth
 	// plus one.
 	Depth int
