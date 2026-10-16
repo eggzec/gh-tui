@@ -330,6 +330,30 @@ func (c *Client) CompareFiles(ctx context.Context, repo core.RepoRef, base, head
 	}, res, nil
 }
 
+// restCompareCommits is a comparison with the commits that head has over
+// base, which GitHub lists on every page.
+type restCompareCommits struct {
+	restCompare
+	Commits []restCommit `json:"commits"`
+}
+
+// BehindCommits returns the commits that base has and head lacks, as a pull
+// request whose head is behind its base needs them: the first page of up to a
+// hundred, oldest first, with how many there are in all. Base and head are
+// named as for Compare. A commit named by its SHA never changes, so there is no
+// conditional request.
+//
+// The count is AheadBy, not len(Commits): GitHub lists one page of a
+// comparison, so a base far ahead has more commits than are returned.
+func (c *Client) BehindCommits(ctx context.Context, repo core.RepoRef, head, base string) (core.BaseCommits, error) {
+	path := commitsBase(repo) + "/compare/" + url.PathEscape(head) + "..." + url.PathEscape(base) + "?per_page=100"
+	var cmp restCompareCommits
+	if _, err := c.Get(ctx, path, Conditional{}, &cmp); err != nil {
+		return core.BaseCommits{}, fmt.Errorf("compare %s...%s: %w", head, base, err)
+	}
+	return core.BaseCommits{AheadBy: cmp.AheadBy, Commits: convert(cmp.Commits, restCommit.core)}, nil
+}
+
 func commitsBase(repo core.RepoRef) string {
 	return "repos/" + url.PathEscape(repo.Owner) + "/" + url.PathEscape(repo.Name)
 }
