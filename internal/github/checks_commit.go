@@ -47,7 +47,7 @@ func commitContextsText(name, annotations string) string {
             nodes {
               __typename
               ... on CheckRun {
-                databaseId name status conclusion detailsUrl startedAt completedAt title summary
+                databaseId name status conclusion detailsUrl startedAt completedAt title summary text
                 %[2]s
                 checkSuite {
                   databaseId
@@ -113,6 +113,7 @@ type commitContext struct {
 	CompletedAt *time.Time `json:"completedAt"`
 	Title       string     `json:"title"`
 	Summary     string     `json:"summary"`
+	Text        string     `json:"text"`
 	Annotations struct {
 		TotalCount int                `json:"totalCount"`
 		Nodes      []commitAnnotation `json:"nodes"`
@@ -192,6 +193,7 @@ func (n *commitContext) commitCheck() core.CommitCheck {
 		DetailsURL:  n.DetailsURL,
 		Title:       n.Title,
 		Summary:     n.Summary,
+		Text:        n.Text,
 		Annotations: n.Annotations.TotalCount,
 		StartedAt:   jobTime(n.StartedAt),
 		CompletedAt: jobTime(n.CompletedAt),
@@ -242,6 +244,7 @@ func (c *Client) CommitChecksAll(ctx context.Context, repo core.RepoRef, sha str
 func (c *Client) commitChecksAll(ctx context.Context, query string, repo core.RepoRef, sha string, notes bool) (core.CommitChecks, error) {
 	out := core.CommitChecks{SHA: sha, Notes: notes}
 	var after string
+	var more bool // the server lists more pages than were read
 	for range commitContextPages {
 		var data commitContextsData
 		vars := map[string]any{"owner": repo.Owner, "name": repo.Name, "sha": sha}
@@ -262,6 +265,13 @@ func (c *Client) commitChecksAll(ctx context.Context, query string, repo core.Re
 		}
 		out.State = checksState(r.State)
 		out.Total = r.Contexts.TotalCount
+		p := r.Contexts.PageInfo
+		// A cursor that came back unchanged means the server sent the page
+		// again: it would repeat every run until the bound.
+		if p.HasNextPage && after != "" && p.EndCursor == after {
+			more = true
+			break
+		}
 		for i := range r.Contexts.Nodes {
 			n := &r.Contexts.Nodes[i]
 			switch n.Typename {
@@ -271,12 +281,14 @@ func (c *Client) commitChecksAll(ctx context.Context, query string, repo core.Re
 				out.Statuses = append(out.Statuses, n.commitStatus())
 			}
 		}
-		p := r.Contexts.PageInfo
-		if !p.HasNextPage || p.EndCursor == "" {
+		more = p.HasNextPage
+		if !more || p.EndCursor == "" {
 			break
 		}
 		after = p.EndCursor
 	}
-	out.Truncated = out.Total > len(out.Runs)+len(out.Statuses)
+	// The read is not whole if it stopped with pages left: on the bound, or
+	// on a cursor that couldn't be followed.
+	out.Truncated = more
 	return out, nil
 }

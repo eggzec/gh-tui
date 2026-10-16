@@ -53,6 +53,43 @@ func TestCommitChecks(t *testing.T) {
 	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=false")
 }
 
+// Checks that completed while the repository was invalidated are not kept
+// for long: the change may be the rerun that made them pending again.
+func TestCommitChecksInvalidatedDuringRead(t *testing.T) {
+	f := newFake()
+	f.commits["abc"] = commitRun(core.RunInProgress, "")
+	s := New(f)
+	q := CommitChecksQuery{Repo: repo, SHA: "abc"}
+	// The cache keeps an entry of the commit, made stale by a change, which
+	// the next read replaces while the repository changes again.
+	if _, err := s.CommitChecks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	s.Invalidate(repo)
+	started, release := make(chan struct{}), make(chan struct{})
+	f.change(func(f *fakeGitHub) {
+		f.commits["abc"] = commitRun(core.RunCompleted, core.ConclusionSuccess)
+		f.commitHold = func() {
+			close(started)
+			<-release
+		}
+	})
+	read := make(chan error, 1)
+	go func() {
+		_, err := s.CommitChecks(t.Context(), q)
+		read <- err
+	}()
+	<-started
+	s.Invalidate(repo)
+	close(release)
+	if err := <-read; err != nil {
+		t.Fatal(err)
+	}
+	if s.FreshCommitChecks(q) {
+		t.Error("checks read across an Invalidate are fresh")
+	}
+}
+
 func TestCommitChecksFails(t *testing.T) {
 	f := newFake()
 	s := New(f)

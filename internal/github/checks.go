@@ -14,7 +14,9 @@ import (
 // The checks of a commit are read with GraphQL: its status check rollup
 // holds the check runs and the commit statuses in one list, with the IDs
 // that lead to their jobs and runs, where REST takes a request for each.
-// Annotations have no GraphQL equivalent that pages, so they are REST.
+// This read takes only the count of the annotations of a run. The read of
+// every check of a commit (checks_commit.go) takes the first page of them by
+// GraphQL too, and REST pages through the rest.
 
 // checksContexts is how many checks and statuses a read lists at most.
 const checksContexts = 100

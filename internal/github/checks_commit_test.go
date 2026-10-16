@@ -45,7 +45,8 @@ func TestCommitChecksAll(t *testing.T) {
 
 	cov := got.Runs[1]
 	if cov.App == nil || cov.App.Slug != "codecov" || cov.InActions() || cov.JobID != 0 || cov.Status != core.RunInProgress ||
-		cov.Conclusion != "" || cov.Title != "60.08% (+2.26%) compared to 657aaae" || len(cov.Notes) != 0 {
+		cov.Conclusion != "" || cov.Title != "60.08% (+2.26%) compared to 657aaae" || cov.Summary != "coverage summary" ||
+		cov.Text != "coverage details" || len(cov.Notes) != 0 {
 		t.Errorf("codecov = %+v, want an App's run outside Actions, in progress", cov)
 	}
 
@@ -81,8 +82,8 @@ func TestCommitChecksAllWithoutNotes(t *testing.T) {
 }
 
 // contextsServer lists total contexts, 100 to a page: check runs, then from
-// statuses on, commit statuses. With forever set it always says there is a
-// next page.
+// statuses on, commit statuses. With forever set it ignores the cursor it is
+// sent: every answer is the first page, with a next page after the same cursor.
 func contextsServer(t *testing.T, total, statuses int, forever bool) (client *Client, requests func() []pullQuery) {
 	t.Helper()
 	var (
@@ -106,7 +107,7 @@ func contextsServer(t *testing.T, total, statuses int, forever bool) (client *Cl
 		reqs = append(reqs, req)
 		mu.Unlock()
 		from := 0
-		if after, ok := req.Variables["after"].(string); ok {
+		if after, ok := req.Variables["after"].(string); ok && !forever {
 			if _, err := fmt.Sscanf(after, "after-%d", &from); err != nil {
 				t.Errorf("cursor %q: %v", after, err)
 			}
@@ -164,6 +165,35 @@ func TestCommitChecksAllStopsAtMaxPages(t *testing.T) {
 	}
 	if len(got.Runs) != 100*commitContextPages || !got.Truncated {
 		t.Errorf("checks = %d runs, truncated %v; want %d, truncated", len(got.Runs), got.Truncated, 100*commitContextPages)
+	}
+}
+
+// A server that answers every page with the same cursor, whatever it is sent,
+// is read twice at most: the repeat is dropped, not added again, and the read
+// says it is not whole.
+func TestCommitChecksAllStuckCursor(t *testing.T) {
+	c, reqs := contextsServer(t, 100, 0, true)
+	got, err := c.CommitChecksAll(t.Context(), bubbletea, "abc", false)
+	if err != nil {
+		t.Fatalf("CommitChecksAll: %v", err)
+	}
+	if n := len(reqs()); n > 2 {
+		t.Errorf("%d requests, want 2 at most", n)
+	}
+	if len(got.Runs) != 100 || !got.Truncated {
+		t.Errorf("checks = %d runs, truncated %v; want 100 without repeats, truncated", len(got.Runs), got.Truncated)
+	}
+}
+
+// A next page without a cursor to ask for it is a read that is not whole.
+func TestCommitChecksAllNoCursor(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"repository":{"object":{"oid":"abc","statusCheckRollup":{"state":"SUCCESS","contexts":{"totalCount":0,` +
+			`"pageInfo":{"hasNextPage":true,"endCursor":""},"nodes":[]}}}}}}`))
+	}))
+	got, err := c.CommitChecksAll(t.Context(), bubbletea, "abc", false)
+	if err != nil || !got.Truncated {
+		t.Errorf("CommitChecksAll = %+v, %v; want a truncated read", got, err)
 	}
 }
 

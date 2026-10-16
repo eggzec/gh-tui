@@ -42,11 +42,14 @@ type fakeGitHub struct {
 	truncated bool
 	checks    map[string]core.Checks
 	commits   map[string]core.CommitChecks
-	notes     map[int64][]core.Annotation
-	workflows []core.Workflow
-	err       error
-	errs      map[string]error
-	calls     []string
+	// commitHold, if set, runs in each CommitChecksAll after it read the
+	// fake and before it returns, without f.mu.
+	commitHold func()
+	notes      map[int64][]core.Annotation
+	workflows  []core.Workflow
+	err        error
+	errs       map[string]error
+	calls      []string
 }
 
 func newFake() *fakeGitHub {
@@ -305,11 +308,16 @@ func (f *fakeGitHub) CommitChecks(_ context.Context, r core.RepoRef, sha string)
 
 func (f *fakeGitHub) CommitChecksAll(_ context.Context, r core.RepoRef, sha string, notes bool) (core.CommitChecks, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
-	if err := f.record("CommitChecksAll", "%s @%s notes=%t", r, sha, notes); err != nil {
+	err := f.record("CommitChecksAll", "%s @%s notes=%t", r, sha, notes)
+	got, hold := f.commits[sha], f.commitHold
+	f.mu.Unlock()
+	if hold != nil {
+		hold()
+	}
+	if err != nil {
 		return core.CommitChecks{}, err
 	}
-	return f.commits[sha], nil
+	return got, nil
 }
 
 // rerun starts the next attempt of run runID, whose jobs that match

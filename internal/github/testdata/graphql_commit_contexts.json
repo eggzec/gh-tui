@@ -65,6 +65,7 @@
                 "completedAt": null,
                 "title": "60.08% (+2.26%) compared to 657aaae",
                 "summary": "coverage summary",
+                "text": "coverage details",
                 "annotations": {"totalCount": 0, "nodes": []},
                 "checkSuite": {
                   "databaseId": 4243,
