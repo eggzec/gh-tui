@@ -267,7 +267,7 @@ func (m *Model[T]) step(d int) tea.Cmd {
 // moveTo selects the row at position p.
 func (m *Model[T]) moveTo(p int) tea.Cmd {
 	m.sel = p
-	m.anchored = false
+	m.anchored, m.seeking = false, false
 	return m.sync()
 }
 
@@ -285,7 +285,7 @@ func (m *Model[T]) filterFor(line string) tea.Cmd {
 	m.filter = line
 	m.rebuildRows()
 	m.sel, m.top = max(m.posOf(g), 0), 0
-	m.anchored = false
+	m.anchored, m.seeking = false, false
 	return m.sync()
 }
 
@@ -301,7 +301,7 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 	}
 	m.filter, m.rows = "", nil
 	m.sel = max(g, 0)
-	m.anchored = false
+	m.anchored, m.seeking = false, false
 	m.refind()
 	return m.sync()
 }
