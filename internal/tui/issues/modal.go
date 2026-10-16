@@ -98,7 +98,7 @@ type detailModal struct {
 	// or 0 while it draws none, and bodies those it draws them of.
 	picRows int
 	bodies  *ui.ImageBodies
-	chips   chipCache
+	chips   ui.LabelChips
 }
 
 // openDetail opens a modal on issue number of repo. it is the list item,
@@ -133,7 +133,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		dates:   s.dates,
 		avatars: s.avatars,
 		bodies:  ui.NewImageBodies(s.capsOf(repo).Private),
-		chips:   newChipCache(s.rows),
+		chips:   s.rows.newChips(),
 	}
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
@@ -264,7 +264,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	}
 	m.confirmSt = t.Confirm(m.icons)
 	m.rows = newRowStyles(t, m.icons)
-	m.chips = newChipCache(m.rows)
+	m.chips = m.rows.newChips()
 	m.thread.SetStyles(t.Thread(m.icons))
 	if m.composing != composeNone {
 		m.prompt.SetStyles(t.Prompt(m.icons))
@@ -614,7 +614,8 @@ func (m *detailModal) header(it core.Issue) string {
 			if i > 0 {
 				b.WriteByte(' ')
 			}
-			b.WriteString(m.chips.get(l).text)
+			text, _ := m.chips.Get(l)
+			b.WriteString(text)
 		}
 	}
 	if len(it.Assignees) > 0 {

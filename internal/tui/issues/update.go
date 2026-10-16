@@ -146,7 +146,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	s.others.Reset(s.ctx, repo.String())
 	s.milestonesRead = false
 	// Other repositories have other labels.
-	s.chips = newChipCache(s.rows)
+	s.chips = s.rows.newChips()
 	return s.resetList()
 }
 

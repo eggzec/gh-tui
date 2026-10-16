@@ -77,7 +77,7 @@ type Section struct {
 	theme         ui.Theme
 	rows          rowStyles
 	icons         ui.Icons
-	chips         chipCache
+	chips         ui.LabelChips
 	// dates tell when the issues were updated, in the rows and the
 	// modal.
 	dates ui.Dates
@@ -138,7 +138,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	// Assume a dark terminal until the app sets the theme.
 	s.theme = ui.NewTheme(defaultPalette(), true)
 	s.rows = newRowStyles(s.theme, s.icons)
-	s.chips = newChipCache(s.rows)
+	s.chips = s.rows.newChips()
 	s.list = s.newList()
 	s.renderChrome()
 	return s
@@ -187,7 +187,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.icons
 	s.theme = t
 	s.rows = newRowStyles(t, s.icons)
-	s.chips = newChipCache(s.rows)
+	s.chips = s.rows.newChips()
 	s.list.SetStyles(t.Feed(s.icons))
 	// The chips may have changed width with the icons.
 	s.rescanLabels()

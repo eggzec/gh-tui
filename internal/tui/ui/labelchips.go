@@ -1,4 +1,4 @@
-package issues
+package ui
 
 import (
 	"image/color"
@@ -9,52 +9,59 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// chip is a rendered label and its width in cells.
-type chip struct {
+// labelChip is a rendered label and its width in cells.
+type labelChip struct {
 	text  string
 	width int
 }
 
-// maxChips bounds the chip cache. Repositories rarely have this many labels,
-// and clearing it only costs rendering them again.
-const maxChips = 512
+// maxLabelChips bounds the chip cache. Repositories rarely have this many
+// labels, and clearing it only costs rendering them again.
+const maxLabelChips = 512
 
-// chipCache holds the rendered label chips by name and color.
-type chipCache struct {
-	chips map[string]chip
+// LabelChips renders labels as colored chips and keeps the chips it
+// rendered, by name and color. Use one per list or modal, and make a new one
+// when the styles change.
+type LabelChips struct {
+	chips map[string]labelChip
 	// label is the chip of a label whose color is not valid.
 	label lipgloss.Style
 	dark  bool
-	// ellipsis ends a name cut short.
-	ellipsis string
+	// ellipsis ends a name cut short, and nameWidth is the longest name a
+	// chip shows.
+	ellipsis  string
+	nameWidth int
 }
 
-func newChipCache(st rowStyles) chipCache {
-	return chipCache{chips: map[string]chip{}, label: st.label, dark: st.dark, ellipsis: st.ellipsis}
+// NewLabelChips returns chips that draw a label whose color is not valid
+// with label, tune the others to a dark or a light terminal background, and
+// cut names to nameWidth cells, ending them with ellipsis.
+func NewLabelChips(label lipgloss.Style, dark bool, ellipsis string, nameWidth int) LabelChips {
+	return LabelChips{chips: map[string]labelChip{}, label: label, dark: dark, ellipsis: ellipsis, nameWidth: nameWidth}
 }
 
-// get returns the chip of l, rendering it the first time it is shown.
-func (cc *chipCache) get(l core.Label) chip {
+// Get returns the chip of l and its width in cells, rendering it the first
+// time it is shown.
+func (cc *LabelChips) Get(l core.Label) (text string, width int) {
 	k := l.Name + "\x00" + l.Color
 	if c, ok := cc.chips[k]; ok {
-		return c
+		return c.text, c.width
 	}
-	if len(cc.chips) >= maxChips {
+	if len(cc.chips) >= maxLabelChips {
 		clear(cc.chips)
 	}
-	name := termtext.Truncate(ui.OneLine(l.Name), chipName, cc.ellipsis)
+	name := termtext.Truncate(OneLine(l.Name), cc.nameWidth, cc.ellipsis)
 	st := cc.label
 	if fg, bg, ok := chipColors(l.Color, cc.dark); ok {
 		st = lipgloss.NewStyle().Foreground(fg).Background(bg).Padding(0, 1)
 	}
-	text := st.Render(name)
-	c := chip{text: text, width: ansi.StringWidth(text)}
+	text = st.Render(name)
+	c := labelChip{text: text, width: ansi.StringWidth(text)}
 	cc.chips[k] = c
-	return c
+	return c.text, c.width
 }
 
 // chipColors turns a label's hex color into a quiet chip: its hue with the
