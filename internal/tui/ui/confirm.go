@@ -24,9 +24,6 @@ type Confirm struct {
 	// Run makes the change once the user says yes, and returns what sends
 	// it.
 	Run func() tea.Cmd
-	// Cycle returns the question again with its next choice, such as the
-	// next merge method, or is nil for a question with a single choice.
-	Cycle func() Confirm
 }
 
 // Recheck returns the Confirm that asks question and, once the user says
@@ -58,11 +55,8 @@ func Meanwhile(name string) string {
 // ConfirmKeys answer a Confirm. They only mean something while a question
 // is open.
 type ConfirmKeys struct {
-	// Method is for a question that has choices, which it steps through
-	// (see Confirm.Cycle). It is off until [ConfirmKeys.For] turns it on.
-	Method key.Binding `keymap:"method" help:"method"`
-	Yes    key.Binding `keymap:"yes" help:"yes"`
-	No     key.Binding `keymap:"no" help:"no"`
+	Yes key.Binding `keymap:"yes" help:"yes"`
+	No  key.Binding `keymap:"no" help:"no"`
 }
 
 // NewConfirmKeys returns the keys that answer a question, from the context
@@ -73,24 +67,16 @@ func NewConfirmKeys(keys config.Keymap) ConfirmKeys {
 	keymap.Fill(&k, Lookup(keys, "confirm"))
 	// The answers are named by their first key, as the line that asks has
 	// little room.
-	for _, b := range []*key.Binding{&k.Method, &k.Yes, &k.No} {
+	for _, b := range []*key.Binding{&k.Yes, &k.No} {
 		if ks := b.Keys(); len(ks) > 0 {
 			b.SetHelp(keymap.Label(ks[0]), b.Help().Desc)
 		}
 	}
-	k.Method.SetEnabled(false)
-	return k
-}
-
-// For returns k as it answers c: the key that steps through the choices
-// works only for a question that has them.
-func (k ConfirmKeys) For(c Confirm) ConfirmKeys {
-	k.Method.SetEnabled(c.Cycle != nil)
 	return k
 }
 
 // ShortHelp implements help.KeyMap.
-func (k ConfirmKeys) ShortHelp() []key.Binding { return []key.Binding{k.Method, k.Yes, k.No} }
+func (k ConfirmKeys) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.No} }
 
 // FullHelp implements help.KeyMap.
 func (k ConfirmKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
@@ -101,26 +87,10 @@ func (k ConfirmKeys) Layer() keyhelp.Layer {
 	return ContextHelp("confirm", k, false)
 }
 
-// LayerFor returns the layer of the keys while c is the question.
-func (k ConfirmKeys) LayerFor(c Confirm) keyhelp.Layer {
-	return k.For(c).Layer()
-}
-
-// Step takes msg as the key that steps through the choices of c, and
-// returns the question with the next one. It reports whether msg is that
-// key, and c has choices.
-func (k ConfirmKeys) Step(c Confirm, msg tea.KeyPressMsg) (next Confirm, ok bool) {
-	if !key.Matches(msg, k.For(c).Method) {
-		return c, false
-	}
-	return c.Cycle(), true
-}
-
 // Answer takes msg as the answer to c: yes runs c and returns what sends
 // the change, and no drops it. Either way done is set, and the question
 // closes. Any other key does nothing and leaves the question open.
 func (k ConfirmKeys) Answer(c Confirm, msg tea.KeyPressMsg) (cmd tea.Cmd, done bool) {
-	k = k.For(c)
 	switch {
 	case key.Matches(msg, k.Yes):
 		return c.Run(), true
@@ -135,8 +105,6 @@ type ConfirmStyles struct {
 	Question, Keys lipgloss.Style
 	// Ellipsis ends a question cut to its room; empty, it is "…".
 	Ellipsis string
-	// Separator goes between the keys that answer; empty, it is " · ".
-	Separator string
 }
 
 // ellipsis is the ellipsis of st, or the Unicode set's while it has none.
@@ -144,16 +112,10 @@ func (st ConfirmStyles) ellipsis() string {
 	return Icons{Ellipsis: st.Ellipsis}.OrUnicode().Ellipsis
 }
 
-// separator is the separator of st, or the Unicode set's while it has none.
-func (st ConfirmStyles) separator() string {
-	return Icons{Separator: st.Separator}.OrUnicode().Separator
-}
-
 // Confirm returns the styles of a confirmation: the question in the
-// accent, and the keys that answer it muted, cut with the ellipsis of ic
-// and set apart by its separator.
+// accent, and the keys that answer it muted, cut with the ellipsis of ic.
 func (t Theme) Confirm(ic Icons) ConfirmStyles {
-	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis, Separator: ic.Separator}
+	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis}
 }
 
 // ConfirmLines is the most lines a question wraps to, so that a long one,
@@ -163,8 +125,7 @@ const ConfirmLines = 2
 // Line renders c on a line of w cells: the question, cut to leave room,
 // and the keys that answer it against the right edge.
 func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
-	k = k.For(c)
-	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers(st.separator())), w, st.ellipsis())
+	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w, st.ellipsis())
 }
 
 // Lines renders c on at most n lines of w cells: the question, wrapped at
@@ -172,8 +133,7 @@ func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
 // against the right edge of the last line. What doesn't fit in n lines,
 // or a word longer than a line, such as a branch name, is cut.
 func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
-	k = k.For(c)
-	keys := k.answers(st.separator())
+	keys := k.answers()
 	room := w - ansi.StringWidth(keys) - 1
 	if n <= 1 || room < 1 {
 		return []string{c.Line(st, k, w)}
@@ -217,21 +177,15 @@ func wrapWords(s string, w int) []string {
 	return append(lines, line)
 }
 
-// answers names the keys that answer, such as "y/n", after the key that
-// steps through the choices, if there are any: "tab method · y/n", with sep
-// between them.
-func (k ConfirmKeys) answers(sep string) string {
+// answers names the keys that answer, such as "y/n".
+func (k ConfirmKeys) answers() string {
 	var keys []string
 	for _, b := range []key.Binding{k.Yes, k.No} {
 		if h := b.Help().Key; h != "" {
 			keys = append(keys, h)
 		}
 	}
-	yn := strings.Join(keys, "/")
-	if h := k.Method.Help(); k.Method.Enabled() && h.Key != "" {
-		return h.Key + " " + h.Desc + sep + yn
-	}
-	return yn
+	return strings.Join(keys, "/")
 }
 
 // OverLastLines returns view with its last lines replaced by lines, such
@@ -287,11 +241,6 @@ func (m *ConfirmModal) Update(msg tea.Msg) tea.Cmd {
 	if !ok || m.answered {
 		return nil
 	}
-	if next, ok := m.keys.Step(m.ask, k); ok {
-		m.ask = next
-		m.render()
-		return nil
-	}
 	cmd, done := m.keys.Answer(m.ask, k)
 	if !done {
 		return nil
@@ -312,7 +261,7 @@ func (m *ConfirmModal) SetSize(width, height int) {
 // Fit implements Fitter: as wide as the question and its keys, or as wide
 // as there is room for and on as many lines as the question wraps to.
 func (m *ConfirmModal) Fit(maxWidth, maxHeight int) (width, height int) {
-	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(m.keys.For(m.ask).answers(m.st.separator())))
+	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(m.keys.answers()))
 	return w, min(maxHeight, len(m.ask.Lines(m.st, m.keys, w, ConfirmLines)))
 }
 
@@ -327,7 +276,7 @@ func (m *ConfirmModal) Commands() []string { return nil }
 
 // KeyLayers implements Keyed: the keys that answer the question.
 func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{m.keys.LayerFor(m.ask)}
+	return []keyhelp.Layer{m.keys.Layer()}
 }
 
 func (m *ConfirmModal) render() {

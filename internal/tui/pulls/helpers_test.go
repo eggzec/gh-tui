@@ -526,6 +526,10 @@ func (h *host) Update(msg tea.Msg) tea.Cmd {
 	case ui.OpenModalMsg:
 		msg.Modal.SetTheme(h.theme)
 		msg.Modal.SetSize(h.width, h.height)
+		// A modal that opens again replaces what opened over it.
+		if i := slices.Index(h.modals, msg.Modal); i >= 0 {
+			h.modals = h.modals[:i]
+		}
 		h.modals = append(h.modals, msg.Modal)
 		return nil
 	case ui.CloseModalMsg:
@@ -649,7 +653,7 @@ func sequence(msg tea.Msg) ([]tea.Cmd, bool) {
 // press sends the key k to h and runs what it starts.
 func press(tb testing.TB, h *host, k string) []tea.Msg {
 	tb.Helper()
-	return drain(tb, h, h.Update(keyMsg(k)))
+	return drain(tb, h, h.Update(h.key(k)))
 }
 
 func keyMsg(k string) tea.KeyPressMsg {
@@ -670,6 +674,16 @@ func keyMsg(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyUp}
 	case "ctrl+p":
 		return tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}
+	case "ctrl+s":
+		return tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}
+	case "ctrl+e":
+		return tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl}
+	case "shift+tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+	case "left":
+		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "right":
+		return tea.KeyPressMsg{Code: tea.KeyRight}
 	}
 	r := []rune(k)
 	return tea.KeyPressMsg{Code: r[0], Text: k}

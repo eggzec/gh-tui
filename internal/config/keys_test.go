@@ -135,6 +135,7 @@ func TestKeyValidation(t *testing.T) {
 		{"context without actions", "keys:\n  pulls: [m]\n", "line 2: keys.pulls: want the actions of the context and their keys, such as keys.pulls.bottom"},
 		{"unknown action", "keys:\n  pulls:\n    mege: [M]\n", "line 3: keys.pulls.mege: unknown action"},
 		{"removed action", "keys:\n  notifications:\n    read_all: [M]\n", "line 3: keys.notifications.read_all: removed, mark all notifications read with the :read all command, which asks first and needs no key"},
+		{"removed confirm action", "keys:\n  confirm:\n    method: [tab]\n", "line 3: keys.confirm.method: removed, the merge dialog steps the methods with keys.merge_dialog.prev_method and keys.merge_dialog.next_method"},
 		{"global action elsewhere", "keys:\n  pulls:\n    refresh: [R]\n", "line 3: keys.pulls.refresh: refresh is a global action, which no context may redefine: set keys.global.refresh"},
 		{"misspelt key", "keys:\n  pulls:\n    merge: [ctlr+m]\n", `line 3: keys.pulls.merge: unknown key "ctlr+m"`},
 		{"ctrl+c in a context", "keys:\n  pulls:\n    merge: [ctrl+c]\n", "line 3: keys.pulls.merge: ctrl+c always quits and can't be bound"},

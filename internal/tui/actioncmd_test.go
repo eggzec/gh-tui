@@ -269,7 +269,7 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 		// asks is what the question says.
 		asks string
 	}{
-		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, "Squash-merge #2 into main?"},
+		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, "Merge #2"},
 		{"close a pull request", "pulls.close", []string{"global.pane_2"}, "Close PR #2?"},
 		{"mark read", "notifications.read", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as read?"},
 		{"mark done", "notifications.done", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as done?"},
@@ -308,8 +308,13 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 					}
 				}
 				runCommand(t, unbound, name)
-				if got := layerNames(unbound.keyLayers()); got != "always, confirm" {
-					t.Errorf(":%s with %s unbound reached %q, want the question its key asks: toasts %s", name, tt.action, got, toasted(unbound))
+				// A merge asks in its dialog, which types, not in a question.
+				want := "always, confirm"
+				if strings.HasPrefix(tt.asks, "Merge #") {
+					want = "always, merge_dialog (types)"
+				}
+				if got := layerNames(unbound.keyLayers()); got != want {
+					t.Errorf(":%s with %s unbound reached %q, want %q, what its key asks: toasts %s", name, tt.action, got, want, toasted(unbound))
 				}
 				if tt.asks == "" {
 					t.Fatalf("no question to check:\n%s", ansi.Strip(unbound.View().Content))

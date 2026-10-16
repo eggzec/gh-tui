@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -117,8 +118,14 @@ type Section struct {
 	// readViewer reads the login of the signed-in user, whom the filter
 	// offers as @me.
 	readViewer Viewer
-	repo       core.RepoRef
-	hasRepo    bool
+	// drafts keeps the message of a merge being written, under a key that
+	// starts with draftScope, which names the host and the account. Without
+	// drafts, an edited message is lost when the dialog closes.
+	drafts     composer.Drafts
+	draftScope string
+
+	repo    core.RepoRef
+	hasRepo bool
 	// tab is the state shown, or empty for all of them, and query the
 	// other filters, in GitHub's search syntax; chips are those for the
 	// pane's title.
@@ -185,6 +192,13 @@ func WithClock(now func() time.Time) Option {
 // session takes the place of this one.
 func WithMergeMethod(m core.MergeMethod) Option {
 	return func(s *Section) { s.mergeMethod = m }
+}
+
+// WithDrafts keeps the message of a merge being written in d. Its keys start
+// with scope, which names the host and the account, so that no account reads
+// the drafts of another.
+func WithDrafts(d composer.Drafts, scope string) Option {
+	return func(s *Section) { s.drafts, s.draftScope = d, scope }
 }
 
 // WithRepos reads what the viewer may do in the repository of a modal

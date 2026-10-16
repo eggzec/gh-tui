@@ -136,8 +136,10 @@ func TestProgramOpensGoesBackAndMerges(t *testing.T) {
 	wait("Retry GraphQL requests")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
 	tm.Type("M")
-	wait("Squash-merge #135 into main?")
-	tm.Type("y")
+	// The fields show once GitHub's message is read. The frame with the
+	// title is the root's, so the test sees the dialog's own rows.
+	wait("GitHub's default title")
+	tm.Send(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
 	select {
 	case msg := <-done:
 		if msg.What != "merge #135" || msg.Err != nil {

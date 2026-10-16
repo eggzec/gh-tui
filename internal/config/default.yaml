@@ -681,8 +681,10 @@ keys:
     # question that says how many are left out; merge still acts on the
     # one under the cursor.
     mark: [space]
-    # Merge the pull request, asking first and naming the method and the
-    # base branch. The method is stepped through with confirm.method. It
+    # Merge the pull request, asking first. Where the method is a choice,
+    # a dialog picks it and edits the commit message (see merge_dialog),
+    # and says the base branch, and for an auto-merge what it waits for,
+    # on its status line; otherwise a question names the base branch. It
     # does what suits the pull request: it merges at once; or, while its
     # checks are pending and the repository allows auto-merge, asks to
     # merge once they pass; or adds it to the merge queue of a base branch
@@ -1211,10 +1213,6 @@ keys:
     cancel: [esc]
   # A question that waits for yes or no.
   confirm:
-    # Step through the choices of a question that has them. Only the
-    # question to merge a pull request does, with the methods the
-    # repository allows; elsewhere the key does nothing.
-    method: [tab]
     "yes": [y]
     "no": [n, esc]
   # A prompt, such as the composer of a comment.
@@ -1231,6 +1229,24 @@ keys:
     cancel: [esc]
     # Edit the text in your editor ($VISUAL or $EDITOR).
     edit: [ctrl+e]
+  # The dialog that merges a pull request: the method, and the title and
+  # body of the commit. The letters are typed, so its keys are control keys.
+  merge_dialog:
+    # Merge with the method and the message as they are.
+    submit: [ctrl+s]
+    # Close the dialog. The title and body you changed are kept as a draft
+    # for this pull request.
+    cancel: [esc]
+    # Edit the body in your editor ($VISUAL or $EDITOR).
+    edit: [ctrl+e]
+    # Move the cursor between the title and the body.
+    next_field: [tab]
+    prev_field: [shift+tab]
+    # Step through the methods the repository allows, while the cursor is
+    # on the method; in the title and body they move the text cursor. A
+    # message that you haven't changed follows the method.
+    prev_method: [left]
+    next_method: [right]
   # The file finder.
   finder:
     up: [up, ctrl+p]

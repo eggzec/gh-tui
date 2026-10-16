@@ -62,24 +62,19 @@ func TestMergeMethodCycles(t *testing.T) {
 			h, _ := asking(t, svc, writeCaps, e.keys...)
 			// The methods in the order GitHub offers them, from the
 			// repository's.
-			want := []string{
-				"Squash-merge #142 into main?",
-				"Rebase-merge #142 into main?",
-				"Merge #142 into main with a merge commit?",
-				"Squash-merge #142 into main?",
-			}
+			want := []core.MergeMethod{core.MergeSquash, core.MergeRebase, core.MergeCommit, core.MergeSquash}
 			for i, w := range want {
 				if i > 0 {
-					press(t, h, "tab")
+					press(t, h, "right")
 				}
-				if got := question(h); got != w {
-					t.Fatalf("after %d tabs asks %q, want %q", i, got, w)
+				if got := dialogOf(h).current(); got != w {
+					t.Fatalf("after %d steps the method is %q, want %q", i, got, w)
 				}
 			}
-			press(t, h, "tab")
+			press(t, h, "right")
 			press(t, h, "y")
 			if got, want := svc.changes(), []string{"merge rebase 142"}; !slices.Equal(got, want) {
-				t.Errorf("changes = %v, want the method the question named: %v", got, want)
+				t.Errorf("changes = %v, want the method the dialog showed: %v", got, want)
 			}
 		})
 	}
@@ -87,10 +82,10 @@ func TestMergeMethodCycles(t *testing.T) {
 
 func TestMergeMethodIsRemembered(t *testing.T) {
 	svc := newFakeService()
-	h, _ := asking(t, svc, writeCaps, "M", "tab", "y")
+	h, _ := asking(t, svc, writeCaps, "M", "right", "y")
 	press(t, h, "M")
-	if got, want := question(h), "Rebase-merge #135 into main?"; got != want {
-		t.Errorf("the next merge asks %q, want it to start from the method used: %q", got, want)
+	if got, want := dialogOf(h).current(), core.MergeRebase; got != want {
+		t.Errorf("the next merge starts from %q, want the method used: %q", got, want)
 	}
 }
 
@@ -100,28 +95,25 @@ func TestMergeMethodsOfTheRepository(t *testing.T) {
 	for _, e := range entries {
 		t.Run(e.name+"/never offers one the repository refuses", func(t *testing.T) {
 			h, _ := asking(t, newFakeService(), squashOrRebase, e.keys...)
-			asked := make([]string, 0, 4)
+			asked := make([]core.MergeMethod, 0, 4)
 			for range 4 {
-				asked = append(asked, question(h))
-				press(t, h, "tab")
+				asked = append(asked, dialogOf(h).current())
+				press(t, h, "right")
 			}
-			want := []string{
-				"Squash-merge #142 into main?", "Rebase-merge #142 into main?",
-				"Squash-merge #142 into main?", "Rebase-merge #142 into main?",
-			}
+			want := []core.MergeMethod{core.MergeSquash, core.MergeRebase, core.MergeSquash, core.MergeRebase}
 			if !slices.Equal(asked, want) {
-				t.Errorf("asked %q, want %q", asked, want)
+				t.Errorf("methods %q, want %q", asked, want)
 			}
 		})
 		t.Run(e.name+"/one method has nothing to step through", func(t *testing.T) {
 			svc := newFakeService()
 			h, _ := asking(t, svc, rebaseOnly, e.keys...)
-			if slices.Contains(confirmKeys(h), "method") {
+			if slices.Contains(confirmKeys(h), "next method") || slices.Contains(confirmKeys(h), "previous method") {
 				t.Errorf("help = %v, want no key for the method", confirmKeys(h))
 			}
-			press(t, h, "tab")
-			if got, want := question(h), "Rebase-merge #142 into main?"; got != want {
-				t.Errorf("after tab asks %q, want %q still", got, want)
+			press(t, h, "right")
+			if got, want := dialogOf(h).current(), core.MergeRebase; got != want {
+				t.Errorf("after right the method is %q, want %q still", got, want)
 			}
 			press(t, h, "y")
 			if got, want := svc.changes(), []string{"merge rebase 142"}; !slices.Equal(got, want) {
@@ -144,13 +136,11 @@ func TestMethodKeyIsHelpedInTheMergeQuestionOnly(t *testing.T) {
 	} {
 		t.Run(e.name, func(t *testing.T) {
 			h, _ := asking(t, newFakeService(), writeCaps, e.keys...)
-			if got := slices.Contains(confirmKeys(h), "method"); got != e.want {
+			if got := slices.Contains(confirmKeys(h), "next method"); got != e.want {
 				t.Errorf("help = %v, want the method key: %v", confirmKeys(h), e.want)
 			}
-			q := question(h)
-			press(t, h, "tab")
-			if got := question(h); (got != q) != e.want {
-				t.Errorf("tab changed %q to %q, want it to step through the choices: %v", q, got, e.want)
+			if got := dialogOf(h) != nil; got != e.want {
+				t.Errorf("the merge dialog is open: %v, want %v", got, e.want)
 			}
 		})
 	}
@@ -164,15 +154,15 @@ func TestAutoMergeWhileChecksArePending(t *testing.T) {
 			svc := newFakeService()
 			stand(svc, core.MergeInfo{Status: core.MergeBlocked, CanAutoMerge: true, RepoAutoMerge: true}, core.ReviewApproved, core.ChecksPending)
 			h, _ := asking(t, svc, autoCaps, e.keys...)
-			if got, want := question(h), "Merge #142 into main when checks pass (squash)?"; got != want {
+			if got, want := question(h), "Merge #142 when ready"; got != want {
 				t.Fatalf("asks %q, want %q", got, want)
 			}
-			if !slices.Contains(confirmKeys(h), "method") {
+			if !slices.Contains(confirmKeys(h), "next method") {
 				t.Errorf("help = %v, want the method key", confirmKeys(h))
 			}
-			press(t, h, "tab")
-			if got, want := question(h), "Merge #142 into main when checks pass (rebase)?"; got != want {
-				t.Fatalf("after tab asks %q, want %q", got, want)
+			press(t, h, "right")
+			if got, want := dialogOf(h).current(), core.MergeRebase; got != want {
+				t.Fatalf("after right the method is %q, want %q", got, want)
 			}
 			msgs := press(t, h, "y")
 			if got, want := svc.changes(), []string{"automerge rebase at a1b2c3d 142"}; !slices.Equal(got, want) {
@@ -264,7 +254,7 @@ func TestMergeUnstable(t *testing.T) {
 		svc := newFakeService()
 		stand(svc, core.MergeInfo{Status: core.MergeUnstable}, core.ReviewApproved, core.ChecksFailure)
 		h, _ := asking(t, svc, writeCaps, "M")
-		if got, want := question(h), "Squash-merge #142 into main?"; got != want {
+		if got, want := question(h), "Merge #142"; got != want {
 			t.Errorf("asks %q, want %q", got, want)
 		}
 	})
@@ -455,7 +445,7 @@ func TestAutoMergeAlsoWaitingForAReview(t *testing.T) {
 	svc := newFakeService()
 	stand(svc, core.MergeInfo{Status: core.MergeBlocked, CanAutoMerge: true, RepoAutoMerge: true}, core.ReviewRequired, core.ChecksPending)
 	h, _ := asking(t, svc, autoCaps, "M")
-	if got, want := question(h), "Merge #142 into main when it can be merged (squash)?"; got != want {
+	if got, want := question(h), "Merge #142 when ready"; got != want {
 		t.Errorf("asks %q, want %q", got, want)
 	}
 }
@@ -485,7 +475,7 @@ func TestMergeReadsAnAgedDetailOnce(t *testing.T) {
 		if got := svc.got(); len(got) != 1 || got[0] != 142 || len(svc.revalidated) != 1 {
 			t.Errorf("read %v and revalidated %v, want one read of #142", got, svc.revalidated)
 		}
-		if got, want := question(h), "Squash-merge #142 into main?"; got != want {
+		if got, want := question(h), "Merge #142"; got != want {
 			t.Errorf("asks %q, want %q", got, want)
 		}
 	})
@@ -542,12 +532,12 @@ func TestMergeMethodsOfTheDetail(t *testing.T) {
 	svc := newFakeService()
 	stand(svc, core.MergeInfo{Status: core.MergeClean, Methods: []core.MergeMethod{core.MergeCommit, core.MergeRebase}}, core.ReviewApproved, core.ChecksSuccess)
 	h, _ := asking(t, svc, writeCaps, "M")
-	got := make([]string, 0, 3)
+	got := make([]core.MergeMethod, 0, 3)
 	for range 3 {
-		got = append(got, question(h))
-		press(t, h, "tab")
+		got = append(got, dialogOf(h).current())
+		press(t, h, "right")
 	}
-	want := []string{"Merge #142 into main with a merge commit?", "Rebase-merge #142 into main?", "Merge #142 into main with a merge commit?"}
+	want := []core.MergeMethod{core.MergeCommit, core.MergeRebase, core.MergeCommit}
 	if !slices.Equal(got, want) {
 		t.Errorf("asked %q, want %q", got, want)
 	}

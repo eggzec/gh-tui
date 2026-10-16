@@ -139,11 +139,11 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 	}{
 		{
 			name: "the configured method when allowed", caps: writeCaps, want: "merge squash 142", label: "merge",
-			ask: "Squash-merge #142 into main?",
+			ask: "Merge #142",
 		},
 		{
-			name: "the allowed one otherwise", caps: rebaseOnly, want: "merge rebase 142", label: "merge (rebase)",
-			ask: "Rebase-merge #142 into main?",
+			name: "the allowed one otherwise", caps: rebaseOnly, want: "merge rebase 142", label: "merge",
+			ask: "Merge #142",
 		},
 	}
 	for _, tt := range tests {
