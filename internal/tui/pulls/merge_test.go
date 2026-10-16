@@ -578,6 +578,28 @@ func TestMergeNeedsAStatusThatIsKnown(t *testing.T) {
 	}
 }
 
+// A merge change built with a message sends it, and says that the user
+// chooses its method.
+func TestMergeChangeCarriesItsMessage(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	stand(svc, core.MergeInfo{Status: core.MergeClean}, core.ReviewApproved, core.ChecksSuccess)
+	msg := core.MergeMessage{Title: "Add things", Body: "Because.", SendBody: true}
+	g := ui.Gate{Repo: repo, Caps: writeCaps}
+	c, ok, warn := newKeyMap(config.Default().Keys).change(svc, g, mergeAs{msg: msg}, svc.detail(142), keyMsg("M"))
+	if !ok || warn != nil {
+		t.Fatalf("change = %v, %v, want a merge", ok, warn != nil)
+	}
+	if !c.chooses {
+		t.Error("the merge doesn't choose its method, want it to")
+	}
+	c.start()
+	got := svc.changes()
+	if len(got) != 1 || !strings.Contains(got[0], " title=Add things body=Because.") {
+		t.Errorf("changes = %q, want one merge with the title and body", got)
+	}
+}
+
 // A yes reads the pull request again and asks again of what it finds.
 func TestMergeYesReadsAgain(t *testing.T) {
 	tests := []struct {

@@ -52,12 +52,23 @@ func (k keyMap) action(pr core.PullRequest, msg tea.KeyPressMsg) (ui.Action, boo
 // in the cache at once and returns the op that sends it, named by what.
 // question asks the user to confirm it first, and of says what it is. A
 // merge that the repository allows other methods for has next, which
-// returns the same change with the next of them.
+// returns the same change with the next of them. A merge sends msg as its
+// commit message, and chooses says that the method is the user's to pick.
 type change struct {
 	question, what string
 	of             changeOf
+	msg            core.MergeMessage
+	chooses        bool
 	start          func() *optimistic.Op
 	next           func() change
+}
+
+// mergeAs is how a merge is asked to merge: with method, or else one the
+// repository allows, and with msg as its commit message, or GitHub's own
+// when msg is empty.
+type mergeAs struct {
+	method core.MergeMethod
+	msg    core.MergeMessage
 }
 
 // changeOf says what a change is: its action on pull request number of
@@ -85,8 +96,9 @@ func (c changeOf) same(d changeOf) bool {
 
 // change returns the change that msg asks of d, and ok when there is one.
 // When the change doesn't apply, or g refuses it, ok is unset, and warn
-// may explain why. A merge uses method, or else one the repository allows.
-func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, d core.PullRequestDetail, msg tea.KeyPressMsg) (c change, ok bool, warn tea.Cmd) {
+// may explain why. A merge goes as how says, or else with a method the
+// repository allows.
+func (k keyMap) change(svc Service, g ui.Gate, how mergeAs, d core.PullRequestDetail, msg tea.KeyPressMsg) (c change, ok bool, warn tea.Cmd) {
 	pr := d.PullRequest
 	a, ok := k.action(pr, msg)
 	if !ok {
@@ -100,7 +112,7 @@ func (k keyMap) change(svc Service, g ui.Gate, method core.MergeMethod, d core.P
 	of := changeOf{repo: repo, number: number, action: a}
 	switch a {
 	case ui.ActMerge:
-		return k.mergeChange(svc, g, method, d, of)
+		return k.mergeChange(svc, g, how, d, of)
 	case ui.ActClose:
 		return change{
 			of:       of,
@@ -161,7 +173,7 @@ func (k keyMap) confirmed(svc Service, asked change, msg tea.KeyPressMsg,
 		if found {
 			// A merge asks again for the method it was asked with, which
 			// the user may have changed.
-			c, ok, warn = k.change(svc, g, asked.of.method, d, msg)
+			c, ok, warn = k.change(svc, g, mergeAs{asked.of.method, asked.msg}, d, msg)
 		}
 		switch {
 		case ok && c.of.same(asked.of):
@@ -251,7 +263,7 @@ func (s *Section) mutate(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // confirm asks the user to confirm the change that msg asks of pr, in a
 // modal of its own, or says why there is none.
 func (s *Section) confirm(pr core.PullRequest, msg tea.KeyPressMsg) tea.Cmd {
-	c, ok, warn := s.keys.change(s.svc, s.gate(), s.mergeMethod, s.subject(pr), msg)
+	c, ok, warn := s.keys.change(s.svc, s.gate(), mergeAs{method: s.mergeMethod}, s.subject(pr), msg)
 	if !ok {
 		return warn
 	}

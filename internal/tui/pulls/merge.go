@@ -158,9 +158,9 @@ func baseName(pr core.PullRequest) string {
 }
 
 // mergeChange returns the change that the merge key makes to d: what
-// planMerge decides, with method, or else one the repository allows. of
-// says what the change is so far.
-func (k keyMap) mergeChange(svc Service, g ui.Gate, method core.MergeMethod, d core.PullRequestDetail, of changeOf) (c change, ok bool, warn tea.Cmd) {
+// planMerge decides, as how says, or else with a method the repository
+// allows. of says what the change is so far.
+func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequestDetail, of changeOf) (c change, ok bool, warn tea.Cmd) {
 	pr := d.PullRequest
 	n := "#" + strconv.Itoa(pr.Number)
 	if pr.Draft {
@@ -173,23 +173,23 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, method core.MergeMethod, d c
 	repo, number, head := g.Repo, pr.Number, pr.HeadSHA
 	start := of
 	caps := capsFor(g.Caps, d.Merge)
-	m, _ := caps.MergeMethod(method)
+	m, _ := caps.MergeMethod(how.method)
 	// A merge queue merges as it is set up, whatever the method.
 	chooses := plan.Kind == mergeNow || plan.Kind == mergeAuto && !d.Merge.Queue.Enabled
 	of.kind, of.base, of.head = plan.Kind, pr.BaseRef, head
 	if chooses {
 		of.method = m
 	}
-	c = change{of: of}
+	c = change{of: of, msg: how.msg, chooses: chooses}
 	switch plan.Kind {
 	case mergeNow:
 		c.question = mergeQuestion(pr, m)
 		c.what = "merge " + n
-		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, core.MergeMessage{}, head) }
+		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, how.msg, head) }
 	case mergeAuto:
 		c.question = autoQuestion(pr, m, d.Merge.Queue.Enabled, plan.Review)
 		c.what = "merge " + n + " when its checks pass"
-		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, core.MergeMessage{}, head) }
+		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, how.msg, head) }
 	case mergeQueue:
 		c.question = "Add " + n + " to the merge queue" + forBase(pr) + "?"
 		c.what = "add " + n + " to the merge queue"
@@ -202,7 +202,7 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, method core.MergeMethod, d c
 	if methods := caps.MergeMethods(); chooses && len(methods) > 1 {
 		following := methods[(slices.Index(methods, m)+1)%len(methods)]
 		c.next = func() change {
-			next, _, _ := k.mergeChange(svc, g, following, d, start)
+			next, _, _ := k.mergeChange(svc, g, mergeAs{following, how.msg}, d, start)
 			return next
 		}
 	}
