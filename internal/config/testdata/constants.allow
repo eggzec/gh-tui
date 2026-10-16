@@ -133,6 +133,7 @@ internal/tui/issues/filter.go:defaultSort  keep: what clear_filter puts back; se
 internal/tui/pulls/visit.go:visitAfter  keep: how long the Overview and Files tabs must show for a visit to count, a measure the user has no reason to change
 internal/tui/pulls/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts back; set in the filter modal, not the config
+internal/tui/prpanes/conv/rows.go:defaultWidth  keep: a layout measure, the width of rows drawn before the pane has a size
 
 # Bubbles and packages outside internal, which can't read the config: their
 # defaults are those a bubble has on its own, and the tui passes a setting
