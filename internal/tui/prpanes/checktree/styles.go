@@ -1,0 +1,70 @@
+package checktree
+
+import (
+	"charm.land/lipgloss/v2"
+
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
+)
+
+// Styles are what the rows are drawn with. Build them once, with
+// [NewStyles], and again when the theme or the icons change. The links they
+// keep make each address and text once, so rows drawn on every frame cost
+// no more: Styles are for the one goroutine that updates and draws.
+type Styles struct {
+	// Glyphs are the marks of the rows.
+	Glyphs Glyphs
+	// Errors draws the lines of an error.
+	Errors ui.ErrorStyles
+
+	links *termtext.Links
+	dim   lipgloss.Style
+	// state holds the glyph of each check state, colored, and "" for none.
+	state [core.CheckFailing + 1]string
+	// actions, app and status are the dim glyphs of the kinds of checks.
+	actions, app, status string
+	// failure, warning and notice are the glyphs of the levels of annotations.
+	failure, warning, notice string
+}
+
+// NewStyles returns the styles for theme t and the icon set named set, whose
+// icons are ic.
+func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
+	g := NewGlyphs(set, ic)
+	dim := t.Subtle
+	fail, pend, pass := t.Run(ui.RunFailure), t.Run(ui.RunInProgress), t.Run(ui.RunSuccess)
+	s := Styles{
+		Glyphs:  g,
+		Errors:  t.Errors(ic),
+		links:   new(termtext.Links),
+		dim:     dim,
+		actions: dim.Render(g.Actions),
+		app:     dim.Render(g.App),
+		status:  dim.Render(g.Status),
+		failure: fail.Render(g.Failure),
+		warning: pend.Render(g.Warning),
+		notice:  dim.Render(g.Notice),
+	}
+	s.state[core.CheckFailing] = fail.Render(g.Fail)
+	s.state[core.CheckPending] = pend.Render(g.Pending)
+	s.state[core.CheckPassing] = pass.Render(g.Pass)
+	return s
+}
+
+// icon returns the glyph that marks a check in state s.
+func (s *Styles) icon(c core.CheckState) string {
+	if c < 0 || int(c) >= len(s.state) {
+		return ""
+	}
+	return s.state[c]
+}
+
+// link returns text, cleaned, as a link to addr when it is a safe address.
+func (s *Styles) link(addr, text string) string {
+	text = termtext.OneLine(text)
+	if s.links == nil {
+		return termtext.Link(addr, text)
+	}
+	return s.links.Link(addr, text)
+}

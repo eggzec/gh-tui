@@ -1,0 +1,18 @@
+▌▾ x > CI #12                                                             failed
+ ├─ + lint                                                        passed - 1m 5s
+ ├─ ▾ x test                                                      2 of 3 failing
+ │  ├─ x linux                                                    failed - 1m 5s
+ │  ├─ + osx                                                      passed - 1m 5s
+ │  ╰─ x windows                                                  failed - 1m 5s
+ ╰─ ▾ ~ build                                                     2 of 2 running
+    ├─ ~ docs                                                      running - 12s
+    ╰─ ~ site                                                      running - 12s
+ ▾ + > Deploy #7                                                          passed
+ ╰─ + deploy                                                      passed - 1m 5s
+ ▾ x # Codecov                                                            failed
+ ├─ x coverage                                               3 findings - failed
+ ╰─ + patch                                                         passed - 30s
+ ▾ + Other checks                                                         passed
+ ╰─ + legacy                                                        passed - 30s
+ ~ . ci/other                                                   ci/other pending
+ + . ci/old                                                       ci/old success
