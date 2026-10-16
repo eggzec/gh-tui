@@ -127,7 +127,12 @@ func (b *builder) review(n *node, depth int) foldtree.Row {
 	var r foldtree.Row
 	var prefix, body, right string
 	if n.pending {
-		prefix = b.st.review(core.ReviewStatePending) + " " + b.st.dim.Render("your pending review")
+		prefix = b.st.review(core.ReviewStatePending) + " "
+		if b.o.Viewer != "" {
+			prefix += b.st.who(core.User{Login: b.o.Viewer}, false) + b.st.dim.Render(" pending review")
+		} else {
+			prefix += b.st.dim.Render("your pending review")
+		}
 	} else {
 		it := n.item
 		prefix = b.st.review(it.Review) + " " + b.st.who(it.Actor, false)
