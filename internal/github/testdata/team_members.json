@@ -1,0 +1,4 @@
+[
+  {"login": "octocat", "id": 1, "type": "User", "site_admin": false},
+  {"login": "hubot", "id": 2, "type": "User", "site_admin": false}
+]

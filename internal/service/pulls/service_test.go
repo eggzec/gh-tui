@@ -46,6 +46,9 @@ type fakeAPI struct {
 	// probe backs ProbePullRequests. Without it, every probe answers
 	// without an ETag, so it vouches for nothing.
 	probe func(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
+	// codeowners and teamMembers back the owners reads.
+	codeowners  func(ctx context.Context, repo core.RepoRef, base string) (core.CodeownersFile, error)
+	teamMembers func(ctx context.Context, org, slug string) (core.Page[core.Person], error)
 	// filter and search back the filtered lists.
 	filter func(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	search func(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)

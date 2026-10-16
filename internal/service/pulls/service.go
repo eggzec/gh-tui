@@ -70,6 +70,10 @@ type API interface {
 	MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error)
 	ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error)
 	ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
+	// GetCodeowners reads the CODEOWNERS file of repo at the commit base, and
+	// ListTeamMembers the members of a team of an organization.
+	GetCodeowners(ctx context.Context, repo core.RepoRef, base string) (core.CodeownersFile, error)
+	ListTeamMembers(ctx context.Context, org, slug string) (core.Page[core.Person], error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -114,6 +118,10 @@ type Service struct {
 	// and ranges the files between two commits, which never go stale.
 	sinces *cache.Cache[core.Compare]
 	ranges *cache.Cache[core.CompareDetail]
+	// owners holds the CODEOWNERS file of a repository at a commit, which
+	// never changes, and members the members of a team, which do.
+	owners  *cache.Cache[OwnersFile]
+	members *cache.Cache[TeamMembers]
 	// pendings holds the viewer's pending review of a pull request. It is
 	// private and changes on the web, so it is never kept on disk.
 	pendings *cache.Cache[pendingRead]
@@ -130,7 +138,11 @@ type Service struct {
 	keptCommits   *cache.Shelf[core.Page[core.Commit]]
 	// keptCommitFiles is what a commit's SHA names, so it is never revalidated.
 	keptCommitFiles *cache.Shelf[core.Page[core.CommitFile]]
-	now             func() time.Time
+	// keptOwners holds the raw CODEOWNERS file a commit's SHA names, so it is
+	// never revalidated. The parsed rules hold a compiled expression, which
+	// can't be stored, so the file is parsed again after it is read.
+	keptOwners *cache.Shelf[core.CodeownersFile]
+	now        func() time.Time
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
 	// ttl is how long a fetched entry stays fresh.
@@ -174,6 +186,8 @@ func New(api API, opts ...Option) *Service {
 		timelines:     cache.New[core.Page[core.TimelineItem]](mem...),
 		keptTimelines: cache.NewShelf[core.Page[core.TimelineItem]](o.store, kindTimeline, timelineSchema),
 		pendings:      cache.New[pendingRead](mem...),
+		owners:        cache.New[OwnersFile](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
+		members:       cache.New[TeamMembers](mem...),
 		sinces:        cache.New[core.Compare](mem...),
 		ranges:        cache.New[core.CompareDetail](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), rangeSize)),
 		files:         cache.New[core.Page[core.CommitFile]](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
@@ -190,6 +204,7 @@ func New(api API, opts ...Option) *Service {
 		commitFiles:     cache.New[core.Page[core.CommitFile]](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries)), cache.WithMaxSize(cmp.Or(o.diffMemory, int64(d.Cache.Memory.Diffs)), filesSize)),
 		keptCommits:     cache.NewShelf[core.Page[core.Commit]](o.store, kindCommits, commitsSchema),
 		keptCommitFiles: cache.NewShelf[core.Page[core.CommitFile]](o.store, kindCommitFiles, commitFilesSchema),
+		keptOwners:      cache.NewShelf[core.CodeownersFile](o.store, kindOwners, ownersSchema),
 		ttl:             ttl,
 		pageSize:        cmp.Or(o.pageSize, d.PageSize.Pulls),
 	}
@@ -216,6 +231,7 @@ const (
 	kindCommits  = "pullcommits"
 
 	kindCommitFiles = "pullcommitfiles"
+	kindOwners      = "pullowners"
 
 	// listSchema 4 keeps the head commit of each pull request, and 5
 	// whether its author is an app.
@@ -241,6 +257,8 @@ const (
 	// commitsSchema and commitFilesSchema 1 are the first.
 	commitsSchema     = 1
 	commitFilesSchema = 1
+	// ownersSchema 1 is the first.
+	ownersSchema = 1
 )
 
 // maxPageSize is the most items GitHub returns in a page.

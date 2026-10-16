@@ -1,0 +1,28 @@
+# Owners of the repository, as GitHub's documentation writes them.
+
+# Everything has an owner, unless a later line says otherwise.
+*       @global-owner1 @global-owner2
+
+# JavaScript, at any depth.
+*.js    @js-owner #This is an inline comment.
+
+# An email address owns the Go files.
+*.go docs@example.com
+
+# Directly in docs, not below.
+/docs/* @octocat/docs-team
+
+# Anything under apps, and any directory named apps.
+apps/ @octocat
+
+# Names with an escaped space and an escaped hash.
+/my\ docs/ @spaced
+\#notes.txt @hash
+
+# Nobody owns the generated code.
+/build/generated/
+
+# A line GitHub ignores, and the file goes on.
+!negated.txt @nobody
+/src/[ab].go @brackets
+/src/** not-an-owner

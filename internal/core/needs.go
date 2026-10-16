@@ -13,6 +13,9 @@ var (
 	// NeedWorkflow is merging a pull request that changes a workflow. The
 	// files aren't known when merging, so it can only hint.
 	NeedWorkflow = Need{Scopes: []string{"workflow"}}
+	// NeedReadOrg is listing the members of an organization's team: GitHub
+	// answers 404 without read:org, as it hides what a token may not see.
+	NeedReadOrg = Need{Scopes: []string{"read:org"}}
 )
 
 // NeedWrite is what changing an issue, pull request, label, comment or
