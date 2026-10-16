@@ -2,7 +2,10 @@ package foldtree
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -119,49 +122,132 @@ func TestScrollPins(t *testing.T) {
 	}
 }
 
+// mixed is a tree with a row of three lines at depth 2, and a Skip row that
+// is an ancestor of the rows under it:
+//
+//	root
+//	╰─ group (Skip)
+//	   ├─ sub
+//	   ├─ tall, three lines
+//	   │  ╰─ leaf 00 .. leaf 03
+//	   ╰─ sub 2
+//	      ╰─ leaf 04 .. leaf 06
+//	tail 00 .. tail 02
+func mixed() []Row {
+	group := open(fold("group", 1))
+	group.Skip = true
+	tall := open(fold("tall", 2))
+	tall.Lines = []string{"tall", "  second line", "  third line"}
+	rows := []Row{open(fold("root", 0)), group, open(fold("sub", 2)), tall}
+	for i := range 4 {
+		rows = append(rows, leaf(fmt.Sprintf("leaf %02d", i), 3))
+	}
+	rows = append(rows, open(fold("sub 2", 2)))
+	for i := 4; i < 7; i++ {
+		rows = append(rows, leaf(fmt.Sprintf("leaf %02d", i), 3))
+	}
+	for i := range 3 {
+		rows = append(rows, leaf(fmt.Sprintf("tail %02d", i), 0))
+	}
+	return rows
+}
+
 // Whatever tree, height and key, the view shows the cursor row once, never
 // shows a row twice, reaches the last row, and leaves a line blank only when
-// the window cannot go up without hiding the cursor row.
+// the window cannot go up without hiding the cursor row. Folding, unfolding
+// and resizing between the keys changes none of that.
 func TestScrollPinsKeepTheRules(t *testing.T) {
 	moves := []string{"G", "k", "k", "k", "ctrl+b", "ctrl+u", "j", "j", "ctrl+d", "ctrl+f", "g", "G", "ctrl+b"}
-	for _, rows := range [][]Row{tailed(8, 0), tailed(8, 3), overshoot(), tailed(1, 6)} {
+	// A resize is a step too, and is written as "resize N".
+	steps := append(slices.Clone(moves), "h", "l", "*", "j", "k", "ctrl+f", "ctrl+d", "ctrl+u", "ctrl+b", "G", "g")
+	for n, rows := range [][]Row{tailed(8, 0), tailed(8, 3), overshoot(), tailed(1, 6), mixed()} {
 		for h := 1; h <= 10; h++ {
+			rng := rand.New(rand.NewPCG(uint64(n), uint64(h)))
 			m := newTree(rows, WithSize(24, h))
-			for _, k := range moves {
-				m, _ = keys(t, m, k)
-				name := fmt.Sprintf("%d rows, height %d, after %s", m.Len(), h, k)
-				assertFits(t, m.View(), 24, h)
-				assertShowsOnce(t, m)
-				got := lines(m)
-				seen := map[string]bool{}
-				for _, l := range got {
-					if l != "" && seen[l] {
-						t.Fatalf("%s: line %q twice:\n%s", name, l, strings.Join(got, "\n"))
-					}
-					seen[l] = true
+			run := slices.Clone(moves)
+			for range 120 {
+				if rng.IntN(4) == 0 {
+					run = append(run, fmt.Sprintf("resize %d", 1+rng.IntN(10)))
+					continue
 				}
-				if len(m.pins) > min(maxPins, h-1) {
-					t.Fatalf("%s: %d pins", name, len(m.pins))
-				}
-				blanks := 0
-				for _, l := range got {
-					if l == "" {
-						blanks++
-					}
-				}
-				if blanks > 0 && m.off > 0 {
-					e := m.starts[m.cur+1]
-					if e <= m.off-1+m.height-len(m.pinsAt(m.off-1)) {
-						t.Fatalf("%s: %d blank lines but the window could go up:\n%s", name, blanks, strings.Join(got, "\n"))
-					}
-				}
-				if k == "G" || k == "ctrl+f" && m.cur == len(m.vis)-1 {
-					last := m.row(len(m.vis) - 1).ID
-					if !strings.HasSuffix(got[len(got)-1-blanks], last) {
-						t.Fatalf("%s: the last row %q is not the last line:\n%s", name, last, strings.Join(got, "\n"))
-					}
-				}
+				run = append(run, steps[rng.IntN(len(steps))])
 			}
+			trail := fmt.Sprintf("tree %d, height %d:", n, h)
+			for _, k := range run {
+				// from is the window before a move; a fold, a resize or the
+				// first step has none.
+				from := -1
+				if size, ok := strings.CutPrefix(k, "resize "); ok {
+					m.SetSize(24, atoi(t, size))
+				} else {
+					if !slices.Contains([]string{"h", "l", "*"}, k) {
+						from = m.off
+					}
+					m, _ = keys(t, m, k)
+				}
+				trail += " " + k
+				checkPins(t, m, k, trail, from)
+			}
+		}
+	}
+}
+
+func atoi(tb testing.TB, s string) int {
+	tb.Helper()
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return n
+}
+
+// checkPins checks the rules of the scroll on the view of m after step. A
+// from of 0 or more is the line the window started at before a move.
+func checkPins(t *testing.T, m Model, step, trail string, from int) {
+	t.Helper()
+	h := m.height
+	name := fmt.Sprintf("%d rows, height %d, after %s\n%s", m.Len(), h, step, trail)
+	assertFits(t, m.View(), 24, h)
+	assertShowsOnce(t, m)
+	got := lines(m)
+	seen := map[string]bool{}
+	for _, l := range got {
+		if l != "" && seen[l] {
+			t.Fatalf("%s: line %q twice:\n%s", name, l, strings.Join(got, "\n"))
+		}
+		seen[l] = true
+	}
+	if len(m.pins) > min(maxPins, h-1) {
+		t.Fatalf("%s: %d pins", name, len(m.pins))
+	}
+	blanks := 0
+	for _, l := range got {
+		if l == "" {
+			blanks++
+		}
+	}
+	if blanks > 0 && m.off > 0 {
+		e := m.starts[m.cur+1]
+		if e <= m.off-1+m.height-len(m.pinsAt(m.off-1)) {
+			t.Fatalf("%s: %d blank lines but the window could go up:\n%s", name, blanks, strings.Join(got, "\n"))
+		}
+	}
+	// A move that took the window down takes it the least: a line less would
+	// still show the cursor row under the pins of that place. When the row at
+	// that line is pinned now, it is the same view with the row in the place
+	// of its pin.
+	if from >= 0 && m.off > from {
+		s, e := m.starts[m.cur], m.starts[m.cur+1]
+		up := m.off - 1
+		top := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > up })
+		if e <= up+m.height-len(m.pinsAt(up)) && s >= up+len(m.pinsAt(up)) && !slices.Contains(m.pins, top) {
+			t.Fatalf("%s: the window went down to line %d from %d but line %d shows the cursor row:\n%s", name, m.off, from, up, strings.Join(got, "\n"))
+		}
+	}
+	if step == "G" || step == "ctrl+f" && m.cur == len(m.vis)-1 {
+		last := m.row(len(m.vis) - 1).ID
+		if !strings.HasSuffix(got[len(got)-1-blanks], last) {
+			t.Fatalf("%s: the last row %q is not the last line:\n%s", name, last, strings.Join(got, "\n"))
 		}
 	}
 }
