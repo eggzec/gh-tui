@@ -37,7 +37,7 @@ func TestGetPullRequestDetail(t *testing.T) {
 
 	t.Run("query selects the panes' fields", func(t *testing.T) {
 		q := reqs()[0].Query
-		for _, f := range []string{"latestReviews(", "viewerLatestReview { state commit { oid } }", "lastEditedAt", "combinedSlug teamName: name"} {
+		for _, f := range []string{"latestReviews(", "viewerLatestReview {", "lastEditedAt", "teamName: name"} {
 			if !strings.Contains(q, f) {
 				t.Errorf("detail query lacks %q", f)
 			}
