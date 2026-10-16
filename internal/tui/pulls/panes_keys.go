@@ -31,6 +31,8 @@ type panesKeys struct {
 	owner key.Binding
 	// confirm answers a question that an overlay asks.
 	confirm ui.ConfirmKeys
+	// scroll moves through the preview of a zoomed pane.
+	scroll ui.MoveKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -45,6 +47,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		owner: modal.Binding("global.owner", "author"),
 
 		confirm: ui.NewConfirmKeys(keys),
+		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
 	}
 	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
 		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
@@ -98,5 +101,13 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
 	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
-	return []keyhelp.Layer{own, ui.ContextLayer(m.context(l), nil, nil)}
+	ctx := m.context(l)
+	if ctx == ctxPreview {
+		var all []key.Binding
+		for _, row := range k.scroll.FullHelp() {
+			all = append(all, row...)
+		}
+		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.scroll.ShortHelp())}
+	}
+	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

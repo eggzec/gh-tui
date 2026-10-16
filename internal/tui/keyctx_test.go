@@ -797,7 +797,6 @@ var unopenedContexts = map[string]string{
 	"pull_check_log":         "the Merge pane will read it",
 	"pull_check_detail":      "the Merge pane will read it",
 	"pull_check_annotations": "the Merge pane will read it",
-	"pull_preview":           "no placeholder pane has a preview box yet",
 }
 
 // foldedContexts are the contexts whose keys help lists in the layer of
@@ -1085,6 +1084,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},
 		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6"}, context: "pull_files", want: "global, pull_modal, pull_files"},
 		{name: "pull request: zoomed", repo: true, steps: []string{"global.pane_2", "global.select", "global.zoom"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
+		{name: "pull request: preview", repo: true, steps: []string{"global.pane_2", "global.select", "global.maximize", "global.zoom", "global.pane_3", "global.next_pane"}, context: "pull_preview", want: "global, pull_modal, pull_preview"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
