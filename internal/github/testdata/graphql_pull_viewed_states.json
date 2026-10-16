@@ -1,0 +1,6 @@
+{"data":{"repository":{"pullRequest":{"files":{"totalCount":4,"pageInfo":{"hasNextPage":false,"endCursor":"end"},"nodes":[
+  {"path":"a.go","viewerViewedState":"VIEWED"},
+  {"path":"b.go","viewerViewedState":"UNVIEWED"},
+  {"path":"dir/c.go","viewerViewedState":"DISMISSED"},
+  {"path":"d.go","viewerViewedState":"SOMETHING_NEW"}
+]}}}}}
