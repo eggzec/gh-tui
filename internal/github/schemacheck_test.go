@@ -69,6 +69,8 @@ var graphqlOperations = map[string]string{
 	"viewerWorkQuery":           viewerWorkQuery,
 	"pullChecksQuery":           pullChecksQuery,
 	"commitChecksQuery":         commitChecksQuery,
+	"commitContextsQuery":       commitContextsQuery,
+	"commitContextsNotesQuery":  commitContextsNotesQuery,
 	"viewerContributionsQuery":  viewerContributionsQuery,
 	"bodyHTMLQuery":             bodyHTMLQuery,
 	"ownerHeaderQuery":          ownerHeaderQuery,
@@ -166,6 +168,12 @@ var restCalls = []restCall{
 var graphqlOptional = []string{
 	// Came in GitHub Enterprise Server 3.15.
 	"PullRequest.viewerCanLabel",
+	// The read of a commit's checks does without these, which an older
+	// server may lack: the App of a suite, the number of a workflow run and
+	// the annotations of a check run.
+	"CheckSuite.app",
+	"WorkflowRun.runNumber",
+	"CheckRun.annotations",
 }
 
 // missingField matches gqlparser's message for a field the schema lacks.
