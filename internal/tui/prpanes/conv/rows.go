@@ -43,7 +43,7 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 	if index {
 		b.index = make(map[string]*node)
 	}
-	for i, n := range tree(d) {
+	for i, n := range tree(d, o.preview) {
 		if i > 0 {
 			b.rows = append(b.rows, foldtree.Row{ID: "b:" + n.id, Lines: []string{""}, Skip: true, Kind: KindBlank})
 		}
@@ -142,7 +142,7 @@ func (b *builder) review(n *node, depth int) foldtree.Row {
 	r.Fold = len(n.children) > 0
 	if r.Fold {
 		r.Marker = b.marker(len(n.children), "thread", "threads")
-		r.Closed = !openReview(n)
+		r.Closed = !openReview(n) && !b.o.preview
 	}
 	r.Lines = b.message(prefix, body, depth, r.Fold, right+r.Marker)
 	return r

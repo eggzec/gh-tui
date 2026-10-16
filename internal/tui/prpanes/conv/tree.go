@@ -32,7 +32,8 @@ func drawn(it *core.TimelineItem) bool {
 }
 
 // tree returns the top-level nodes of d, in the order of its timeline.
-func tree(d Data) []*node {
+// With preview, a comment stands alone and is never gathered in a run.
+func tree(d Data, preview bool) []*node {
 	byReview := make(map[string][]*node)
 	for i := range d.Threads {
 		if t := &d.Threads[i]; len(t.Comments) > 0 && t.ReviewID != "" {
@@ -42,7 +43,7 @@ func tree(d Data) []*node {
 
 	var out, run []*node
 	flush := func() {
-		if len(run) > 1 {
+		if len(run) > 1 && !preview {
 			for _, c := range run {
 				c.kind, c.id = KindRunComment, "rc:"+c.item.ID
 			}

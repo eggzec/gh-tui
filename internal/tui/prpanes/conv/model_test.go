@@ -552,6 +552,55 @@ func TestPendingReviewGroup(t *testing.T) {
 	})
 }
 
+func TestPreview(t *testing.T) {
+	t.Parallel()
+	d := newDriver(t, conversation())
+	d.all()
+	d.m.Focus()
+
+	// A preview of one review: no run, no more row, the review open.
+	d.m.SetView("p", Narrow{
+		Item:   func(it core.TimelineItem) bool { return it.ID == "R1" },
+		Thread: func(th core.Thread) bool { return th.ReviewID == "R1" },
+	})
+	want := []string{"r:R1", "t:T1", "p:T1-b"}
+	if got := d.rowIDs(); !slices.Equal(got, want) {
+		t.Fatalf("preview rows = %v, want %v", got, want)
+	}
+	if d.m.views["p"].tree.Folded("r:R1") {
+		t.Error("the review of a preview is closed")
+	}
+
+	// Each view keeps its own cursor and folds.
+	d.m, _ = d.m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	d.m.views["p"].tree.SetFolded("t:T1", true)
+	if id, _, _ := d.m.Selected(); id != "t:T1" {
+		t.Fatalf("the cursor of the preview is on %q", id)
+	}
+	d.m.SetView("", Narrow{})
+	if id, _, _ := d.m.Selected(); id != "c:1" {
+		t.Errorf("the full view's cursor moved with the preview: %q", id)
+	}
+	d.m.SetView("p", Narrow{})
+	if id, _, _ := d.m.Selected(); id != "t:T1" {
+		t.Errorf("the preview lost its cursor: %q", id)
+	}
+	if !d.m.views["p"].tree.Folded("t:T1") {
+		t.Error("the preview lost its fold")
+	}
+
+	// Comments that sit next to each other are rows of their own in a preview.
+	d.m.SetView("q", Narrow{Item: func(it core.TimelineItem) bool { return it.Kind == core.TimelineComment }})
+	for _, id := range d.rowIDs() {
+		if strings.HasPrefix(id, "run:") || strings.HasPrefix(id, "rc:") {
+			t.Errorf("the preview has a run: %v", d.rowIDs())
+		}
+	}
+	if got := d.rowIDs(); !slices.Contains(got, "c:1") || !slices.Contains(got, "c:2") {
+		t.Errorf("the comments of the preview are %v", got)
+	}
+}
+
 // bigFake is a conversation of 300 items and 100 threads.
 func bigFake() *fake {
 	var items []core.TimelineItem
