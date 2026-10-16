@@ -219,49 +219,24 @@ type Checks struct {
 	Truncated bool
 }
 
-// CheckOutcome is how a check run or a commit status stands, as the
-// summary of the checks of a pull request counts it.
-type CheckOutcome int
-
-// Check outcomes.
-const (
-	CheckPassing CheckOutcome = iota
-	CheckPending
-	CheckFailing
-)
-
-// Outcome is how c stands: pending until it completed, and failing when it
-// ended in a way that blocks a merge, such as a failure, a timeout, a
-// cancel or a wait for approval.
-func (c Check) Outcome() CheckOutcome {
+// Outcome is how c stands: pending until it completed, and then as its
+// conclusion says, see [CheckStateOf].
+func (c Check) Outcome() CheckState {
 	if c.Status != RunCompleted {
 		return CheckPending
 	}
-	switch c.Conclusion {
-	case ConclusionSuccess, ConclusionNeutral, ConclusionSkipped, ConclusionNone:
-		return CheckPassing
-	case ConclusionFailure, ConclusionCancelled, ConclusionTimedOut, ConclusionActionRequired,
-		ConclusionStartupFailure, ConclusionStale:
-	}
-	return CheckFailing
+	return CheckStateOf(string(c.Conclusion))
 }
 
-// Outcome is how s stands: GitHub's error and failure fail, and pending and
-// expected wait.
-func (s StatusContext) Outcome() CheckOutcome {
-	switch s.State {
-	case "success":
-		return CheckPassing
-	case "pending", "expected":
-		return CheckPending
-	}
-	return CheckFailing
+// Outcome is how s stands, as its state says, see [CheckStateOf].
+func (s StatusContext) Outcome() CheckState {
+	return CheckStateOf(s.State)
 }
 
 // Count returns how many of the check runs and statuses of c fail, are
 // pending and pass.
 func (c Checks) Count() (failing, pending, passing int) {
-	add := func(o CheckOutcome) {
+	add := func(o CheckState) {
 		switch o {
 		case CheckFailing:
 			failing++
@@ -269,6 +244,8 @@ func (c Checks) Count() (failing, pending, passing int) {
 			pending++
 		case CheckPassing:
 			passing++
+		case CheckNone:
+			// One check always has a state; none is only for a set.
 		}
 	}
 	for i := range c.Runs {
