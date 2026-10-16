@@ -99,7 +99,7 @@ type Service struct {
 	// of the pull request they were read at, and REST's validators.
 	comments *cache.Cache[stampedComments]
 	reviews  *cache.Cache[core.Page[core.Review]]
-	// timelines holds the whole timeline of a pull request, read in pages.
+	// timelines holds the pages of the timeline of a pull request.
 	timelines *cache.Cache[core.Page[core.TimelineItem]]
 	// files holds the pages of the files a pull request changes, by head.
 	files *cache.Cache[core.Page[core.CommitFile]]
@@ -489,7 +489,7 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 }
 
 // Invalidate marks everything cached of repo stale, for a refresh the user
-// asked for: its list pages, details, comments and reviews. They are still
+// asked for: its list pages, details, comments, reviews and timelines. They are still
 // served by the Cached reads, and the next fetch of each goes to GitHub, so
 // a refresh reaches the server even while the entries are fresh or current.
 // The list pages are read again in full, rather than confirmed by a probe,
@@ -509,6 +509,7 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.details.InvalidateTag(tag)
 	s.comments.InvalidateTag(tag)
 	s.reviews.InvalidateTag(tag)
+	s.timelines.InvalidateTag(tag)
 	s.files.InvalidateTag(tag)
 	s.commits.InvalidateTag(tag)
 	s.threads.InvalidateTag(tag)
