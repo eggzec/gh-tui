@@ -88,6 +88,8 @@ type fakeAPI struct {
 	viewers        []string
 	viewer         string
 	viewerErr      error
+	// viewedFake backs the viewed marks.
+	viewedFake
 }
 
 func (f *fakeAPI) ListPullCommits(_ context.Context, _ core.RepoRef, _ int, viewer string) (core.PullCommits, error) {
