@@ -30,6 +30,7 @@ import (
 type API interface {
 	timelineAPI
 	labelsAPI
+	viewedAPI
 	ListPullRequests(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	FilterPullRequests(ctx context.Context, repo core.RepoRef, f github.PullFilter, cursor string, first int) (core.Page[core.PullRequest], error)
 	SearchPullRequests(ctx context.Context, query, cursor string, first int) (core.Page[core.PullRequest], error)
@@ -145,6 +146,9 @@ type Service struct {
 	// states, by head. The states change while checks run, so it is never
 	// kept on disk.
 	pullCommits *cache.Cache[core.PullCommits]
+	// pullViewed holds the viewer's viewed marks on the files of a pull
+	// request, by head. The web changes them, so it is never kept on disk.
+	pullViewed *cache.Cache[core.PullViewed]
 	// viewer is the login of the signed-in user, once read.
 	viewerMu sync.Mutex
 	viewer   string
@@ -211,6 +215,7 @@ func New(api API, opts ...Option) *Service {
 		keptTimelines: cache.NewShelf[core.Page[core.TimelineItem]](o.store, kindTimeline, timelineSchema),
 		pendings:      cache.New[pendingRead](mem...),
 		pullCommits:   cache.New[core.PullCommits](mem...),
+		pullViewed:    cache.New[core.PullViewed](mem...),
 		owners:        cache.New[OwnersFile](cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
 		members:       cache.New[TeamMembers](mem...),
 		reviewerTeams: cache.New[ReviewerTeams](mem...),
@@ -536,6 +541,7 @@ func (s *Service) Revalidate(ctx context.Context, repo core.RepoRef, number int)
 	s.threads.InvalidateTag(key)
 	s.pendings.InvalidateTag(key)
 	s.pullCommits.InvalidateTag(key)
+	s.pullViewed.InvalidateTag(key)
 	return s.readDetail(ctx, repo, number)
 }
 
@@ -567,4 +573,5 @@ func (s *Service) invalidate(repo core.RepoRef) {
 	s.sinces.InvalidateTag(tag)
 	s.pendings.InvalidateTag(tag)
 	s.pullCommits.InvalidateTag(tag)
+	s.pullViewed.InvalidateTag(tag)
 }
