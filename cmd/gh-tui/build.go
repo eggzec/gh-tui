@@ -399,12 +399,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	if cfg.Sync.Enabled {
 		actionOpts = append(actionOpts, actions.WithFollow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll)))
 	}
-	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+	opts = append(opts, tui.WithActions(func(ctx context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
 		// The icons, the dates and the reads ahead are those of the
 		// session, which the set command may have changed since the start.
 		o := append(slices.Clip(actionOpts), actions.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), actions.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
 			actions.WithPrefetch(live.cfg.Prefetch), actions.WithSlots(slots))
-		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f)
+		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f, at)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
 		engine.SetIntervals(pollIntervals(c.Sync.Poll))

@@ -224,7 +224,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case ui.OpenActionsMsg:
-		cmd := m.openActionsOn(msg.Repo, msg.Filter)
+		cmd := m.openActionsOn(msg)
 		return m, cmd
 	case ui.OpenCommitMsg:
 		cmd := m.openCommit(msg)

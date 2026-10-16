@@ -307,16 +307,16 @@ func (m *Model) openActions() tea.Cmd {
 	if !m.canOpenActions() {
 		return nil
 	}
-	return m.openActionsOn(m.repo, core.RunFilter{})
+	return m.openActionsOn(ui.OpenActionsMsg{Repo: m.repo})
 }
 
-// openActionsOn opens the runs of repo that f selects, if the app has
-// them, on any screen.
-func (m *Model) openActionsOn(repo core.RepoRef, f core.RunFilter) tea.Cmd {
-	if m.actions == nil || repo == (core.RepoRef{}) {
+// openActionsOn opens the runs of the repository of msg that its filter
+// selects, where it says, if the app has them, on any screen.
+func (m *Model) openActionsOn(msg ui.OpenActionsMsg) tea.Cmd {
+	if m.actions == nil || msg.Repo == (core.RepoRef{}) {
 		return nil
 	}
-	mod, load := m.actions(m.ctx, repo, f)
+	mod, load := m.actions(m.ctx, msg.Repo, msg.Filter, msg.At)
 	if mod == nil {
 		return nil
 	}

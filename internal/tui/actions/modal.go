@@ -131,10 +131,15 @@ var _ ui.Modal = (*Modal)(nil)
 
 // Opener returns what the app opens the Actions modal with, for
 // tui.WithActions: a new modal each time, which reads what it shows from
-// svc and takes its keys from the configured keys.
-func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
-	return func(ctx context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
-		m := New(ctx, svc, repo, keys, append(slices.Clip(opts), WithFilter(f))...)
+// svc and takes its keys from the configured keys. It opens on the run, the
+// job and the pane that its last argument names, if it names any.
+func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
+	return func(ctx context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
+		opts := append(slices.Clip(opts), WithFilter(f), WithRun(at.Run), WithJob(at.Job))
+		if at.Jobs {
+			opts = append(opts, WithJobsFocused())
+		}
+		m := New(ctx, svc, repo, keys, opts...)
 		load := m.Init()
 		return m, load
 	}
