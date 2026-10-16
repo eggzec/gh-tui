@@ -214,6 +214,159 @@ func TestViewScrolled(t *testing.T) {
 	golden.RequireEqual(t, plain(v))
 }
 
+// deep is a tree of three open folds, one inside the other, with leaves at the
+// bottom that are many more than the window shows.
+func deep(leaves int) []Row {
+	rows := make([]Row, 3, 3+leaves)
+	rows[0], rows[1], rows[2] = open(fold("root", 0)), open(fold("sec", 1)), open(fold("sub", 2))
+	for i := range leaves {
+		rows = append(rows, leaf(fmt.Sprintf("leaf %02d", i), 3))
+	}
+	return rows
+}
+
+// When the tree is scrolled the two nearest ancestors of its top row stay
+// pinned above it, with their own guides.
+func TestViewPinsTwoAncestors(t *testing.T) {
+	m := newTree(deep(12), WithSize(24, 7))
+	m, _ = keys(t, m, "G")
+	v := m.View()
+	assertFits(t, v, 24, 7)
+	golden.RequireEqual(t, plain(v))
+}
+
+func TestViewPinsNothingAtTheTop(t *testing.T) {
+	m := newTree(deep(12), WithSize(24, 7))
+	if got, _, _ := strings.Cut(plain(m.View()), "\n"); !strings.Contains(got, "root") {
+		t.Errorf("first line = %q, want the first row", got)
+	}
+	if len(m.pins) != 0 {
+		t.Errorf("pins = %v at the top, want none", m.pins)
+	}
+}
+
+// A cursor that climbs onto an ancestor that was pinned shows it in its place,
+// once, and the pins above it are those of its own place.
+func TestViewCursorClimbsOntoAPinnedAncestor(t *testing.T) {
+	m := newTree(deep(12), WithSize(24, 7))
+	m, _ = keys(t, m, "G")
+	lines := strings.Split(plain(m.View()), "\n")
+	if !strings.Contains(lines[0], "sec") || !strings.Contains(lines[1], "sub") {
+		t.Fatalf("pins = %q, %q, want sec and sub", lines[0], lines[1])
+	}
+	for selected(m) != "sub" {
+		m, _ = keys(t, m, "k")
+		assertShowsOnce(t, m)
+	}
+	lines = strings.Split(plain(m.View()), "\n")
+	if !strings.Contains(lines[0], "root") || !strings.Contains(lines[1], "sec") {
+		t.Errorf("pins over sub = %q, %q, want root and sec", lines[0], lines[1])
+	}
+	if !strings.Contains(lines[2], "▌") || !strings.Contains(lines[2], "sub") {
+		t.Errorf("line 2 = %q, want the cursor on sub", lines[2])
+	}
+}
+
+// assertShowsOnce checks that the row under the cursor is drawn once, with the
+// cursor, whatever the pins are.
+func assertShowsOnce(tb testing.TB, m Model) {
+	tb.Helper()
+	id := selected(m)
+	n, cursor := 0, 0
+	for l := range strings.SplitSeq(plain(m.View()), "\n") {
+		if strings.HasSuffix(strings.TrimRight(l, " "), id) {
+			n++
+			if strings.HasPrefix(l, "▌") {
+				cursor++
+			}
+		}
+	}
+	if n != 1 || cursor != 1 {
+		tb.Fatalf("row %q is drawn %d times, %d with the cursor:\n%s", id, n, cursor, plain(m.View()))
+	}
+}
+
+// Moving down and up the whole tree, at every height, the cursor row is
+// always in view, and always drawn once.
+func TestViewPinsNeverCoverTheCursor(t *testing.T) {
+	for h := 1; h <= 9; h++ {
+		m := newTree(deep(8), WithSize(20, h))
+		for range 14 {
+			m, _ = keys(t, m, "j")
+			assertFits(t, m.View(), 20, h)
+			assertShowsOnce(t, m)
+		}
+		for range 14 {
+			m, _ = keys(t, m, "k")
+			assertFits(t, m.View(), 20, h)
+			assertShowsOnce(t, m)
+		}
+		m, _ = keys(t, m, "G", "ctrl+b", "ctrl+f", "ctrl+u", "ctrl+d")
+		assertShowsOnce(t, m)
+	}
+}
+
+// A tree that is too short for pins keeps a line for rows: none at a height of
+// one and the nearest ancestor at a height of two.
+func TestViewPinsLeaveALineForRows(t *testing.T) {
+	m := newTree(deep(12), WithSize(24, 7))
+	m, _ = keys(t, m, "G")
+	m.SetSize(24, 2)
+	lines := strings.Split(plain(m.View()), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[0], "sub") || !strings.Contains(lines[1], "leaf 11") {
+		t.Errorf("height 2 = %q, want sub pinned over the cursor row", lines)
+	}
+	m.SetSize(24, 1)
+	assertFits(t, m.View(), 24, 1)
+	if got := plain(m.View()); !strings.Contains(got, "leaf 11") {
+		t.Errorf("height 1 = %q, want the cursor row", got)
+	}
+	m.SetSize(24, 7)
+	if got, _, _ := strings.Cut(plain(m.View()), "\n"); !strings.Contains(got, "sec") {
+		t.Errorf("height 7 again = %q, want sec pinned", got)
+	}
+}
+
+// Paging counts the lines the pins leave for rows.
+func TestPagingStaysBelowThePins(t *testing.T) {
+	m := newTree(deep(20), WithSize(24, 8))
+	m, _ = keys(t, m, "G", "ctrl+b")
+	assertShowsOnce(t, m)
+	if got, want := selected(m), "leaf 13"; got != want {
+		t.Errorf("a page up from the end = %q, want %q", got, want)
+	}
+}
+
+// The body of a row carries its guide on to the row's children, at every
+// depth, and is cut to what the guide leaves.
+func TestViewBodyGuideReachesTheChildren(t *testing.T) {
+	rows := []Row{
+		{ID: "p", Fold: true, Lines: []string{"head", "body one", "body two"}},
+		{ID: "c1", Depth: 1, Lines: []string{"first child"}},
+		{ID: "c2", Depth: 1, Fold: true, Lines: []string{"second child", "child body", "a long child body line"}},
+		{ID: "g1", Depth: 2, Lines: []string{"grandchild"}},
+		{ID: "g2", Depth: 2, Lines: []string{"last grandchild"}},
+		{ID: "q", Depth: 0, Fold: true, Lines: []string{"other", "other body"}},
+		{ID: "q1", Depth: 1, Lines: []string{"only child"}},
+	}
+	m := newTree(rows, WithSize(22, 14))
+	v := m.View()
+	assertFits(t, v, 22, 14)
+	golden.RequireEqual(t, plain(v))
+}
+
+// Text from outside is not kept by the tree: changing the lines the caller
+// handed over leaves the tree as it was.
+func TestSetRowsDoesNotAliasTheCallersLines(t *testing.T) {
+	lines := []string{"head", "body"}
+	m := newTree([]Row{{ID: "a", Lines: lines}}, WithSize(10, 2))
+	before := plain(m.View())
+	lines[0], lines[1] = "changed", "changed"
+	if after := plain(m.View()); after != before {
+		t.Errorf("view changed with the caller's lines: %q, was %q", after, before)
+	}
+}
+
 // Text cut by the width keeps its links closed, and never splits a wide
 // character, so the next line starts clean.
 func TestViewCutsLinksAndWideText(t *testing.T) {

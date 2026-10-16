@@ -137,8 +137,14 @@ func (m *Model) collapse() {
 		m.reflow()
 		return
 	}
-	for j := m.cur - 1; j >= 0; j-- {
-		if p := m.row(j); p.Depth < r.Depth && !p.Skip {
+	need := r.Depth
+	for j := m.cur - 1; j >= 0 && need > 0; j-- {
+		p := m.row(j)
+		if p.Depth >= need {
+			continue
+		}
+		need = p.Depth
+		if !p.Skip {
 			m.setCur(j)
 			return
 		}
