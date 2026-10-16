@@ -1266,14 +1266,13 @@ keys:
     down: [down, ctrl+n]
     page_up: [pgup]
     page_down: [pgdown]
+    # In a picker with a list mode, such as a filter form's dropdown, enter
+    # leaves the search and keeps the query; elsewhere it chooses.
     choose: [enter]
     cancel: [esc]
-    # Check or uncheck the item under the cursor of a dropdown with
-    # several choices.
-    toggle: [space]
     next_scope: [tab]
     prev_scope: [shift+tab]
-  # A picker in normal mode, where the keys move and open the filter
+  # A picker in normal mode, where the keys move and start the search
   # instead of being typed.
   picker_normal:
     up: [k, up]
@@ -1284,10 +1283,13 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-    # Start typing in the filter, with the cursor at the start or at the
-    # end.
-    insert: [i]
-    append: [a]
+    # Start searching: what you type filters the list.
+    search: [/]
+    # Check or uncheck the item under the cursor of a dropdown with
+    # several choices.
+    toggle: [space]
+    # Close without applying.
+    back: [backspace]
   # The query of the search page while it types. Esc is the way out: it
   # stops typing and moves to the results.
   search_query:

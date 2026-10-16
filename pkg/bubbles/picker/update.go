@@ -54,6 +54,12 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	normal := m.modes && !m.typing
 	switch {
 	case key.Matches(msg, m.keys.Choose):
+		// A picker with modes searches in its own mode: enter keeps the
+		// query and returns to the list, where it chooses.
+		if m.modes && m.typing {
+			m.leaveTyping()
+			return nil
+		}
 		it, ok := m.chosen()
 		if !ok {
 			return nil
@@ -61,6 +67,10 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.stop()
 		return send(ChosenMsg{ID: m.id, Item: it})
 	case key.Matches(msg, m.keys.Cancel):
+		// Esc clears the query before it leaves the search or closes.
+		if m.modes && m.input.Value() != "" {
+			return m.clearQuery()
+		}
 		if m.modes && m.typing {
 			m.leaveTyping()
 			return nil
@@ -95,8 +105,15 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
+// clearQuery empties the query and lists everything again, in the mode the
+// picker is in.
+func (m *Model) clearQuery() tea.Cmd {
+	m.input.SetValue("")
+	return m.refresh(false)
+}
+
 // pressNormal handles a key in normal mode, where only the moves and the
-// keys that focus the input do anything.
+// keys that start the search or close do anything.
 func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 	n := m.keys.Normal
 	half := max(m.listHeight()/2, 1)
@@ -119,10 +136,11 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, n.Bottom):
 		m.sel = len(m.results) - 1
 		m.scroll()
-	case key.Matches(msg, n.Insert):
-		return m.enterTyping(false)
-	case key.Matches(msg, n.Append):
-		return m.enterTyping(true)
+	case key.Matches(msg, n.Search):
+		return m.enterTyping()
+	case key.Matches(msg, n.Back):
+		m.stop()
+		return send(CancelMsg{ID: m.id})
 	default:
 		return nil
 	}
@@ -130,16 +148,11 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// enterTyping focuses the input, the cursor at the end of the query or at
-// its start.
-func (m *Model) enterTyping(end bool) tea.Cmd {
+// enterTyping focuses the input, the cursor at the end of the query.
+func (m *Model) enterTyping() tea.Cmd {
 	m.typing = true
 	cmd := m.input.Focus()
-	if end {
-		m.input.CursorEnd()
-	} else {
-		m.input.CursorStart()
-	}
+	m.input.CursorEnd()
 	m.render()
 	return cmd
 }
@@ -156,6 +169,12 @@ func (m *Model) leaveTyping() {
 // changed.
 func (m *Model) edit(msg tea.Msg) tea.Cmd {
 	before := m.input.Value()
+	// Deleting from an empty query leaves the search of a picker with modes.
+	if press, ok := msg.(tea.KeyPressMsg); ok && m.modes && before == "" &&
+		key.Matches(press, m.input.KeyMap.DeleteCharacterBackward) {
+		m.leaveTyping()
+		return nil
+	}
 	// The input edits its text in place, which copies of the model share,
 	// so it gets a copy of its own first.
 	m.input.SetValue(before)

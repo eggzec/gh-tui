@@ -208,11 +208,14 @@ func TestTypingContextsRefusePrintableKeys(t *testing.T) {
 		{"help's close, which may", "keys:\n  help:\n    close: [\"?\"]\n", ""},
 		{"help's close, another letter", "keys:\n  help:\n    close: [x]\n", ""},
 		{"help's cancel, which may not", "keys:\n  help:\n    cancel: [x]\n", "line 3: keys.help.cancel: x would be typed into the help; use a key that types nothing, such as one with ctrl or alt"},
-		{"picker's toggle, which may", "keys:\n  picker:\n    toggle: [space]\n", ""},
+		{"picker's toggle, which moved to normal mode", "keys:\n  picker:\n    toggle: [space]\n", "line 3: keys.picker.toggle: removed, use keys.picker_normal.toggle; space checks an item in the list, and is typed while searching"},
+		{"normal mode's insert, which the search replaced", "keys:\n  picker_normal:\n    insert: [i]\n", "line 3: keys.picker_normal.insert: removed, use keys.picker_normal.search"},
+		{"normal mode's append, which the search replaced", "keys:\n  picker_normal:\n    append: [a]\n", "line 3: keys.picker_normal.append: removed, use keys.picker_normal.search"},
+		{"toggle in normal mode of a picker", "keys:\n  picker_normal:\n    toggle: [space]\n", ""},
 		{"a ctrl key", "keys:\n  finder:\n    reveal: [ctrl+o]\n", ""},
 		{"an alt key", "keys:\n  finder:\n    reveal: [alt+o]\n", ""},
 		{"a context that types nothing", "keys:\n  confirm:\n    \"yes\": [Y]\n", ""},
-		{"normal mode of a picker", "keys:\n  picker_normal:\n    insert: [I]\n", ""},
+		{"normal mode of a picker", "keys:\n  picker_normal:\n    search: [I]\n", ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := loadBase(writeConfig(t, tt.file))

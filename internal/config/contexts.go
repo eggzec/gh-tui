@@ -144,12 +144,10 @@ var contexts = []Context{
 	// are control keys, since the letters are typed.
 	{Name: "merge_dialog", Title: "Merge", Reach: ReachCapture, Typing: true},
 	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
-	// Space checks the item under the cursor of a dropdown with several
-	// choices while its filter doesn't have the keys, and is typed in the
-	// filter.
-	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true, Printable: []string{"toggle"}},
-	// A picker in normal mode, where letters move and open its filter
-	// instead of being typed.
+	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true},
+	// A picker in normal mode, where letters move and start its search
+	// instead of being typed. Space checks the item under the cursor of a
+	// dropdown with several choices.
 	{Name: "picker_normal", Title: "Picker (normal mode)", Reach: ReachCapture},
 	{Name: "search_prompt", Title: "Search", Reach: ReachCapture, Typing: true},
 	{Name: "pager_option", Title: "Option", Reach: ReachCapture},

@@ -155,18 +155,18 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "base:main", "base:main-x", 1), wantRow: rowBase,
 		},
 		{
-			name: "a person takes the highlighted login", keys: step{down, del, space, keyI},
-			typed: "octo", after: step{enter},
+			name: "a person takes the highlighted login", keys: step{down, del, space, keySlash},
+			typed: "octo", after: step{enter, enter},
 			wantQuery: strings.Replace(prDefaults, "@me", "octocat", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "a person takes a typed login nothing matches", keys: step{down, space, keyI},
-			typed: "hubot", after: step{enter},
+			name: "a person takes a typed login nothing matches", keys: step{down, space, keySlash},
+			typed: "hubot", after: step{enter, enter},
 			wantQuery: strings.Replace(prDefaults, "author:@me", "author:hubot", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "esc leaves a person as it was", keys: step{down, space, keyI},
-			typed: "hubot", after: step{esc, esc},
+			name: "esc leaves a person as it was", keys: step{down, space, keySlash},
+			typed: "hubot", after: step{esc, esc, esc},
 			wantQuery: prDefaults, wantRow: rowAuthor,
 		},
 		{
@@ -425,7 +425,7 @@ func TestPersonSearchErrorText(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec, WithErrorText(func(error) (string, string) { return "Can't reach GitHub", "↵ to retry" }))
-	m, _ = press(t, m, space, keyI)
+	m, _ = press(t, m, space, keySlash)
 	m = typeText(t, m, "hu")
 	v := ansi.Strip(m.View())
 	if !strings.Contains(v, "✗ Can't reach GitHub") || strings.Contains(v, "to retry") || strings.Contains(v, "502") {
@@ -447,9 +447,9 @@ func TestPersonSearch(t *testing.T) {
 		},
 	}}}
 	m := open(t, spec)
-	m, _ = press(t, m, space, keyI)
+	m, _ = press(t, m, space, keySlash)
 	m = typeText(t, m, "hu")
-	m, _ = press(t, m, enter)
+	m, _ = press(t, m, enter, enter)
 	if got := m.Query(); got != "assignee:hubot" {
 		t.Errorf("Query = %q, want assignee:hubot", got)
 	}
@@ -810,7 +810,7 @@ func TestQuitCloses(t *testing.T) {
 	if _, sent = press(t, p, keyQ); len(sent) != 1 || sent[0] != (CancelMsg{ID: p.ID()}) {
 		t.Errorf("sent %v, want a CancelMsg from a list", sent)
 	}
-	p, sent = press(t, p, keyI, keyQ)
+	p, sent = press(t, p, keySlash, keyQ)
 	if len(sent) > 0 || p.pick.Query().Text != "q" {
 		t.Errorf("sent %v, picker query %q; want q typed in the filter", sent, p.pick.Query().Text)
 	}
@@ -843,7 +843,7 @@ func TestCapturing(t *testing.T) {
 	if m.Capturing() {
 		t.Error("a list in its normal mode captures keys")
 	}
-	m, _ = press(t, m, keyI)
+	m, _ = press(t, m, keySlash)
 	if !m.Capturing() || m.CapturedBy() != CapturePicker {
 		t.Error("a list's filter doesn't capture keys")
 	}

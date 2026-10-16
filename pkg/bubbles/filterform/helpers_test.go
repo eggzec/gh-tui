@@ -32,7 +32,6 @@ func testKeys(tb testing.TB) KeyMap {
 		"global.dismiss":               {"esc"},
 		"global.quit":                  {"q"},
 		"global.refresh":               {"r"},
-		"picker.toggle":                {"space"},
 		"filter_query.apply":           {"enter"},
 		"filter_query.cancel":          {"esc"},
 		"filter_query.up":              {"up", "ctrl+p"},
@@ -53,8 +52,9 @@ func testKeys(tb testing.TB) KeyMap {
 		"picker_normal.half_page_down": {"ctrl+d"},
 		"picker_normal.top":            {"g", "home"},
 		"picker_normal.bottom":         {"G", "end"},
-		"picker_normal.insert":         {"i"},
-		"picker_normal.append":         {"a"},
+		"picker_normal.search":         {"/"},
+		"picker_normal.toggle":         {"space"},
+		"picker_normal.back":           {"backspace"},
 	}
 	return NewKeyMap(keytest.Table(table))
 }
@@ -66,30 +66,31 @@ func newKeyed(tb testing.TB, spec Spec, opts ...Option) Model {
 }
 
 var (
-	enter   = tea.KeyPressMsg{Code: tea.KeyEnter}
-	esc     = tea.KeyPressMsg{Code: tea.KeyEscape}
-	up      = tea.KeyPressMsg{Code: tea.KeyUp}
-	down    = tea.KeyPressMsg{Code: tea.KeyDown}
-	left    = tea.KeyPressMsg{Code: tea.KeyLeft}
-	right   = tea.KeyPressMsg{Code: tea.KeyRight}
-	space   = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
-	bksp    = tea.KeyPressMsg{Code: tea.KeyBackspace}
-	del     = tea.KeyPressMsg{Code: tea.KeyDelete}
-	keyX    = tea.KeyPressMsg{Code: 'x', Text: "x"}
-	keyR    = tea.KeyPressMsg{Code: 'r', Text: "r"}
-	keyF    = tea.KeyPressMsg{Code: 'F', Text: "F"}
-	ctrlU   = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
-	nextTab = tea.KeyPressMsg{Code: ']', Text: "]"}
-	prevTab = tea.KeyPressMsg{Code: '[', Text: "["}
-	keyI    = tea.KeyPressMsg{Code: 'i', Text: "i"}
-	keyA    = tea.KeyPressMsg{Code: 'a', Text: "a"}
-	keyJ    = tea.KeyPressMsg{Code: 'j', Text: "j"}
-	keyK    = tea.KeyPressMsg{Code: 'k', Text: "k"}
-	keyH    = tea.KeyPressMsg{Code: 'h', Text: "h"}
-	keyL    = tea.KeyPressMsg{Code: 'l', Text: "l"}
-	keyG    = tea.KeyPressMsg{Code: 'g', Text: "g"}
-	keyBigG = tea.KeyPressMsg{Code: 'G', Text: "G", Mod: tea.ModShift}
-	keyQ    = tea.KeyPressMsg{Code: 'q', Text: "q"}
+	enter    = tea.KeyPressMsg{Code: tea.KeyEnter}
+	esc      = tea.KeyPressMsg{Code: tea.KeyEscape}
+	up       = tea.KeyPressMsg{Code: tea.KeyUp}
+	down     = tea.KeyPressMsg{Code: tea.KeyDown}
+	left     = tea.KeyPressMsg{Code: tea.KeyLeft}
+	right    = tea.KeyPressMsg{Code: tea.KeyRight}
+	space    = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	bksp     = tea.KeyPressMsg{Code: tea.KeyBackspace}
+	del      = tea.KeyPressMsg{Code: tea.KeyDelete}
+	keyX     = tea.KeyPressMsg{Code: 'x', Text: "x"}
+	keyR     = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyF     = tea.KeyPressMsg{Code: 'F', Text: "F"}
+	ctrlU    = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
+	nextTab  = tea.KeyPressMsg{Code: ']', Text: "]"}
+	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
+	keyI     = tea.KeyPressMsg{Code: 'i', Text: "i"}
+	keySlash = tea.KeyPressMsg{Code: '/', Text: "/"}
+	keyA     = tea.KeyPressMsg{Code: 'a', Text: "a"}
+	keyJ     = tea.KeyPressMsg{Code: 'j', Text: "j"}
+	keyK     = tea.KeyPressMsg{Code: 'k', Text: "k"}
+	keyH     = tea.KeyPressMsg{Code: 'h', Text: "h"}
+	keyL     = tea.KeyPressMsg{Code: 'l', Text: "l"}
+	keyG     = tea.KeyPressMsg{Code: 'g', Text: "g"}
+	keyBigG  = tea.KeyPressMsg{Code: 'G', Text: "G", Mod: tea.ModShift}
+	keyQ     = tea.KeyPressMsg{Code: 'q', Text: "q"}
 )
 
 // Rows of prSpec.

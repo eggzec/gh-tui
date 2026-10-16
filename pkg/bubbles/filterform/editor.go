@@ -122,12 +122,10 @@ func (m *Model) closeEditor(keep bool) {
 // letters; the rest go to the picker, which moves and filters.
 func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
-	typing := m.picking && m.pick.Typing()
 	switch {
-	case typing:
-		if key.Matches(msg, k.List.Choose) {
-			return m.chooseHighlighted()
-		}
+	case m.picking && m.pick.Typing():
+		// The picker keeps the query on enter, and clears it, then leaves
+		// the search, on esc.
 		return m.typeIn(msg)
 	case key.Matches(msg, k.Quit):
 		return send(CancelMsg{ID: m.id})
@@ -140,13 +138,13 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 	case !m.picking:
 		// The options are loading or failed to.
 		switch {
-		case key.Matches(msg, k.List.Cancel):
+		case key.Matches(msg, k.List.Cancel), key.Matches(msg, k.List.Normal.Back):
 			m.closeEditor(false)
 		case key.Matches(msg, k.Retry) && m.tab == FiltersTab && m.fields[m.row].state == failed:
 			return m.load(m.row)
 		}
 		return nil
-	case key.Matches(msg, k.ListToggle) && m.kind() == Multi:
+	case key.Matches(msg, k.List.Normal.Toggle) && m.kind() == Multi:
 		m.checkHighlighted(true)
 		return nil
 	case key.Matches(msg, k.ListClear):
@@ -154,7 +152,10 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case key.Matches(msg, k.List.Choose):
 		return m.chooseHighlighted()
-	case key.Matches(msg, k.List.Cancel):
+	case key.Matches(msg, k.List.Cancel) && m.pick.Query().Text != "":
+		// The picker clears the query it kept; the next esc closes.
+		return m.typeIn(msg)
+	case key.Matches(msg, k.List.Cancel), key.Matches(msg, k.List.Normal.Back):
 		m.closeEditor(false)
 		return nil
 	}
@@ -218,26 +219,17 @@ func (m *Model) chooseText(text string) {
 	m.closeEditor(true)
 }
 
-// chosenMulti handles enter in a checklist. In the list, enter closes it
-// and doesn't leave the highlighted item out: it checks it, unless it is
+// chosenMulti handles enter in a checklist's list, which closes it and
+// doesn't leave the highlighted item out: it checks it, unless it is
 // checked, or space just acted on it, so that unchecking an item and
-// pressing enter doesn't check it again. In the filter, enter checks the
-// item, empties the filter and goes back to the list, so that the next
-// item can be filtered for. Enter in the filter only adds: it never
-// unchecks.
+// pressing enter doesn't check it again. Enter in the search never gets
+// here: it keeps the query and returns to the list.
 func (m *Model) chosenMulti(value string) tea.Cmd {
-	if !m.pick.Typing() {
-		if value != m.toggled {
-			m.checkHighlighted(false)
-		}
-		m.closeEditor(true)
-		return nil
+	if value != m.toggled {
+		m.checkHighlighted(false)
 	}
-	m.checkHighlighted(false)
-	cmd := m.pick.Reset()
-	m.pick.Focus()
-	m.pick.Select(value)
-	return cmd
+	m.closeEditor(true)
+	return nil
 }
 
 // checkHighlighted checks the highlighted item of a checklist, or with
@@ -269,9 +261,9 @@ func (m *Model) doneWord() string {
 	it, ok := m.pick.Selected()
 	value, isString := it.Value.(string)
 	if ok && isString && value != m.toggled && !slices.Contains(m.state.values[m.row].list, value) {
-		return "add & close"
+		return "add & apply"
 	}
-	return "done"
+	return "apply"
 }
 
 // clearList handles the clear key in a dropdown. A list chooses its empty

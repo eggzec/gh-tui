@@ -25,7 +25,7 @@ func (k withNormalKeys) FullHelp() [][]key.Binding {
 	n := k.Normal
 	return append(k.KeyMap.FullHelp(), []key.Binding{
 		n.Up, n.Down, n.PageUp, n.PageDown, n.HalfPageUp, n.HalfPageDown,
-		n.Top, n.Bottom, n.Insert, n.Append,
+		n.Top, n.Bottom, n.Search, n.Toggle, n.Back,
 	})
 }
 
@@ -45,7 +45,7 @@ func TestFullHelpByMode(t *testing.T) {
 		return got
 	}
 	typing := []string{"↵", "esc", "↑/^p", "↓/^n", "pgdn", "pgup"}
-	normal := []string{"G/end", "a", "^b/pgup", "^d", "^f/pgdn", "^u", "↵", "esc", "g/home", "i", "j/↓", "k/↑"}
+	normal := []string{"G/end", "/", "^b/pgup", "^d", "^f/pgdn", "^u", "↵", "esc", "g/home", "space", "backspace", "j/↓", "k/↑"}
 	scoped := []string{"shift+tab", "tab"}
 	tests := []struct {
 		name string
@@ -56,9 +56,9 @@ func TestFullHelpByMode(t *testing.T) {
 		{"without modes", nil, nil, typing},
 		{"normal mode", []Option{WithModes(true)}, nil, normal},
 		{"scopes in normal mode", []Option{WithModes(true), WithScopes("A")}, nil, append(slices.Clone(normal), scoped...)},
-		{"insert mode", []Option{WithModes(true)}, []tea.Msg{tea.KeyPressMsg{Code: 'i', Text: "i"}}, typing},
-		{"normal mode without a filter line", []Option{WithModes(true), WithFilterLine(false)}, nil, slices.DeleteFunc(slices.Clone(normal), func(k string) bool { return k == "i" || k == "a" })},
-		{"scopes in insert mode", []Option{WithModes(true), WithScopes("A")}, []tea.Msg{tea.KeyPressMsg{Code: 'i', Text: "i"}}, append(slices.Clone(typing), scoped...)},
+		{"search", []Option{WithModes(true)}, []tea.Msg{tea.KeyPressMsg{Code: '/', Text: "/"}}, typing},
+		{"normal mode without a filter line", []Option{WithModes(true), WithFilterLine(false)}, nil, slices.DeleteFunc(slices.Clone(normal), func(k string) bool { return k == "/" })},
+		{"scopes in search", []Option{WithModes(true), WithScopes("A")}, []tea.Msg{tea.KeyPressMsg{Code: '/', Text: "/"}}, append(slices.Clone(typing), scoped...)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,8 +72,8 @@ func TestFullHelpByMode(t *testing.T) {
 	}
 }
 
-// Esc leaves insert mode, so its help says so there, and says close in
-// normal mode and in a picker without modes.
+// Esc clears the query and then leaves the search, so its help says so there,
+// and says close in normal mode and in a picker without modes.
 func TestCancelHelp(t *testing.T) {
 	descs := func(m Model) (short, full string) {
 		for _, b := range m.ShortHelp() {
@@ -94,9 +94,9 @@ func TestCancelHelp(t *testing.T) {
 	if s, f := descs(m); s != "close" || f != "close" {
 		t.Errorf("normal mode: short %q, full %q; want close", s, f)
 	}
-	m, _ = press(t, m, letter('i'))
-	if s, f := descs(m); s != "normal" || f != "normal" {
-		t.Errorf("insert mode: short %q, full %q; want normal", s, f)
+	m, _ = press(t, m, letter('/'))
+	if s, f := descs(m); s != "clears, then leaves" || f != "clears, then leaves" {
+		t.Errorf("search: short %q, full %q; want clears, then leaves", s, f)
 	}
 	plain := open(t, nil, WithItems(catalog))
 	if s, f := descs(plain); s != "close" || f != "close" {

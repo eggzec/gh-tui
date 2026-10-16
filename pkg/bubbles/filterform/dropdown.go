@@ -70,7 +70,7 @@ func (m *Model) dropHeight() int {
 		}
 	}
 	rows = min(max(rows, 1), dropRows)
-	if m.pick.KeyMap().Normal.Insert.Enabled() {
+	if m.pick.KeyMap().Normal.Search.Enabled() {
 		rows += 2
 	}
 	return rows + 2

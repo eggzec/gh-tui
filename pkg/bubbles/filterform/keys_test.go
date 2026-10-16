@@ -36,7 +36,7 @@ func TestFullHelpState(t *testing.T) {
 	with := func(extra ...string) []string { return slices.Concat(always, extra) }
 	// What a dropdown in its normal mode takes besides its own list keys:
 	// the moves, enter and esc, q, and the tabs.
-	listNormal := []string{"k/↑", "j/↓", "^b/pgup", "^f/pgdn", "^u", "^d", "g/home", "G/end", "↵", "esc", "q", "[", "]"}
+	listNormal := []string{"k/↑", "j/↓", "^b/pgup", "^f/pgdn", "^u", "^d", "g/home", "G/end", "↵", "esc", "backspace", "q", "[", "]"}
 	list := func(extra ...string) []string { return slices.Concat(listNormal, extra) }
 	tests := []struct {
 		name string
@@ -63,10 +63,10 @@ func TestFullHelpState(t *testing.T) {
 		{name: "list", keys: []tea.Msg{space}, want: list("delete")},
 		{name: "list of the sort by", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}, want: list()},
 		{name: "list of the order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down, space}, want: list()},
-		{name: "people", keys: keys2(down, rowAuthor, space), want: list("i", "a", "delete")},
-		{name: "people typing", keys: keys2(down, rowAuthor, space, keyI), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
-		{name: "checklist", load: true, keys: keys2(down, rowLabels, space), want: list("space", "i", "a", "delete")},
-		{name: "checklist typing", load: true, keys: keys2(down, rowLabels, space, keyI), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
+		{name: "people", keys: keys2(down, rowAuthor, space), want: list("/", "delete")},
+		{name: "people typing", keys: keys2(down, rowAuthor, space, keySlash), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
+		{name: "checklist", load: true, keys: keys2(down, rowLabels, space), want: list("space", "/", "delete")},
+		{name: "checklist typing", load: true, keys: keys2(down, rowLabels, space, keySlash), want: []string{"↑/^p", "↓/^n", "pgup", "pgdn", "↵", "esc"}},
 		{name: "checklist without a filter", keys: keys2(down, rowLabels, space), want: list("space", "delete")},
 		{name: "loading", load: true, block: true, keys: keys2(down, rowLabels, space), want: []string{"esc", "q", "[", "]"}},
 		{name: "failed load", load: true, fail: true, keys: keys2(down, rowLabels, space), want: []string{"r", "esc", "q", "[", "]"}},
@@ -179,7 +179,7 @@ func TestNewKeyMapWordsTheDropdown(t *testing.T) {
 	if got := km.List.Normal.Up.Keys(); !slices.Equal(got, []string{"k", "up"}) {
 		t.Errorf("List.Normal.Up keys = %v, want those of picker_normal", got)
 	}
-	if got := km.ListToggle.Keys(); !slices.Equal(got, []string{"space"}) {
-		t.Errorf("ListToggle keys = %v, want those of picker.toggle", got)
+	if got := km.List.Normal.Toggle.Keys(); !slices.Equal(got, []string{"space"}) {
+		t.Errorf("List.Normal.Toggle keys = %v, want those of picker_normal", got)
 	}
 }

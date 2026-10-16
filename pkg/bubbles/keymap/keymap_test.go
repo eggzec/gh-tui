@@ -173,7 +173,7 @@ func TestLabels(t *testing.T) {
 
 func TestNamesOfPickerNormalMode(t *testing.T) {
 	got := keymap.Names(picker.KeyMap{})
-	for _, want := range []string{"picker_normal.up", "picker_normal.half_page_down", "picker_normal.insert", "picker_normal.append", "up", "choose"} {
+	for _, want := range []string{"picker_normal.up", "picker_normal.half_page_down", "picker_normal.search", "picker_normal.toggle", "up", "choose"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("Names = %v, missing %q", got, want)
 		}
