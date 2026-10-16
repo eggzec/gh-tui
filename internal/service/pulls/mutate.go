@@ -99,6 +99,55 @@ func (s *Service) ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op {
 	}, s.api.ConvertPullRequestToDraft)
 }
 
+// UpdateBranch merges the base branch of pull request number of repo into
+// its head branch. A head other than "" pins the update to that commit, the
+// head the user saw, so that GitHub refuses it if new commits were pushed
+// since. A refusal, for a branch that is up to date or one that conflicts
+// with its base, is a *core.RefusedError with GitHub's reason.
+//
+// The update changes no value that can be shown before GitHub does it, and
+// GitHub answers before the head moves. So the Op changes nothing at once,
+// and once GitHub accepts the update, it marks stale what is cached of the
+// pull request: its detail, with the merge state and failing checks that
+// move with the head, its timeline, files and commits, and the list pages.
+//
+// GitHub answers before the merge lands, so a detail read right after the
+// update succeeds may still show the old head, and is then cached as fresh
+// with it. The caller reads again after a short delay, or relies on the poll
+// to find the new head.
+//
+// The checks of the actions service move with the head too, and are that
+// service's to mark: the caller runs actions.Service.Invalidate with the
+// repository, since that service keys its checks by commit and has no way
+// to find those of one pull request.
+func (s *Service) UpdateBranch(repo core.RepoRef, number int, head string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("update branch of pull %s#%d: %w", repo, number, err))
+	}
+	return optimistic.New(func(ctx context.Context) error {
+		if err := s.api.UpdatePullRequestBranch(ctx, repo, number, head); err != nil {
+			return fmt.Errorf("update branch of pull %s#%d: %w", repo, number, err)
+		}
+		s.stale(repo, number)
+		return nil
+	})
+}
+
+// stale marks stale everything cached of pull request number of repo that
+// its head decides, for a change GitHub accepted but did not return.
+func (s *Service) stale(repo core.RepoRef, number int) {
+	key := detailKey(repo, number)
+	s.seen.Delete(key)
+	forget(s.timelines, s.keptTimelines, key)
+	s.details.Invalidate(key)
+	// The kept detail is of the old head, and a read that finds no detail in
+	// memory must not be served it.
+	s.keptDetails.Delete(key)
+	s.files.InvalidateTag(key)
+	s.commits.InvalidateTag(key)
+	s.lists.InvalidateTag(repoTag(repo))
+}
+
 // change applies edit to every cached copy of pull request number of repo
 // and returns the Op that sends the change with send. What names the change
 // in errors. A change the token may not make changes nothing, and the Op

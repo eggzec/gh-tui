@@ -41,7 +41,14 @@ func (c *Client) CancelRun(ctx context.Context, repo core.RepoRef, runID int64) 
 // run older than a month or to cancel one that completed, the error is a
 // *core.RefusedError of refused with GitHub's reason.
 func (c *Client) runAction(ctx context.Context, path, refused string) error {
-	_, err := c.Do(ctx, http.MethodPost, path, nil, nil)
+	return c.refusableDo(ctx, http.MethodPost, path, nil, refused)
+}
+
+// refusableDo sends body, as JSON unless it is nil, with method to path, and
+// ignores what GitHub answers. When GitHub refuses with a reason the user
+// should see, the error is a *core.RefusedError of refused with that reason.
+func (c *Client) refusableDo(ctx context.Context, method, path string, body any, refused string) error {
+	_, err := c.Do(ctx, method, path, body, nil)
 	if err == nil {
 		return nil
 	}

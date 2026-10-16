@@ -69,6 +69,7 @@ type API interface {
 	ReopenPullRequest(ctx context.Context, id string) (core.PullRequest, error)
 	MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error)
 	ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error)
+	UpdatePullRequestBranch(ctx context.Context, repo core.RepoRef, number int, head string) error
 	ProbePullRequests(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 	// GetCodeowners reads the CODEOWNERS file of repo at the commit base, and
 	// ListTeamMembers the members of a team of an organization.

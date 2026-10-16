@@ -59,6 +59,10 @@ type fakeAPI struct {
 	heads []string
 	// detailSizes are the list sizes that details asked for.
 	detailSizes []github.DetailSizes
+	// updateErr fails UpdatePullRequestBranch, and updates are the pulls and
+	// heads it was sent, as "number@head".
+	updateErr error
+	updates   []string
 	// threadSetErr fails SetReviewThreadResolved.
 	threadSetErr error
 	// commentErr fails CreateIssueComment.
@@ -243,6 +247,14 @@ func (f *fakeAPI) ReopenPullRequest(ctx context.Context, id string) (core.PullRe
 func (f *fakeAPI) MarkPullRequestReady(ctx context.Context, id string) (core.PullRequest, error) {
 	f.called("ready")
 	return f.mutate(ctx, "ready", id, "")
+}
+
+func (f *fakeAPI) UpdatePullRequestBranch(_ context.Context, _ core.RepoRef, number int, head string) error {
+	f.called("updatebranch")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.updates = append(f.updates, fmt.Sprintf("%d@%s", number, head))
+	return f.updateErr
 }
 
 func (f *fakeAPI) ConvertPullRequestToDraft(ctx context.Context, id string) (core.PullRequest, error) {
