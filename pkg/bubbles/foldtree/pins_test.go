@@ -2,6 +2,7 @@ package foldtree
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -93,6 +94,9 @@ func TestScrollPins(t *testing.T) {
 			[]string{"X", "Y", "Z", "w", "v", "u", "t", "~"}},
 		{"a resize that shrinks the window", overshoot(), 8, []string{"G"}, 5,
 			[]string{"w", "v", "u", "t", "~"}},
+		{"a page down out of the pins moves the least", tailed(8, 30), 8,
+			append(slices.Repeat([]string{"j"}, 12), "ctrl+f"), 0,
+			[]string{"tail 00", "tail 01", "tail 02", "tail 03", "tail 04", "tail 05", "tail 06", "tail 07"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -431,9 +431,11 @@ const maxPins = 2
 // they are depends on where it is, so the window is settled again with the
 // lines the pins of its last place took, until they take no more than that.
 // It starts from the pins the window had, so a cursor that moves within it
-// does not shift it for pins that are no longer there.
+// does not shift it for pins that are no longer there, and when the window
+// lands where there are fewer, it comes back up as far as the cursor row
+// allows.
 func (m *Model) scroll() {
-	taken := len(m.pins)
+	taken, from := len(m.pins), m.off
 	m.pins = nil
 	if len(m.vis) == 0 || m.height <= 0 {
 		m.off = 0
@@ -457,18 +459,19 @@ func (m *Model) scroll() {
 		taken = len(pins)
 	}
 	if len(m.pins) < taken {
-		m.pull(e)
+		m.pull(e, from)
 	}
 }
 
-// pull moves the window up, a line at a time, while it leaves lines blank at
-// the bottom that rows above could fill and the row that ends at line e stays
-// in view. The window was settled with more pins than its place has, so it
-// went further down than it needed to.
-func (m *Model) pull(e int) {
+// pull moves the window up, a line at a time, while the row that ends at line
+// e stays in view and either lines are left blank at the bottom that rows
+// above could fill, or the window is still below line from, where it was
+// before it moved. The window was settled with more pins than its place has,
+// so it went further down than it needed to.
+func (m *Model) pull(e, from int) {
 	total := m.starts[len(m.vis)]
 	for m.off > 0 {
-		if m.off <= total-(m.height-len(m.pinsAt(m.off))) {
+		if m.off <= total-(m.height-len(m.pinsAt(m.off))) && m.off <= from {
 			break
 		}
 		if e > m.off-1+m.height-len(m.pinsAt(m.off-1)) {
