@@ -80,7 +80,7 @@ func (m *Model) referencesCommand(string) tea.Cmd {
 			return cmd
 		}
 	}
-	return m.toast.Push(toast.Warning, "references works in the PR and issue modals.")
+	return m.toast.Push(toast.Warning, "references works in the issue modal.")
 }
 
 // Searcher is a search page that searches for a query, as if the user

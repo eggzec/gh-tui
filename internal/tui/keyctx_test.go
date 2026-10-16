@@ -791,7 +791,6 @@ func TestContextChains(t *testing.T) {
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
 var unopenedContexts = map[string]string{
-	"composer":               "isn't opened from any screen yet",
 	"pull_app_check":         "the Merge pane will read it",
 	"pull_check_list":        "the Merge pane will read it",
 	"pull_check_log":         "the Merge pane will read it",
@@ -1086,6 +1085,10 @@ func keyContexts() []keyContext {
 		{name: "pull request: zoomed", repo: true, steps: []string{"global.pane_2", "global.select", "global.zoom"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: preview", repo: true, steps: []string{"global.pane_2", "global.select", "global.maximize", "global.zoom", "global.pane_3", "global.next_pane"}, context: "pull_preview", want: "global, pull_modal, pull_preview"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
+		{name: "pull request: confirm", repo: true, steps: []string{"global.pane_2", "global.select", "global.command", typed("review"), "command_line.run", "global.select", typed("ok"), "composer.submit"}, context: "confirm", want: "always, confirm"},
+		{name: "pull request: finder", repo: true, steps: []string{"global.pane_2", "global.select", "global.find_file"}, context: "finder", want: "always, finder (types)"},
+		{name: "pull request: help", repo: true, steps: []string{"global.pane_2", "global.select", "global.help"}, context: "help", want: "always, help (types)"},
+		{name: "pull request: review", repo: true, steps: []string{"global.pane_2", "global.select", "global.command", typed("review"), "command_line.run", "global.select"}, context: "composer", want: "always, composer (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
@@ -1127,7 +1130,6 @@ var reserved = map[string]string{}
 // reservedContexts are the contexts of default.yaml whose actions nothing
 // reads yet, each with its reason.
 var reservedContexts = map[string]string{
-	"composer":               "the composer's context is opened by no screen yet",
 	"pull_check_annotations": "read by the modal with tabs, which no screen opens now",
 	"pull_check_detail":      "read by the modal with tabs, which no screen opens now",
 	"pull_check_list":        "read by the modal with tabs, which no screen opens now",

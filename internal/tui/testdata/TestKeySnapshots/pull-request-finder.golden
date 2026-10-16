@@ -1,0 +1,13 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Finder (types)
+  up | up ctrl+p | ↑/^p | on
+  down | down ctrl+n | ↓/^n | on
+  page up | pgup | pgup | on
+  page down | pgdown | pgdn | on
+  open | enter | ↵ | on
+  close | esc | esc | on

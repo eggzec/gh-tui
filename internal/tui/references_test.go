@@ -172,7 +172,7 @@ func TestReferencesCommand(t *testing.T) {
 			c.Keys.Set("issue_modal.references", []string{})
 		})
 		runReferences(t, m)
-		if !hasToast(m, "references works in the PR and issue modals.") {
+		if !hasToast(m, "references works in the issue modal.") {
 			t.Errorf("toast = %q, want the refusal", toasted(m))
 		}
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })

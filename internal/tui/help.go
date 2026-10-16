@@ -28,6 +28,12 @@ func (m *Model) helpOpen() bool { return m.keyhelp.Focused() }
 
 // openHelp opens the help on the keys that reach what has them now.
 func (m *Model) openHelp() tea.Cmd {
+	// A modal that shows the help inside itself keeps the app's closed.
+	if host, ok := m.topModal().(ui.HelpHost); ok {
+		if cmd, ok := host.OpenHelp(ui.NameLayerActions(m.keyLayers()), m.helpTitle()); ok {
+			return cmd
+		}
+	}
 	m.keyhelp.SetLayers(ui.NameLayerActions(m.keyLayers()))
 	m.keyhelp.SetTitle(m.helpTitle())
 	m.keyhelp.Reset()

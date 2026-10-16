@@ -45,6 +45,8 @@ type panesKeys struct {
 	// find opens the finder of the changed files, and finder is its keys.
 	find   key.Binding
 	finder finder.KeyMap
+	// helpKeys is the keys of the help the modal shows inside itself.
+	helpKeys keyhelp.KeyMap
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -64,6 +66,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		composer: composer.NewKeyMap(ui.Lookup(keys, "composer")),
 		find:     modal.Binding("global.find_file", "find file"),
 		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
+		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
