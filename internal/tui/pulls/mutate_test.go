@@ -33,14 +33,14 @@ func TestMutations(t *testing.T) {
 	}{
 		{
 			name: "merge squashes by default",
-			keys: []string{"M"}, question: "Squash-merge #142 into main?",
+			keys: []string{"M"}, question: "Merge #142",
 			want: "merge squash 142", what: "merge #142",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
 			name: "merge uses the configured method",
 			opts: []Option{WithMergeMethod(core.MergeRebase)},
-			keys: []string{"down", "M"}, question: "Rebase-merge #135 into main?",
+			keys: []string{"down", "M"}, question: "Merge #135",
 			want: "merge rebase 135", what: "merge #135",
 			after: func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
@@ -135,12 +135,40 @@ func TestMutations(t *testing.T) {
 	}
 }
 
-// question returns what the open question asks, or "" when none is open.
+// dialogOf returns the merge dialog that is open, or nil.
+func dialogOf(h *host) *mergeDialog {
+	if len(h.modals) == 0 {
+		return nil
+	}
+	d, _ := h.modals[len(h.modals)-1].(*mergeDialog)
+	return d
+}
+
+// key returns the press of k. While the merge dialog has the cursor on its
+// method row, y and n stand for its submit and cancel keys, so that the
+// tests of the questions share their answers.
+func (h *host) key(k string) tea.KeyPressMsg {
+	if d := dialogOf(h); d != nil && d.focus == focusMethod {
+		switch k {
+		case "y":
+			k = "ctrl+s"
+		case "n":
+			k = "esc"
+		}
+	}
+	return keyMsg(k)
+}
+
+// question returns what the open question asks, or "" when none is open. A
+// merge dialog asks its title.
 func question(h *host) string {
 	if len(h.modals) == 0 {
 		return ""
 	}
-	if m, ok := h.modals[len(h.modals)-1].(*ui.ConfirmModal); ok {
+	switch m := h.modals[len(h.modals)-1].(type) {
+	case *mergeDialog:
+		return m.Title()
+	case *ui.ConfirmModal:
 		return m.Question()
 	}
 	return ""
@@ -182,7 +210,7 @@ func TestASecondYesChangesOnce(t *testing.T) {
 					press(t, s, k)
 					continue
 				}
-				cmds = append(cmds, s.Update(keyMsg(k)))
+				cmds = append(cmds, s.Update(s.key(k)))
 			}
 			for _, c := range cmds {
 				drain(t, s, c)
@@ -380,7 +408,7 @@ func TestChangesAreCapitals(t *testing.T) {
 		key, question string
 	}{
 		{"X", "Close PR #142?"},
-		{"M", "Squash-merge #142 into main?"},
+		{"M", "Merge #142"},
 		{"W", "Convert PR #142 to a draft?"},
 		{"x", ""}, {"m", ""}, {"D", ""},
 	}

@@ -37,7 +37,10 @@ type keyMap struct {
 
 	// confirm answers the question that merge, close and reopen ask.
 	confirm ui.ConfirmKeys
-	feed    feed.KeyMap
+	// mergeDialog are the keys of the dialog of a merge whose method is a
+	// choice.
+	mergeDialog mergeDialogKeys
+	feed        feed.KeyMap
 	// mark is the key that marks rows of the list.
 	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
@@ -69,6 +72,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
 		confirm:     ui.NewConfirmKeys(keys),
+		mergeDialog: newMergeDialogKeys(keys),
 		feed:        feed.NewKeyMap(list),
 		mark:        feed.NewMarkKeys(list),
 		search:      ui.SearchPromptKeys(keys),
@@ -113,7 +117,7 @@ func (s *Section) Capturing() bool { return s.feed != nil && s.feed.Capturing() 
 // request under the cursor, and the clear key while a filter is in force.
 func (k keyMap) onList(s *Section) keyMap {
 	pr, ok := s.target()
-	k = k.withChanges(s.gate(), s.mergeMethod, pr, ok)
+	k = k.withChanges(s.gate(), pr, ok)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
 	return k
 }

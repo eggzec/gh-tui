@@ -69,7 +69,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "finder", repo: true, steps: []string{config.ActionFindFile}, want: "always, finder (types)"},
 		{name: "pull requests", repo: true, steps: []string{config.ActionPane2}, want: "global, repo, pulls"},
 		{name: "pull requests filter", repo: true, steps: []string{config.ActionPane2, "pulls.filter"}, want: "global, filter"},
-		{name: "pull requests merge", repo: true, steps: []string{config.ActionPane2, "pulls.merge"}, want: "always, confirm"},
+		{name: "pull requests merge", repo: true, steps: []string{config.ActionPane2, "pulls.merge"}, want: "always, merge_dialog (types)"},
 		{name: "pull request", repo: true, steps: []string{config.ActionPane2, config.ActionSelect}, want: "global, pull_modal, pull_conversation"},
 		{name: "checks", repo: true, steps: []string{config.ActionPane2, "pulls.checks"}, want: "global, pull_modal, pull_merge"},
 		{name: "issues", repo: true, steps: []string{config.ActionPane3}, want: "global, repo, issues"},

@@ -140,6 +140,9 @@ var contexts = []Context{
 	// The editor of a comment. Its keys are control keys, since the letters
 	// are typed.
 	{Name: "composer", Title: "Composer", Reach: ReachCapture, Typing: true},
+	// The dialog of a merge, with the fields of its commit message. Its keys
+	// are control keys, since the letters are typed.
+	{Name: "merge_dialog", Title: "Merge", Reach: ReachCapture, Typing: true},
 	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
 	// Space checks the item under the cursor of a dropdown with several
 	// choices while its filter doesn't have the keys, and is typed in the

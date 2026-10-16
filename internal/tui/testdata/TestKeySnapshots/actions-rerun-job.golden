@@ -5,6 +5,5 @@ always
   help | ? | ? | on
 
 Confirm
-  method | tab | tab | off
   yes | y | y | on
   no | n esc | n | on

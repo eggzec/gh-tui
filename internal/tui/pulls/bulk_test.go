@@ -241,7 +241,7 @@ func TestBulkExcludesMerge(t *testing.T) {
 	h := started(t, svc, 80, 20)
 	markRows(t, h, 0, 1)
 	press(t, h, "M")
-	if got, want := question(h), "Squash-merge #135 into main?"; got != want {
+	if got, want := question(h), "Merge #135"; got != want {
 		t.Fatalf("asks %q, want %q", got, want)
 	}
 	press(t, h, "y")

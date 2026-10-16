@@ -321,6 +321,7 @@ func validateKeys(ctx, name string, keys []string) error {
 // do instead of that it is unknown.
 var removedActions = map[string]string{
 	"notifications.read_all": "mark all notifications read with the :read all command, which asks first and needs no key",
+	"confirm.method":         "the merge dialog steps the methods with keys.merge_dialog.prev_method and keys.merge_dialog.next_method",
 }
 
 // forcedQuit is the key that always quits, from anywhere, and that no

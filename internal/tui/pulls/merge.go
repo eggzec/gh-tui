@@ -1,7 +1,6 @@
 package pulls
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 
@@ -171,7 +170,6 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 		return change{}, false, ui.Notify(toast.Warning, plan.Cant)
 	}
 	repo, number, head := g.Repo, pr.Number, pr.HeadSHA
-	start := of
 	caps := capsFor(g.Caps, d.Merge)
 	m, _ := caps.MergeMethod(how.method)
 	// A merge queue merges as it is set up, whatever the method.
@@ -183,11 +181,15 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 	c = change{of: of, msg: how.msg, chooses: chooses}
 	switch plan.Kind {
 	case mergeNow:
-		c.question = mergeQuestion(pr, m)
+		c.note = mergeNote(pr, "")
 		c.what = "merge " + n
 		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, how.msg, head) }
 	case mergeAuto:
-		c.question = autoQuestion(pr, m, d.Merge.Queue.Enabled, plan.Review)
+		if chooses {
+			c.note = mergeNote(pr, autoWhen(plan.Review))
+		} else {
+			c.question = autoQuestion(pr, m, d.Merge.Queue.Enabled, plan.Review)
+		}
 		c.what = "merge " + n + " when its checks pass"
 		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, how.msg, head) }
 	case mergeQueue:
@@ -199,12 +201,8 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 		c.what = "turn off auto-merge for " + n
 		c.start = func() *optimistic.Op { return svc.StopAutoMerge(repo, number) }
 	}
-	if methods := caps.MergeMethods(); chooses && len(methods) > 1 {
-		following := methods[(slices.Index(methods, m)+1)%len(methods)]
-		c.next = func() change {
-			next, _, _ := k.mergeChange(svc, g, mergeAs{following, how.msg}, d, start)
-			return next
-		}
+	if chooses {
+		c.methods = caps.MergeMethods()
 	}
 	return c, true, nil
 }
@@ -228,27 +226,37 @@ func forBase(pr core.PullRequest) string {
 	return " for " + pr.BaseRef
 }
 
-// mergeQuestion asks to merge pr with method, such as "Squash-merge #79
-// into main?". The screen shows the repository, so the question leaves
-// it out, and it leads with the method, which a cut would lose.
-func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
-	n := "#" + strconv.Itoa(pr.Number)
-	var into string
-	if pr.BaseRef != "" {
-		into = " into " + pr.BaseRef
+// into says " into main", or nothing without a base.
+func into(pr core.PullRequest) string {
+	if pr.BaseRef == "" {
+		return ""
 	}
-	var q string
-	switch method {
-	case core.MergeSquash:
-		q = "Squash-merge " + n + into
-	case core.MergeRebase:
-		q = "Rebase-merge " + n + into
-	case core.MergeCommit:
-		q = "Merge " + n + into + " with a merge commit"
-	default:
-		q = "Merge " + n + into
+	return " into " + pr.BaseRef
+}
+
+// autoWhen says when an auto-merge merges: once the checks pass, or once
+// it can be merged if a review is awaited too.
+func autoWhen(review bool) string {
+	if review {
+		return "it can be merged"
 	}
-	return q + "?"
+	return "checks pass"
+}
+
+// mergeNote tells what the merge dialog, which names no base in its
+// title, is about to do: "Into main.", or, for an auto-merge that merges
+// when says, "Into main; merges when checks pass.". Either part is left
+// out when there is nothing to say of it.
+func mergeNote(pr core.PullRequest, when string) string {
+	switch {
+	case pr.BaseRef == "" && when == "":
+		return ""
+	case when == "":
+		return "Into " + pr.BaseRef + "."
+	case pr.BaseRef == "":
+		return "Merges when " + when + "."
+	}
+	return "Into " + pr.BaseRef + "; merges when " + when + "."
 }
 
 // autoQuestion asks to merge pr with method once its checks pass, such as
@@ -256,14 +264,7 @@ func mergeQuestion(pr core.PullRequest, method core.MergeMethod) string {
 // merged" if a review is awaited too. A merge queue merges as it is set
 // up, so the question leaves the method out.
 func autoQuestion(pr core.PullRequest, method core.MergeMethod, queued, review bool) string {
-	q := "Merge #" + strconv.Itoa(pr.Number)
-	if pr.BaseRef != "" {
-		q += " into " + pr.BaseRef
-	}
-	q += " when checks pass"
-	if review {
-		q = strings.TrimSuffix(q, "checks pass") + "it can be merged"
-	}
+	q := "Merge #" + strconv.Itoa(pr.Number) + into(pr) + " when " + autoWhen(review)
 	if queued {
 		return q + "?"
 	}
