@@ -11,7 +11,7 @@ import (
 // cacheKey says what the rows of a view were built from. Rows are built
 // again only when it changes, never when the cursor or a fold moves.
 type cacheKey struct {
-	width, data, opts int
+	width, data, opts, gen int
 }
 
 // view is a tree of the conversation, with the state that is its own: cursor,
@@ -28,6 +28,11 @@ type view struct {
 	nodes map[string]*node
 	key   cacheKey
 	done  bool
+	// narrow says what a narrowed view keeps, and gen counts the times it was
+	// set, so that rows are built again for a new one.
+	narrow   Narrow
+	narrowed bool
+	gen      int
 }
 
 // view returns the view with key, made when it is new.
@@ -49,6 +54,21 @@ func (m *Model) view(key string) *view {
 	return v
 }
 
+// SetView shows the view with key, made when it is new. A Narrow makes it a
+// preview of the part of the conversation it keeps; the view keeps its own
+// cursor, scroll and folds. The empty key is the full conversation, which a
+// Narrow never changes. A call with a Narrow builds the rows again, so call it
+// when the narrowing changes, not on every frame.
+func (m *Model) SetView(key string, n Narrow) {
+	v := m.view(key)
+	m.cur = key
+	if key != "" && (n.Item != nil || n.Thread != nil) {
+		v.narrow, v.narrowed = n, true
+		v.gen++
+	}
+	m.sync()
+}
+
 // sync builds the rows of the view that shows if what they are built from
 // changed.
 func (m *Model) sync() {
@@ -56,7 +76,7 @@ func (m *Model) sync() {
 		return
 	}
 	v := m.views[m.cur]
-	k := cacheKey{m.width, m.version, m.optsVer}
+	k := cacheKey{m.width, m.version, m.optsVer, v.gen}
 	if v.done && v.key == k {
 		return
 	}
@@ -77,13 +97,19 @@ func (m *Model) rebuild(v *view) {
 	}
 	o := m.opts
 	o.Width, o.Viewer = m.width, m.viewer
-	rows, nodes := build(m.dataOf(), o, true)
+	d := m.dataOf()
+	if v.narrowed {
+		d, o.preview = v.narrow.filter(d), true
+	}
+	rows, nodes := build(d, o, true)
 	for i, r := range rows {
 		if c, ok := v.folds[r.ID]; ok && r.Fold {
 			rows[i].Closed = c
 		}
 	}
-	rows = m.withMore(rows, o)
+	if !v.narrowed {
+		rows = m.withMore(rows, o)
+	}
 	v.rows, v.nodes = rows, nodes
 	v.tree.SetRows(rows)
 	if m.built != nil {

@@ -54,4 +54,35 @@ type Options struct {
 	// Viewer is the login of the viewer, whose unsubmitted review shows under
 	// their name.
 	Viewer string
+
+	// preview draws a narrowed view: each comment is a row of its own, with no
+	// run, and a review is open.
+	preview bool
+}
+
+// Narrow picks what a narrowed view shows. A nil func keeps everything of
+// its kind. Both are asked only of what is drawn. A thread shows only under a
+// kept review, or in the pending group, so dropping a review drops its
+// threads.
+type Narrow struct {
+	Item   func(core.TimelineItem) bool
+	Thread func(core.Thread) bool
+}
+
+// filter returns d with only what n keeps.
+func (n Narrow) filter(d Data) Data {
+	var out Data
+	for i := range d.Items {
+		it := &d.Items[i]
+		if drawn(it) && (n.Item == nil || n.Item(*it)) {
+			out.Items = append(out.Items, *it)
+		}
+	}
+	for i := range d.Threads {
+		t := &d.Threads[i]
+		if n.Thread == nil || n.Thread(*t) {
+			out.Threads = append(out.Threads, *t)
+		}
+	}
+	return out
 }
