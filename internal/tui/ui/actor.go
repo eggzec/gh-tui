@@ -26,3 +26,9 @@ const ActBack = "back"
 // to clear what is transient, such as a search, and when nothing is, to
 // close.
 const ActDismiss = "dismiss"
+
+// ActMaximize is the intent of the maximize key: what a modal does with it is
+// to enlarge what it has on top, such as a viewer, and it reports that it
+// doesn't take it when it has nothing to enlarge, so that the app maximizes
+// the modal.
+const ActMaximize = "maximize"

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -51,6 +52,10 @@ type panesModal struct {
 	zoom  bool
 	sub   [panes.Count]panes.Role
 
+	// overlays are the pickers, questions and viewers open over the panes, the
+	// last on top. Only it takes keys.
+	overlays []openOverlay
+
 	// id names the modal to the messages of its reads.
 	id int64
 	// ctx bounds the reads, and resume lets the reads ahead go on once the
@@ -66,6 +71,10 @@ type panesModal struct {
 	st            styles
 	frames        panes.Styles
 	chips         ui.LabelChips
+	// dim styles the panes behind an overlay, and cst the question of a
+	// confirm.
+	dim lipgloss.Style
+	cst ui.ConfirmStyles
 	// gen counts the changes of theme and icons, which the drawn panes
 	// depend on.
 	gen   int
@@ -174,7 +183,14 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		msg.ReloadIcons(&m.icons)
 		return nil
 	case tea.KeyPressMsg:
+		if m.top() != nil {
+			return m.pressOverlay(msg)
+		}
 		return m.press(msg)
+	case tea.PasteMsg:
+		if m.top() != nil {
+			return m.pressOverlay(msg)
+		}
 	}
 	return nil
 }

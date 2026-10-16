@@ -29,6 +29,8 @@ type panesKeys struct {
 	// owner shows the page of the author, which the app's key for the owner
 	// page asks of the modal.
 	owner key.Binding
+	// confirm answers a question that an overlay asks.
+	confirm ui.ConfirmKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -41,6 +43,8 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		back:  modal.Binding("global.dismiss", "close"),
 		help:  modal.Binding("global.help", "help"),
 		owner: modal.Binding("global.owner", "author"),
+
+		confirm: ui.NewConfirmKeys(keys),
 	}
 	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
 		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
@@ -71,9 +75,17 @@ func hintKeys(bs ...key.Binding) string {
 	return strings.Join(keys, "/")
 }
 
+// KeyContext implements ui.Hosted: the modal's context stays the one of its
+// keys while an overlay has the layers.
+func (m *panesModal) KeyContext() string { return ctxModal }
+
 // KeyLayers implements ui.Keyed: the keys of the modal, and then those of the
-// focused pane.
+// focused pane. An open overlay takes every key, so its layers are the only
+// ones: the modal's quit key reaches it through ui.Actor.
 func (m *panesModal) KeyLayers() []keyhelp.Layer {
+	if o := m.top(); o != nil {
+		return o.layers()
+	}
 	k := m.keys
 	l := m.layout()
 	// Pressing the digit of the focused pane does nothing, so help doesn't
