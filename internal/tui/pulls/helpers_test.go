@@ -690,16 +690,29 @@ func (f *fakeService) change(what string, number int, edit func(*core.PullReques
 	})
 }
 
-func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
+func (f *fakeService) Merge(_ core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op {
 	what := "merge " + string(method)
+	if msg.Title != "" {
+		what += " title=" + msg.Title
+	}
+	if msg.SendBody {
+		what += " body=" + msg.Body
+	}
 	if head != "" {
 		what += " at " + head
 	}
 	return f.change(what, number, func(pr *core.PullRequest) { pr.State = core.StateMerged })
 }
 
-func (f *fakeService) AutoMerge(_ core.RepoRef, number int, method core.MergeMethod, head string) *optimistic.Op {
-	return f.change("automerge "+string(method)+" at "+head, number, func(*core.PullRequest) {})
+func (f *fakeService) AutoMerge(_ core.RepoRef, number int, method core.MergeMethod, msg core.MergeMessage, head string) *optimistic.Op {
+	what := "automerge " + string(method)
+	if msg.Title != "" {
+		what += " title=" + msg.Title
+	}
+	if msg.SendBody {
+		what += " body=" + msg.Body
+	}
+	return f.change(what+" at "+head, number, func(*core.PullRequest) {})
 }
 
 func (f *fakeService) StopAutoMerge(_ core.RepoRef, number int) *optimistic.Op {

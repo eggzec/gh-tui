@@ -185,11 +185,11 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, method core.MergeMethod, d c
 	case mergeNow:
 		c.question = mergeQuestion(pr, m)
 		c.what = "merge " + n
-		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, head) }
+		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, core.MergeMessage{}, head) }
 	case mergeAuto:
 		c.question = autoQuestion(pr, m, d.Merge.Queue.Enabled, plan.Review)
 		c.what = "merge " + n + " when its checks pass"
-		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, head) }
+		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, core.MergeMessage{}, head) }
 	case mergeQueue:
 		c.question = "Add " + n + " to the merge queue" + forBase(pr) + "?"
 		c.what = "add " + n + " to the merge queue"

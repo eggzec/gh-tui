@@ -35,9 +35,11 @@ type mutation struct {
 
 var mutations = []mutation{
 	{
-		name:    "merge",
-		seed:    func(*core.PullRequest) {},
-		run:     func(s *Service, n int) *optimistic.Op { return s.Merge(repo, n, core.MergeRebase, "9f1c2e4") },
+		name: "merge",
+		seed: func(*core.PullRequest) {},
+		run: func(s *Service, n int) *optimistic.Op {
+			return s.Merge(repo, n, core.MergeRebase, core.MergeMessage{}, "9f1c2e4")
+		},
 		method:  "merge",
 		how:     core.MergeRebase,
 		changed: func(pr core.PullRequest) bool { return pr.State == core.StateMerged && pr.MergedAt.Equal(clock) },
@@ -286,7 +288,7 @@ func TestMergeSendsHead(t *testing.T) {
 			return core.PullRequest{Number: 1, State: core.StateMerged}, nil
 		}}
 		s := seeded(t, api, func(*core.PullRequest) {})
-		if err := s.Merge(repo, 1, core.MergeSquash, head).Do(t.Context()); err != nil {
+		if err := s.Merge(repo, 1, core.MergeSquash, core.MergeMessage{}, head).Do(t.Context()); err != nil {
 			t.Fatalf("merge: %v", err)
 		}
 		api.mu.Lock()
@@ -295,6 +297,31 @@ func TestMergeSendsHead(t *testing.T) {
 		if len(got) != 1 || got[0] != head {
 			t.Errorf("merge sent heads %q, want [%q]", got, head)
 		}
+	}
+}
+
+// A merge and an auto-merge send the commit message they were given.
+func TestMergeSendsMessage(t *testing.T) {
+	msg := core.MergeMessage{Title: "Add the dialog (#1)", Body: "* one", SendBody: true}
+	for name, run := range map[string]func(s *Service) *optimistic.Op{
+		"merge":      func(s *Service) *optimistic.Op { return s.Merge(repo, 1, core.MergeSquash, msg, "") },
+		"auto-merge": func(s *Service) *optimistic.Op { return s.AutoMerge(repo, 1, core.MergeSquash, msg, "") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			api := &fakeAPI{mutate: func(context.Context, string, string, core.MergeMethod) (core.PullRequest, error) {
+				return core.PullRequest{Number: 1}, nil
+			}}
+			s := seeded(t, api, func(*core.PullRequest) {})
+			if err := run(s).Do(t.Context()); err != nil {
+				t.Fatalf("send: %v", err)
+			}
+			api.mu.Lock()
+			got := api.messages
+			api.mu.Unlock()
+			if len(got) != 1 || got[0] != msg {
+				t.Errorf("sent messages %+v, want [%+v]", got, msg)
+			}
+		})
 	}
 }
 
@@ -308,9 +335,11 @@ func TestMergeStateChanges(t *testing.T) {
 		want   core.MergeInfo
 	}{
 		{
-			name:   "auto-merge on",
-			start:  core.MergeInfo{},
-			run:    func(s *Service) *optimistic.Op { return s.AutoMerge(repo, 1, core.MergeRebase, "9f1c2e4") },
+			name:  "auto-merge on",
+			start: core.MergeInfo{},
+			run: func(s *Service) *optimistic.Op {
+				return s.AutoMerge(repo, 1, core.MergeRebase, core.MergeMessage{}, "9f1c2e4")
+			},
 			method: "automerge", how: core.MergeRebase,
 			want: core.MergeInfo{AutoMerge: &core.AutoMerge{Method: core.MergeRebase}, CanDisableAutoMerge: true},
 		},

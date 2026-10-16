@@ -3,6 +3,7 @@ package github
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"os"
@@ -488,10 +489,10 @@ func TestPullMutations(t *testing.T) {
 			name:    "merge",
 			fixture: "pulls_merge.json",
 			call: func(c *Client) (core.PullRequest, error) {
-				return c.MergePullRequest(t.Context(), id, core.MergeSquash, "")
+				return c.MergePullRequest(t.Context(), id, core.MergeSquash, core.MergeMessage{}, "")
 			},
-			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
-			vars:     map[string]any{"id": id, "method": "SQUASH", "head": nil},
+			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body})",
+			vars:     map[string]any{"id": id, "method": "SQUASH", "head": nil, "headline": nil, "body": nil},
 			check: func(pr core.PullRequest) bool {
 				return pr.State == core.StateMerged && pr.MergedAt.Equal(pullTime("2026-09-23T09:00:04Z")) &&
 					pr.HeadSHA == "9f1c2e4b7a0d3c5e8f6a1b2c3d4e5f6a7b8c9d0e"
@@ -501,20 +502,20 @@ func TestPullMutations(t *testing.T) {
 			name:    "merge pinned to a head",
 			fixture: "pulls_merge.json",
 			call: func(c *Client) (core.PullRequest, error) {
-				return c.MergePullRequest(t.Context(), id, core.MergeSquash, "9f1c2e4")
+				return c.MergePullRequest(t.Context(), id, core.MergeSquash, core.MergeMessage{}, "9f1c2e4")
 			},
-			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
-			vars:     map[string]any{"id": id, "method": "SQUASH", "head": "9f1c2e4"},
+			mutation: "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body})",
+			vars:     map[string]any{"id": id, "method": "SQUASH", "head": "9f1c2e4", "headline": nil, "body": nil},
 			check:    func(pr core.PullRequest) bool { return pr.State == core.StateMerged },
 		},
 		{
 			name:    "auto-merge on",
 			fixture: "pulls_auto_merge.json",
 			call: func(c *Client) (core.PullRequest, error) {
-				return c.AutoMergePullRequest(t.Context(), id, core.MergeRebase, "9f1c2e4")
+				return c.AutoMergePullRequest(t.Context(), id, core.MergeRebase, core.MergeMessage{}, "9f1c2e4")
 			},
-			mutation: "enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head})",
-			vars:     map[string]any{"id": id, "method": "REBASE", "head": "9f1c2e4"},
+			mutation: "enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body})",
+			vars:     map[string]any{"id": id, "method": "REBASE", "head": "9f1c2e4", "headline": nil, "body": nil},
 			check:    func(pr core.PullRequest) bool { return pr.State == core.StateOpen },
 		},
 		{
@@ -590,9 +591,48 @@ func TestPullMutations(t *testing.T) {
 	}
 }
 
+// A merge sends the title only when there is one, and the body only when it
+// was asked for, so that GitHub's own text stands for what is left out. An
+// empty body is a body.
+func TestMergeSendsMessage(t *testing.T) {
+	const id = "PR_kwDOAb12"
+	tests := []struct {
+		name string
+		msg  core.MergeMessage
+		vars map[string]any
+	}{
+		{"neither", core.MergeMessage{Body: "ignored"}, map[string]any{"headline": nil, "body": nil}},
+		{"title only", core.MergeMessage{Title: "Add it (#7)"}, map[string]any{"headline": "Add it (#7)", "body": nil}},
+		{"body only", core.MergeMessage{Body: "* one", SendBody: true}, map[string]any{"headline": nil, "body": "* one"}},
+		{"cleared body", core.MergeMessage{SendBody: true}, map[string]any{"headline": nil, "body": ""}},
+		{"both", core.MergeMessage{Title: "Add it (#7)", Body: "* one", SendBody: true}, map[string]any{"headline": "Add it (#7)", "body": "* one"}},
+	}
+	for _, tt := range tests {
+		for _, auto := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s auto=%v", tt.name, auto), func(t *testing.T) {
+				c, reqs := pullServer(t, "pulls_merge.json")
+				var err error
+				mutation := "mergePullRequest(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body})"
+				if auto {
+					mutation = "enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head, commitHeadline: $headline, commitBody: $body})"
+					_, err = c.AutoMergePullRequest(t.Context(), id, core.MergeSquash, tt.msg, "")
+				} else {
+					_, err = c.MergePullRequest(t.Context(), id, core.MergeSquash, tt.msg, "")
+				}
+				if err != nil {
+					t.Fatalf("merge: %v", err)
+				}
+				vars := map[string]any{"id": id, "method": "SQUASH", "head": nil}
+				maps.Copy(vars, tt.vars)
+				checkPullQuery(t, reqs(), mutation, vars)
+			})
+		}
+	}
+}
+
 func TestMergePullRequestUnknownMethod(t *testing.T) {
 	c, reqs := pullServer(t, "pulls_merge.json")
-	if _, err := c.MergePullRequest(t.Context(), "PR_1", "fast-forward", ""); err == nil {
+	if _, err := c.MergePullRequest(t.Context(), "PR_1", "fast-forward", core.MergeMessage{}, ""); err == nil {
 		t.Error("merge with an unknown method succeeded")
 	}
 	if n := len(reqs()); n != 0 {
@@ -663,7 +703,7 @@ func TestPullMutationErrors(t *testing.T) {
 				w.WriteHeader(tt.status)
 				_, _ = w.Write([]byte(tt.body))
 			}))
-			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeCommit, tt.head)
+			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeCommit, core.MergeMessage{}, tt.head)
 			if err == nil || !tt.check(err) {
 				t.Errorf("error = %v, want %s", err, tt.name)
 			}
@@ -725,7 +765,7 @@ func TestMergeHeadMoved(t *testing.T) {
 				}
 				_, _ = w.Write([]byte(tt.body))
 			}))
-			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeSquash, pinned)
+			_, err := c.MergePullRequest(t.Context(), "PR_1", core.MergeSquash, core.MergeMessage{}, pinned)
 			e, refused := errors.AsType[*core.RefusedError](err)
 			if moved := refused && e.Reason == HeadMoved; moved != tt.moved {
 				t.Errorf("error = %v, want moved %v", err, tt.moved)
@@ -747,7 +787,7 @@ func TestAutoMergeAndEnqueueHeadMoved(t *testing.T) {
 	body := `{"data":{"result":null},"errors":[{"type":"UNPROCESSABLE","path":["result"],"message":"Head branch was modified. Review and try the merge again."}]}`
 	calls := map[string]func(*Client) error{
 		"auto-merge": func(c *Client) error {
-			_, err := c.AutoMergePullRequest(t.Context(), "PR_1", core.MergeSquash, pinned)
+			_, err := c.AutoMergePullRequest(t.Context(), "PR_1", core.MergeSquash, core.MergeMessage{}, pinned)
 			return err
 		},
 		"enqueue": func(c *Client) error {

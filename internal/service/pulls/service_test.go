@@ -62,6 +62,8 @@ type fakeAPI struct {
 	calls map[string]int
 	// heads are the heads that merges were pinned to, in order.
 	heads []string
+	// messages are the commit messages that merges were sent with, in order.
+	messages []core.MergeMessage
 	// detailSizes are the list sizes that details asked for.
 	detailSizes []github.DetailSizes
 	// updateErr fails UpdatePullRequestBranch, and updates are the pulls and
@@ -242,18 +244,20 @@ func (f *fakeAPI) PullRequestID(ctx context.Context, repo core.RepoRef, number i
 	return f.id(ctx, repo, number)
 }
 
-func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
+func (f *fakeAPI) MergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error) {
 	f.called("merge")
 	f.mu.Lock()
 	f.heads = append(f.heads, head)
+	f.messages = append(f.messages, msg)
 	f.mu.Unlock()
 	return f.mutate(ctx, "merge", id, method)
 }
 
-func (f *fakeAPI) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, head string) (core.PullRequest, error) {
+func (f *fakeAPI) AutoMergePullRequest(ctx context.Context, id string, method core.MergeMethod, msg core.MergeMessage, head string) (core.PullRequest, error) {
 	f.called("automerge")
 	f.mu.Lock()
 	f.heads = append(f.heads, head)
+	f.messages = append(f.messages, msg)
 	f.mu.Unlock()
 	return f.mutate(ctx, "automerge", id, method)
 }
