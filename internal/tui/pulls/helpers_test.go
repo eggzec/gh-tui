@@ -135,6 +135,41 @@ type fakeService struct {
 	// summaries are the thread counts the detail of a pull request has, by
 	// number, and ResolveThread moves them.
 	summaries map[int]core.ThreadSummary
+	// sentReviews are the reviews SendReview was given, reviewErr fails it,
+	// and reviewGate, when set, holds it until it is closed or the context
+	// is done.
+	sentReviews []sentReview
+	reviewErr   error
+	reviewGate  chan struct{}
+}
+
+// sentReview is one call of SendReview.
+type sentReview struct {
+	number     int
+	head, body string
+	event      core.ReviewEvent
+}
+
+func (f *fakeService) SendReview(ctx context.Context, _ core.RepoRef, number int, head string, event core.ReviewEvent, body string) error {
+	f.mu.Lock()
+	f.sentReviews = append(f.sentReviews, sentReview{number, head, body, event})
+	gate, err := f.reviewGate, f.reviewErr
+	f.mu.Unlock()
+	if gate != nil {
+		select {
+		case <-gate:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return err
+}
+
+// sends returns what SendReview was given.
+func (f *fakeService) sends() []sentReview {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.sentReviews)
 }
 
 // Threads serves the page of threadPages at the cursor, or an empty one.

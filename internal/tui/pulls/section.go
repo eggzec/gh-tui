@@ -59,6 +59,11 @@ type Service interface {
 	// Invalidate marks what is cached of repo stale, so that the reads
 	// after it ask GitHub.
 	Invalidate(repo core.RepoRef)
+	// SendReview sends a review of a pull request with a verdict and a
+	// summary, on head. It is not optimistic: nothing changes until it
+	// returns. The viewer's pending review on GitHub, if there is one, is the
+	// review that goes.
+	SendReview(ctx context.Context, repo core.RepoRef, number int, head string, event core.ReviewEvent, body string) error
 
 	// MergeTexts reads the commit messages GitHub would use to merge a pull
 	// request. It is not cached.
