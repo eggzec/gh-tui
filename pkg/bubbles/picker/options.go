@@ -28,6 +28,7 @@ type settings struct {
 	focused       bool
 	modes         bool
 	marked        bool
+	first         bool
 	markOn        string
 	markOff       string
 	typed         func(text string) (Item, bool)
@@ -161,6 +162,20 @@ func WithMarks(on, off string) Option {
 		s.marked = true
 		s.markOn = on + strings.Repeat(" ", w-ansi.StringWidth(on))
 		s.markOff = off + strings.Repeat(" ", w-ansi.StringWidth(off))
+	}
+}
+
+// WithMarkedFirst lists the marked items first, then the rest, each group by
+// title ignoring case, with a rule between them when both have rows. It takes
+// effect with [WithMarks], and replaces the order of the items and the kind
+// headers, so filtering sorts the matches the same way instead of by how well
+// they match. The rule is not a row: it is never selected and no count takes
+// it in. Marking or unmarking through [Model.SetMarked] sorts at once, and the
+// selection stays on the same item, found by its Value, even when the item
+// moves to the other group; the list scrolls to show it. The default is false.
+func WithMarkedFirst(on bool) Option {
+	return func(s *settings) {
+		s.first = on
 	}
 }
 

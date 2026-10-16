@@ -202,6 +202,9 @@ func (m *Model) appendList(lines []string, w, n int) []string {
 }
 
 func (m Model) rowLine(r row, w int) string {
+	if r.rule {
+		return m.ruleLine(w)
+	}
 	if r.item < 0 {
 		return m.fit(m.styles.Header.Render(r.header), w)
 	}
@@ -225,6 +228,18 @@ func (m Model) rowLine(r row, w int) string {
 		b.WriteString(m.styles.Detail.Render(res.detail))
 	}
 	return m.fit(b.String(), w)
+}
+
+// ruleLine renders the line between the marked items and the rest, under the
+// gutter so it lines up with the titles.
+func (m Model) ruleLine(w int) string {
+	glyph := m.styles.RuleGlyph
+	if glyph == "" {
+		glyph = "─"
+	}
+	room := max(w-2, 0)
+	line := strings.Repeat(glyph, room/max(ansi.StringWidth(glyph), 1))
+	return m.fit("  "+m.styles.Rule.Render(line), w)
 }
 
 // highlight renders s in base, and the runes at the byte offsets in

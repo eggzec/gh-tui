@@ -39,6 +39,11 @@ type Styles struct {
 	Header lipgloss.Style
 	// Gutter marks the selected item.
 	Gutter lipgloss.Style
+	// Rule styles the line between the marked items and the rest, in a
+	// picker that lists the marked first, and RuleGlyph is what it repeats.
+	// An empty glyph keeps the default, "─".
+	Rule      lipgloss.Style
+	RuleGlyph string
 	// Title styles an item's title, and SelectedTitle that of the selected
 	// item.
 	Title         lipgloss.Style
@@ -92,6 +97,8 @@ func DefaultStyles(isDark bool) Styles {
 		Spinner:        lipgloss.NewStyle().Foreground(accent),
 		Header:         lipgloss.NewStyle().Foreground(muted).Bold(true),
 		Gutter:         lipgloss.NewStyle().Foreground(accent),
+		Rule:           lipgloss.NewStyle().Foreground(border),
+		RuleGlyph:      "─",
 		Title:          lipgloss.NewStyle().Foreground(text),
 		SelectedTitle:  lipgloss.NewStyle().Foreground(text).Bold(true),
 		Match:          lipgloss.NewStyle().Foreground(accent).Bold(true),
