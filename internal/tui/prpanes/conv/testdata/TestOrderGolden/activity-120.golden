@@ -1,0 +1,39 @@
+▌3 comments · ghost, 山田太郎, ann  ⋯                                                                            1d – 2h
+
+  Bob Builder  Needs work on the tree.                                                                               2d
+ │
+ │              See the threads below.
+ ╰─  ann · tree.go:42  This loop runs once per row, which is slow for                                                1d
+    │
+    │                   the long trees we draw. Could it be cached?
+    ├─ bob  This loop runs once per row, which is slow for                                                            1d
+    │
+    │       the long trees we draw. Could it be cached?
+    ╰─ ann  This loop runs once per row, which is slow for                                                    edited  1d
+
+            the long trees we draw. Could it be cached?
+
+  dee  ⋯ 1 thread                                                                                                    1d
+
+  ann  A few remarks.                                                                                                1d
+ ╰─  ann · tree.go  Please add a header comment to the file.                                                 edited  1d
+
+  fay  Looks good to me.                                                                                             1d
+
+  Eve  Stale.                                                                                                        1d
+
+ Bob Builder  Thanks.                                                                                         edited  2d
+
+              I changed the layout, see  tree.go  and
+
+                indented with a tab
+
+              • one
+              • two
+
+ dependabot bot  Bumps golang.org/x/text https://github.com/golang/text from 0.3 to 0.4.                              2d
+
+  cy                                                                                                                 2d
+
+  your pending review
+ ╰─  ann · tree.go:42  A draft.                                                                     pending  edited  1d
