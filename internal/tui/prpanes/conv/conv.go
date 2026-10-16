@@ -59,6 +59,8 @@ type Options struct {
 	// that the zero Options shows every group; the model sets it, and a
 	// preview ignores it.
 	hide [NumGroups]bool
+	// order is how the top level is sorted; a preview keeps the timeline's.
+	order Order
 
 	// preview draws a narrowed view: each comment is a row of its own, with no
 	// run, and a review is open.

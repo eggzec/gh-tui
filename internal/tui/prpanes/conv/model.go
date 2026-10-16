@@ -110,10 +110,12 @@ type Model struct {
 	// options; with the width they say when rows must be built again.
 	version int
 	optsVer int
-	// shown is the groups the filter shows, and shape counts the changes of
-	// the filter, which build the rows of the conversation again. hint is the
-	// key that changes the filter, for the text of an empty conversation.
+	// shown is the groups the filter shows, order how the conversation is
+	// sorted, and shape counts the changes of either, which build the rows of
+	// the conversation again. hint is the key that changes the filter, for the
+	// text of an empty conversation.
 	shown [NumGroups]bool
+	order Order
 	shape int
 	hint  string
 	views map[string]*view

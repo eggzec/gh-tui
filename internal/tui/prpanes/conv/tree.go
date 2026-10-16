@@ -81,6 +81,9 @@ func tree(d Data, o Options) []*node {
 		out = append(out, &node{kind: KindReview, id: "r:" + it.ID, item: it, children: byReview[it.ID]})
 	}
 	flush()
+	if !preview {
+		sortNodes(out, o.order)
+	}
 
 	if p := pendingReview(d, attached); p != nil && !hidden(core.TimelineReview) {
 		out = append(out, p)
