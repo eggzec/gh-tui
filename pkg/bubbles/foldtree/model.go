@@ -430,14 +430,17 @@ const maxPins = 2
 // of the row at its top. The pins take lines off the window and which rows
 // they are depends on where it is, so the window is settled again with the
 // lines the pins of its last place took, until they take no more than that.
+// It starts from the pins the window had, so a cursor that moves within it
+// does not shift it for pins that are no longer there.
 func (m *Model) scroll() {
+	taken := len(m.pins)
 	m.pins = nil
 	if len(m.vis) == 0 || m.height <= 0 {
 		m.off = 0
 		return
 	}
 	s, e := m.starts[m.cur], m.starts[m.cur+1]
-	for taken := 0; ; {
+	for {
 		avail := max(m.height-taken, 1)
 		switch {
 		case s < m.off:
@@ -449,10 +452,31 @@ func (m *Model) scroll() {
 		pins := m.pinsAt(m.off)
 		if len(pins) <= taken {
 			m.pins = pins
-			return
+			break
 		}
 		taken = len(pins)
 	}
+	if len(m.pins) < taken {
+		m.pull(e)
+	}
+}
+
+// pull moves the window up, a line at a time, while it leaves lines blank at
+// the bottom that rows above could fill and the row that ends at line e stays
+// in view. The window was settled with more pins than its place has, so it
+// went further down than it needed to.
+func (m *Model) pull(e int) {
+	total := m.starts[len(m.vis)]
+	for m.off > 0 {
+		if m.off <= total-(m.height-len(m.pinsAt(m.off))) {
+			break
+		}
+		if e > m.off-1+m.height-len(m.pinsAt(m.off-1)) {
+			break
+		}
+		m.off--
+	}
+	m.pins = m.pinsAt(m.off)
 }
 
 // pinsAt returns the places in vis of the ancestors to pin above a window
