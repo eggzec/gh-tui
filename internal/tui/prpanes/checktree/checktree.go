@@ -37,6 +37,9 @@ type Options struct {
 	Prefix string
 	// Now is the time that the duration of what still runs is told at.
 	Now time.Time
+	// Width is the width of the lines of an error that a [Loader] shows in
+	// place of the checks.
+	Width int
 }
 
 // Targets maps the ID of a row to the message that enter on it asks for. A
