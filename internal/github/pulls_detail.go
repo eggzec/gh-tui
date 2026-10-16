@@ -309,7 +309,7 @@ func failingChecks(contexts []checksContext) (failing []core.FailingCheck, requi
 	for i := range contexts {
 		c := &contexts[i]
 		var f core.FailingCheck
-		var outcome core.CheckOutcome
+		var outcome core.CheckState
 		switch c.Typename {
 		case "CheckRun":
 			run := c.checkRun()
@@ -330,6 +330,8 @@ func failingChecks(contexts []checksContext) (failing []core.FailingCheck, requi
 				required.Pending++
 			case core.CheckFailing:
 				required.Failed++
+			case core.CheckNone:
+				// One check always has a state; none is only for a set.
 			}
 		}
 		if outcome == core.CheckFailing {

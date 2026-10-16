@@ -53,7 +53,7 @@ func (r row) name() string {
 }
 
 // outcome is how r stands.
-func (r row) outcome() core.CheckOutcome {
+func (r row) outcome() core.CheckState {
 	switch {
 	case r.check != nil:
 		return r.check.Outcome()
@@ -109,7 +109,7 @@ const (
 func buildRows(c *core.Checks) []row {
 	type group struct {
 		name  string
-		worst core.CheckOutcome
+		worst core.CheckState
 		rank  int
 		rows  []row
 	}
@@ -171,7 +171,7 @@ func (s *Step) setChecks(c core.Checks) {
 // firstFailing is the row the checks open on: the first that fails, else
 // the first pending, else the first.
 func firstFailing(rows []row) int {
-	for _, o := range []core.CheckOutcome{core.CheckFailing, core.CheckPending} {
+	for _, o := range []core.CheckState{core.CheckFailing, core.CheckPending} {
 		if i := slices.IndexFunc(rows, func(r row) bool { return !r.title() && r.outcome() == o }); i >= 0 {
 			return i
 		}
