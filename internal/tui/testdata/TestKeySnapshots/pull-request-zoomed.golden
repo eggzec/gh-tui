@@ -23,5 +23,7 @@ Pull request
   zoom | z | z | off
   close | esc | esc | on
   author | @ | @ | on
+  review |  |  | off
+  find file | ctrl+p | ^p | on
 
 Conversation

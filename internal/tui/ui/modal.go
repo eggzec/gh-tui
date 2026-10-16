@@ -2,6 +2,8 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // Modal is a popup over the screen, such as a file preview or the history.
@@ -94,6 +96,14 @@ const (
 type Hosted interface {
 	// KeyContext is the name of the modal's own context of keys.
 	KeyContext() string
+}
+
+// HelpHost is a Modal that shows the help of its keys inside itself, over
+// what it has open, instead of the app's help over the modal.
+type HelpHost interface {
+	// OpenHelp shows the help of layers, titled title, and reports whether
+	// the modal took it: when it didn't, the app opens its own.
+	OpenHelp(layers []keyhelp.Layer, title string) (cmd tea.Cmd, ok bool)
 }
 
 // Referencing is a Modal that can show the issues and pull requests linked

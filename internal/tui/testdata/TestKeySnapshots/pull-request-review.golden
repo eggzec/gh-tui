@@ -1,0 +1,10 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Composer (types)
+  submit | ctrl+s | ^s | on
+  editor | ctrl+e | ^e | on
+  cancel | esc | esc | on

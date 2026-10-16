@@ -51,6 +51,16 @@ func BenchmarkView(b *testing.B) {
 			_ = m.View()
 		}
 	})
+	b.Run("modal with an overlay", func(b *testing.B) {
+		_, m := benchPanes(b)
+		if _, ok := m.OpenHelp(m.KeyLayers(), "Help"); !ok || m.top() == nil {
+			b.Fatal("OpenHelp opened no overlay")
+		}
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = m.View()
+		}
+	})
 	b.Run("modal zoomed", func(b *testing.B) {
 		h, m := benchPanes(b)
 		press(b, h, "z")
