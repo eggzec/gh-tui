@@ -197,11 +197,21 @@ func OpenFilter(tab filterform.Tab) tea.Cmd {
 }
 
 // OpenActionsMsg asks for the Actions modal of Repo to be opened on the
-// runs that Filter selects, such as those of a CI notification. Repo need
+// runs that Filter selects, such as those of a CI notification, on the run
+// and job At names. Filter's HeadSHA selects the runs of a commit. Repo need
 // not be the selected repository.
 type OpenActionsMsg struct {
 	Repo   core.RepoRef
 	Filter core.RunFilter
+	At     ActionsAt
+}
+
+// ActionsAt says where the Actions modal opens: on the run with ID Run and,
+// among its jobs, the job with ID Job, and with the jobs focused if Jobs is
+// set. The zero value opens it on the first run, as the runs key does.
+type ActionsAt struct {
+	Run, Job int64
+	Jobs     bool
 }
 
 // OpenCommitMsg asks for the history of Repo to be opened on commit SHA,

@@ -28,12 +28,14 @@ type actionsOpener struct {
 	modal   *tabbedModal
 	opened  []core.RepoRef
 	filters []core.RunFilter
+	targets []ui.ActionsAt
 	loads   int
 }
 
-func (a *actionsOpener) open(_ context.Context, repo core.RepoRef, f core.RunFilter) (ui.Modal, tea.Cmd) {
+func (a *actionsOpener) open(_ context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
 	a.opened = append(a.opened, repo)
 	a.filters = append(a.filters, f)
+	a.targets = append(a.targets, at)
 	a.modal = &tabbedModal{title: "Actions · " + repo.String(), names: []string{"All", "Failing", "Running", "Mine"}, active: 1}
 	return a.modal, func() tea.Msg { a.loads++; return nil }
 }
@@ -134,6 +136,22 @@ func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
 	m.Update(ui.OpenActionsMsg{Repo: other, Filter: f})
 	if m.topModal() != a.modal || len(a.opened) != 1 || a.opened[0] != other || a.filters[0] != f {
 		t.Errorf("opened %v with %v, want the failed runs of the branch of %s", a.opened, a.filters, other)
+	}
+	if a.targets[0] != (ui.ActionsAt{}) {
+		t.Errorf("opened at %+v, want the first run", a.targets[0])
+	}
+}
+
+func TestOpenActionsMsgOpensOnARunAndAJob(t *testing.T) {
+	t.Parallel()
+	a := &actionsOpener{}
+	m, _ := newTestApp(t, WithActions(a.open))
+	run(m, m.key(press("I")))
+	f := core.RunFilter{HeadSHA: "f00dcafe"}
+	at := ui.ActionsAt{Run: 4812, Job: 101, Jobs: true}
+	m.Update(ui.OpenActionsMsg{Repo: testRepo, Filter: f, At: at})
+	if m.topModal() != a.modal || len(a.opened) != 1 || a.filters[0] != f || a.targets[0] != at {
+		t.Errorf("opened %v with %v at %v, want the runs of the commit opened at %+v", a.opened, a.filters, a.targets, at)
 	}
 }
 
