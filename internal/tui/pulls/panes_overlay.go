@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -147,18 +148,31 @@ type confirmOverlay struct {
 	done bool
 }
 
-func (o *confirmOverlay) title() string               { return "Confirm" }
-func (o *confirmOverlay) kind() panes.OverlayKind     { return panes.Confirm }
-func (o *confirmOverlay) items() int                  { return 0 }
-func (o *confirmOverlay) text() int                   { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
-func (o *confirmOverlay) clear() bool                 { return false }
-func (o *confirmOverlay) closed() bool                { return o.done }
-func (o *confirmOverlay) layers() []keyhelp.Layer     { return []keyhelp.Layer{o.m.keys.confirm.Layer()} }
-func (o *confirmOverlay) view(w, _ int) string        { return o.c.Line(o.m.cst, o.m.keys.confirm, w) }
+func (o *confirmOverlay) title() string           { return "Confirm" }
+func (o *confirmOverlay) kind() panes.OverlayKind { return panes.Confirm }
+func (o *confirmOverlay) items() int              { return 0 }
+func (o *confirmOverlay) text() int               { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
+func (o *confirmOverlay) clear() bool             { return false }
+func (o *confirmOverlay) closed() bool            { return o.done }
+func (o *confirmOverlay) view(w, _ int) string    { return o.c.Line(o.m.cst, o.m.keys.confirm, w) }
+
+// layers are the keys that answer, and the quit key, which closes the whole
+// modal: the question takes every key, so the app never sees that one.
+func (o *confirmOverlay) layers() []keyhelp.Layer {
+	l := o.m.keys.confirm.Layer()
+	l.Bindings = append(l.Bindings, o.m.keys.quit)
+	l.Short = append(l.Short, o.m.keys.quit)
+	return []keyhelp.Layer{l}
+}
+
 func (o *confirmOverlay) update(msg tea.Msg) tea.Cmd {
 	press, ok := msg.(tea.KeyPressMsg)
 	if !ok || o.done {
 		return nil
+	}
+	if keymap.Matches(press, o.m.keys.quit) {
+		o.done = true
+		return o.m.close()
 	}
 	cmd, done := o.m.keys.confirm.Answer(o.c, press)
 	o.done = done

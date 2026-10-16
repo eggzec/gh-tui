@@ -85,6 +85,19 @@ func TestConfirmOverlayKeepsThePanes(t *testing.T) {
 	}
 }
 
+// TestConfirmQuitClosesTheModal checks that the quit key closes the whole
+// modal from under a question, which takes every key, without answering it.
+func TestConfirmQuitClosesTheModal(t *testing.T) {
+	t.Parallel()
+	m := sizedPanes(t, 160, 40)
+	ran := false
+	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { ran = true; return nil }})
+	m.Update(keyMsg("q"))
+	if !m.closed || ran {
+		t.Errorf("q under a question: modal closed %v, change ran %v", m.closed, ran)
+	}
+}
+
 // TestOverlayLayers checks that an open overlay's keys are the only layers.
 func TestOverlayLayers(t *testing.T) {
 	t.Parallel()
@@ -166,7 +179,7 @@ func TestMaximizeViewer(t *testing.T) {
 	if _, ok := m.Act(ui.ActMaximize); !ok {
 		t.Fatal("maximize not taken by a viewer")
 	}
-	if got, want := m.placed(), (panes.Rect{W: 160, H: 38}); got != want {
+	if got, want := m.placed(), panes.OverlayRect(panes.Overlay{Kind: panes.Viewer, Maximized: true}, 160, 38); got != want {
 		t.Errorf("maximized viewer at %v, want %v", got, want)
 	}
 	m.Act(ui.ActMaximize)
