@@ -226,8 +226,9 @@ const (
 	// filesSchema 1 is the first.
 	filesSchema = 1
 	// threadsSchema 1 is the first, 2 keeps the review of each thread, and 3
-	// whether a thread or a comment is pending.
-	threadsSchema = 3
+	// whether a thread or a comment is pending, and 4 the snippet, commits,
+	// lines and permissions of each comment, and whether the viewer may reply.
+	threadsSchema = 4
 	// rangesSchema 1 is the first.
 	rangesSchema = 1
 	// commitsSchema and commitFilesSchema 1 are the first.

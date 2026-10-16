@@ -50,6 +50,8 @@ type Thread struct {
 	// ViewerCanResolve and ViewerCanUnresolve are what the viewer may do to
 	// the thread.
 	ViewerCanResolve, ViewerCanUnresolve bool
+	// ViewerCanReply reports whether the viewer may reply to the thread.
+	ViewerCanReply bool
 
 	// Comments are the comments read, oldest first. TotalComments counts all
 	// of them, and MoreComments reports that it is more than were read: the
@@ -74,6 +76,19 @@ type ThreadComment struct {
 	EditedAt time.Time
 	// Pending reports a comment of a review that is not submitted yet.
 	Pending bool
+	// Path is the file the comment is on, and DiffHunk the lines of the diff
+	// around it, as it was made: the snippet to show with it.
+	Path, DiffHunk string
+	// Commit is the commit the comment is on now, and OriginalCommit the one
+	// it was made on, which is where an outdated comment's lines are. Either
+	// is empty if GitHub no longer has the commit.
+	Commit, OriginalCommit string
+	// Line and StartLine are as Thread's, for this comment, and
+	// OriginalLine and OriginalStartLine as Thread's too.
+	Line, StartLine, OriginalLine, OriginalStartLine int
+	// ViewerCanUpdate and ViewerCanDelete are what the viewer may do to the
+	// comment.
+	ViewerCanUpdate, ViewerCanDelete bool
 }
 
 // ThreadPage is one page of the review threads of a pull request. An empty
