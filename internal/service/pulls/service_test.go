@@ -20,6 +20,7 @@ var repo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 // fakeAPI is an API whose methods are set per test. It counts the calls of
 // each method.
 type fakeAPI struct {
+	labelsFake
 	list func(ctx context.Context, repo core.RepoRef, state core.State, cursor string, first int) (core.Page[core.PullRequest], error)
 	get  func(ctx context.Context, repo core.RepoRef, number int) (core.PullRequestDetail, error)
 	// comments and reviews back the timeline reads. The comments answer
