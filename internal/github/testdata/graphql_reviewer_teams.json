@@ -1,0 +1,4 @@
+{"data": {"rateLimit": {"cost": 1, "limit": 5000, "remaining": 4990, "used": 10, "resetAt": "2026-10-05T12:00:00Z"}, "organization": {"viewerIsAMember": true, "teams": {"nodes": [
+  {"name": "Core", "slug": "core"},
+  {"name": "Core Docs", "slug": "core-docs"}
+]}}}}
