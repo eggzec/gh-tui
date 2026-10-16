@@ -26,7 +26,9 @@ func TestOverlayRect(t *testing.T) {
 		{"confirm stops at the area", Overlay{Kind: Confirm, Text: 100}, 80, 24, Rect{1, 10, 78, 3}},
 		{"confirm in a short area", Overlay{Kind: Confirm, Text: 10}, 80, 2, Rect{20, 0, 40, 2}},
 		{"nothing in an empty area", Overlay{Kind: Picker, Items: 3}, 0, 0, Rect{}},
-		{"tiny wide viewer", Overlay{Kind: Viewer}, 120, 3, Rect{4, 2, 112, 0}},
+		{"short wide viewer fills the area", Overlay{Kind: Viewer}, 120, 3, Rect{0, 0, 120, 3}},
+		{"viewer fills when the inset leaves 4 lines", Overlay{Kind: Viewer}, 120, 8, Rect{0, 0, 120, 8}},
+		{"viewer is inset with 5 lines left", Overlay{Kind: Viewer}, 120, 9, Rect{4, 2, 112, 5}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -56,12 +58,13 @@ func TestOverlayInside(t *testing.T) {
 func TestWideLayout(t *testing.T) {
 	st := DefaultStyles(true)
 	l := Compute(Spec{Width: 120, Height: 20, Focus: Conversation, InvolvedRows: 5, DevelopmentRows: 4})
-	c := make([]Content, len(l.Boxes))
-	c[0] = Content{Info: []string{"34%"}, Body: "▌Summary\nAdds a small calc package"}
-	c[1] = Content{Focus: true, Info: []string{"26 of 26 shown · filter: all", "26 of 26 shown"}, Body: "▌alice  commented"}
-	c[2] = Content{Info: []string{"5 blockers"}, Body: "feat/calc → main"}
-	c[5] = Content{Info: []string{"8 files · +67 −9 · 2 viewed", "8 · +67 −9"}, Body: "src/calc.go"}
-	out := st.Draw(l, c)
+	c := map[Pane]Content{
+		Description:  {Info: []string{"34%"}, Body: "▌Summary\nAdds a small calc package"},
+		Conversation: {Info: []string{"26 of 26 shown · filter: all", "26 of 26 shown"}, Body: "▌alice  commented"},
+		Merge:        {Info: []string{"5 blockers"}, Body: "feat/calc → main"},
+		Files:        {Info: []string{"8 files · +67 −9 · 2 viewed", "8 · +67 −9"}, Body: "src/calc.go"},
+	}
+	out := st.Draw(l, func(b Box) Content { return c[b.Pane] })
 	plain := ansi.Strip(out)
 	for i, ln := range strings.Split(plain, "\n") {
 		if i == 0 && !strings.Contains(ln, "╮╭─ 3 Merge") {

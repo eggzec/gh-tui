@@ -3,28 +3,32 @@ package panes
 import "strings"
 
 // Draw frames the content of each box of the layout and joins the boxes
-// into the area: exactly Height lines of Width cells. Content i belongs to
-// box i of l.Boxes; a missing one is an empty box.
+// into the area: exactly Height lines of Width cells. It asks content for
+// each box that has cells, so the caller picks by the box's Pane and Role and
+// cannot misalign the content with the layout; a nil content draws empty
+// boxes. Focus comes from the layout: Content.Focus is overridden, and only
+// the focused pane's list or whole box is focused, not its preview.
 //
 // A zoomed layout carries the pane strip on its bottom border, the longest
 // form that fits, run as one line across both boxes when the view is split.
 // Both boxes together are never narrower than one of them, so a strip that
 // does not fit across them fits on neither alone, and is left out.
-func (s Styles) Draw(l Layout, content []Content) string {
+func (s Styles) Draw(l Layout, content func(Box) Content) string {
 	type drawn struct {
 		box   Box
 		focus bool
 		lines []string
 	}
 	var boxes []drawn
-	for i, b := range l.Boxes {
+	for _, b := range l.Boxes {
 		if b.Rect.W <= 0 || b.Rect.H <= 0 {
 			continue
 		}
 		var c Content
-		if i < len(content) {
-			c = content[i]
+		if content != nil {
+			c = content(b)
 		}
+		c.Focus = b.Pane == l.Focus && b.Role != Preview
 		if c.Title == "" && b.Role != Preview {
 			c.Title = b.Pane.Title()
 		}
@@ -36,7 +40,7 @@ func (s Styles) Draw(l Layout, content []Content) string {
 			widths[i], focus[i] = d.box.Rect.W, d.focus
 		}
 		cur := boxes[0].box.Pane
-		for _, f := range s.stripForms(cur) {
+		for f := range s.stripForms(cur) {
 			line, ok := s.stripLine(widths, focus, f)
 			if !ok {
 				continue

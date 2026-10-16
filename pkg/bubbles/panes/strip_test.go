@@ -1,6 +1,8 @@
 package panes
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,9 +15,14 @@ func bottom(out string) string {
 	return lines[len(lines)-1]
 }
 
+func lastForm(st Styles, cur Pane) stripForm {
+	forms := slices.Collect(st.stripForms(cur))
+	return forms[len(forms)-1]
+}
+
 func TestStripForms(t *testing.T) {
 	st := DefaultStyles(true)
-	forms := st.stripForms(Merge)
+	forms := slices.Collect(st.stripForms(Merge))
 	got := make([]string, 0, len(forms))
 	for _, f := range forms {
 		if ansi.StringWidth(f.text) != f.width {
@@ -33,7 +40,7 @@ func TestStripForms(t *testing.T) {
 		t.Errorf("forms:\n%s", strings.Join(got, "\n"))
 	}
 	// the current pane differs from the others by style
-	cur, other := st.stripForms(Merge)[3].text, st.stripForms(Files)[3].text
+	cur, other := lastForm(st, Merge).text, lastForm(st, Files).text
 	if cur == other {
 		t.Error("the current pane must be styled differently")
 	}
@@ -50,7 +57,8 @@ func TestStripWidths(t *testing.T) {
 		if ansi.StringWidth(line) != w {
 			t.Errorf("width %d: bottom is %d cells", w, ansi.StringWidth(line))
 		}
-		b.WriteString(line + "\n")
+		b.WriteString(line)
+		b.WriteString("\n")
 	}
 	golden.RequireEqual(t, b.String())
 }
@@ -58,7 +66,7 @@ func TestStripWidths(t *testing.T) {
 func TestStripSplit(t *testing.T) {
 	st := DefaultStyles(true)
 	l := Compute(Spec{Width: 100, Height: 4, Focus: Development})
-	out := st.Draw(l, []Content{{Focus: true}, {}})
+	out := st.Draw(l, nil)
 	line := bottom(out)
 	if !strings.HasPrefix(line, "╰─ 1 Description") || !strings.HasSuffix(line, "╯") || strings.Count(line, "╯") != 1 {
 		t.Errorf("the strip must run across both boxes: %q", line)
@@ -70,8 +78,7 @@ func TestStripSplit(t *testing.T) {
 // and each cell takes the colour of the box under it.
 func TestStripSeam(t *testing.T) {
 	st := DefaultStyles(true)
-	forms := st.stripForms(Merge)
-	line, ok := st.stripLine([]int{30, 30}, []bool{false, true}, forms[3])
+	line, ok := st.stripLine([]int{30, 30}, []bool{false, true}, lastForm(st, Merge))
 	if !ok {
 		t.Fatal("the digits fit in 60 cells")
 	}
@@ -98,9 +105,42 @@ func TestStripTwoBoxes(t *testing.T) {
 		{"too narrow", 8, 8},
 	} {
 		l := Layout{Width: tt.l + tt.r, Height: 3, Zoomed: true, Boxes: []Box{box(0, tt.l), box(tt.l, tt.r)}}
-		b.WriteString(tt.name + "\n" + ansi.Strip(st.Draw(l, nil)) + "\n\n")
+		fmt.Fprintf(&b, "%s\n%s\n\n", tt.name, ansi.Strip(st.Draw(l, nil)))
 	}
 	golden.RequireEqual(t, b.String())
+}
+
+// TestStripRuns checks that the dashes after the strip are rendered as one
+// run, not once per cell.
+func TestStripRuns(t *testing.T) {
+	st := DefaultStyles(true)
+	l := Compute(Spec{Width: 60, Height: 3, Focus: Merge})
+	line := bottom2(st.Draw(l, nil))
+	if n := strings.Count(line, "\x1b[m"); n > 20 {
+		t.Errorf("%d style runs on the strip line, want one per piece of the strip", n)
+	}
+}
+
+// bottom2 is the last line of out with its escape sequences.
+func bottom2(out string) string {
+	lines := strings.Split(out, "\n")
+	return lines[len(lines)-1]
+}
+
+// TestStripFocusRuns checks a focused and a blurred box colour their halves
+// of the strip line's dashes differently, in one run each.
+func TestStripFocusRuns(t *testing.T) {
+	st := DefaultStyles(true)
+	line, ok := st.stripLine([]int{30, 30}, []bool{true, false}, lastForm(st, Merge))
+	if !ok {
+		t.Fatal("the digits fit")
+	}
+	if !strings.Contains(line, st.EdgeFocus.Render("╰─ ")) {
+		t.Errorf("the head is not in the focus colour: %q", visible(line))
+	}
+	if !strings.Contains(line, st.Edge.Render("┴"+strings.Repeat("─", 28)+"╯")) {
+		t.Errorf("the tail is not one run in the edge colour: %q", visible(line))
+	}
 }
 
 func TestStripOnlyZoomed(t *testing.T) {

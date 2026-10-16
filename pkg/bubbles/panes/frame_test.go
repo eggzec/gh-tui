@@ -33,6 +33,8 @@ func TestFrame(t *testing.T) {
 		{"body cut and padded", Content{Title: "1 Description", Body: "short\na line that is far too wide for this box\n\ttabbed"}, 24, 5},
 		{"body rows dropped", Content{Title: "x", Body: "1\n2\n3\n4"}, 12, 4},
 		{"wide characters", Content{Title: "3 漢字のタイトル", Info: []string{"日本語"}, Body: "漢字漢字漢字漢字漢字漢字\n🙂🙂🙂"}, 24, 5},
+		{"wide info fits", Content{Title: "3 漢字", Info: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 34, 3},
+		{"wide info second form fits", Content{Title: "3 漢字", Info: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 22, 3},
 		{
 			"hyperlinks",
 			Content{
@@ -96,12 +98,60 @@ func TestFrameNoRoom(t *testing.T) {
 func TestCutClosesLinks(t *testing.T) {
 	st := DefaultStyles(true)
 	in := "\x1b]8;;https://example.com\x1b\\abcdefghij\x1b]8;;\x1b\\"
-	if !linkOpen(ansi.Truncate(in, 4, "…")) {
-		t.Skip("Truncate closes hyperlinks itself; cut has nothing to add")
+	if got := st.cut(in, 4); linkOpen(got) || ansi.StringWidth(got) != 4 {
+		t.Errorf("cut = %q, want 4 cells and no open hyperlink", visible(got))
 	}
-	if linkOpen(st.cut(in, 4)) {
-		t.Error("cut left the hyperlink open")
+}
+
+// TestSeal covers what is left open by a line that is not cut: a hyperlink
+// and a style would run on into the padding and the border.
+func TestSeal(t *testing.T) {
+	st := DefaultStyles(true)
+	for _, in := range []string{
+		"\x1b]8;;https://example.com\x1b\\never closed",
+		"\x1b[4munderlined, never reset",
+		"\x1b[1mbold\x1b[m then \x1b[31mred",
+	} {
+		got := st.cut(in, 80)
+		if linkOpen(got) || sgrOpen(got) {
+			t.Errorf("cut(%q) = %q, left something open", visible(in), visible(got))
+		}
 	}
+	if in := "\x1b[1mbold\x1b[m"; st.cut(in, 80) != in {
+		t.Error("a line that closes its own style is left as it is")
+	}
+}
+
+func TestSgrOpen(t *testing.T) {
+	for in, want := range map[string]bool{
+		"plain":                   false,
+		"\x1b[1mbold":             true,
+		"\x1b[1mbold\x1b[m":       false,
+		"\x1b[1mbold\x1b[0m":      false,
+		"\x1b[0m\x1b[38;2;1;2;3m": true,
+		"\x1b[2K":                 false,
+		"\x1b[1":                  false,
+	} {
+		if got := sgrOpen(in); got != want {
+			t.Errorf("sgrOpen(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// TestFrameVisible pins the escape sequences of a frame whose body has a
+// hyperlink and a style that a cut leaves open: both are closed before the
+// border, which is drawn in its own colour.
+func TestFrameVisible(t *testing.T) {
+	st := DefaultStyles(true)
+	link := Content{
+		Title: "\x1b]8;;https://example.com\x1b\\4 Linked title\x1b]8;;\x1b\\",
+		Body:  "see \x1b]8;;https://example.com/a-long-url\x1b\\a link that is cut off here\x1b]8;;\x1b\\ end",
+	}
+	styled := Content{
+		Title: "1 Description",
+		Body:  "\x1b[1;4mbold and underlined text cut in the middle of its style\x1b[m\n\x1b[3mitalic and never reset",
+	}
+	golden.RequireEqual(t, visible(st.Frame(link, 24, 4)+"\n\n"+st.Frame(styled, 24, 4)))
 }
 
 func TestExpandTabs(t *testing.T) {
