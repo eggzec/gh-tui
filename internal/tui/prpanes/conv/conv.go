@@ -51,4 +51,7 @@ type Options struct {
 	// Dates tells ages, or dates in the user's format, relative to Now.
 	Dates ui.Dates
 	Now   time.Time
+	// Viewer is the login of the viewer, whose unsubmitted review shows under
+	// their name.
+	Viewer string
 }

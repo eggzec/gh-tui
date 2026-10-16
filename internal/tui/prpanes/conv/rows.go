@@ -21,15 +21,27 @@ type builder struct {
 	st    *Styles
 	width int
 	rows  []foldtree.Row
+	// index, when it is not nil, gets each node by its ID.
+	index map[string]*node
 }
 
 // Build returns the rows for d, in order, with stable IDs: comments, reviews
 // over their threads and threads over their replies, with one blank row
 // between the items of the top level.
 func Build(d Data, o Options) []foldtree.Row {
+	rows, _ := build(d, o, false)
+	return rows
+}
+
+// build is Build, which also returns the nodes the rows were made from by
+// their IDs when index is set.
+func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string]*node) {
 	b := &builder{o: o, st: &o.Styles, width: o.Width}
 	if b.width <= 0 {
 		b.width = defaultWidth
+	}
+	if index {
+		b.index = make(map[string]*node)
 	}
 	for i, n := range tree(d) {
 		if i > 0 {
@@ -37,7 +49,7 @@ func Build(d Data, o Options) []foldtree.Row {
 		}
 		b.node(n, 0)
 	}
-	return b.rows
+	return b.rows, b.index
 }
 
 // node adds the rows of n at depth, and of its children.
@@ -57,6 +69,9 @@ func (b *builder) node(n *node, depth int) {
 	}
 	r.ID, r.Depth, r.Kind = n.id, depth, n.kind
 	b.rows = append(b.rows, r)
+	if b.index != nil {
+		b.index[n.id] = n
+	}
 	for _, c := range n.children {
 		b.node(c, depth+1)
 	}

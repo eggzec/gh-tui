@@ -23,6 +23,7 @@ type Styles struct {
 	bold   lipgloss.Style
 	dim    lipgloss.Style
 	warn   lipgloss.Style
+	errs   ui.ErrorStyles
 	// open is the amber glyph of a thread that isn't resolved.
 	open string
 }
@@ -37,6 +38,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
 		warn:   t.Warning,
+		errs:   t.Errors(ic),
 		open:   t.Warning.Render(ic.Glyph(ui.GlyphUnresolved)),
 	}
 }
