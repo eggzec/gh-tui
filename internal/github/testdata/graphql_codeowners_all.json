@@ -1,0 +1,9 @@
+{
+  "data": {
+    "repository": {
+      "github": {"text": "# in .github\n*       @octo/reviewers\n/docs/  docs@example.com\n"},
+      "root": {"text": "* @root-owner\n"},
+      "docs": {"text": "* @docs-owner\n"}
+    }
+  }
+}

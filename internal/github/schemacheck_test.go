@@ -90,6 +90,7 @@ var graphqlOperations = map[string]string{
 	"pullMentionsQuery":         pullMentionsQuery,
 	"issueMentionsQuery":        issueMentionsQuery,
 	"resolveReferencesQuery":    resolveReferencesQuery,
+	"codeownersQuery":           codeownersQuery,
 }
 
 // A field of a REST answer tagged schema:"optional" may be absent, as on
@@ -161,6 +162,7 @@ var restCalls = []restCall{
 	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme", Accept: rawAccept},
 	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme/{dir}", Accept: rawAccept},
 	{Func: "OrgFollowers", Method: http.MethodGet, Path: "/users/{username}", Decode: restFollowers{}},
+	{Func: "ListTeamMembers", Method: http.MethodGet, Path: "/orgs/{org}/teams/{team_slug}/members", Query: []string{"per_page"}, Decode: []restTeamMember{}},
 }
 
 // graphqlOptional are the fields, as Type.field, that the client selects
