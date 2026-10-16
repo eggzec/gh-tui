@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -174,6 +175,10 @@ type fake struct {
 	// refuse fails the changes, as GitHub refusing them.
 	refuse error
 
+	// runPage pages the runs by that many, with the offset of the next page
+	// as its cursor, rather than answering all on one page.
+	runPage int
+
 	queries   []actionssvc.RunsQuery
 	jobReads  []int64
 	logReads  []int64
@@ -218,11 +223,22 @@ func (f *fake) Runs(_ context.Context, q actionssvc.RunsQuery) (core.Page[core.R
 		case q.Filter.Branch != "" && q.Filter.Branch != r.Branch:
 		case q.Filter.Event != "" && q.Filter.Event != r.Event:
 		case q.Filter.WorkflowID != 0 && q.Filter.WorkflowID != r.WorkflowID:
+		case q.Filter.HeadSHA != "" && q.Filter.HeadSHA != r.HeadSHA:
 		default:
 			out = append(out, *r)
 		}
 	}
-	return core.Page[core.Run]{Items: out, Limited: f.limited}, nil
+	var next string
+	if f.runPage > 0 {
+		from, _ := strconv.Atoi(q.Cursor)
+		from = min(from, len(out))
+		end := min(from+f.runPage, len(out))
+		if end < len(out) {
+			next = strconv.Itoa(end)
+		}
+		out = out[from:end]
+	}
+	return core.Page[core.Run]{Items: out, Next: next, Limited: f.limited}, nil
 }
 
 func (f *fake) CachedRun(_ core.RepoRef, runID int64) (core.Run, bool) {
