@@ -121,6 +121,32 @@ func (s *Service) SubmitIntoPending(ctx context.Context, repo core.RepoRef, numb
 	return nil
 }
 
+// SendReview sends a review of pull request number of repo with the verdict
+// event and the summary body, on head, and nothing else: no comments. If the
+// viewer has a pending review, which holds comments made elsewhere, the
+// review is that one, submitted with the verdict and the summary; else it is
+// a new one. A pending review that appears while the review is sent, such as
+// one started on the web, is read again and used, once. The errors are those
+// of SubmitReview and SubmitIntoPending.
+func (s *Service) SendReview(ctx context.Context, repo core.RepoRef, number int, head string, event core.ReviewEvent, body string) error {
+	pending, found, err := s.PendingReview(ctx, repo, number)
+	if err != nil {
+		return err
+	}
+	if found {
+		return s.SubmitIntoPending(ctx, repo, number, head, pending, event, body, nil)
+	}
+	err = s.SubmitReview(ctx, repo, number, head, event, body, nil)
+	if !errors.Is(err, ErrPendingAppeared) {
+		return err
+	}
+	pending, found, rerr := s.PendingReview(ctx, repo, number)
+	if rerr != nil || !found {
+		return err
+	}
+	return s.SubmitIntoPending(ctx, repo, number, head, pending, event, body, nil)
+}
+
 // reviewParts checks that a review of drafts on head with event can be sent,
 // and splits the drafts into the threads that start and the replies. Its
 // errors are those of the submission.
