@@ -137,6 +137,8 @@ var restCalls = []restCall{
 	{Func: "ProbePullRequests", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/pulls", Query: []string{"state", "sort", "direction", "per_page"}},
 	{Func: "SetIssueState", Method: http.MethodPatch, Path: "/repos/{owner}/{repo}/issues/{issue_number}", Decode: restIssue{}},
 	{Func: "AddIssueLabels", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/issues/{issue_number}/labels", Decode: []label{}},
+	{Func: "AddIssueAssignees", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/issues/{issue_number}/assignees", Decode: restIssue{}},
+	{Func: "RemoveIssueAssignees", Method: http.MethodDelete, Path: "/repos/{owner}/{repo}/issues/{issue_number}/assignees", Decode: restIssue{}},
 	{Func: "RemoveIssueLabel", Method: http.MethodDelete, Path: "/repos/{owner}/{repo}/issues/{issue_number}/labels/{name}", Decode: []label{}},
 	{Func: "CreateIssueComment", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/issues/{issue_number}/comments", Decode: issueComment{}},
 	{Func: "ListCommits", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits", Query: []string{"sha", "per_page"}, Decode: []restCommit{}},
