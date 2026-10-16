@@ -9,7 +9,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
@@ -141,7 +140,7 @@ func TestBackReturnsToModal(t *testing.T) {
 }
 
 // TestBackKeepsScroll checks that a pull request returned to is the one
-// that was left, read down to where it was.
+// that was left, shown as it was. The panes modal has no scrolling pane yet.
 func TestBackKeepsScroll(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -151,15 +150,7 @@ func TestBackKeepsScroll(t *testing.T) {
 		if a == nil {
 			t.Fatal("no pull request opened")
 		}
-		// The conversation is the tab that reads down.
-		driveKeys(t, m, m.key(press("]")))
-		driveKeys(t, m, m.key(press("]")))
-		top := a.View()
-		driveKeys(t, m, m.key(press("G")))
-		bottom := a.View()
-		if bottom == top {
-			t.Fatal("the pull request didn't scroll; the test needs a longer body")
-		}
+		shown := a.View()
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 3, Back: a} })
 		if m.modal == nil || m.modal == a {
 			t.Fatal("the second pull request didn't open in place of the first")
@@ -169,7 +160,7 @@ func TestBackKeepsScroll(t *testing.T) {
 		if m.modal != a {
 			t.Fatalf("the back key didn't return to the first pull request")
 		}
-		if got := a.View(); got != bottom {
+		if got := a.View(); got != shown {
 			t.Errorf("the first pull request shows another place than it was left at:\n%s", got)
 		}
 		// The way back is used up, and the one left is gone for good.
@@ -372,56 +363,5 @@ func TestChainDropDiscardsRealModals(t *testing.T) {
 				})
 			})
 		}
-	}
-}
-
-// TestBackStepsOutOfTheChecks checks that the back key steps out of a log
-// on the Checks tab of a pull request to the list of checks, and only then
-// returns to the modal that the pull request replaced, if it replaced one.
-func TestBackStepsOutOfTheChecks(t *testing.T) {
-	t.Parallel()
-	for _, chained := range []bool{true, false} {
-		name := "alone"
-		if chained {
-			name = "in a chain"
-		}
-		t.Run(name, func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				m := newKeysApp(t, true)
-				tap := func(action string) {
-					t.Helper()
-					msg, ok := keyPress(m.cfg.Keys.Of(action)[0])
-					if !ok {
-						t.Fatalf("can't press %s", action)
-					}
-					driveKeys(t, m, m.key(msg))
-				}
-				open := func(back ui.Modal) {
-					driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1, Back: back} })
-				}
-				open(nil)
-				first := m.modal
-				if chained {
-					open(first)
-				}
-				pull := m.modal
-				tap("pulls.checks")
-				tap(config.ActionSelect)
-				if got := layerNames(m.keyLayers()); got != "global, pull_modal, pull_check_log" {
-					t.Fatalf("after opening a log the keys reach %q", got)
-				}
-				tap(config.ActionBack)
-				if got := layerNames(m.keyLayers()); m.modal != pull || got != "global, pull_modal, pull_check_list" {
-					t.Fatalf("back in the log left the keys at %q, want the list of checks", got)
-				}
-				tap(config.ActionBack)
-				switch {
-				case chained && m.modal != first:
-					t.Errorf("back on the list left %v open, want the first modal", m.topModal())
-				case !chained && (m.modal != pull || layerNames(m.keyLayers()) != "global, pull_modal, pull_check_list"):
-					t.Errorf("back on the list with nothing to return to changed %q", layerNames(m.keyLayers()))
-				}
-			})
-		})
 	}
 }

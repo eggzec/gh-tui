@@ -161,12 +161,6 @@ func (keyPulls) Threads(context.Context, pullsvc.ThreadsQuery) (core.ThreadPage,
 func (keyPulls) CachedThreads(pullsvc.ThreadsQuery) (core.ThreadPage, bool) {
 	return core.ThreadPage{}, true
 }
-func (keyPulls) CachedViewed(pullsvc.ViewedQuery) (core.PullViewed, bool) {
-	return core.PullViewed{}, false
-}
-func (keyPulls) Viewed(context.Context, pullsvc.ViewedQuery) (core.PullViewed, error) {
-	return core.PullViewed{Supported: true}, nil
-}
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
@@ -793,7 +787,15 @@ func TestContextChains(t *testing.T) {
 // unopenedContexts are the contexts that no screen opens yet, so that no
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
-var unopenedContexts = map[string]string{"composer": "isn't opened from any screen yet"}
+var unopenedContexts = map[string]string{
+	"composer":               "isn't opened from any screen yet",
+	"pull_app_check":         "the Merge pane will read it",
+	"pull_check_list":        "the Merge pane will read it",
+	"pull_check_log":         "the Merge pane will read it",
+	"pull_check_detail":      "the Merge pane will read it",
+	"pull_check_annotations": "the Merge pane will read it",
+	"pull_preview":           "no placeholder pane has a preview box yet",
+}
 
 // foldedContexts are the contexts whose keys help lists in the layer of
 // another, because one widget holds both: the keys of a picker in normal
@@ -953,7 +955,7 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithReferences(keyRefs{})),
+			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
@@ -1073,20 +1075,14 @@ func keyContexts() []keyContext {
 		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.toggle", "picker_normal.insert"}, context: "picker", want: "always, picker (types)"},
 		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "confirm", want: "always, confirm"},
-		{name: "pull request: overview", repo: true, steps: []string{"global.pane_2", "global.select"}, after: []string{"pull_overview.half_page_down"}, context: "pull_overview", want: "global, pull_modal, pull_overview"},
-		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select", "global.next_tab", "global.next_tab"}, after: []string{"pull_conversation.half_page_down"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
-		{name: "pull request: references", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.references"}, context: "references", want: "global, references"},
-		{name: "pull request: references filter", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "pull request: references over checks", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.checks", "pull_modal.references"}, context: "references", want: "global, references"},
-		{name: "pull request: close", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.close"}, context: "confirm", want: "always, confirm"},
-		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.next_tab", "global.pane_1"}, after: []string{"pull_files.down"}, context: "pull_files", want: "global, pull_modal, pull_files"},
-		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.next_tab"}, after: []string{"pull_diff.half_page_down", "pull_diff.right"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
-		{name: "pull request: checks tab", repo: true, steps: []string{"global.pane_2", "global.select", "pull_modal.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
-		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_check_list", want: "global, pull_modal, pull_check_list"},
-		{name: "pull request: job", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select"}, after: []string{"pull_check_log.half_page_down", "pull_check_log.right"}, context: "pull_check_log", want: "global, pull_modal, pull_check_log"},
-		{name: "pull request: check detail", repo: true, steps: []string{"global.pane_2", "pulls.checks", "pull_check_list.down", "global.select"}, after: []string{"pull_check_detail.half_page_down", "pull_check_detail.right"}, context: "pull_check_detail", want: "global, pull_modal, pull_check_detail"},
-		{name: "pull request: annotations", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.annotations"}, context: "pull_check_annotations", want: "global, pull_modal, pull_check_annotations"},
-		{name: "pull request: job search", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
+		{name: "pull request: description", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1"}, context: "pull_description", want: "global, pull_modal, pull_description"},
+		{name: "pull request: merge", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_3"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
+		{name: "pull request: involved", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_4"}, context: "pull_involved", want: "global, pull_modal, pull_involved"},
+		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},
+		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6"}, context: "pull_files", want: "global, pull_modal, pull_files"},
+		{name: "pull request: zoomed", repo: true, steps: []string{"global.pane_2", "global.select", "global.zoom"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
+		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
@@ -1109,7 +1105,6 @@ func keyContexts() []keyContext {
 		{name: "actions: jobs", repo: true, steps: []string{"repo.actions", "global.next_pane"}, context: "actions_jobs", want: "global, actions, actions_jobs"},
 		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions, actions_log"},
 		{name: "actions: log option", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.option"}, context: "log_option", want: "always, log_option"},
-		{name: "pull request: job option", repo: true, steps: []string{"global.pane_2", "pulls.checks", "global.select", "pull_check_log.option"}, context: "log_option", want: "always, log_option"},
 		{name: "actions: annotations", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.annotations"}, context: "actions_annotations", want: "global, actions, actions_annotations"},
 		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.next_pane", "actions_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions_runs.filter"}, context: "actions_filter", want: "global, actions_filter"},
@@ -1125,6 +1120,29 @@ func keyContexts() []keyContext {
 // reserved are the actions of default.yaml that nothing reads yet, each
 // with its reason.
 var reserved = map[string]string{}
+
+// reservedContexts are the contexts of default.yaml whose actions nothing
+// reads yet, each with its reason.
+var reservedContexts = map[string]string{
+	"composer":               "the composer's context is opened by no screen yet",
+	"pull_check_annotations": "read by the modal with tabs, which no screen opens now",
+	"pull_check_detail":      "read by the modal with tabs, which no screen opens now",
+	"pull_check_list":        "read by the modal with tabs, which no screen opens now",
+	"pull_check_log":         "read by the modal with tabs, which no screen opens now",
+	"pull_conversation":      "the panes read them once those panes land",
+	"pull_files":             "the panes read them once those panes land",
+}
+
+// reservedReason is the reason an action is reserved, by its name or by its
+// context.
+func reservedReason(action string) (string, bool) {
+	if why, ok := reserved[action]; ok {
+		return why, true
+	}
+	ctx, _, _ := strings.Cut(action, ".")
+	why, ok := reservedContexts[ctx]
+	return why, ok
+}
 
 // TestEveryActionRead checks that the code reads every action of
 // default.yaml, and only those: walking every state of keyContexts, which
@@ -1168,7 +1186,7 @@ func TestEveryActionRead(t *testing.T) {
 	known := map[string]bool{}
 	for _, action := range config.Default().Keys.Actions() {
 		known[action] = true
-		if _, ok := reserved[action]; ok {
+		if _, ok := reservedReason(action); ok {
 			if read[action] {
 				t.Errorf("the code reads %s, which is no longer reserved; remove it from reserved", action)
 			}
@@ -1244,7 +1262,7 @@ func TestBindingsHavePaths(t *testing.T) {
 	// they were made for: those of a picker in normal mode, one that
 	// merges two actions, the prompt of a search, and the keys of the log
 	// that the annotations show.
-	for _, a := range []string{"picker_normal.insert", "global.pane_1", "global.dismiss", "global.quit", "search_prompt.run", "pull_check_log.right"} {
+	for _, a := range []string{"picker_normal.insert", "global.pane_1", "global.dismiss", "global.quit", "search_prompt.run"} {
 		if !seen[a] {
 			t.Errorf("no binding of a state is known by %s", a)
 		}

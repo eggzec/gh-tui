@@ -53,31 +53,6 @@ func TestSyncWaitsForStart(t *testing.T) {
 	}
 }
 
-func TestSyncRefreshesDetail(t *testing.T) {
-	svc := newFakeService()
-	s := started(t, svc, 80, 20)
-	press(t, s, "enter")
-	commentReads := func() int {
-		svc.mu.Lock()
-		defer svc.mu.Unlock()
-		return len(svc.comments)
-	}
-	lists, gets, comments := len(svc.listed()), len(svc.got()), commentReads()
-	drain(t, s, s.Update(ui.SyncMsg{Key: pulls.SyncKey(repo)}))
-	if s.modal() == nil {
-		t.Fatal("sync closed the modal")
-	}
-	if got := len(svc.got()); got != gets+1 {
-		t.Errorf("got the detail %d times, want %d", got, gets+1)
-	}
-	if got := commentReads(); got <= comments {
-		t.Errorf("comments read %d times, want more than %d", got, comments)
-	}
-	if got := len(svc.listed()); got != lists+1 {
-		t.Errorf("listed %d times, want %d, so the list is current on the way back", got, lists+1)
-	}
-}
-
 // A modal's change reloads the list of its repository, however either
 // spells it.
 func TestChangedReloads(t *testing.T) {

@@ -37,7 +37,7 @@ const (
 	// of the screen, or of a modal with panes.
 	ActionNextPane = "global.next_pane"
 	ActionPrevPane = "global.prev_pane"
-	// ActionPane1 to ActionPane5 focus the pane with that number on the
+	// ActionPane1 to ActionPane6 focus the pane with that number on the
 	// screen: files, pull requests and issues on the repository screen,
 	// and pinned, repositories, work, contributions and notifications on
 	// the dashboard.
@@ -46,6 +46,7 @@ const (
 	ActionPane3 = "global.pane_3"
 	ActionPane4 = "global.pane_4"
 	ActionPane5 = "global.pane_5"
+	ActionPane6 = "global.pane_6"
 	// ActionNextTab and ActionPrevTab switch between the tabs of the
 	// focused pane or modal, such as All, Failing, Running and Mine of the
 	// Actions modal, the states of the pull requests and the issues, the

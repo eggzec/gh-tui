@@ -19,22 +19,18 @@ func TestStateGlyphs(t *testing.T) {
 		state core.State
 		draft bool
 		row   string
-		badge string
 	}{
-		{core.StateOpen, false, "O #1 ", " O Open "},
-		{core.StateOpen, true, "D #1 ", " D Draft "},
-		{core.StateMerged, false, "M #1 ", " M Merged "},
-		{core.StateClosed, false, "X #1 ", " X Closed "},
+		{core.StateOpen, false, "O #1 "},
+		{core.StateOpen, true, "D #1 "},
+		{core.StateMerged, false, "M #1 "},
+		{core.StateClosed, false, "X #1 "},
 		// A closed draft was declined all the same.
-		{core.StateClosed, true, "X #1 ", " X Closed "},
+		{core.StateClosed, true, "X #1 "},
 	} {
 		pr := core.PullRequest{Draft: tt.draft}
 		pr.Number, pr.Title, pr.State = 1, "T", tt.state
 		if row := ansi.Strip(s.renderRow(pr, false, 100)); !strings.HasPrefix(row, tt.row) {
 			t.Errorf("%s draft %v: row = %q, want it to start with %q", tt.state, tt.draft, row, tt.row)
-		}
-		if badge := ansi.Strip(s.st.badge(pr)); badge != tt.badge {
-			t.Errorf("%s draft %v: badge = %q, want %q", tt.state, tt.draft, badge, tt.badge)
 		}
 	}
 }
@@ -112,12 +108,13 @@ func TestRowASCII(t *testing.T) {
 	}
 }
 
-// With the ASCII icons the detail header is ASCII apart from what GitHub
-// wrote: the state, the separators, the arrow, the signs and the rule.
+// With the ASCII icons the modal's header is ASCII apart from what GitHub
+// wrote: the state, the separator and the ellipsis.
 func TestDetailHeaderASCII(t *testing.T) {
 	s := started(t, newFakeService(), 120, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "enter")
-	if v := ansi.Strip(s.modal().detailHeader(120)); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+	s.modal().SetSize(120, 30)
+	if v := ansi.Strip(s.modal().header()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 		t.Errorf("header isn't ASCII:\n%s", v)
 	}
 }

@@ -513,7 +513,7 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 			}
 			return ""
 		}},
-		{name: "pull request question", repo: true, keys: []string{"2", "enter", "X"}, check: func(m *Model) string {
+		{name: "issue question", repo: true, keys: []string{"3", "enter", "X"}, check: func(m *Model) string {
 			if got := layerNames(m.keyLayers()); m.screen != repoScreen || got != "always, confirm" {
 				return "the question went away: the keys reach " + got
 			}

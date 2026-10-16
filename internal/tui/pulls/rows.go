@@ -105,15 +105,11 @@ type styles struct {
 	checksOK, checksFail, checksPending string
 
 	repo, filterOn, filterOff, sep lipgloss.Style
-	// sepLine draws the rule between the tree and the diff of the Files tab.
-	sepLine lipgloss.Style
-	empty   lipgloss.Style
+	empty                          lipgloss.Style
 
 	// The detail header and the comments.
 	added, deleted, label, rule, commenter lipgloss.Style
 	bar                                    string
-	// fresh tags what arrived since the last visit.
-	fresh lipgloss.Style
 }
 
 // stateNames name the states of pull requests in the detail header.
@@ -154,7 +150,6 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		filterOn:      t.Accent.Bold(true),
 		filterOff:     t.Subtle,
 		sep:           t.Subtle,
-		sepLine:       lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border)),
 		empty:         t.Muted,
 		added:         t.Success,
 		deleted:       t.Error,
@@ -162,7 +157,6 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		rule:          t.Subtle,
 		commenter:     t.Title,
 		bar:           t.Subtle.Render(icons.Border.Left + " "),
-		fresh:         t.Accent.Bold(true),
 	}
 }
 
@@ -442,53 +436,4 @@ func (s *Section) emptyText() string {
 // selection on it.
 func pullKey(pr core.PullRequest) string {
 	return strconv.Itoa(pr.Number)
-}
-
-// badge returns the state badge of pr.
-func (st *styles) badge(pr core.PullRequest) string {
-	return st.badges[ui.PullState(pr.State, pr.Draft)]
-}
-
-// reviewText spells out the review decision, or returns "" when reviews
-// aren't required.
-func (st *styles) reviewText(d core.ReviewDecision) string {
-	switch d {
-	case core.ReviewApproved:
-		return st.approved + st.author.Render(" approved")
-	case core.ReviewChangesRequested:
-		return st.changes + st.author.Render(" changes requested")
-	case core.ReviewRequired:
-		return st.reviewRequired + st.author.Render(" review required")
-	default:
-		return ""
-	}
-}
-
-// checksSummary counts the checks of d by outcome, or names the overall
-// state when the counts aren't known. It returns "" without checks.
-func (st *styles) checksSummary(d *core.PullRequestDetail) string {
-	c := d.CheckCounts
-	if c.Total() == 0 {
-		switch d.Checks {
-		case core.ChecksSuccess:
-			return st.age.Render("CI  ") + st.checksOK + st.author.Render(" passed")
-		case core.ChecksFailure:
-			return st.age.Render("CI  ") + st.checksFail + st.author.Render(" failing")
-		case core.ChecksPending:
-			return st.age.Render("CI  ") + st.checksPending + st.author.Render(" pending")
-		default:
-			return ""
-		}
-	}
-	parts := make([]string, 0, 3)
-	if c.Failed > 0 {
-		parts = append(parts, st.checksFail+st.author.Render(" "+strconv.Itoa(c.Failed)+" failing"))
-	}
-	if c.Pending > 0 {
-		parts = append(parts, st.checksPending+st.author.Render(" "+strconv.Itoa(c.Pending)+" pending"))
-	}
-	if c.Passed > 0 {
-		parts = append(parts, st.checksOK+st.author.Render(" "+strconv.Itoa(c.Passed)+" passed"))
-	}
-	return st.age.Render("CI  ") + strings.Join(parts, st.sep.Render(", "))
 }

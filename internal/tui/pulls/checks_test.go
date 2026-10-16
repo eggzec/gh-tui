@@ -3,21 +3,15 @@ package pulls
 import (
 	"context"
 	"slices"
-	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
-	"github.com/charmbracelet/x/ansi"
-
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // fakeChecks serves the checks of every pull request, with a failing
@@ -126,66 +120,6 @@ func (f *fakeChecks) RerunFailedJobs(core.RepoRef, int64) *optimistic.Op {
 	return optimistic.New(func(context.Context) error { return nil })
 }
 
-func modalText(h *host) string {
-	return strings.Join(strings.Fields(ansi.Strip(h.modals[len(h.modals)-1].View())), " ")
-}
-
-func TestChecksKeyOnARowOpensTheChecks(t *testing.T) {
-	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
-	press(t, h, "C")
-	m := h.modal()
-	if m == nil || m.number != 142 || m.checks == nil {
-		t.Fatalf("C opened %v, want #142 on its checks", m)
-	}
-	if v := modalText(h); !strings.Contains(v, "Checks ✗ 1 failing, ✓ 1 passed") || !strings.Contains(v, "codecov") {
-		t.Errorf("the modal doesn't show the checks:\n%s", v)
-	}
-	// [ shows the conversation, whose header counts the checks too.
-	press(t, h, "[")
-	if m.tab != conversationTab || h.modal() != m {
-		t.Fatal("[ from the checks didn't show the conversation")
-	}
-	if v := modalText(h); !strings.Contains(v, "CI ✗ 1 failing, ✓ 1 passed · C for details") {
-		t.Errorf("the header doesn't count the checks:\n%s", v)
-	}
-	press(t, h, "C")
-	if m.tab != checksTab {
-		t.Fatal("C in the conversation didn't show the checks")
-	}
-	// esc closes the modal from the checks, at one press.
-	press(t, h, "esc")
-	if h.modal() != nil {
-		t.Error("esc from the checks didn't close the modal")
-	}
-}
-
-func TestOpenPullOnItsChecks(t *testing.T) {
-	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
-	drain(t, h, h.Update(ui.OpenPullMsg{Repo: repo, Number: 135, Checks: true}))
-	if m := h.modal(); m == nil || m.number != 135 || m.checks == nil {
-		t.Fatalf("OpenPullMsg opened %v, want #135 on its checks", m)
-	}
-	// The step's messages go through the modal: enter shows the detail of
-	// the failing check.
-	press(t, h, "enter")
-	if v := modalText(h); !strings.Contains(v, "Coverage fell") {
-		t.Errorf("enter didn't show the check:\n%s", v)
-	}
-}
-
-func TestChecksKeyWithoutChecks(t *testing.T) {
-	h := started(t, newFakeService(), 100, 30)
-	press(t, h, "C")
-	if h.modal() != nil {
-		t.Error("C opened a modal without checks")
-	}
-	press(t, h, "enter")
-	press(t, h, "C")
-	if m := h.modal(); m == nil || m.checks != nil {
-		t.Error("C opened checks in the detail without them")
-	}
-}
-
 var _ ChecksService = (*fakeChecks)(nil)
 
 // readingChecks returns the option that reads only the checks ahead, in
@@ -292,25 +226,6 @@ func TestChecksOfAnotherHeadAreReadAgain(t *testing.T) {
 	})
 }
 
-// TestChecksReadAheadShowInTheModal opens a pull request whose checks
-// were read ahead: the header of its modal counts them at once, without
-// reading them again.
-func TestChecksReadAheadShowInTheModal(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		c := &fakeChecks{}
-		h := started(t, newFakeService(), 100, 40, WithChecks(c), readingChecks(), WithIcons(ui.NewIcons(config.IconsUnicode)))
-		n := len(c.numbers())
-		press(t, h, "enter")
-		h.modal().tab = conversationTab
-		if v := modalText(h); !strings.Contains(v, "CI ✗ 1 failing, ✓ 1 passed") {
-			t.Errorf("the header doesn't count the checks read ahead:\n%s", v)
-		}
-		if got := len(c.numbers()); got != n {
-			t.Errorf("opening the modal read %d more checks, want none", got-n)
-		}
-	})
-}
-
 // TestChecksHeadsApartByRepository switches to another repository whose
 // pull requests have the same numbers: a read ahead of the first one's
 // still in flight doesn't take the head of the other's.
@@ -336,143 +251,4 @@ func TestChecksHeadsApartByRepository(t *testing.T) {
 			t.Error("the checks of the first #142 are read at the head of the other's")
 		}
 	})
-}
-
-// openedOnAJob opens the checks of the first pull request, with the failing
-// check a job, and opens its log.
-func openedOnAJob(t *testing.T) (*host, *detailModal) {
-	t.Helper()
-	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{job: true}), WithIcons(ui.NewIcons(config.IconsUnicode)))
-	press(t, h, "C")
-	m := h.modal()
-	if m == nil || m.checks == nil {
-		t.Fatalf("C opened %v, want the checks", m)
-	}
-	press(t, h, "enter")
-	return h, m
-}
-
-// The keys of the pull request work in the Checks step, which is a pane of
-// it: M asks to merge, and C, the key for the checks that show, does nothing.
-func TestChangeKeysWorkInTheChecks(t *testing.T) {
-	h := started(t, newFakeService(), 100, 30, WithChecks(&fakeChecks{}), WithIcons(ui.NewIcons(config.IconsUnicode)))
-	press(t, h, "C")
-	m := h.modal()
-	press(t, h, "M")
-	if m.ask == nil || !strings.Contains(m.ask.Question, "merge") {
-		t.Fatalf("M in the checks asked %+v, want to merge", m.ask)
-	}
-	if v := modalText(h); !strings.Contains(v, "merge") {
-		t.Errorf("the checks don't show the question:\n%s", v)
-	}
-	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "yes") {
-		t.Errorf("help = %v while the question waits, want its answers", got)
-	}
-	press(t, h, "n")
-	if m.ask != nil || m.checks == nil {
-		t.Fatalf("n left the question %+v and the checks %v, want it answered with the checks shown", m.ask, m.checks)
-	}
-	layers := m.KeyLayers()
-	if len(layers) < 2 || layers[0].Context != "pull_modal" {
-		t.Fatalf("layers = %v, want the modal's first", layers)
-	}
-	if got := uitest.Enabled(layers[:1]); !slices.Equal(got, []string{"merge", "close PR", "convert to draft", "drafts", "next tab", "previous tab", "author"}) {
-		t.Errorf("enabled keys of the modal in the checks = %v, want the changes, the drafts, the tabs and the author", got)
-	}
-	// C does nothing while the checks show.
-	if msgs := press(t, h, "C"); len(msgs) != 0 || m.checks == nil {
-		t.Errorf("C sent %v in the checks, want nothing", msgs)
-	}
-}
-
-// While the step asks, or types a search, the keys of the modal are the
-// step's: M is not a merge.
-func TestChangeKeysYieldToTheStep(t *testing.T) {
-	h, m := openedOnAJob(t)
-	press(t, h, "/")
-	if !m.checks.TakesKeys() {
-		t.Fatal("/ didn't open the search of the log")
-	}
-	if got := m.KeyLayers(); len(got) != 1 || got[0].Context != "search_prompt" {
-		t.Errorf("layers = %v while the search types, want the search's alone", got)
-	}
-	press(t, h, "M")
-	if m.ask != nil {
-		t.Error("M asked to merge while the search of the log types")
-	}
-	press(t, h, "esc")
-	if m.checks.TakesKeys() {
-		t.Fatal("esc left the search open")
-	}
-	press(t, h, "R")
-	if !m.checks.TakesKeys() {
-		t.Fatal("R didn't ask to re-run")
-	}
-	press(t, h, "M")
-	if m.ask != nil {
-		t.Error("M asked to merge while the step asks to re-run")
-	}
-}
-
-// M is typed, not a merge, while the log asks for the name of an option,
-// and X in the checks asks to close the pull request.
-func TestChangeKeysInTheChecksOnOptionAndClose(t *testing.T) {
-	h, m := openedOnAJob(t)
-	press(t, h, "-")
-	if !m.checks.TakesKeys() {
-		t.Fatal("- didn't open the option prompt of the log")
-	}
-	press(t, h, "M")
-	if m.ask != nil {
-		t.Error("M asked to merge while the option prompt of the log is open")
-	}
-	press(t, h, "X")
-	if m.ask == nil || !strings.Contains(m.ask.Question, "Close") {
-		t.Fatalf("X in the checks asked %+v, want to close", m.ask)
-	}
-}
-
-// esc clears the option prompt of the log before it closes the modal.
-func TestEscClearsTheLogOptionPromptThenCloses(t *testing.T) {
-	h, m := openedOnAJob(t)
-	press(t, h, "-")
-	if !m.checks.TakesKeys() {
-		t.Fatal("- didn't open the option prompt of the log")
-	}
-	press(t, h, "esc")
-	if h.modal() != m || m.checks.TakesKeys() {
-		t.Fatal("the first esc didn't just close the option prompt")
-	}
-	press(t, h, "esc")
-	if h.modal() != nil {
-		t.Error("the second esc didn't close the modal")
-	}
-}
-
-// TestReturnedModalReadsAndPollsAgain checks that a modal the app returns to
-// reads its detail again and, kept on the Checks tab, polls again, as it
-// stopped while the other modal was open; and that a modal the app discards
-// polls no more and ignores a return.
-func TestReturnedModalReadsAndPollsAgain(t *testing.T) {
-	w := &watching{}
-	svc := newFakeService()
-	h, m := tabbed(t, svc, &fakeChecks{pending: true}, checks.WithWatch(w.watch), checks.WithTick(0))
-	gets := len(svc.gets)
-	drain(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
-	if len(svc.gets) <= gets {
-		t.Error("the returned modal didn't read its detail again")
-	}
-	press(t, h, "]")
-	m.Hide()
-	drain(t, h, m.Update(ui.ReopenedMsg{Modal: m}))
-	if starts, stops := w.counts(); starts != 2 || stops != 1 {
-		t.Errorf("hidden and returned on the Checks tab: %d starts, %d stops, want 2 and 1", starts, stops)
-	}
-	m.Discard()
-	if starts, stops := w.counts(); starts != stops || m.checks != nil {
-		t.Errorf("discarding left %d starts and %d stops, step open %v", starts, stops, m.checks != nil)
-	}
-	if cmd := m.Update(ui.ReopenedMsg{Modal: m}); cmd != nil {
-		t.Error("a discarded modal acted on its return")
-	}
 }

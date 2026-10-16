@@ -92,11 +92,16 @@ var contexts = []Context{
 	{Name: "owner_calendar", Title: "Contributions", Reach: ReachPane, Parent: "owner"},
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
-	{Name: "pull_overview", Title: "Overview", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_description", Title: "Description", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_merge", Title: "Merge", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_involved", Title: "Involved", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_development", Title: "Development", Reach: ReachPane, Parent: "pull_modal"},
+	// The preview beside or under a pane's list, and an app's check run.
+	{Name: "pull_preview", Title: "Preview", Reach: ReachPane, Parent: "pull_modal"},
+	{Name: "pull_app_check", Title: "App check", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "pull_conversation", Title: "Conversation", Reach: ReachPane, Parent: "pull_modal"},
-	// The panes of the Files tab: the tree of the files changed, and their diff.
+	// The Files pane: the tree of the files changed.
 	{Name: "pull_files", Title: "Changed files", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_diff", Title: "Diff", Reach: ReachPane, Parent: "pull_modal"},
 	// The panes of the Checks step of the pull request.
 	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_modal"},

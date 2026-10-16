@@ -422,8 +422,8 @@ func TestMaximizeView(t *testing.T) {
 }
 
 // With ui.maximized listing the pull request, it opens maximized, and
-// stays so when the checks show in it.
-func TestMaximizeOpensOnTheChecks(t *testing.T) {
+// stays so when it opens on the merge pane, where the checks are.
+func TestMaximizeOpensOnTheMergePane(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		c := keyContext{name: "checks", repo: true}
@@ -436,11 +436,11 @@ func TestMaximizeOpensOnTheChecks(t *testing.T) {
 				driveKeys(t, m, m.key(msg))
 			}
 		}
-		if got := layerNames(m.keyLayers()); got != "global, pull_modal, pull_check_list" {
-			t.Fatalf("layers = %q, want the checks", got)
+		if got := layerNames(m.keyLayers()); got != "global, pull_modal, pull_merge" {
+			t.Fatalf("layers = %q, want the merge pane", got)
 		}
 		if !m.maximized {
-			t.Error("the checks didn't show maximized")
+			t.Error("the merge pane didn't show maximized")
 		}
 	})
 }

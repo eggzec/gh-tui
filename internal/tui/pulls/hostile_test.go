@@ -31,9 +31,6 @@ func TestViewCleansHostilePulls(t *testing.T) {
 		if !strings.Contains(v, "moved") {
 			t.Fatalf("the detail doesn't show the title: %q", v)
 		}
-		if w == 200 && !strings.Contains(v, termtexttest.CleanLogin) {
-			t.Errorf("the detail doesn't show the author cleaned: %q", v)
-		}
 		termtexttest.AssertClean(t, v, w)
 	}
 }
