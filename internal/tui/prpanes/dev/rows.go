@@ -113,13 +113,7 @@ func (b *builder) ident(r core.Reference) string {
 // glyph returns the state of r in its colour, or a dim question mark for an
 // item that couldn't be read.
 func (b *builder) glyph(r core.Reference) string {
-	if r.Problem != "" {
-		return b.st.dim.Render("?")
-	}
-	if r.Target.Kind == core.KindPull {
-		return b.st.state(ui.PullState(r.State, r.Draft))
-	}
-	return b.st.state(ui.IssueState(core.Issue{State: r.State, Reason: r.Reason}))
+	return b.st.ref(r)
 }
 
 // text is the text after the glyph: the name, and the title or what stopped it

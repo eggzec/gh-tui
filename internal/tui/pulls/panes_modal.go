@@ -108,6 +108,8 @@ type panesModal struct {
 	cancel context.CancelFunc
 	resume func()
 	closed bool
+	// now is the clock that ages are told from, or nil for the time.
+	now func() time.Time
 
 	width, height int
 	theme         ui.Theme
@@ -157,6 +159,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		icons:    s.icons,
 		dates:    s.dates,
 		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
+		now:      s.now,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -273,7 +276,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.rangeRead(msg)
 		return nil
 	case devLinksMsg:
-		m.receiveDev(msg)
+		return m.receiveDev(msg)
+	case devPreviewMsg:
+		m.receivePreview(msg)
 		return nil
 	case reviewedMsg:
 		return m.reviewed(msg)
@@ -335,7 +340,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		cmd := m.press(msg)
 		m.syncConvFocus()
 		m.follow()
-		return cmd
+		return tea.Batch(cmd, m.loadPreview())
 	case tea.PasteMsg:
 		if m.top() != nil {
 			return m.pressOverlay(msg)

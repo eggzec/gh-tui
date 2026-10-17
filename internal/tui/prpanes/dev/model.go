@@ -1,6 +1,7 @@
 package dev
 
 import (
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -126,6 +127,33 @@ func (m Model) Selected() (Item, bool) {
 	it, ok := m.items[id]
 	return it, ok
 }
+
+// Hovered names what the row under the cursor has to preview: id is
+// "issue:" or "pull:" and the key of the item, or the ID of a header, so that a
+// blocker shares the preview of the issue it is. title is the text of the
+// preview's frame. ok is false for a row with nothing to preview, such as a
+// note.
+func (m Model) Hovered() (id, title string, it Item, ok bool) {
+	it, ok = m.Selected()
+	if !ok {
+		return "", "", Item{}, false
+	}
+	n := strconv.Itoa(it.Ref.Target.Number)
+	switch it.Kind {
+	case Header:
+		sel, _ := m.tree.Selected()
+		return sel, it.Title, it, true
+	case Issue, Blocker:
+		return "issue:" + core.RefKey(it.Ref.Target), "Issue #" + n, it, true
+	case Pull:
+		return "pull:" + core.RefKey(it.Ref.Target), "Pull request #" + n, it, true
+	case More, None:
+	}
+	return "", "", Item{}, false
+}
+
+// Links are the links the pane shows.
+func (m Model) Links() core.PullLinks { return m.links }
 
 // Item returns what the row with the identity id stands for.
 func (m Model) Item(id string) (Item, bool) {
