@@ -21,6 +21,10 @@ type Source struct {
 	Timeline       func(ctx context.Context, cursor string) (core.Page[core.TimelineItem], error)
 	CachedThreads  func(cursor string) (core.ThreadPage, bool)
 	Threads        func(ctx context.Context, cursor string) (core.ThreadPage, error)
+	// CachedCommits and Commits read the commits of the pull request, whose
+	// checks mark the commits of a push. Without them a commit shows no icon.
+	CachedCommits func() (core.PullCommits, bool)
+	Commits       func(ctx context.Context) (core.PullCommits, error)
 }
 
 // which names one of the two sources of a conversation.
@@ -218,7 +222,8 @@ func (m Model) reload() (Model, tea.Cmd) {
 	for i := range m.feeds {
 		m.feeds[i].done, m.feeds[i].err = false, nil
 	}
+	m.commitsErr = nil
 	m.version++
 	m.sync()
-	return m, tea.Batch(m.readCmd(timeline, "", true), m.readCmd(threads, "", true))
+	return m, tea.Batch(m.readCmd(timeline, "", true), m.readCmd(threads, "", true), m.readCommitsCmd())
 }

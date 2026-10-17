@@ -107,7 +107,7 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 		}
 	}
 	o := m.opts
-	o.Width, o.Viewer, o.hide, o.order = m.width, m.viewer, m.hide(), m.order
+	o.Width, o.Viewer, o.hide, o.order, o.checks = m.width, m.viewer, m.hide(), m.order, m.checks
 	d := m.dataOf()
 	if v.narrowed {
 		d, o.preview = v.narrow.filter(d), true

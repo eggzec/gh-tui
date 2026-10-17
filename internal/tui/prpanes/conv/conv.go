@@ -65,6 +65,9 @@ type Options struct {
 	hide [NumGroups]bool
 	// order is how the top level is sorted; a preview keeps the timeline's.
 	order Order
+	// checks is the state of the checks of each commit, by its OID in lower
+	// case; a commit that is not in it shows no icon.
+	checks map[string]core.CheckState
 
 	// preview draws a narrowed view: each comment is a row of its own, with no
 	// run, and a review is open.
