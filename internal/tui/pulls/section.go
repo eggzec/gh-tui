@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -194,6 +195,9 @@ type Section struct {
 	// dates tell when the pull requests were updated, in the rows and
 	// the modal.
 	dates ui.Dates
+	// convOpt sets the kinds of events that the Conversation pane shows when
+	// it opens, as ui.conversation.filter says; nil shows every kind.
+	convOpt conv.Option
 	// avatars draws the authors' avatars in the comments of the modal.
 	avatars *ui.Images
 	cols    columns
@@ -265,6 +269,12 @@ func WithIcons(icons ui.Icons) Option {
 // as ages.
 func WithDates(d ui.Dates) Option {
 	return func(s *Section) { s.dates = d }
+}
+
+// WithConversation sets which kinds of events the Conversation pane shows when
+// it opens, as ui.conversation.filter in c says. Without it, every kind.
+func WithConversation(c config.Config) Option {
+	return func(s *Section) { s.convOpt = conv.Configure(c) }
 }
 
 // WithAvatars draws the avatars of the authors of comments with a.
