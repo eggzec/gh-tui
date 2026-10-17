@@ -23,8 +23,8 @@ const sep = " · "
 
 // Title is the title of the diff: "Diff · label · path (i/n) · view · P%", or
 // "Whole patch · ..." in the whole patch, where path is the file under the
-// cursor. i and n are the file's place in tree order and pct the cursor's
-// position in percent. The title never gets wider than width: a long path is
+// cursor. i and n are the file's place in tree order, left out when n is 0, and
+// pct the cursor's position in percent. The title never gets wider than width: a long path is
 // cut in the middle with "…", and the rest is cut at the end only when even
 // that doesn't fit.
 func Title(m Mode, label, path string, i, n int, view string, pct, width int) string {
@@ -33,7 +33,12 @@ func Title(m Mode, label, path string, i, n int, view string, pct, width int) st
 		lead = "Whole patch"
 	}
 	head := lead + sep + clean(label) + sep
-	tail := fmt.Sprintf(" (%d/%d)%s%s%s%d%%", i, n, sep, clean(view), sep, min(max(pct, 0), 100))
+	count := ""
+	if n > 0 {
+		// Without the list of files yet read there is no place to give.
+		count = fmt.Sprintf(" (%d/%d)", i, n)
+	}
+	tail := fmt.Sprintf("%s%s%s%s%d%%", count, sep, clean(view), sep, min(max(pct, 0), 100))
 	room := width - ansi.StringWidth(head) - ansi.StringWidth(tail)
 	return ansi.Truncate(head+cutMiddle(clean(path), room)+tail, max(width, 0), "…")
 }

@@ -152,6 +152,9 @@ func (keyPulls) Reviews(context.Context, pullsvc.ReviewsQuery) (core.Page[core.R
 func (keyPulls) Files(context.Context, pullsvc.FilesQuery) (core.Page[core.CommitFile], error) {
 	return core.Page[core.CommitFile]{Items: keyChanged}, nil
 }
+func (keyPulls) CachedFiles(pullsvc.FilesQuery) (core.Page[core.CommitFile], bool) {
+	return core.Page[core.CommitFile]{Items: keyChanged}, true
+}
 func (keyPulls) PendingReview(context.Context, core.RepoRef, int) (core.PendingReview, bool, error) {
 	return core.PendingReview{}, false, nil
 }
@@ -190,10 +193,16 @@ func (keyPulls) MergeTexts(context.Context, core.RepoRef, int) (core.MergeTexts,
 	return core.MergeTexts{}, nil
 }
 func (keyPulls) PullCommits(context.Context, pullsvc.PullCommitsQuery) (core.PullCommits, error) {
-	return core.PullCommits{}, nil
+	return core.PullCommits{Commits: []core.PullCommit{{OID: "def456", Headline: "Match keys by order"}}}, nil
 }
 func (keyPulls) CachedPullCommits(pullsvc.PullCommitsQuery) (core.PullCommits, bool) {
 	return core.PullCommits{}, false
+}
+func (keyPulls) RangeFiles(context.Context, pullsvc.RangeQuery) (core.CompareDetail, error) {
+	return core.CompareDetail{Files: keyChanged}, nil
+}
+func (keyPulls) CachedRange(pullsvc.RangeQuery) (core.CompareDetail, bool) {
+	return core.CompareDetail{}, false
 }
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
@@ -696,6 +705,9 @@ func (c keyContext) reachWith(t *testing.T, edit func(*config.Config)) (*Model, 
 				}
 				msg, _ := keyPress(name)
 				driveKeys(t, m, m.key(msg))
+				// The panes size their rows when they are drawn, as the program
+				// does after each key; a tree that wasn't drawn takes no move.
+				m.View()
 			}
 		}
 	}
@@ -1131,6 +1143,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: involved", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_4"}, context: "pull_involved", want: "global, pull_modal, pull_involved"},
 		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},
 		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6"}, context: "pull_files", want: "global, pull_modal, pull_files"},
+		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6", "pull_files.down", "pull_files.down", "global.select"}, after: []string{"pull_diff.next_file", "pull_diff.next_hunk", "pull_diff.next_hunk"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
 		{name: "pull request: zoomed", repo: true, steps: []string{"global.pane_2", "global.select", "global.zoom"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: preview", repo: true, steps: []string{"global.pane_2", "global.select", "global.maximize", "global.zoom", "global.pane_3", "global.next_pane"}, context: "pull_preview", want: "global, pull_modal, pull_preview"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},

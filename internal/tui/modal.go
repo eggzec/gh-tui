@@ -268,6 +268,15 @@ func (m *Model) toggleMaximized() {
 	m.sizeModal(m.modalSize())
 }
 
+// canMaximize reports whether the maximize key changes what the open modal
+// shows; a modal that doesn't say is taken to change it.
+func (m *Model) canMaximize() bool {
+	if mx, ok := m.modal.(ui.Maximizer); ok {
+		return mx.CanMaximize()
+	}
+	return true
+}
+
 // settleModal asks the open modal, if it waits out resizes, to end the
 // wait that the layout's resize began.
 func (m *Model) settleModal() tea.Cmd {

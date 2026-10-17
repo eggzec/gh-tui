@@ -248,6 +248,12 @@ func (m *panesModal) pressFiles(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	k := f.keys
+	if keymap.Matches(msg, k.tree.Enter) {
+		// A file opens its diff; a folder or a commit is the tree's.
+		if path, ok := m.hoveredFile(); ok {
+			return m.openDiff(path), true
+		}
+	}
 	var cmd tea.Cmd
 	switch {
 	case keymap.Matches(msg, k.all):

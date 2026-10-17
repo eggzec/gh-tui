@@ -13,6 +13,13 @@ type Actor interface {
 	Act(action string) (cmd tea.Cmd, handled bool)
 }
 
+// Maximizer is what a modal implements when its maximize key can have nothing
+// to change, so that the help shows the key off then.
+type Maximizer interface {
+	// CanMaximize reports whether the maximize key changes what is on view.
+	CanMaximize() bool
+}
+
 // ActQuit is the intent of the quit key: what a modal does with it is to
 // close.
 const ActQuit = "quit"

@@ -60,14 +60,19 @@ func (m *panesModal) open(o overlay) {
 // what is below.
 func (m *panesModal) settle() {
 	for len(m.overlays) > 0 && m.top().closed() {
-		m.overlays = m.overlays[:len(m.overlays)-1]
+		m.pop()
 	}
 }
 
-// pop closes the overlay on top.
+// pop closes the overlay on top, and ends the reads it has in flight.
 func (m *panesModal) pop() {
-	if len(m.overlays) > 0 {
-		m.overlays = m.overlays[:len(m.overlays)-1]
+	if len(m.overlays) == 0 {
+		return
+	}
+	o := m.top()
+	m.overlays = m.overlays[:len(m.overlays)-1]
+	if f, ok := o.(interface{ finish() }); ok {
+		f.finish()
 	}
 }
 
@@ -87,6 +92,20 @@ func (m *panesModal) ask(c ui.Confirm) {
 func (m *panesModal) placed() panes.Rect {
 	o := m.overlays[len(m.overlays)-1]
 	return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: o.maximized}, m.width, m.areaHeight())
+}
+
+// CanMaximize implements ui.Maximizer: the key flips a viewer between its
+// place and the whole area, which is no change where the viewer fills the area
+// either way, as on a narrow terminal.
+func (m *panesModal) CanMaximize() bool {
+	if len(m.overlays) == 0 || m.top().kind() != panes.Viewer {
+		return true
+	}
+	o := m.overlays[len(m.overlays)-1]
+	rect := func(maximized bool) panes.Rect {
+		return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: maximized}, m.width, m.areaHeight())
+	}
+	return rect(o.maximized) != rect(!o.maximized)
 }
 
 // areaHeight is the height of the panes' area: the modal without its header
