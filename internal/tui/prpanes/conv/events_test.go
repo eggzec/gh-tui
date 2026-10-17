@@ -36,9 +36,12 @@ func labeled(who core.User, name string, mins int) core.TimelineItem {
 
 // said returns what the system lines of d say, without the icon, the colors
 // and the padding, in the order they are drawn.
-func said(d Data, width int) []string {
+func said(d Data, width int) []string { return saidWith(d, opts(config.IconsASCII, width)) }
+
+// saidWith is said with the options o.
+func saidWith(d Data, o Options) []string {
 	var out []string
-	for _, r := range Build(d, opts(config.IconsASCII, width)) {
+	for _, r := range Build(d, o) {
 		if !strings.HasPrefix(r.ID, "e:") {
 			continue
 		}
@@ -226,6 +229,8 @@ func eventsFixture() Data {
 		it.At = ago(h)
 		return it
 	}
+	unlabeled := ev(core.TimelineUnlabeled, alice, 0)
+	unlabeled.Label = core.Label{Name: "wip", Color: "d73a4a"}
 	team := ev(core.TimelineReviewRequested, alice, 0)
 	team.Subject.Team = "eggzec/core"
 	base := ev(core.TimelineBaseChanged, bert, 0)
@@ -243,6 +248,8 @@ func eventsFixture() Data {
 	return Data{Items: []core.TimelineItem{
 		at(first, 70),
 		at(labeled(alice, "bug", 0), 69),
+		at(labeled(alice, "api", 0), 69),
+		at(unlabeled, 69),
 		at(team, 68),
 		at(rev, 60),
 		at(base, 50),

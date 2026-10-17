@@ -247,6 +247,23 @@ func TestFilterCursorToAncestor(t *testing.T) {
 		d.m.SetShown(allBut(GroupState))
 		onRow(d, "r:R3")
 	})
+	t.Run("a system line that merges goes to the line it merged into", func(t *testing.T) {
+		t.Parallel()
+		items := []core.TimelineItem{comment("0"), labeled(alice, "bug", 0), comment("1"), labeled(alice, "ui", 2)}
+		d := newDriver(t, newFake([][]core.TimelineItem{items}, [][]core.Thread{{}}))
+		d.all()
+		lines := eventRows(d)
+		if len(lines) != 2 {
+			t.Fatalf("system lines = %v, want two", lines)
+		}
+		d.m.views[""].tree.Reveal(lines[1])
+		d.m.SetShown(allBut(GroupComments))
+		merged := eventRows(d)
+		if len(merged) != 1 {
+			t.Fatalf("system lines = %v after comments are hidden, want one", merged)
+		}
+		onRow(d, merged[0])
+	})
 	t.Run("a row that stays keeps the cursor", func(t *testing.T) {
 		t.Parallel()
 		d := newDriver(t, conversation())

@@ -69,6 +69,7 @@ func tree(d Data, o Options) []*node {
 	}
 	attached := make(map[string]bool)
 	seen := make(map[string]int)
+	var lines merger
 	for i := range d.Items {
 		it := &d.Items[i]
 		if !drawn(it) || preview && isEvent(it.Kind) {
@@ -83,12 +84,15 @@ func tree(d Data, o Options) []*node {
 			continue
 		}
 		if isEvent(it.Kind) {
-			flush()
-			n := eventNode(it)
-			n.id = eventID(it, seen)
-			out = append(out, n)
+			n, fresh := lines.event(it)
+			if fresh {
+				flush()
+				n.id = eventID(it, seen)
+				out = append(out, n)
+			}
 			continue
 		}
+		lines.split()
 		if it.Kind == core.TimelineComment {
 			run = append(run, &node{kind: KindComment, id: "c:" + it.ID, item: it})
 			continue

@@ -107,9 +107,44 @@ func (b *builder) eventIcon(k core.TimelineKind) string {
 	return b.st.dim.Render(b.st.icons.Glyph(g))
 }
 
-// eventText says what the events did.
+// eventText says what the events did: the clauses of one verb are told
+// together, and the verbs follow one another in the order they first appear.
 func (b *builder) eventText(events []*core.TimelineItem) string {
-	return b.clause(events[0]).String()
+	var verbs []string
+	objs := make(map[string][]string)
+	for _, it := range events {
+		c := b.clause(it)
+		if _, ok := objs[c.verb]; !ok {
+			verbs = append(verbs, c.verb)
+		}
+		objs[c.verb] = append(objs[c.verb], c.obj)
+	}
+	labels := familyOf(events[0].Kind) == familyLabels
+	parts := make([]string, len(verbs))
+	for i, v := range verbs {
+		parts[i] = clause{v, b.list(objs[v], labels)}.String()
+	}
+	return strings.Join(parts, b.say(" and "))
+}
+
+// list joins the objects of one verb: chips of labels one space apart, the
+// rest with commas and a last "and".
+func (b *builder) list(objs []string, chips bool) string {
+	if chips {
+		return strings.Join(objs, " ")
+	}
+	var s strings.Builder
+	for i, o := range objs {
+		switch {
+		case i == 0:
+		case i == len(objs)-1:
+			s.WriteString(b.say(" and "))
+		default:
+			s.WriteString(b.say(", "))
+		}
+		s.WriteString(o)
+	}
+	return s.String()
 }
 
 // say returns a connecting word of a line, dim.
