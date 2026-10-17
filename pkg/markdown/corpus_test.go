@@ -88,6 +88,10 @@ func TestCorpus(t *testing.T) {
 			for _, w := range []int{36, 76, 116} {
 				out := r.Render(src, w)
 				for i, l := range strings.Split(out, "\n") {
+					// Code stays as wide as it is, for the caller to cut.
+					if strings.HasPrefix(strings.TrimLeft(xansi.Strip(l), " "), unicodeCode) {
+						continue
+					}
 					if lw := xansi.StringWidth(l); lw > w {
 						t.Errorf("%s dark=%v w=%d: line %d is %d wide: %q", name, dark, w, i+1, lw, xansi.Strip(l))
 					}

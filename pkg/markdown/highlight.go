@@ -101,11 +101,12 @@ func (r *Renderer) rowMark(n int) string {
 
 // splice returns lines with the line of each mark replaced by the lines
 // of its part, each after what glamour put before the mark, such as the
-// block's margin, and the heads, where they landed. Code is wrapped at
-// width as glamour wraps code, and a head is cut to one line. An image
-// takes the lines Pictures draws it in, in the room the margin leaves,
-// or else its text, wrapped as code is. It reports false if glamour didn't render
-// each mark as a line of its own, in order.
+// block's margin, and the heads, where they landed. Each line of code
+// follows a dim bar and is never wrapped or cut, however wide, and a head
+// is cut to one line. An image takes the lines Pictures draws it in, in
+// the room the margin leaves, or else its text, wrapped to that room. It
+// reports false if glamour didn't render each mark as a line of its own,
+// in order.
 func (r *Renderer) splice(lines []string, parts []part, width int) (spliced, bool) {
 	out := make([]string, 0, len(lines))
 	var sp spliced
@@ -157,14 +158,13 @@ func (r *Renderer) splice(lines []string, parts []part, width int) (spliced, boo
 			}
 			continue
 		}
+		bar := r.codeBar()
 		for _, c := range p.lines {
-			for w := range strings.SplitSeq(lipgloss.Wrap(c, room, ""), "\n") {
-				if sp.code == nil {
-					sp.code = make(map[int]bool)
-				}
-				sp.code[len(out)] = true
-				out = append(out, xansi.Truncate(prefix+w, width, "")+"\x1b[0m")
+			if sp.code == nil {
+				sp.code = make(map[int]bool)
 			}
+			sp.code[len(out)] = true
+			out = append(out, prefix+bar+c+"\x1b[0m")
 		}
 		if p.body && len(sp.heads) > 0 {
 			sp.heads[len(sp.heads)-1].End = len(out)

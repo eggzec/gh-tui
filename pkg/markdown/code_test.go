@@ -158,9 +158,9 @@ func TestHighlightedBlockInAListEnds(t *testing.T) {
 	}
 }
 
-// Highlighted code is cut at the width, however little room is left,
-// wide characters too.
-func TestHighlightedCodeFitsTheWidth(t *testing.T) {
+// A line of code follows a bar and stays whole, however narrow the width,
+// wide characters too: the caller cuts it to its room.
+func TestCodeIsNeverWrapped(t *testing.T) {
 	r := New(DefaultStyle(true))
 	// A short mark, which glamour doesn't wrap even at a few cells.
 	r.nonce = "m"
@@ -171,13 +171,35 @@ func TestHighlightedCodeFitsTheWidth(t *testing.T) {
 				continue
 			}
 			spliced = true
-			if n := ansi.StringWidth(l); n > w {
-				t.Errorf("line %d at %d cells is %d wide: %q", i+1, w, n, l)
+			if text := strings.TrimSpace(ansi.Strip(l)); text != "▏ 世界 := 1" {
+				t.Errorf("line %d at %d cells is %q", i+1, w, text)
 			}
 		}
 	}
 	if !spliced {
 		t.Error("the code is never highlighted")
+	}
+}
+
+// A long line of code is one line that starts with the bar, wider than the
+// width, and the ASCII glyphs draw the bar with "| ".
+func TestLongCodeLineKeepsOneBar(t *testing.T) {
+	src := "```go\nx := \"" + strings.Repeat("a", 200) + "\"\n```"
+	for _, tc := range []struct {
+		name string
+		g    Glyphs
+		bar  string
+	}{{"unicode", Glyphs{}, "▏ "}, {"ascii", ASCIIGlyphs(), "| "}} {
+		r := New(DefaultStyle(true))
+		r.SetGlyphs(tc.g)
+		lines := strings.Split(r.Render(src, 40), "\n")
+		if len(lines) != 1 {
+			t.Fatalf("%s: %d lines, want 1", tc.name, len(lines))
+		}
+		text := strings.TrimLeft(ansi.Strip(lines[0]), " ")
+		if !strings.HasPrefix(text, tc.bar+"x := ") || ansi.StringWidth(lines[0]) <= 40 {
+			t.Errorf("%s: want the bar %q and a line wider than 40, got %d wide: %q", tc.name, tc.bar, ansi.StringWidth(lines[0]), text)
+		}
 	}
 }
 
