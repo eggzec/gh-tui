@@ -49,6 +49,11 @@ type Service interface {
 	// there, without a request.
 	Threads(ctx context.Context, q pulls.ThreadsQuery) (core.ThreadPage, error)
 	CachedThreads(q pulls.ThreadsQuery) (core.ThreadPage, bool)
+	// Timeline reads a page of the timeline of a pull request, and
+	// CachedTimeline returns one from memory, if it is there, without a
+	// request.
+	Timeline(ctx context.Context, q pulls.TimelineQuery) (core.Page[core.TimelineItem], error)
+	CachedTimeline(q pulls.TimelineQuery) (core.Page[core.TimelineItem], bool)
 	// CurrentGet and CurrentComments report whether Get and Comments
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool
