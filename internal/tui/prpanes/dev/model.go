@@ -9,12 +9,20 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // NewKeyMap returns the keys of the pane, read from its context in keys. Enter
-// is the select key of the global context, never bound here.
+// is the select key of the global context, never bound here. The pane marks
+// nothing, so the tree's mark key stays unbound.
 func NewKeyMap(keys config.Keymap) foldtree.KeyMap {
-	return foldtree.NewKeyMap(ui.Lookup(keys, Context))
+	look := ui.Lookup(keys, Context)
+	return foldtree.NewKeyMap(keymap.Func(func(action string) []string {
+		if action == "mark" {
+			return nil
+		}
+		return look.Of(action)
+	}))
 }
 
 // Model is the pane: a tree of what a pull request links, or a line that says
@@ -26,6 +34,8 @@ type Model struct {
 	links  core.PullLinks
 	loaded bool
 	err    error
+	// rows is the number of rows Build made, with every fold open.
+	rows int
 	// version counts the changes of what View draws.
 	version int
 	width   int
@@ -63,8 +73,12 @@ func (m *Model) SetKeyMap(k foldtree.KeyMap) { m.tree.SetKeyMap(k) }
 
 // SetSize sets the size of the pane in cells.
 func (m *Model) SetSize(width, height int) {
-	m.width, m.height = max(width, 0), max(height, 0)
-	m.tree.SetSize(m.width, m.height)
+	width, height = max(width, 0), max(height, 0)
+	if width == m.width && height == m.height {
+		return
+	}
+	m.width, m.height = width, height
+	m.tree.SetSize(width, height)
 	m.version++
 }
 
@@ -89,10 +103,15 @@ func (m *Model) SetError(err error) {
 // Loaded reports whether the pane has links to show.
 func (m Model) Loaded() bool { return m.loaded }
 
+// Rows is the number of rows the pane has with every fold open, which is how
+// they start, or 0 before it has links.
+func (m Model) Rows() int { return m.rows }
+
 func (m *Model) rebuild() {
 	if m.loaded {
 		r := Build(m.links, m.opts)
 		m.items = r.Items
+		m.rows = len(r.Rows)
 		m.tree.SetRows(r.Rows)
 	}
 	m.version++
@@ -107,6 +126,16 @@ func (m Model) Selected() (Item, bool) {
 	it, ok := m.items[id]
 	return it, ok
 }
+
+// Item returns what the row with the identity id stands for.
+func (m Model) Item(id string) (Item, bool) {
+	it, ok := m.items[id]
+	return it, ok
+}
+
+// Closes is the number of issues the pull request closes, as GitHub counts
+// them, which may be more than the rows show.
+func (m Model) Closes() int { return m.links.ClosesTotal }
 
 // Update moves the cursor and the folds on a key, when the pane has the
 // focus. It returns the message of an enter that the tree leaves to the

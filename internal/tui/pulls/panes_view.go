@@ -44,6 +44,8 @@ type drawKey struct {
 	merge         int
 	conv          int
 	involved      int
+	// dev is the version of the Development pane's tree.
+	dev int
 }
 
 // SetTheme implements ui.Modal.
@@ -60,6 +62,7 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.gen++
 	m.merge.restyle(m)
 	m.restyleConv()
+	m.restyleDev()
 }
 
 // View implements ui.Modal: the header, the panes and the footer.
@@ -90,7 +93,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver}
+	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
