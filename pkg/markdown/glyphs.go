@@ -115,6 +115,14 @@ func (g Glyphs) quoteToken() string { return g.Quote + "\u200b" }
 // codeBar returns the dim bar that goes before each line of code.
 func (r *Renderer) codeBar() string { return "\x1b[2m" + r.glyphs.Code + "\x1b[22m" }
 
+// IsCode reports whether line, one line of rendered text, is a line of fenced
+// code: one that follows the bar of [Glyphs.Code].
+func (r *Renderer) IsCode(line string) bool {
+	// The close of the bar's dim may merge with the style of the code that
+	// follows, so only its start is looked for.
+	return strings.Contains(line, "\x1b[2m"+r.glyphs.Code)
+}
+
 // viewText is what the head of a diagram with a link offers.
 func (g Glyphs) viewText() string { return "View diagram " + g.Link }
 

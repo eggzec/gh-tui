@@ -49,12 +49,39 @@ func (b *builder) render(src string, room int) []string {
 	if out == "" {
 		return nil
 	}
-	lines := strings.Split(out, "\n")
+	lines := b.code(strings.Split(out, "\n"), room)
 	if n := len(lines) - maxBodyLines; n > 0 {
 		lines = append(lines[:maxBodyLines:maxBodyLines],
 			b.st.dim.Render(b.st.Glyphs.Cut+" "+strconv.Itoa(n)+" more lines"))
 	}
 	return lines
+}
+
+// code returns lines cut to room cells, which the lines of code are not
+// wrapped to, and without the blank lines next to a block of code.
+func (b *builder) code(lines []string, room int) []string {
+	isCode := func(l string) bool { return b.o.MD != nil && b.o.MD.IsCode(l) }
+	blank := func(l string) bool { return strings.TrimSpace(ansi.Strip(l)) == "" }
+	out := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); i++ {
+		l := lines[i]
+		if blank(l) {
+			// A run of blank lines goes when code lies at either end of it.
+			j := i
+			for j < len(lines) && blank(lines[j]) {
+				j++
+			}
+			if (len(out) > 0 && isCode(out[len(out)-1])) || (j < len(lines) && isCode(lines[j])) {
+				i = j - 1
+				continue
+			}
+		}
+		if room > 0 && ansi.StringWidth(l) > room {
+			l = ansi.Truncate(l, room, b.st.Glyphs.Cut)
+		}
+		out = append(out, l)
+	}
+	return out
 }
 
 // message returns the lines of a row: prefix, then body, whose first line
