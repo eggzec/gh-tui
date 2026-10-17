@@ -1089,6 +1089,25 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+  # The modal of a pull request: the description. Enter opens and closes
+  # the details block on the cursor's line; expand opens it, or moves into it
+  # when it is open, and collapse closes it, or moves to the summary of the
+  # block the cursor is in.
+  pull_description:
+    up: [up, k]
+    down: [down, j]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    expand: [l]
+    collapse: [h]
+    # The description has no key that opens or closes every block, and the
+    # tree's mark has nothing to mark in it.
+    toggle_all: []
+    mark: []
   # The modal of a pull request: the conversation.
   pull_conversation:
     up: [up, k]
