@@ -110,7 +110,7 @@ func TestChoicesCounts(t *testing.T) {
 	f := newFake(
 		[][]core.TimelineItem{{
 			comment("1"), comment("2"), review("R1", core.ReviewStateCommented),
-			event(core.TimelinePushed), review("RP", core.ReviewStatePending),
+			event("unknown"), review("RP", core.ReviewStatePending),
 		}},
 		[][]core.Thread{{thread("T1", "R1", 1), draft}},
 	)

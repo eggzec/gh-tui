@@ -63,6 +63,8 @@ func lastActivity(n *node) time.Time {
 			return time.Time{}
 		}
 		return lastActivity(n.children[len(n.children)-1])
+	case KindPush:
+		return latestCommit(n)
 	case KindEvent:
 		var t time.Time
 		for _, it := range n.events {
