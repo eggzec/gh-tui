@@ -30,6 +30,10 @@ const (
 	KindRunComment = "run-comment"
 	// KindBlank is the space between two items.
 	KindBlank = "blank"
+	// KindPush is the fold over the commits one author pushed in a row.
+	KindPush = "push"
+	// KindCommit is a commit of a push.
+	KindCommit = "commit"
 )
 
 // Data is what the rows are built from: the timeline in GitHub's order and

@@ -49,7 +49,7 @@ func shape(ns []*node) string {
 
 func TestTree(t *testing.T) {
 	t.Parallel()
-	push := event(core.TimelinePushed)
+	unknown := event("unknown")
 	for _, tc := range []struct {
 		name    string
 		items   []core.TimelineItem
@@ -75,12 +75,12 @@ func TestTree(t *testing.T) {
 		},
 		{
 			"an event that isn't drawn doesn't split a run",
-			[]core.TimelineItem{comment("1"), push, comment("2")}, nil,
+			[]core.TimelineItem{comment("1"), unknown, comment("2")}, nil,
 			"run:1[rc:1 rc:2]",
 		},
 		{
-			"a push alone leaves nothing",
-			[]core.TimelineItem{push, event(core.TimelineForcePushed)}, nil, "",
+			"a kind with no row leaves nothing",
+			[]core.TimelineItem{unknown}, nil, "",
 		},
 		{
 			"an event is a line and splits a run",

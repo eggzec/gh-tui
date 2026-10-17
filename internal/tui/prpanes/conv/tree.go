@@ -18,6 +18,12 @@ type node struct {
 	children []*node
 	// events are the items of an event node, in order; item is the first.
 	events []*core.TimelineItem
+	// author tells the pusher of a push node from the next one; forced marks a
+	// push that follows a force push.
+	author string
+	forced bool
+	// forms are the lines of a push: closed, which is centred, and open.
+	forms [2]string
 }
 
 // pendingID names the review of the drafts that GitHub has no review for.
@@ -27,7 +33,7 @@ const pendingID = "pending"
 // has none doesn't split a run of comments, and the unsubmitted review of
 // the viewer is drawn at the end instead of where it was started.
 func drawn(it *core.TimelineItem) bool {
-	return kept(it) || isEvent(it.Kind)
+	return kept(it) || isEvent(it.Kind) || isPush(it.Kind)
 }
 
 // kept reports whether a narrowed view may show an item: a comment or a
@@ -70,9 +76,19 @@ func tree(d Data, o Options) []*node {
 	attached := make(map[string]bool)
 	seen := make(map[string]int)
 	var lines merger
+	var pushes pushRun
+	// lone puts a force push that no push followed in its place.
+	lone := func(n *node) {
+		if n == nil {
+			return
+		}
+		flush()
+		n.id = eventID(n.item, seen)
+		out = append(out, n)
+	}
 	for i := range d.Items {
 		it := &d.Items[i]
-		if !drawn(it) || preview && isEvent(it.Kind) {
+		if !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {
@@ -83,6 +99,19 @@ func tree(d Data, o Options) []*node {
 		if hidden(it.Kind) {
 			continue
 		}
+		if isPush(it.Kind) {
+			lines.split()
+			if it.Kind == core.TimelineForcePushed {
+				lone(pushes.force(it))
+				continue
+			}
+			if n, fresh := pushes.commit(it); fresh {
+				flush()
+				out = append(out, n)
+			}
+			continue
+		}
+		lone(pushes.end())
 		if isEvent(it.Kind) {
 			n, fresh := lines.event(it)
 			if fresh {
@@ -100,6 +129,7 @@ func tree(d Data, o Options) []*node {
 		flush()
 		out = append(out, &node{kind: KindReview, id: "r:" + it.ID, item: it, children: byReview[it.ID]})
 	}
+	lone(pushes.end())
 	flush()
 	if !preview {
 		sortNodes(out, o.order)

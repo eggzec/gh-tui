@@ -1,6 +1,7 @@
 package conv
 
 import (
+	"slices"
 	"strconv"
 
 	tea "charm.land/bubbletea/v2"
@@ -128,8 +129,42 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 	if reshaped && hadCur {
 		m.keepCursor(v, cur)
 	}
+	// After the cursor moved, since it opens the folds above its row.
+	v.syncForms()
 	if m.built != nil {
 		m.built()
+	}
+}
+
+// syncForms gives each push the line of the form its fold shows: centred
+// closed, at the left open. The rows are copied before one changes, since the
+// tree and the copies of the model share them, and the tree gets them again
+// only when a line changed.
+func (v *view) syncForms() {
+	var rows []foldtree.Row
+	for i, r := range v.rows {
+		if r.Kind != KindPush {
+			continue
+		}
+		n := v.nodes[r.ID]
+		if n == nil {
+			continue
+		}
+		form := 1
+		if v.tree.Folded(r.ID) {
+			form = 0
+		}
+		if r.Lines[0] == n.forms[form] {
+			continue
+		}
+		if rows == nil {
+			rows = slices.Clone(v.rows)
+		}
+		rows[i].Lines = []string{n.forms[form]}
+	}
+	if rows != nil {
+		v.rows = rows
+		v.tree.SetRows(rows)
 	}
 }
 

@@ -271,6 +271,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		v := m.views[m.cur]
 		var cmd tea.Cmd
 		v.tree, cmd = v.tree.Update(msg)
+		v.syncForms()
 		return m, cmd
 	}
 	return m, nil

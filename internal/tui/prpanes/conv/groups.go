@@ -154,10 +154,12 @@ func (m Model) FilterName() string {
 // countOf counts the top-level items of d that have a row, by group: the
 // comments and the submitted reviews, and the review that holds the drafts
 // of the viewer, once. A line of merged events counts once, under the group
-// of its first event.
+// of its first event, and a push, with a force push that no push follows,
+// counts once.
 func countOf(d Data) (c [NumGroups]int) {
 	attached := make(map[string]bool)
 	var lines merger
+	var pushes pushRun
 	for i := range d.Items {
 		it := &d.Items[i]
 		if !drawn(it) {
@@ -165,6 +167,20 @@ func countOf(d Data) (c [NumGroups]int) {
 		}
 		if it.Kind == core.TimelineReview {
 			attached[it.ID] = true
+		}
+		if isPush(it.Kind) {
+			lines.split()
+			if it.Kind == core.TimelineForcePushed {
+				if pushes.force(it) != nil {
+					c[GroupPushes]++
+				}
+			} else if _, fresh := pushes.commit(it); fresh {
+				c[GroupPushes]++
+			}
+			continue
+		}
+		if pushes.end() != nil {
+			c[GroupPushes]++
 		}
 		if isEvent(it.Kind) {
 			if _, fresh := lines.event(it); !fresh {
@@ -176,6 +192,9 @@ func countOf(d Data) (c [NumGroups]int) {
 		if g, ok := groupOf(it.Kind); ok {
 			c[g]++
 		}
+	}
+	if pushes.end() != nil {
+		c[GroupPushes]++
 	}
 	for i := range d.Threads {
 		if t := &d.Threads[i]; len(t.Comments) > 0 && t.Pending && !attached[t.ReviewID] {

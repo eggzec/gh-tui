@@ -20,8 +20,8 @@ import (
 const KindEvent = "event"
 
 // isEvent reports whether k is a kind of event that is drawn as a system
-// line. Comments and reviews have rows of their own, and the pushes are not
-// drawn.
+// line. Comments and reviews have rows of their own, and the pushes are drawn
+// as folds, except for a force push that no push follows.
 func isEvent(k core.TimelineKind) bool {
 	g, ok := groupOf(k)
 	return ok && g != GroupComments && g != GroupReviews && g != GroupPushes
@@ -72,8 +72,12 @@ func (b *builder) event(n *node) foldtree.Row {
 		newest = latest(newest, it.At)
 	}
 	line := b.eventIcon(n.item.Kind) + " " + b.st.who(n.item.Actor, false) + " " + b.eventText(n.events)
+	return b.system(line, b.ageOf(newest), true)
+}
 
-	age := b.ageOf(newest)
+// system lays out a system line: the text centred, or at the left, and the age
+// at the right. A text too long for the room is cut.
+func (b *builder) system(line, age string, centred bool) foldtree.Row {
 	rw := ansi.StringWidth(age)
 	w := b.width - 1
 	room := w - rw - 2
@@ -81,7 +85,7 @@ func (b *builder) event(n *node) foldtree.Row {
 	pad := 0
 	if tw > room {
 		line = ansi.Truncate(line, max(room, 0), b.st.Glyphs.Cut)
-	} else {
+	} else if centred {
 		pad = max(0, min((w-tw)/2, room-tw))
 	}
 	r := foldtree.Row{Lines: []string{strings.Repeat(" ", pad) + line}}
@@ -99,6 +103,8 @@ func (b *builder) eventIcon(k core.TimelineKind) string {
 		g = ui.GlyphLabelEvent
 	case core.TimelineReviewRequested, core.TimelineReviewRequestRemoved, core.TimelineReviewDismissed:
 		g = ui.GlyphReviewEvent
+	case core.TimelineForcePushed:
+		g = ui.GlyphCommit
 	case core.TimelineBaseChanged, core.TimelineHeadDeleted:
 		g = ui.GlyphBranchEvent
 	default:
@@ -220,6 +226,9 @@ func (b *builder) whole(it *core.TimelineItem) string {
 			s += b.say(" into ") + b.keyword(it.Ref, maxName)
 		}
 		return s
+	case core.TimelineForcePushed:
+		return b.say("force-pushed the branch from ") + b.keyword(shortOID(it.From), maxName) +
+			b.say(" to ") + b.keyword(shortOID(it.To), maxName)
 	case core.TimelineLocked:
 		s := b.say("locked the conversation")
 		if it.Ref != "" {
@@ -253,5 +262,8 @@ func shortSHA(c core.TimelineCommit) string {
 	if c.Short != "" {
 		return c.Short
 	}
-	return c.OID[:min(len(c.OID), 7)]
+	return shortOID(c.OID)
 }
+
+// shortOID abbreviates a full SHA to seven characters.
+func shortOID(oid string) string { return oid[:min(len(oid), 7)] }
