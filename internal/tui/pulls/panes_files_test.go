@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -36,7 +37,7 @@ func commitPanes(tb testing.TB, pc core.PullCommits) (*host, *panesModal, *fakeC
 
 // rangePanes is commitPanes with what the service serves set by setup first.
 // The base of the pull requests is "base000".
-func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)) (*host, *panesModal, *fakeService) {
+func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService), opts ...Option) (*host, *panesModal, *fakeService) {
 	tb.Helper()
 	svc := newFakeService()
 	svc.tweaks = map[int]func(*core.PullRequestDetail){}
@@ -48,7 +49,7 @@ func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)
 	if setup != nil {
 		setup(svc)
 	}
-	h := started(tb, svc, 160, 30)
+	h := started(tb, svc, 160, 30, opts...)
 	press(tb, h, "enter")
 	m := h.modal()
 	if m == nil {
@@ -177,6 +178,64 @@ func TestFilesPaneKeysKeepTheStyles(t *testing.T) {
 	}
 	if m.gen != gen {
 		t.Errorf("gen = %d, want %d: keys of the pane don't change the theme or icons", m.gen, gen)
+	}
+}
+
+func TestFilesPaneCommitChecksOpen(t *testing.T) {
+	t.Parallel()
+	pc := sampleCommits(nil)
+	pc.Commits[2].Checks = core.CheckFailing
+	fc := &fakeChecks{}
+	h, m, _ := rangePanes(t, pc, nil, WithChecks(fc))
+	f := &m.files
+	// The commit with checks is a closed fold and asks for nothing yet.
+	f.tree.Reveal(files.CommitID("ccc3333"))
+	modalScreen(t, h)
+	if !f.tree.Folded(files.CommitID("ccc3333")) {
+		t.Fatal("the commit with checks isn't a closed fold")
+	}
+	if len(fc.commits) != 0 {
+		t.Fatalf("read the checks of %v before the commit opened", fc.commits)
+	}
+	press(t, h, "enter")
+	screen := modalScreen(t, h)
+	if len(fc.commits) != 1 || fc.commits[0] != "ccc3333" {
+		t.Fatalf("read the checks of %v, want ccc3333", fc.commits)
+	}
+	if !strings.Contains(screen, "build") {
+		t.Errorf("the checks aren't under the commit:\n%s", screen)
+	}
+	// Enter on its job asks to open the job; on a commit without checks it
+	// does nothing.
+	if len(f.targets) != 1 {
+		t.Fatalf("targets = %v, want the job's", f.targets)
+	}
+	for id := range f.targets {
+		cmd := m.filesMsg(foldtree.EnterMsg{Tree: f.tree.ID(), ID: id})
+		if cmd == nil {
+			t.Fatal("enter on the job did nothing")
+		}
+		if got, want := cmd(), (checktree.OpenJobMsg{SHA: "ccc3333", RunID: 9, JobID: 5}); got != want {
+			t.Errorf("enter on the job sent %v, want %v", got, want)
+		}
+	}
+	if cmd := m.filesMsg(foldtree.EnterMsg{Tree: f.tree.ID(), ID: files.CommitID("aaa1111")}); cmd != nil {
+		t.Error("enter on a commit without checks did something")
+	}
+	// Closing the modal ends the reads.
+	m.Discard()
+}
+
+func TestFilesPaneChecksWithoutService(t *testing.T) {
+	t.Parallel()
+	pc := sampleCommits(nil)
+	pc.Commits[2].Checks = core.CheckFailing
+	h, m, _ := rangePanes(t, pc, nil)
+	m.files.tree.Reveal(files.CommitID("ccc3333"))
+	modalScreen(t, h)
+	press(t, h, "enter")
+	if m.files.tree.Folded(files.CommitID("ccc3333")) {
+		t.Error("a commit opened with no checks service")
 	}
 }
 

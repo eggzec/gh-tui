@@ -30,6 +30,8 @@ type fakeChecks struct {
 	job bool
 	// pending adds a check that is still running, which the step polls.
 	pending bool
+	// commits are the SHAs whose checks were read as a commit's.
+	commits []string
 }
 
 // numbers returns the numbers whose checks were read, in order.
@@ -115,6 +117,27 @@ func (f *fakeChecks) CachedAnnotations(actionssvc.AnnotationsQuery) (core.Page[c
 func (f *fakeChecks) Annotations(context.Context, actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
 	return core.Page[core.Annotation]{}, nil
 }
+
+// commitChecks returns the checks of a commit: one failing job of GitHub
+// Actions.
+func (f *fakeChecks) commitChecks(sha string) core.CommitChecks {
+	return core.CommitChecks{SHA: sha, Total: 1, Runs: []core.CommitCheck{{
+		ID: 5, JobID: 5, RunID: 9, Name: "build", Workflow: "CI", RunNumber: 1,
+		Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
+	}}}
+}
+
+func (f *fakeChecks) CachedCommitChecks(actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
+	return core.CommitChecks{}, false
+}
+
+func (f *fakeChecks) CommitChecks(_ context.Context, q actionssvc.CommitChecksQuery) (core.CommitChecks, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commits = append(f.commits, q.SHA)
+	return f.commitChecks(q.SHA), nil
+}
+
 func (f *fakeChecks) Invalidate(core.RepoRef) {}
 func (f *fakeChecks) RerunFailedJobs(core.RepoRef, int64) *optimistic.Op {
 	return optimistic.New(func(context.Context) error { return nil })

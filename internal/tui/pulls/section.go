@@ -105,6 +105,11 @@ type ChecksService interface {
 	// FreshChecks reports whether Checks returns the checks of q without
 	// a request. It does no I/O.
 	FreshChecks(q actions.ChecksQuery) bool
+	// CommitChecks reads every check of one commit, which the Files pane opens
+	// under it, and CachedCommitChecks returns them from memory, if they are
+	// there, without a request.
+	CommitChecks(ctx context.Context, q actions.CommitChecksQuery) (core.CommitChecks, error)
+	CachedCommitChecks(q actions.CommitChecksQuery) (core.CommitChecks, bool)
 }
 
 // Section shows the pull requests of the selected repository. Create it with

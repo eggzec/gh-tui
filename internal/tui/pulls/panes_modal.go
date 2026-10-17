@@ -83,6 +83,9 @@ type panesModal struct {
 	// dates tells their ages.
 	files filesPane
 	dates ui.Dates
+	// checks reads the checks of a commit for the Files pane, or is nil
+	// without a checks service.
+	checks ChecksService
 
 	// id names the modal to the messages of its reads.
 	id int64
@@ -145,6 +148,10 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		sendCtx: s.ctx,
 	}
 	m.files = newFilesPane(m.keys.files)
+	if s.checks != nil {
+		m.checks = s.checks
+		m.files.loader = checktree.NewLoader(checkReader{s.checks}, repo)
+	}
 	if onChecks {
 		m.focus = panes.Merge
 	}
@@ -258,7 +265,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.files.read.err != "" {
 			m.files.read.key = ""
 		}
-		return nil
+		return m.checksMsg(msg)
+	case ui.ReopenedMsg:
+		// A modal opened from here, such as a job's, may have changed checks.
+		return m.checksMsg(msg)
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
 		return nil
@@ -274,6 +284,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			return m.pressOverlay(msg)
 		}
 	default:
+		if m.files.loader.Handles(msg) {
+			return m.checksMsg(msg)
+		}
 		// What the overlay on top asked for: the messages of a composer.
 		if m.top() != nil {
 			return m.pressOverlay(msg)
@@ -445,5 +458,6 @@ func (m *panesModal) close() tea.Cmd {
 func (m *panesModal) Discard() {
 	m.closed = true
 	m.cancel()
+	m.files.loader.Stop()
 	m.resume()
 }
