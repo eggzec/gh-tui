@@ -481,6 +481,12 @@ func (keyActions) FreshChecks(actionssvc.ChecksQuery) bool                 { ret
 func (keyActions) Checks(context.Context, actionssvc.ChecksQuery) (core.Checks, error) {
 	return keyChecks(), nil
 }
+func (keyActions) CommitChecks(context.Context, actionssvc.CommitChecksQuery) (core.CommitChecks, error) {
+	return core.CommitChecks{}, nil
+}
+func (keyActions) CachedCommitChecks(actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
+	return core.CommitChecks{}, false
+}
 func (keyActions) Invalidate(core.RepoRef) {}
 
 func keyChecks() core.Checks {

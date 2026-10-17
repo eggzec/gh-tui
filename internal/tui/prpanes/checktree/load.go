@@ -151,6 +151,13 @@ func (l Loader) Update(msg tea.Msg) (Loader, tea.Cmd) {
 	return l, nil
 }
 
+// Handles reports whether msg is the answer to a read of this loader, which
+// changes what [Loader.Rows] returns, so that a caller can draw again only then.
+func (l Loader) Handles(msg tea.Msg) bool {
+	m, ok := msg.(loadedMsg)
+	return ok && m.id == l.id
+}
+
 // Stop ends the reads that are under way, for a loader that is no longer
 // used.
 func (l Loader) Stop() {

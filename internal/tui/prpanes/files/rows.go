@@ -68,6 +68,10 @@ type Data struct {
 	FilesErr string
 	// Truncated is the note that says the list of files is cut short, or "".
 	Truncated string
+	// Children returns the rows that go under the commit oid when its fold is
+	// open, whose top rows are at depth. With Children set, a commit that has
+	// checks is a fold, closed at first; without it, no commit is.
+	Children func(oid string, depth int) []foldtree.Row
 }
 
 // Options are how the rows are drawn.
@@ -115,7 +119,11 @@ func Rows(d Data, o Options) []foldtree.Row {
 		if divided && i == before {
 			rows = append(rows, b.divider())
 		}
-		rows = append(rows, b.commit(c, d.Range.Contains(i)))
+		row := b.commit(c, d.Range.Contains(i), d.Children != nil)
+		rows = append(rows, row)
+		if row.Fold {
+			rows = append(rows, d.Children(c.OID, commitDepth+1)...)
+		}
 	}
 	if d.Commits.Capped {
 		rows = append(rows, foldtree.Row{
@@ -255,8 +263,9 @@ func (b *builder) selection(d Data) string {
 }
 
 // commit is the row of c, whose glyph and SHA are accented while it is in the
-// range.
-func (b *builder) commit(c core.PullCommit, in bool) foldtree.Row {
+// range. It is a fold when checks says that the checks can open under it and c
+// has some.
+func (b *builder) commit(c core.PullCommit, in, checks bool) foldtree.Row {
 	st := b.st
 	glyph, sha := st.out, st.dim.Bold(true).Render(Short(c.OID))
 	subject := st.dim.Render(termtext.OneLine(c.Headline))
@@ -289,6 +298,9 @@ func (b *builder) commit(c core.PullCommit, in bool) foldtree.Row {
 		Kind:  KindCommit,
 		Lines: []string{left},
 		Right: st.dim.Render(strings.TrimSpace(right)),
+		// The checks of a commit open under it, with enter.
+		Fold:   checks && c.Checks != core.CheckNone,
+		Closed: true,
 	}
 }
 

@@ -62,6 +62,22 @@ func run(tb testing.TB, cmd tea.Cmd) tea.Msg {
 	return cmd()
 }
 
+func TestLoaderHandles(t *testing.T) {
+	t.Parallel()
+	l, cmd := NewLoader(&fakeReader{}, repo).Want(sha, false)
+	msg := run(t, cmd)
+	if !l.Handles(msg) {
+		t.Error("the loader doesn't handle the answer to its own read")
+	}
+	other, _ := NewLoader(&fakeReader{}, repo).Want(sha, false)
+	if other.Handles(msg) {
+		t.Error("a loader handles the answer to the read of another")
+	}
+	if l.Handles(ui.OnlineMsg{}) {
+		t.Error("the loader handles a message that isn't an answer")
+	}
+}
+
 func TestLoaderWantReadsOnce(t *testing.T) {
 	t.Parallel()
 	f := &fakeReader{}

@@ -3,7 +3,6 @@ package pulls
 import (
 	"slices"
 	"strconv"
-	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
@@ -101,6 +101,16 @@ type filesPane struct {
 
 	// read is the read of the files of the range.
 	read filesRead
+
+	// loader reads the checks of the commits that are open, and checksVer
+	// counts the changes of what it holds, which the rows show. wanted are the
+	// commits it was asked for, targets what enter on a row of the checks
+	// asks for, and checkStyles draw them, for stylesGen.
+	loader      checktree.Loader
+	checksVer   int
+	wanted      map[string]bool
+	targets     checktree.Targets
+	checkStyles checktree.Styles
 }
 
 // filesBuilt is what the rows of the tree were built from.
@@ -111,8 +121,10 @@ type filesBuilt struct {
 	rng     files.Range
 	folded  bool
 	gen     int
-	// data is the version of the files read.
-	data int
+	// data is the version of the files read, and checks that of the checks
+	// of the commits.
+	data   int
+	checks int
 }
 
 // filesCommitsMsg carries the commits of a pull request at a head to the modal
@@ -197,6 +209,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 	in := b.Rect.Inner()
 	if f.stylesGen != m.gen {
 		f.styles = files.NewStyles(m.theme, m.icons, m.icons.Set())
+		f.checkStyles = checktree.NewStyles(m.theme, m.icons, m.icons.Set())
 		f.tree.SetStyles(foldtree.DefaultStyles(m.theme.Dark))
 		f.stylesGen = m.gen
 	}
@@ -205,15 +218,9 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 		// The commits start folded; the tree keeps the user's folds after.
 		folded = true
 	}
-	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen, f.read.version}
+	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen, f.read.version, f.checksVer}
 	if f.built != want {
-		f.tree.SetRows(files.Rows(m.filesData(), files.Options{
-			Width:  in.W,
-			Styles: f.styles,
-			Dates:  m.dates,
-			Now:    time.Now(),
-			Folded: folded,
-		}))
+		f.tree.SetRows(m.filesRows(in.W, folded))
 		f.built = want
 	}
 	m.revealFound()
@@ -255,6 +262,8 @@ func (m *panesModal) pressFiles(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			// The tree's messages come at once, as the reply to the key.
 			cmd = m.filesMsg(t())
 		}
+		// A commit may have opened.
+		cmd = tea.Batch(cmd, m.wantChecks())
 	default:
 		return nil, false
 	}
@@ -308,6 +317,12 @@ func (m *panesModal) filesMsg(msg tea.Msg) tea.Cmd {
 		if msg.Tree == f.tree.ID() {
 			return m.hint(files.HintNotACommit)
 		}
+	case foldtree.EnterMsg:
+		// Enter on a job or check of a commit opens it; on a file or a commit
+		// without checks it does nothing.
+		if target := f.targets[msg.ID]; msg.Tree == f.tree.ID() && target != nil {
+			return func() tea.Msg { return target }
+		}
 	}
 	return nil
 }
@@ -327,7 +342,7 @@ func (m *panesModal) showCommit(oid string) {
 	f.tree.SetFolded(files.IDCommits, false)
 	// The rows are built again before the tree can be asked for the commit.
 	f.built.ok = false
-	f.tree.SetRows(files.Rows(m.filesData(), files.Options{Width: max(f.built.width, 40), Styles: f.styles, Dates: m.dates, Now: time.Now()}))
+	f.tree.SetRows(m.filesRows(max(f.built.width, 40), false))
 	f.tree.Reveal(files.CommitID(oid))
 	f.seq++
 }

@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -162,6 +163,42 @@ func TestRowsFilesGolden(t *testing.T) {
 			}
 			golden.RequireEqual(t, sb.String())
 		})
+	}
+}
+
+func TestCommitChecksFolds(t *testing.T) {
+	t.Parallel()
+	d := Data{Commits: pull(4), Range: All(4)}
+	for _, r := range Rows(d, opts(config.IconsNerd, 80)) {
+		if r.Fold && r.ID != IDCommits && r.ID != IDFiles {
+			t.Errorf("commit row %q is a fold with no way to read its checks", r.ID)
+		}
+	}
+	var depths []int
+	d.Children = func(oid string, depth int) []foldtree.Row {
+		depths = append(depths, depth)
+		return []foldtree.Row{{ID: "child/" + oid, Depth: depth}}
+	}
+	got := ids(Rows(d, opts(config.IconsNerd, 80)))
+	var folds, kids int
+	for i, r := range d.Commits.Commits {
+		if r.Checks == core.CheckNone {
+			continue
+		}
+		folds++
+		at := slices.Index(got, CommitID(r.OID))
+		if at < 0 || at+1 >= len(got) || got[at+1] != "child/"+r.OID {
+			t.Errorf("commit %d has no children after it in %v", i, got)
+		}
+		kids++
+	}
+	if len(depths) != folds || folds == 0 || kids != folds {
+		t.Errorf("children asked for %d commits, want %d", len(depths), folds)
+	}
+	for _, depth := range depths {
+		if depth != commitDepth+1 {
+			t.Errorf("children at depth %d, want %d", depth, commitDepth+1)
+		}
 	}
 }
 
