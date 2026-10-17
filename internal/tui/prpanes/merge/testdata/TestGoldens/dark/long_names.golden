@@ -1,0 +1,68 @@
+== width 40 ==
+[1mfeature/a-very-long-branch-name-a-very-…[m[38;2;107;114;133m[m[1m[m
+[38;2;92;99;112m▌[m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m Checks failing[38;2;107;114;133m 2[m[38;2;107;114;133m · 2 running[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▶[m ]8;;https://github.com/o/r/actions/runs/1\CI]8;;\[38;2;107;114;133m #12[m             [38;2;107;114;133m2 of 3 jobs[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m├─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\             [38;2;107;114;133mfailed · 1m 5s[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\             [38;2;107;114;133mrunning · 12s[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▣[m Codecov                 [38;2;107;114;133mfailed[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/runs/coverage\coverage]8;;\           [38;2;107;114;133mfailed · 30s[m
+ [38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m [38;2;107;114;133m•[m ]8;;https://ci.example.com/ci/jenkins\ci/jenkins]8;;\    [38;2;107;114;133mci/jenkins pending[m
+ [38;2;210;153;34m?[m Review required: Platform infrastruc…
+ [38;2;248;81;73m✗[m Changes requested: Carol Maria Alexa…
+ [38;2;248;81;73m✗[m Changes requested: Frank
+ [38;2;248;81;73m⊘[m Conflicts with release/long-base-lon…
+ [38;2;248;81;73m⊘[m Branch is 3 commits behind release/l…
+ [38;2;248;81;73m⊘[m Draft
+[38;2;107;114;133m─────[m
+Merge [38;2;107;114;133mM[m[38;2;107;114;133m · [mUpdate [38;2;107;114;133mU[m
+== width 54 ==
+[1mfeature/a-very-long-branch-name-a-very-long-branch-na…[m[38;2;107;114;133m[m[1m[m
+[38;2;92;99;112m▌[m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m Checks failing[38;2;107;114;133m 2[m[38;2;107;114;133m · 2 running[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▶[m ]8;;https://github.com/o/r/actions/runs/1\CI]8;;\[38;2;107;114;133m #12[m                           [38;2;107;114;133m2 of 3 jobs[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m├─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\                           [38;2;107;114;133mfailed · 1m 5s[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\                           [38;2;107;114;133mrunning · 12s[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▣[m Codecov                               [38;2;107;114;133mfailed[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/runs/coverage\coverage]8;;\                         [38;2;107;114;133mfailed · 30s[m
+ [38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m [38;2;107;114;133m•[m ]8;;https://ci.example.com/ci/jenkins\ci/jenkins]8;;\                  [38;2;107;114;133mci/jenkins pending[m
+ [38;2;210;153;34m?[m Review required: Platform infrastructure team, Fro…
+ [38;2;248;81;73m✗[m Changes requested: Carol Maria Alexandra Diaz-Fern…
+ [38;2;248;81;73m✗[m Changes requested: Frank
+ [38;2;248;81;73m⊘[m Conflicts with release/long-base-long-base-long-ba…
+ [38;2;248;81;73m⊘[m Branch is 3 commits behind release/long-base-long-…
+ [38;2;248;81;73m⊘[m Draft
+[38;2;107;114;133m─────[m
+Merge (squash) [38;2;107;114;133mM[m[38;2;107;114;133m · [mUpdate branch [38;2;107;114;133mU[m
+== width 80 ==
+[1mfeature/a-very-long-branch-name-a-very-long-branch-name-a-very-long-branch-name…[m[38;2;107;114;133m[m[1m[m
+[38;2;92;99;112m▌[m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m Checks failing[38;2;107;114;133m 2[m[38;2;107;114;133m · 2 running[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▶[m ]8;;https://github.com/o/r/actions/runs/1\CI]8;;\[38;2;107;114;133m #12[m                                                     [38;2;107;114;133m2 of 3 jobs[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m├─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\                                                     [38;2;107;114;133mfailed · 1m 5s[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\                                                     [38;2;107;114;133mrunning · 12s[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▣[m Codecov                                                         [38;2;107;114;133mfailed[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/runs/coverage\coverage]8;;\                                                   [38;2;107;114;133mfailed · 30s[m
+ [38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m [38;2;107;114;133m•[m ]8;;https://ci.example.com/ci/jenkins\ci/jenkins]8;;\                                            [38;2;107;114;133mci/jenkins pending[m
+ [38;2;210;153;34m?[m Review required: Platform infrastructure team, Frontend guild
+ [38;2;248;81;73m✗[m Changes requested: Carol Maria Alexandra Diaz-Fernandez de la Cruz
+ [38;2;248;81;73m✗[m Changes requested: Frank
+ [38;2;248;81;73m⊘[m Conflicts with release/long-base-long-base-long-base-long-base-long-base-
+ [38;2;248;81;73m⊘[m Branch is 3 commits behind release/long-base-long-base-long-base-long-base-l…
+ [38;2;248;81;73m⊘[m Draft
+[38;2;107;114;133m─────[m
+Merge (squash) [38;2;107;114;133mM[m[38;2;107;114;133m · [mUpdate branch [38;2;107;114;133mU[m
+== width 120 ==
+[1mfeature/a-very-long-branch-name-a-very-long-branch-name-a-very-long-branch-name-a-very-long-branch-name-[m[38;2;107;114;133m → [m[1mrelease/long…[m
+[38;2;92;99;112m▌[m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m Checks failing[38;2;107;114;133m 2[m[38;2;107;114;133m · 2 running[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▶[m ]8;;https://github.com/o/r/actions/runs/1\CI]8;;\[38;2;107;114;133m #12[m                                                                                             [38;2;107;114;133m2 of 3 jobs[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m├─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\                                                                                             [38;2;107;114;133mfailed · 1m 5s[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\                                                                                             [38;2;107;114;133mrunning · 12s[m
+ [38;2;92;99;112m├─ [m[38;2;92;99;112m▾[m [38;2;248;81;73m✗[m [38;2;107;114;133m▣[m Codecov                                                                                                 [38;2;107;114;133mfailed[m
+ [38;2;92;99;112m│  [m[38;2;92;99;112m╰─ [m[38;2;248;81;73m✗[m ]8;;https://github.com/o/r/runs/coverage\coverage]8;;\                                                                                           [38;2;107;114;133mfailed · 30s[m
+ [38;2;92;99;112m╰─ [m[38;2;210;153;34m◐[m [38;2;107;114;133m•[m ]8;;https://ci.example.com/ci/jenkins\ci/jenkins]8;;\                                                                                    [38;2;107;114;133mci/jenkins pending[m
+ [38;2;210;153;34m?[m Review required: Platform infrastructure team, Frontend guild
+ [38;2;248;81;73m✗[m Changes requested: Carol Maria Alexandra Diaz-Fernandez de la Cruz
+ [38;2;248;81;73m✗[m Changes requested: Frank
+ [38;2;248;81;73m⊘[m Conflicts with release/long-base-long-base-long-base-long-base-long-base-
+ [38;2;248;81;73m⊘[m Branch is 3 commits behind release/long-base-long-base-long-base-long-base-long-base-
+ [38;2;248;81;73m⊘[m Draft
+[38;2;107;114;133m─────[m
+Merge (squash) [38;2;107;114;133mM[m[38;2;107;114;133m · [mUpdate branch [38;2;107;114;133mU[m
