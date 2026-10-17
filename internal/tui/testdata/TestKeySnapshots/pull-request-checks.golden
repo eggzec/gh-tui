@@ -27,3 +27,16 @@ Pull request
   find file | ctrl+p | ^p | on
 
 Merge
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  first | g home | g/home | on
+  last | G end | G/end | on
+  expand | right l | →/l | on
+  collapse | left h | ←/h | on
+  all | * | * | on
+  open | enter | ↵ | on
+  update branch | U | U | on

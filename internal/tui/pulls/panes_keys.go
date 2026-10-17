@@ -139,5 +139,9 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	if ctx == ctxFiles {
 		return []keyhelp.Layer{own, k.files.layer()}
 	}
+	if ctx == ctxMerge {
+		all, short := m.merge.keys.help()
+		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, short)}
+	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }
