@@ -156,10 +156,35 @@ func (keyPulls) PendingReview(context.Context, core.RepoRef, int) (core.PendingR
 	return core.PendingReview{}, false, nil
 }
 func (keyPulls) Threads(context.Context, pullsvc.ThreadsQuery) (core.ThreadPage, error) {
-	return core.ThreadPage{}, nil
+	return keyThreads, nil
 }
 func (keyPulls) CachedThreads(pullsvc.ThreadsQuery) (core.ThreadPage, bool) {
-	return core.ThreadPage{}, true
+	return keyThreads, true
+}
+
+// keyTimeline and keyThreads are a conversation with a fold in it: a comment,
+// and a review whose thread has a reply, so that the keys of the tree have
+// something to expand, collapse and move over.
+var (
+	keyAt       = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	keyTimeline = []core.TimelineItem{
+		{Kind: core.TimelineReview, ID: "R1", Actor: core.User{Login: "bob"}, At: keyAt, Review: core.ReviewStateCommented},
+		{Kind: core.TimelineComment, ID: "C1", Actor: core.User{Login: "ann"}, At: keyAt, Body: "Looks good."},
+	}
+	keyThreads = core.ThreadPage{Total: 1, Threads: []core.Thread{{
+		ID: "T1", ReviewID: "R1", Path: "a/b.go", Line: 7, TotalComments: 2,
+		Comments: []core.ThreadComment{
+			{ID: "T1-a", Author: core.User{Login: "dee"}, At: keyAt, Body: "Why?"},
+			{ID: "T1-b", Author: core.User{Login: "bob"}, At: keyAt, Body: "Because."},
+		},
+	}}}
+)
+
+func (keyPulls) Timeline(context.Context, pullsvc.TimelineQuery) (core.Page[core.TimelineItem], error) {
+	return core.Page[core.TimelineItem]{Items: keyTimeline}, nil
+}
+func (keyPulls) CachedTimeline(pullsvc.TimelineQuery) (core.Page[core.TimelineItem], bool) {
+	return core.Page[core.TimelineItem]{Items: keyTimeline}, true
 }
 func (keyPulls) MergeTexts(context.Context, core.RepoRef, int) (core.MergeTexts, error) {
 	return core.MergeTexts{}, nil
@@ -1125,7 +1150,10 @@ func keyContexts() []keyContext {
 
 // reserved are the actions of default.yaml that nothing reads yet, each
 // with its reason.
-var reserved = map[string]string{}
+var reserved = map[string]string{
+	"pull_conversation.resolve": "the conversation's actions read them once they land",
+	"pull_conversation.comment": "the conversation's actions read them once they land",
+}
 
 // reservedContexts are the contexts of default.yaml whose actions nothing
 // reads yet, each with its reason.
@@ -1134,7 +1162,6 @@ var reservedContexts = map[string]string{
 	"pull_check_detail":      "read by the modal with tabs, which no screen opens now",
 	"pull_check_list":        "read by the modal with tabs, which no screen opens now",
 	"pull_check_log":         "read by the modal with tabs, which no screen opens now",
-	"pull_conversation":      "the panes read them once those panes land",
 	"pull_files":             "the panes read them once those panes land",
 }
 

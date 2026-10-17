@@ -51,6 +51,10 @@ type Icons struct {
 	// one takes Yes.
 	ChangesRequested, ReviewRequired string
 
+	// set names the set the icons are from, for what draws glyphs of its own
+	// by the set's name.
+	set string
+
 	// Dot marks what is on, such as an unread notification, a label or a
 	// chosen option, and Ring an option that isn't chosen.
 	Dot, Ring string
@@ -133,11 +137,15 @@ const (
 // validated config never has, gets the Nerd Font set.
 func NewIcons(set string) Icons {
 	ic := newIcons(set)
+	ic.set = set
 	ic.runs = runGlyphs(set)
 	ic.glyphs = glyphTable(set)
 	ic.setDrawing(set)
 	return ic
 }
+
+// Set returns the name of the set the icons are from: what NewIcons was given.
+func (ic Icons) Set() string { return ic.set }
 
 func newIcons(set string) Icons {
 	switch set {

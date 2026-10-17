@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -61,6 +62,9 @@ type panesModal struct {
 	slots    [panes.Count]slot
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
+
+	// conv is the Conversation pane's tree.
+	conv convPane
 
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
@@ -133,6 +137,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		cancel:   cancel,
 		resume:   resume,
 		icons:    s.icons,
+		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now},
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -156,6 +161,9 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	reads := []tea.Cmd{m.revalidate()}
 	if !m.caps.Known {
 		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
+	}
+	if s.readViewer != nil {
+		reads = append(reads, m.readViewer(s.readViewer))
 	}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(reads...))
 }
@@ -226,6 +234,11 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 	case checktree.OpenCheckMsg:
 		// A check of an App other than GitHub Actions has no modal yet.
 		return nil
+	case convViewerMsg:
+		return m.receiveViewer(msg)
+	case conv.EnterMsg:
+		// What acting on a row does comes with the changes that act on it.
+		return nil
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -236,15 +249,17 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
 			m.detail, m.loaded = d, true
 		}
-		return nil
+		return m.convUpdate(msg)
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
+		m.conv.dates = ui.NewDates(msg.Config.UI.DateFormat)
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
 		cmd := m.press(msg)
+		m.syncConvFocus()
 		m.follow()
 		return cmd
 	case tea.PasteMsg:
@@ -256,6 +271,8 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
+		// The conversation's own: its pages and its tree's.
+		return m.convUpdate(msg)
 	}
 	return nil
 }
@@ -274,7 +291,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 	}
 	m.detail, m.loaded = msg.detail, true
 	m.follow()
-	return nil
+	return m.receiveHead()
 }
 
 // press takes a key: the modal's own keys, which move the focus and the
@@ -303,6 +320,11 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openFind()
 	case m.inPreview(l):
 		m.scrollPreview(l, msg)
+	default:
+		if p := m.slots[m.focus-1].press; p != nil {
+			cmd, _ := p(m, msg)
+			return cmd
+		}
 	}
 	return nil
 }
@@ -417,6 +439,9 @@ func (m *panesModal) close() tea.Cmd {
 // those held back for the modal go on.
 func (m *panesModal) Discard() {
 	m.closed = true
+	if m.conv.started {
+		m.conv.model.Close()
+	}
 	m.cancel()
 	m.resume()
 }

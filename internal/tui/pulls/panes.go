@@ -3,6 +3,8 @@ package pulls
 import (
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -28,12 +30,15 @@ type slot struct {
 	hovered func(m *panesModal) (id, title string, ok bool)
 	// preview is the whole body of the pane's preview of the hovered row.
 	preview func(m *panesModal, b panes.Box) string
+	// press takes a key for the pane while it has the focus, in its list, after
+	// the keys of the modal. handled says the pane used the key.
+	press func(m *panesModal, k tea.KeyPressMsg) (cmd tea.Cmd, handled bool)
 }
 
 // slots has one entry per pane, in the order of the panes.
 var slots = [panes.Count]slot{
 	panes.Description - 1:  {context: "pull_description", content: (*panesModal).placeholder},
-	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).placeholder},
+	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).convContent, press: (*panesModal).convPress},
 	panes.Merge - 1:        {context: "pull_merge", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Involved - 1:     {context: "pull_involved", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Development - 1:  {context: "pull_development", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},

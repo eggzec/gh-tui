@@ -1099,6 +1099,11 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+    # Open a fold, close one, or open every fold (or close them all when all
+    # are open).
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
     # Resolve the unresolved thread under the cursor, after a question.
     resolve: [T]
     # Write a comment on the pull request, after a question.

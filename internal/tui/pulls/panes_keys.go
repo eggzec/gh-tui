@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -47,6 +48,8 @@ type panesKeys struct {
 	finder finder.KeyMap
 	// helpKeys is the keys of the help the modal shows inside itself.
 	helpKeys keyhelp.KeyMap
+	// tree is the keys of the conversation's tree.
+	tree foldtree.KeyMap
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -67,6 +70,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		find:     modal.Binding("global.find_file", "find file"),
 		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
+		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
@@ -132,6 +136,18 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 			all = append(all, row...)
 		}
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.scroll.ShortHelp())}
+	}
+	if ctx == ctxConversation {
+		var all []key.Binding
+		for _, row := range k.tree.FullHelp() {
+			for _, b := range row {
+				// The tree's actions that the context lacks have no key to list.
+				if len(keymap.Actions(b)) > 0 {
+					all = append(all, b)
+				}
+			}
+		}
+		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

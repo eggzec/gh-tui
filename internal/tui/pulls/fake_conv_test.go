@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"slices"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
@@ -18,10 +19,23 @@ type timelineFake struct {
 	// set.
 	reads []pulls.TimelineQuery
 	err   error
+	// gate, when set, holds every read until it is closed or the read's
+	// context ends.
+	gate chan struct{}
 }
 
 // Timeline serves the page of timeline.pages at the cursor, or an empty one.
-func (f *fakeService) Timeline(_ context.Context, q pulls.TimelineQuery) (core.Page[core.TimelineItem], error) {
+func (f *fakeService) Timeline(ctx context.Context, q pulls.TimelineQuery) (core.Page[core.TimelineItem], error) {
+	f.mu.Lock()
+	gate := f.timeline.gate
+	f.mu.Unlock()
+	if gate != nil {
+		select {
+		case <-gate:
+		case <-ctx.Done():
+			return core.Page[core.TimelineItem]{}, ctx.Err()
+		}
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.timeline.reads = append(f.timeline.reads, q)
@@ -38,4 +52,18 @@ func (f *fakeService) CachedTimeline(q pulls.TimelineQuery) (core.Page[core.Time
 	defer f.mu.Unlock()
 	p, ok := f.timeline.cache[q.Cursor]
 	return p, ok
+}
+
+// timelineReads returns the reads of Timeline so far.
+func (f *fakeService) timelineReads() []pulls.TimelineQuery {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.timeline.reads)
+}
+
+// threadReadsSoFar returns the reads of Threads so far.
+func (f *fakeService) threadReadsSoFar() []pulls.ThreadsQuery {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.threadReads)
 }
