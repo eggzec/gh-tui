@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
@@ -21,6 +22,7 @@ import (
 // jobs.
 func (s *Service) RerunRun(repo core.RepoRef, runID int64) *optimistic.Op {
 	return s.change("re-run", repo, runID, core.RunQueued, func(core.Job) bool { return true },
+		func(c core.CommitCheck) bool { return c.RunID == runID },
 		func(ctx context.Context) error { return s.api.RerunRun(ctx, repo, runID) })
 }
 
@@ -30,6 +32,9 @@ func (s *Service) RerunRun(repo core.RepoRef, runID int64) *optimistic.Op {
 func (s *Service) RerunFailedJobs(repo core.RepoRef, runID int64) *optimistic.Op {
 	return s.change("re-run failed jobs of", repo, runID, core.RunQueued,
 		func(j core.Job) bool { return j.Conclusion.Failed() || j.Conclusion == core.ConclusionCancelled },
+		func(c core.CommitCheck) bool {
+			return c.RunID == runID && (c.Conclusion.Failed() || c.Conclusion == core.ConclusionCancelled)
+		},
 		func(ctx context.Context) error { return s.api.RerunFailedJobs(ctx, repo, runID) })
 }
 
@@ -37,13 +42,14 @@ func (s *Service) RerunFailedJobs(repo core.RepoRef, runID int64) *optimistic.Op
 // and GitHub adds the jobs that depend on it.
 func (s *Service) RerunJob(repo core.RepoRef, runID, jobID int64) *optimistic.Op {
 	return s.change("re-run job of", repo, runID, core.RunQueued, func(j core.Job) bool { return j.ID == jobID },
+		func(c core.CommitCheck) bool { return c.RunID == runID && c.JobID == jobID },
 		func(ctx context.Context) error { return s.api.RerunJob(ctx, repo, jobID) })
 }
 
 // CancelRun cancels run runID of repo, and the jobs of it that haven't
 // completed.
 func (s *Service) CancelRun(repo core.RepoRef, runID int64) *optimistic.Op {
-	return s.change("cancel", repo, runID, core.RunCancelling, func(j core.Job) bool { return !j.Done() },
+	return s.change("cancel", repo, runID, core.RunCancelling, func(j core.Job) bool { return !j.Done() }, nil,
 		func(ctx context.Context) error { return s.api.CancelRun(ctx, repo, runID) })
 }
 
@@ -70,9 +76,13 @@ func (s *Service) RerequestSuite(repo core.RepoRef, suiteID int64) *optimistic.O
 // change shows run runID of repo, and its jobs that match, with status at
 // once, and returns the Op that sends the change with send. What names
 // the change in errors. A change the token may not make changes nothing,
-// and the Op returns why.
+// and the Op returns why. A re-run (matchCheck is not nil) shows too in the
+// checks of the commits cached of repo: the check runs that matchCheck
+// picks as queued, and once GitHub accepts it, those checks and the checks
+// of the pull requests are marked stale, as GitHub starts the attempt a
+// moment later.
 func (s *Service) change(what string, repo core.RepoRef, runID int64, status core.RunStatus,
-	match func(core.Job) bool, send func(ctx context.Context) error,
+	match func(core.Job) bool, matchCheck func(core.CommitCheck) bool, send func(ctx context.Context) error,
 ) *optimistic.Op {
 	if err := s.refused(); err != nil {
 		return optimistic.Refused(fmt.Errorf("%s run %d of %s: %w", what, runID, repo, err))
@@ -101,6 +111,19 @@ func (s *Service) change(what string, repo core.RepoRef, runID int64, status cor
 	undoLive := s.liveJobs.MutateTag(tag, pages)
 	undoDone := s.doneJobs.MutateTag(tag, pages)
 
+	undoChecks := func() {}
+	if matchCheck != nil {
+		undoChecks = s.commit.mutateTag(repoTag(repo), func(c core.CommitChecks) (core.CommitChecks, bool) {
+			return editChecks(c, func(r core.CommitCheck) (core.CommitCheck, bool) {
+				if !matchCheck(r) {
+					return r, false
+				}
+				r.Status, r.Conclusion, r.CompletedAt = status, core.ConclusionNone, time.Time{}
+				return r, true
+			})
+		})
+	}
+
 	return optimistic.New(func(ctx context.Context) error {
 		if err := send(ctx); err != nil {
 			return fmt.Errorf("%s run %d of %s: %w", what, runID, repo, err)
@@ -109,8 +132,12 @@ func (s *Service) change(what string, repo core.RepoRef, runID int64, status cor
 		s.runs.InvalidateTag(repoTag(repo))
 		s.run.InvalidateTag(tag)
 		s.liveJobs.InvalidateTag(tag)
+		if matchCheck != nil {
+			s.commit.invalidateTag(repoTag(repo))
+			s.checks.InvalidateTag(repoTag(repo))
+		}
 		return nil
-	}, undoRuns, undoRun, undoLive, undoDone)
+	}, undoRuns, undoRun, undoLive, undoDone, undoChecks)
 }
 
 // refused returns why the token may not re-run or cancel a run, or nil

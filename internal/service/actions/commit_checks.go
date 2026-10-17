@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -74,6 +75,75 @@ func (c commitCache) get(key string) (cache.Entry[core.CommitChecks], cache.Stat
 func (c commitCache) invalidateTag(tag string) {
 	c.live.InvalidateTag(tag)
 	c.done.InvalidateTag(tag)
+}
+
+// mutateTag applies fn to every entry tagged with tag, for an optimistic
+// change, and returns the rollback. A changed entry of done moves to live
+// and goes stale in done, which keeps the value it had: a change shows as
+// pending, and a pending value must never stay in done, whose entries are
+// fresh for long and win over those of live.
+func (c commitCache) mutateTag(tag string, fn func(core.CommitChecks) (core.CommitChecks, bool)) (rollback func()) {
+	liveBefore := c.live.TaggedEntries(tag)
+	undoLive := c.live.MutateTag(tag, fn)
+
+	type moved struct {
+		key        string
+		done, live cache.Entry[core.CommitChecks]
+	}
+	var moves []moved
+	for key, e := range c.done.TaggedEntries(tag) {
+		v, changed := fn(e.Value)
+		if !changed {
+			continue
+		}
+		prev, ok := liveBefore[key]
+		if !ok {
+			prev = e
+		}
+		moves = append(moves, moved{key, e, prev})
+		shown := e
+		shown.Value = v
+		// The value is no longer what GitHub sent, so its validators must not
+		// confirm it, and it is fresh from now.
+		shown.ETag, shown.LastModified, shown.FetchedAt = "", "", time.Time{}
+		c.live.Set(key, shown)
+		c.done.Invalidate(key)
+	}
+
+	return func() {
+		undoLive()
+		for i := range moves {
+			m := &moves[i]
+			c.live.Set(m.key, m.live)
+			// Restore only an entry nothing wrote since it went stale.
+			if cur, _ := c.done.Get(m.key); cur.FetchedAt.Equal(m.done.FetchedAt) {
+				c.done.Set(m.key, m.done)
+			}
+		}
+	}
+}
+
+// editChecks returns c with the check runs that edit changes replaced by
+// what it returns, and whether any were. It copies the runs rather than
+// change the cached ones.
+func editChecks(c core.CommitChecks, edit func(core.CommitCheck) (core.CommitCheck, bool)) (core.CommitChecks, bool) {
+	var runs []core.CommitCheck
+	for i := range c.Runs {
+		r, changed := edit(c.Runs[i])
+		if !changed {
+			continue
+		}
+		if runs == nil {
+			runs = slices.Clone(c.Runs)
+		}
+		runs[i] = r
+	}
+	if runs == nil {
+		return c, false
+	}
+	c.Runs = runs
+	c.State = core.ChecksPending
+	return c, true
 }
 
 // CachedCommitChecks returns the cached checks of q, fresh or stale,

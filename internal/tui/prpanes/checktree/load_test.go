@@ -112,6 +112,38 @@ func TestLoaderNeverAskedHasNoRows(t *testing.T) {
 	}
 }
 
+func TestLoaderReopenedTakesUpWhatIsKept(t *testing.T) {
+	t.Parallel()
+	f := &fakeReader{}
+	l, cmd := NewLoader(f, repo).Want(sha, false)
+	l, _ = l.Update(run(t, cmd))
+	text := func(l Loader) string {
+		rows, _ := l.Rows(sha, opts(), styles(config.IconsASCII))
+		var b strings.Builder
+		for _, r := range rows {
+			b.WriteString(strings.Join(r.Lines, "\n"))
+		}
+		return b.String()
+	}
+	before := text(l)
+
+	// Another modal changed the checks of the commit while this one was hidden.
+	f.cached = map[string]core.CommitChecks{sha: commit([]core.CommitCheck{job(1, 1, "build", core.ConclusionFailure)})}
+	if l, again := l.Want(sha, false); again != nil || text(l) != before {
+		t.Fatal("a loaded commit changed without a reopen")
+	}
+	l, cmd = l.Update(ui.ReopenedMsg{})
+	if cmd != nil {
+		t.Error("a reopen asked for a read")
+	}
+	if after := text(l); after == before {
+		t.Errorf("rows after the reopen = %q, want the kept checks", after)
+	}
+	if n := f.count(); n != 1 {
+		t.Errorf("reads = %d, want 1", n)
+	}
+}
+
 func TestLoaderOnlineReadsAgainWhatWasNotReached(t *testing.T) {
 	t.Parallel()
 	f := &fakeReader{errs: map[string]error{
