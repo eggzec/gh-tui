@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 )
 
 // maxCached bounds the walk over cached pages, so a cursor that loops in a
@@ -25,6 +26,10 @@ type Source struct {
 	// checks mark the commits of a push. Without them a commit shows no icon.
 	CachedCommits func() (core.PullCommits, bool)
 	Commits       func(ctx context.Context) (core.PullCommits, error)
+	// Checks reads the checks of one commit of repo Repo, when a commit row
+	// opens. Without it commits don't fold.
+	Checks checktree.Reader
+	Repo   core.RepoRef
 }
 
 // which names one of the two sources of a conversation.

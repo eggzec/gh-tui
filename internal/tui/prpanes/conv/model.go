@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
@@ -111,6 +112,12 @@ type Model struct {
 	// case, and commitsErr why the last read of them failed.
 	checks     map[string]core.CheckState
 	commitsErr error
+	// loader reads the checks of the commits that were opened, wanted holds
+	// their SHAs, and checksVer counts the changes of either, which build the
+	// rows again.
+	loader    checktree.Loader
+	wanted    map[string]bool
+	checksVer int
 
 	// version counts the changes of the data, and optsVer those of the
 	// options; with the width they say when rows must be built again.
@@ -145,6 +152,9 @@ func New(src Source, opts ...Option) Model {
 	for _, o := range opts {
 		o(&m)
 	}
+	if src.Checks != nil {
+		m.loader = checktree.NewLoader(src.Checks, src.Repo)
+	}
 	m.view("")
 	return m
 }
@@ -156,7 +166,10 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Close ends the reads in flight.
-func (m Model) Close() { m.cancel() }
+func (m Model) Close() {
+	m.cancel()
+	m.loader.Stop()
+}
 
 // SetSize sets the size of the conversation in cells. Only a new width builds
 // the rows again.
@@ -251,8 +264,15 @@ func (m Model) Selected() (id, kind string, ok bool) {
 }
 
 // Update reads on when pages arrive, and moves the cursor and the folds on the
-// keys of the focused tree.
+// keys of the focused tree. It reads the checks of a commit that opens.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	m, answered := m.updateChecks(msg)
+	m, cmd := m.update(msg)
+	m, asked := m.wantChecks()
+	return m, tea.Batch(answered, cmd, asked)
+}
+
+func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadMsg:
 		if msg.model != m.id || msg.seq != m.seq {

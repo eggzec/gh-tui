@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
@@ -68,6 +69,10 @@ type Options struct {
 	// checks is the state of the checks of each commit, by its OID in lower
 	// case; a commit that is not in it shows no icon.
 	checks map[string]core.CheckState
+	// kids gives the rows of the checks of the commit sha, whose row has the
+	// ID prefix without its slash, at depth. Commits fold over them when it is
+	// set.
+	kids func(prefix, sha string, depth int) []foldtree.Row
 
 	// preview draws a narrowed view: each comment is a row of its own, with no
 	// run, and a review is open.
