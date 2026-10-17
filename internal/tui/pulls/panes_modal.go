@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -219,6 +220,12 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		return m.receive(msg)
 	case reviewedMsg:
 		return m.reviewed(msg)
+	case checktree.OpenJobMsg:
+		// Whichever pane holds the check row sends it, so the modal answers.
+		return func() tea.Msg { return actionsOn(m.repo, msg, m) }
+	case checktree.OpenCheckMsg:
+		// A check of an App other than GitHub Actions has no modal yet.
+		return nil
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
