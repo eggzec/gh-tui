@@ -1114,6 +1114,22 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+  # The modal of a pull request: what stands in the way of a merge. Expand
+  # and collapse fold its checks; enter acts on the row under the cursor.
+  pull_merge:
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+    # Update the branch with its base, after a question.
+    update_branch: [U]
   # The modal of a pull request: the commits it holds and the files they
   # change. Expand and collapse fold the sections.
   pull_files:

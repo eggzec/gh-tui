@@ -833,8 +833,14 @@ var idleRows = map[string]string{
 	"pull_check_log follow":        "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 	"actions_log follow":           "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 
-	"filter previous field":         "the form opens on its first row",
-	"filter first field":            "the form opens on its first row",
+	"filter previous field": "the form opens on its first row",
+	"filter first field":    "the form opens on its first row",
+
+	// The fixture pull request has no checks, which are the only rows of the
+	// Merge pane that fold, so there is nothing to open, close or open all.
+	"pull_merge expand":             "no row of the pane folds where the pull request has no checks",
+	"pull_merge collapse":           "no row of the pane folds where the pull request has no checks",
+	"pull_merge all":                "no row of the pane folds where the pull request has no checks",
 	"actions_filter previous field": "the form opens on its first row",
 	"actions_filter first field":    "the form opens on its first row",
 	"filter up":                     "the dropdown lists no options where the services serve none",

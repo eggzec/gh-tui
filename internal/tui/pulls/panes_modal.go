@@ -37,6 +37,8 @@ type panesDetailMsg struct {
 type panesModal struct {
 	svc  Service
 	keys panesKeys
+	// merge is the state of the Merge pane.
+	merge *mergePane
 
 	repo   core.RepoRef
 	number int
@@ -129,6 +131,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	m := &panesModal{
 		svc:    s.svc,
 		keys:   newPanesKeys(s.rawKeys),
+		merge:  newMergePane(s, repo),
 		repo:   repo,
 		number: number,
 		other:  showRepo || !s.hasRepo || !repo.Same(s.repo),
@@ -167,7 +170,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	}
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
-	reads := []tea.Cmd{m.revalidate()}
+	reads := []tea.Cmd{m.revalidate(), m.merge.refresh(m)}
 	if !m.caps.Known {
 		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
 	}
@@ -265,10 +268,15 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.files.read.err != "" {
 			m.files.read.key = ""
 		}
-		return m.checksMsg(msg)
+		var mergeCmd tea.Cmd
+		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
+		return tea.Batch(m.checksMsg(msg), mergeCmd, m.merge.refresh(m))
 	case ui.ReopenedMsg:
 		// A modal opened from here, such as a job's, may have changed checks.
-		return m.checksMsg(msg)
+		var mergeCmd tea.Cmd
+		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
+		m.merge.rebuild(m, false)
+		return tea.Batch(m.checksMsg(msg), mergeCmd)
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
 		return nil
@@ -283,14 +291,25 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
+	case mergeBehindMsg, mergeSentMsg, mergeRevalidateMsg:
+		// The answers to what the Merge pane asked, whatever is open over it.
+		return m.mergeUpdate(msg)
 	default:
+		// The loaders of the checks take their answers whatever is open over
+		// the pane, and ignore the other messages.
+		var cmd tea.Cmd
 		if m.files.loader.Handles(msg) {
-			return m.checksMsg(msg)
+			cmd = m.checksMsg(msg)
 		}
+		var mergeCmd tea.Cmd
+		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
+		cmd = tea.Batch(cmd, mergeCmd)
+		m.merge.rebuild(m, false)
 		// What the overlay on top asked for: the messages of a composer.
 		if m.top() != nil {
-			return m.pressOverlay(msg)
+			return tea.Batch(cmd, m.pressOverlay(msg))
 		}
+		return tea.Batch(cmd, m.mergeUpdate(msg))
 	}
 	return nil
 }
@@ -309,7 +328,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 	}
 	m.detail, m.loaded = msg.detail, true
 	m.follow()
-	return m.readCommits()
+	return tea.Batch(m.readCommits(), m.merge.refresh(m))
 }
 
 // press takes a key: the modal's own keys, which move the focus and the
@@ -457,6 +476,7 @@ func (m *panesModal) close() tea.Cmd {
 // those held back for the modal go on.
 func (m *panesModal) Discard() {
 	m.closed = true
+	m.merge.loader.Stop()
 	m.cancel()
 	m.files.loader.Stop()
 	m.resume()

@@ -131,6 +131,7 @@ internal/browser/browser.go:grace  keep: a mechanism, how long opening the brows
 internal/tui/ownerui/filter.go:DefaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/issues/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/pulls/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
+internal/tui/pulls/panes_merge.go:updateSettle  keep: a safety mechanism, how long a read waits for GitHub to show a new head
 internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/prpanes/conv/rows.go:defaultWidth  keep: a layout measure, the width of rows drawn before the pane has a size
 internal/tui/prpanes/conv/merge.go:mergeWindow  keep: a layout measure, how close in time an actor's events must be to share one row, as on GitHub

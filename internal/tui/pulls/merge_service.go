@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 )
 
 // CommitChecks is what the Merge pane needs of the actions service to show the
@@ -36,4 +37,15 @@ type BranchUpdater interface {
 // Without it, the pane shows no checks.
 func WithCommitChecks(r CommitChecks) Option {
 	return func(s *Section) { s.commits = r }
+}
+
+// commitReader adapts a [CommitChecks] to the reader of a checks tree.
+type commitReader struct{ r CommitChecks }
+
+func (c commitReader) CachedCommitChecks(q checktree.Query) (core.CommitChecks, bool) {
+	return c.r.CachedCommitChecks(actions.CommitChecksQuery{Repo: q.Repo, SHA: q.SHA, Notes: q.Notes})
+}
+
+func (c commitReader) CommitChecks(ctx context.Context, q checktree.Query) (core.CommitChecks, error) {
+	return c.r.CommitChecks(ctx, actions.CommitChecksQuery{Repo: q.Repo, SHA: q.SHA, Notes: q.Notes})
 }
