@@ -1,6 +1,8 @@
 package files
 
 import (
+	"path"
+
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -16,6 +18,11 @@ type Styles struct {
 	bold, dim lipgloss.Style
 	// accent is the style of the glyph and the SHA of a commit in the range.
 	accent lipgloss.Style
+	// add and del draw the lines a file adds and deletes.
+	add, del lipgloss.Style
+	// fileIcon returns the icon of the file at a path, followed by a space, or
+	// "" in an icon set without file icons.
+	fileIcon func(path string) string
 	// in and out are the commit glyph of a commit in the range and outside it.
 	in, out string
 	// state holds the glyph of each state of checks, colored, and "" for none.
@@ -26,13 +33,23 @@ type Styles struct {
 // icons are ic.
 func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	g := NewGlyphs(set, ic)
+	d := t.Diff(ic)
 	s := Styles{
 		Glyphs: g,
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
 		accent: t.Accent.Bold(true),
+		add:    lipgloss.NewStyle().Foreground(d.Added.GetForeground()),
+		del:    lipgloss.NewStyle().Foreground(d.Deleted.GetForeground()),
 		in:     t.Accent.Render(g.Commit),
 		out:    t.Subtle.Render(g.Commit),
+		fileIcon: func(p string) string {
+			fi := ic.Entry(core.TreeEntry{Path: p, Name: path.Base(p)}, false)
+			if fi.Glyph == "" {
+				return ""
+			}
+			return t.FileIcon(fi).Render(fi.Glyph) + " "
+		},
 	}
 	s.state[core.CheckFailing] = t.Run(ui.RunFailure).Render(g.Fail)
 	s.state[core.CheckPending] = t.Run(ui.RunInProgress).Render(g.Pending)

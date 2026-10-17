@@ -16,6 +16,8 @@ type Glyphs struct {
 	// title, Rule draws the lines between the sections, and Cut ends a text
 	// that was cut.
 	Fold, Dot, Rule, Cut string
+	// Minus goes before the lines a file deletes.
+	Minus string
 }
 
 // NewGlyphs returns the glyphs of the icon set named set, one of
@@ -27,6 +29,7 @@ func NewGlyphs(set string, ic ui.Icons) Glyphs {
 		Fail:    ic.Run(ui.RunFailure),
 		Pending: ic.Run(ui.RunInProgress),
 		Cut:     ic.Ellipsis,
+		Minus:   ic.Minus,
 	}
 	switch set {
 	case config.IconsUnicode:

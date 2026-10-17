@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -22,11 +23,19 @@ const (
 	IDFiles   = "section:files"
 	// KindCommit is the kind of the row of a commit.
 	KindCommit = "commit"
+	// KindFile is the kind of the row of a file.
+	KindFile = "file"
 
-	idRule    = "rule"
-	idDivider = "divider"
-	idCapped  = "capped"
-	idPrefix  = "commit:"
+	idRule      = "rule"
+	idDivider   = "divider"
+	idCapped    = "capped"
+	idFilesErr  = "files-error"
+	idTruncated = "files-truncated"
+	idPrefix    = "commit:"
+	idFile      = "file:"
+
+	// fileDepth is the level of the rows under the Files section.
+	fileDepth = 1
 
 	defaultWidth = 80
 	// shaLen is how many characters of a commit's SHA the rows show.
@@ -41,11 +50,24 @@ const (
 // CommitID returns the ID of the row of the commit with the given OID.
 func CommitID(oid string) string { return idPrefix + oid }
 
+// FileID returns the ID of the row of the file at path.
+func FileID(path string) string { return idFile + path }
+
+// PathOf returns the path of the file whose row has the given ID.
+func PathOf(id string) (path string, ok bool) { return strings.CutPrefix(id, idFile) }
+
 // Data is what the rows show: the commits of the pull request, oldest first,
-// and the range of them that is selected.
+// the range of them that is selected, and the files that changed in it.
 type Data struct {
 	Commits core.PullCommits
 	Range   Range
+	// Files are the files changed in the range, in any order; the rows sort
+	// them by path.
+	Files []core.CommitFile
+	// FilesErr says why the files could not be read, and shows in place of them.
+	FilesErr string
+	// Truncated is the note that says the list of files is cut short, or "".
+	Truncated string
 }
 
 // Options are how the rows are drawn.
@@ -68,6 +90,13 @@ func Short(oid string) string {
 		return oid[:shaLen]
 	}
 	return oid
+}
+
+// builder draws the rows of one pane with its options and styles.
+type builder struct {
+	o     Options
+	st    *Styles
+	width int
 }
 
 // Rows returns the rows of the pane: the Commits section with a row for each
@@ -102,13 +131,93 @@ func Rows(d Data, o Options) []foldtree.Row {
 		Fold:  true,
 		Lines: []string{b.st.bold.Render("Files")},
 	})
+	return append(rows, b.files(d)...)
+}
+
+// files are the rows under the Files section: the error of the read, or a row
+// for each file by path, then the note that the list is cut short.
+func (b *builder) files(d Data) []foldtree.Row {
+	if d.FilesErr != "" {
+		return []foldtree.Row{b.note(idFilesErr, d.FilesErr)}
+	}
+	fs := slices.Clone(d.Files)
+	slices.SortStableFunc(fs, func(x, y core.CommitFile) int { return strings.Compare(x.Path, y.Path) })
+	rows := make([]foldtree.Row, 0, len(fs)+1)
+	for _, f := range fs {
+		rows = append(rows, b.file(f))
+	}
+	if d.Truncated != "" {
+		rows = append(rows, b.note(idTruncated, d.Truncated))
+	}
 	return rows
 }
 
-type builder struct {
-	o     Options
-	st    *Styles
-	width int
+// note is a dim row that the cursor skips.
+func (b *builder) note(id, text string) foldtree.Row {
+	return foldtree.Row{
+		ID:    id,
+		Depth: fileDepth,
+		Lines: []string{b.st.dim.Render(termtext.OneLine(text))},
+		Skip:  true,
+	}
+}
+
+// file is the row of f: its icon and path, and the lines it adds and deletes
+// on the right.
+func (b *builder) file(f core.CommitFile) foldtree.Row {
+	return foldtree.Row{
+		ID:    FileID(f.Path),
+		Depth: fileDepth,
+		Kind:  KindFile,
+		Lines: []string{b.st.fileIcon(f.Path) + termtext.OneLine(f.Path)},
+		Right: b.counts(f.Additions, f.Deletions),
+	}
+}
+
+// counts is "+a −d" drawn in color, leaving out a count of none.
+func (b *builder) counts(add, del int) string {
+	var parts []string
+	if add > 0 {
+		parts = append(parts, b.st.add.Render("+"+strconv.Itoa(add)))
+	}
+	if del > 0 {
+		parts = append(parts, b.st.del.Render(b.st.Glyphs.Minus+strconv.Itoa(del)))
+	}
+	return strings.Join(parts, " ")
+}
+
+// Totals returns how many files fs has and the lines they add and delete.
+func Totals(fs []core.CommitFile) (n, add, del int) {
+	for _, f := range fs {
+		add += f.Additions
+		del += f.Deletions
+	}
+	return len(fs), add, del
+}
+
+// Info returns the forms of what the title of the pane says on its right,
+// longest first: "3 files · +12 −4" and then "3 · +12 −4". It has none for no
+// files.
+func Info(n, add, del int, st Styles) []string {
+	if n <= 0 {
+		return nil
+	}
+	b := builder{st: &st}
+	sep := st.dim.Render(" " + st.Glyphs.Dot + " ")
+	rest := sep + b.totals(add, del)
+	noun := " files"
+	if n == 1 {
+		noun = " file"
+	}
+	return []string{
+		st.dim.Render(strconv.Itoa(n)+noun) + rest,
+		st.dim.Render(strconv.Itoa(n)) + rest,
+	}
+}
+
+// totals is "+A −D" in color, with both counts even when one is none.
+func (b *builder) totals(add, del int) string {
+	return b.st.add.Render("+"+strconv.Itoa(add)) + " " + b.st.del.Render(b.st.Glyphs.Minus+strconv.Itoa(del))
 }
 
 // commits is the title of the Commits section.

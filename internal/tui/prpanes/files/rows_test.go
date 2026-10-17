@@ -128,6 +128,107 @@ func TestRowsGolden(t *testing.T) {
 	}
 }
 
+// changed are the files of a range, not in the order of their paths.
+func changed() []core.CommitFile {
+	return []core.CommitFile{
+		{Path: "internal/tui/pulls/panes.go", Additions: 120, Deletions: 7},
+		{Path: "README.md", Additions: 3},
+		{Path: "cmd/gh-tui/main.go", Deletions: 14},
+		{Path: "internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane/file.go", Additions: 1, Deletions: 1},
+		{Path: "assets/logo.png"},
+	}
+}
+
+func TestRowsFilesGolden(t *testing.T) {
+	t.Parallel()
+	pc := pull(2)
+	for _, tc := range []struct {
+		name string
+		d    Data
+	}{
+		{"rows-files-flat", Data{Commits: pc, Range: All(2), Files: changed()}},
+		{"rows-files-truncated", Data{Commits: pc, Range: All(2), Files: changed(), Truncated: "first 300 files of this range"}},
+		{"rows-files-error", Data{Commits: pc, Range: All(2), Files: changed(), FilesErr: "these commits are no longer on the branch"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sb strings.Builder
+			for _, w := range []int{80, 40} {
+				o := opts(config.IconsUnicode, w)
+				o.Folded = true
+				fmt.Fprintf(&sb, "width %d\n", w)
+				sb.WriteString(text(Rows(tc.d, o), w, false))
+				sb.WriteString("\n")
+			}
+			golden.RequireEqual(t, sb.String())
+		})
+	}
+}
+
+func TestFileRows(t *testing.T) {
+	t.Parallel()
+	rows := Rows(Data{Commits: pull(1), Range: All(1), Files: changed(), Truncated: "cut"}, opts(config.IconsNerd, 80))
+	want := []string{
+		FileID("README.md"), FileID("assets/logo.png"), FileID("cmd/gh-tui/main.go"),
+		FileID("internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane/file.go"),
+		FileID("internal/tui/pulls/panes.go"), idTruncated,
+	}
+	got := ids(rows)[len(rows)-len(want):]
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("ids = %v, want %v", got, want)
+	}
+	for _, r := range rows[len(rows)-len(want) : len(rows)-1] {
+		if r.Kind != KindFile || r.Depth != 1 || r.Skip || r.Fold || r.Action {
+			t.Errorf("file row %+v", r)
+		}
+	}
+	if last := rows[len(rows)-1]; !last.Skip {
+		t.Errorf("the note %+v must be skipped by the cursor", last)
+	}
+}
+
+func TestPathOf(t *testing.T) {
+	t.Parallel()
+	if p, ok := PathOf(FileID("a/b.go")); !ok || p != "a/b.go" {
+		t.Errorf("PathOf(FileID) = %q, %v", p, ok)
+	}
+	if p, ok := PathOf(CommitID("abc")); ok {
+		t.Errorf("PathOf(commit) = %q, true", p)
+	}
+}
+
+func TestTotals(t *testing.T) {
+	t.Parallel()
+	if n, a, d := Totals(changed()); n != 5 || a != 124 || d != 22 {
+		t.Errorf("Totals = %d, %d, %d; want 5, 124, 22", n, a, d)
+	}
+	if n, a, d := Totals(nil); n != 0 || a != 0 || d != 0 {
+		t.Errorf("Totals(nil) = %d, %d, %d; want zeros", n, a, d)
+	}
+}
+
+func TestInfoForms(t *testing.T) {
+	t.Parallel()
+	st := NewStyles(theme(), ui.NewIcons(config.IconsUnicode), config.IconsUnicode)
+	for _, tc := range []struct {
+		n, add, del int
+		want        []string
+	}{
+		{0, 0, 0, nil},
+		{1, 3, 0, []string{"1 file · +3 −0", "1 · +3 −0"}},
+		{12, 340, 25, []string{"12 files · +340 −25", "12 · +340 −25"}},
+	} {
+		forms := Info(tc.n, tc.add, tc.del, st)
+		got := make([]string, 0, len(forms))
+		for _, f := range forms {
+			got = append(got, ansi.Strip(f))
+		}
+		if strings.Join(got, "|") != strings.Join(tc.want, "|") {
+			t.Errorf("Info(%d, %d, %d) = %q, want %q", tc.n, tc.add, tc.del, got, tc.want)
+		}
+	}
+}
+
 func TestRowsShape(t *testing.T) {
 	t.Parallel()
 	pc := pull(4)
