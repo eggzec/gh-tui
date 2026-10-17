@@ -218,15 +218,24 @@ func (m *panesModal) SetSize(width, height int) {
 
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
-func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
+func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	if m.closed {
 		return nil
 	}
+	// Whatever the message changed, a new range of commits is read.
+	defer func() {
+		if !m.closed {
+			cmd = tea.Batch(cmd, m.readRange())
+		}
+	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
 		return m.receive(msg)
 	case filesCommitsMsg:
 		return m.commitsRead(msg)
+	case filesRangeMsg:
+		m.rangeRead(msg)
+		return nil
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case checktree.OpenJobMsg:
@@ -244,6 +253,10 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		// What was served kept shows what GitHub has now.
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
 			m.detail, m.loaded = d, true
+		}
+		// A range that couldn't be read is read again, now that GitHub answers.
+		if m.files.read.err != "" {
+			m.files.read.key = ""
 		}
 		return nil
 	case ui.SettingsMsg:
