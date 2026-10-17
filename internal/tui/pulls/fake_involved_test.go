@@ -1,21 +1,41 @@
 package pulls
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
-// involvedService is a fake service whose cached timeline holds comments.
+// RequestReviews sends nothing.
+func (f *fakeService) RequestReviews(core.RepoRef, int, []pulls.Reviewer) *optimistic.Op {
+	return optimistic.New(func(context.Context) error { return nil })
+}
+
+// involvedService is a fake service whose cached timeline holds comments, and
+// which records the reviews asked for.
 type involvedService struct {
 	*fakeService
 	timeline []core.TimelineItem
+	// asked is each request for review, in order, and refuse the error that
+	// the Op of the next one returns.
+	asked  [][]pulls.Reviewer
+	refuse error
+}
+
+func (s *involvedService) RequestReviews(_ core.RepoRef, _ int, who []pulls.Reviewer) *optimistic.Op {
+	s.asked = append(s.asked, who)
+	if s.refuse != nil {
+		return optimistic.Refused(s.refuse)
+	}
+	return s.fakeService.RequestReviews(core.RepoRef{}, 0, who)
 }
 
 func (s *involvedService) CachedTimeline(q pulls.TimelineQuery) (core.Page[core.TimelineItem], bool) {

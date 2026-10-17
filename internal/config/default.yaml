@@ -1161,7 +1161,8 @@ keys:
     # Select the commits made since your last review.
     since_review: [w]
   # The modal of a pull request: the people on it. Expand and collapse fold
-  # the groups; enter on a person shows their latest comment.
+  # the groups; enter on a person shows their latest comment. Re-request asks a
+  # reviewer who has already reviewed for another review.
   pull_involved:
     up: [up, k]
     down: [down, j]
@@ -1174,6 +1175,7 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
+    rerequest: [R]
   # The modal of a release.
   release_modal:
     up: [up, k]

@@ -1,14 +1,18 @@
 package pulls
 
 import (
+	"errors"
+
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -91,12 +95,58 @@ func (m *panesModal) involvedContent(b panes.Box) panes.Content {
 	return panes.Content{Body: m.inv.tree.View()}
 }
 
-// involvedPress hands a key to the tree.
+// involvedPress takes the key that asks for a review again, and hands any other
+// to the tree.
 func (m *panesModal) involvedPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if keymap.Matches(msg, m.keys.rerequest) {
+		return m.rerequest(), true
+	}
 	var cmd tea.Cmd
 	m.inv.tree, cmd = m.inv.tree.Update(msg)
 	m.inv.ver++
 	return cmd, true
+}
+
+// rerequest asks the reviewer under the cursor who has reviewed for another
+// review, once the viewer confirms. A review that is pending is only said so,
+// and no other row has a review to ask for.
+func (m *panesModal) rerequest() tea.Cmd {
+	p, ok := m.inv.tree.Selected()
+	if !ok {
+		return nil
+	}
+	switch {
+	case p.State == involved.Requested || p.State == involved.Rerequested:
+		return alreadyRequested(p.Name)
+	case !p.State.Reviewed():
+		return nil
+	}
+	m.ask(ui.Confirm{Question: "Re-request review from " + p.Name + "?", Run: func() tea.Cmd { return m.sendRerequest(p) }})
+	return nil
+}
+
+// alreadyRequested says that the review of name is pending.
+func alreadyRequested(name string) tea.Cmd {
+	return ui.Notify(toast.Info, "review is already requested from "+name)
+}
+
+// sendRerequest shows p as asked at once and sends the request. A request that
+// GitHub or the cache finds pending already is told as such, not as a failure.
+func (m *panesModal) sendRerequest(p involved.Person) tea.Cmd {
+	op := m.svc.RequestReviews(m.repo, m.number, []pulls.Reviewer{{Login: p.Login, Team: p.Team, Name: p.Name}})
+	if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
+		m.detail = d
+		m.refreshInvolved()
+	}
+	about := core.Target{Repo: m.repo, Number: m.number}.String()
+	send := ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), "re-request review from "+p.Name)
+	return func() tea.Msg {
+		msg := send()
+		if d, ok := msg.(ui.DoneMsg); ok && errors.Is(d.Err, pulls.ErrAlreadyRequested) {
+			return alreadyRequested(p.Name)()
+		}
+		return msg
+	}
 }
 
 // involvedEnter takes the enter that the tree reports: a fold toggled, or the
@@ -123,6 +173,6 @@ func (m *panesModal) focusPerson(msg involved.FocusPersonMsg) tea.Cmd {
 func (m *panesModal) involvedLayer() keyhelp.Layer {
 	k := m.inv.tree.KeyMap()
 	// The tree's mark key is no key of this pane.
-	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Enter}
+	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Enter, m.keys.rerequest}
 	return ui.ContextLayer(ctxInvolved, all, k.ShortHelp())
 }

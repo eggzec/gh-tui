@@ -847,8 +847,9 @@ var idleRows = map[string]string{
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
-	"pull_involved expand":   "the cursor starts on the author, which is no group to open",
-	"pull_involved collapse": "the cursor starts on the author, which is no group to close",
+	"pull_involved expand":     "the cursor starts on the author, which is no group to open",
+	"pull_involved collapse":   "the cursor starts on the author, which is no group to close",
+	"pull_involved re-request": "the cursor starts on the author, who has no review to ask for",
 
 	// The readers are reached scrolled down and across a text longer and
 	// wider than their window, so only these have nothing to act on.
