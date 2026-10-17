@@ -116,7 +116,8 @@ func TestDeclaredCommandsExist(t *testing.T) {
 		})
 	}
 	for _, c := range commands {
-		if c.over == overNamed && c.name != ui.CommandCopy && c.name != ui.CommandRaw && c.name != ui.CommandReferences {
+		if c.over == overNamed && c.name != ui.CommandCopy && c.name != ui.CommandRaw && c.name != ui.CommandReferences &&
+			c.name != ui.CommandNextFile && c.name != ui.CommandPrevFile {
 			t.Errorf("%s runs over the modals that name it, and none does", c.name)
 		}
 	}
@@ -171,6 +172,37 @@ func TestCopyOverAModal(t *testing.T) {
 			})
 		})
 	}
+}
+
+// n and p step through the files of an open diff, and are refused over the
+// pull request itself, which has no files to step through.
+func TestColonNRunsOnlyInTheDiff(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.pane_2", "global.select", "global.pane_6")
+		runCommand(t, m, "n")
+		if want := "Close the pull request first to use n."; !hasToast(m, want) {
+			t.Errorf("n over the pull request: toasts %s, want %q", toasted(m), want)
+		}
+		// The rows are laid out when drawn, so each move follows a draw.
+		for _, key := range []string{"j", "j", "enter"} {
+			m.View()
+			pressKeys(t, m, key)
+		}
+		diff := m.View().Content
+		runCommand(t, m, "n")
+		next := m.View().Content
+		if next == diff {
+			t.Error("n left the diff on the same file")
+		}
+		runCommand(t, m, "p")
+		if got := m.View().Content; got != diff {
+			t.Errorf("p after n did not come back to the first file")
+		}
+		if got := texts(m.complete("n", 1)); !slices.Contains(got, "n") {
+			t.Errorf("n over the diff completes %q, want it named", got)
+		}
+	})
 }
 
 // A release that isn't read yet has no tag, so there is no reference of it
