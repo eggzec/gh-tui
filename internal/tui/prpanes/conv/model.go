@@ -105,6 +105,10 @@ type Model struct {
 	// total is how many threads GitHub says there are.
 	total int
 	feeds [2]feed
+	// checks is the state of the checks of each commit, by its OID in lower
+	// case, and commitsErr why the last read of them failed.
+	checks     map[string]core.CheckState
+	commitsErr error
 
 	// version counts the changes of the data, and optsVer those of the
 	// options; with the width they say when rows must be built again.
@@ -146,7 +150,7 @@ func New(src Source, opts ...Option) Model {
 // Init returns the pages that were kept, at once, and then the reads of both
 // sources, page after page.
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.cachedCmd(timeline), m.cachedCmd(threads))
+	return tea.Batch(m.cachedCmd(timeline), m.cachedCmd(threads), m.cachedCommitsCmd())
 }
 
 // Close ends the reads in flight.
@@ -253,6 +257,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.load(msg)
+	case commitsMsg:
+		if msg.model != m.id || msg.seq != m.seq {
+			return m, nil
+		}
+		return m.commits(msg)
 	case ui.OnlineMsg:
 		if !m.kept() {
 			return m, nil
@@ -285,7 +294,7 @@ func (m Model) kept() bool {
 			return true
 		}
 	}
-	return false
+	return ui.Unreached(m.commitsErr)
 }
 
 // View draws the conversation in exactly the width and height it has.

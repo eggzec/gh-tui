@@ -2,6 +2,7 @@ package conv
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -112,10 +113,20 @@ func (b *builder) push(n *node) foldtree.Row {
 func (b *builder) commit(n *node) foldtree.Row {
 	c := n.item.Commit
 	head := termtext.Truncate(termtext.OneLine(c.Headline), max(b.width-20, 8), b.st.Glyphs.Cut)
-	return foldtree.Row{
+	r := foldtree.Row{
 		Lines:  []string{b.st.sha.Render(shortSHA(c)) + "  " + head},
 		Action: true,
 	}
+	switch b.o.checks[strings.ToLower(c.OID)] {
+	case core.CheckPassing:
+		r.Right = b.st.glyphs.Render(ui.GlyphCheckPass)
+	case core.CheckFailing:
+		r.Right = b.st.glyphs.Render(ui.GlyphCheckFail)
+	case core.CheckPending:
+		r.Right = b.st.glyphs.Render(ui.GlyphCheckPending)
+	case core.CheckNone:
+	}
+	return r
 }
 
 // latestCommit returns the date of the newest commit of a push.
