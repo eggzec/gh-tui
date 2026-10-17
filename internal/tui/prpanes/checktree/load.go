@@ -107,8 +107,10 @@ func (l Loader) with(sha string, e *entry) Loader {
 	return l
 }
 
-// Update handles the answer to a read of this loader, and reads again the
-// commits whose last read got no answer from GitHub once it answers again.
+// Update handles the answer to a read of this loader, reads again the
+// commits whose last read got no answer from GitHub once it answers again,
+// and takes up what is kept of the loaded ones when the modal that holds the
+// loader opens again.
 func (l Loader) Update(msg tea.Msg) (Loader, tea.Cmd) {
 	switch msg := msg.(type) {
 	case loadedMsg:
@@ -132,6 +134,19 @@ func (l Loader) Update(msg tea.Msg) (Loader, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		return l, tea.Batch(cmds...)
+	case ui.ReopenedMsg:
+		// A modal opened from here may have changed the checks, such as by
+		// re-running a job, so what is kept replaces what was read. A loaded
+		// commit is never asked for again by Want.
+		for sha, e := range maps.Clone(l.entries) {
+			if e.loading || e.err != nil {
+				continue
+			}
+			if c, ok := l.reader.CachedCommitChecks(Query{Repo: l.repo, SHA: sha, Notes: e.notes}); ok {
+				l = l.with(sha, &entry{checks: c, notes: e.notes})
+			}
+		}
+		return l, nil
 	}
 	return l, nil
 }
