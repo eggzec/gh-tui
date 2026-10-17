@@ -66,6 +66,8 @@ func (b *builder) node(n *node, depth int) {
 		r = b.reply(n, depth)
 	case KindRun:
 		r = b.run(n)
+	case KindEvent:
+		r = b.event(n)
 	}
 	r.ID, r.Depth, r.Kind = n.id, depth, n.kind
 	b.rows = append(b.rows, r)

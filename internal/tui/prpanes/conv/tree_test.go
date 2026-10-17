@@ -79,8 +79,13 @@ func TestTree(t *testing.T) {
 			"run:1[rc:1 rc:2]",
 		},
 		{
-			"an event alone leaves nothing",
-			[]core.TimelineItem{push, event(core.TimelineLabeled)}, nil, "",
+			"a push alone leaves nothing",
+			[]core.TimelineItem{push, event(core.TimelineForcePushed)}, nil, "",
+		},
+		{
+			"an event is a line and splits a run",
+			[]core.TimelineItem{comment("1"), event(core.TimelineClosed), comment("2")}, nil,
+			"c:1 e:closed|1767323045000000000|cy|||||||0 c:2",
 		},
 		{
 			"threads attach to their review in order, replies flat",

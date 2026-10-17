@@ -54,7 +54,8 @@ func sortNodes(out []*node, o Order) {
 
 // lastActivity returns the time of the last thing written in n: for a comment,
 // when it was written or edited; for a run, its last comment; for a review,
-// the review itself or the latest comment of its threads.
+// the review itself or the latest comment of its threads; for a system line,
+// its latest event.
 func lastActivity(n *node) time.Time {
 	switch n.kind {
 	case KindRun:
@@ -62,6 +63,12 @@ func lastActivity(n *node) time.Time {
 			return time.Time{}
 		}
 		return lastActivity(n.children[len(n.children)-1])
+	case KindEvent:
+		var t time.Time
+		for _, it := range n.events {
+			t = latest(t, it.At)
+		}
+		return t
 	case KindReview:
 		var t time.Time
 		if n.item != nil {

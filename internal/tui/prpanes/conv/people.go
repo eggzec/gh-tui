@@ -33,9 +33,13 @@ func SubjectName(s core.TimelineSubject) string {
 	if s.Team == "" {
 		return Name(s.User)
 	}
-	slug := s.Team
-	if i := strings.LastIndexByte(slug, '/'); i >= 0 {
-		slug = slug[i+1:]
+	return teamSlug(s.Team) + " team"
+}
+
+// teamSlug returns the name of a team without its organization.
+func teamSlug(team string) string {
+	if i := strings.LastIndexByte(team, '/'); i >= 0 {
+		team = team[i+1:]
 	}
-	return strings.TrimSpace(termtext.OneLine(slug)) + " team"
+	return strings.TrimSpace(termtext.OneLine(team))
 }

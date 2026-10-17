@@ -16,6 +16,8 @@ type node struct {
 	// pending is the review that holds the viewer's drafts.
 	pending  bool
 	children []*node
+	// events are the items of an event node, in order; item is the first.
+	events []*core.TimelineItem
 }
 
 // pendingID names the review of the drafts that GitHub has no review for.
@@ -25,6 +27,12 @@ const pendingID = "pending"
 // has none doesn't split a run of comments, and the unsubmitted review of
 // the viewer is drawn at the end instead of where it was started.
 func drawn(it *core.TimelineItem) bool {
+	return kept(it) || isEvent(it.Kind)
+}
+
+// kept reports whether a narrowed view may show an item: a comment or a
+// review that is submitted. A narrowed view never shows events.
+func kept(it *core.TimelineItem) bool {
 	if it.Kind == core.TimelineReview {
 		return it.Review != core.ReviewStatePending
 	}
@@ -60,9 +68,10 @@ func tree(d Data, o Options) []*node {
 		run = nil
 	}
 	attached := make(map[string]bool)
+	seen := make(map[string]int)
 	for i := range d.Items {
 		it := &d.Items[i]
-		if !drawn(it) {
+		if !drawn(it) || preview && isEvent(it.Kind) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {
@@ -71,6 +80,13 @@ func tree(d Data, o Options) []*node {
 		// A kind that is hidden leaves no gap, so comments that only it
 		// separated join in a run.
 		if hidden(it.Kind) {
+			continue
+		}
+		if isEvent(it.Kind) {
+			flush()
+			n := eventNode(it)
+			n.id = eventID(it, seen)
+			out = append(out, n)
 			continue
 		}
 		if it.Kind == core.TimelineComment {

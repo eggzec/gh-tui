@@ -223,6 +223,30 @@ func TestFilterCursorToAncestor(t *testing.T) {
 		d.m.SetShown(allBut(GroupReviews))
 		onRow(d, "c:1")
 	})
+	// eventRows returns the IDs of the system lines, in order.
+	eventRows := func(d *driver) []string {
+		var ids []string
+		for _, id := range d.rowIDs() {
+			if strings.HasPrefix(id, "e:") {
+				ids = append(ids, id)
+			}
+		}
+		return ids
+	}
+	t.Run("a hidden system line goes to the row before it", func(t *testing.T) {
+		t.Parallel()
+		closed := ev(core.TimelineClosed, alice, 30)
+		items := []core.TimelineItem{comment("1"), labeled(bert, "bug", 5), comment("2"), review("R3", core.ReviewStateCommented), closed, comment("4")}
+		d := newDriver(t, newFake([][]core.TimelineItem{items}, [][]core.Thread{{}}))
+		d.all()
+		lines := eventRows(d)
+		if len(lines) != 2 {
+			t.Fatalf("system lines = %v, want two", lines)
+		}
+		d.m.views[""].tree.Reveal(lines[1])
+		d.m.SetShown(allBut(GroupState))
+		onRow(d, "r:R3")
+	})
 	t.Run("a row that stays keeps the cursor", func(t *testing.T) {
 		t.Parallel()
 		d := newDriver(t, conversation())
