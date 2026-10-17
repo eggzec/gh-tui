@@ -3,6 +3,8 @@ package pulls
 import (
 	"testing"
 	"time"
+
+	"github.com/eggzec/gh-tui/internal/core"
 )
 
 func benchSection(b *testing.B, opts ...Option) *host {
@@ -56,6 +58,22 @@ func BenchmarkView(b *testing.B) {
 		if _, ok := m.OpenHelp(m.KeyLayers(), "Help"); !ok || m.top() == nil {
 			b.Fatal("OpenHelp opened no overlay")
 		}
+		b.ReportAllocs()
+		for b.Loop() {
+			_ = m.View()
+		}
+	})
+	b.Run("development with 50 issues", func(b *testing.B) {
+		links := core.PullLinks{ClosesTotal: 50, BlockersSupported: true}
+		for i := range 50 {
+			links.Closes = append(links.Closes, core.LinkedIssue{Issue: devRef(core.KindIssue, 100+i, "An issue that the pull request closes")})
+		}
+		h := started(b, newFakeService(), 160, 50, WithDevelopment(&fakeDev{links: links, body: 20}))
+		press(b, h, "enter")
+		press(b, h, "5")
+		press(b, h, "z")
+		press(b, h, "down")
+		m := h.modal()
 		b.ReportAllocs()
 		for b.Loop() {
 			_ = m.View()

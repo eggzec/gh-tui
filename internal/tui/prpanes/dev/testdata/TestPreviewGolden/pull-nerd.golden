@@ -1,0 +1,14 @@
+ #30 Follow-up cleanup
+by ada  ·  cleanup → main
+checks: 3 of 4 passing, 1 pending
+review: approved by bob
+changes: +40 −12 in 3 files
+labels:  chore
+──────────────────────────────────────────────────
+A line of the description.
+A line of the description.
+A line of the description.
+A line of the description.
+A line of the description.
+A line of the description.
+…

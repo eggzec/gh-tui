@@ -1,0 +1,21 @@
+#12 Crash on empty input when the file is a   open
+symlink to a directory
+ open  ·  ada opened this 3d ago
+ bug   good first issue
+ blocked by #9 Parser rewrite
+
+Running the tool on an empty file panics.
+
+Steps:
+1. make an empty file
+2. run it
+�[31mhostile�[0m
+
+──────────────────────────────────────────────────
+5 comments
+
+bob  ·  2d ago
+I can reproduce this.
+
+ada  ·  2h ago
+Fix incoming.
