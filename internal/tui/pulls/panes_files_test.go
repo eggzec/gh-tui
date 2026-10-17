@@ -28,26 +28,38 @@ func sampleCommits(review *core.ViewerReview) core.PullCommits {
 
 // commitPanes opens the modal of the first pull request over commits and
 // focuses the Files pane once the commits are read.
-func commitPanes(t *testing.T, pc core.PullCommits) (*host, *panesModal, *fakeCommits) {
-	t.Helper()
+func commitPanes(tb testing.TB, pc core.PullCommits) (*host, *panesModal, *fakeCommits) {
+	tb.Helper()
+	h, m, svc := rangePanes(tb, pc, nil)
+	return h, m, svc.pullCommits
+}
+
+// rangePanes is commitPanes with what the service serves set by setup first.
+// The base of the pull requests is "base000".
+func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)) (*host, *panesModal, *fakeService) {
+	tb.Helper()
 	svc := newFakeService()
+	svc.tweaks = map[int]func(*core.PullRequestDetail){}
 	for i := range svc.pulls {
 		svc.pulls[i].HeadSHA = "ddd4444"
+		svc.tweaks[svc.pulls[i].Number] = func(d *core.PullRequestDetail) { d.BaseSHA = "base000" }
 	}
-	fc := &fakeCommits{commits: pc}
-	svc.pullCommits = fc
-	h := started(t, svc, 160, 30)
-	press(t, h, "enter")
+	svc.pullCommits = &fakeCommits{commits: pc}
+	if setup != nil {
+		setup(svc)
+	}
+	h := started(tb, svc, 160, 30)
+	press(tb, h, "enter")
 	m := h.modal()
 	if m == nil {
-		t.Fatal("enter didn't open the modal")
+		tb.Fatal("enter didn't open the modal")
 	}
 	if !m.files.loaded {
-		t.Fatalf("the commits were not read: %+v", m.files)
+		tb.Fatalf("the commits were not read: %+v", m.files)
 	}
 	m.focus = panes.Files
-	modalScreen(t, h)
-	return h, m, fc
+	modalScreen(tb, h)
+	return h, m, svc
 }
 
 func markCommit(m *panesModal, oid string) {

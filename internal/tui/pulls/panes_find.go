@@ -51,39 +51,72 @@ func (m *panesModal) openFind() tea.Cmd {
 // what the pull request no longer has.
 func (m *panesModal) listChanged(head string) finder.Load {
 	svc, repo, number := m.svc, m.repo, m.number
-	var note string
-	if n := m.detail.ChangedFiles; n > core.MaxPullFiles {
-		note = "only the first " + strconv.Itoa(core.MaxPullFiles) + " of " + strconv.Itoa(n)
-	}
+	note := m.changedNote()
 	minus := m.icons.Minus
 	return func(ctx context.Context) (finder.Listing, error) {
-		ctx, end := obs.Begin(ctx, "pull.files")
-		var items []finder.Item
-		var err error
-		for cursor := ""; ; {
-			q := pulls.FilesQuery{Repo: repo, Number: number, Head: head, Cursor: cursor}
-			var p core.Page[core.CommitFile]
-			p, err = svc.Files(ctx, q)
-			if err == nil && p.Stale {
-				q.Again = true
-				p, err = svc.Files(ctx, q)
-			}
-			if err != nil {
-				break
-			}
-			for _, f := range p.Items {
-				items = append(items, finder.Item{Path: f.Path, Detail: changeText(f, minus), Value: f})
-			}
-			if p.Next == "" || len(p.Items) == 0 && p.Next == cursor {
-				break
-			}
-			cursor = p.Next
-		}
-		end(err, "span", "tui", "repo", repo.String(), "number", number, "files", len(items))
+		fs, err := pullFiles(ctx, svc, repo, number, head)
 		if err != nil {
 			return finder.Listing{}, err
 		}
+		items := make([]finder.Item, 0, len(fs))
+		for _, f := range fs {
+			items = append(items, finder.Item{Path: f.Path, Detail: changeText(f, minus), Value: f})
+		}
 		return finder.Listing{Items: items, Note: note}, nil
+	}
+}
+
+// changedNote says that the list of the files of the pull request is cut
+// short, or is empty when it isn't.
+func (m *panesModal) changedNote() string {
+	if n := m.detail.ChangedFiles; n > core.MaxPullFiles {
+		return "only the first " + strconv.Itoa(core.MaxPullFiles) + " of " + strconv.Itoa(n)
+	}
+	return ""
+}
+
+// pullFiles reads every page of the files changed at head. A page that was
+// kept is read again, so that nothing lists what the pull request no longer has.
+func pullFiles(ctx context.Context, svc Service, repo core.RepoRef, number int, head string) ([]core.CommitFile, error) {
+	ctx, end := obs.Begin(ctx, "pull.files")
+	var fs []core.CommitFile
+	var err error
+	for cursor := ""; ; {
+		q := pulls.FilesQuery{Repo: repo, Number: number, Head: head, Cursor: cursor}
+		var p core.Page[core.CommitFile]
+		p, err = svc.Files(ctx, q)
+		if err == nil && p.Stale {
+			q.Again = true
+			p, err = svc.Files(ctx, q)
+		}
+		if err != nil {
+			break
+		}
+		fs = append(fs, p.Items...)
+		if p.Next == "" || len(p.Items) == 0 && p.Next == cursor {
+			break
+		}
+		cursor = p.Next
+	}
+	end(err, "span", "tui", "repo", repo.String(), "number", number, "files", len(fs))
+	return fs, err
+}
+
+// cachedPullFiles returns the files changed at head from memory, and whether
+// every page of them was there. fresh says that none was kept from before.
+func cachedPullFiles(svc Service, repo core.RepoRef, number int, head string) (fs []core.CommitFile, ok, fresh bool) {
+	fresh = true
+	for cursor := ""; ; {
+		p, hit := svc.CachedFiles(pulls.FilesQuery{Repo: repo, Number: number, Head: head, Cursor: cursor})
+		if !hit {
+			return nil, false, false
+		}
+		fresh = fresh && !p.Stale
+		fs = append(fs, p.Items...)
+		if p.Next == "" || len(p.Items) == 0 && p.Next == cursor {
+			return fs, true, fresh
+		}
+		cursor = p.Next
 	}
 }
 
@@ -104,6 +137,8 @@ func changeText(f core.CommitFile, minus string) string {
 // for the pane to select once it lists the files.
 func (m *panesModal) chooseFile(path string) {
 	m.found = path
+	// The pane is drawn again to select it, even when it had the focus.
+	m.files.seq++
 	m.focus = panes.Files
 	m.resetSub()
 }

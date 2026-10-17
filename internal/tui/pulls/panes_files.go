@@ -98,6 +98,9 @@ type filesPane struct {
 	styles  files.Styles
 	// stylesGen is the m.gen the styles were made for.
 	stylesGen int
+
+	// read is the read of the files of the range.
+	read filesRead
 }
 
 // filesBuilt is what the rows of the tree were built from.
@@ -108,6 +111,8 @@ type filesBuilt struct {
 	rng     files.Range
 	folded  bool
 	gen     int
+	// data is the version of the files read.
+	data int
 }
 
 // filesCommitsMsg carries the commits of a pull request at a head to the modal
@@ -200,9 +205,9 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 		// The commits start folded; the tree keeps the user's folds after.
 		folded = true
 	}
-	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen}
+	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen, f.read.version}
 	if f.built != want {
-		f.tree.SetRows(files.Rows(files.Data{Commits: f.commits, Range: f.rng}, files.Options{
+		f.tree.SetRows(files.Rows(m.filesData(), files.Options{
 			Width:  in.W,
 			Styles: f.styles,
 			Dates:  m.dates,
@@ -211,6 +216,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 		}))
 		f.built = want
 	}
+	m.revealFound()
 	f.tree.SetSize(in.W, in.H)
 	if focused := m.focus == panes.Files && m.sub[panes.Files-1] == panes.List && m.top() == nil; focused != f.tree.Focused() {
 		if focused {
@@ -219,7 +225,12 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 			f.tree.Blur()
 		}
 	}
-	return panes.Content{Body: f.tree.View()}
+	c := panes.Content{Body: f.tree.View()}
+	if f.read.done && f.read.err == "" {
+		n, add, del := files.Totals(f.read.files)
+		c.Info = files.Info(n, add, del, f.styles)
+	}
+	return c
 }
 
 // pressFiles takes the keys of the Files pane: those that choose the commits,
@@ -316,7 +327,7 @@ func (m *panesModal) showCommit(oid string) {
 	f.tree.SetFolded(files.IDCommits, false)
 	// The rows are built again before the tree can be asked for the commit.
 	f.built.ok = false
-	f.tree.SetRows(files.Rows(files.Data{Commits: f.commits, Range: f.rng}, files.Options{Width: max(f.built.width, 40), Styles: f.styles, Dates: m.dates, Now: time.Now()}))
+	f.tree.SetRows(files.Rows(m.filesData(), files.Options{Width: max(f.built.width, 40), Styles: f.styles, Dates: m.dates, Now: time.Now()}))
 	f.tree.Reveal(files.CommitID(oid))
 	f.seq++
 }

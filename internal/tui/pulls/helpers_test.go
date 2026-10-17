@@ -33,6 +33,7 @@ type fakeService struct {
 	mu sync.Mutex
 	// pullCommits are the commits served, when set.
 	pullCommits *fakeCommits
+	rangeFiles  *fakeRange
 	pulls       []core.PullRequest
 	pageSize    int
 	queries     []pulls.ListQuery
@@ -853,6 +854,16 @@ func (f *fakeService) Files(ctx context.Context, q pulls.FilesQuery) (core.Page[
 		f.filesDone[q.Head+"|"+q.Cursor] = true
 	}
 	return f.filesPage(q), nil
+}
+
+// CachedFiles serves a page that Files read before, when filesCache is set.
+func (f *fakeService) CachedFiles(q pulls.FilesQuery) (core.Page[core.CommitFile], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.filesCache && f.filesDone[q.Head+"|"+q.Cursor] {
+		return f.filesPage(q), true
+	}
+	return core.Page[core.CommitFile]{}, false
 }
 
 // filesPage returns the page of files that q selects.
