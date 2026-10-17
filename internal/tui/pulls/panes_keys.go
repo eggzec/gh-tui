@@ -57,6 +57,8 @@ type panesKeys struct {
 	filter string
 	// inv is the keys of the involved pane's rows.
 	inv foldtree.KeyMap
+	// rerequest asks the person under the cursor for a review again.
+	rerequest key.Binding
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -80,6 +82,8 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		files:    newFilesKeys(keys),
 		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
 		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
+
+		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
