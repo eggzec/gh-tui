@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -17,6 +18,10 @@ type fakeDev struct {
 	// warm makes the links cached before any read.
 	warm  bool
 	reads []pulls.LinksQuery
+	// issueReads and pullReads are the numbers whose previews were read, and
+	// body is how many lines the body of an issue has.
+	issueReads, pullReads []int
+	body                  int
 }
 
 var _ dev.Service = (*fakeDev)(nil)
@@ -38,14 +43,24 @@ func (f *fakeDev) CachedIssuePreview(pulls.PreviewQuery) (core.IssuePreview, boo
 	return core.IssuePreview{}, false
 }
 
-func (f *fakeDev) IssuePreview(context.Context, pulls.PreviewQuery) (core.IssuePreview, error) {
-	return core.IssuePreview{}, nil
+// IssuePreview answers with a body of body lines, and counts the read.
+func (f *fakeDev) IssuePreview(_ context.Context, q pulls.PreviewQuery) (core.IssuePreview, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.issueReads = append(f.issueReads, q.Number)
+	return core.IssuePreview{
+		Reference: devRef(core.KindIssue, q.Number, "Issue title"),
+		Author:    "ada", Body: strings.Repeat("a line of the body\n", f.body),
+	}, nil
 }
 
 func (f *fakeDev) CachedPullPreview(pulls.PreviewQuery) (core.PullPreview, bool) {
 	return core.PullPreview{}, false
 }
 
-func (f *fakeDev) PullPreview(context.Context, pulls.PreviewQuery) (core.PullPreview, error) {
-	return core.PullPreview{}, nil
+func (f *fakeDev) PullPreview(_ context.Context, q pulls.PreviewQuery) (core.PullPreview, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pullReads = append(f.pullReads, q.Number)
+	return core.PullPreview{Reference: devRef(core.KindPull, q.Number, "Pull title"), Author: "ada", Head: "fix", Base: "main"}, nil
 }
