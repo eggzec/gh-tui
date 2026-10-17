@@ -60,14 +60,19 @@ func (m *panesModal) open(o overlay) {
 // what is below.
 func (m *panesModal) settle() {
 	for len(m.overlays) > 0 && m.top().closed() {
-		m.overlays = m.overlays[:len(m.overlays)-1]
+		m.pop()
 	}
 }
 
-// pop closes the overlay on top.
+// pop closes the overlay on top, and ends the reads it has in flight.
 func (m *panesModal) pop() {
-	if len(m.overlays) > 0 {
-		m.overlays = m.overlays[:len(m.overlays)-1]
+	if len(m.overlays) == 0 {
+		return
+	}
+	o := m.top()
+	m.overlays = m.overlays[:len(m.overlays)-1]
+	if f, ok := o.(interface{ finish() }); ok {
+		f.finish()
 	}
 }
 
