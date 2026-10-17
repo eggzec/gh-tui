@@ -4,13 +4,13 @@
 │    README.md                                           6B││▌  ↣ #2     Match keys by order                                                   octocat      now│
 │               ╭─ #2 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮               │
 │               │ ↣ #2 Match keys by order                                                                                                     │               │
-│               │ ╭─ 1 Description ──────────────────────────────────────────────────────────────────────╮╭─ 3 Merge ────────────────────────╮ │               │
-│               │ │ Not shown yet.                                                                       ││ Not shown yet.                   │ │               │
+│               │ ╭─ 1 Description ───────────────────────────────────────────────────────────────── 0% ─╮╭─ 3 Merge ────────────────────────╮ │               │
+│               │ │ ▌Notes  ⋯ 1 line                                                                     ││ Not shown yet.                   │ │               │
+│               │ │  Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys    ││                                  │ │               │
+│               │ │  match by order. Keys match by order. Keys match by order.                           ││                                  │ │               │
 │               │ │                                                                                      ││                                  │ │               │
-│               │ │                                                                                      ││                                  │ │               │
-│               │ │                                                                                      ││                                  │ │               │
-│               │ │                                                                                      ││                                  │ │               │
-│               │ │                                                                                      ││                                  │ │               │
+│               │ │  Paragraph 2. Keys match by order. Keys match by order. Keys match by order. Keys    ││                                  │ │               │
+│               │ │  match by order. Keys match by order. Keys match by order.                           ││                                  │ │               │
 │               │ │                                                                                      ││                                  │ │               │
 │               │ ╰──────────────────────────────────────────────────────────────────────────────────────╯│                                  │ │               │
 │               │ ╭─ 2 Conversation ─────────────────────────────────────────────────────────────────────╮│                                  │ │               │

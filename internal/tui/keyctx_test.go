@@ -62,6 +62,10 @@ func keyProse() string {
 	return strings.Join(paras, "\n\n") + "\n"
 }
 
+// keyFold is a details block that opens a description, so that the keys that
+// fold and unfold the tree of the description have a fold to act on.
+const keyFold = "<details>\n<summary>Notes</summary>\n\nHidden.\n\n</details>\n\n"
+
 func keyWide(n int) string {
 	lines := make([]string, n)
 	for i := range lines {
@@ -82,7 +86,7 @@ var (
 	keyPull = core.PullRequest{
 		ID: "PR_2", Repo: testRepo, Number: 2, Title: "Match keys by order", State: core.StateOpen,
 		Author: core.User{Login: "octocat"}, CreatedAt: keyTime, UpdatedAt: keyTime,
-		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", HeadSHA: "def456", ChangedFiles: 4, BaseRef: "main", Body: keyProse(),
+		URL: "https://github.com/eggzec/gh-tui/pull/2", HeadRef: "keys", HeadSHA: "def456", ChangedFiles: 4, BaseRef: "main", Body: keyFold + keyProse(),
 	}
 	keyRepo = core.Repo{
 		ID: "R_1", Ref: testRepo, DefaultBranch: "main", UpdatedAt: keyTime,
@@ -665,6 +669,9 @@ func (c keyContext) reachWith(t *testing.T, edit func(*config.Config)) (*Model, 
 				}
 				msg, _ := keyPress(name)
 				driveKeys(t, m, m.key(msg))
+				// The program draws after every key, and a pane that makes
+				// its rows on a draw takes keys only after one.
+				m.View()
 			}
 		}
 	}
@@ -1085,7 +1092,7 @@ func keyContexts() []keyContext {
 		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "merge_dialog", want: "always, merge_dialog (types)"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
-		{name: "pull request: description", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1"}, context: "pull_description", want: "global, pull_modal, pull_description"},
+		{name: "pull request: description", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1", "pull_description.expand"}, context: "pull_description", want: "global, pull_modal, pull_description"},
 		{name: "pull request: merge", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_3"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "pull request: involved", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_4"}, context: "pull_involved", want: "global, pull_modal, pull_involved"},
 		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},

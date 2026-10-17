@@ -61,6 +61,8 @@ type panesModal struct {
 	slots    [panes.Count]slot
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
+	// desc is the description, the tree of the body that the first pane shows.
+	desc descPane
 
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
@@ -83,6 +85,9 @@ type panesModal struct {
 	// dates tells their ages.
 	files filesPane
 	dates ui.Dates
+	// pics draws the images of the description, as the app's images setting
+	// says. It may be nil.
+	pics *ui.Images
 
 	// id names the modal to the messages of its reads.
 	id int64
@@ -139,6 +144,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		resume:   resume,
 		icons:    s.icons,
 		dates:    s.dates,
+		pics:     s.avatars,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -248,6 +254,9 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
+		return nil
+	case ui.ImagesMsg:
+		m.imagesChanged()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
