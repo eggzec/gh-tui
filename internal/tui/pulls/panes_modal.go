@@ -15,7 +15,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -61,6 +63,8 @@ type panesModal struct {
 	slots    [panes.Count]slot
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
+	// inv is the involved pane's state.
+	inv *involvedPane
 
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
@@ -151,6 +155,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
 	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
+	m.inv = newInvolved(m.keys.tree)
 	m.SetTheme(s.theme)
 	switch {
 	case cached:
@@ -158,6 +163,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	case pr != nil:
 		m.detail, m.loaded = core.PullRequestDetail{PullRequest: *pr}, true
 	}
+	m.refreshInvolved()
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
 	reads := []tea.Cmd{m.revalidate()}
@@ -244,10 +250,23 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		// What was served kept shows what GitHub has now.
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
 			m.detail, m.loaded = d, true
+			m.refreshInvolved()
 		}
 		return nil
+	case ui.DoneMsg:
+		// A change that was sent has landed or rolled back in the cache.
+		if d, ok := m.svc.CachedGet(m.repo, m.number); ok && msg.From == ui.PullsTitle {
+			m.detail, m.loaded = d, true
+			m.refreshInvolved()
+		}
+		return nil
+	case foldtree.EnterMsg:
+		return m.involvedEnter(msg)
+	case involved.FocusPersonMsg:
+		return m.focusPerson(msg)
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
+		m.restyleInvolved()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
@@ -282,6 +301,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(core.Target{Repo: m.repo, Number: m.number}.String(), msg.err))
 	}
 	m.detail, m.loaded = msg.detail, true
+	m.refreshInvolved()
 	m.follow()
 	return m.readCommits()
 }

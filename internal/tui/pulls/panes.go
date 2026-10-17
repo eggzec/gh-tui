@@ -40,7 +40,7 @@ var slots = [panes.Count]slot{
 	panes.Description - 1:  {context: "pull_description", content: (*panesModal).placeholder},
 	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).placeholder},
 	panes.Merge - 1:        {context: "pull_merge", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
-	panes.Involved - 1:     {context: "pull_involved", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
+	panes.Involved - 1:     {context: ctxInvolved, content: (*panesModal).involvedContent, press: (*panesModal).involvedPress, preview: (*panesModal).placeholderPreview},
 	panes.Development - 1:  {context: "pull_development", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Files - 1:        filesSlot(),
 }
