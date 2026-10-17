@@ -101,8 +101,8 @@ func TestPanesAndBack(t *testing.T) {
 		t.Error("backspace closed the modal, or left the runs")
 	}
 	h.keys("esc")
-	if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
-		t.Errorf("esc from the runs sent %v, want the modal closed", got)
+	if got := h.take(); len(got) != 1 || got[0] != (ui.LeaveModalMsg{Modal: m}) {
+		t.Errorf("esc from the runs sent %v, want the modal left", got)
 	}
 	if m.ctx.Err() == nil {
 		t.Error("the modal's reads outlive it")
@@ -1149,7 +1149,7 @@ func TestEscClosesFromEveryStep(t *testing.T) {
 			h.keys("tab")
 		}
 		h.keys("esc")
-		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+		if got := h.take(); len(got) != 1 || got[0] != (ui.LeaveModalMsg{Modal: m}) {
 			t.Errorf("esc on pane %d sent %v, want the modal closed", tab, got)
 		}
 	}
@@ -1170,7 +1170,7 @@ func TestEscClearsWhatIsShownFirst(t *testing.T) {
 			t.Fatalf("esc: search %q, want it cleared and the modal open", m.log.Query())
 		}
 		h.keys("esc")
-		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+		if got := h.take(); len(got) != 1 || got[0] != (ui.LeaveModalMsg{Modal: m}) {
 			t.Errorf("the second esc sent %v, want the modal closed", got)
 		}
 	})
@@ -1190,7 +1190,7 @@ func TestEscClearsWhatIsShownFirst(t *testing.T) {
 		}
 		cmd, _ = m.Act(ui.ActDismiss)
 		h.run(cmd)
-		if got := h.take(); len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: m}) {
+		if got := h.take(); len(got) != 1 || got[0] != (ui.LeaveModalMsg{Modal: m}) {
 			t.Errorf("the second dismiss sent %v, want the modal closed", got)
 		}
 	})
@@ -1213,15 +1213,18 @@ func TestBackspaceTypesInThePrompts(t *testing.T) {
 }
 
 // TestActBackStepsBack checks the app's back intent: it steps the log back
-// to the jobs and those to the runs, which it takes and leaves as they are.
+// to the jobs and those to the runs, which leave it to the app.
 func TestActBackStepsBack(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("tab", "tab")
-	for _, want := range []pane{jobsPane, runsPane, runsPane} {
+	for _, want := range []pane{jobsPane, runsPane} {
 		cmd, ok := m.Act(ui.ActBack)
 		if !ok || cmd != nil || m.focus != want {
 			t.Fatalf("Act(back) = %v, %v on pane %d, want it taken on %d", cmd, ok, m.focus, want)
 		}
+	}
+	if cmd, ok := m.Act(ui.ActBack); ok || cmd != nil || m.focus != runsPane {
+		t.Errorf("Act(back) on the runs = %v, %v, want it left to the app", cmd, ok)
 	}
 }
 

@@ -248,6 +248,13 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.CloseModalMsg:
 		m.closeModal(msg.Modal)
 		return m, nil
+	case ui.LeaveModalMsg:
+		if m.isOpen(msg.Modal) && m.modalBack() {
+			cmd := m.goModalBack(msg.Modal)
+			return m, cmd
+		}
+		m.closeModal(msg.Modal)
+		return m, nil
 	}
 
 	var cmd tea.Cmd

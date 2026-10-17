@@ -320,7 +320,7 @@ func (m *Model) openActionsOn(msg ui.OpenActionsMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModal(mod)
+	m.openModalOver(mod, msg.Back)
 	return load
 }
 

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -152,6 +153,87 @@ func TestOpenActionsMsgOpensOnARunAndAJob(t *testing.T) {
 	m.Update(ui.OpenActionsMsg{Repo: testRepo, Filter: f, At: at})
 	if m.topModal() != a.modal || len(a.opened) != 1 || a.filters[0] != f || a.targets[0] != at {
 		t.Errorf("opened %v with %v at %v, want the runs of the commit opened at %+v", a.opened, a.filters, a.targets, at)
+	}
+}
+
+// leavingModal is a fake of the Actions modal's keys: esc leaves it, the back
+// key is left to the app, as on the runs, and the quit key closes it.
+type leavingModal struct {
+	backModal
+}
+
+func (l *leavingModal) Act(action string) (tea.Cmd, bool) {
+	switch action {
+	case ui.ActQuit:
+		return ui.CloseModal(l), true
+	case ui.ActDismiss:
+		return ui.LeaveModal(l), true
+	}
+	return nil, false
+}
+
+// openedOver opens an Actions modal that is a leavingModal over a modal of
+// the app, with back as the modal to return to, which may be nil, and returns
+// both.
+func openedOver(t *testing.T, withBack bool) (m *Model, under, over *leavingModal) {
+	t.Helper()
+	over = &leavingModal{}
+	over.title = "Actions"
+	open := func(context.Context, core.RepoRef, core.RunFilter, ui.ActionsAt) (ui.Modal, tea.Cmd) {
+		return over, nil
+	}
+	m, _ = newTestApp(t, WithActions(open))
+	under = &leavingModal{}
+	under.title = "Pull request"
+	run(m, ui.OpenModalOver(under, nil))
+	msg := ui.OpenActionsMsg{Repo: testRepo}
+	if withBack {
+		msg.Back = under
+	}
+	run(m, func() tea.Msg { return msg })
+	if m.modal != over {
+		t.Fatalf("the Actions modal didn't open: %v", m.topModal())
+	}
+	return m, under, over
+}
+
+func reopened(mod *leavingModal) bool {
+	return slices.ContainsFunc(mod.msgs, func(msg tea.Msg) bool { _, ok := msg.(ui.ReopenedMsg); return ok })
+}
+
+func TestActionsOverAModalReturnsToIt(t *testing.T) {
+	t.Parallel()
+	for name, key := range map[string]tea.KeyPressMsg{"esc": {Code: tea.KeyEscape}, "backspace": backspace} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m, under, over := openedOver(t, true)
+			run(m, m.key(key))
+			if m.modal != under || over.discarded != 1 || !reopened(under) {
+				t.Errorf("%s left the Actions modal for %v, discarded %d, reopened %v; want the modal under, told it is open again", name, m.topModal(), over.discarded, reopened(under))
+			}
+		})
+	}
+}
+
+func TestQuitClosesTheActionsAndWhatIsUnderIt(t *testing.T) {
+	t.Parallel()
+	m, _, _ := openedOver(t, true)
+	run(m, m.key(press("q")))
+	if m.topModal() != nil {
+		t.Errorf("q left %v open", m.topModal())
+	}
+}
+
+func TestActionsOverNothingKeepsItsKeys(t *testing.T) {
+	t.Parallel()
+	m, _, over := openedOver(t, false)
+	run(m, m.key(backspace))
+	if m.modal != over {
+		t.Fatalf("backspace left the Actions modal for %v with nothing under it", m.topModal())
+	}
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
+	if m.topModal() != nil {
+		t.Errorf("esc left %v open, want the modal closed", m.topModal())
 	}
 }
 

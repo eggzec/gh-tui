@@ -265,7 +265,8 @@ func (m *Modal) back() tea.Cmd {
 
 // dismiss peels one layer at a time: the filter before its form shows, the
 // search of the log, the find or the quick filter of the runs, and when
-// none is left, the modal.
+// none is left, the modal, which returns to the modal it was opened over if
+// there is one.
 func (m *Modal) dismiss() tea.Cmd {
 	if m.filterStep != nil {
 		m.filterStep = nil
@@ -279,7 +280,7 @@ func (m *Modal) dismiss() tea.Cmd {
 			return cmd
 		}
 	}
-	return m.close()
+	return m.leave()
 }
 
 // refresh reads again what the focused pane shows, or what failed to
