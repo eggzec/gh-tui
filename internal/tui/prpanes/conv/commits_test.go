@@ -59,6 +59,31 @@ func commitRights(d *driver) map[string]string {
 	return rights
 }
 
+func TestEnterCommit(t *testing.T) {
+	t.Parallel()
+	d := newSourceDriver(t, pushSource(nil, nil))
+	d.all()
+	d.m.Focus()
+	v := d.m.views[""]
+	v.tree.Reveal("k:" + sha(2))
+	cmd := v.enter("k:" + sha(2))
+	if cmd == nil {
+		t.Fatal("enter on a commit sent nothing")
+	}
+	got, ok := cmd().(EnterMsg)
+	if !ok {
+		t.Fatalf("enter on a commit sent %T", cmd())
+	}
+	if got.Kind != KindCommit || got.SHA != sha(2) || len(got.SHA) != 40 {
+		t.Errorf("enter on a commit = %+v, want the full SHA %s", got, sha(2))
+	}
+	if cmd := v.enter("push:" + sha(1)); cmd == nil {
+		t.Error("enter on a push sent nothing")
+	} else if msg := cmd().(EnterMsg); msg.SHA != "" {
+		t.Errorf("enter on a push has SHA %q", msg.SHA)
+	}
+}
+
 func TestCommitIcons(t *testing.T) {
 	t.Parallel()
 	st := opts0().Styles
