@@ -26,6 +26,8 @@ type Styles struct {
 	errs   ui.ErrorStyles
 	// open is the amber glyph of a thread that isn't resolved.
 	open string
+	// snip are the styles of the code under a thread.
+	snip snippetStyles
 }
 
 // NewStyles returns the styles for theme t and the icon set named set, whose
@@ -40,6 +42,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		warn:   t.Warning,
 		errs:   t.Errors(ic),
 		open:   t.Warning.Render(ic.Glyph(ui.GlyphUnresolved)),
+		snip:   newSnippetStyles(t, ic, set),
 	}
 }
 

@@ -188,6 +188,7 @@ func (b *builder) thread(n *node, depth int) foldtree.Row {
 	kids := len(n.children) > 0
 	r := foldtree.Row{Right: right, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
 	r.Lines = b.message(prefix, c.Body, depth, kids, right+r.Marker)
+	r.Lines = b.withSnippet(r.Lines, t, c.DiffHunk, prefix, depth, kids)
 	// Replies that were not read have no row to open, so a thread of one
 	// line closes over their count.
 	unread := replies > 0 && !kids
