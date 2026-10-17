@@ -1,0 +1,29 @@
+▌ bob                                                                        3d
+ ├─  ann · model.go:48  Please rename this.                                  3d
+ │                       ▏  internal/tui/model.go:43-45
+ │                       ▏    42  +   z := m.count()
+ │                       ▏    43 ▌+   w := z * 2
+ │                       ▏ 43 44 ▌    return x + y
+ │                       ▏ 44 45 ▌ }
+ │
+ │                       It reads badly.
+ ├─  ann · model.go:42  Please rename this.                                  3d
+ │                       ▏  internal/tui/model.go:42
+ │                       ▏ 39 39      q := 1
+ │                       ▏ 40 40      x := 1
+ │                       ▏ 41 41      y := 2
+ │                       ▏ 42    ▌-   z := 3
+ │
+ │                       It reads badly.
+ ├─  ann · model.go:44   Please rename this.                                3d
+ │                         ▏  internal/tui/model.go:43-44 
+ │                         ▏ 42     -   z := 3
+ │                         ▏    42  +   z := m.count()
+ │                         ▏    43 ▌+   w := z * 2
+ │                         ▏ 43 44 ▌    return x + y
+ │
+ │                         It reads badly.
+ ╰─  ann · README.md  Please rename this.                                    3d
+                       ▏  …ctory/name/that/goes/on/and/on/for/a/while/README.md
+
+                       It reads badly.

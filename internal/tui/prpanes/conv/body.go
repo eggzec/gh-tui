@@ -84,12 +84,20 @@ func (b *builder) code(lines []string, room int) []string {
 	return out
 }
 
-// message returns the lines of a row: prefix, then body, whose first line
-// follows prefix on the head and the others hang under it. tail is what the
-// head holds at its right end, which the text leaves room for. depth is the
-// depth of the row and kids says whether it has children.
-func (b *builder) message(prefix, body string, depth int, kids bool, tail string) []string {
-	src := prepare(body)
+// column is where the text of a row sits.
+type column struct {
+	// limit is the cells the row has, pw those of its prefix, and lead says
+	// whether the text starts beside the prefix.
+	limit, pw int
+	lead      bool
+	// pad is the cells that the lines under the head start after, and room
+	// the cells the text of those lines has.
+	pad, room int
+}
+
+// column returns where the text of a row with prefix sits, at depth and with
+// or without children.
+func (b *builder) column(prefix string, depth int, kids bool) column {
 	limit := b.width - 1 - guide*depth
 	pw := ansi.StringWidth(prefix)
 	// A prefix that takes much of the row leaves the text no room beside it:
@@ -108,12 +116,22 @@ func (b *builder) message(prefix, body string, depth int, kids bool, tail string
 		col = max(hang, guide)
 		pad = col - guide
 	}
-	room := markdown.Room(limit, col)
+	return column{limit: limit, pw: pw, lead: lead, pad: pad, room: markdown.Room(limit, col)}
+}
+
+// message returns the lines of a row: prefix, then body, whose first line
+// follows prefix on the head and the others hang under it. tail is what the
+// head holds at its right end, which the text leaves room for. depth is the
+// depth of the row and kids says whether it has children.
+func (b *builder) message(prefix, body string, depth int, kids bool, tail string) []string {
+	src := prepare(body)
+	c := b.column(prefix, depth, kids)
+	limit, pw, lead, room := c.limit, c.pw, c.lead, c.room
 	lines := b.render(src, room)
 	if len(lines) == 0 {
 		return []string{prefix}
 	}
-	pads := strings.Repeat(" ", pad)
+	pads := strings.Repeat(" ", c.pad)
 	if !lead {
 		out := []string{prefix}
 		for _, l := range lines {
