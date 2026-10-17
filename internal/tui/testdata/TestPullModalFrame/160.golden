@@ -16,8 +16,8 @@
 │               │ ╭─ 2 Conversation ──────────────────────────────────────── 2 of 2 shown · filter: all ─╮│ Update U                         │ │               │
 │               │ │ ▌○ bob                                                                           now │╰──────────────────────────────────╯ │               │
 │               │ │  ╰─ ● dee · b.go:7  Why?                                                         now │╭─ 4 Involved ─────────────────────╮ │               │
-│               │ │     ╰─ bob  Because.                                                             now ││ Not shown yet.                   │ │               │
-│               │ │                                                                                      ││                                  │ │───────────────╯
+│               │ │     ╰─ bob  Because.                                                             now ││ ▌Author octocat                  │ │               │
+│               │ │                                                                                      ││  ▾ Reviewers 0                   │ │───────────────╯
 │               │ │  ann  Looks good.                                                                now │╰──────────────────────────────────╯ │───────────────╮
 │               │ │                                                                                      │╭─ 5 Development ──────────────────╮ │ · Closed · All│
 │               │ │                                                                                      ││ Not shown yet.                   │ │ octocat    now│

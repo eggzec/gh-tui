@@ -847,6 +847,9 @@ var idleRows = map[string]string{
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
+	"pull_involved expand":   "the cursor starts on the author, which is no group to open",
+	"pull_involved collapse": "the cursor starts on the author, which is no group to close",
+
 	// The readers are reached scrolled down and across a text longer and
 	// wider than their window, so only these have nothing to act on.
 	"preview left":                 "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",

@@ -43,6 +43,7 @@ type drawKey struct {
 	offset        int
 	merge         int
 	conv          int
+	involved      int
 }
 
 // SetTheme implements ui.Modal.
@@ -55,6 +56,7 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.chips = ui.NewLabelChips(m.st.label, t.Dark, m.icons.Ellipsis, headerChipName)
 	m.dim = t.Subtle.Faint(true)
 	m.cst = t.Confirm(m.icons)
+	m.restyleInvolved()
 	m.gen++
 	m.merge.restyle(m)
 	m.restyleConv()
@@ -88,7 +90,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset(), m.merge.version, m.conv.version}
+	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}

@@ -55,6 +55,8 @@ type panesKeys struct {
 	// filter is the key that changes what the conversation shows, "" when
 	// none is bound.
 	filter string
+	// inv is the keys of the involved pane's rows.
+	inv foldtree.KeyMap
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -77,6 +79,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
 		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
+		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
@@ -90,6 +93,25 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		k.filter = fk[0]
 	}
 	return k
+}
+
+// noMark is a lookup that has no key to mark rows with, which no pane of the
+// modal uses.
+type noMark struct{ keymap.Scoped }
+
+func (n noMark) Of(action string) []string {
+	if action == "mark" {
+		return nil
+	}
+	return n.Scoped.Of(action)
+}
+
+// withoutMark returns look with no mark action, which the config need not have.
+func withoutMark(look keymap.Lookup) keymap.Lookup {
+	if s, ok := look.(keymap.Scoped); ok {
+		return noMark{s}
+	}
+	return look
 }
 
 // digit returns the pane whose digit msg is, if it is one.
@@ -164,6 +186,9 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 			}
 		}
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
+	}
+	if ctx == ctxInvolved {
+		return []keyhelp.Layer{own, m.involvedLayer()}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

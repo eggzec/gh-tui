@@ -16,7 +16,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -64,6 +66,8 @@ type panesModal struct {
 	slots    [panes.Count]slot
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
+	// inv is the involved pane's state.
+	inv *involvedPane
 
 	// conv is the Conversation pane's tree.
 	conv convPane
@@ -166,6 +170,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
 	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
+	m.inv = newInvolved(m.keys.inv)
 	m.SetTheme(s.theme)
 	switch {
 	case cached:
@@ -173,6 +178,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	case pr != nil:
 		m.detail, m.loaded = core.PullRequestDetail{PullRequest: *pr}, true
 	}
+	m.refreshInvolved()
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
 	reads := []tea.Cmd{m.revalidate(), m.merge.refresh(m)}
@@ -276,6 +282,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// What was served kept shows what GitHub has now.
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
 			m.detail, m.loaded = d, true
+			m.refreshInvolved()
 		}
 		// A range that couldn't be read is read again, now that GitHub answers.
 		if m.files.read.err != "" {
@@ -290,9 +297,19 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
 		m.merge.rebuild(m, false)
 		return tea.Batch(m.checksMsg(msg), mergeCmd, m.convUpdate(msg))
+	case ui.DoneMsg:
+		// A change that was sent has landed or rolled back in the cache.
+		if d, ok := m.svc.CachedGet(m.repo, m.number); ok && msg.From == ui.PullsTitle {
+			m.detail, m.loaded = d, true
+			m.refreshInvolved()
+		}
+		return nil
+	case involved.FocusPersonMsg:
+		return m.focusPerson(msg)
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
 		m.conv.dates = ui.NewDates(msg.Config.UI.DateFormat)
+		m.restyleInvolved()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
@@ -310,6 +327,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
 	default:
+		// Several panes have a tree, and each enter carries the ID of its tree.
+		if enter, ok := msg.(foldtree.EnterMsg); ok && enter.Tree == m.inv.tree.ID() {
+			return m.involvedEnter(enter)
+		}
 		// The loaders of the checks take their answers whatever is open over
 		// the pane, and ignore the other messages.
 		var cmd tea.Cmd
@@ -344,6 +365,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 		return ui.Fail("load #"+strconv.Itoa(m.number), core.About(core.Target{Repo: m.repo, Number: m.number}.String(), msg.err))
 	}
 	m.detail, m.loaded = msg.detail, true
+	m.refreshInvolved()
 	m.follow()
 	return tea.Batch(m.readCommits(), m.merge.refresh(m), m.receiveHead())
 }
