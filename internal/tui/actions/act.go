@@ -10,7 +10,8 @@ var _ ui.Actor = (*Modal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal from any of its
 // views, the dismiss key clears what is transient and then closes it, and
-// the back key steps back a pane, or does nothing on the runs; every other
+// the back key steps back a pane, and on the runs is left to the app, which
+// returns to the modal this one was opened over, if there is one; every other
 // intent is the app's to refuse while it is open.
 func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	switch action {
@@ -19,6 +20,9 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	case ui.ActDismiss:
 		return m.dismiss(), true
 	case ui.ActBack:
+		if m.focus == runsPane && m.filterStep == nil {
+			return nil, false
+		}
 		return m.back(), true
 	}
 	return nil, false

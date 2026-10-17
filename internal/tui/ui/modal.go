@@ -189,3 +189,15 @@ type CloseModalMsg struct {
 func CloseModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return CloseModalMsg{Modal: m} }
 }
+
+// LeaveModalMsg asks the app to leave Modal: to return to the modal it was
+// opened over, or to close it if there is none. It does nothing once another
+// modal has replaced it.
+type LeaveModalMsg struct {
+	Modal Modal
+}
+
+// LeaveModal returns a command that leaves m.
+func LeaveModal(m Modal) tea.Cmd {
+	return func() tea.Msg { return LeaveModalMsg{Modal: m} }
+}

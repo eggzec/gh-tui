@@ -204,6 +204,9 @@ type OpenActionsMsg struct {
 	Repo   core.RepoRef
 	Filter core.RunFilter
 	At     ActionsAt
+	// Back is the modal to return to when the Actions modal is left, nil for
+	// none. It must be the open modal to count.
+	Back Modal
 }
 
 // ActionsAt says where the Actions modal opens: on the run with ID Run and,

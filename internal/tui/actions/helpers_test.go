@@ -135,7 +135,7 @@ func (h *host) handle(msg tea.Msg) {
 			h.run(c)
 		}
 		return
-	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.OpenFileMsg:
+	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.LeaveModalMsg, ui.OpenFileMsg:
 		h.got = append(h.got, msg)
 		return
 	case ui.DoneMsg:

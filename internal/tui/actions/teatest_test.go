@@ -28,7 +28,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.modal.SetSize(msg.Width, msg.Height)
 		return a, nil
-	case ui.CloseModalMsg:
+	case ui.CloseModalMsg, ui.LeaveModalMsg:
 		return a, tea.Quit
 	case ui.DoneMsg:
 		a.done = append(a.done, msg)

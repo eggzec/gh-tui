@@ -391,10 +391,22 @@ func (m *Modal) Hide() {
 // close ends the modal's reads and the following of its run, and asks the
 // app to close it.
 func (m *Modal) close() tea.Cmd {
+	m.end()
+	return ui.CloseModal(m)
+}
+
+// leave ends the modal's reads as close does, and asks the app to return to
+// the modal it was opened over, or to close it if there is none.
+func (m *Modal) leave() tea.Cmd {
+	m.end()
+	return ui.LeaveModal(m)
+}
+
+// end stops the following of the run and the reads of the modal.
+func (m *Modal) end() {
 	m.unfollow()
 	m.log.Clear()
 	m.cancel()
-	return ui.CloseModal(m)
 }
 
 // startSpinner starts the spinner while something loads, unless it runs.
