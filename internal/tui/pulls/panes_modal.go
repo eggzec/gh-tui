@@ -72,6 +72,9 @@ type panesModal struct {
 	// conv is the Conversation pane's tree.
 	conv convPane
 
+	// dev is the Development pane, nil when the section has no service for it.
+	dev *devPane
+
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
 	overlays []openOverlay
@@ -182,6 +185,9 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
 	reads := []tea.Cmd{m.revalidate(), m.merge.refresh(m)}
+	if read := m.openDev(s.dev, s.rawKeys); read != nil {
+		reads = append(reads, read)
+	}
 	if !m.caps.Known {
 		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
 	}
@@ -266,6 +272,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case filesRangeMsg:
 		m.rangeRead(msg)
 		return nil
+	case devLinksMsg:
+		m.receiveDev(msg)
+		return nil
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case checktree.OpenJobMsg:
@@ -290,6 +299,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			m.detail, m.loaded = d, true
 			m.refreshInvolved()
 		}
+		m.refreshDev()
 		// A range that couldn't be read is read again, now that GitHub answers.
 		if m.files.read.err != "" {
 			m.files.read.key = ""
@@ -316,6 +326,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		msg.ReloadIcons(&m.icons)
 		m.conv.dates = ui.NewDates(msg.Config.UI.DateFormat)
 		m.restyleInvolved()
+		m.restyleDev()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
@@ -334,8 +345,13 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return m.mergeUpdate(msg)
 	default:
 		// Several panes have a tree, and each enter carries the ID of its tree.
-		if enter, ok := msg.(foldtree.EnterMsg); ok && enter.Tree == m.inv.tree.ID() {
-			return m.involvedEnter(enter)
+		if enter, ok := msg.(foldtree.EnterMsg); ok {
+			if enter.Tree == m.inv.tree.ID() {
+				return m.involvedEnter(enter)
+			}
+			if m.dev != nil && enter.Tree == m.dev.model.ID() {
+				return m.enterDev(enter)
+			}
 		}
 		// The loaders of the checks take their answers whatever is open over
 		// the pane, and ignore the other messages.
@@ -457,7 +473,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
-	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom})
+	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom, DevelopmentRows: m.devRows()})
 }
 
 // canZoom reports whether the panes are wide enough to zoom: below that

@@ -1199,6 +1199,28 @@ keys:
     prev_match: [N]
     # Switch between the file and the whole patch of the range, keeping the line.
     whole_patch: [a]
+  # The modal of a pull request: what it closes, with what blocks each issue,
+  # and the pull requests linked to it, in groups that fold. Enter opens the
+  # item under the cursor, or folds a group.
+  pull_development:
+    # Move the cursor up and down the rows.
+    up: [up, k]
+    down: [down, j]
+    # Move a page, or half of one.
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    # Go to the first row, or the last.
+    top: [g, home]
+    bottom: [G, end]
+    # Expand the group under the cursor, or go to its first item when it is
+    # open.
+    expand: [right, l]
+    # Collapse the group under the cursor, or go to its group from an item.
+    collapse: [left, h]
+    # Expand every group, or collapse them all when all are expanded.
+    toggle_all: ["*"]
   # The modal of a release.
   release_modal:
     up: [up, k]

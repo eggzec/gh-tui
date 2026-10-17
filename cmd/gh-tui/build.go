@@ -264,7 +264,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(pics), pulls.WithFacets(facetSvc),
-			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithCommitChecks(actionSvc), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
+			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithCommitChecks(actionSvc), pulls.WithDevelopment(pullSvc), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots), pulls.WithConversation(cfg),
 		}
 		issueOpts = []issues.Option{
