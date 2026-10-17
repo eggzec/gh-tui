@@ -1,0 +1,9 @@
+▌ Fix the cache
+
+ The cache dropped entries on a resize, see #12 and  Cache.Resize .
+
+ • keep the order
+ • drop the oldest
+
+ Fixes #12. Thanks to @octo for the report, which came with a long line that has to wrap somewhere before the right edge
+ of the pane.
