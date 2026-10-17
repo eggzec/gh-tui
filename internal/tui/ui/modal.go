@@ -87,6 +87,10 @@ const (
 	// CommandReferences shows the issues and pull requests linked to what
 	// the modal shows; the modal is [Referencing].
 	CommandReferences = "references"
+	// CommandNextFile and CommandPrevFile go to the next and the previous
+	// file of the diff the modal shows.
+	CommandNextFile = "n"
+	CommandPrevFile = "p"
 )
 
 // Hosted is a Modal that shows steps whose keys are contexts of their own,
