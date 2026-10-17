@@ -5,14 +5,17 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // configure keeps the settings of c that the section uses while it runs,
 // which the set command changed: the icons, which the theme the app sets
-// again after draws with, the dates, and the reads ahead, as WithPrefetch
-// sets them.
+// again after draws with, the dates, the kinds of events the Conversation
+// pane shows when a modal opens, and the reads ahead, as WithPrefetch sets
+// them.
 func (s *Section) configure(c config.Config) {
+	s.convOpt = conv.Configure(c)
 	s.icons = ui.NewIcons(c.UI.Icons)
 	s.voice.Icons = &s.icons
 	s.chips = ui.Chips(s.query, s.icons.Separator)

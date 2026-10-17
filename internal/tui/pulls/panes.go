@@ -38,7 +38,7 @@ type slot struct {
 // slots has one entry per pane, in the order of the panes.
 var slots = [panes.Count]slot{
 	panes.Description - 1:  {context: "pull_description", content: (*panesModal).placeholder},
-	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).placeholder},
+	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).convContent, press: (*panesModal).convPress},
 	panes.Merge - 1:        {context: ctxMerge, content: (*panesModal).mergeContent, press: (*panesModal).pressMerge, preview: (*panesModal).placeholderPreview},
 	panes.Involved - 1:     {context: "pull_involved", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Development - 1:  {context: "pull_development", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},

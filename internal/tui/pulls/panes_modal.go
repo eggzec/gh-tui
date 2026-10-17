@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -63,6 +64,9 @@ type panesModal struct {
 	slots    [panes.Count]slot
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
+
+	// conv is the Conversation pane's tree.
+	conv convPane
 
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
@@ -145,6 +149,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		resume:   resume,
 		icons:    s.icons,
 		dates:    s.dates,
+		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -173,6 +178,9 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	reads := []tea.Cmd{m.revalidate(), m.merge.refresh(m)}
 	if !m.caps.Known {
 		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
+	}
+	if s.readViewer != nil {
+		reads = append(reads, m.readViewer(s.readViewer))
 	}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(reads...))
 }
@@ -254,6 +262,11 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case checktree.OpenCheckMsg:
 		// A check of an App other than GitHub Actions has no modal yet.
 		return nil
+	case convViewerMsg:
+		return m.receiveViewer(msg)
+	case conv.EnterMsg:
+		// What acting on a row does comes with the changes that act on it.
+		return nil
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -270,21 +283,23 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		var mergeCmd tea.Cmd
 		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
-		return tea.Batch(m.checksMsg(msg), mergeCmd, m.merge.refresh(m))
+		return tea.Batch(m.checksMsg(msg), mergeCmd, m.merge.refresh(m), m.convUpdate(msg))
 	case ui.ReopenedMsg:
 		// A modal opened from here, such as a job's, may have changed checks.
 		var mergeCmd tea.Cmd
 		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
 		m.merge.rebuild(m, false)
-		return tea.Batch(m.checksMsg(msg), mergeCmd)
+		return tea.Batch(m.checksMsg(msg), mergeCmd, m.convUpdate(msg))
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
+		m.conv.dates = ui.NewDates(msg.Config.UI.DateFormat)
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
 		cmd := m.press(msg)
+		m.syncConvFocus()
 		m.follow()
 		return cmd
 	case tea.PasteMsg:
@@ -303,10 +318,12 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		var mergeCmd tea.Cmd
 		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
-		cmd = tea.Batch(cmd, mergeCmd)
 		m.merge.rebuild(m, false)
-		// What the overlay on top asked for: the messages of a composer.
+		// The conversation's own: its pages and its tree's, which arrive while
+		// an overlay is open as well, and which it drops if they aren't its own.
+		cmd = tea.Batch(cmd, mergeCmd, m.convUpdate(msg))
 		if m.top() != nil {
+			// What the overlay on top asked for: the messages of a composer.
 			return tea.Batch(cmd, m.pressOverlay(msg))
 		}
 		return tea.Batch(cmd, m.mergeUpdate(msg))
@@ -328,7 +345,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 	}
 	m.detail, m.loaded = msg.detail, true
 	m.follow()
-	return tea.Batch(m.readCommits(), m.merge.refresh(m))
+	return tea.Batch(m.readCommits(), m.merge.refresh(m), m.receiveHead())
 }
 
 // press takes a key: the modal's own keys, which move the focus and the
@@ -477,6 +494,9 @@ func (m *panesModal) close() tea.Cmd {
 func (m *panesModal) Discard() {
 	m.closed = true
 	m.merge.loader.Stop()
+	if m.conv.started {
+		m.conv.model.Close()
+	}
 	m.cancel()
 	m.files.loader.Stop()
 	m.resume()
