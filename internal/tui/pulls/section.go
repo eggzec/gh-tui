@@ -44,6 +44,11 @@ type Service interface {
 	// Files reads a page of the files that a pull request changes, with
 	// their patches.
 	Files(ctx context.Context, q pulls.FilesQuery) (core.Page[core.CommitFile], error)
+	// PullCommits reads the commits of a pull request at a head, with their
+	// checks and the viewer's last review, and CachedPullCommits returns
+	// them from memory, if they are there, without a request.
+	PullCommits(ctx context.Context, q pulls.PullCommitsQuery) (core.PullCommits, error)
+	CachedPullCommits(q pulls.PullCommitsQuery) (core.PullCommits, bool)
 	// Threads reads a page of the review threads of a pull request, with
 	// their comments, and CachedThreads returns one from memory, if it is
 	// there, without a request.

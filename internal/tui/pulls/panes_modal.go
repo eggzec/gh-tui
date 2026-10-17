@@ -79,6 +79,11 @@ type panesModal struct {
 	found   string
 	findErr func(error) (text, hint string)
 
+	// files is the Files pane: the commits and the range of them selected.
+	// dates tells their ages.
+	files filesPane
+	dates ui.Dates
+
 	// id names the modal to the messages of its reads.
 	id int64
 	// ctx bounds the reads, and resume lets the reads ahead go on once the
@@ -133,11 +138,13 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		cancel:   cancel,
 		resume:   resume,
 		icons:    s.icons,
+		dates:    s.dates,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
 		sendCtx: s.ctx,
 	}
+	m.files = newFilesPane(m.keys.files)
 	if onChecks {
 		m.focus = panes.Merge
 	}
@@ -218,6 +225,8 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case panesDetailMsg:
 		return m.receive(msg)
+	case filesCommitsMsg:
+		return m.commitsRead(msg)
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case checktree.OpenJobMsg:
@@ -274,7 +283,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 	}
 	m.detail, m.loaded = msg.detail, true
 	m.follow()
-	return nil
+	return m.readCommits()
 }
 
 // press takes a key: the modal's own keys, which move the focus and the
@@ -303,6 +312,11 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openFind()
 	case m.inPreview(l):
 		m.scrollPreview(l, msg)
+	default:
+		if press := m.slots[m.focus-1].press; press != nil {
+			cmd, _ := press(m, msg)
+			return cmd
+		}
 	}
 	return nil
 }

@@ -30,11 +30,13 @@ var (
 // fakeService serves pull requests from memory, a page at a time, and
 // records what it was asked.
 type fakeService struct {
-	mu       sync.Mutex
-	pulls    []core.PullRequest
-	pageSize int
-	queries  []pulls.ListQuery
-	listErr  error
+	mu sync.Mutex
+	// pullCommits are the commits served, when set.
+	pullCommits *fakeCommits
+	pulls       []core.PullRequest
+	pageSize    int
+	queries     []pulls.ListQuery
+	listErr     error
 	// fresh are the pages List has served, which it serves again without
 	// a request, as the service's cache does, until Invalidate. requests
 	// are the lists that weren't fresh.

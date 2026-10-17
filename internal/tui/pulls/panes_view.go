@@ -37,6 +37,7 @@ type drawKey struct {
 	zoom          bool
 	sub           [panes.Count]panes.Role
 	gen           int
+	files         int
 	updated       int64
 	hover         hovered
 	offset        int
@@ -83,7 +84,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset()}
+	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
