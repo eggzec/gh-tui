@@ -144,6 +144,8 @@ type fakeService struct {
 	sentReviews []sentReview
 	reviewErr   error
 	reviewGate  chan struct{}
+	// timeline is what the timeline reads serve and record.
+	timeline timelineFake
 }
 
 // sentReview is one call of SendReview.
