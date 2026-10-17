@@ -123,6 +123,7 @@ func (m *panesModal) buildConv() tea.Cmd {
 		opts = append(opts, c.opt)
 	}
 	c.model = conv.New(src, opts...)
+	c.model.SetFilterHint(m.keys.filter)
 	c.started, c.head, c.focused = true, head, false
 	m.syncConvFocus()
 	m.refreshConv()
