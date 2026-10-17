@@ -133,6 +133,7 @@ func tree(d Data, o Options) []*node {
 	flush()
 	if !preview {
 		sortNodes(out, o.order)
+		out = withCI(out, o)
 	}
 
 	if p := pendingReview(d, attached); p != nil && !hidden(core.TimelineReview) {
