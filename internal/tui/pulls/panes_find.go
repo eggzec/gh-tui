@@ -143,6 +143,13 @@ func (m *panesModal) chooseFile(path string) {
 	m.resetSub()
 }
 
+// openFound shows the file the finder chose in the Files pane, and its diff
+// over it.
+func (m *panesModal) openFound(path string) tea.Cmd {
+	m.chooseFile(path)
+	return m.openDiff(path)
+}
+
 // finderOverlay finds a changed file by some letters of its path. It is a
 // picker in the way it is placed, but it types: it takes every key itself.
 type finderOverlay struct {
@@ -192,8 +199,9 @@ func (o *finderOverlay) update(msg tea.Msg) tea.Cmd {
 		if o.m.detail.HeadSHA != o.head {
 			return ui.Notify(toast.Warning, "The pull request changed; find again.")
 		}
-		o.m.chooseFile(msg.Item.Path)
-		return nil
+		// The finder gives way to the diff, which opens above it.
+		o.m.pop()
+		return o.m.openFound(msg.Item.Path)
 	case finder.CancelMsg:
 		if msg.ID == o.f.ID() {
 			o.finish()

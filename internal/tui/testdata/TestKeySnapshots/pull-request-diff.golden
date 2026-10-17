@@ -3,35 +3,16 @@
 global
   quit | ctrl+c | ^c | on
   command | : | : | on
-  maximize | Z | Z | on
+  maximize | Z | Z | off
   back | backspace | backspace | off
   dashboard | 0 | 0 | off
   notifications | I | I | off
   search | S | S | off
   this repo | . | . | off
+  owner page | @ | @ | off
   help | ? | ? | on
 
 Pull request
-  merge | M | M | on
-  close PR | X | X | on
-  reopen PR | O | O | off
-  convert to draft | W | W | on
-  checks | C | C | on
-  linked items | # | # | on
-  find file | ctrl+p | ^p | on
-  next thread | ) | ) | on
-  previous thread | ( | ( | on
-  drafts | t | t | on
-  next tab | ] | ] | on
-  previous tab | [ | [ | on
-  pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
-  focus pane | 1 2 | 1/2 | on
-  zoom | z | z | on
-  open in browser | o | o | on
-  refresh | r | r | on
-  close | esc | esc | on
-  author | @ | @ | on
 
 Diff
   up | up k | ↑/k | on
@@ -55,10 +36,4 @@ Diff
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
-  viewed | v | v | on
-  read on | space | space | on
-  scope | w | w | on
-  resolve thread | T | T | off
-  draft comment | c | c | on
-  start range | V | V | on
-  delete draft | D | D | off
+  whole patch | a | a | on

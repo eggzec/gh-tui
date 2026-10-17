@@ -59,6 +59,8 @@ type panesKeys struct {
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
 	rerequest key.Binding
+	// diff is the keys of the diff of a file.
+	diff diffKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -84,6 +86,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
+		diff:      newDiffKeys(keys),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
