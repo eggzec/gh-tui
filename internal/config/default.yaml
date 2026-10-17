@@ -1104,6 +1104,10 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
+    # Pick which kinds of items the conversation shows, and the order of the
+    # items.
+    filter: [f]
+    sort: [s]
     # Resolve the unresolved thread under the cursor, after a question.
     resolve: [T]
     # Write a comment on the pull request, after a question.
