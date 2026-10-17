@@ -39,6 +39,8 @@ type panesKeys struct {
 	// scroll moves through the preview of a zoomed pane, and the cursor of the
 	// verdicts.
 	scroll ui.MoveKeys
+	// desc are the keys of the description's tree.
+	desc foldtree.KeyMap
 	// review opens the verdicts, choose takes the one under the cursor and
 	// cancel steps back out of them. composer is the keys of the summary.
 	review, choose, cancel key.Binding
@@ -91,6 +93,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
+		desc:    foldtree.NewKeyMap(ui.Lookup(keys, ctxDescription)),
 	}
 	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
 		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
@@ -196,6 +199,13 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	}
 	if ctx == ctxInvolved {
 		return []keyhelp.Layer{own, m.involvedLayer()}
+	}
+	if ctx == ctxDescription {
+		var all []key.Binding
+		for _, row := range k.desc.FullHelp() {
+			all = append(all, row...)
+		}
+		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.desc.ShortHelp())}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

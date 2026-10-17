@@ -75,6 +75,9 @@ type panesModal struct {
 	// dev is the Development pane, nil when the section has no service for it.
 	dev *devPane
 
+	// desc is the description, the tree of the body that the first pane shows.
+	desc descPane
+
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
 	overlays []openOverlay
@@ -99,6 +102,9 @@ type panesModal struct {
 	// checks reads the checks of a commit for the Files pane, or is nil
 	// without a checks service.
 	checks ChecksService
+	// pics draws the images of the description, as the app's images setting
+	// says. It may be nil.
+	pics *ui.Images
 
 	// id names the modal to the messages of its reads.
 	id int64
@@ -160,6 +166,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		dates:    s.dates,
 		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
 		now:      s.now,
+		pics:     s.avatars,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -332,6 +339,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.conv.dates = ui.NewDates(msg.Config.UI.DateFormat)
 		m.restyleInvolved()
 		m.restyleDev()
+		return nil
+	case ui.ImagesMsg:
+		m.imagesChanged()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
