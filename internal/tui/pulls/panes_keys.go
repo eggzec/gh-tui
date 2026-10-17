@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -49,6 +50,10 @@ type panesKeys struct {
 	helpKeys keyhelp.KeyMap
 	// files is the keys of the Files pane.
 	files filesKeys
+	// tree is the keys of the involved pane's rows.
+	tree foldtree.KeyMap
+	// rerequest asks the person under the cursor for a review again.
+	rerequest key.Binding
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -70,6 +75,9 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
+		tree:     foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
+
+		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
@@ -80,6 +88,25 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 	}
 	k.jump = ui.Jump(k.pane[:]...)
 	return k
+}
+
+// noMark is a lookup that has no key to mark rows with, which no pane of the
+// modal uses.
+type noMark struct{ keymap.Scoped }
+
+func (n noMark) Of(action string) []string {
+	if action == "mark" {
+		return nil
+	}
+	return n.Scoped.Of(action)
+}
+
+// withoutMark returns look with no mark action, which the config need not have.
+func withoutMark(look keymap.Lookup) keymap.Lookup {
+	if s, ok := look.(keymap.Scoped); ok {
+		return noMark{s}
+	}
+	return look
 }
 
 // digit returns the pane whose digit msg is, if it is one.
@@ -138,6 +165,9 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	}
 	if ctx == ctxFiles {
 		return []keyhelp.Layer{own, k.files.layer()}
+	}
+	if ctx == ctxInvolved {
+		return []keyhelp.Layer{own, m.involvedLayer()}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

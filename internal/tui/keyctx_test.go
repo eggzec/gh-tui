@@ -143,6 +143,9 @@ func (keyPulls) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], 
 func (keyPulls) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
+func (keyPulls) CachedTimeline(pullsvc.TimelineQuery) (core.Page[core.TimelineItem], bool) {
+	return core.Page[core.TimelineItem]{}, true
+}
 func (keyPulls) CachedReviews(pullsvc.ReviewsQuery) (core.Page[core.Review], bool) {
 	return core.Page[core.Review]{}, true
 }
@@ -815,6 +818,10 @@ var foldedContexts = map[string]string{"picker_normal": "picker"}
 var idleRows = map[string]string{
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
+
+	"pull_involved expand":     "the cursor starts on the author, which is no group to open",
+	"pull_involved collapse":   "the cursor starts on the author, which is no group to close",
+	"pull_involved re-request": "the cursor starts on the author, who has no review to ask for",
 
 	// The readers are reached scrolled down and across a text longer and
 	// wider than their window, so only these have nothing to act on.
