@@ -47,6 +47,8 @@ type panesKeys struct {
 	finder finder.KeyMap
 	// helpKeys is the keys of the help the modal shows inside itself.
 	helpKeys keyhelp.KeyMap
+	// files is the keys of the Files pane.
+	files filesKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -67,6 +69,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		find:     modal.Binding("global.find_file", "find file"),
 		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
+		files:    newFilesKeys(keys),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
@@ -132,6 +135,9 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 			all = append(all, row...)
 		}
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.scroll.ShortHelp())}
+	}
+	if ctx == ctxFiles {
+		return []keyhelp.Layer{own, k.files.layer()}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }

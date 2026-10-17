@@ -96,6 +96,8 @@ type Icons struct {
 	Markdown markdown.Glyphs
 	// keys names keys in help, as Key does.
 	keys *strings.Replacer
+	// set names the icon set, as NewIcons got it.
+	set string
 
 	// langs holds the glyphs of languages that have one; the others get
 	// lang.
@@ -133,11 +135,17 @@ const (
 // validated config never has, gets the Nerd Font set.
 func NewIcons(set string) Icons {
 	ic := newIcons(set)
+	ic.set = set
 	ic.runs = runGlyphs(set)
 	ic.glyphs = glyphTable(set)
 	ic.setDrawing(set)
 	return ic
 }
+
+// Set returns the name of the icon set, one of config.IconsNerd,
+// config.IconsUnicode and config.IconsASCII, or "" for icons that were not
+// made by NewIcons, which views draw as the Nerd Font set.
+func (ic Icons) Set() string { return ic.set }
 
 func newIcons(set string) Icons {
 	switch set {

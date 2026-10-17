@@ -3,6 +3,8 @@ package pulls
 import (
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -28,6 +30,9 @@ type slot struct {
 	hovered func(m *panesModal) (id, title string, ok bool)
 	// preview is the whole body of the pane's preview of the hovered row.
 	preview func(m *panesModal, b panes.Box) string
+	// press takes a key that the modal doesn't, while the pane's list has the
+	// focus. ok is false for a key it has no use for.
+	press func(m *panesModal, k tea.KeyPressMsg) (cmd tea.Cmd, ok bool)
 }
 
 // slots has one entry per pane, in the order of the panes.
@@ -37,7 +42,7 @@ var slots = [panes.Count]slot{
 	panes.Merge - 1:        {context: "pull_merge", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Involved - 1:     {context: "pull_involved", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Development - 1:  {context: "pull_development", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
-	panes.Files - 1:        {context: ctxFiles, content: (*panesModal).placeholder},
+	panes.Files - 1:        filesSlot(),
 }
 
 // placeholder is what a pane shows until it has content of its own. Its

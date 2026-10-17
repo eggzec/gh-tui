@@ -1114,9 +1114,8 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
-  # The modal of a pull request: the tree of the files it changes.
-  # Expand and collapse fold its directories; enter or expand on a file
-  # shows its diff.
+  # The modal of a pull request: the commits it holds and the files they
+  # change. Expand and collapse fold the sections.
   pull_files:
     up: [up, k]
     down: [down, j]
@@ -1129,11 +1128,13 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
-    # Mark the file under the cursor as viewed, or take the mark off. The mark
-    # is kept on GitHub, so it shows on the web and on your other machines.
-    viewed: [v]
-    # Pick which changes the pane shows: all of them, or those of one commit.
-    scope: [w]
+    # Add the commit under the cursor to the selected commits, or take it
+    # off. The selection is always one run of commits.
+    mark: [space]
+    # Select every commit.
+    select_all: [A]
+    # Select the commits made since your last review.
+    since_review: [w]
   # The modal of a release.
   release_modal:
     up: [up, k]

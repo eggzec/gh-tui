@@ -164,6 +164,12 @@ func (keyPulls) CachedThreads(pullsvc.ThreadsQuery) (core.ThreadPage, bool) {
 func (keyPulls) MergeTexts(context.Context, core.RepoRef, int) (core.MergeTexts, error) {
 	return core.MergeTexts{}, nil
 }
+func (keyPulls) PullCommits(context.Context, pullsvc.PullCommitsQuery) (core.PullCommits, error) {
+	return core.PullCommits{}, nil
+}
+func (keyPulls) CachedPullCommits(pullsvc.PullCommitsQuery) (core.PullCommits, bool) {
+	return core.PullCommits{}, false
+}
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyPulls) CurrentComments(pullsvc.CommentsQuery) bool { return true }
@@ -829,6 +835,8 @@ var idleRows = map[string]string{
 	"filter down":                   "the dropdown lists no options where the services serve none",
 	"filter top":                    "the dropdown lists no options where the services serve none",
 	"filter bottom":                 "the dropdown lists no options where the services serve none",
+	"pull_files collapse":           "the commits start folded and the cursor starts on them",
+	"pull_files all commits":        "every commit starts selected",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does
@@ -1135,7 +1143,6 @@ var reservedContexts = map[string]string{
 	"pull_check_list":        "read by the modal with tabs, which no screen opens now",
 	"pull_check_log":         "read by the modal with tabs, which no screen opens now",
 	"pull_conversation":      "the panes read them once those panes land",
-	"pull_files":             "the panes read them once those panes land",
 }
 
 // reservedReason is the reason an action is reserved, by its name or by its
