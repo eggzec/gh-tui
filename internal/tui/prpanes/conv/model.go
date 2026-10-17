@@ -30,6 +30,8 @@ type EnterMsg struct {
 	Item     *core.TimelineItem
 	Thread   *core.Thread
 	Comment  *core.ThreadComment
+	// SHA is the full SHA of the commit of a commit row.
+	SHA string
 }
 
 // Status says what the conversation shows besides its rows. The host draws
