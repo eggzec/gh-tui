@@ -50,6 +50,9 @@ type panesKeys struct {
 	helpKeys keyhelp.KeyMap
 	// tree is the keys of the conversation's tree.
 	tree foldtree.KeyMap
+	// filter is the key that changes what the conversation shows, "" when
+	// none is bound.
+	filter string
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -80,6 +83,9 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
 	}
 	k.jump = ui.Jump(k.pane[:]...)
+	if fk := (convLookup{Context: ui.In(keys, ctxConversation), keys: keys}).Of("filter"); len(fk) > 0 {
+		k.filter = fk[0]
+	}
 	return k
 }
 

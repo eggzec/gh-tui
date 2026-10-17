@@ -117,6 +117,7 @@ func (m *panesModal) buildConv() tea.Cmd {
 		conv.WithVoice(c.voice),
 		conv.WithSize(c.w, c.h),
 	)
+	c.model.SetFilterHint(m.keys.filter)
 	c.started, c.head, c.focused = true, head, false
 	m.syncConvFocus()
 	m.refreshConv()
