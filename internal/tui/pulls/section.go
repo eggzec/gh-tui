@@ -126,6 +126,8 @@ type Section struct {
 	// has no such step.
 	checks     ChecksService
 	checksOpts []checks.Option
+	// commits reads the checks of the head commit for the Merge pane.
+	commits CommitChecks
 	// mergeMethod is how merge merges, if the repository allows it: the
 	// method last merged with in this session, or else the configured
 	// one. Without either, the repository's.
