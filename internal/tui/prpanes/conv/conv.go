@@ -35,6 +35,8 @@ const (
 	KindPush = "push"
 	// KindCommit is a commit of a push.
 	KindCommit = "commit"
+	// KindCI is the line with the state of the checks of a push.
+	KindCI = "ci"
 )
 
 // Data is what the rows are built from: the timeline in GitHub's order and

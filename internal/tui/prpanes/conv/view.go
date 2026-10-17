@@ -214,7 +214,7 @@ func (v *view) enter(id string) tea.Cmd {
 		return nil
 	}
 	msg := EnterMsg{ID: id, Kind: n.kind, Item: n.item, Thread: n.thread, Comment: n.comment}
-	if n.kind == KindCommit {
+	if n.kind == KindCommit || n.kind == KindCI {
 		msg.SHA = n.item.Commit.OID
 	}
 	return func() tea.Msg { return msg }

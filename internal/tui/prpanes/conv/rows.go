@@ -44,7 +44,8 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 		b.index = make(map[string]*node)
 	}
 	for i, n := range tree(d, o) {
-		if i > 0 {
+		// The line of the checks of a push sits right under it.
+		if i > 0 && n.kind != KindCI {
 			b.rows = append(b.rows, foldtree.Row{ID: "b:" + n.id, Lines: []string{""}, Skip: true, Kind: KindBlank})
 		}
 		b.node(n, 0)
@@ -72,6 +73,8 @@ func (b *builder) node(n *node, depth int) {
 		r = b.push(n)
 	case KindCommit:
 		r = b.commit(n)
+	case KindCI:
+		r = b.ci(n)
 	}
 	r.ID, r.Depth, r.Kind = n.id, depth, n.kind
 	b.rows = append(b.rows, r)
