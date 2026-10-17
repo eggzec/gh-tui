@@ -212,8 +212,14 @@ func (m *panesModal) Title() string {
 // Link implements ui.Linked.
 func (m *panesModal) Link() string { return m.detail.URL }
 
-// Commands implements ui.Commanded: the pull request can be copied.
-func (m *panesModal) Commands() []string { return []string{ui.CommandCopy} }
+// Commands implements ui.Commanded: the pull request can be copied, and
+// while a diff is open its files can be stepped through.
+func (m *panesModal) Commands() []string {
+	if _, ok := m.top().(*diffOverlay); ok {
+		return []string{ui.CommandCopy, ui.CommandNextFile, ui.CommandPrevFile}
+	}
+	return []string{ui.CommandCopy}
+}
 
 // Selected implements ui.Selector, for the copy command: the pull request
 // the modal shows.

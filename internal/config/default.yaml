@@ -1151,6 +1151,29 @@ keys:
     select_all: [A]
     # Select the commits made since your last review.
     since_review: [w]
+  # The modal of a pull request: the diff of the files it changes. Enter
+  # folds the file whose header the cursor is on.
+  pull_diff:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: [g, home]
+    bottom: [G, end]
+    next_file: [J]
+    prev_file: [K]
+    next_hunk: ["}"]
+    prev_hunk: ["{"]
+    # Search the lines of every file of the diff, and move between matches.
+    find: [/]
+    next_match: [n]
+    prev_match: [N]
+    # Switch between the file and the whole patch of the range, keeping the line.
+    whole_patch: [a]
   # The modal of a release.
   release_modal:
     up: [up, k]

@@ -49,6 +49,8 @@ type panesKeys struct {
 	helpKeys keyhelp.KeyMap
 	// files is the keys of the Files pane.
 	files filesKeys
+	// diff is the keys of the diff of a file.
+	diff diffKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -70,6 +72,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
+		diff:     newDiffKeys(keys),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),

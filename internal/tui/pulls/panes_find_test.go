@@ -63,7 +63,7 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 		t.Fatalf("typing yaml selected %v, want the yaml file", it)
 	}
 	press(t, h, "enter")
-	if m.top() != nil {
+	if finderTop(m) != nil || len(m.overlays) != 1 {
 		t.Error("choosing a file left the finder open")
 	}
 	if m.focus != panes.Files || m.found != "internal/config/default.yaml" {

@@ -467,7 +467,7 @@ reacts to messages. Concretely:
   matches it with `keymap.Matches`, never `key.Matches`, except in a widget
   that takes every key. A built-in command of the table in `command.go` has
   its name first, so an action never shadows `goto`, `config`, `copy`,
-  `set`, `raw`, `images`, `q`, `auth` or `references`. An action outside the
+  `set`, `raw`, `images`, `q`, `auth`, `references`, `n` or `p`. An action outside the
   focused chain is refused with the places it works in, and the line
   completes the focused chain's actions before the rest.
 - The only command-line flags are `--debug`, `--hostname` and
