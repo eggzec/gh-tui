@@ -14,8 +14,10 @@ import (
 
 // command is one that the command line runs, named by the first word of
 // the line. Each command has one name, with no aliases, so that the names
-// stay easy to learn and to complete. A command that does what a key does
-// runs the key's own code, so that it acts just as the key would.
+// stay easy to learn and to complete; n and p, which go through the files
+// of a diff, are commands of their own, not aliases of the actions they
+// press. A command that does what a key does runs the key's own code, so
+// that it acts just as the key would.
 type command struct {
 	name string
 	// detail says what the command does, beside its name in the
@@ -65,10 +67,18 @@ var commands = []command{
 	{name: "images", detail: "show whether images are drawn here, and why", over: overAny, run: (*Model).imagesCommand},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
+	{name: ui.CommandNextFile, detail: "go to the next file of the diff", over: overNamed, run: pressCommand("pull_diff.next_file")},
+	{name: ui.CommandPrevFile, detail: "go to the previous file of the diff", over: overNamed, run: pressCommand("pull_diff.prev_file")},
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
+}
+
+// pressCommand is the run of a command that does what the key of action
+// does, so that it works with the key unbound.
+func pressCommand(action string) func(*Model, string) tea.Cmd {
+	return func(m *Model, _ string) tea.Cmd { return m.pressAction(action) }
 }
 
 // referencesCommand shows the issues and pull requests linked to the one
