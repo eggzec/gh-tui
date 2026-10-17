@@ -82,7 +82,7 @@ var smaller = map[string]shape{
 	"long code":        func(k int) string { return "```go\n" + strings.Repeat("x := `\\\n", 1000*k) + "```" },
 	"java":             func(k int) string { return "```java\n" + lines(3*k, strings.Repeat("a ", 40)) + "\n```" },
 	"html":             func(k int) string { return "```html\n" + lines(3*k, strings.Repeat("<?", 40)) + "\n```" },
-	"groovy":           func(k int) string { return "```groovy\n" + lines(25*k, strings.Repeat("a", 40)) + "\n```" },
+	"groovy":           func(k int) string { return "```groovy\n" + lines(24*k, strings.Repeat("a", 40)) + "\n```" },
 	"quoted java": func(k int) string {
 		return "> ```java\n" + lines(3*k, "> "+strings.Repeat("a ", 40)) + "\n> ```"
 	},

@@ -30,6 +30,8 @@ type Glyphs struct {
 	TableColumn, TableRow, TableCross string
 	// Quote is the bar along a quote, "│".
 	Quote string
+	// Code is the bar before each line of fenced code, "▏ ".
+	Code string
 	// Image marks an image shown as its text, "🖼". It goes into the text
 	// of a link too, where glamour draws a backslash as it is, so it must
 	// hold no backslash or bracket.
@@ -63,7 +65,7 @@ func ASCIIGlyphs() Glyphs {
 	return Glyphs{
 		Bullet: "*", Tick: "x", Definition: "->",
 		TableColumn: "|", TableRow: "-", TableCross: "+",
-		Quote: "|", Image: "Image:", Fold: "+",
+		Quote: "|", Code: "| ", Image: "Image:", Fold: "+",
 		Diagram: "*", Link: "->",
 		Separator: " - ", Ellipsis: "...", More: "...",
 		Note: "i", Tip: "+", Important: "!", Warning: "!", Caution: "x",
@@ -75,6 +77,7 @@ func ASCIIGlyphs() Glyphs {
 // leaves them empty.
 const (
 	unicodeQuote     = "│"
+	unicodeCode      = "▏ "
 	unicodeImage     = "🖼"
 	unicodeFold      = "▸"
 	unicodeDiagram   = "◆"
@@ -88,6 +91,7 @@ const (
 // The glyphs the style draws stay empty, which keeps the style's own.
 func (g Glyphs) orDefault() Glyphs {
 	g.Quote = cmp.Or(g.Quote, unicodeQuote)
+	g.Code = cmp.Or(g.Code, unicodeCode)
 	g.Image = cmp.Or(g.Image, unicodeImage)
 	g.Fold = cmp.Or(g.Fold, unicodeFold)
 	g.Diagram = cmp.Or(g.Diagram, unicodeDiagram)
@@ -107,6 +111,9 @@ func (g Glyphs) orDefault() Glyphs {
 // g: the bar, marked by a zero-width space as glamour's rather than the
 // text's, so quoteBars changes only the indent.
 func (g Glyphs) quoteToken() string { return g.Quote + "\u200b" }
+
+// codeBar returns the dim bar that goes before each line of code.
+func (r *Renderer) codeBar() string { return "\x1b[2m" + r.glyphs.Code + "\x1b[22m" }
 
 // viewText is what the head of a diagram with a link offers.
 func (g Glyphs) viewText() string { return "View diagram " + g.Link }

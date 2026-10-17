@@ -382,7 +382,8 @@ func (m *Model[T]) rerender(a anchor) {
 }
 
 // Markdown returns src rendered as markdown in the style of the body, as
-// lines at most width cells wide, not padded, with the collapsible blocks
+// lines at most width cells wide, except for code, which is not cut or
+// wrapped, not padded, with the collapsible blocks
 // whose index is in open shown in full, as [markdown.Renderer.Render]
 // does, and those the reader opened too. A comment renderer uses it so
 // the comments look like the body, and so the reader can open their
