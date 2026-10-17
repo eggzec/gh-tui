@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -113,6 +114,9 @@ type Section struct {
 	// has no such step.
 	checks     ChecksService
 	checksOpts []checks.Option
+	// dev reads what a pull request links, for the modal's Development pane.
+	// Without it, the pane shows a placeholder.
+	dev dev.Service
 	// mergeMethod is how merge merges, if the repository allows it: the
 	// method last merged with in this session, or else the configured
 	// one. Without either, the repository's.
@@ -259,6 +263,13 @@ func WithAvatars(a *ui.Images) Option {
 // svc and configured by opts. The default has no such tab.
 func WithChecks(svc ChecksService, opts ...checks.Option) Option {
 	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
+}
+
+// WithDevelopment shows what a pull request closes and what is linked to it
+// in the Development pane of its modal, read from svc. The default pane
+// shows a placeholder.
+func WithDevelopment(svc dev.Service) Option {
+	return func(s *Section) { s.dev = svc }
 }
 
 // WithPrefetch reads ahead as p says for prefetch.pulls, so that what the

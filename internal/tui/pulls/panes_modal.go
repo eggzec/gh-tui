@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -62,6 +63,9 @@ type panesModal struct {
 	hover    [panes.Count]hovered
 	previews map[previewKey]int
 
+	// dev is the Development pane, nil when the section has no service for it.
+	dev *devPane
+
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
 	overlays []openOverlay
@@ -92,6 +96,8 @@ type panesModal struct {
 	cancel context.CancelFunc
 	resume func()
 	closed bool
+	// now is the clock that ages are told from, or nil for the time.
+	now func() time.Time
 
 	width, height int
 	theme         ui.Theme
@@ -139,6 +145,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		resume:   resume,
 		icons:    s.icons,
 		dates:    s.dates,
+		now:      s.now,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -161,6 +168,9 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
 	reads := []tea.Cmd{m.revalidate()}
+	if read := m.openDev(s.dev, s.rawKeys); read != nil {
+		reads = append(reads, read)
+	}
 	if !m.caps.Known {
 		reads = append(reads, ui.LoadCaps(ctx, s.repos, repo))
 	}
@@ -227,6 +237,13 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		return m.receive(msg)
 	case filesCommitsMsg:
 		return m.commitsRead(msg)
+	case devLinksMsg:
+		return m.receiveDev(msg)
+	case devPreviewMsg:
+		m.receivePreview(msg)
+		return nil
+	case foldtree.EnterMsg:
+		return m.enterDev(msg)
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case checktree.OpenJobMsg:
@@ -245,9 +262,11 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		if d, ok := m.svc.CachedGet(m.repo, m.number); ok {
 			m.detail, m.loaded = d, true
 		}
+		m.refreshDev()
 		return nil
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
+		m.restyleDev()
 		return nil
 	case tea.KeyPressMsg:
 		if m.top() != nil {
@@ -255,7 +274,7 @@ func (m *panesModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		cmd := m.press(msg)
 		m.follow()
-		return cmd
+		return tea.Batch(cmd, m.loadPreview())
 	case tea.PasteMsg:
 		if m.top() != nil {
 			return m.pressOverlay(msg)
@@ -367,7 +386,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
-	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom})
+	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom, DevelopmentRows: m.devRows()})
 }
 
 // canZoom reports whether the panes are wide enough to zoom: below that
