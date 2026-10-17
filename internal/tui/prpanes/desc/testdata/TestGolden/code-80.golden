@@ -1,0 +1,7 @@
+▌Before:
+
+   ▏ func Resize(c *Cache, n int) { for len(c.items) > n { c.drop(c.oldest()) }…
+
+ After the change:
+
+       indented    with tabs
