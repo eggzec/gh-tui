@@ -2,7 +2,9 @@ package conv
 
 import (
 	"slices"
+	"strings"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
 
@@ -111,6 +113,8 @@ func (m *Model) landing(v *view, c cursor) string {
 	}
 	// A comment is in a run or stands alone, as the filter leaves it, and a
 	// run goes with its first comment.
+	// A system line goes with the line that holds its event now, which may
+	// be an earlier line that it merged into.
 	if n := c.nodes[c.id]; n != nil && (n.item != nil || n.kind == KindRun) {
 		if id := rowOf(v.nodes, anchorOf(n)); id != "" {
 			return id
@@ -125,11 +129,16 @@ func (m *Model) landing(v *view, c cursor) string {
 	// The row before it among all that the data has, in GitHub's order.
 	var anchors []string
 	for _, n := range tree(m.dataOf(), Options{}) {
-		if n.kind == KindRun {
+		switch {
+		case n.kind == KindRun:
 			for _, k := range n.children {
 				anchors = append(anchors, k.item.ID)
 			}
-		} else if n.item != nil {
+		case n.kind == KindEvent:
+			for _, it := range n.events {
+				anchors = append(anchors, eventAnchor(it))
+			}
+		case n.item != nil:
 			anchors = append(anchors, n.item.ID)
 		}
 	}
@@ -151,9 +160,22 @@ func (m *Model) landing(v *view, c cursor) string {
 	return ""
 }
 
+// eventAnchor names an event for rowOf. Events have no ID from GitHub, and the
+// ID of a line changes when lines merge, so the anchor is the event's own key.
+func eventAnchor(it *core.TimelineItem) string { return "e:" + eventKey(it) }
+
 // rowOf returns the ID of the row of the comment or review with the ID of
-// an item, alone or in a run, or "" if it has no row.
+// an item, alone or in a run, or "" if it has no row. For an event anchor it
+// is the system line that holds the event, merged or not.
 func rowOf(nodes map[string]*node, item string) string {
+	if strings.HasPrefix(item, "e:") {
+		for id, n := range nodes {
+			if n.kind == KindEvent && slices.ContainsFunc(n.events, func(it *core.TimelineItem) bool { return eventAnchor(it) == item }) {
+				return id
+			}
+		}
+		return ""
+	}
 	for _, id := range []string{"c:" + item, "rc:" + item, "r:" + item} {
 		if _, ok := nodes[id]; ok {
 			return id
@@ -166,6 +188,8 @@ func rowOf(nodes map[string]*node, item string) string {
 // own, or the first of a run's, or the review of a thread.
 func anchorOf(n *node) string {
 	switch {
+	case n.kind == KindEvent:
+		return eventAnchor(n.item)
 	case n.item != nil:
 		return n.item.ID
 	case n.kind == KindRun && len(n.children) > 0:

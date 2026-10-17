@@ -81,7 +81,7 @@ func (n Narrow) filter(d Data) Data {
 	var out Data
 	for i := range d.Items {
 		it := &d.Items[i]
-		if drawn(it) && (n.Item == nil || n.Item(*it)) {
+		if kept(it) && (n.Item == nil || n.Item(*it)) {
 			out.Items = append(out.Items, *it)
 		}
 	}

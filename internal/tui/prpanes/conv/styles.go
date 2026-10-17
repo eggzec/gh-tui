@@ -23,7 +23,9 @@ type Styles struct {
 	bold   lipgloss.Style
 	dim    lipgloss.Style
 	warn   lipgloss.Style
-	errs   ui.ErrorStyles
+	// chips draws the labels of the events, and keeps what it drew.
+	chips *ui.LabelChips
+	errs  ui.ErrorStyles
 	// open is the amber glyph of a thread that isn't resolved.
 	open string
 	// snip are the styles of the code under a thread.
@@ -33,6 +35,7 @@ type Styles struct {
 // NewStyles returns the styles for theme t and the icon set named set, whose
 // icons are ic.
 func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
+	chips := ui.NewLabelChips(t.Muted, t.Dark, ic.Ellipsis, maxName)
 	return Styles{
 		Glyphs: NewGlyphs(set, ic),
 		glyphs: ui.NewGlyphStyles(t, ic),
@@ -40,6 +43,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
 		warn:   t.Warning,
+		chips:  &chips,
 		errs:   t.Errors(ic),
 		open:   t.Warning.Render(ic.Glyph(ui.GlyphUnresolved)),
 		snip:   newSnippetStyles(t, ic, set),
