@@ -41,7 +41,7 @@ var slots = [panes.Count]slot{
 	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).placeholder},
 	panes.Merge - 1:        {context: "pull_merge", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
 	panes.Involved - 1:     {context: "pull_involved", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
-	panes.Development - 1:  {context: "pull_development", content: (*panesModal).placeholder, preview: (*panesModal).placeholderPreview},
+	panes.Development - 1:  devSlot(),
 	panes.Files - 1:        filesSlot(),
 }
 
