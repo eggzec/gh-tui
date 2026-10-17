@@ -117,16 +117,27 @@ func (b *builder) commit(n *node) foldtree.Row {
 		Lines:  []string{b.st.sha.Render(shortSHA(c)) + "  " + head},
 		Action: true,
 	}
-	switch b.o.checks[strings.ToLower(c.OID)] {
-	case core.CheckPassing:
-		r.Right = b.st.glyphs.Render(ui.GlyphCheckPass)
-	case core.CheckFailing:
-		r.Right = b.st.glyphs.Render(ui.GlyphCheckFail)
-	case core.CheckPending:
-		r.Right = b.st.glyphs.Render(ui.GlyphCheckPending)
-	case core.CheckNone:
+	state, known := b.o.checks[strings.ToLower(c.OID)]
+	r.Right = b.checkGlyph(state)
+	// An unknown roll-up folds too: the read of the checks tells what shows.
+	if b.o.kids != nil && (!known || state != core.CheckNone) {
+		r.Fold, r.Arrow, r.Closed = true, true, true
 	}
 	return r
+}
+
+// checkGlyph returns the glyph of a state of checks, or "" for none.
+func (b *builder) checkGlyph(s core.CheckState) string {
+	switch s {
+	case core.CheckPassing:
+		return b.st.glyphs.Render(ui.GlyphCheckPass)
+	case core.CheckFailing:
+		return b.st.glyphs.Render(ui.GlyphCheckFail)
+	case core.CheckPending:
+		return b.st.glyphs.Render(ui.GlyphCheckPending)
+	case core.CheckNone:
+	}
+	return ""
 }
 
 // latestCommit returns the date of the newest commit of a push.

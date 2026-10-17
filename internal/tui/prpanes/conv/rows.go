@@ -78,6 +78,9 @@ func (b *builder) node(n *node, depth int) {
 	if b.index != nil {
 		b.index[n.id] = n
 	}
+	if r.Fold && n.kind == KindCommit {
+		b.rows = append(b.rows, b.o.kids(n.id+"/", n.item.Commit.OID, depth+1)...)
+	}
 	for _, c := range n.children {
 		b.node(c, depth+1)
 	}

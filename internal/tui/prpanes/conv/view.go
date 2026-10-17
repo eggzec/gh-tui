@@ -1,18 +1,20 @@
 package conv
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
 
 // cacheKey says what the rows of a view were built from. Rows are built
 // again only when it changes, never when the cursor or a fold moves.
 type cacheKey struct {
-	width, data, opts, gen, shape int
+	width, data, opts, gen, shape, checks int
 }
 
 // view is a tree of the conversation, with the state that is its own: cursor,
@@ -27,8 +29,10 @@ type view struct {
 	// were built from, by ID.
 	rows  []foldtree.Row
 	nodes map[string]*node
-	key   cacheKey
-	done  bool
+	// targets is what enter asks for on the rows of the checks, by row ID.
+	targets checktree.Targets
+	key     cacheKey
+	done    bool
 	// narrow says what a narrowed view keeps, and gen counts the times it was
 	// set, so that rows are built again for a new one.
 	narrow   Narrow
@@ -81,10 +85,10 @@ func (m *Model) sync() {
 		return
 	}
 	v := m.views[m.cur]
-	k := cacheKey{m.width, m.version, m.optsVer, v.gen, m.shape}
+	k := cacheKey{m.width, m.version, m.optsVer, v.gen, m.shape, m.checksVer}
 	if v.narrowed {
-		// A preview keeps every group.
-		k.shape = 0
+		// A preview keeps every group, and has no commits.
+		k.shape, k.checks = 0, 0
 	}
 	if v.done && v.key == k {
 		return
@@ -108,6 +112,14 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 	}
 	o := m.opts
 	o.Width, o.Viewer, o.hide, o.order, o.checks = m.width, m.viewer, m.hide(), m.order, m.checks
+	targets := checktree.Targets{}
+	if m.src.Checks != nil {
+		o.kids = func(prefix, sha string, depth int) []foldtree.Row {
+			rows, t := m.loader.Rows(sha, m.checkOptions(prefix, depth), o.Styles.checks)
+			maps.Copy(targets, t)
+			return rows
+		}
+	}
 	d := m.dataOf()
 	if v.narrowed {
 		d, o.preview = v.narrow.filter(d), true
@@ -123,7 +135,7 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 		v.nothing = len(rows) == 0 && total > 0
 		rows = m.withMore(rows, o)
 	}
-	v.rows, v.nodes = rows, nodes
+	v.rows, v.nodes, v.targets = rows, nodes, targets
 	v.tree.SetRows(rows)
 	m.applyEmpty(v)
 	if reshaped && hadCur {
@@ -191,8 +203,12 @@ func (m Model) withMore(rows []foldtree.Row, o Options) []foldtree.Row {
 	)
 }
 
-// enter returns the command that tells the host which row was entered.
+// enter returns the command that tells the host which row was entered: what a
+// row of the checks asks for, else the row itself.
 func (v *view) enter(id string) tea.Cmd {
+	if t, ok := v.targets[id]; ok {
+		return func() tea.Msg { return t }
+	}
 	n := v.nodes[id]
 	if n == nil {
 		return nil

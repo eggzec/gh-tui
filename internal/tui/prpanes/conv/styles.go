@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -32,6 +33,8 @@ type Styles struct {
 	open string
 	// snip are the styles of the code under a thread.
 	snip snippetStyles
+	// checks draws the rows of the checks under a commit.
+	checks checktree.Styles
 }
 
 // NewStyles returns the styles for theme t and the icon set named set, whose
@@ -50,6 +53,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		errs:   t.Errors(ic),
 		open:   t.Warning.Render(ic.Glyph(ui.GlyphUnresolved)),
 		snip:   newSnippetStyles(t, ic, set),
+		checks: checktree.NewStyles(t, ic, set),
 	}
 }
 
