@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/watch"
 )
 
 // commitChecksAPI is what the read of every check of a commit needs of the
@@ -70,6 +73,11 @@ func (c commitCache) get(key string) (cache.Entry[core.CommitChecks], cache.Stat
 		return l, ls
 	}
 	return d, ds
+}
+
+func (c commitCache) invalidate(key string) {
+	c.live.Invalidate(key)
+	c.done.Invalidate(key)
 }
 
 func (c commitCache) invalidateTag(tag string) {
@@ -195,4 +203,41 @@ func (s *Service) CommitChecks(ctx context.Context, q CommitChecksQuery) (core.C
 		}
 	}
 	return e.Value, nil
+}
+
+// CommitChecksSyncKey is the sync key under which the app subscribes
+// PollCommitChecks of q.
+func CommitChecksSyncKey(q CommitChecksQuery) string {
+	return SyncKey(q.Repo) + "/" + commitChecksKey(q.normalize())
+}
+
+// PollCommitChecks returns a watch.PollFunc that follows the checks of the
+// commit q names while any of them is pending. Each poll reads them again,
+// stores them in the cache, where the next reads find them, and reports a
+// change when a check moved. Once none is pending, or after MaxChecksPolls
+// polls, it asks nothing more.
+func (s *Service) PollCommitChecks(q CommitChecksQuery) watch.PollFunc {
+	var (
+		mu    sync.Mutex
+		polls int
+		done  bool
+	)
+	q = q.normalize()
+	key := commitChecksKey(q)
+	return func(ctx context.Context) (watch.Result, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			return watch.Result{}, nil
+		}
+		polls++
+		before, had := s.commit.get(key)
+		s.commit.invalidate(key)
+		c, err := s.CommitChecks(ctx, q)
+		if err != nil {
+			return watch.Result{}, fmt.Errorf("poll commit checks: %w", err)
+		}
+		done = !c.Pending() || polls >= MaxChecksPolls
+		return watch.Result{Changed: had == cache.Miss || !reflect.DeepEqual(before.Value, c)}, nil
+	}
 }

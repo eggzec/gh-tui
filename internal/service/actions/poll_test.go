@@ -148,6 +148,64 @@ func TestPollChecksError(t *testing.T) {
 	}
 }
 
+func TestPollCommitChecks(t *testing.T) {
+	f := newFake()
+	f.change(func(f *fakeGitHub) { f.commits["abc"] = commitRun(core.RunInProgress, "") })
+	s := New(f)
+	q := CommitChecksQuery{Repo: repo, SHA: "ABC"}
+	poll := s.PollCommitChecks(q)
+
+	// Nothing was read: the first poll reports what it found.
+	if res, err := poll(t.Context()); err != nil || !res.Changed {
+		t.Errorf("first poll = %+v, %v; want a change", res, err)
+	}
+	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=false")
+	if res, err := poll(t.Context()); err != nil || res.Changed {
+		t.Errorf("poll of the same checks = %+v, %v; want no change", res, err)
+	}
+	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=false")
+
+	// The job completes: a change, cached, and the last poll that asks.
+	f.change(func(f *fakeGitHub) { f.commits["abc"] = commitRun(core.RunCompleted, core.ConclusionFailure) })
+	if res, err := poll(t.Context()); err != nil || !res.Changed {
+		t.Errorf("poll = %+v, %v; want a change", res, err)
+	}
+	if c, ok := s.CachedCommitChecks(q); !ok || c.Runs[0].Conclusion != core.ConclusionFailure {
+		t.Errorf("cached checks = %+v, want the job failed", c)
+	}
+	f.take()
+	if res, err := poll(t.Context()); err != nil || res.Changed {
+		t.Errorf("poll once all are done = %+v, %v; want nothing", res, err)
+	}
+	checkCalls(t, f)
+	if CommitChecksSyncKey(q) == CommitChecksSyncKey(CommitChecksQuery{Repo: repo, SHA: "def"}) ||
+		CommitChecksSyncKey(q) == SyncKey(repo) || CommitChecksSyncKey(q) != CommitChecksSyncKey(CommitChecksQuery{Repo: repo, SHA: "abc"}) {
+		t.Error("the sync keys of commit checks aren't their own, by commit")
+	}
+}
+
+func TestPollCommitChecksIsBounded(t *testing.T) {
+	f := newFake()
+	f.change(func(f *fakeGitHub) { f.commits["abc"] = commitRun(core.RunInProgress, "") })
+	poll := New(f).PollCommitChecks(CommitChecksQuery{Repo: repo, SHA: "abc"})
+	for range MaxChecksPolls + 5 {
+		if _, err := poll(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := len(f.take()); n != MaxChecksPolls {
+		t.Errorf("polled %d times, want at most %d", n, MaxChecksPolls)
+	}
+}
+
+func TestPollCommitChecksError(t *testing.T) {
+	f := newFake()
+	f.failCall("CommitChecksAll", errors.New("boom"))
+	if _, err := New(f).PollCommitChecks(CommitChecksQuery{Repo: repo, SHA: "abc"})(t.Context()); err == nil {
+		t.Error("a failed read isn't an error")
+	}
+}
+
 // A poll revalidates every page of jobs, each with its ETag, and follows
 // the pages that new jobs add.
 func TestPollJobPages(t *testing.T) {
