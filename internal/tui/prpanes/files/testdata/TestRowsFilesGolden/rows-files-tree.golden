@@ -1,0 +1,50 @@
+width 80
+▌Commits all 2 commits  ⋯
+ ───────────────────────────────────────────────────────────────────────────────
+ Files
+ ├─ ▾ assets/
+ │  ╰─ logo.png
+ ├─ ▾ cmd/
+ │  ╰─ ▾ gh-tui/
+ │     ╰─ main.go                                                            −14
+ ├─ ▾ internal/
+ │  ├─ ▾ a-very-long-directory-name/
+ │  │  ╰─ ▾ with/
+ │  │     ╰─ ▾ more/
+ │  │        ╰─ ▾ levels/
+ │  │           ╰─ ▾ than/
+ │  │              ╰─ ▾ fit/
+ │  │                 ╰─ ▾ in/
+ │  │                    ╰─ ▾ the/
+ │  │                       ╰─ ▾ pane/
+ │  │                          ╰─ file.go                                  +1 −1
+ │  ╰─ ▾ tui/
+ │     ╰─ ▾ pulls/
+ │        ╰─ panes.go                                                    +120 −7
+ ╰─ README.md                                                                 +3
+
+width 40
+▌Commits all 2 commits  ⋯
+ ───────────────────────────────────────
+ Files
+ ├─ ▾ assets/
+ │  ╰─ logo.png
+ ├─ ▾ cmd/
+ │  ╰─ ▾ gh-tui/
+ │     ╰─ main.go                    −14
+ ├─ ▾ internal/
+ │  ├─ ▾ a-very-long-directory-name/
+ │  │  ╰─ ▾ with/
+ │  │     ╰─ ▾ more/
+ │  │        ╰─ ▾ levels/
+ │  │           ╰─ ▾ than/
+ │  │              ╰─ ▾ fit/
+ │  │                 ╰─ ▾ in/
+ │  │                    ╰─ ▾ the/
+ │  │                       ╰─ ▾ pane/
+ │  │                          ╰─ file.…
+ │  ╰─ ▾ tui/
+ │     ╰─ ▾ pulls/
+ │        ╰─ panes.go            +120 −7
+ ╰─ README.md                         +3
+

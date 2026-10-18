@@ -184,8 +184,9 @@ func TestColonNRunsOnlyInTheDiff(t *testing.T) {
 		if want := "Close the pull request first to use n."; !hasToast(m, want) {
 			t.Errorf("n over the pull request: toasts %s, want %q", toasted(m), want)
 		}
-		// The rows are laid out when drawn, so each move follows a draw.
-		for _, key := range []string{"j", "j", "enter"} {
+		// The rows are laid out when drawn, so each move follows a draw. The
+		// third j passes the first folder of the tree, to its first file.
+		for _, key := range []string{"j", "j", "j", "enter"} {
 			m.View()
 			pressKeys(t, m, key)
 		}

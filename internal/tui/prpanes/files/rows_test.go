@@ -140,6 +140,18 @@ func changed() []core.CommitFile {
 	}
 }
 
+// viewed marks some of changed(): one viewed, one that changed since.
+func viewed(supported bool) core.PullViewed {
+	return core.PullViewed{
+		Supported: supported,
+		States: map[string]core.ViewedState{
+			"README.md":                   core.Viewed,
+			"cmd/gh-tui/main.go":          core.ViewedChanged,
+			"internal/tui/pulls/panes.go": core.Viewed,
+		},
+	}
+}
+
 func TestRowsFilesGolden(t *testing.T) {
 	t.Parallel()
 	pc := pull(2)
@@ -147,7 +159,9 @@ func TestRowsFilesGolden(t *testing.T) {
 		name string
 		d    Data
 	}{
-		{"rows-files-flat", Data{Commits: pc, Range: All(2), Files: changed()}},
+		{"rows-files-tree", Data{Commits: pc, Range: All(2), Files: changed()}},
+		{"rows-files-viewed", Data{Commits: pc, Range: All(2), Files: changed(), Viewed: viewed(true)}},
+		{"rows-files-viewed-unsupported", Data{Commits: pc, Range: All(2), Files: changed(), Viewed: viewed(false)}},
 		{"rows-files-truncated", Data{Commits: pc, Range: All(2), Files: changed(), Truncated: "first 300 files of this range"}},
 		{"rows-files-error", Data{Commits: pc, Range: All(2), Files: changed(), FilesErr: "these commits are no longer on the branch"}},
 	} {
@@ -205,22 +219,83 @@ func TestCommitChecksFolds(t *testing.T) {
 func TestFileRows(t *testing.T) {
 	t.Parallel()
 	rows := Rows(Data{Commits: pull(1), Range: All(1), Files: changed(), Truncated: "cut"}, opts(config.IconsNerd, 80))
+	long := "internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane/file.go"
 	want := []string{
-		FileID("README.md"), FileID("assets/logo.png"), FileID("cmd/gh-tui/main.go"),
-		FileID("internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane/file.go"),
-		FileID("internal/tui/pulls/panes.go"), idTruncated,
+		DirID("assets"), FileID("assets/logo.png"),
+		DirID("cmd"), DirID("cmd/gh-tui"), FileID("cmd/gh-tui/main.go"),
+		DirID("internal"),
+		DirID("internal/a-very-long-directory-name"),
+		DirID("internal/a-very-long-directory-name/with"),
+		DirID("internal/a-very-long-directory-name/with/more"),
+		DirID("internal/a-very-long-directory-name/with/more/levels"),
+		DirID("internal/a-very-long-directory-name/with/more/levels/than"),
+		DirID("internal/a-very-long-directory-name/with/more/levels/than/fit"),
+		DirID("internal/a-very-long-directory-name/with/more/levels/than/fit/in"),
+		DirID("internal/a-very-long-directory-name/with/more/levels/than/fit/in/the"),
+		DirID("internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane"),
+		FileID(long),
+		DirID("internal/tui"), DirID("internal/tui/pulls"), FileID("internal/tui/pulls/panes.go"),
+		FileID("README.md"), idTruncated,
 	}
 	got := ids(rows)[len(rows)-len(want):]
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("ids = %v, want %v", got, want)
 	}
 	for _, r := range rows[len(rows)-len(want) : len(rows)-1] {
-		if r.Kind != KindFile || r.Depth != 1 || r.Skip || r.Fold || r.Action {
-			t.Errorf("file row %+v", r)
+		switch p, isFile := PathOf(r.ID); {
+		case isFile:
+			if r.Kind != KindFile || r.Skip || r.Fold || r.Action || r.Depth != fileDepth+strings.Count(p, "/") {
+				t.Errorf("file row %+v", r)
+			}
+		default:
+			dir, ok := DirOf(r.ID)
+			if !ok || r.Kind == KindFile || r.Skip || !r.Fold || r.Closed || !r.Arrow || r.Action || r.Depth != fileDepth+strings.Count(dir, "/") {
+				t.Errorf("folder row %+v", r)
+			}
 		}
 	}
 	if last := rows[len(rows)-1]; !last.Skip {
 		t.Errorf("the note %+v must be skipped by the cursor", last)
+	}
+}
+
+func TestViewedRows(t *testing.T) {
+	t.Parallel()
+	d := Data{Commits: pull(1), Range: All(1), Files: changed(), Viewed: viewed(true)}
+	byID := map[string]foldtree.Row{}
+	for _, r := range Rows(d, opts(config.IconsUnicode, 80)) {
+		byID[r.ID] = r
+	}
+	line := func(path string) string {
+		r := byID[FileID(path)]
+		return ansi.Strip(r.Lines[0]) + "|" + ansi.Strip(r.Right)
+	}
+	for path, want := range map[string]string{
+		"README.md":                   "README.md ✓|+3",
+		"cmd/gh-tui/main.go":          "main.go ↻ changed since viewed|−14",
+		"assets/logo.png":             "logo.png|",
+		"internal/tui/pulls/panes.go": "panes.go ✓|+120 −7",
+	} {
+		if got := line(path); !strings.HasSuffix(got, want) {
+			t.Errorf("%s: row %q, want it to end %q", path, got, want)
+		}
+	}
+	plain := byID[FileID("assets/logo.png")]
+	if strings.Contains(plain.Lines[0], "✓") {
+		t.Errorf("unviewed row %q has a check", plain.Lines[0])
+	}
+}
+
+func TestDirOf(t *testing.T) {
+	t.Parallel()
+	if p, ok := DirOf(DirID("a/b")); !ok || p != "a/b" {
+		t.Errorf("DirOf(DirID) = %q, %v", p, ok)
+	}
+	if p, ok := DirOf(FileID("a/b.go")); ok {
+		t.Errorf("DirOf(file) = %q, true", p)
+	}
+	if p, ok := PathOf(DirID("a/b")); ok {
+		t.Errorf("PathOf(dir) = %q, true", p)
 	}
 }
 

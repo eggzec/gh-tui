@@ -45,10 +45,15 @@ func TestFilesPaneAllUsesPullFiles(t *testing.T) {
 		t.Errorf("filesRange = %q %q %v %v, want the pull request's files from its base to its head", base, head, paths(fs), ok)
 	}
 	screen := modalScreen(t, h)
-	for _, want := range []string{"a.go", "internal/b.go", "docs/c.md"} {
-		if !strings.Contains(screen, want) {
-			t.Errorf("the screen doesn't list %s:\n%s", want, screen)
+	// The files show as a tree: a row for each folder, its files under it by
+	// base name, in this order.
+	at := 0
+	for _, want := range []string{"docs/", "c.md", "internal/", "b.go", "a.go"} {
+		i := strings.Index(screen[at:], want)
+		if i < 0 {
+			t.Fatalf("the screen doesn't list %q after offset %d, in the tree's order:\n%s", want, at, screen)
 		}
+		at += i + len(want)
 	}
 }
 
@@ -87,6 +92,9 @@ func TestFilesPaneSubRangeTruncated(t *testing.T) {
 	})
 	m.files.rng = files.Range{First: 1, Last: 1}
 	drain(t, h, m.readRange())
+	// The folders take rows too, so the pane is zoomed to show the note below
+	// the last file.
+	press(t, h, "z")
 	if screen := modalScreen(t, h); !strings.Contains(screen, "first 3 files of this range") {
 		t.Errorf("no note that the list is cut short:\n%s", screen)
 	}
