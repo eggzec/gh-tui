@@ -11,6 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/actions"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
@@ -85,6 +86,11 @@ type mergePane struct {
 	has    bool
 	loader checktree.Loader
 	wanted string
+	// watch follows the checks of a head commit while some are pending. stop
+	// ends the follow of watched, which is empty while none runs.
+	watch   CommitWatch
+	stop    func()
+	watched string
 	// behind is how many commits the head lacks of the base, or -1 while it
 	// isn't known, and asked is the read it comes from.
 	behind int
@@ -111,8 +117,45 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 	if s.commits != nil {
 		p.reader, p.has = commitReader{s.commits}, true
 		p.loader = checktree.NewLoader(p.reader, repo)
+		p.watch = s.commitWatch
 	}
 	return p
+}
+
+// syncWatch follows the checks of the head commit while some of them are
+// pending, and only then: it stops when none is, when the head changes, and
+// once the modal closed.
+func (p *mergePane) syncWatch(m *panesModal, sha string, c core.CommitChecks, loaded bool) {
+	if p.watch == nil {
+		return
+	}
+	want := !m.closed && loaded && sha != "" && c.Pending()
+	if p.stop != nil && (!want || p.watched != sha) {
+		p.unwatch()
+	}
+	if want && p.stop == nil {
+		p.stop, p.watched = p.watch(actions.CommitChecksQuery{Repo: m.repo, SHA: sha}), sha
+	}
+}
+
+// unwatch ends the follow of the checks, if one runs.
+func (p *mergePane) unwatch() {
+	if p.stop != nil {
+		p.stop()
+	}
+	p.stop, p.watched = nil, ""
+}
+
+// synced takes up the checks that a poll stored, when it is those of the
+// commit followed.
+func (p *mergePane) synced(m *panesModal, msg ui.SyncMsg) tea.Cmd {
+	if msg.Err != nil || p.stop == nil || msg.Key != actions.CommitChecksSyncKey(actions.CommitChecksQuery{Repo: m.repo, SHA: p.watched}) {
+		return nil
+	}
+	var cmd tea.Cmd
+	p.loader, cmd = p.loader.Reload(p.watched)
+	p.rebuild(m, false)
+	return cmd
 }
 
 // restyle draws the pane with the theme and icons of m.
@@ -184,6 +227,7 @@ func (p *mergePane) rebuild(m *panesModal, force bool) {
 	if sha := d.Detail.HeadSHA; p.has && sha != "" {
 		d.Checks, d.ChecksLoaded = p.reader.CachedCommitChecks(checktree.Query{Repo: m.repo, SHA: sha})
 	}
+	p.syncWatch(m, d.Detail.HeadSHA, d.Checks, d.ChecksLoaded)
 	if !force && reflect.DeepEqual(d, p.data) {
 		return
 	}

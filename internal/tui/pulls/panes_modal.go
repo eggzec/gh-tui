@@ -268,10 +268,15 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	if m.closed {
 		return nil
 	}
+	// The checks of the head commit moved, as a poll found and cached.
+	var syncCmd tea.Cmd
+	if sync, ok := msg.(ui.SyncMsg); ok {
+		syncCmd = m.merge.synced(m, sync)
+	}
 	// Whatever the message changed, a new range of commits is read.
 	defer func() {
 		if !m.closed {
-			cmd = tea.Batch(cmd, m.readRange())
+			cmd = tea.Batch(cmd, syncCmd, m.readRange())
 		}
 	}()
 	switch msg := msg.(type) {
@@ -561,6 +566,7 @@ func (m *panesModal) close() tea.Cmd {
 // those held back for the modal go on.
 func (m *panesModal) Discard() {
 	m.closed = true
+	m.merge.unwatch()
 	m.merge.loader.Stop()
 	if m.conv.started {
 		m.conv.model.Close()
