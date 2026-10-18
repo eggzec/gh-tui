@@ -1,0 +1,38 @@
+▌4 comments - ann                                                             3d
+ ├─ ann  Before.                                                              3d
+ │       Logs
+ │       | line one
+ │       |
+ │       | line two
+ │       `-
+ ├─ ann  Intro.                                                               3d
+ │       Outer
+ │       | outer text
+ │       | Inner
+ │       | | inner text
+ │       | `-
+ │       | outer end
+ │       `-
+ │       After the blocks.
+ ├─ ann                                                                       3d
+ │       Details
+ │       | no summary
+ │       `-
+ │       Trailing.
+ ╰─ ann  Never closed.                                                        3d
+         Open ended
+         | runs to the end
+         `-
+
+ o bob  Review.                                                               3d
+ │      Notes
+ │      | in a review
+ │      `-
+ ╰─ * bob - a.go:3  Thread.                                                   3d
+    │               More
+    │               | in a thread
+    │               `-
+    ╰─ ann  Reply.                                                            3d
+            Reply notes
+            | in a reply
+            `-

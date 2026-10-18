@@ -56,15 +56,16 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 // node adds the rows of n at depth, and of its children.
 func (b *builder) node(n *node, depth int) {
 	var r foldtree.Row
+	var s segs
 	switch n.kind {
 	case KindComment, KindRunComment:
-		r = b.comment(n, depth)
+		r, s = b.comment(n, depth)
 	case KindReview:
-		r = b.review(n, depth)
+		r, s = b.review(n, depth)
 	case KindThread:
-		r = b.thread(n, depth)
+		r, s = b.thread(n, depth)
 	case KindReply:
-		r = b.reply(n, depth)
+		r, s = b.reply(n, depth)
 	case KindRun:
 		r = b.run(n)
 	case KindEvent:
@@ -81,6 +82,7 @@ func (b *builder) node(n *node, depth int) {
 	if b.index != nil {
 		b.index[n.id] = n
 	}
+	b.rows = append(b.rows, b.segments(n.id, s, depth+1)...)
 	if r.Fold && n.kind == KindCommit {
 		b.rows = append(b.rows, b.o.kids(n.id+"/", n.item.Commit.OID, depth+1)...)
 	}
@@ -125,17 +127,15 @@ func (b *builder) marker(n int, one, many string) string {
 }
 
 // comment draws a comment of the conversation.
-func (b *builder) comment(n *node, depth int) foldtree.Row {
+func (b *builder) comment(n *node, depth int) (foldtree.Row, segs) {
 	it := n.item
 	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
-	return foldtree.Row{
-		Lines: b.message(b.st.who(it.Actor, false), it.Body, depth, false, right),
-		Right: right,
-	}
+	lines, s := b.body(b.st.who(it.Actor, false), it.Body, depth, false, right)
+	return foldtree.Row{Lines: lines, Right: right}, s
 }
 
 // review draws a review, a fold when it holds threads.
-func (b *builder) review(n *node, depth int) foldtree.Row {
+func (b *builder) review(n *node, depth int) (foldtree.Row, segs) {
 	var r foldtree.Row
 	var prefix, body, right string
 	if n.pending {
@@ -156,8 +156,9 @@ func (b *builder) review(n *node, depth int) foldtree.Row {
 		r.Marker = b.marker(len(n.children), "thread", "threads")
 		r.Closed = !openReview(n) && !b.o.preview
 	}
-	r.Lines = b.message(prefix, body, depth, r.Fold, right+r.Marker)
-	return r
+	var s segs
+	r.Lines, s = b.body(prefix, body, depth, r.Fold, right+r.Marker)
+	return r, s
 }
 
 // openReview reports whether a review shows its threads at first: one that
@@ -180,7 +181,7 @@ func openReview(n *node) bool {
 // replies, or more to the comment than its first line, or replies that were
 // not read. A resolved one starts closed, and quiet, as a draft is, with the
 // glyph of a pending review.
-func (b *builder) thread(n *node, depth int) foldtree.Row {
+func (b *builder) thread(n *node, depth int) (foldtree.Row, segs) {
 	t, c := n.thread, n.comment
 	quiet := t.Resolved || c.Pending
 	glyph := b.st.thread(t.Resolved)
@@ -199,7 +200,8 @@ func (b *builder) thread(n *node, depth int) foldtree.Row {
 
 	kids := len(n.children) > 0
 	r := foldtree.Row{Right: right, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
-	r.Lines = b.message(prefix, c.Body, depth, kids, right+r.Marker)
+	var s segs
+	r.Lines, s = b.body(prefix, c.Body, depth, kids, right+r.Marker)
 	r.Lines = b.withSnippet(r.Lines, t, c.DiffHunk, prefix, depth, kids)
 	// Replies that were not read have no row to open, so a thread of one
 	// line closes over their count.
@@ -216,7 +218,7 @@ func (b *builder) thread(n *node, depth int) foldtree.Row {
 	if quiet {
 		r.Lines = b.quiet(r.Lines, prefix)
 	}
-	return r
+	return r, s
 }
 
 // location names where a thread is: the file and the line, as "b.go:7".
@@ -236,15 +238,15 @@ func location(t *core.Thread, cut string) string {
 }
 
 // reply draws a comment of a thread after the first.
-func (b *builder) reply(n *node, depth int) foldtree.Row {
+func (b *builder) reply(n *node, depth int) (foldtree.Row, segs) {
 	c := n.comment
 	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending)
 	prefix := b.st.who(c.Author, c.Pending)
-	lines := b.message(prefix, c.Body, depth, false, right)
+	lines, s := b.body(prefix, c.Body, depth, false, right)
 	if c.Pending {
 		lines = b.quiet(lines, prefix)
 	}
-	return foldtree.Row{Lines: lines, Right: right}
+	return foldtree.Row{Lines: lines, Right: right}, s
 }
 
 // run draws the fold over a run of comments: how many, by whom, and when.
