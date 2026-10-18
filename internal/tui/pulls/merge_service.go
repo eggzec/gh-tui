@@ -39,6 +39,17 @@ func WithCommitChecks(r CommitChecks) Option {
 	return func(s *Section) { s.commits = r }
 }
 
+// CommitWatch starts the follow of the checks of a commit, which stores newer
+// checks where [CommitChecks] reads them and tells the app with a ui.SyncMsg of
+// the key actions.CommitChecksSyncKey gives. It returns what ends the follow.
+type CommitWatch func(q actions.CommitChecksQuery) (stop func())
+
+// WithCommitChecksWatch makes the Merge pane follow the checks of the head
+// commit while some are pending. Without it, the pane reads them once.
+func WithCommitChecksWatch(w CommitWatch) Option {
+	return func(s *Section) { s.commitWatch = w }
+}
+
 // commitReader adapts a [CommitChecks] to the reader of a checks tree.
 type commitReader struct{ r CommitChecks }
 

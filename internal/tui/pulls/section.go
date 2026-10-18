@@ -136,6 +136,8 @@ type Section struct {
 	checksOpts []checks.Option
 	// commits reads the checks of the head commit for the Merge pane.
 	commits CommitChecks
+	// commitWatch keeps those checks live while some are pending.
+	commitWatch CommitWatch
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
 	dev dev.Service

@@ -8,6 +8,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
+	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
 
@@ -33,6 +34,20 @@ func watchChecks(subscribe func(key string, fn watch.PollFunc) func(), refresh f
 ) checks.Watch {
 	return func(q actionssvc.ChecksQuery) func() {
 		key := actionssvc.ChecksSyncKey(q)
+		stop := subscribe(key, poll(q))
+		refresh(key)
+		return stop
+	}
+}
+
+// watchCommitChecks returns how the Merge pane of a pull request polls the
+// checks of its head commit while some are pending: it subscribes their poll,
+// which starts at once, and then asks as often as subscribe polls checks.
+func watchCommitChecks(subscribe func(key string, fn watch.PollFunc) func(), refresh func(key string),
+	poll func(q actionssvc.CommitChecksQuery) watch.PollFunc,
+) pulls.CommitWatch {
+	return func(q actionssvc.CommitChecksQuery) func() {
+		key := actionssvc.CommitChecksSyncKey(q)
 		stop := subscribe(key, poll(q))
 		refresh(key)
 		return stop

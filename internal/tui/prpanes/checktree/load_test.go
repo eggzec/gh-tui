@@ -160,6 +160,46 @@ func TestLoaderReopenedTakesUpWhatIsKept(t *testing.T) {
 	}
 }
 
+func TestLoaderReloadTakesUpWhatIsKept(t *testing.T) {
+	t.Parallel()
+	f := &fakeReader{}
+	l, cmd := NewLoader(f, repo).Want(sha, false)
+	if l, again := l.Reload(sha); again != nil {
+		t.Error("a commit that loads was read again")
+	} else if l.entries[sha] == nil || !l.entries[sha].loading {
+		t.Error("a reload ended the read under way")
+	}
+	l, _ = l.Update(run(t, cmd))
+	text := func(l Loader) string {
+		rows, _ := l.Rows(sha, opts(), styles(config.IconsASCII))
+		var b strings.Builder
+		for _, r := range rows {
+			b.WriteString(strings.Join(r.Lines, "\n"))
+		}
+		return b.String()
+	}
+	before := text(l)
+
+	// A poll stored newer checks.
+	f.cached = map[string]core.CommitChecks{sha: commit([]core.CommitCheck{job(1, 1, "build", core.ConclusionFailure)})}
+	l, again := l.Reload(sha)
+	if again != nil {
+		t.Error("a reload of kept checks read them")
+	}
+	if after := text(l); after == before {
+		t.Errorf("rows after the reload = %q, want the kept checks", after)
+	}
+
+	// Checks that nothing keeps are read again; a commit never asked for is left.
+	f.cached = nil
+	if _, cmd := l.Reload(sha); cmd == nil {
+		t.Error("a reload of checks nothing keeps didn't read them")
+	}
+	if l, cmd := l.Reload(sha2); cmd != nil || l.entries[sha2] != nil {
+		t.Error("a reload asked for a commit that never was")
+	}
+}
+
 func TestLoaderOnlineReadsAgainWhatWasNotReached(t *testing.T) {
 	t.Parallel()
 	f := &fakeReader{errs: map[string]error{

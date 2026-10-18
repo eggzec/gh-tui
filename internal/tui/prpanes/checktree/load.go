@@ -85,6 +85,21 @@ func (l Loader) Want(sha string, notes bool) (Loader, tea.Cmd) {
 	return l.start(sha, notes)
 }
 
+// Reload takes up what the reader keeps of the commit sha, which it holds
+// already, such as after a poll stored newer checks. A commit that was never
+// asked for, or that is loading, is left to [Loader.Want] and its read. If the
+// reader keeps nothing of it, the returned command reads it again.
+func (l Loader) Reload(sha string) (Loader, tea.Cmd) {
+	e, ok := l.entries[sha]
+	if !ok || e.loading {
+		return l, nil
+	}
+	if c, ok := l.reader.CachedCommitChecks(Query{Repo: l.repo, SHA: sha, Notes: e.notes}); ok {
+		return l.with(sha, &entry{checks: c, notes: e.notes}), nil
+	}
+	return l.start(sha, e.notes)
+}
+
 // start marks sha as loading and returns the command that reads it.
 func (l Loader) start(sha string, notes bool) (Loader, tea.Cmd) {
 	ctx, cancel := context.WithCancel(context.Background())
