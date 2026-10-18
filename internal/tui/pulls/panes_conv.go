@@ -294,6 +294,9 @@ func (m *panesModal) syncConvFocus() {
 // convPress takes a key of the tree for the conversation, and reports whether
 // it was one.
 func (m *panesModal) convPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if keymap.Matches(msg, m.keys.convFilter) {
+		return m.openConvFilter(), true
+	}
 	t := m.keys.tree
 	var mine bool
 	for _, row := range t.FullHelp() {
