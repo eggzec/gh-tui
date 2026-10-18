@@ -2,6 +2,8 @@ package files
 
 import (
 	"fmt"
+	"maps"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -33,6 +35,7 @@ const (
 	idTruncated = "files-truncated"
 	idPrefix    = "commit:"
 	idFile      = "file:"
+	idDir       = "dir:"
 
 	// fileDepth is the level of the rows under the Files section.
 	fileDepth = 1
@@ -51,10 +54,17 @@ const (
 func CommitID(oid string) string { return idPrefix + oid }
 
 // FileID returns the ID of the row of the file at path.
-func FileID(path string) string { return idFile + path }
+func FileID(file string) string { return idFile + file }
 
 // PathOf returns the path of the file whose row has the given ID.
-func PathOf(id string) (path string, ok bool) { return strings.CutPrefix(id, idFile) }
+func PathOf(id string) (file string, ok bool) { return strings.CutPrefix(id, idFile) }
+
+// DirID returns the ID of the row of the folder at path, without a slash at
+// the end.
+func DirID(dir string) string { return idDir + dir }
+
+// DirOf returns the path of the folder whose row has the given ID.
+func DirOf(id string) (dir string, ok bool) { return strings.CutPrefix(id, idDir) }
 
 // Data is what the rows show: the commits of the pull request, oldest first,
 // the range of them that is selected, and the files that changed in it.
@@ -64,6 +74,9 @@ type Data struct {
 	// Files are the files changed in the range, in any order; the rows sort
 	// them by path.
 	Files []core.CommitFile
+	// Viewed holds the files the viewer marked viewed on GitHub; the zero
+	// value, and a server that keeps no marks, show none.
+	Viewed core.PullViewed
 	// FilesErr says why the files could not be read, and shows in place of them.
 	FilesErr string
 	// Truncated is the note that says the list of files is cut short, or "".
@@ -150,14 +163,71 @@ func (b *builder) files(d Data) []foldtree.Row {
 	}
 	fs := slices.Clone(d.Files)
 	slices.SortStableFunc(fs, func(x, y core.CommitFile) int { return strings.Compare(x.Path, y.Path) })
-	rows := make([]foldtree.Row, 0, len(fs)+1)
+	root := &dirNode{}
 	for _, f := range fs {
-		rows = append(rows, b.file(f))
+		root.add(f)
 	}
+	rows := make([]foldtree.Row, 0, len(fs)+len(root.dirs)+1)
+	rows = b.tree(rows, root, "", fileDepth, d.Viewed)
 	if d.Truncated != "" {
 		rows = append(rows, b.note(idTruncated, d.Truncated))
 	}
 	return rows
+}
+
+// dirNode is a folder of the changed files: the folders and the files in it.
+type dirNode struct {
+	dirs  map[string]*dirNode
+	files []core.CommitFile
+}
+
+// add puts f in the folder it belongs to, making the folders on its way.
+func (n *dirNode) add(f core.CommitFile) {
+	dirs, _ := path.Split(f.Path)
+	for part := range strings.SplitSeq(strings.TrimSuffix(dirs, "/"), "/") {
+		if part == "" {
+			continue
+		}
+		next := n.dirs[part]
+		if next == nil {
+			next = &dirNode{}
+			if n.dirs == nil {
+				n.dirs = map[string]*dirNode{}
+			}
+			n.dirs[part] = next
+		}
+		n = next
+	}
+	n.files = append(n.files, f)
+}
+
+// tree appends the rows of the folder n, whose path is dir with its slash, at
+// depth: its folders first, each with what is in it, then its files, each in
+// the order of their names.
+func (b *builder) tree(rows []foldtree.Row, n *dirNode, dir string, depth int, v core.PullViewed) []foldtree.Row {
+	for _, name := range slices.Sorted(maps.Keys(n.dirs)) {
+		rows = append(rows, b.dir(dir+name, name, depth))
+		rows = b.tree(rows, n.dirs[name], dir+name+"/", depth+1, v)
+	}
+	for _, f := range n.files {
+		state := core.Unviewed
+		if v.Supported {
+			state = v.State(f.Path)
+		}
+		rows = append(rows, b.file(f, depth, state))
+	}
+	return rows
+}
+
+// dir is the row of the folder at p, named name: an open fold.
+func (b *builder) dir(p, name string, depth int) foldtree.Row {
+	return foldtree.Row{
+		ID:    DirID(p),
+		Depth: depth,
+		Fold:  true,
+		Arrow: true,
+		Lines: []string{termtext.OneLine(name) + b.st.dim.Render("/")},
+	}
 }
 
 // note is a dim row that the cursor skips.
@@ -170,26 +240,41 @@ func (b *builder) note(id, text string) foldtree.Row {
 	}
 }
 
-// file is the row of f: its icon and path, and the lines it adds and deletes
-// on the right.
-func (b *builder) file(f core.CommitFile) foldtree.Row {
+// file is the row of f at depth: its icon and name, and the lines it adds and
+// deletes on the right. A file marked viewed is drawn dim and ends in a check;
+// one that changed since it was marked says so.
+func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) foldtree.Row {
+	name := termtext.OneLine(path.Base(f.Path))
+	viewed := state == core.Viewed
+	text := b.st.fileIcon(f.Path) + name
+	if viewed {
+		text = b.st.dim.Render(ansi.Strip(text)) + " " + b.st.check
+	}
+	if state == core.ViewedChanged {
+		text += " " + b.st.rerequested + b.st.dim.Render(" changed since viewed")
+	}
 	return foldtree.Row{
 		ID:    FileID(f.Path),
-		Depth: fileDepth,
+		Depth: depth,
 		Kind:  KindFile,
-		Lines: []string{b.st.fileIcon(f.Path) + termtext.OneLine(f.Path)},
-		Right: b.counts(f.Additions, f.Deletions),
+		Lines: []string{text},
+		Right: b.counts(f.Additions, f.Deletions, viewed),
 	}
 }
 
-// counts is "+a −d" drawn in color, leaving out a count of none.
-func (b *builder) counts(add, del int) string {
+// counts is "+a −d" drawn in color, or dim when quiet, leaving out a count of
+// none.
+func (b *builder) counts(add, del int, quiet bool) string {
+	addSt, delSt := &b.st.add, &b.st.del
+	if quiet {
+		addSt, delSt = &b.st.dim, &b.st.dim
+	}
 	var parts []string
 	if add > 0 {
-		parts = append(parts, b.st.add.Render("+"+strconv.Itoa(add)))
+		parts = append(parts, addSt.Render("+"+strconv.Itoa(add)))
 	}
 	if del > 0 {
-		parts = append(parts, b.st.del.Render(b.st.Glyphs.Minus+strconv.Itoa(del)))
+		parts = append(parts, delSt.Render(b.st.Glyphs.Minus+strconv.Itoa(del)))
 	}
 	return strings.Join(parts, " ")
 }

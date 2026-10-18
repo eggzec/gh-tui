@@ -20,6 +20,9 @@ type Styles struct {
 	accent lipgloss.Style
 	// add and del draw the lines a file adds and deletes.
 	add, del lipgloss.Style
+	// check ends the row of a file marked viewed, and rerequested leads the
+	// note of one that changed since.
+	check, rerequested string
 	// fileIcon returns the icon of the file at a path, followed by a space, or
 	// "" in an icon set without file icons.
 	fileIcon func(path string) string
@@ -35,14 +38,16 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	g := NewGlyphs(set, ic)
 	d := t.Diff(ic)
 	s := Styles{
-		Glyphs: g,
-		bold:   t.Text.Bold(true),
-		dim:    t.Subtle,
-		accent: t.Accent.Bold(true),
-		add:    lipgloss.NewStyle().Foreground(d.Added.GetForeground()),
-		del:    lipgloss.NewStyle().Foreground(d.Deleted.GetForeground()),
-		in:     t.Accent.Render(g.Commit),
-		out:    t.Subtle.Render(g.Commit),
+		Glyphs:      g,
+		bold:        t.Text.Bold(true),
+		dim:         t.Subtle,
+		accent:      t.Accent.Bold(true),
+		add:         lipgloss.NewStyle().Foreground(d.Added.GetForeground()),
+		del:         lipgloss.NewStyle().Foreground(d.Deleted.GetForeground()),
+		check:       t.Subtle.Render(ic.Yes),
+		rerequested: ui.NewGlyphStyles(t, ic).Render(ui.GlyphRerequested),
+		in:          t.Accent.Render(g.Commit),
+		out:         t.Subtle.Render(g.Commit),
 		fileIcon: func(p string) string {
 			fi := ic.Entry(core.TreeEntry{Path: p, Name: path.Base(p)}, false)
 			if fi.Glyph == "" {
