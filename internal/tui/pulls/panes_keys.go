@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // panesKeys are the keys of the modal of a pull request that work on any of
@@ -57,6 +58,10 @@ type panesKeys struct {
 	// filter is the key that changes what the conversation shows, "" when
 	// none is bound.
 	filter string
+	// convFilter opens the kinds of items to show, and pick is the keys of the
+	// checklist of the kinds.
+	convFilter key.Binding
+	pick       picker.KeyMap
 	// inv is the keys of the involved pane's rows.
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
@@ -86,6 +91,9 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		files:    newFilesKeys(keys),
 		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
 		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
+
+		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),
+		pick:       picker.NewKeyMap(ui.Lookup(keys, "picker")),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 		diff:      newDiffKeys(keys),
@@ -195,6 +203,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 				}
 			}
 		}
+		all = append(all, k.convFilter)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
 	}
 	if ctx == ctxInvolved {
