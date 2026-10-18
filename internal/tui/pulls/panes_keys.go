@@ -58,10 +58,10 @@ type panesKeys struct {
 	// filter is the key that changes what the conversation shows, "" when
 	// none is bound.
 	filter string
-	// convFilter opens the kinds of items to show, and pick is the keys of the
-	// checklist of the kinds.
-	convFilter key.Binding
-	pick       picker.KeyMap
+	// convFilter opens the kinds of items to show, convSort steps the order,
+	// and pick is the keys of the checklist of the kinds.
+	convFilter, convSort key.Binding
+	pick                 picker.KeyMap
 	// inv is the keys of the involved pane's rows.
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
@@ -93,6 +93,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),
+		convSort:   ui.In(keys, ctxConversation).Binding("sort", "sort"),
 		pick:       picker.NewKeyMap(ui.Lookup(keys, "picker")),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
@@ -203,7 +204,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 				}
 			}
 		}
-		all = append(all, k.convFilter)
+		all = append(all, k.convFilter, k.convSort)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
 	}
 	if ctx == ctxInvolved {

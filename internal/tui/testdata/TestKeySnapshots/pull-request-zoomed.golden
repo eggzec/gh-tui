@@ -39,3 +39,5 @@ Conversation
   collapse | left h | ←/h | on
   all | * | * | on
   open | enter | ↵ | on
+  filter | f | f | on
+  sort | s | s | on
