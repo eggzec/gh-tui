@@ -32,6 +32,14 @@ type fakeChecks struct {
 	pending bool
 	// commits are the SHAs whose checks were read as a commit's.
 	commits []string
+	// app is a check run of an App that CachedCommitChecks returns, and
+	// notes the annotations that CachedAnnotations returns for it.
+	app   *core.CommitCheck
+	notes []core.Annotation
+	// suites are the check suites that were asked to run again.
+	suites []int64
+	// suiteErr makes the re-request of a suite fail.
+	suiteErr error
 }
 
 // numbers returns the numbers whose checks were read, in order.
@@ -112,7 +120,7 @@ func (f *fakeChecks) PartialLog(context.Context, core.RepoRef, int64) (core.Part
 }
 func (f *fakeChecks) WatchLog(core.RepoRef, int64, int64) func() { return func() {} }
 func (f *fakeChecks) CachedAnnotations(actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
-	return core.Page[core.Annotation]{}, false
+	return core.Page[core.Annotation]{Items: f.notes}, f.notes != nil
 }
 func (f *fakeChecks) Annotations(context.Context, actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
 	return core.Page[core.Annotation]{}, nil
@@ -127,8 +135,26 @@ func (f *fakeChecks) commitChecks(sha string) core.CommitChecks {
 	}}}
 }
 
-func (f *fakeChecks) CachedCommitChecks(actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
-	return core.CommitChecks{}, false
+func (f *fakeChecks) CachedCommitChecks(q actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
+	if f.app == nil {
+		return core.CommitChecks{}, false
+	}
+	return core.CommitChecks{SHA: q.SHA, Total: 1, Runs: []core.CommitCheck{*f.app}}, true
+}
+
+func (f *fakeChecks) RerequestSuite(_ core.RepoRef, id int64) *optimistic.Op {
+	return optimistic.New(func(context.Context) error {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.suites = append(f.suites, id)
+		return f.suiteErr
+	})
+}
+
+func (f *fakeChecks) suitesAsked() []int64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.suites)
 }
 
 func (f *fakeChecks) CommitChecks(_ context.Context, q actionssvc.CommitChecksQuery) (core.CommitChecks, error) {

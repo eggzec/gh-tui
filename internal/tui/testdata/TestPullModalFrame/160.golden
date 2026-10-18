@@ -4,11 +4,11 @@
 │    README.md                                           6B││▌  ↣ #2     Match keys by order                                                   octocat      now│
 │               ╭─ #2 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮               │
 │               │ ↣ #2 Match keys by order                                                                                                     │               │
-│               │ ╭─ 1 Description ───────────────────────────────────────────────────────────────── 0% ─╮╭─ 3 Merge ──────────────────── ✓ ─╮ │               │
+│               │ ╭─ 1 Description ───────────────────────────────────────────────────────────────── 0% ─╮╭─ 3 Merge ──────────── 1 blocker ─╮ │               │
 │               │ │ ▌Notes  ⋯ 1 line                                                                     ││ keys → main                      │ │               │
-│               │ │  Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys    ││                                  │ │               │
-│               │ │  match by order. Keys match by order. Keys match by order.                           ││                                  │ │               │
-│               │ │                                                                                      ││                                  │ │               │
+│               │ │  Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys    ││ ▌▾ ✗ Checks failing 1            │ │               │
+│               │ │  match by order. Keys match by order. Keys match by order.                           ││  ╰─ ▾ ✗ ▣ Codecov         failed │ │               │
+│               │ │                                                                                      ││     ╰─ ✗ coverage/p… failed · 0s │ │               │
 │               │ │  Paragraph 2. Keys match by order. Keys match by order. Keys match by order. Keys    ││                                  │ │               │
 │               │ │  match by order. Keys match by order. Keys match by order.                           ││                                  │ │               │
 │               │ │                                                                                      ││                                  │ │               │

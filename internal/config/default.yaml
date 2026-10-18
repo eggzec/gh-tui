@@ -1149,6 +1149,12 @@ keys:
     half_page_down: [ctrl+d]
     top: [g, home]
     bottom: [G, end]
+  # The modal of a pull request: what a check run of an App reported. Its
+  # moves are those of the preview; enter on an annotation opens its line in
+  # the diff.
+  pull_app_check:
+    # Run the check suite of the check run again, after a question.
+    rerequest: [R]
   # The modal of a pull request: what stands in the way of a merge. Expand
   # and collapse fold its checks; enter acts on the row under the cursor.
   pull_merge:

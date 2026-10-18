@@ -1,0 +1,20 @@
+ [1mcoverage[m[38;2;138;144;160m  ·  Codecov  ·  [m[38;2;207;34;46mfailing[m                                               
+ [38;2;138;144;160m]8;;https://example.com/coverage\https://example.com/coverage]8;;\[m                                                   
+                                                                                
+ [1mCoverage fell by 2%[m                                                            
+                                                                                
+ The [1mpatch[m is covered at 61%.                                                   
+                                                                                
+ • [38;5;124;48;5;254m a.go [m 40%                                                                   
+ • [38;5;124;48;5;254m b.go [m 82%                                                                   
+                                                                                
+ [1mAnnotations (3)[m                                                                
+[38;2;84;91;110m▌[ma.go:12  [38;2;207;34;46m✗[m These lines have no test.                                           
+ internal/b/b.go:3  [38;2;154;103;0m⚠[m Partially covered.                                        
+ c.go:90  [38;2;138;144;160m•[m Covered now.                                                        
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                

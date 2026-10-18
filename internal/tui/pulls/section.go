@@ -123,6 +123,9 @@ type ChecksService interface {
 	// there, without a request.
 	CommitChecks(ctx context.Context, q actions.CommitChecksQuery) (core.CommitChecks, error)
 	CachedCommitChecks(q actions.CommitChecksQuery) (core.CommitChecks, bool)
+	// RerequestSuite shows the runs of a check suite pending at once, which
+	// the page of an App's check run offers. The returned Op sends the request.
+	RerequestSuite(repo core.RepoRef, suiteID int64) *optimistic.Op
 }
 
 // Section shows the pull requests of the selected repository. Create it with
