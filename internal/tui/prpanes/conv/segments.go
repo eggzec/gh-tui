@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -88,8 +90,10 @@ func (b *builder) block(id string, bl *desc.Block, lines int, col column, depth,
 	}
 }
 
-// segmentText returns the row of the markdown src, which is level blocks
-// deep, and how many lines it has.
+// segmentText returns the rows of the markdown src, which is level blocks
+// deep, and how many lines they have with every diagram open. The text is one
+// row, unless it holds diagrams: each of those is a closed fold, and the text
+// between them is a row of its own.
 func (b *builder) segmentText(id, src string, col column, depth, level int) (rows []foldtree.Row, total int) {
 	// The parser caps how deep blocks nest, but the bars of the deepest can
 	// still take the whole width.
@@ -97,15 +101,78 @@ func (b *builder) segmentText(id, src string, col column, depth, level int) (row
 	if room < 1 {
 		return nil, 0
 	}
-	lines := b.render(strings.TrimSpace(src), room)
+	src = strings.TrimSpace(src)
+	lead := b.lead(col, level)
+	if b.o.MD != nil {
+		if _, heads := b.o.MD.RenderHeads(src, room); len(heads) > 0 {
+			return b.diagrams(id, src, lead, room, depth)
+		}
+	}
+	lines := b.render(src, room)
 	if len(lines) == 0 {
 		return nil, 0
 	}
-	lead := b.lead(col, level)
 	for i, l := range lines {
 		lines[i] = lead + l
 	}
 	return []foldtree.Row{{ID: id, Depth: depth, Lines: lines, Inline: true, Kind: KindSegment}}, len(lines)
+}
+
+// diagrams returns the rows of the markdown src, which holds diagrams, in room
+// cells, whose IDs start with id, with each line led by lead, and how many
+// lines they have with every diagram open. Lines of code are cut to room, not
+// wrapped, and no blank line stands next to a diagram.
+func (b *builder) diagrams(id, src, lead string, room, depth int) (rows []foldtree.Row, total int) {
+	_, heads := b.o.MD.RenderHeads(src, room)
+	// Show every diagram open: a closed fold hides its lines, so opening one
+	// needs no new rows.
+	open := make([]int, len(heads))
+	for i, h := range heads {
+		open[i] = h.Block
+	}
+	out, heads := b.o.MD.RenderHeads(src, room, open...)
+	lines := strings.Split(out, "\n")
+	blank := func(l string) bool { return strings.TrimSpace(ansi.Strip(l)) == "" }
+	text := func(rowID string, from, to int) {
+		for from < to && blank(lines[from]) {
+			from++
+		}
+		for to > from && blank(lines[to-1]) {
+			to--
+		}
+		part := b.cap(b.code(lines[from:to], room))
+		if len(part) == 0 {
+			return
+		}
+		out := make([]string, len(part))
+		for i, l := range part {
+			out[i] = lead + l
+		}
+		rows = append(rows, foldtree.Row{ID: rowID, Depth: depth, Lines: out, Inline: true, Kind: KindSegment})
+		total += len(out)
+	}
+	at, k := 0, 0
+	for _, h := range heads {
+		if h.Line < at || h.End > len(lines) || h.End <= h.Line {
+			continue
+		}
+		text(id+".s"+strconv.Itoa(k), at, h.Line)
+		code := make([]string, h.End-h.Line)
+		for i, l := range lines[h.Line:h.End] {
+			if ansi.StringWidth(l) > room {
+				l = ansi.Truncate(l, room, b.st.Glyphs.Cut)
+			}
+			code[i] = lead + l
+		}
+		rows = append(rows, foldtree.Row{
+			ID: id + ".m" + strconv.Itoa(h.Block), Depth: depth, Lines: code,
+			Inline: true, Fold: true, Closed: true, Kind: KindSegment,
+		})
+		total += len(code)
+		at, k = h.End, h.Block+1
+	}
+	text(id+".s"+strconv.Itoa(k), at, len(lines))
+	return rows, total
 }
 
 // segmentRe matches what an ID of a row of a segment adds to the ID of its

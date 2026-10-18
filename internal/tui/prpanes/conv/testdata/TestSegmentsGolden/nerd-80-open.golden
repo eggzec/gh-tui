@@ -1,4 +1,4 @@
-▌4 comments · ann                                                             3d
+▌6 comments · ann                                                             3d
  ├─ ann  Before.                                                              3d
  │       Logs
  │       │ line one
@@ -19,9 +19,27 @@
  │       │ no summary
  │       ╰─
  │       Trailing.
- ╰─ ann  Never closed.                                                        3d
-         Open ended
-         │ runs to the end
+ ├─ ann  Never closed.                                                        3d
+ │       Open ended
+ │       │ runs to the end
+ │       ╰─
+ ├─ ann  Flow:                                                                3d
+ │         ◆ flowchart · 3 lines · View diagram ↗
+ │         ▏   graph TD
+ │         ▏     A[Start] --> B[Stop]
+ │         ▏     B --> C[Again]
+ │       After the diagram.
+ │         ◆ sequence diagram · 2 lines · View diagram ↗
+ │         ▏   sequenceDiagram
+ │         ▏     Ann->>Bob: Hi
+ ╰─ ann                                                                       3d
+         Diagram
+         │ Inside.
+         │   ◆ pie chart · 3 lines · View diagram ↗
+         │   ▏   pie title Pets
+         │   ▏     "Dogs" : 3
+         │   ▏     "Cats" : 2
+         │ Below.
          ╰─
 
   bob  Review.                                                               3d

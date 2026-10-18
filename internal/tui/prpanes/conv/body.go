@@ -22,14 +22,54 @@ const (
 )
 
 // split cleans src and cuts it into the text that leads the body, trimmed,
-// and the nodes after it: the details blocks and the text between them. base
-// is the index in the body's nodes of the first of those.
+// and the nodes after it: the details blocks and the text between them. The
+// leading text ends where its first diagram starts, which opens the nodes.
+// base is the index in the body's nodes of the first of those.
 func split(src string) (head string, rest []desc.Node, base int) {
 	nodes := desc.Parse(termtext.Clean(src, tabStop))
-	if len(nodes) > 0 && nodes[0].Block == nil {
-		return strings.TrimSpace(nodes[0].Text), nodes[1:], 1
+	if len(nodes) == 0 || nodes[0].Block != nil {
+		return "", nodes, 0
 	}
-	return "", nodes, 0
+	text := nodes[0].Text
+	if i := diagramAt(text); i >= 0 {
+		return strings.TrimSpace(text[:i]), append([]desc.Node{{Text: text[i:]}}, nodes[1:]...), 0
+	}
+	return strings.TrimSpace(text), nodes[1:], 1
+}
+
+// diagramAt returns where the first diagram of the markdown src starts, or -1.
+// It is a mermaid block whose fence has no indent, which the renderer draws
+// on its own, as a head with the block's code under it. An indented one may
+// sit in a list or hold other text, and stays in the text before it.
+func diagramAt(src string) int {
+	var char byte // the fence char of the code block the line is in, or 0
+	var size int  // the length of that fence
+	for pos := 0; pos < len(src); {
+		line, _, _ := strings.Cut(src[pos:], "\n")
+		start := pos
+		pos += len(line) + 1
+		trimmed := strings.TrimLeft(line, " ")
+		indent := len(line) - len(trimmed)
+		if indent > 3 || trimmed == "" || (trimmed[0] != '`' && trimmed[0] != '~') {
+			continue
+		}
+		run := len(trimmed) - len(strings.TrimLeft(trimmed, trimmed[:1]))
+		info := strings.TrimSpace(trimmed[run:])
+		switch {
+		case run < 3:
+		case char != 0:
+			if trimmed[0] == char && run >= size && info == "" {
+				char = 0
+			}
+		case trimmed[0] == '`' && strings.Contains(info, "`"):
+		default:
+			if lang := strings.Fields(strings.ToLower(info + " ")); indent == 0 && len(lang) > 0 && lang[0] == "mermaid" {
+				return start
+			}
+			char, size = trimmed[0], run
+		}
+	}
+	return -1
 }
 
 // render returns the lines of the markdown src, a prepared body, at most room
@@ -47,7 +87,11 @@ func (b *builder) render(src string, room int) []string {
 	if out == "" {
 		return nil
 	}
-	lines := b.code(strings.Split(out, "\n"), room)
+	return b.cap(b.code(strings.Split(out, "\n"), room))
+}
+
+// cap returns the first maxBodyLines of lines and a note of the rest.
+func (b *builder) cap(lines []string) []string {
 	if n := len(lines) - maxBodyLines; n > 0 {
 		lines = append(lines[:maxBodyLines:maxBodyLines],
 			b.st.dim.Render(b.st.Glyphs.Cut+" "+strconv.Itoa(n)+" more lines"))
