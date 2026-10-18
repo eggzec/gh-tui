@@ -2,7 +2,10 @@ package pulls
 
 import (
 	"errors"
+	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -207,6 +210,148 @@ func msgsOf(cmd tea.Cmd) []tea.Msg {
 		return out
 	}
 	return []tea.Msg{msg}
+}
+
+// longFirst makes the first file of the diff, a.go, a patch of n added lines,
+// which takes several windows to read.
+func longFirst(n int) func(*fakeService) {
+	return func(svc *fakeService) {
+		patch := fmt.Sprintf("@@ -1,1 +1,%d @@\n keep\n%s", n+1, strings.Repeat("+\tx()\n", n))
+		for i := range svc.changed {
+			if svc.changed[i].Path == "a.go" {
+				svc.changed[i].Patch = patch
+			}
+		}
+	}
+}
+
+func TestReadOnPagesInTheMiddleOfAFile(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "a.go", longFirst(80))
+	before := o.d.Cursor()
+	press(t, h, "space")
+	if got := o.current(); got != "a.go" {
+		t.Errorf("space left the diff at %q, want the same file", got)
+	}
+	if after := o.d.Cursor(); after <= before {
+		t.Errorf("space left the cursor at row %d, want it below row %d", after, before)
+	}
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("space in the middle of a file marked it: sent %v", sets)
+	}
+}
+
+func TestReadOnMarksAFileOfSeveralWindows(t *testing.T) {
+	t.Parallel()
+	// Lengths that put the end of the file at every phase of a page, among them
+	// tails shorter than a window.
+	for n := 40; n < 56; n++ {
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			t.Parallel()
+			h, _, o, svc := viewedPanes(t, "a.go", longFirst(n))
+			for presses := 1; len(svc.sets()) == 0; presses++ {
+				if presses > 30 {
+					t.Fatal("space never marked the first file")
+				}
+				press(t, h, "space")
+				if got := o.current(); len(svc.sets()) == 0 && got != "a.go" {
+					t.Fatalf("space left the first file at %q before marking it", got)
+				}
+			}
+			if got := o.current(); got != "docs/c.md" {
+				t.Errorf("after marking, the diff is at %q, want the next file", got)
+			}
+			if sets := svc.sets(); !slices.Equal(sets, []string{"a.go=true"}) {
+				t.Errorf("marks sent = %v, want the first file", sets)
+			}
+		})
+	}
+}
+
+func TestReadOnMarksAtTheEndAndMovesToTheNextUnviewed(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "a.go", nil)
+	press(t, h, "space")
+	if got := o.current(); got != "docs/c.md" {
+		t.Errorf("space left the diff at %q, want the next file", got)
+	}
+	if sets := svc.sets(); !slices.Equal(sets, []string{"a.go=true"}) {
+		t.Errorf("marks sent = %v, want the first file", sets)
+	}
+	if o.viewingOf("a.go") != viewedFile {
+		t.Error("the file read is not viewed")
+	}
+}
+
+func TestReadOnWrapsToAnUnviewedFile(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "internal/b.go", func(svc *fakeService) {
+		svc.holding(core.Viewed, "docs/c.md")
+	})
+	press(t, h, "space")
+	if got := o.current(); got != "a.go" {
+		t.Errorf("space left the diff at %q, want a.go, the only one not viewed", got)
+	}
+	if sets := svc.sets(); !slices.Equal(sets, []string{"internal/b.go=true"}) {
+		t.Errorf("marks sent = %v, want the last file", sets)
+	}
+}
+
+func TestReadOnWithEveryFileViewedGoesToTheFirst(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "internal/b.go", func(svc *fakeService) {
+		svc.holding(core.Viewed, "a.go", "docs/c.md", "internal/b.go")
+	})
+	press(t, h, "space")
+	if got := o.current(); got != "a.go" {
+		t.Errorf("space left the diff at %q, want the first file", got)
+	}
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("reading on over viewed files sent %v, want none", sets)
+	}
+}
+
+func TestReadOnWithEveryFileViewedPagesOnAndWraps(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "a.go", func(svc *fakeService) {
+		svc.holding(core.Viewed, "a.go", "docs/c.md", "internal/b.go")
+	})
+	// The whole patch shows every file folded, a header each.
+	press(t, h, "a")
+	if got := o.current(); got != "a.go" {
+		t.Fatalf("the diff is at %q, want the first file", got)
+	}
+	moved, wrapped := false, false
+	for range 20 {
+		press(t, h, "space")
+		got := o.current()
+		if got != "a.go" {
+			moved = true
+		}
+		if moved && got == "a.go" {
+			wrapped = true
+			break
+		}
+	}
+	if !moved || !wrapped {
+		t.Errorf("space moved on %v and wrapped to the first file %v, want both", moved, wrapped)
+	}
+	if sets := svc.sets(); len(sets) != 0 {
+		t.Errorf("reading on over viewed files sent %v, want none", sets)
+	}
+}
+
+func TestReadOnOnlyPagesBeforeTheMarksAreRead(t *testing.T) {
+	t.Parallel()
+	h, _, o, svc := viewedPanes(t, "a.go", nil)
+	o.vw.in, o.vw.failed = false, false
+	press(t, h, "space")
+	if sets := svc.sets(); len(sets) != 0 || o.viewingOf("a.go") != notViewed {
+		t.Errorf("space before the marks were read marked a file: sent %v", sets)
+	}
+	if got := o.current(); got != "a.go" {
+		t.Errorf("space left the diff at %q before the marks were read", got)
+	}
 }
 
 func TestViewedOnAServerWithoutMarksSaysSo(t *testing.T) {

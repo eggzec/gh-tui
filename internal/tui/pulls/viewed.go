@@ -124,6 +124,43 @@ func (o *diffOverlay) nextUnviewedWrapping(path string) string {
 	return ""
 }
 
+// readOn reads on through the diff: it pages down, and once the end of the file
+// the cursor is in shows, it marks that file viewed and moves to the next one
+// not viewed, from the first file again after the last. With every file
+// viewed it pages through the folded headers of the whole patch and, from the
+// last file, moves to the first. Until the marks are read it only pages, and
+// where they can't be set it moves on without marking.
+func (o *diffOverlay) readOn() tea.Cmd {
+	file, ok := o.d.CurrentFile()
+	if !ok || !o.d.FileEndVisible() || (!o.vw.in && !o.vw.failed) {
+		// The page stops at the end of the file, so that the next press sees the
+		// end of the file the cursor is in, not of the one after.
+		return o.d.PageDownWithinFile()
+	}
+	var cmds []tea.Cmd
+	if o.viewingOf(file.Path) != viewedFile && o.vw.in && o.vw.pv.Supported {
+		cmds = append(cmds, o.toggleViewed(file.Path, false))
+	}
+	path := o.nextUnviewedWrapping(file.Path)
+	if path == "" {
+		// Every file is viewed. The whole patch has them folded: page on through
+		// the headers, and start over at the first file once the last is reached.
+		paths := o.src.paths()
+		if len(paths) == 0 {
+			return tea.Batch(cmds...)
+		}
+		switch {
+		case o.mode == diffview.WholePatch && file.Path != paths[len(paths)-1]:
+			return tea.Batch(append(cmds, o.d.PageDown())...)
+		case o.mode == diffview.WholePatch:
+			path = paths[0]
+		default:
+			path = paths[(indexOf(paths, file.Path)+1)%len(paths)]
+		}
+	}
+	return tea.Batch(append(cmds, o.goTo(path))...)
+}
+
 // indexOf returns the place of path among paths, or -1.
 func indexOf(paths []string, path string) int {
 	for i, p := range paths {

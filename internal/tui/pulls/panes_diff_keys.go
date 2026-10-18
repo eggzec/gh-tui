@@ -19,6 +19,9 @@ type diffKeys struct {
 	whole key.Binding
 	// viewed marks the file viewed on GitHub, or takes the mark off.
 	viewed key.Binding
+	// readOn pages down, and marks the file viewed at its end and moves on to the
+	// next one not viewed.
+	readOn key.Binding
 }
 
 // newDiffKeys makes the keys of the diff from keys.
@@ -26,6 +29,7 @@ func newDiffKeys(keys config.Keymap) diffKeys {
 	return diffKeys{
 		diff:   diff.NewKeyMap(ui.Lookup(keys, ctxDiff)),
 		whole:  ui.In(keys, ctxDiff).Binding("whole_patch", "whole patch"),
-		viewed:ui.In(keys, ctxDiff).Binding("viewed", "mark viewed"),
+		viewed: ui.In(keys, ctxDiff).Binding("viewed", "mark viewed"),
+		readOn: ui.In(keys, ctxDiff).Binding("read_on", "read on"),
 	}
 }

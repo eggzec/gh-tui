@@ -165,8 +165,8 @@ func (o *diffOverlay) layers() []keyhelp.Layer {
 	if empty := keys.CancelEmpty.Keys(); len(empty) > 0 {
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), empty) })
 	}
-	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.viewed)
-	l.Short = append(l.Short, o.keys.whole, o.keys.viewed)
+	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.viewed, o.keys.readOn)
+	l.Short = append(l.Short, o.keys.whole, o.keys.viewed, o.keys.readOn)
 	// The keys of the modal don't reach the diff, so its layer lists none; the
 	// chain still has it, as that of every overlay of the panes.
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
@@ -182,6 +182,8 @@ func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
 		switch {
 		case keymap.Matches(press, o.keys.viewed):
 			return o.toggleViewed(o.current(), true)
+		case keymap.Matches(press, o.keys.readOn):
+			return o.readOn()
 		case keymap.Matches(press, o.keys.diff.NextFile):
 			return o.step(1)
 		case keymap.Matches(press, o.keys.diff.PrevFile):
