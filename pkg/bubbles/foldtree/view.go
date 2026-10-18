@@ -85,7 +85,7 @@ func (m Model) shade(line, bg string) string {
 // cursor column: guides, the arrow of a fold, the text, the marker of a
 // closed fold and the right-aligned part, in the width that is left.
 func (m Model) head(r Row, i int) string {
-	avail := m.width - 1 - guideWidth*r.Depth
+	avail := m.width - 1 - m.indent(i)
 	var arrow string
 	if r.Arrow {
 		arrow = m.look.open
