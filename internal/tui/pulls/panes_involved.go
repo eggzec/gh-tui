@@ -164,9 +164,7 @@ func (m *panesModal) focusPerson(msg involved.FocusPersonMsg) tea.Cmd {
 	if msg.Team != "" || !involved.HasComments(m.inv.data, msg.Login) {
 		return ui.Notify(toast.Info, "no comments from "+msg.Name)
 	}
-	m.focus = panes.Conversation
-	m.resetSub()
-	return nil
+	return m.jumpConv(convWant{login: msg.Login})
 }
 
 // involvedLayer is the keys of the pane, for the help.

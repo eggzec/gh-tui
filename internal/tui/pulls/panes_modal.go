@@ -298,7 +298,16 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case convViewerMsg:
 		return m.receiveViewer(msg)
 	case conv.EnterMsg:
-		// What acting on a row does comes with the changes that act on it.
+		switch msg.Kind {
+		case conv.KindCommit:
+			m.showCommit(msg.SHA)
+			m.syncConvFocus()
+			m.follow()
+		case conv.KindCI:
+			m.focus = panes.Merge
+			m.resetSub()
+			m.syncConvFocus()
+		}
 		return nil
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
