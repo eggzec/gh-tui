@@ -37,3 +37,4 @@ Diff
   next match | n | n | off
   prev match | N | N | off
   whole patch | a | a | on
+  mark viewed | v | v | on

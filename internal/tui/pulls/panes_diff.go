@@ -34,6 +34,11 @@ type diffOverlay struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	done   bool
+	// vw is what is known of the marks of the files, and seen and changed are
+	// the marks drawn after the header of a file that is viewed, or that changed
+	// since.
+	vw            viewedState
+	seen, changed string
 }
 
 // openDiff opens the diff of the file at path over the panes, and shows the
@@ -41,7 +46,8 @@ type diffOverlay struct {
 func (m *panesModal) openDiff(path string) tea.Cmd {
 	ctx, cancel := context.WithCancel(m.ctx)
 	o := &diffOverlay{m: m, src: m.diffSource(), keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
-	cmd := o.build()
+	o.showCachedViewed()
+	cmd := tea.Batch(o.build(), o.readViewed())
 	m.open(o)
 	m.reveal(path)
 	return cmd
@@ -69,6 +75,9 @@ func (o *diffOverlay) build() tea.Cmd {
 	if o.w > 0 && o.h > 0 {
 		o.d.SetSize(o.w, o.h)
 	}
+	o.seen = o.m.theme.Success.Render(o.m.icons.Yes)
+	o.changed = o.m.theme.Subtle.Render(o.m.icons.Changed)
+	o.d.SetHeaderMark(o.viewMark)
 	o.d.SetStatusNote(func() string {
 		return diffview.Note(o.d.Cursor()+1, o.d.Len(), o.hints())
 	})
@@ -156,16 +165,23 @@ func (o *diffOverlay) layers() []keyhelp.Layer {
 	if empty := keys.CancelEmpty.Keys(); len(empty) > 0 {
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), empty) })
 	}
-	l.Bindings = append(l.Bindings, o.keys.whole)
-	l.Short = append(l.Short, o.keys.whole)
+	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.viewed)
+	l.Short = append(l.Short, o.keys.whole, o.keys.viewed)
 	// The keys of the modal don't reach the diff, so its layer lists none; the
 	// chain still has it, as that of every overlay of the panes.
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
 }
 
 func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
+	if fm, ok := msg.(diff.FilesMsg); ok && fm.ID == o.d.ID() {
+		for _, f := range fm.Files {
+			o.foldViewed(f.Path)
+		}
+	}
 	if press, ok := msg.(tea.KeyPressMsg); ok && !o.d.Capturing() {
 		switch {
+		case keymap.Matches(press, o.keys.viewed):
+			return o.toggleViewed(o.current(), true)
 		case keymap.Matches(press, o.keys.diff.NextFile):
 			return o.step(1)
 		case keymap.Matches(press, o.keys.diff.PrevFile):
@@ -186,12 +202,17 @@ func (o *diffOverlay) step(d int) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	o.m.reveal(next)
+	return o.goTo(next)
+}
+
+// goTo shows the file at path, and the Files pane with it.
+func (o *diffOverlay) goTo(path string) tea.Cmd {
+	o.m.reveal(path)
 	if o.mode == diffview.ThisFile {
-		o.path = next
+		o.path = path
 		return o.build()
 	}
-	o.d.SeekFile(next)
+	o.d.SeekFile(path)
 	// A file not fetched yet leaves the seek pending, and an update starts the
 	// read of the pages it waits for.
 	var cmd tea.Cmd

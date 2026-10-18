@@ -294,6 +294,11 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return nil
 	case reviewedMsg:
 		return m.reviewed(msg)
+	case viewedMsg:
+		return msg.o.receiveViewed(msg)
+	case viewedSetMsg:
+		msg.o.viewedSet(msg)
+		return nil
 	case checktree.OpenJobMsg:
 		// Whichever pane holds the check row sends it, so the modal answers.
 		return func() tea.Msg { return actionsOn(m.repo, msg, m) }

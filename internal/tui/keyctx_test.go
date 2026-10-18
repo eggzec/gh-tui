@@ -24,6 +24,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
+	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
@@ -207,6 +208,15 @@ func (keyPulls) RangeFiles(context.Context, pullsvc.RangeQuery) (core.CompareDet
 }
 func (keyPulls) CachedRange(pullsvc.RangeQuery) (core.CompareDetail, bool) {
 	return core.CompareDetail{}, false
+}
+func (keyPulls) Viewed(context.Context, pullsvc.ViewedQuery) (core.PullViewed, error) {
+	return core.PullViewed{Supported: true}, nil
+}
+func (keyPulls) CachedViewed(pullsvc.ViewedQuery) (core.PullViewed, bool) {
+	return core.PullViewed{}, false
+}
+func (keyPulls) SetViewed(pullsvc.ViewedQuery, string, bool) *optimistic.Op {
+	return optimistic.New(func(context.Context) error { return nil }, func() {})
 }
 func (keyPulls) CurrentGet(core.RepoRef, int) bool { return true }
 
