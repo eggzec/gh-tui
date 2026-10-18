@@ -1,0 +1,20 @@
+== width 30: Behind main |  ==
+GitHub can merge main into the
+branch, so that the checks run
+on the code as the merge would
+leave it.
+
+[1menter[m updates the branch with
+main [38;2;138;144;160m(asks y/n; U does the
+same)[m
+== width 60: Behind main |  ==
+GitHub can merge main into the branch, so that the checks
+run on the code as the merge would leave it.
+
+[1menter[m updates the branch with main [38;2;138;144;160m(asks y/n; U does the
+same)[m
+== width 100: Behind main |  ==
+GitHub can merge main into the branch, so that the checks run on the code as the merge would leave
+it.
+
+[1menter[m updates the branch with main [38;2;138;144;160m(asks y/n; U does the same)[m

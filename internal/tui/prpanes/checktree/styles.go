@@ -20,8 +20,11 @@ type Styles struct {
 
 	links *termtext.Links
 	dim   lipgloss.Style
-	// state holds the glyph of each check state, colored, and "" for none.
+	bold  lipgloss.Style
+	// state holds the glyph of each check state, colored, and "" for none, and
+	// tone the style that draws its word.
 	state [core.CheckFailing + 1]string
+	tone  [core.CheckFailing + 1]lipgloss.Style
 	// actions, app and status are the dim glyphs of the kinds of checks.
 	actions, app, status string
 	// failure, warning and notice are the glyphs of the levels of annotations.
@@ -39,6 +42,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		Errors:  t.Errors(ic),
 		links:   new(termtext.Links),
 		dim:     dim,
+		bold:    lipgloss.NewStyle().Bold(true),
 		actions: dim.Render(g.Actions),
 		app:     dim.Render(g.App),
 		status:  dim.Render(g.Status),
@@ -49,6 +53,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	s.state[core.CheckFailing] = fail.Render(g.Fail)
 	s.state[core.CheckPending] = pend.Render(g.Pending)
 	s.state[core.CheckPassing] = pass.Render(g.Pass)
+	s.tone[core.CheckFailing], s.tone[core.CheckPending], s.tone[core.CheckPassing] = fail, pend, pass
 	return s
 }
 

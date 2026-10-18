@@ -1,0 +1,25 @@
+== width 30: CI · build | 1 of 3 failing ==
+[38;2;107;114;133m3 legs of the matrix[m
+
+[38;2;248;81;73m✗[m linux  [38;2;107;114;133mfailed · 1m 5s[m
+[38;2;63;185;80m✓[m mac  [38;2;107;114;133mpassed · 1m 5s[m
+[38;2;63;185;80m✓[m windows  [38;2;107;114;133mpassed · 1m 5s[m
+
+[38;2;107;114;133menter folds the group; enter[m
+[38;2;107;114;133mon a leg opens its log[m
+== width 60: CI · build | 1 of 3 failing ==
+[38;2;107;114;133m3 legs of the matrix[m
+
+[38;2;248;81;73m✗[m linux  [38;2;107;114;133mfailed · 1m 5s[m
+[38;2;63;185;80m✓[m mac  [38;2;107;114;133mpassed · 1m 5s[m
+[38;2;63;185;80m✓[m windows  [38;2;107;114;133mpassed · 1m 5s[m
+
+[38;2;107;114;133menter folds the group; enter on a leg opens its log[m
+== width 100: CI · build | 1 of 3 failing ==
+[38;2;107;114;133m3 legs of the matrix[m
+
+[38;2;248;81;73m✗[m linux  [38;2;107;114;133mfailed · 1m 5s[m
+[38;2;63;185;80m✓[m mac  [38;2;107;114;133mpassed · 1m 5s[m
+[38;2;63;185;80m✓[m windows  [38;2;107;114;133mpassed · 1m 5s[m
+
+[38;2;107;114;133menter folds the group; enter on a leg opens its log[m

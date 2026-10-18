@@ -1,0 +1,25 @@
+== width 30: CI · run #12 | failed ==
+[38;2;138;144;160mon 0123456[m
+
+[38;2;207;34;46m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\  [38;2;138;144;160mfailed · 1m 5s[m
+[38;2;26;127;55m✓[m ]8;;https://github.com/o/r/actions/runs/1/job/lint\lint]8;;\  [38;2;138;144;160mpassed · 1m 5s[m
+[38;2;154;103;0m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\  [38;2;138;144;160mrunning · 12s[m
+
+[38;2;138;144;160menter folds the run; enter on[m
+[38;2;138;144;160ma job opens its log[m
+== width 60: CI · run #12 | failed ==
+[38;2;138;144;160mon 0123456[m
+
+[38;2;207;34;46m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\  [38;2;138;144;160mfailed · 1m 5s[m
+[38;2;26;127;55m✓[m ]8;;https://github.com/o/r/actions/runs/1/job/lint\lint]8;;\  [38;2;138;144;160mpassed · 1m 5s[m
+[38;2;154;103;0m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\  [38;2;138;144;160mrunning · 12s[m
+
+[38;2;138;144;160menter folds the run; enter on a job opens its log[m
+== width 100: CI · run #12 | failed ==
+[38;2;138;144;160mon 0123456[m
+
+[38;2;207;34;46m✗[m ]8;;https://github.com/o/r/actions/runs/1/job/test\test]8;;\  [38;2;138;144;160mfailed · 1m 5s[m
+[38;2;26;127;55m✓[m ]8;;https://github.com/o/r/actions/runs/1/job/lint\lint]8;;\  [38;2;138;144;160mpassed · 1m 5s[m
+[38;2;154;103;0m◐[m ]8;;https://github.com/o/r/actions/runs/1/job/build\build]8;;\  [38;2;138;144;160mrunning · 12s[m
+
+[38;2;138;144;160menter folds the run; enter on a job opens its log[m
