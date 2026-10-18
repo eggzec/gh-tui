@@ -16,6 +16,9 @@ type Glyphs struct {
 	// Dot goes between the parts of a head, and Dash between the two ages of
 	// a run.
 	Dot, Dash string
+	// Bar runs beside the content of an open details block, and Corner ends
+	// it. Both are two cells wide.
+	Bar, Corner string
 }
 
 // NewGlyphs returns the glyphs of the icon set named set, one of
@@ -23,7 +26,7 @@ type Glyphs struct {
 // are ic.
 func NewGlyphs(set string, ic ui.Icons) Glyphs {
 	if set == config.IconsASCII {
-		return Glyphs{Fold: "...", Cut: ic.Ellipsis, Dot: "-", Dash: "-"}
+		return Glyphs{Fold: "...", Cut: ic.Ellipsis, Dot: "-", Dash: "-", Bar: "| ", Corner: "`-"}
 	}
-	return Glyphs{Fold: "⋯", Cut: ic.Ellipsis, Dot: "·", Dash: "–"}
+	return Glyphs{Fold: "⋯", Cut: ic.Ellipsis, Dot: "·", Dash: "–", Bar: "│ ", Corner: "╰─"}
 }

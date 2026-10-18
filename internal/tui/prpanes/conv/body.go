@@ -1,12 +1,12 @@
 package conv
 
 import (
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -21,17 +21,15 @@ const (
 	guide = 3
 )
 
-// details finds where a collapsible block starts, which a body is cut at.
-var details = regexp.MustCompile(`(?i)<details`)
-
-// prepare returns src cleaned, tab-free and cut at its first collapsible
-// block.
-func prepare(src string) string {
-	src = termtext.Clean(src, tabStop)
-	if loc := details.FindStringIndex(src); loc != nil {
-		src = src[:loc[0]]
+// split cleans src and cuts it into the text that leads the body, trimmed,
+// and the nodes after it: the details blocks and the text between them. base
+// is the index in the body's nodes of the first of those.
+func split(src string) (head string, rest []desc.Node, base int) {
+	nodes := desc.Parse(termtext.Clean(src, tabStop))
+	if len(nodes) > 0 && nodes[0].Block == nil {
+		return strings.TrimSpace(nodes[0].Text), nodes[1:], 1
 	}
-	return strings.TrimSpace(src)
+	return "", nodes, 0
 }
 
 // render returns the lines of the markdown src, a prepared body, at most room
@@ -119,12 +117,12 @@ func (b *builder) column(prefix string, depth int, kids bool) column {
 	return column{limit: limit, pw: pw, lead: lead, pad: pad, room: markdown.Room(limit, col)}
 }
 
-// message returns the lines of a row: prefix, then body, whose first line
-// follows prefix on the head and the others hang under it. tail is what the
-// head holds at its right end, which the text leaves room for. depth is the
-// depth of the row and kids says whether it has children.
-func (b *builder) message(prefix, body string, depth int, kids bool, tail string) []string {
-	src := prepare(body)
+// message returns the lines of a row: prefix, then src, the text that leads
+// its body, whose first line follows prefix on the head and the others hang
+// under it. tail is what the head holds at its right end, which the text
+// leaves room for. depth is the depth of the row and kids says whether it has
+// children.
+func (b *builder) message(prefix, src string, depth int, kids bool, tail string) []string {
 	c := b.column(prefix, depth, kids)
 	limit, pw, lead, room := c.limit, c.pw, c.lead, c.room
 	lines := b.render(src, room)

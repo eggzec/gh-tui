@@ -37,6 +37,10 @@ const (
 	KindCommit = "commit"
 	// KindCI is the line with the state of the checks of a push.
 	KindCI = "ci"
+	// KindSegment is a row of what follows the text that leads a body: a
+	// details block, its content and its end, and the text between blocks.
+	// [Owner] names the row that holds the body.
+	KindSegment = "segment"
 )
 
 // Data is what the rows are built from: the timeline in GitHub's order and
