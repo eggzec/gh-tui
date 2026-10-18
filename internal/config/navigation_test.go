@@ -68,7 +68,7 @@ func TestActionContexts(t *testing.T) {
 		}
 		return out
 	}
-	if got, want := names("merge"), []string{"pulls"}; !slices.Equal(got, want) {
+	if got, want := names("merge"), []string{"pulls", "pull_modal"}; !slices.Equal(got, want) {
 		t.Errorf("merge is in %q, want %q", got, want)
 	}
 	if got := names("up"); len(got) != 0 {

@@ -40,6 +40,9 @@ type panesDetailMsg struct {
 type panesModal struct {
 	svc  Service
 	keys panesKeys
+	// list is the section that opened the modal, which holds the keys and the
+	// method of a merge, and the drafts of its message.
+	list *Section
 	// merge is the state of the Merge pane.
 	merge *mergePane
 
@@ -149,6 +152,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "pull", "repo", repo.String(), "number", number, "cached", cached)
 	m := &panesModal{
 		svc:    s.svc,
+		list:   s,
 		keys:   newPanesKeys(s.rawKeys),
 		merge:  newMergePane(s, repo),
 		repo:   repo,
@@ -448,6 +452,8 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.close()
 	case keymap.Matches(msg, k.review):
 		return m.openReview()
+	case keymap.Matches(msg, k.merge):
+		return m.askMerge()
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
 	case m.inPreview(l):

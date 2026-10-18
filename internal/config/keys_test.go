@@ -109,7 +109,7 @@ func TestKeysByContext(t *testing.T) {
 		{"action of another context", "keys:\n  issues:\n    merge: [M]\n", "line 3: keys.issues.merge: unknown action"},
 		{"global action in a context", "keys:\n  pulls:\n    quit: [Q]\n", "line 3: keys.pulls.quit: quit is a global action, which no context may redefine: set keys.global.quit"},
 		{"global key in a context", "keys:\n  pulls:\n    merge: [r]\n", "line 3: keys.pulls.merge: r is already keys.global.refresh"},
-		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge: unbind or rebind them there"},
+		{"context key made global", "keys:\n  global:\n    zoom: [M]\n", "line 3: keys.global.zoom: M is also keys.pulls.merge, keys.pull_modal.merge: unbind or rebind them there"},
 		{"context key made global once", "keys:\n  global:\n    zoom: [B]\n", "line 3: keys.global.zoom: B is also keys.repo.history: unbind or rebind them there"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
