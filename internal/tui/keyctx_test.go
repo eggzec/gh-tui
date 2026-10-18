@@ -529,13 +529,26 @@ func (keyActions) FreshChecks(actionssvc.ChecksQuery) bool                 { ret
 func (keyActions) Checks(context.Context, actionssvc.ChecksQuery) (core.Checks, error) {
 	return keyChecks(), nil
 }
-func (keyActions) CommitChecks(context.Context, actionssvc.CommitChecksQuery) (core.CommitChecks, error) {
-	return core.CommitChecks{}, nil
+func (keyActions) CommitChecks(_ context.Context, q actionssvc.CommitChecksQuery) (core.CommitChecks, error) {
+	return keyCommitChecks(q.SHA), nil
 }
-func (keyActions) CachedCommitChecks(actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
-	return core.CommitChecks{}, false
+func (keyActions) CachedCommitChecks(q actionssvc.CommitChecksQuery) (core.CommitChecks, bool) {
+	return keyCommitChecks(q.SHA), true
 }
-func (keyActions) Invalidate(core.RepoRef) {}
+
+// keyCommitChecks is what CI reported on the commit sha: one failing check
+// run of an App, so that the Merge pane lists it and enter opens its page.
+func keyCommitChecks(sha string) core.CommitChecks {
+	run := core.CommitCheck{
+		SuiteID: 7, App: &core.CheckApp{Name: "Codecov", Slug: "codecov"},
+	}
+	run.ID, run.Name, run.Status, run.Conclusion = 40, "coverage/patch", core.RunCompleted, core.ConclusionFailure
+	run.Title, run.Summary, run.StartedAt, run.CompletedAt = "Patch coverage fell", keyProse(), keyTime, keyTime
+	run.DetailsURL = "https://coverage.example.com/eggzec/gh-tui"
+	return core.CommitChecks{SHA: sha, State: core.ChecksFailure, Total: 1, Runs: []core.CommitCheck{run}}
+}
+func (keyActions) RerequestSuite(core.RepoRef, int64) *optimistic.Op { return nil }
+func (keyActions) Invalidate(core.RepoRef)                           {}
 
 func keyChecks() core.Checks {
 	return core.Checks{SHA: "abc123", State: core.ChecksFailure, Total: 2, Runs: []core.Check{{
@@ -854,7 +867,6 @@ func TestContextChains(t *testing.T) {
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
 var unopenedContexts = map[string]string{
-	"pull_app_check":         "the Merge pane will read it",
 	"pull_check_list":        "the Merge pane will read it",
 	"pull_check_log":         "the Merge pane will read it",
 	"pull_check_detail":      "the Merge pane will read it",
@@ -1031,7 +1043,7 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
+			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithCommitChecks(keyActions{})),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
@@ -1161,6 +1173,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6", "pull_files.down", "pull_files.down", "pull_files.down", "global.select"}, after: []string{"pull_diff.next_file", "pull_diff.next_hunk", "pull_diff.next_hunk"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
 		{name: "pull request: zoomed", repo: true, steps: []string{"global.pane_2", "global.select", "global.zoom"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: preview", repo: true, steps: []string{"global.pane_2", "global.select", "global.maximize", "global.zoom", "global.pane_3", "global.next_pane"}, context: "pull_preview", want: "global, pull_modal, pull_preview"},
+		{name: "pull request: app check", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_3", "pull_merge.down", "pull_merge.down", "global.select"}, context: "pull_app_check", want: "global, pull_modal, pull_app_check"},
 		{name: "pull request: checks", repo: true, steps: []string{"global.pane_2", "pulls.checks"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "pull request: confirm", repo: true, steps: []string{"global.pane_2", "global.select", "global.command", typed("review"), "command_line.run", "global.select", typed("ok"), "composer.submit"}, context: "confirm", want: "always, confirm"},
 		{name: "pull request: finder", repo: true, steps: []string{"global.pane_2", "global.select", "global.find_file"}, context: "finder", want: "always, finder (types)"},

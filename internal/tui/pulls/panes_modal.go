@@ -307,8 +307,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// Whichever pane holds the check row sends it, so the modal answers.
 		return func() tea.Msg { return actionsOn(m.repo, msg, m) }
 	case checktree.OpenCheckMsg:
-		// A check of an App other than GitHub Actions has no modal yet.
-		return nil
+		return m.openAppCheck(msg)
 	case convViewerMsg:
 		return m.receiveViewer(msg)
 	case conv.EnterMsg:
@@ -381,6 +380,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case mergeBehindMsg, mergeSentMsg, mergeRevalidateMsg:
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
+	case appCheckNotesMsg:
+		// The page takes its annotations wherever it sits in the stack, such as
+		// under the question of a re-request.
+		return msg.o.update(msg)
 	default:
 		// Several panes have a tree, and each enter carries the ID of its tree.
 		if enter, ok := msg.(foldtree.EnterMsg); ok {

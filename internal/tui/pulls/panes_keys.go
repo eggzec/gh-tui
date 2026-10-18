@@ -75,6 +75,8 @@ type panesKeys struct {
 	rerequest key.Binding
 	// diff is the keys of the diff of a file.
 	diff diffKeys
+	// appCheck is the keys of the page of a check run of an App.
+	appCheck appCheckKeys
 }
 
 // newPanesKeys makes the keys of the modal from keys.
@@ -106,6 +108,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 		diff:      newDiffKeys(keys),
+		appCheck:  newAppCheckKeys(keys),
 
 		confirm: ui.NewConfirmKeys(keys),
 		quit:    modal.Binding("global.quit", "close"),
