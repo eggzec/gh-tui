@@ -24,6 +24,7 @@ Pull request
   close | esc | esc | on
   author | @ | @ | on
   review |  |  | off
+  merge | M | M | on
   find file | ctrl+p | ^p | on
 
 Description

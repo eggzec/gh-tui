@@ -338,8 +338,8 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		line  string
 		want  string
 	}{
-		{"on the dashboard", false, nil, "merge", "merge works in Pull requests (Repository)."},
-		{"on the files", true, nil, "merge", "merge works in Pull requests (Repository)."},
+		{"on the dashboard", false, nil, "merge", "merge works in Pull requests (Repository) and Pull request modal."},
+		{"on the files", true, nil, "merge", "merge works in Pull requests (Repository) and Pull request modal."},
 		{"over history", true, []string{"repo.history"}, "merge", "Close History first to use merge."},
 		{"over the issue", true, []string{"global.pane_3", "global.select"}, "merge", "Close the issue first to use merge."},
 		{"history on the dashboard", false, nil, "history", "history works in Repository screen."},
