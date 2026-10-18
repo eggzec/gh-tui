@@ -67,6 +67,13 @@ type Row struct {
 	// Kind groups the rows that space marks one after another, such as
 	// "file" or "commit". A row without a kind has nothing to mark.
 	Kind string
+	// Inline marks a row that hangs off its parent as part of the parent's
+	// own text instead of as one of its children: the parent's closed fold
+	// hides it as it hides a child, and a deeper row is its child in turn, but
+	// it is drawn under the guides of the parent's body, with no branch of its
+	// own and no guide width, so its text starts where the body of the parent
+	// starts. The nearest row above that is not inline is the parent.
+	Inline bool
 }
 
 // nextID gives each tree an identity that its messages carry.
@@ -359,7 +366,13 @@ func (m *Model) guides() {
 		depth = max(depth, m.rows[r].Depth)
 	}
 	more := make([]bool, depth+2)
+	// next is the depth of the nearest row below that is not inline, or -1:
+	// inline rows are not children as far as the guides go.
+	next := -1
 	for i := len(m.vis) - 1; i >= 0; i-- {
+		if m.rows[m.vis[i]].Inline {
+			continue
+		}
 		d := m.rows[m.vis[i]].Depth
 		m.first[i], m.body[i], m.bodyw[i] = "", "", guideWidth*d
 		if d > 0 {
@@ -371,15 +384,35 @@ func (m *Model) guides() {
 			m.body[i] = pre.String() + m.look.pick(more[d], m.look.line, m.look.none)
 		}
 		// The body of a row that has children carries the guide on to them.
-		if i+1 < len(m.vis) && m.rows[m.vis[i+1]].Depth > d {
+		if next > d {
 			m.body[i] += m.look.line
 			m.bodyw[i] += guideWidth
 		}
+		next = d
 		more[d] = true
 		for k := d + 1; k < len(more); k++ {
 			more[k] = false
 		}
 	}
+	// An inline row takes the body of the row it hangs off.
+	owner := -1
+	for i, r := range m.vis {
+		switch {
+		case !m.rows[r].Inline:
+			owner = i
+		case owner >= 0:
+			m.first[i], m.body[i], m.bodyw[i] = m.body[owner], m.body[owner], m.bodyw[owner]
+		}
+	}
+}
+
+// indent returns the cells the guides of the row at place i of vis take before
+// its text.
+func (m Model) indent(i int) int {
+	if r := m.row(i); r.Inline {
+		return m.bodyw[i]
+	}
+	return guideWidth * m.row(i).Depth
 }
 
 // place puts the cursor on its row after the rows or the folds changed.
