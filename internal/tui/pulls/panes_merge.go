@@ -95,6 +95,13 @@ type mergePane struct {
 	// isn't known, and asked is the read it comes from.
 	behind int
 	asked  pullsvc.BehindQuery
+	// base are the commits of the base that the head lacks, as far as the read
+	// of behind listed them.
+	base core.BaseCommits
+	// drawn keeps the previews drawn since the pane last changed, by row and
+	// width, and drawnVer the version they were drawn at.
+	drawn    map[drawnMerge]merge.Preview
+	drawnVer int
 
 	styles merge.Styles
 	data   merge.Data
@@ -112,6 +119,7 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 		keys:   k,
 		model:  merge.New(foldtree.WithKeyMap(k.tree), foldtree.WithFocused(true)),
 		behind: -1,
+		drawn:  map[drawnMerge]merge.Preview{},
 		now:    s.now,
 	}
 	if s.commits != nil {
@@ -198,15 +206,15 @@ func (p *mergePane) readBehind(m *panesModal) tea.Cmd {
 	d := m.detail
 	svc, ok := m.svc.(Behinds)
 	if !ok || !m.loaded || d.Merge.Status != core.MergeBehind || d.HeadSHA == "" || d.BaseSHA == "" {
-		p.behind, p.asked = -1, pullsvc.BehindQuery{}
+		p.behind, p.base, p.asked = -1, core.BaseCommits{}, pullsvc.BehindQuery{}
 		return nil
 	}
 	q := pullsvc.BehindQuery{Repo: m.repo, Head: d.HeadSHA, Base: d.BaseSHA}
 	if q != p.asked {
-		p.behind = -1
+		p.behind, p.base = -1, core.BaseCommits{}
 	}
 	if c, ok := svc.CachedBehind(q); ok {
-		p.behind, p.asked = c.AheadBy, q
+		p.behind, p.base, p.asked = c.AheadBy, c, q
 		return nil
 	}
 	if q == p.asked {
@@ -216,14 +224,14 @@ func (p *mergePane) readBehind(m *panesModal) tea.Cmd {
 	ctx, id := m.ctx, m.id
 	return func() tea.Msg {
 		c, err := svc.Behind(ctx, q)
-		return mergeBehindMsg{id: id, q: q, n: c.AheadBy, err: err}
+		return mergeBehindMsg{id: id, q: q, n: c.AheadBy, base: c, err: err}
 	}
 }
 
 // rebuild makes the rows from what m holds, and counts a change unless nothing
 // changed.
 func (p *mergePane) rebuild(m *panesModal, force bool) {
-	d := merge.Data{Detail: m.detail, Behind: p.behind}
+	d := merge.Data{Detail: m.detail, Behind: p.behind, BaseCommits: p.base}
 	if sha := d.Detail.HeadSHA; p.has && sha != "" {
 		d.Checks, d.ChecksLoaded = p.reader.CachedCommitChecks(checktree.Query{Repo: m.repo, SHA: sha})
 	}
@@ -234,6 +242,7 @@ func (p *mergePane) rebuild(m *panesModal, force bool) {
 	p.data = d
 	p.model.SetRows(merge.Rows(d, p.options()))
 	p.version++
+	m.follow()
 }
 
 // fit sizes the tree to the box it is drawn in, and makes the rows again when
@@ -286,6 +295,68 @@ func (m *panesModal) mergeContent(b panes.Box) panes.Content {
 	return c
 }
 
+// drawnMerge names a preview drawn: the row it shows and its width.
+type drawnMerge struct {
+	id    string
+	width int
+}
+
+// hoveredMerge names the row of the tree for the preview, and the title of the
+// preview's frame. A row that has nothing to show yet still names itself.
+func (m *panesModal) hoveredMerge() (id, title string, ok bool) {
+	p := m.merge
+	if p == nil {
+		return "", "", false
+	}
+	id, ok = p.model.Selected()
+	if !ok {
+		return "", "", false
+	}
+	pv, ok := merge.PreviewOf(p.data, id, p.options())
+	return id, pv.Title, ok
+}
+
+// mergePreviewOf is the preview of the hovered row in box b, drawn once per
+// width until the pane changes.
+func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
+	p := m.merge
+	if p == nil {
+		return merge.Preview{}, false
+	}
+	if p.drawnVer != p.version {
+		clear(p.drawn)
+		p.drawnVer = p.version
+	}
+	dk := drawnMerge{m.hover[b.Pane-1].id, b.Rect.Inner().W}
+	if v, ok := p.drawn[dk]; ok {
+		return v, true
+	}
+	o := p.options()
+	o.Width = dk.width
+	v, ok := merge.PreviewOf(p.data, dk.id, o)
+	if ok {
+		p.drawn[dk] = v
+	}
+	return v, ok
+}
+
+// mergePreview is the body of the preview of the hovered row, or the
+// placeholder for a row with no preview yet.
+func (m *panesModal) mergePreview(b panes.Box) string {
+	if v, ok := m.mergePreviewOf(b); ok && v.Body != "" {
+		return v.Body
+	}
+	return m.placeholderPreview(b)
+}
+
+// mergeInfo is the info of the frame of the preview of the hovered row.
+func (m *panesModal) mergeInfo(b panes.Box) []string {
+	if v, ok := m.mergePreviewOf(b); ok && v.Info != "" {
+		return []string{v.Info}
+	}
+	return nil
+}
+
 // pressMerge takes a key of the Merge pane: the key that updates the branch,
 // and the keys of its tree.
 func (m *panesModal) pressMerge(k tea.KeyPressMsg) (tea.Cmd, bool) {
@@ -302,10 +373,12 @@ func (m *panesModal) pressMerge(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // mergeBehindMsg carries the count of commits that a read found the head to be
 // behind its base.
 type mergeBehindMsg struct {
-	id  int64
-	q   pullsvc.BehindQuery
-	n   int
-	err error
+	id int64
+	q  pullsvc.BehindQuery
+	n  int
+	// base are the commits of the base that the head lacks, n of them in all.
+	base core.BaseCommits
+	err  error
 }
 
 // mergeSentMsg reports that GitHub answered a change that the pane asked for.
@@ -341,7 +414,7 @@ func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 		return m.markReady()
 	case mergeBehindMsg:
 		if msg.id == m.id && msg.q == p.asked && msg.err == nil {
-			p.behind = msg.n
+			p.behind, p.base = msg.n, msg.base
 			p.rebuild(m, false)
 		}
 	case mergeSentMsg:

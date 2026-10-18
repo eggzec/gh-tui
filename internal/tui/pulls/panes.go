@@ -30,6 +30,9 @@ type slot struct {
 	hovered func(m *panesModal) (id, title string, ok bool)
 	// preview is the whole body of the pane's preview of the hovered row.
 	preview func(m *panesModal, b panes.Box) string
+	// info are the forms of the right-hand info of the preview's frame, such as
+	// the state of the hovered row. A pane may have none.
+	info func(m *panesModal, b panes.Box) []string
 	// press takes a key that the modal doesn't, while the pane's list has the
 	// focus. ok is false for a key it has no use for.
 	press func(m *panesModal, k tea.KeyPressMsg) (cmd tea.Cmd, ok bool)
@@ -39,10 +42,13 @@ type slot struct {
 var slots = [panes.Count]slot{
 	panes.Description - 1:  {context: ctxDescription, content: (*panesModal).description, press: (*panesModal).pressDescription},
 	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).convContent, press: (*panesModal).convPress},
-	panes.Merge - 1:        {context: ctxMerge, content: (*panesModal).mergeContent, press: (*panesModal).pressMerge, preview: (*panesModal).placeholderPreview},
-	panes.Involved - 1:     {context: ctxInvolved, content: (*panesModal).involvedContent, press: (*panesModal).involvedPress, preview: (*panesModal).placeholderPreview},
-	panes.Development - 1:  devSlot(),
-	panes.Files - 1:        filesSlot(),
+	panes.Merge - 1: {
+		context: ctxMerge, content: (*panesModal).mergeContent, press: (*panesModal).pressMerge,
+		hovered: (*panesModal).hoveredMerge, preview: (*panesModal).mergePreview, info: (*panesModal).mergeInfo,
+	},
+	panes.Involved - 1:    {context: ctxInvolved, content: (*panesModal).involvedContent, press: (*panesModal).involvedPress, preview: (*panesModal).placeholderPreview},
+	panes.Development - 1: devSlot(),
+	panes.Files - 1:       filesSlot(),
 }
 
 // placeholder is what a pane shows until it has content of its own. Its
@@ -93,5 +99,9 @@ func (m *panesModal) previewContent(b panes.Box) panes.Content {
 	}
 	lines := strings.Split(s.preview(m, b), "\n")
 	off := min(m.previews[previewKey{b.Pane, h.id}], max(0, len(lines)-b.Rect.Inner().H))
-	return panes.Content{Title: h.title, Body: strings.Join(lines[off:], "\n")}
+	c := panes.Content{Title: h.title, Body: strings.Join(lines[off:], "\n")}
+	if s.info != nil {
+		c.Info = s.info(m, b)
+	}
+	return c
 }

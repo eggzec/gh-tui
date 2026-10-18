@@ -78,12 +78,27 @@ type app struct {
 	checks []core.CommitCheck
 }
 
-func (b *builder) build() {
-	var (
-		flows []*workflow
-		apps  []*app
-		other []core.CommitCheck
-	)
+// meta returns the name of the workflow, the address of its run and the
+// number of the run, as the first of its jobs that tells each has them.
+func (w *workflow) meta() (name, url string, number int) {
+	for i := range w.checks {
+		cc := &w.checks[i]
+		if name == "" {
+			name = cc.Workflow
+		}
+		if url == "" {
+			url = cc.RunURL
+		}
+		if number == 0 {
+			number = cc.RunNumber
+		}
+	}
+	return name, url, number
+}
+
+// collect sorts the check runs into the workflow runs of GitHub Actions, the
+// runs of each other App, and the runs of none, in the order GitHub lists them.
+func (b *builder) collect() (flows []*workflow, apps []*app, other []core.CommitCheck) {
 	flowAt, appAt := map[int64]*workflow{}, map[string]*app{}
 	for i := range b.c.Runs {
 		cc := &b.c.Runs[i]
@@ -112,6 +127,11 @@ func (b *builder) build() {
 			a.checks = append(a.checks, *cc)
 		}
 	}
+	return flows, apps, other
+}
+
+func (b *builder) build() {
+	flows, apps, other := b.collect()
 	for _, w := range flows {
 		b.workflow(w)
 	}
@@ -137,22 +157,11 @@ func (b *builder) id(kind string, n int64) string {
 func (b *builder) workflow(w *workflow) {
 	jobs := make([]core.Job, len(w.checks))
 	states := make([]core.CheckState, len(w.checks))
-	var name, url string
-	var number int
 	for i := range w.checks {
-		cc := &w.checks[i]
-		jobs[i] = jobOf(cc)
+		jobs[i] = jobOf(&w.checks[i])
 		states[i] = jobs[i].Outcome()
-		if name == "" {
-			name = cc.Workflow
-		}
-		if url == "" {
-			url = cc.RunURL
-		}
-		if number == 0 {
-			number = cc.RunNumber
-		}
 	}
+	name, url, number := w.meta()
 	kids := b.jobs(core.GroupJobs(jobs), jobs, b.o.Depth+1)
 	if len(kids) == 0 {
 		return

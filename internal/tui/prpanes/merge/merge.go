@@ -56,6 +56,9 @@ type Data struct {
 	// Behind is how many commits the head is behind the base, or -1 while it
 	// is not known.
 	Behind int
+	// BaseCommits are the commits of the base that the head lacks, which the
+	// preview of the behind row lists. They are empty until they are read.
+	BaseCommits core.BaseCommits
 	// Method is the merge method a merge starts on, such as "squash", or empty
 	// when a merge has no method to name.
 	Method string

@@ -20,6 +20,7 @@ type Styles struct {
 	glyphs   ui.GlyphStyles
 	dim      lipgloss.Style
 	bold     lipgloss.Style
+	accent   lipgloss.Style
 	arrow    string
 	sep      string
 	top      string
@@ -40,6 +41,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		glyphs:   ui.NewGlyphStyles(t, ic),
 		dim:      t.Subtle,
 		bold:     lipgloss.NewStyle().Bold(true),
+		accent:   t.Accent,
 		arrow:    t.Subtle.Render(" " + ic.Arrow + " "),
 		sep:      t.Subtle.Render(ic.Separator),
 		top:      top,
