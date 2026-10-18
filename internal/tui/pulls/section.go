@@ -104,6 +104,7 @@ type Service interface {
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op
 	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
 	reviewRequester
+	viewedService
 }
 
 // ChecksService is what the section needs to show the checks of pull

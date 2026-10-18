@@ -1218,6 +1218,9 @@ keys:
     prev_match: [N]
     # Switch between the file and the whole patch of the range, keeping the line.
     whole_patch: [a]
+    # Mark the file the cursor is in as viewed, which folds it, and go to the
+    # next file not viewed, or take the mark off. The mark is kept on GitHub.
+    viewed: [v]
   # The modal of a pull request: what it closes, with what blocks each issue,
   # and the pull requests linked to it, in groups that fold. Enter opens the
   # item under the cursor, or folds a group.

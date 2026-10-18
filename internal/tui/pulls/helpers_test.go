@@ -30,6 +30,7 @@ var (
 // fakeService serves pull requests from memory, a page at a time, and
 // records what it was asked.
 type fakeService struct {
+	viewedFake
 	mu sync.Mutex
 	// pullCommits are the commits served, when set.
 	pullCommits *fakeCommits

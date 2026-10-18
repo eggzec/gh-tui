@@ -17,12 +17,15 @@ type diffKeys struct {
 	diff diff.KeyMap
 	// whole switches between the diff of the file and that of the whole patch.
 	whole key.Binding
+	// viewed marks the file viewed on GitHub, or takes the mark off.
+	viewed key.Binding
 }
 
 // newDiffKeys makes the keys of the diff from keys.
 func newDiffKeys(keys config.Keymap) diffKeys {
 	return diffKeys{
-		diff:  diff.NewKeyMap(ui.Lookup(keys, ctxDiff)),
-		whole: ui.In(keys, ctxDiff).Binding("whole_patch", "whole patch"),
+		diff:   diff.NewKeyMap(ui.Lookup(keys, ctxDiff)),
+		whole:  ui.In(keys, ctxDiff).Binding("whole_patch", "whole patch"),
+		viewed:ui.In(keys, ctxDiff).Binding("viewed", "mark viewed"),
 	}
 }
