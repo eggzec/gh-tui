@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
@@ -52,6 +53,9 @@ type convPane struct {
 	dates ui.Dates
 	now   func() time.Time
 	md    *markdown.Renderer
+	// want is a place that a jump asked for, which the timeline may not have
+	// read yet.
+	want *convWant
 }
 
 // convLookup gives the actions the Conversation's context has. The tree has
@@ -189,7 +193,75 @@ func (m *panesModal) convUpdate(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	c.model, cmd = c.model.Update(msg)
+	cmd = tea.Batch(cmd, m.seekConv())
 	m.refreshConv()
+	return cmd
+}
+
+// convWant is a place of the conversation that a jump asked for: the item with
+// id, or the latest comment or review of login, which is the latest review of
+// login in state review when there is one.
+type convWant struct {
+	login, id string
+	review    core.ReviewState
+}
+
+// jumpConv focuses the Conversation, zoomed as the modal is, and puts its
+// cursor on w as soon as the timeline has it: now, or when its page arrives.
+func (m *panesModal) jumpConv(w convWant) tea.Cmd {
+	m.focus = panes.Conversation
+	m.resetSub()
+	m.syncConvFocus()
+	m.conv.want = &w
+	cmd := m.seekConv()
+	if m.conv.started {
+		m.refreshConv()
+	}
+	m.follow()
+	return cmd
+}
+
+// showReview puts the cursor of the conversation on the review with this ID.
+func (m *panesModal) showReview(id string) tea.Cmd { return m.jumpConv(convWant{id: id}) }
+
+// seekConv moves the cursor to the wanted place when the timeline has it. A
+// filter that hides it is cleared, with a toast. A place that isn't read yet is
+// waited for while pages are still coming, and a person's latest one while any
+// page is, since a later page may hold it.
+func (m *panesModal) seekConv() tea.Cmd {
+	c := &m.conv
+	if c.want == nil || !c.started || !c.model.Ready() {
+		return nil
+	}
+	id := c.want.id
+	if w := c.want; w.login != "" {
+		if c.model.Status().Loading {
+			return nil
+		}
+		var ok bool
+		if w.review != "" {
+			id, ok = c.model.LatestReviewBy(w.login, w.review)
+		}
+		if !ok {
+			id, _ = c.model.LatestBy(w.login)
+		}
+	}
+	var cmd tea.Cmd
+	switch {
+	case id != "" && c.model.Reveal(id):
+	case id != "" && c.model.Holds(id) && c.model.FilterName() != "":
+		var all [conv.NumGroups]bool
+		for g := range all {
+			all[g] = true
+		}
+		c.model.SetShown(all)
+		c.model.Reveal(id)
+		cmd = ui.Notify(toast.Info, "filter cleared to show it")
+	case c.model.Status().Loading:
+		return nil
+	}
+	c.want = nil
+	m.follow()
 	return cmd
 }
 

@@ -290,8 +290,7 @@ func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 		p.version++
 		return cmd
 	case merge.FocusReviewMsg:
-		m.focus = panes.Conversation
-		m.resetSub()
+		return m.jumpConv(convWant{login: msg.Login, review: core.ReviewStateChangesRequested})
 	case merge.UpdateBranchMsg:
 		return m.updateBranch()
 	case merge.MarkReadyMsg:
