@@ -113,6 +113,25 @@ func (k Keymap) Of(action string) []string {
 	return k[ctx][name]
 }
 
+// Sequences returns the sequences of two keys that the actions of context
+// ctx are bound to, such as "g g", by the action's full name, such as
+// "pulls.top". Actions without one are left out, and so is a sequence
+// that [keyname.ParseChord] refuses, which validation reports.
+func (k Keymap) Sequences(ctx string) map[string][]keyname.Chord {
+	out := map[string][]keyname.Chord{}
+	for name, keys := range k[ctx] {
+		for _, key := range keys {
+			if !keyname.Sequence(key) {
+				continue
+			}
+			if c, err := keyname.ParseChord(key); err == nil {
+				out[ctx+"."+name] = append(out[ctx+"."+name], c)
+			}
+		}
+	}
+	return out
+}
+
 // readWatch is the function that WatchReads set, if any.
 var readWatch atomic.Pointer[func(action string)]
 
@@ -302,10 +321,19 @@ func validateKeys(ctx, name string, keys []string) error {
 		if err := keyname.Check(key); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
-		if key == forcedQuit {
-			return fmt.Errorf("%s: %s always quits and can't be bound", path, key)
+		if slices.Contains(keyname.Parts(key), forcedQuit) {
+			return fmt.Errorf("%s: %s always quits and can't be bound", path, forcedQuit)
 		}
 		c, _ := LookupContext(ctx)
+		if keyname.Sequence(key) {
+			if c.Typing {
+				return fmt.Errorf("%s: %q is a sequence of keys, which the %s can't take, since it reads every key as typing; bind a single key", path, key, strings.ToLower(c.Title))
+			}
+			if where, ok := c.Typed[name]; ok {
+				return fmt.Errorf("%s: %q is a sequence of keys, which %s can't take, since it reads every key as typing; bind a single key", path, key, where)
+			}
+			continue
+		}
 		if c.Typing && !slices.Contains(c.Printable, name) && keyhelp.Printable(key) {
 			return fmt.Errorf("%s: %s would be typed into the %s; use a key that types nothing, such as one with ctrl or alt", path, key, strings.ToLower(c.Title))
 		}

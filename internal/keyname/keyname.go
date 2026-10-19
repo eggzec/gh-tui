@@ -53,20 +53,71 @@ var keyCodes = sync.OnceValue(func() map[string]rune {
 })
 
 // Press returns a press of the key named name, and false for a name
-// that Check refuses, so that no press could ever match it.
+// that Check refuses, so that no press could ever match it. A sequence
+// of keys is no one press, so it gives false; see [ParseChord].
 func Press(name string) (tea.KeyPressMsg, bool) {
+	if Sequence(name) {
+		return tea.KeyPressMsg{}, false
+	}
 	msg, _, ok := parse(name)
 	return msg, ok && Check(name) == nil
 }
 
-// Valid reports whether name names a key that a press can match.
+// Chord is a sequence of two keys, pressed one after the other.
+type Chord struct {
+	First, Second tea.KeyPressMsg
+}
+
+// Sequence reports whether name is a sequence of keys, such as "g g", and
+// not one key: its keys are joined by a space, which no key's name has.
+func Sequence(name string) bool { return strings.Contains(name, " ") }
+
+// Parts returns the names of the keys that name is: itself for one key, or
+// each key of a sequence.
+func Parts(name string) []string { return strings.Split(name, " ") }
+
+// ParseChord returns the presses of the sequence name, such as "g g" or
+// "ctrl+w x", or else why name is not one: a sequence is two keys that
+// each are a valid key name, joined by one space.
+func ParseChord(name string) (Chord, error) {
+	parts := Parts(name)
+	if len(parts) == 1 {
+		return Chord{}, fmt.Errorf("%q is one key, not a sequence of two such as \"g g\"", name)
+	}
+	if slices.Contains(parts, "") {
+		return Chord{}, fmt.Errorf("the sequence %q has an empty key: join its two keys with one space, such as \"g g\"", name)
+	}
+	if len(parts) != 2 {
+		return Chord{}, fmt.Errorf("the sequence %q has %d keys: a sequence is two keys, such as \"g g\"", name, len(parts))
+	}
+	var c Chord
+	for i, part := range parts {
+		msg, ok := Press(part)
+		if !ok {
+			return Chord{}, fmt.Errorf("the sequence %q: %w", name, Check(part))
+		}
+		if i == 0 {
+			c.First = msg
+		} else {
+			c.Second = msg
+		}
+	}
+	return c, nil
+}
+
+// Valid reports whether name names a key that a press can match, or a
+// sequence of two.
 func Valid(name string) bool { return Check(name) == nil }
 
-// Check returns nil if name names a key a press can match, or else why it
-// doesn't: an unknown name, modifiers out of order, or a capital letter
-// with ctrl or alt, which terminals report as the small letter with
-// shift.
+// Check returns nil if name names a key a press can match, or a sequence
+// of two such keys (see [ParseChord]), or else why it doesn't: an unknown
+// name, modifiers out of order, or a capital letter with ctrl or alt,
+// which terminals report as the small letter with shift.
 func Check(name string) error {
+	if Sequence(name) && strings.TrimSpace(name) != "" {
+		_, err := ParseChord(name)
+		return err
+	}
 	msg, mods, ok := parse(name)
 	if !ok {
 		return unknown(name)

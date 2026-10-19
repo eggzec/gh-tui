@@ -76,7 +76,9 @@ func HelpTags(tb testing.TB, km any) {
 }
 
 // NoConflicts fails tb if two enabled bindings of km's FullHelp hold the
-// same key.
+// same key, or the same sequence of keys, such as "g g". A key that
+// starts a sequence is no conflict with it: g and "g g" may be two
+// bindings.
 func NoConflicts(tb testing.TB, km help.KeyMap) {
 	tb.Helper()
 	for _, r := range keyhelp.Analyze([]keyhelp.Layer{keyhelp.FromHelp("", km, false)}) {
