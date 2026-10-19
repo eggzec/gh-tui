@@ -280,12 +280,18 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	var syncCmd tea.Cmd
 	if sync, ok := msg.(ui.SyncMsg); ok {
 		syncCmd = m.merge.synced(m, sync)
+		m.refreshLog(sync)
 	}
-	// Whatever the message changed, a new range of commits is read.
+	// Whatever the message changed, a new range of commits is read, and the log
+	// of the job shown.
 	defer func() {
-		if !m.closed {
-			cmd = tea.Batch(cmd, syncCmd, m.readRange())
+		if m.closed {
+			if m.merge != nil {
+				m.merge.unwatchLog()
+			}
+			return
 		}
+		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
@@ -391,7 +397,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
-	case mergeBehindMsg, mergeOwnersMsg, mergeSentMsg, mergeRevalidateMsg:
+	case mergeBehindMsg, mergeOwnersMsg, mergeLogMsg, mergeSentMsg, mergeRevalidateMsg:
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
 	case appCheckNotesMsg:
@@ -595,6 +601,7 @@ func (m *panesModal) close() tea.Cmd {
 func (m *panesModal) Discard() {
 	m.closed = true
 	m.merge.unwatch()
+	m.merge.unwatchLog()
 	m.merge.loader.Stop()
 	if m.conv.started {
 		m.conv.model.Close()

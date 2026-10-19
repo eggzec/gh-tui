@@ -67,6 +67,17 @@ func WithCommitChecksWatch(w CommitWatch) Option {
 	return func(s *Section) { s.commitWatch = w }
 }
 
+// RunFollow starts the poll of a workflow run, which reads its jobs and the
+// logs of those running, and tells the app with a ui.SyncMsg of the key
+// actions.RunSyncKey gives. It returns what ends the poll.
+type RunFollow func(repo core.RepoRef, runID int64) (stop func())
+
+// WithRunFollow makes the Merge pane follow the run of a running job while the
+// preview shows its log. Without it, the log is read once.
+func WithRunFollow(f RunFollow) Option {
+	return func(s *Section) { s.runFollow = f }
+}
+
 // commitReader adapts a [CommitChecks] to the reader of a checks tree.
 type commitReader struct{ r CommitChecks }
 
