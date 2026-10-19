@@ -111,6 +111,10 @@ type Model struct {
 	sel string
 	cur int
 	off int
+
+	// bottom asks the next [Model.scroll] to show the end of the cursor row
+	// when it is taller than the window, as moving up into it does.
+	bottom bool
 }
 
 // New returns a tree with no rows. It starts blurred and takes no key until
@@ -459,7 +463,9 @@ func (m *Model) setCur(i int) {
 const maxPins = 2
 
 // scroll moves the window the least that shows the row under the cursor, or
-// its first lines when it is taller than the window, and pins the ancestors
+// keeps it where it is inside the row when the row is taller than the window
+// (the keys put it at the row's first lines, or its last when [Model.bottom]
+// is set), and pins the ancestors
 // of the row at its top. The pins take lines off the window and which rows
 // they are depends on where it is, so the window is settled again with the
 // lines the pins of its last place took, until they take no more than that.
@@ -469,6 +475,7 @@ const maxPins = 2
 // allows.
 func (m *Model) scroll() {
 	taken, from := len(m.pins), m.off
+	defer func() { m.bottom = false }()
 	m.pins = nil
 	if len(m.vis) == 0 || m.height <= 0 {
 		m.off = 0
@@ -478,10 +485,15 @@ func (m *Model) scroll() {
 	for {
 		avail := max(m.height-taken, 1)
 		switch {
+		case e-s > avail && m.bottom:
+			m.off = e - avail
+		case e-s > avail:
+			// A window inside a row taller than it stays where it is.
+			m.off = min(max(m.off, s), e-avail)
 		case s < m.off:
 			m.off = s
 		case e > m.off+avail:
-			m.off = min(s, e-avail)
+			m.off = e - avail
 		}
 		m.off = max(min(m.off, m.starts[len(m.vis)]-avail), 0)
 		pins := m.pinsAt(m.off)
@@ -492,19 +504,21 @@ func (m *Model) scroll() {
 		taken = len(pins)
 	}
 	if len(m.pins) < taken {
-		m.pull(e, from)
+		m.pull(s, e, from)
 	}
 }
 
 // pull moves the window up, a line at a time, while the row that ends at line
 // e stays in view and either lines are left blank at the bottom that rows
 // above could fill, or the window is still below line from, where it was
-// before it moved. The window was settled with more pins than its place has,
-// so it went further down than it needed to.
-func (m *Model) pull(e, from int) {
+// before it moved, or the row that starts at line s fits the window but its
+// first lines are above it. The window was settled with more pins than its
+// place has, so it went further down than it needed to.
+func (m *Model) pull(s, e, from int) {
 	total := m.starts[len(m.vis)]
 	for m.off > 0 {
-		if m.off <= total-(m.height-len(m.pinsAt(m.off))) && m.off <= from {
+		hidden := s < m.off && e-s <= m.height-len(m.pinsAt(m.off))
+		if m.off <= total-(m.height-len(m.pinsAt(m.off))) && m.off <= from && !hidden {
 			break
 		}
 		if e > m.off-1+m.height-len(m.pinsAt(m.off-1)) {
