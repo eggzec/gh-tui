@@ -113,13 +113,47 @@ func (o *diffOverlay) receiveThreads(msg diffThreadsMsg) {
 }
 
 // threadShown says whether the diff shows thread t: one that is outdated
-// belongs to the commit it was made on.
-func threadShown(t *core.Thread) bool { return !t.Outdated }
+// belongs to the commit it was made on, so it shows only in the diff at that
+// commit, which shows no other thread.
+func (o *diffOverlay) threadShown(t *core.Thread) bool {
+	if o.at != "" {
+		return outdatedThread(t) && threadCommit(t) == o.at
+	}
+	return !t.Outdated
+}
+
+// outdatedThread says whether the code that thread t is about has changed
+// since it was made, and so it has no line in the diff of the pull request.
+func outdatedThread(t *core.Thread) bool {
+	return t.Outdated || (!t.File && t.Line == 0 && t.OriginalLine > 0)
+}
+
+// threadCommit is the commit thread t was made on, which is that of its first
+// comment. It is empty once the commit is gone.
+func threadCommit(t *core.Thread) string {
+	if len(t.Comments) == 0 {
+		return ""
+	}
+	return t.Comments[0].OriginalCommit
+}
+
+// threadSpan returns the last line of thread t and the first of its range, in
+// the diff that o shows, 0 for a thread that is on no line. The diff at a
+// commit has the lines the thread was made on.
+func (o *diffOverlay) threadSpan(t *core.Thread) (line, start int) {
+	if o.at != "" {
+		return t.OriginalLine, t.OriginalStartLine
+	}
+	return t.Line, t.StartLine
+}
 
 // threadsHere says whether the diff is of the whole pull request, which the
-// lines of the threads belong to. The diff of a range of commits has other
-// lines, so it shows no thread.
+// lines of the threads belong to, or at the commit they were made on. The diff
+// of a range of commits has other lines, so it shows no thread.
 func (o *diffOverlay) threadsHere() bool {
+	if o.at != "" {
+		return true
+	}
 	_, _, all, ok := o.m.rangeEnds()
 	return all || !ok
 }
@@ -133,15 +167,16 @@ func (o *diffOverlay) markThreads() {
 	}
 	for i := range o.threads {
 		t := &o.threads[i]
-		if !threadShown(t) || t.File || t.Line <= 0 {
+		last, start := o.threadSpan(t)
+		if !o.threadShown(t) || t.File || last <= 0 {
 			continue
 		}
 		side := threadSide(t.Side)
-		first := t.Line
-		if t.StartLine > 0 && t.StartLine < t.Line {
-			first = t.StartLine
+		first := last
+		if start > 0 && start < last {
+			first = start
 		}
-		for line := first; line <= t.Line; line++ {
+		for line := first; line <= last; line++ {
 			o.marks[diff.Pos{Path: t.Path, Side: side, Line: line}] = struct{}{}
 		}
 	}
@@ -176,7 +211,7 @@ func (o *diffOverlay) threadBlocks() []diff.Block {
 	}
 	for i := range o.threads {
 		t := &o.threads[i]
-		if threadShown(t) && len(t.Comments) > 0 {
+		if o.threadShown(t) && len(t.Comments) > 0 {
 			blocks = append(blocks, o.threadBlock(t))
 		}
 	}
@@ -201,8 +236,8 @@ func (o *diffOverlay) threadsFailedBlock() diff.Block {
 func (o *diffOverlay) threadBlock(t *core.Thread) diff.Block {
 	m := o.m
 	anchor := diff.Pos{Path: t.Path}
-	if !t.File && t.Line > 0 {
-		anchor = diff.Pos{Path: t.Path, Side: threadSide(t.Side), Line: t.Line}
+	if line, _ := o.threadSpan(t); !t.File && line > 0 {
+		anchor = diff.Pos{Path: t.Path, Side: threadSide(t.Side), Line: line}
 	}
 	now := time.Now
 	if m.now != nil {

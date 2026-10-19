@@ -204,6 +204,9 @@ func (o *diffOverlay) draftAt() (tray.Draft, bool) {
 // since the line numbers are those of it. A draft on an earlier commit than
 // the head is refused when the review is sent, so the user is told then.
 func (o *diffOverlay) commit() string {
+	if o.at != "" {
+		return o.at
+	}
 	f := &o.m.files
 	cs := f.commits.Commits
 	if r := f.rng; len(cs) > 0 && r.First >= 0 && r.Last < len(cs) && r.First <= r.Last {

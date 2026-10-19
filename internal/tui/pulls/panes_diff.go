@@ -24,11 +24,17 @@ const viewNote = "hunks only"
 // diff of every file of it. The files are read once, by the source, and a
 // switch between the two builds a new view over them.
 type diffOverlay struct {
-	m    *panesModal
-	src  *diffSource
-	d    diff.Model
-	keys diffKeys
-	mode diffview.Mode
+	m   *panesModal
+	src *diffSource
+	// at is the commit the diff shows the pull request at, when that is not
+	// the range of the Files pane.
+	at string
+	// follow is whether the Files pane selects the file the diff shows. A diff
+	// opened from a thread leaves the selection as it is.
+	follow bool
+	d      diff.Model
+	keys   diffKeys
+	mode   diffview.Mode
 	// path is the file shown while the diff is of one file.
 	path string
 	// w and h are the size of the last drawing, for a view built after it.
@@ -56,8 +62,19 @@ type diffOverlay struct {
 // openDiff opens the diff of the file at path over the panes, and shows the
 // file in the Files pane.
 func (m *panesModal) openDiff(path string) tea.Cmd {
+	o, cmd := m.openDiffOf(path, m.diffSource(), "")
+	o.follow = true
+	m.reveal(path)
+	return cmd
+}
+
+// openDiffOf opens the diff of the file at path over the files that src reads,
+// and returns it. at is the commit that the diff of the pull request is taken
+// at, when it is not the range of the Files pane. It leaves the Files pane as
+// it is, and the diff does not follow it until the caller sets follow.
+func (m *panesModal) openDiffOf(path string, src *diffSource, at string) (*diffOverlay, tea.Cmd) {
 	ctx, cancel := context.WithCancel(m.ctx)
-	o := &diffOverlay{m: m, src: m.diffSource(), keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
+	o := &diffOverlay{m: m, src: src, at: at, keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
 	o.showCachedViewed()
 	o.drafts = m.reviewDrafts()
 	// The threads come before the first build, so that cached ones are drawn
@@ -65,8 +82,7 @@ func (m *panesModal) openDiff(path string) tea.Cmd {
 	read := o.loadThreads()
 	cmd := tea.Batch(o.build(), o.readViewed(), read)
 	m.open(o)
-	m.reveal(path)
-	return cmd
+	return o, cmd
 }
 
 // reveal has the Files pane select the file at path when it is drawn next.
@@ -146,6 +162,9 @@ func (o *diffOverlay) current() string {
 
 // label names the range the diff is of.
 func (o *diffOverlay) label() string {
+	if o.at != "" {
+		return diffview.RangeLabel(1, 0, 0, o.at, o.at)
+	}
 	return o.m.rangeLabel()
 }
 
@@ -258,9 +277,12 @@ func (o *diffOverlay) step(d int) tea.Cmd {
 	return o.goTo(next)
 }
 
-// goTo shows the file at path, and the Files pane with it.
+// goTo shows the file at path, and the Files pane with it when the diff
+// follows it.
 func (o *diffOverlay) goTo(path string) tea.Cmd {
-	o.m.reveal(path)
+	if o.follow {
+		o.m.reveal(path)
+	}
 	if o.mode == diffview.ThisFile {
 		o.path = path
 		return o.build()

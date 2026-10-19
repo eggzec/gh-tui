@@ -339,6 +339,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return m.receiveViewer(msg)
 	case conv.EnterMsg:
 		switch msg.Kind {
+		case conv.KindThread, conv.KindReply:
+			if msg.Thread != nil {
+				return m.openThread(msg.Thread)
+			}
 		case conv.KindCommit:
 			m.showCommit(msg.SHA)
 			m.syncConvFocus()
