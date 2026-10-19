@@ -35,6 +35,10 @@ type Block struct {
 	// header of its file. A block of this kind makes its file parse as soon as
 	// the block is given, as it takes its rows only once it knows the lines.
 	OnlyAtLine bool
+	// Passive keeps the cursor off the rows of the block: moves by a row, a
+	// page or to the ends pass over them, and [Model.NextBlock] and
+	// [Model.PrevBlock] never stop at the block. The rows are still drawn.
+	Passive bool
 }
 
 // placed is a block of a file once it has been rendered, and placed among the
@@ -435,7 +439,7 @@ func (l *Layout) findBlock(row, dir int, pred func(Block) bool) (string, bool) {
 				if g == f && p.at+1+p.off <= pos {
 					continue
 				}
-				if b := l.blocks[p.blk]; pred(b) {
+				if b := l.blocks[p.blk]; !b.Passive && pred(b) {
 					return b.ID, true
 				}
 			}
@@ -449,7 +453,7 @@ func (l *Layout) findBlock(row, dir int, pred func(Block) bool) (string, bool) {
 			if g == f && p.at+1+p.off >= pos {
 				continue
 			}
-			if b := l.blocks[p.blk]; pred(b) {
+			if b := l.blocks[p.blk]; !b.Passive && pred(b) {
 				return b.ID, true
 			}
 		}
