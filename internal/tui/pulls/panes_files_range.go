@@ -154,6 +154,9 @@ func rangeErrText(err error) string {
 func (m *panesModal) filesData() files.Data {
 	f := &m.files
 	d := files.Data{Commits: f.commits, Range: f.rng}
+	if f.vw.in {
+		d.Viewed = f.vw.pv
+	}
 	if f.read.done {
 		d.Files, d.FilesErr, d.Truncated = f.read.files, f.read.err, f.read.note
 	}

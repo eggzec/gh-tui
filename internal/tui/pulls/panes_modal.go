@@ -299,9 +299,17 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case viewedMsg:
-		return msg.o.receiveViewed(msg)
+		read := msg.o.receiveViewed(msg)
+		m.syncViewed()
+		return read
 	case viewedSetMsg:
 		msg.o.viewedSet(msg)
+		m.syncViewed()
+		return nil
+	case filesViewedMsg:
+		return m.filesViewedRead(msg)
+	case filesViewedSetMsg:
+		m.filesViewedSet(msg)
 		return nil
 	case checktree.OpenJobMsg:
 		// Whichever pane holds the check row sends it, so the modal answers.
@@ -430,7 +438,7 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 	m.detail, m.loaded = msg.detail, true
 	m.refreshInvolved()
 	m.follow()
-	return tea.Batch(m.readCommits(), m.merge.refresh(m), m.receiveHead())
+	return tea.Batch(m.readCommits(), m.readFilesViewed(), m.merge.refresh(m), m.receiveHead())
 }
 
 // press takes a key: the modal's own keys, which move the focus and the

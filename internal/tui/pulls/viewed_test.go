@@ -365,7 +365,16 @@ func TestViewedOnAServerWithoutMarksSaysSo(t *testing.T) {
 
 func TestViewedBeforeTheMarksAreReadSaysSo(t *testing.T) {
 	t.Parallel()
-	h, m, _ := rangePanes(t, sampleCommits(nil), func(svc *fakeService) { svc.changed = patched() })
+	var svc *fakeService
+	h, m, _ := rangePanes(t, sampleCommits(nil), func(s *fakeService) {
+		svc = s
+		s.changed = patched()
+	})
+	// The Files pane's read of the marks is still in flight when the diff
+	// opens, so nothing is cached for it to take.
+	svc.viewedMu.Lock()
+	svc.cache = nil
+	svc.viewedMu.Unlock()
 	cmd := m.openDiff("a.go")
 	o := m.top().(*diffOverlay)
 	if o.vw.in {
