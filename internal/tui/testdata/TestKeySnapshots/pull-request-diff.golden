@@ -37,5 +37,6 @@ Diff
   next match | n | n | off
   prev match | N | N | off
   whole patch | a | a | on
+  full file | x | x | on
   mark viewed | v | v | on
   read on | space | space | on

@@ -78,6 +78,9 @@ type panesModal struct {
 	// dev is the Development pane, nil when the section has no service for it.
 	dev *devPane
 
+	// blobs reads the files the diff shows whole, nil when the section has none.
+	blobs Blobs
+
 	// desc is the description, the tree of the body that the first pane shows.
 	desc descPane
 
@@ -171,6 +174,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
 		now:      s.now,
 		pics:     s.avatars,
+		blobs:    s.blobs,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -302,6 +306,8 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		read := msg.o.receiveViewed(msg)
 		m.syncViewed()
 		return read
+	case fullMsg:
+		return msg.o.receiveFull(msg)
 	case viewedSetMsg:
 		msg.o.viewedSet(msg)
 		m.syncViewed()

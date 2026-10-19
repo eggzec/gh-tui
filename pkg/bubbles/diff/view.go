@@ -137,9 +137,7 @@ func (m Model) numWidth() int {
 		if m.layout.Collapsed(f) {
 			continue
 		}
-		for _, h := range m.layout.Hunks(f) {
-			widest = max(widest, h.OldStart+h.OldLines, h.NewStart+h.NewLines)
-		}
+		widest = max(widest, m.layout.widest(f))
 	}
 	return max(len(strconv.Itoa(widest)), minNumberWidth)
 }

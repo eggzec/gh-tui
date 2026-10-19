@@ -22,6 +22,8 @@ type diffKeys struct {
 	// readOn pages down, and marks the file viewed at its end and moves on to the
 	// next one not viewed.
 	readOn key.Binding
+	// full shows the file under the cursor whole, or takes it back to its hunks.
+	full key.Binding
 }
 
 // newDiffKeys makes the keys of the diff from keys.
@@ -31,5 +33,6 @@ func newDiffKeys(keys config.Keymap) diffKeys {
 		whole:  ui.In(keys, ctxDiff).Binding("whole_patch", "whole patch"),
 		viewed: ui.In(keys, ctxDiff).Binding("viewed", "mark viewed"),
 		readOn: ui.In(keys, ctxDiff).Binding("read_on", "read on"),
+		full:   ui.In(keys, ctxDiff).Binding("full_file", "full file"),
 	}
 }

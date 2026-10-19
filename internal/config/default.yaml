@@ -1242,6 +1242,9 @@ keys:
     # mark it as viewed and go to the next file not viewed, from the first file
     # again after the last. When every file is viewed it goes to the first.
     read_on: [space]
+    # Show the file the cursor is in whole, as it is at the end of the range
+    # with the changes marked, or go back to its hunks only.
+    full_file: [x]
   # The modal of a pull request: what it closes, with what blocks each issue,
   # and the pull requests linked to it, in groups that fold. Enter opens the
   # item under the cursor, or folds a group.
