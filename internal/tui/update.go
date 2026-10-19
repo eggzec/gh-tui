@@ -191,6 +191,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case onlineTickMsg:
 		cmd := m.onlineTick()
 		return m, cmd
+	case chordTimeoutMsg:
+		cmd := m.chordTimeout(msg)
+		return m, cmd
 	case ui.RepoMsg:
 		cmd := m.selectRepo(msg)
 		return m, cmd
@@ -262,7 +265,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.broadcast(msg))
 }
 
-func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
+// pressKey takes a key as it is, with no wait for a sequence of keys to
+// go on.
+func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	// The dismiss key goes one step at a time, before anything else takes
 	// it, even the command line and the help, and a modal: an error toast
 	// first, and then a goto that waits for GitHub. What is left is the

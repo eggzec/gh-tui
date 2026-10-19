@@ -18,6 +18,9 @@ type UI struct {
 	// Font and marks the types of files too, IconsUnicode or IconsASCII.
 	Icons string `yaml:"icons" scope:"global"`
 	Toast Toast  `yaml:"toast"`
+	// ChordWait is how long a key that starts a sequence of keys, such as
+	// the first g of "g g", waits for the next before it counts alone.
+	ChordWait time.Duration `yaml:"chord_wait"`
 	// DateFormat is how every date reads, in the lists, the modals and
 	// the history: DateRelative, as an age, such as "3d" in a row and
 	// "3d ago" in a sentence, DateAbsolute ("2006-01-02 15:04 MST"), or
@@ -61,6 +64,9 @@ func (u UI) validate() error {
 	}
 	if u.Toast.Info < minToast {
 		errs = append(errs, fmt.Errorf("ui.toast.info: must be at least %v, got %v", minToast, u.Toast.Info))
+	}
+	if u.ChordWait <= 0 {
+		errs = append(errs, fmt.Errorf("ui.chord_wait: must be longer than 0, got %v", u.ChordWait))
 	}
 	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate())
 	return errors.Join(errs...)

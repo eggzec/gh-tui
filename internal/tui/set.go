@@ -111,6 +111,8 @@ func (m *Model) applySettings() tea.Cmd {
 	}
 	// The modals opened from now on start as it says.
 	m.maximizedModals = m.cfg.UI.Maximized
+	// The next key that starts a sequence waits as long as it says.
+	m.chordWait = m.cfg.UI.ChordWait
 	if m.settings != nil {
 		m.settings(m.cfg)
 	}

@@ -131,6 +131,11 @@ type Model struct {
 	base  ui.BaseMsg
 	badge string
 
+	// chord is the first key of a sequence that waits for its second.
+	chord chordState
+	// chordWait is how long that key waits, as the settings last said.
+	chordWait time.Duration
+
 	toast toast.Model
 	// toastTimes is what the toasts were last given, to give them only a change.
 	toastTimes config.Toast
@@ -369,6 +374,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		// An error toast stays until it is dismissed.
 		toast:      toast.New(cfg.UI.Toast.Info, 0),
 		toastTimes: cfg.UI.Toast,
+		chordWait:  cfg.UI.ChordWait,
 		keyhelp:    newHelp(cfg.Keys),
 		status:     statusbar.New(),
 		line:       newLine(cfg.Keys, cfg.Commands.History),
