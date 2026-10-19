@@ -20,14 +20,16 @@ func needsResolve(n core.Notification) bool {
 
 // resolve sets the web URL of the releases and check suites in items to
 // their own page, which GitHub doesn't say: it takes one read each. A thread
-// that earlier already had its page resolved keeps it, so the page is read
-// once. A lookup that fails leaves the URL of the repository's list, and
-// the next fetch tries again.
+// that earlier already had its page resolved keeps it while the thread is
+// unchanged, so the page is read once; GitHub reuses a thread for the next
+// run of a workflow, with a later update time, and that is looked up again.
+// A lookup that fails leaves the URL of the repository's list, and every
+// later fetch that GitHub answers in full tries again.
 func (s *Service) resolve(ctx context.Context, items, earlier []core.Notification) {
-	known := make(map[string]core.Subject, len(earlier))
+	known := make(map[string]core.Notification, len(earlier))
 	for i := range earlier {
 		if n := &earlier[i]; n.Subject.Resolved {
-			known[n.ID] = n.Subject
+			known[n.ID] = *n
 		}
 	}
 	var wg sync.WaitGroup
@@ -37,8 +39,8 @@ func (s *Service) resolve(ctx context.Context, items, earlier []core.Notificatio
 		if !needsResolve(n) {
 			continue
 		}
-		if k, ok := known[n.ID]; ok && k.URL == n.Subject.URL {
-			items[i].Subject.WebURL, items[i].Subject.Resolved = k.WebURL, true
+		if k, ok := known[n.ID]; ok && k.Subject.URL == n.Subject.URL && k.Subject.Title == n.Subject.Title && k.UpdatedAt.Equal(n.UpdatedAt) {
+			items[i].Subject.WebURL, items[i].Subject.Resolved = k.Subject.WebURL, true
 			continue
 		}
 		sem <- struct{}{}
