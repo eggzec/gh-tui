@@ -133,9 +133,11 @@ func (o *diffOverlay) readDrafts() {
 }
 
 // setBlocks gives the diff one block for each draft, under the last line it is
-// on, or under the header of its file.
+// on, or under the header of its file. The threads and their marks come with
+// it, as the range of commits decides whether the diff shows them.
 func (o *diffOverlay) setBlocks() {
-	blocks := make([]diff.Block, 0, len(o.drafts))
+	o.markThreads()
+	blocks := o.threadBlocks()
 	for i := range o.drafts {
 		d := &o.drafts[i]
 		if d.ThreadID != "" {
@@ -210,7 +212,7 @@ func (o *diffOverlay) comment() tea.Cmd {
 		if d, ok := o.draftAt(); ok {
 			return o.compose(d, true)
 		}
-		return nil
+		return ui.Notify(toast.Info, "Move to a line to comment on it.")
 	}
 	d := tray.Draft{Commit: o.commit(), Side: tray.Right}
 	if o.d.OnHeader() {

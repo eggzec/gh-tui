@@ -187,6 +187,43 @@ func TestHeaderMark(t *testing.T) {
 	}
 }
 
+func TestLineMark(t *testing.T) {
+	m := load(t, &source{size: 5, files: []File{goFile("a.go", 1), goFile("b.go", 1)}}, WithSize(40, 12))
+	m.SetLineMark(func(p Pos) string {
+		switch {
+		case p.Path == "a.go" && p.Side == NewSide && p.Line == 2:
+			return "M"
+		case p.Path == "a.go" && p.Side == OldSide && p.Line == 2:
+			return "O"
+		case p.Path == "a.go" && p.Side == NewSide && p.Line == 1:
+			return "C"
+		}
+		return ""
+	})
+	v := m.View()
+	assertFits(t, v, 40, 12)
+	var got []string
+	for l := range strings.SplitSeq(ansi.Strip(v), "\n") {
+		for _, text := range []string{"ctx a0", "old b0", "new b0", "ctx c0"} {
+			if strings.Contains(l, text) {
+				got = append(got, l[:2])
+			}
+		}
+	}
+	// The cursor sits on the header, so the first cell of each line is blank.
+	// The lines of b.go carry no mark.
+	want := []string{" C", " O", " M", "  ", "  ", "  ", "  ", "  "}
+	if len(got) < 5 || strings.Join(got[:5], "|") != strings.Join(want[:5], "|") {
+		t.Errorf("gutters of the lines = %q, want C, O, M, none, none", got)
+	}
+	m.SetLineMark(nil)
+	for _, mark := range []string{" C ", " O ", " M "} {
+		if strings.Contains(ansi.Strip(m.View()), mark) {
+			t.Errorf("the mark %q is drawn after SetLineMark(nil)", mark)
+		}
+	}
+}
+
 func TestFileCarriesSHA(t *testing.T) {
 	f := goFile("a.go", 1)
 	f.SHA = "0123abc"
