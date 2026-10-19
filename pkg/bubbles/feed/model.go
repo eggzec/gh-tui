@@ -135,7 +135,19 @@ type Model[T any] struct {
 	// new map, since copies of the model share it.
 	marks map[string]struct{}
 
+	// groups nest in order, and lines are the rows of the grouped list: a
+	// header or an item. A grouped feed's selection and window count lines.
+	// closed holds the paths of the closed groups, nitems the loaded items
+	// whether their line shows or not, and heads the path of every header.
+	groups []Group[T]
+	lines  []line
+	closed map[string]struct{}
+	nitems int
+	heads  []string
+
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
+	groupOpen     string
+	groupClosed   string
 	gutterFocused string
 	gutterBlurred string
 	gutterNone    string
@@ -386,6 +398,8 @@ func (m *Model[T]) SetStyles(s Styles) {
 	for i, c := range [3]string{s.Cursor.Render(cursor), s.BlurredCursor.Render(cursor), " "} {
 		m.markGutters[i] = [2]string{c + "  ", c + mark}
 	}
+	m.groupOpen = s.Group.Render(termtext.Cells(s.OpenGlyph, 1)) + " "
+	m.groupClosed = s.Group.Render(termtext.Cells(s.ClosedGlyph, 1)) + " "
 	m.loadingText = s.Loading.Render("Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
 	m.placeholder = s.Placeholder.Render(s.Ellipsis)
@@ -456,6 +470,19 @@ func (m *Model[T]) reindex() {
 	for _, c := range m.chunks {
 		m.starts = append(m.starts, m.total)
 		m.total += c.n
+	}
+	if m.Grouped() {
+		ref := m.cursor()
+		m.build()
+		m.restore(ref)
+		// The groups cover every loaded item; the filter and the find
+		// still count their rows for the footer.
+		if m.filter != "" {
+			m.rebuildRows()
+		} else if m.query != "" {
+			m.refind()
+		}
+		return
 	}
 	if m.filter != "" {
 		g := m.at(m.sel)

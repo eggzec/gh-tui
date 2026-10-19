@@ -80,14 +80,24 @@ func (m Model[T]) Loaded() int {
 
 // shown returns the number of rows in the window's list.
 func (m Model[T]) shown() int {
+	if m.Grouped() {
+		return len(m.lines)
+	}
 	if m.filter == "" {
 		return m.total
 	}
 	return len(m.rows)
 }
 
-// at returns the index among all items of the row at position p, or -1.
+// at returns the index among all items of the row at position p, or -1,
+// which is also what a group header gives.
 func (m Model[T]) at(p int) int {
+	if m.Grouped() {
+		if p < 0 || p >= len(m.lines) || m.lines[p].head {
+			return -1
+		}
+		return m.lines[p].item
+	}
 	if m.filter == "" {
 		if p < 0 || p >= m.total {
 			return -1
@@ -103,6 +113,15 @@ func (m Model[T]) at(p int) int {
 // posOf returns the position of the first row at or after item g, or the
 // last row.
 func (m Model[T]) posOf(g int) int {
+	if m.Grouped() {
+		// An item in a closed group has no row.
+		for p, l := range m.lines {
+			if !l.head && l.item == g {
+				return p
+			}
+		}
+		return -1
+	}
 	if m.filter == "" {
 		return g
 	}
@@ -300,7 +319,7 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 		g = m.held
 	}
 	m.filter, m.rows = "", nil
-	m.sel = max(g, 0)
+	m.sel = max(m.posOf(g), 0)
 	m.anchored, m.seeking = false, false
 	m.refind()
 	return m.sync()

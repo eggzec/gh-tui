@@ -44,18 +44,38 @@ func (m Model[T]) View() string {
 
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
+	indent := ""
+	if m.Grouped() {
+		l := m.lines[i]
+		indent = strings.Repeat("  ", l.depth)
+		if l.head {
+			m.writeHead(w, l, m.gutter(selected, false), indent)
+			return
+		}
+	}
 	item, ok := m.item(m.at(i))
 	if !ok {
 		m.writePending(w, i, m.gutter(selected, false))
 		return
 	}
 	gutter := m.gutter(selected, m.marked(item))
-	rest := m.render(item, selected, width)
+	rest := m.render(item, selected, width-len(indent))
 	for range m.itemHeight {
-		var line string
-		line, rest, _ = strings.Cut(rest, "\n")
-		w.line(gutter, line)
+		var text string
+		text, rest, _ = strings.Cut(rest, "\n")
+		w.line(gutter, indent, text)
 	}
+}
+
+// writeHead writes the header of a group: its marker, label and the number of
+// items loaded in it.
+func (m Model[T]) writeHead(w *lineWriter, l line, gutter, indent string) {
+	marker := m.groupClosed
+	if l.open {
+		marker = m.groupOpen
+	}
+	w.line(gutter, indent, marker, m.styles.Group.Render(l.label), m.styles.Hint.Render(m.countText(l)))
+	w.blank(m.itemHeight - 1)
 }
 
 // writePending writes a row whose chunk is not loaded: a placeholder while

@@ -120,6 +120,7 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.CursorGlyph, s.Ellipsis = ic.Cursor, ic.Ellipsis
 	s.MarkGlyph = ic.Marked
+	s.OpenGlyph, s.ClosedGlyph = ic.Unfolded, ic.Folded
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Mark = s.Mark.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
