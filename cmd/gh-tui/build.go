@@ -36,7 +36,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
@@ -249,7 +248,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
 		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots), files.WithImages(pics),
 	}
-	checkOpts := []checks.Option{checks.WithVoice(voice)}
 	var (
 		commitWatch pulls.CommitWatch
 		runFollow   pulls.RunFollow
@@ -257,9 +255,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	if cfg.Sync.Enabled {
 		commitWatch = watchCommitChecks(subscriber(engine, pollChecks), engine.Refresh, actionSvc.PollCommitChecks)
 		runFollow = pulls.RunFollow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll))
-		checkOpts = append(checkOpts,
-			checks.WithWatch(watchChecks(subscriber(engine, pollChecks), engine.Refresh, actionSvc.PollChecks)),
-			checks.WithFollow(checks.Follow(followRuns(subscriber(engine, pollActions), engine.Refresh, actionSvc.Poll))))
 	}
 	// The login of the viewer, from the header the dashboard read.
 	viewer := viewerLogin(dashSvc.CachedHeader, func(ctx context.Context) (core.Header, error) {
@@ -271,7 +266,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(pics), pulls.WithFacets(facetSvc),
-			pulls.WithChecks(actionSvc, checkOpts...), pulls.WithCommitChecks(actionSvc), pulls.WithCommitChecksWatch(commitWatch), pulls.WithRunFollow(runFollow), pulls.WithCodeOwners(pullSvc), pulls.WithDevelopment(pullSvc), pulls.WithBlobs(fileSvc), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
+			pulls.WithChecks(actionSvc), pulls.WithCommitChecks(actionSvc), pulls.WithCommitChecksWatch(commitWatch), pulls.WithRunFollow(runFollow), pulls.WithCodeOwners(pullSvc), pulls.WithDevelopment(pullSvc), pulls.WithBlobs(fileSvc), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots), pulls.WithConversation(cfg),
 		}
 		issueOpts = []issues.Option{

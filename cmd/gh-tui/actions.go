@@ -7,7 +7,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/watch"
 )
@@ -21,20 +20,6 @@ func followRuns(subscribe func(key string, fn watch.PollFunc) func(), refresh fu
 	return func(repo core.RepoRef, runID int64) func() {
 		key := actionssvc.RunSyncKey(repo, runID)
 		stop := subscribe(key, poll(repo, runID))
-		refresh(key)
-		return stop
-	}
-}
-
-// watchChecks returns how the Checks step polls the checks of a pull
-// request while some are pending: it subscribes their poll, which starts at
-// once, and then asks as often as subscribe polls checks.
-func watchChecks(subscribe func(key string, fn watch.PollFunc) func(), refresh func(key string),
-	poll func(q actionssvc.ChecksQuery) watch.PollFunc,
-) checks.Watch {
-	return func(q actionssvc.ChecksQuery) func() {
-		key := actionssvc.ChecksSyncKey(q)
-		stop := subscribe(key, poll(q))
 		refresh(key)
 		return stop
 	}

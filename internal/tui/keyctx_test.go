@@ -31,7 +31,6 @@ import (
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
@@ -517,7 +516,7 @@ func (keySearch) Invalidate() {}
 // and one an app reported.
 type keyActions struct{ actions.Service }
 
-var _ checks.Service = keyActions{}
+var _ pulls.ChecksService = keyActions{}
 
 func (keyActions) Runs(context.Context, actionssvc.RunsQuery) (core.Page[core.Run], error) {
 	return core.Page[core.Run]{Items: []core.Run{keyRun}}, nil
@@ -890,12 +889,7 @@ func TestContextChains(t *testing.T) {
 // unopenedContexts are the contexts that no screen opens yet, so that no
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
-var unopenedContexts = map[string]string{
-	"pull_check_list":        "the Merge pane will read it",
-	"pull_check_log":         "the Merge pane will read it",
-	"pull_check_detail":      "the Merge pane will read it",
-	"pull_check_annotations": "the Merge pane will read it",
-}
+var unopenedContexts = map[string]string{}
 
 // foldedContexts are the contexts whose keys help lists in the layer of
 // another, because one widget holds both: the keys of a picker in normal
@@ -915,14 +909,11 @@ var idleRows = map[string]string{
 
 	// The readers are reached scrolled down and across a text longer and
 	// wider than their window, so only these have nothing to act on.
-	"preview left":                 "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
-	"preview right":                "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
-	"pull_check_detail move left":  "what the app reported is markdown, wrapped to the pane, so there is no sideways to scroll",
-	"pull_check_detail move right": "what the app reported is markdown, wrapped to the pane, so there is no sideways to scroll",
-	"text left":                    "the config's lines are narrower than the modal, so there is no sideways to scroll",
-	"text right":                   "the config's lines are narrower than the modal, so there is no sideways to scroll",
-	"pull_check_log follow":        "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
-	"actions_log follow":           "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
+	"preview left":       "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
+	"preview right":      "the file is markdown, shown rendered and wrapped to the pane, so there is no sideways to scroll",
+	"text left":          "the config's lines are narrower than the modal, so there is no sideways to scroll",
+	"text right":         "the config's lines are narrower than the modal, so there is no sideways to scroll",
+	"actions_log follow": "a log follows its end from the start, so the key turns that off, which shows nothing until lines are appended",
 
 	"filter previous field": "the form opens on its first row",
 	"filter first field":    "the form opens on its first row",
@@ -1067,7 +1058,7 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithCommitChecks(keyActions{}),
+			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}),
 			pulls.WithReviewDrafts(keyReviewDrafts())),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
@@ -1247,12 +1238,7 @@ var reserved = map[string]string{
 
 // reservedContexts are the contexts of default.yaml whose actions nothing
 // reads yet, each with its reason.
-var reservedContexts = map[string]string{
-	"pull_check_annotations": "read by the modal with tabs, which no screen opens now",
-	"pull_check_detail":      "read by the modal with tabs, which no screen opens now",
-	"pull_check_list":        "read by the modal with tabs, which no screen opens now",
-	"pull_check_log":         "read by the modal with tabs, which no screen opens now",
-}
+var reservedContexts = map[string]string{}
 
 // reservedReason is the reason an action is reserved, by its name or by its
 // context.

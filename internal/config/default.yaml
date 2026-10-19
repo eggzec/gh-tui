@@ -830,49 +830,6 @@ keys:
     review: []
     merge: [M]
 
-  # Checks: the list of checks. Each pane of the step re-runs the failed
-  # jobs of the run of the check under the cursor, or of the one shown.
-  pull_check_list:
-    rerun_failed: [R]
-    up: [up, k]
-    down: [down, j]
-    page_up: [ctrl+b, pgup]
-    page_down: [ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: [g, home]
-    bottom: [G, end]
-  # Checks: the log of the job of a check, and its annotations. Move the
-  # focus between the two.
-  pull_check_log:
-    rerun_failed: [R]
-    annotations: [A]
-    up: [up, k]
-    down: [down, j]
-    left: [left, h]
-    right: [right, l]
-    page_up: [b, ctrl+b, pgup]
-    page_down: [space, ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: [g, home]
-    bottom: [G, end]
-    toggle_all: ["*"]
-    option: ["-"]
-    next_error: [e]
-    prev_error: [E]
-    next_warning: [w]
-    prev_warning: []
-    follow: [F]
-    find: [/]
-    next_match: [n]
-    prev_match: [N]
-  pull_check_annotations:
-    rerun_failed: [R]
-    up: [up, k]
-    down: [down, j]
-    annotations: [A]
-
   # The modal of an issue.
   issue_modal:
     close: [X]
@@ -1283,18 +1240,6 @@ keys:
   release_modal:
     up: [up, k]
     down: [down, j]
-    page_up: [b, ctrl+b, pgup]
-    page_down: [space, ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: [g, home]
-    bottom: [G, end]
-  # Checks: what an app reported.
-  pull_check_detail:
-    up: [up, k]
-    down: [down, j]
-    left: [left, h]
-    right: [right, l]
     page_up: [b, ctrl+b, pgup]
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]

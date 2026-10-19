@@ -64,17 +64,17 @@ func TestViewerLogin(t *testing.T) {
 	}
 }
 
-// TestWatchChecksPollsWhilePending runs the checks' poll on the sync
+// TestWatchCommitChecksPollsWhilePending runs the checks' poll on the sync
 // engine with a fake clock: at once, then every sync.poll.checks, until
-// the checks are done or the step stops it.
-func TestWatchChecksPollsWhilePending(t *testing.T) {
+// the checks are done or the pane stops it.
+func TestWatchCommitChecksPollsWhilePending(t *testing.T) {
 	poll := config.Default().Sync.Poll
 	checksPollInterval := poll.Checks
 	synctest.Test(t, func(t *testing.T) {
 		e := watch.New(watch.WithInterval(time.Minute), watch.WithIntervals(pollIntervals(poll)))
 		var mu sync.Mutex
 		polls := 0
-		pollChecksOf := func(actionssvc.ChecksQuery) watch.PollFunc {
+		pollChecksOf := func(actionssvc.CommitChecksQuery) watch.PollFunc {
 			return func(context.Context) (watch.Result, error) {
 				mu.Lock()
 				defer mu.Unlock()
@@ -93,8 +93,8 @@ func TestWatchChecksPollsWhilePending(t *testing.T) {
 				mu.Unlock()
 			}
 		}()
-		q := actionssvc.ChecksQuery{Repo: core.RepoRef{Owner: "o", Name: "r"}, Number: 5}
-		stop := watchChecks(subscriber(e, pollChecks), e.Refresh, pollChecksOf)(q)
+		q := actionssvc.CommitChecksQuery{Repo: core.RepoRef{Owner: "o", Name: "r"}, SHA: "abc123"}
+		stop := watchCommitChecks(subscriber(e, pollChecks), e.Refresh, pollChecksOf)(q)
 		synctest.Wait()
 		time.Sleep(2*checksPollInterval + time.Second)
 		synctest.Wait()
@@ -104,7 +104,7 @@ func TestWatchChecksPollsWhilePending(t *testing.T) {
 		if got != 3 {
 			t.Errorf("polled %d times in %v, want at once and every %v", got, 2*checksPollInterval, checksPollInterval)
 		}
-		if len(keys) == 0 || keys[0] != actionssvc.ChecksSyncKey(q) {
+		if len(keys) == 0 || keys[0] != actionssvc.CommitChecksSyncKey(q) {
 			t.Errorf("events %v, want the checks' sync key", keys)
 		}
 		stop()
