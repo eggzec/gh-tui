@@ -76,7 +76,7 @@ func TestPreviewTitlesOfRowsWithoutOne(t *testing.T) {
 	t.Parallel()
 	d := lacking()
 	for _, c := range []struct{ id, title string }{
-		{idReview, "Review required"},
+		{idReview, "Required review"},
 		{idChanges + "carol", "Changes requested: Carol Diaz"},
 		{"job/1", "test"},
 		{"check/4", "coverage"},

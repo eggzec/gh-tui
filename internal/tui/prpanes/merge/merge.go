@@ -59,6 +59,9 @@ type Data struct {
 	// BaseCommits are the commits of the base that the head lacks, which the
 	// preview of the behind row lists. They are empty until they are read.
 	BaseCommits core.BaseCommits
+	// Owners are the code owners of the changed files, which the preview of
+	// the Review required row lists.
+	Owners Owners
 	// Method is the merge method a merge starts on, such as "squash", or empty
 	// when a merge has no method to name.
 	Method string

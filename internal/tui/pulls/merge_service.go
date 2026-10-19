@@ -27,6 +27,23 @@ type Behinds interface {
 	Behind(ctx context.Context, q pulls.BehindQuery) (core.BaseCommits, error)
 }
 
+// CodeOwners is what the Merge pane needs to say who must review a pull
+// request: the CODEOWNERS file of its base and the members of a team. The pull
+// requests service has them; without a reader, the preview of the Review
+// required row has no owners.
+type CodeOwners interface {
+	CachedOwners(q pulls.OwnersQuery) (pulls.OwnersFile, bool)
+	Owners(ctx context.Context, q pulls.OwnersQuery) (pulls.OwnersFile, error)
+	CachedTeamMembers(q pulls.TeamQuery) (pulls.TeamMembers, bool)
+	TeamMembers(ctx context.Context, q pulls.TeamQuery) (pulls.TeamMembers, error)
+}
+
+// WithCodeOwners gives the Merge pane the reader of the code owners of a pull
+// request.
+func WithCodeOwners(r CodeOwners) Option {
+	return func(s *Section) { s.codeOwners = r }
+}
+
 // BranchUpdater is what the Merge pane needs to update a branch with its base.
 // The returned Op changes nothing at once.
 type BranchUpdater interface {

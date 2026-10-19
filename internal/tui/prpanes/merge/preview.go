@@ -39,7 +39,7 @@ func PreviewOf(d Data, id string, o Options) (p Preview, ok bool) {
 			Body:  wrap("The pull request is a draft; drafts cannot be merged.", o.Width) + "\n\n" + wrap("enter marks it ready for review (asks y/n)", o.Width),
 		}, true
 	case id == idReview && d.Detail.ReviewDecision == core.ReviewRequired:
-		return Preview{Title: "Review required"}, true
+		return ownersPreview(d, o), true
 	case strings.HasPrefix(id, idChanges):
 		for i, v := range changers(d.Detail.Reviewers) {
 			if id == idChanges+v.Author.Login || (v.Author.Login == "" && id == idChanges+strconv.Itoa(i)) {
