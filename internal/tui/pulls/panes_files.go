@@ -124,6 +124,9 @@ type filesPane struct {
 	wanted      map[string]bool
 	targets     checktree.Targets
 	checkStyles checktree.Styles
+
+	// pv is the diff beside the tree of the zoomed pane.
+	pv filesDiff
 }
 
 // filesBuilt is what the rows of the tree were built from.
@@ -174,7 +177,10 @@ func newFilesPane(k filesKeys) filesPane {
 
 // slotFiles is the slot of the Files pane.
 func filesSlot() slot {
-	return slot{context: ctxFiles, content: (*panesModal).filesContent, press: (*panesModal).pressFiles}
+	return slot{
+		context: ctxFiles, content: (*panesModal).filesContent, press: (*panesModal).pressFiles,
+		preview: (*panesModal).filesPreview, title: (*panesModal).filesPreviewTitle, pressPreview: (*panesModal).pressFilesDiff,
+	}
 }
 
 // readCommits reads the commits at the head of the detail, which the cache

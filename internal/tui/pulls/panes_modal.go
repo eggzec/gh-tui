@@ -268,6 +268,7 @@ func (m *panesModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.resizeFilesDiff()
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
@@ -291,7 +292,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			}
 			return
 		}
-		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog(), m.loadNotes())
+		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
@@ -416,9 +417,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		// The loaders of the checks take their answers whatever is open over
 		// the pane, and ignore the other messages.
-		var cmd tea.Cmd
+		cmd := m.filesDiffUpdate(msg)
 		if m.files.loader.Handles(msg) {
-			cmd = m.checksMsg(msg)
+			cmd = tea.Batch(cmd, m.checksMsg(msg))
 		}
 		var mergeCmd tea.Cmd
 		m.merge.loader, mergeCmd = m.merge.loader.Update(msg)
@@ -480,6 +481,9 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
 	case m.inPreview(l):
+		if press := m.slots[m.focus-1].pressPreview; press != nil {
+			return press(m, msg)
+		}
 		m.scrollPreview(l, msg)
 	default:
 		if press := m.slots[m.focus-1].press; press != nil {
