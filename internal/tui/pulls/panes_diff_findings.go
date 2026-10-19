@@ -49,6 +49,7 @@ func (o *diffOverlay) findingBlock(path string, line int, notes []files.Note) di
 		ID:         findingPrefix + path + ":" + strconv.Itoa(line),
 		Anchor:     diff.Pos{Path: path, Side: diff.NewSide, Line: line},
 		OnlyAtLine: true,
+		Passive:    true,
 		Render: func(width int, _ bool) []string {
 			st := m.filesStyles()
 			bar := "  " + m.theme.Subtle.Render("▎ ")
