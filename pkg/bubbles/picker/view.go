@@ -215,12 +215,16 @@ func (m Model) rowLine(r row, w int) string {
 	}
 	var b strings.Builder
 	b.WriteString(gutter)
+	markStyle := title
+	if m.titleStyle != nil {
+		title = m.titleStyle(res.Item, title)
+	}
 	if m.marked {
 		mark := m.markOff
 		if m.isMarked(res.Value) {
 			mark = m.markOn
 		}
-		b.WriteString(title.Render(mark + " "))
+		b.WriteString(markStyle.Render(mark + " "))
 	}
 	b.WriteString(highlight(res.title, res.matches, title, m.styles.Match))
 	if res.detail != "" {

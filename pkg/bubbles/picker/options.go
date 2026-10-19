@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -33,6 +34,8 @@ type settings struct {
 	markOff       string
 	typed         func(text string) (Item, bool)
 	noFilterLine  bool
+	matchDetail   bool
+	titleStyle    func(Item, lipgloss.Style) lipgloss.Style
 }
 
 func defaultSettings() settings {
@@ -189,6 +192,25 @@ func WithMarkedFirst(on bool) Option {
 func WithTyped(typed func(text string) (Item, bool)) Option {
 	return func(s *settings) {
 		s.typed = typed
+	}
+}
+
+// WithDetailMatch makes a query of fixed items match the detail too: an item
+// whose title doesn't match is still listed when its detail holds the text,
+// ignoring case, after those whose title matches. Only a title's matches are
+// highlighted. The default is false.
+func WithDetailMatch(on bool) Option {
+	return func(s *settings) {
+		s.matchDetail = on
+	}
+}
+
+// WithTitleStyle sets how a title is drawn: style returns the style of the
+// item's title, given the one the row would use, so that an item can carry
+// colors of its own. It is called for each row drawn, so it must be cheap.
+func WithTitleStyle(style func(it Item, base lipgloss.Style) lipgloss.Style) Option {
+	return func(s *settings) {
+		s.titleStyle = style
 	}
 }
 

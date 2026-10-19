@@ -74,6 +74,18 @@ func (m Model) filter(q Query) []result {
 		out[i] = in[f.Index]
 		out[i].matches = f.MatchedIndexes
 	}
+	if m.matchDetail {
+		listed := make(map[int]bool, len(found))
+		for _, f := range found {
+			listed[f.Index] = true
+		}
+		text := strings.ToLower(q.Text)
+		for i := range in {
+			if !listed[i] && strings.Contains(strings.ToLower(in[i].detail), text) {
+				out = append(out, in[i])
+			}
+		}
+	}
 	return out
 }
 

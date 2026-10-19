@@ -212,6 +212,16 @@ func (m *Model) Select(value any) bool {
 	return false
 }
 
+// Following returns the listed item below the selected one, or false when the
+// selection is the last or there is none. A parent reads it before it marks
+// the selected item, to move the selection to what takes its place.
+func (m Model) Following() (Item, bool) {
+	if m.sel < 0 || m.sel+1 >= len(m.listed) {
+		return Item{}, false
+	}
+	return m.listed[m.sel+1].Item, true
+}
+
 // chosen returns what enter chooses. While a search is waiting or running,
 // the list is out of date, so a picker that offers the typed text chooses
 // that instead of whatever the old results have under the selection.
