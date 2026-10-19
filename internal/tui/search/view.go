@@ -329,12 +329,8 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if hit.Kind == core.SearchRepos {
 		return s.renderRepo(hit.Repo, selected, width)
 	}
-	st := &s.st
+	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
 	is := &hit.Issue
-	title := st.text
-	if selected {
-		title = st.name
-	}
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""
 	if is.Comments > 0 {
@@ -346,12 +342,12 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	refWidth := min(ansi.StringWidth(repo)+len(num), max(room/3, 12))
 	ref := s.truncate(repo, max(refWidth-len(num), 1)) + num
 	// Where it is and its title link to its page.
-	head := s.stateGlyph(hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
-		title.render(s.truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
+	head := st.stateGlyph(s, hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
+		st.title.render(s.truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
 	first := s.spread(head, right, width)
 
 	parts := make([]string, 0, 4)
-	if labels := s.labels(is.Labels); labels != "" {
+	if labels := s.labels(is.Labels, st.muted); labels != "" {
 		parts = append(parts, labels)
 	}
 	if login := ui.OneLine(is.Author.Login); login != "" {
@@ -366,9 +362,9 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 
 // stateGlyph marks an issue or pull request by its state; the shapes
 // differ as well as the colors.
-func (s *Section) stateGlyph(hit core.SearchHit) string {
+func (c *cells) stateGlyph(s *Section, hit core.SearchHit) string {
 	state := ui.HitState(hit)
-	return s.st.states[state].render(s.icons.State(state))
+	return c.states[state].render(s.icons.State(state))
 }
 
 // langGlyph renders the glyph of r's language in its color.
@@ -383,7 +379,7 @@ func (s *Section) langGlyph(r core.Repo) string {
 }
 
 // labels renders the names of labels, each after a dot of its color.
-func (s *Section) labels(labels []core.Label) string {
+func (s *Section) labels(labels []core.Label, name paint) string {
 	parts := make([]string, 0, len(labels))
 	for _, l := range labels {
 		dot, ok := s.dots[l.Color]
@@ -394,7 +390,7 @@ func (s *Section) labels(labels []core.Label) string {
 			}
 			s.dots[l.Color] = dot
 		}
-		parts = append(parts, dot+" "+s.st.muted.render(cleanLine(l.Name)))
+		parts = append(parts, dot+" "+name.render(cleanLine(l.Name)))
 	}
 	return strings.Join(parts, " ")
 }
@@ -450,35 +446,31 @@ func (c repoCols) width() int {
 // of what it is, with its language, stars and age in columns at the
 // right, then its description.
 func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
-	st := &s.st
+	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
 	cols := repoColumns(width, s.dates.Width())
-	cells := make([]string, 0, 3)
+	right := make([]string, 0, 3)
 	if cols.lang > 0 {
-		cells = append(cells, s.langCell(r, cols.lang))
+		right = append(right, s.langCell(r, cols.lang, st.text))
 	}
-	cells = append(cells, padLeft(st.muted.render(s.icons.Star+" "+count(r.Stars)), starsWidth))
+	right = append(right, padLeft(st.muted.render(s.icons.Star+" "+count(r.Stars)), starsWidth))
 	if cols.age > 0 {
 		age := ""
 		if !r.UpdatedAt.IsZero() {
 			age = s.dates.Short(r.UpdatedAt, s.now())
 		}
-		cells = append(cells, padLeft(st.subtle.render(age), cols.age))
+		right = append(right, padLeft(st.subtle.render(age), cols.age))
 	}
-	right := strings.Join(cells, "  ")
+	cellsRight := strings.Join(right, "  ")
 
 	flags := s.icons.Flags(r)
-	room := width - ansi.StringWidth(right) - 1 - 2*len(flags)
-	name := st.text
-	if selected {
-		name = st.name
-	}
+	room := width - ansi.StringWidth(cellsRight) - 1 - 2*len(flags)
 	var head strings.Builder
-	head.WriteString(s.links.Link(s.repoURL(r), name.render(s.truncate(r.Ref.String(), max(room, 0)))))
+	head.WriteString(s.links.Link(s.repoURL(r), st.title.render(s.truncate(r.Ref.String(), max(room, 0)))))
 	for _, f := range flags {
 		head.WriteByte(' ')
 		st.muted.write(&head, f)
 	}
-	first := s.spread(head.String(), right, width)
+	first := s.spread(head.String(), cellsRight, width)
 	second := ""
 	if d := cleanLine(r.Description); d != "" {
 		second = "  " + st.muted.render(s.truncate(d, width-2))
@@ -488,35 +480,31 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 
 // langCell renders the language of r in width cells: its glyph and name,
 // or its glyph alone in a cell of one.
-func (s *Section) langCell(r core.Repo, width int) string {
+func (s *Section) langCell(r core.Repo, width int, text paint) string {
 	if r.Language == "" {
 		return strings.Repeat(" ", width)
 	}
 	if width < 3 {
 		return fit(s.langGlyph(r), width)
 	}
-	return fit(s.langGlyph(r)+" "+s.st.text.render(s.truncate(r.Language, width-2)), width)
+	return fit(s.langGlyph(r)+" "+text.render(s.truncate(r.Language, width-2)), width)
 }
 
 // renderCode renders a file that matches: its repository and path, then a
 // few lines of what matched, the matches in the accent.
 func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string {
-	st := &s.st
-	path := st.text
-	if selected {
-		path = st.name
-	}
+	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
 	lines := make([]string, 0, codeHeight)
 	// The repository and the file link to their pages.
 	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))
-	file := s.links.Link(hit.URL, path.render(ui.OneLine(hit.Path)))
+	file := s.links.Link(hit.URL, st.title.render(ui.OneLine(hit.Path)))
 	lines = append(lines, fit(termtext.Truncate(repo+st.subtle.render(s.icons.Separator)+file, width, s.icons.Ellipsis), width))
 	var frag core.Fragment
 	if len(hit.Fragments) > 0 {
 		frag = hit.Fragments[0]
 	}
 	for _, l := range fragmentView(frag, fragmentLines) {
-		lines = append(lines, fit(termtext.Truncate("  "+s.highlight(l), width, s.icons.Ellipsis), width))
+		lines = append(lines, fit(termtext.Truncate("  "+s.highlight(l, st), width, s.icons.Ellipsis), width))
 	}
 	for len(lines) < codeHeight {
 		lines = append(lines, strings.Repeat(" ", width))
@@ -572,20 +560,21 @@ func fragmentView(f core.Fragment, n int) []fragLine {
 	return shown[:min(n, len(shown))]
 }
 
-// highlight renders a line of code, its matches in the accent. Tabs become
-// spaces and other control characters are dropped, so the layout holds.
-func (s *Section) highlight(l fragLine) string {
+// highlight renders a line of code in the look st, its matches in the
+// accent. Tabs become spaces and other control characters are dropped, so
+// the layout holds.
+func (s *Section) highlight(l fragLine, st *cells) string {
 	var b strings.Builder
 	at := 0
 	for _, m := range l.matches {
 		if m[0] < at || m[1] > len(l.text) {
 			continue
 		}
-		b.WriteString(s.st.muted.render(codeText(l.text[at:m[0]])))
+		b.WriteString(st.muted.render(codeText(l.text[at:m[0]])))
 		b.WriteString(s.st.match.render(codeText(l.text[m[0]:m[1]])))
 		at = m[1]
 	}
-	b.WriteString(s.st.muted.render(codeText(l.text[at:])))
+	b.WriteString(st.muted.render(codeText(l.text[at:])))
 	return b.String()
 }
 

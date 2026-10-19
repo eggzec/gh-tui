@@ -91,11 +91,8 @@ type styles struct {
 
 	title, selected, author, age lipgloss.Style
 
-	// Rows wrap text in the escape codes of these directly, which is much
-	// cheaper than rendering a style for every cell of every frame.
-	number, rowTitle, rowSelected paint
-	rowAuthor, rowAge, diff       paint
-	rowLabel                      paint
+	// look holds the cells of a row in each of its looks.
+	look [numLooks]cells
 
 	// states are the glyphs of the states, in their colors, and badges
 	// the labels of the states in the detail header.
@@ -117,28 +114,72 @@ var stateNames = map[ui.State]string{
 	ui.PullOpen: "Open", ui.PullDraft: "Draft", ui.PullMerged: "Merged", ui.PullClosed: "Closed",
 }
 
+// The looks of a row: as it is, selected in a blurred pane, and selected in
+// a focused one.
+const (
+	lookPlain = iota
+	lookBlurred
+	lookFocused
+	numLooks
+)
+
+// cells are the glyphs and paints of the cells of a row in one look. Rows
+// wrap text in the escape codes of these directly, which is much cheaper
+// than rendering a style for every cell of every frame.
+type cells struct {
+	states [ui.NumStates]string
+
+	approved, changes, reviewRequired   string
+	checksOK, checksFail, checksPending string
+
+	number, title, author, age, diff, label paint
+}
+
+func newCells(t ui.Theme, icons ui.Icons, look int) cells {
+	selected := look != lookPlain
+	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
+	var states [ui.NumStates]string
+	for s := range stateNames {
+		states[s] = cell(t.State(s)).Render(icons.State(s))
+	}
+	return cells{
+		states:         states,
+		number:         newPaint(cell(t.Muted)),
+		title:          newPaint(t.Cell(t.RowTitle(selected, look == lookFocused), selected)),
+		author:         newPaint(cell(t.Muted)),
+		age:            newPaint(cell(t.Subtle)),
+		diff:           newPaint(cell(t.Muted)),
+		label:          newPaint(cell(t.Muted)),
+		approved:       cell(t.Success).Render(icons.Yes),
+		changes:        cell(t.Warning).Render(icons.ChangesRequested),
+		reviewRequired: cell(t.Muted).Render(icons.ReviewRequired),
+		// The glyphs of the checks screen, so the column reads as it does.
+		checksOK:      cell(t.Success).Render(icons.Run(ui.RunSuccess)),
+		checksFail:    cell(t.Error).Render(icons.Run(ui.RunFailure)),
+		checksPending: cell(t.Warning).Render(icons.Run(ui.RunQueued)),
+	}
+}
+
 func newStyles(t ui.Theme, icons ui.Icons) styles {
 	var states, badges [ui.NumStates]string
 	for s, name := range stateNames {
 		states[s] = t.State(s).Render(icons.State(s))
 		badges[s] = t.State(s).Bold(true).Reverse(true).Render(" " + icons.State(s) + " " + name + " ")
 	}
+	var look [numLooks]cells
+	for i := range look {
+		look[i] = newCells(t, icons, i)
+	}
 	return styles{
 		states:         states,
 		badges:         badges,
-		number:         newPaint(t.Muted),
+		look:           look,
 		theme:          t,
 		ic:             icons,
 		title:          t.Text,
 		selected:       t.Title,
 		author:         t.Muted,
 		age:            t.Subtle,
-		rowTitle:       newPaint(t.Text),
-		rowSelected:    newPaint(t.Title),
-		rowAuthor:      newPaint(t.Muted),
-		rowAge:         newPaint(t.Subtle),
-		diff:           newPaint(t.Muted),
-		rowLabel:       newPaint(t.Muted),
 		approved:       t.Success.Render(icons.Yes),
 		changes:        t.Warning.Render(icons.ChangesRequested),
 		reviewRequired: t.Muted.Render(icons.ReviewRequired),
@@ -161,11 +202,11 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 }
 
 // state returns the glyph of the state of pr, in its color.
-func (st *styles) state(pr core.PullRequest) string {
+func (st *cells) state(pr core.PullRequest) string {
 	return st.states[ui.PullState(pr.State, pr.Draft)]
 }
 
-func (st *styles) review(d core.ReviewDecision) string {
+func (st *cells) review(d core.ReviewDecision) string {
 	switch d {
 	case core.ReviewApproved:
 		return st.approved
@@ -178,7 +219,7 @@ func (st *styles) review(d core.ReviewDecision) string {
 	}
 }
 
-func (st *styles) checks(c core.ChecksState) string {
+func (st *cells) checks(c core.ChecksState) string {
 	switch c {
 	case core.ChecksSuccess:
 		return st.checksOK
@@ -216,7 +257,15 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	if aw := s.dates.Width(); s.cols.width != width || s.cols.ageWidth != aw {
 		s.cols = columnsFor(width, aw)
 	}
-	c, st := s.cols, &s.st
+	c := s.cols
+	look := lookPlain
+	switch {
+	case selected && s.focused:
+		look = lookFocused
+	case selected:
+		look = lookBlurred
+	}
+	st := &s.st.look[look]
 
 	var b strings.Builder
 	b.Grow(width + 160)
@@ -231,12 +280,8 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	pad(&link, ui.NumberWidth+over-len(num)+1)
 
 	tcells := max(c.title-over, 0)
-	title, tw := truncate(pr.Title, tcells, st.ic.Ellipsis)
-	ts := st.rowTitle
-	if selected {
-		ts = st.rowSelected
-	}
-	ts.write(&link, title)
+	title, tw := truncate(pr.Title, tcells, s.st.ic.Ellipsis)
+	st.title.write(&link, title)
 	b.WriteString(s.links.Link(pr.URL, link.String()))
 	pad(&b, tcells-tw)
 
@@ -250,7 +295,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.diff {
 		pad(&b, 2)
-		adds, dels := "+"+compact(pr.Additions), st.ic.Minus+compact(pr.Deletions)
+		adds, dels := "+"+compact(pr.Additions), s.st.ic.Minus+compact(pr.Deletions)
 		half := (diffWidth - 1) / 2
 		pad(&b, half-len(adds))
 		st.diff.write(&b, adds)
@@ -260,12 +305,12 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.labels {
 		pad(&b, 2)
-		st.writeLabels(&b, pr.Labels)
+		st.writeLabels(&b, pr.Labels, s.st.ic)
 	}
 	if c.author {
 		pad(&b, 2)
-		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth, st.ic.Ellipsis)
-		st.rowAuthor.write(&b, login)
+		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth, s.st.ic.Ellipsis)
+		st.author.write(&b, login)
 		pad(&b, authorWidth-lw)
 	}
 	if c.age {
@@ -275,7 +320,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 			ago = s.dates.Short(pr.UpdatedAt, s.now())
 		}
 		pad(&b, c.ageWidth-ansi.StringWidth(ago))
-		st.rowAge.write(&b, ago)
+		st.age.write(&b, ago)
 	}
 	if over >= c.title {
 		// With no title left to take from, the glyph and the number may
@@ -287,7 +332,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 
 // writeLabels writes the first of labels and how many more there are, in
 // labelsWidth cells.
-func (st *styles) writeLabels(b *strings.Builder, labels []core.Label) {
+func (st *cells) writeLabels(b *strings.Builder, labels []core.Label, ic ui.Icons) {
 	if len(labels) == 0 {
 		pad(b, labelsWidth)
 		return
@@ -295,14 +340,14 @@ func (st *styles) writeLabels(b *strings.Builder, labels []core.Label) {
 	more := ""
 	switch n := len(labels) - 1; {
 	case n > 9:
-		more = " +" + termtext.Truncate(st.ic.Ellipsis, 1, "")
+		more = " +" + termtext.Truncate(ic.Ellipsis, 1, "")
 	case n > 0:
 		more = " +" + strconv.Itoa(n)
 	}
 	mw := ansi.StringWidth(more)
-	name, w := truncate(labels[0].Name, labelsWidth-mw, st.ic.Ellipsis)
-	st.rowLabel.write(b, name)
-	st.rowAge.write(b, more)
+	name, w := truncate(labels[0].Name, labelsWidth-mw, ic.Ellipsis)
+	st.label.write(b, name)
+	st.age.write(b, more)
 	pad(b, labelsWidth-w-mw)
 }
 
