@@ -77,6 +77,9 @@ func (m Model) Selected() (Person, bool) {
 	return p, ok
 }
 
+// SelectedID returns the ID of the row under the cursor, as [Rows] names it.
+func (m Model) SelectedID() (string, bool) { return m.tree.Selected() }
+
 // View returns the rows drawn in the size of the tree.
 func (m Model) View() string { return m.tree.View() }
 

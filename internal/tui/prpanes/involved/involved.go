@@ -29,7 +29,23 @@ const (
 	idReviewers  = "group:reviewers"
 	idAssignees  = "group:assignees"
 	idCommenters = "group:commenters"
+
+	idEmptyReviewers  = "empty:reviewers"
+	idEmptyAssignees  = "empty:assignees"
+	idEmptyCommenters = "empty:commenters"
 )
+
+// reviewerID is the ID of the row of a reviewer, a person or a team.
+func reviewerID(r Person) string {
+	if r.Team != "" {
+		return "reviewer:team:" + r.Team
+	}
+	return "reviewer:user:" + r.Login
+}
+
+// assigneeID and commenterID are the IDs of the rows of the person with login.
+func assigneeID(login string) string  { return "assignee:" + login }
+func commenterID(login string) string { return "commenter:" + login }
 
 // State is where a reviewer stands on a pull request. The zero State is that
 // of a person who is no reviewer.
@@ -87,6 +103,8 @@ type Data struct {
 // Options say how the rows are drawn.
 type Options struct {
 	Styles Styles
+	// Width is the cells that a preview is drawn in, and zero for no limit.
+	Width int
 }
 
 // Person is the person or team that a row stands for.
@@ -302,41 +320,38 @@ func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
 		})
 	}
 	empty := func(id, hint string) {
-		rows = append(rows, foldtree.Row{ID: "empty:" + id, Depth: 1, Lines: []string{st.dim.Render("none (enter to " + hint + ")")}})
+		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{st.dim.Render("none (enter to " + hint + ")")}})
 	}
 
 	n := len(p.reviewers) + p.hidden
 	group(idReviewers, "Reviewers", n)
 	for _, r := range p.reviewers {
-		id := "reviewer:user:" + r.Login
-		if r.Team != "" {
-			id = "reviewer:team:" + r.Team
-		}
+		id := reviewerID(r)
 		who[id] = r
 		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{st.reviewer(r)}, Action: true})
 	}
 	if n == 0 {
-		empty("reviewers", "request")
+		empty(idEmptyReviewers, "request")
 	}
 
 	group(idAssignees, "Assignees", len(p.assignees))
 	for _, a := range p.assignees {
-		id := "assignee:" + a.Login
+		id := assigneeID(a.Login)
 		who[id] = Person{Login: a.Login, Name: conv.Name(a)}
 		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{conv.Name(a)}, Action: true})
 	}
 	if len(p.assignees) == 0 {
-		empty("assignees", "assign")
+		empty(idEmptyAssignees, "assign")
 	}
 
 	group(idCommenters, "Commenters", len(p.commenters))
 	for _, c := range p.commenters {
-		id := "commenter:" + c.Login
+		id := commenterID(c.Login)
 		who[id] = Person{Login: c.Login, Name: conv.Name(c)}
 		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{conv.Name(c)}, Action: true})
 	}
 	if len(p.commenters) == 0 {
-		rows = append(rows, foldtree.Row{ID: "empty:commenters", Depth: 1, Lines: []string{st.dim.Render("none")}})
+		rows = append(rows, foldtree.Row{ID: idEmptyCommenters, Depth: 1, Lines: []string{st.dim.Render("none")}})
 	}
 	return rows, who
 }

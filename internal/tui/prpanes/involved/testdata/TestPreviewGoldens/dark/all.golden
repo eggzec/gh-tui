@@ -1,0 +1,117 @@
+== width 40 ==
+-- author | Ann Author | author · assignee
+[38;2;107;114;133m────────────────────────────────────────[m
+-- group:reviewers | Reviewers | 
+[38;2;210;153;34m?[m Rita  [38;2;107;114;133mrequested[m
+[38;2;210;153;34m↻[m Carl  [38;2;107;114;133mre-requested[m
+[38;2;210;153;34m?[m Platform infrastructure[38;2;107;114;133m team[m  [38;2;107;114;133mrequest…[m
+[38;2;63;185;80m✓[m Dina  [38;2;107;114;133mapproved[m
+[38;2;248;81;73m✗[m Eve  [38;2;107;114;133mchanges requested[m
+[38;2;160;167;184m○[m Finn  [38;2;107;114;133mcommented[m
+[38;2;160;167;184m⊘[m Gus  [38;2;107;114;133mdismissed[m
+[38;2;160;167;184m○[m Copilot  [38;2;107;114;133mcommented[m
+[38;2;107;114;133mand 1 more[m
+-- group:assignees | Assignees | 
+Bob  [38;2;107;114;133mbob[m
+Ann Author  [38;2;107;114;133mann[m
+-- group:commenters | Commenters | 
+Zed  [38;2;107;114;133m2 comments or reviews[m
+Yan  [38;2;107;114;133m1 comment or review[m
+dependabot  [38;2;107;114;133m1 comment or review[m
+Xia  [38;2;107;114;133m1 comment or review[m
+-- reviewer:user:eve | Eve | reviewer
+[1m[38;2;248;81;73m✗[m review: changes requested[m
+[38;2;107;114;133m────────────────────────────────────────[m
+-- reviewer:user:rita | Rita | reviewer
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────[m
+-- reviewer:team:acme/platform | Platform infrastructure | reviewer
+[1mTeam members:[m
+[38;2;107;114;133m  members hidden[m
+
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────[m
+-- assignee:bob | Bob | assignee
+[38;2;107;114;133m────────────────────────────────────────[m
+-- commenter:zed | Zed | 
+[38;2;107;114;133m────────────────────────────────────────[m
+-- commenter:xia | Xia | 
+[38;2;107;114;133m────────────────────────────────────────[m
+== width 80 ==
+-- author | Ann Author | author · assignee
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- group:reviewers | Reviewers | 
+[38;2;210;153;34m?[m Rita  [38;2;107;114;133mrequested[m
+[38;2;210;153;34m↻[m Carl  [38;2;107;114;133mre-requested[m
+[38;2;210;153;34m?[m Platform infrastructure[38;2;107;114;133m team[m  [38;2;107;114;133mrequested[m
+[38;2;63;185;80m✓[m Dina  [38;2;107;114;133mapproved[m
+[38;2;248;81;73m✗[m Eve  [38;2;107;114;133mchanges requested[m
+[38;2;160;167;184m○[m Finn  [38;2;107;114;133mcommented[m
+[38;2;160;167;184m⊘[m Gus  [38;2;107;114;133mdismissed[m
+[38;2;160;167;184m○[m Copilot  [38;2;107;114;133mcommented[m
+[38;2;107;114;133mand 1 more[m
+-- group:assignees | Assignees | 
+Bob  [38;2;107;114;133mbob[m
+Ann Author  [38;2;107;114;133mann[m
+-- group:commenters | Commenters | 
+Zed  [38;2;107;114;133m2 comments or reviews[m
+Yan  [38;2;107;114;133m1 comment or review[m
+dependabot  [38;2;107;114;133m1 comment or review[m
+Xia  [38;2;107;114;133m1 comment or review[m
+-- reviewer:user:eve | Eve | reviewer
+[1m[38;2;248;81;73m✗[m review: changes requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- reviewer:user:rita | Rita | reviewer
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- reviewer:team:acme/platform | Platform infrastructure | reviewer
+[1mTeam members:[m
+[38;2;107;114;133m  members hidden[m
+
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- assignee:bob | Bob | assignee
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- commenter:zed | Zed | 
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+-- commenter:xia | Xia | 
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────[m
+== width 120 ==
+-- author | Ann Author | author · assignee
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- group:reviewers | Reviewers | 
+[38;2;210;153;34m?[m Rita  [38;2;107;114;133mrequested[m
+[38;2;210;153;34m↻[m Carl  [38;2;107;114;133mre-requested[m
+[38;2;210;153;34m?[m Platform infrastructure[38;2;107;114;133m team[m  [38;2;107;114;133mrequested[m
+[38;2;63;185;80m✓[m Dina  [38;2;107;114;133mapproved[m
+[38;2;248;81;73m✗[m Eve  [38;2;107;114;133mchanges requested[m
+[38;2;160;167;184m○[m Finn  [38;2;107;114;133mcommented[m
+[38;2;160;167;184m⊘[m Gus  [38;2;107;114;133mdismissed[m
+[38;2;160;167;184m○[m Copilot  [38;2;107;114;133mcommented[m
+[38;2;107;114;133mand 1 more[m
+-- group:assignees | Assignees | 
+Bob  [38;2;107;114;133mbob[m
+Ann Author  [38;2;107;114;133mann[m
+-- group:commenters | Commenters | 
+Zed  [38;2;107;114;133m2 comments or reviews[m
+Yan  [38;2;107;114;133m1 comment or review[m
+dependabot  [38;2;107;114;133m1 comment or review[m
+Xia  [38;2;107;114;133m1 comment or review[m
+-- reviewer:user:eve | Eve | reviewer
+[1m[38;2;248;81;73m✗[m review: changes requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- reviewer:user:rita | Rita | reviewer
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- reviewer:team:acme/platform | Platform infrastructure | reviewer
+[1mTeam members:[m
+[38;2;107;114;133m  members hidden[m
+
+[1m[38;2;210;153;34m?[m review: requested[m
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- assignee:bob | Bob | assignee
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- commenter:zed | Zed | 
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
+-- commenter:xia | Xia | 
+[38;2;107;114;133m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[m
