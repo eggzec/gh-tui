@@ -127,7 +127,7 @@ func TestFailingWakesOnRecovery(t *testing.T) {
 		s.Answered, s.Failing, s.Mended, s.At = time.Now(), time.Time{}, time.Now(), time.Now()
 		a.rates.set(s)
 		run(a.m, a.sync())
-		if line := ansi.Strip(lastLine(a.m)); !strings.Contains(line, "● online") {
+		if line := ansi.Strip(lastLine(a.m)); !strings.HasSuffix(strings.TrimRight(line, " "), "● "+a.m.account()) {
 			t.Errorf("once GitHub answers well the bar says %q, want it online", line)
 		}
 		a.check(t, "answered well", 1)

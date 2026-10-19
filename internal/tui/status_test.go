@@ -116,13 +116,13 @@ func TestStatusBarStates(t *testing.T) {
 	t.Parallel()
 	want := map[string]string{
 		"unknown":   "laraibg786@github.com",
-		"online":    "core 4 812/5 000 · gql 4 960/5 000 · resets 14:05 · ● online · laraibg786@github.com",
-		"offline":   "● offline since 13:59",
-		"limited":   "core 0/5 000 · gql 4 960/5 000 · resets 14:05 · ● rate limited until 14:05",
-		"secondary": "● rate limited until 14:02",
-		"held":      "resets 14:05 · 3 held · ● online",
-		"rejected":  "● token rejected · laraibg786@github.com",
-		"failing":   "resets 14:05 · ● GitHub failing since 13:58 · laraibg786@github.com",
+		"online":    "core 4 812/5 000 · gql 4 960/5 000 · resets 14:05 · ● laraibg786@github.com",
+		"offline":   "● laraibg786@github.com offline since 13:59",
+		"limited":   "core 0/5 000 · gql 4 960/5 000 · resets 14:05 · ● laraibg786@github.com rate limited until 14:05",
+		"secondary": "● laraibg786@github.com rate limited until 14:02",
+		"held":      "resets 14:05 · 3 held · ● laraibg786@github.com",
+		"rejected":  "● laraibg786@github.com token rejected",
+		"failing":   "resets 14:05 · ● laraibg786@github.com GitHub failing since 13:58",
 	}
 	for _, c := range statusCases() {
 		m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: c.s}), WithLogin("laraibg786"), WithHost("github.com"))
@@ -148,11 +148,11 @@ func TestStatusLinkOrder(t *testing.T) {
 		want string
 	}{
 		{"failing and offline", core.RateStatus{Answered: answered, Failed: statusAt.Add(-30 * time.Second), Failing: failing, At: statusAt},
-			"● offline since 13:59"},
+			"● laraibg786@github.com offline since 13:59"},
 		{"failing and rejected", core.RateStatus{Answered: answered, Rejected: answered, Failing: failing, At: statusAt},
-			"● token rejected"},
+			"● laraibg786@github.com token rejected"},
 		{"failing and limited", core.RateStatus{Quotas: limited, Answered: answered, Failing: failing, At: statusAt},
-			"resets 14:05 · ● GitHub failing since 13:58"},
+			"resets 14:05 · ● laraibg786@github.com GitHub failing since 13:58"},
 	} {
 		m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: c.s}), WithLogin("laraibg786"), WithHost("github.com"))
 		m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
@@ -162,15 +162,81 @@ func TestStatusLinkOrder(t *testing.T) {
 	}
 }
 
+// TestStatusLinkItem checks the connection item of each state: the dot in
+// the colour of the state, the account and what the state is, and the
+// shorter forms, which leave the state out first and the account next.
+func TestStatusLinkItem(t *testing.T) {
+	t.Parallel()
+	cases := statusCases()
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: c.s}), WithLogin("laraibg786"), WithHost("github.com"))
+			m.Update(tea.WindowSizeMsg{Width: 200, Height: 12})
+			forms := m.linkItem().Forms
+			account := "laraibg786@github.com"
+			if c.name == "unknown" {
+				if len(forms) != 1 || ansi.Strip(forms[0]) != account {
+					t.Fatalf("unknown connection: forms %q, want the account alone", forms)
+				}
+				return
+			}
+			dot := map[string]lipgloss.Style{
+				"online": m.bst.online, "offline": m.bst.warn, "limited": m.bst.warn, "secondary": m.bst.warn,
+				"held": m.bst.online, "rejected": m.bst.fail, "failing": m.bst.warn,
+			}[c.name].Render(m.icons.Dot)
+			var state string
+			switch c.name {
+			case "offline":
+				state = "offline since 13:59"
+			case "limited":
+				state = "rate limited until 14:05"
+			case "secondary":
+				state = "rate limited until 14:02"
+			case "rejected":
+				state = "token rejected"
+			case "failing":
+				state = "GitHub failing since 13:58"
+			}
+			want := []string{"● " + account, "●"}
+			if state != "" {
+				want = []string{"● " + account + " " + state, "● " + account, "●"}
+			}
+			if len(forms) != len(want) {
+				t.Fatalf("forms %q, want %q", forms, want)
+			}
+			for i, f := range forms {
+				if got := ansi.Strip(f); got != want[i] {
+					t.Errorf("form %d is %q, want %q", i, got, want[i])
+				}
+				if !strings.HasPrefix(f, dot) {
+					t.Errorf("form %d is %q, want it to start with the dot in the colour of %s", i, f, c.name)
+				}
+			}
+		})
+	}
+}
+
+// TestStatusBarNoLogin checks that a bar that doesn't know the account
+// names the host alone.
+func TestStatusBarNoLogin(t *testing.T) {
+	t.Parallel()
+	s := core.RateStatus{Answered: statusAt, At: statusAt}
+	m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: s}), WithHost("ghe.example.com"))
+	forms := m.linkItem().Forms
+	if got := ansi.Strip(forms[0]); got != "● ghe.example.com" {
+		t.Errorf("the connection says %q, want the dot and the host alone", got)
+	}
+}
+
 // TestStatusBarCompactRates checks that a narrow bar tells the tightest
 // quota in percent.
 func TestStatusBarCompactRates(t *testing.T) {
 	t.Parallel()
 	s := core.RateStatus{Quotas: quotas(4812, 600), Answered: statusAt, At: statusAt}
 	m, _ := newTestApp(t, WithRateStatus(&fixedRates{s: s}))
-	m.Update(tea.WindowSizeMsg{Width: 30, Height: 12})
-	if line := ansi.Strip(lastLine(m)); !strings.Contains(line, "gql 12% · ● online") {
-		t.Errorf("at 30 columns the bar says %q, want the tightest quota in percent", line)
+	m.Update(tea.WindowSizeMsg{Width: 40, Height: 12})
+	if line := ansi.Strip(lastLine(m)); !strings.Contains(line, "gql 12% · ● github.com") {
+		t.Errorf("at 40 columns the bar says %q, want the tightest quota in percent", line)
 	}
 }
 
@@ -201,9 +267,10 @@ func TestStatusBarLowMark(t *testing.T) {
 
 // TestStatusBarGivesWay checks the order the bar gives way in as the
 // terminal narrows, at every width: every hint but "? help", the last
-// first, then the account, then the rate limits, which shrink to the
-// tightest quota first, then "? help", and the connection last, which
-// shrinks to its dot first; and that a wider terminal never shows less.
+// first, then the rate limits, which shrink to the tightest quota first,
+// then "? help", and the connection with the account last, which shrinks
+// to the dot and the account, then to the dot; and that a wider terminal
+// never shows less.
 func TestStatusBarGivesWay(t *testing.T) {
 	t.Parallel()
 	s := core.RateStatus{Quotas: quotas(4812, 4960), Answered: statusAt, At: statusAt}
@@ -212,7 +279,6 @@ func TestStatusBarGivesWay(t *testing.T) {
 	const (
 		rates = iota
 		link
-		account
 	)
 	var last []int
 	for w := 200; w >= 1; w-- {
@@ -220,8 +286,8 @@ func TestStatusBarGivesWay(t *testing.T) {
 		line := ansi.Strip(lastLine(m))
 		shown := m.status.Shown()
 		hints, stats := shown[:len(m.hints)], shown[len(m.hints):]
-		if len(stats) != 3 {
-			t.Fatalf("width %d: %d items on the right, want the rates, the connection and the account", w, len(stats))
+		if len(stats) != 2 {
+			t.Fatalf("width %d: %d items on the right, want the rates and the connection with the account", w, len(stats))
 		}
 		gone := func(forms ...int) bool {
 			for _, f := range forms {
@@ -242,10 +308,8 @@ func TestStatusBarGivesWay(t *testing.T) {
 		}
 		help, others := hints[0], hints[1:]
 		switch {
-		case stats[account] == -1 && !gone(others...):
-			t.Errorf("width %d: the account went before the hints: %q", w, line)
-		case stats[rates] != 0 && stats[account] != -1:
-			t.Errorf("width %d: the rate limits shrank before the account went: %q", w, line)
+		case stats[rates] != 0 && !gone(others...):
+			t.Errorf("width %d: the rate limits shrank before the hints went: %q", w, line)
 		case help == -1 && stats[rates] != -1:
 			t.Errorf("width %d: ? help went before the rate limits: %q", w, line)
 		case stats[link] != 0 && help != -1:
