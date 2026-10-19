@@ -15,6 +15,11 @@ type state struct {
 	body      []Row // every row after the header, once parsed
 	err       error
 
+	// full says the file shows whole, with content as the lines of its new
+	// side; see SetFull.
+	full    bool
+	content []string
+
 	// blocks are the blocks anchored in this file, in the order they sit in
 	// once parsed, and the order they were given in until then; blockRows is
 	// the number of rows they take.
@@ -26,6 +31,9 @@ type state struct {
 // parsing: a row per patch line, a note in place of a missing patch, and a
 // note after a patch that was cut short.
 func (s *state) bodyRows() int {
+	if s.full {
+		return len(s.body)
+	}
 	if s.lines > 0 {
 		if s.file.Truncated {
 			return s.lines + 1
@@ -276,6 +284,9 @@ func (l *Layout) parse(i int) {
 	s.hunks, s.body, s.err = Parse(s.file.Patch)
 	for r := range s.body {
 		s.body[r].File = i
+	}
+	if s.full && s.err == nil {
+		s.body = fullBody(i, s.hunks, s.body, s.content)
 	}
 	if s.file.Truncated {
 		s.body = append(s.body, Row{Kind: KindNote, File: i, Hunk: -1, Note: NoteTruncated, Text: noteText[NoteTruncated]})

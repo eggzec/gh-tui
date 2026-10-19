@@ -39,6 +39,8 @@ type diffOverlay struct {
 	// since.
 	vw            viewedState
 	seen, changed string
+	// full is what is known of the files shown whole.
+	full fullFiles
 }
 
 // openDiff opens the diff of the file at path over the panes, and shows the
@@ -98,6 +100,13 @@ func (o *diffOverlay) hints() []string {
 			hs = append(hs, keys+" this file")
 		}
 	}
+	if keys := hintKeys(k.full); keys != "" {
+		if o.d.Full(o.current()) {
+			hs = append(hs, keys+" hunks only")
+		} else {
+			hs = append(hs, keys+" full file")
+		}
+	}
 	if keys := hintKeys(k.diff.Search); keys != "" {
 		hs = append(hs, keys+" search")
 	}
@@ -128,7 +137,7 @@ func (o *diffOverlay) title() string {
 	path := o.current()
 	i, n := diffview.Place(o.src.paths(), path)
 	pct := o.d.Cursor() * 100 / max(o.d.Len()-1, 1)
-	return diffview.Title(o.mode, o.label(), path, i, n, viewNote, pct, o.m.placed().W-4)
+	return diffview.Title(o.mode, o.label(), path, i, n, o.modeNote(path), pct, o.m.placed().W-4)
 }
 
 func (o *diffOverlay) kind() panes.OverlayKind { return panes.Viewer }
@@ -165,8 +174,8 @@ func (o *diffOverlay) layers() []keyhelp.Layer {
 	if empty := keys.CancelEmpty.Keys(); len(empty) > 0 {
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), empty) })
 	}
-	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.viewed, o.keys.readOn)
-	l.Short = append(l.Short, o.keys.whole, o.keys.viewed, o.keys.readOn)
+	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.full, o.keys.viewed, o.keys.readOn)
+	l.Short = append(l.Short, o.keys.whole, o.keys.full, o.keys.viewed, o.keys.readOn)
 	// The keys of the modal don't reach the diff, so its layer lists none; the
 	// chain still has it, as that of every overlay of the panes.
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
@@ -190,10 +199,15 @@ func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
 			return o.step(-1)
 		case keymap.Matches(press, o.keys.whole):
 			return o.toggle()
+		case keymap.Matches(press, o.keys.full):
+			return o.toggleFull()
 		}
 	}
 	var cmd tea.Cmd
 	o.d, cmd = o.d.Update(msg)
+	if fm, ok := msg.(diff.FilesMsg); ok && fm.ID == o.d.ID() {
+		cmd = tea.Batch(cmd, o.reapplyFull(fm.Files))
+	}
 	return cmd
 }
 
@@ -233,6 +247,7 @@ func (o *diffOverlay) toggle() tea.Cmd {
 	if path == "" {
 		return nil
 	}
+	o.full.seek = nil
 	if o.mode == diffview.WholePatch {
 		o.mode, o.path = diffview.ThisFile, path
 	} else {
@@ -241,6 +256,11 @@ func (o *diffOverlay) toggle() tea.Cmd {
 	cmd := o.build()
 	if onLine {
 		o.d.Seek(pos)
+		// A line of a file shown whole may be in no hunk, so the view of hunks
+		// alone can't hold the cursor on it.
+		if o.full.want[pos.Path] {
+			o.full.seek = &pos
+		}
 	} else {
 		o.d.SeekFile(path)
 	}

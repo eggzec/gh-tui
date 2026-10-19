@@ -83,6 +83,13 @@ func TestView(t *testing.T) {
 				{Path: "moved.go", OldPath: "was.go", Status: StatusRenamed, Additions: 1, Deletions: 1, Patch: patch(1)},
 			}}, WithSize(60, 12))
 		}},
+		{"full_file", func(t *testing.T) Model {
+			t.Helper()
+			f, content := midFile()
+			m := load(t, &source{size: 5, files: []File{f}}, WithSize(80, 16))
+			m.SetFull("a.go", content)
+			return keys(t, m, "}", "down")
+		}},
 		{"empty", func(t *testing.T) Model {
 			t.Helper()
 			return load(t, &source{size: 5}, WithSize(40, 4))

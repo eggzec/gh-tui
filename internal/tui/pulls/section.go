@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/actions"
+	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -149,6 +150,9 @@ type Section struct {
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
 	dev dev.Service
+	// blobs reads a file at the end of a range for the diff to show whole.
+	// Without it, the key says so.
+	blobs Blobs
 	// mergeMethod is how merge merges, if the repository allows it: the
 	// method last merged with in this session, or else the configured
 	// one. Without either, the repository's.
@@ -311,6 +315,17 @@ func WithChecks(svc ChecksService, opts ...checks.Option) Option {
 // shows a placeholder.
 func WithDevelopment(svc dev.Service) Option {
 	return func(s *Section) { s.dev = svc }
+}
+
+// Blobs is what the diff needs of the files service to show a file whole.
+type Blobs interface {
+	Blob(ctx context.Context, q filesvc.BlobQuery) (core.Blob, error)
+}
+
+// WithBlobs lets the diff of a pull request show a file whole, as read from
+// svc. Without it, the key that does so only says that it can't.
+func WithBlobs(svc Blobs) Option {
+	return func(s *Section) { s.blobs = svc }
 }
 
 // WithPrefetch reads ahead as p says for prefetch.pulls, so that what the
