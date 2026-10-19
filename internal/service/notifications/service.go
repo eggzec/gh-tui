@@ -20,6 +20,9 @@ type API interface {
 	MarkThreadRead(ctx context.Context, id string) error
 	MarkThreadDone(ctx context.Context, id string) error
 	MarkNotificationsRead(ctx context.Context, lastReadAt time.Time) error
+	// ResolveSubjectURL returns the page of a release or check suite
+	// notification.
+	ResolveSubjectURL(ctx context.Context, n core.Notification) (string, error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -110,7 +113,7 @@ func WithAccess(access Access) Option {
 // core.Notification they hold. Bump it when the type changes shape.
 const (
 	kind   = "notifications"
-	schema = 2
+	schema = 3
 )
 
 // New returns a service that reads and writes notifications through api.

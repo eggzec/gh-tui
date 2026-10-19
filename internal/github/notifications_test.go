@@ -291,6 +291,7 @@ func TestParseSubject(t *testing.T) {
 		{"release", "https://api.github.com/repos/o/r/releases/991", core.SubjectRelease, core.Subject{WebURL: repo + "/releases", ReleaseID: 991}},
 		{"discussion with a URL", "https://api.github.com/repos/o/r/discussions/12", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions/12", Number: 12}},
 		{"discussion", "", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions?discussions_q=a+%26+b"}},
+		{"check suite with a URL", "https://api.github.com/repos/o/r/check-suites/55", core.SubjectCheckSuite, core.Subject{WebURL: repo + "/actions", CheckSuiteID: 55}},
 		{"check suite", "", core.SubjectCheckSuite, core.Subject{WebURL: repo + "/actions"}},
 		{"unknown", "", "RepositoryVulnerabilityAlert", core.Subject{WebURL: repo}},
 		{"enterprise", "https://ghe.example.com/api/v3/repos/o/r/pulls/3", core.SubjectPullRequest, core.Subject{WebURL: repo + "/pull/3", Number: 3}},

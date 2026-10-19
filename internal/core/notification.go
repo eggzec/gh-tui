@@ -14,7 +14,8 @@ const (
 	SubjectRelease     SubjectType = "Release"
 	SubjectDiscussion  SubjectType = "Discussion"
 	SubjectCommit      SubjectType = "Commit"
-	// SubjectCheckSuite is a workflow run, whose subject has no URL.
+	// SubjectCheckSuite is a workflow run, whose subject URL names the check
+	// suite.
 	SubjectCheckSuite SubjectType = "CheckSuite"
 )
 
@@ -36,6 +37,11 @@ type Subject struct {
 	SHA string
 	// ReleaseID is the ID the API names a Release subject by.
 	ReleaseID int64
+	// CheckSuiteID is the ID the API names a CheckSuite subject by.
+	CheckSuiteID int64
+	// Resolved is set when WebURL was looked up and names the subject's own
+	// page: the release, or the run of the check suite.
+	Resolved bool
 }
 
 // Notification is an entry in the user's inbox.
