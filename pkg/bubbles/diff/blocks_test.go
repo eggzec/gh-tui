@@ -231,6 +231,88 @@ func TestUnplacedBlocks(t *testing.T) {
 	}
 }
 
+// onlyAt is the one-line block under new line n of path that shows only while
+// the line does.
+func onlyAt(id, path string, n int) Block {
+	b := at(id, path, n)
+	b.OnlyAtLine = true
+	return b
+}
+
+// oldOnlyAt is onlyAt on the old side.
+func oldOnlyAt(id, path string, n int) Block {
+	b := note(id, path, OldSide, n, "text of "+id)
+	b.OnlyAtLine = true
+	return b
+}
+
+// A block that is only at its line draws no row when the line is not shown,
+// and does not move the rows after it.
+func TestOnlyAtLineBlocks(t *testing.T) {
+	base := load(t, blockFiles(), WithSize(60, 20)).Len()
+	kept := withBlocks(t, blockFiles(), 60, 20, onlyAt("kept", "a.go", 2))
+	if kept.Len() <= base {
+		t.Fatalf("a block at a shown line has %d rows in all, want more than %d", kept.Len(), base)
+	}
+	if _, ok := kept.layout.BlockRow("kept"); !ok {
+		t.Error("the block at a shown line has no row")
+	}
+
+	m := withBlocks(t, blockFiles(), 60, 20,
+		onlyAt("gone", "a.go", 99),
+		onlyAt("zero", "a.go", 0),
+		oldOnlyAt("old", "b.go", 77),
+		at("under", "a.go", 98),
+		onlyAt("kept", "a.go", 2),
+	)
+	for _, id := range []string{"gone", "zero", "old"} {
+		if i, ok := m.layout.BlockRow(id); ok {
+			t.Errorf("block %s is on row %d, want none", id, i)
+		}
+	}
+	if got := m.HeaderBlocks(); !slices.Equal(got, []string{"under"}) {
+		t.Errorf("HeaderBlocks = %q, want under", got)
+	}
+	if i, ok := m.layout.BlockRow("kept"); !ok || i <= 1 {
+		t.Errorf("kept is on row %d, %v, want a row of its line", i, ok)
+	}
+	// Only "under" and "kept" take rows: one line each.
+	only := withBlocks(t, blockFiles(), 60, 20, at("under", "a.go", 98), onlyAt("kept", "a.go", 2))
+	if m.Len() != only.Len() {
+		t.Errorf("%d rows, want the %d of the blocks that show", m.Len(), only.Len())
+	}
+
+	// Blocks given again, with the line now there, come back.
+	m.SetBlocks([]Block{onlyAt("kept", "a.go", 2)})
+	m = settle(t, m)
+	if m.Len() != kept.Len() {
+		t.Errorf("%d rows after the other blocks went, want %d", m.Len(), kept.Len())
+	}
+}
+
+// A block that is only at its line waits for its file like any other.
+func TestOnlyAtLineBlockWaitsForItsFile(t *testing.T) {
+	src := &source{size: 1, files: []File{goFile("a.go", 8), goFile("b.go", 8), goFile("c.go", 8), goFile("d.go", 8)}}
+	m := load(t, src, WithSize(60, 12))
+	m.SetBlocks([]Block{onlyAt("late", "d.go", 2), onlyAt("never", "d.go", 99)})
+	m = settle(t, m)
+	for range 8 {
+		m = keys(t, m, "G")
+	}
+	if m.Files() != 4 {
+		t.Fatalf("%d files fetched, want 4", m.Files())
+	}
+	if _, ok := m.layout.BlockRow("late"); !ok {
+		t.Error("the block did not find its line")
+	}
+	if i, ok := m.layout.BlockRow("never"); ok {
+		t.Errorf("the block of a line that is not there is on row %d", i)
+	}
+	if got := m.HeaderBlocks(); len(got) != 0 {
+		t.Errorf("HeaderBlocks = %q", got)
+	}
+}
+
 // A block waits for its file, and takes its place when the page it is in
 // arrives.
 func TestBlocksWaitForTheirFile(t *testing.T) {
