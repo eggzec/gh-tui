@@ -136,13 +136,7 @@ func (o *diffOverlay) current() string {
 
 // label names the range the diff is of.
 func (o *diffOverlay) label() string {
-	f := &o.m.files
-	cs := f.commits.Commits
-	if r := f.rng; len(cs) > 0 && r.First >= 0 && r.Last < len(cs) && r.First <= r.Last {
-		return diffview.RangeLabel(len(cs), r.First, r.Last, cs[r.First].OID, cs[r.Last].OID)
-	}
-	head := o.m.detail.HeadSHA
-	return diffview.RangeLabel(1, 0, 0, head, head)
+	return o.m.rangeLabel()
 }
 
 func (o *diffOverlay) title() string {

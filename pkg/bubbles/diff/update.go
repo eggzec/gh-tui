@@ -57,6 +57,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// Handles reports whether msg is the result of a read of this view, so a
+// parent can tell a message that may change what the view shows from one it
+// ignores.
+func (m Model) Handles(msg tea.Msg) bool {
+	switch msg := msg.(type) {
+	case highlightMsg:
+		return msg.id == m.id
+	case pageMsg:
+		return msg.id == m.id
+	}
+	return false
+}
+
 // receive stores a fetched page.
 func (m *Model) receive(msg pageMsg) tea.Cmd {
 	m.pg.fetching = false

@@ -68,6 +68,7 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.merge.restyle(m)
 	m.restyleConv()
 	m.restyleDev()
+	m.restyleFilesDiff()
 }
 
 // View implements ui.Modal: the header, the panes and the footer.

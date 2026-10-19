@@ -36,6 +36,12 @@ type slot struct {
 	// press takes a key that the modal doesn't, while the pane's list has the
 	// focus. ok is false for a key it has no use for.
 	press func(m *panesModal, k tea.KeyPressMsg) (cmd tea.Cmd, ok bool)
+	// title is the title of the preview's frame, in place of the hovered row's
+	// text, for a preview that follows more than the row. A pane may have none.
+	title func(m *panesModal, b panes.Box) string
+	// pressPreview takes a key while the preview has the focus. A preview with
+	// none only scrolls.
+	pressPreview func(m *panesModal, k tea.KeyPressMsg) tea.Cmd
 }
 
 // slots has one entry per pane, in the order of the panes.
@@ -103,6 +109,9 @@ func (m *panesModal) previewContent(b panes.Box) panes.Content {
 	lines := strings.Split(s.preview(m, b), "\n")
 	off := min(m.previews[previewKey{b.Pane, h.id}], max(0, len(lines)-b.Rect.Inner().H))
 	c := panes.Content{Title: h.title, Body: strings.Join(lines[off:], "\n")}
+	if s.title != nil {
+		c.Title = s.title(m, b)
+	}
 	if s.info != nil {
 		c.Info = s.info(m, b)
 	}
