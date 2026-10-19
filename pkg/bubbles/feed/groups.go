@@ -71,7 +71,7 @@ func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 		m.build()
 		m.restore(ref)
 	}
-	m.anchored, m.seeking = false, false
+	m.anchored, m.seeking, m.fill = false, false, true
 	if m.filter != "" {
 		m.rebuildRows()
 	} else if m.query != "" {
@@ -102,7 +102,7 @@ func (m *Model[T]) ExpandAll() tea.Cmd {
 		return nil
 	}
 	ref := m.cursor()
-	m.closed = nil
+	m.closed, m.fill = nil, true
 	m.build()
 	m.restore(ref)
 	return m.sync()
@@ -115,6 +115,8 @@ func (m *Model[T]) CollapseAll() tea.Cmd {
 		return nil
 	}
 	ref := m.headRef(0)
+	// Closing adds no line, so no chunk is fetched just to fill the window.
+	m.fill = false
 	m.closed = make(map[string]struct{}, len(m.heads))
 	for _, p := range m.heads {
 		m.closed[p] = struct{}{}
@@ -149,7 +151,7 @@ func (m *Model[T]) setOpen(open bool) tea.Cmd {
 	} else {
 		closed[ref.path] = struct{}{}
 	}
-	m.closed = closed
+	m.closed, m.fill = closed, open
 	m.build()
 	m.restore(ref)
 	return m.sync()

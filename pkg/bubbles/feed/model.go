@@ -139,11 +139,14 @@ type Model[T any] struct {
 	// header or an item. A grouped feed's selection and window count lines.
 	// closed holds the paths of the closed groups, nitems the loaded items
 	// whether their line shows or not, and heads the path of every header.
+	// fill is whether another chunk may fill a window that is not full: the
+	// last one added lines, or the groups changed to show more.
 	groups []Group[T]
 	lines  []line
 	closed map[string]struct{}
 	nitems int
 	heads  []string
+	fill   bool
 
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
 	groupOpen     string
@@ -268,7 +271,8 @@ func (m Model[T]) Selected() (T, bool) {
 
 // Item returns the item of row i, or false if there is none or it is not
 // loaded. Rows are counted among those shown: while a quick filter shows,
-// they are the items it keeps.
+// they are the items it keeps, and while the rows are grouped they are the
+// lines, headers included, which have no item.
 func (m Model[T]) Item(i int) (T, bool) {
 	return m.item(m.at(i))
 }
@@ -283,7 +287,8 @@ func (m Model[T]) LoadedItem(i int) (T, bool) {
 }
 
 // Index returns the index of the selected row, which is that of its item
-// unless a quick filter shows.
+// unless a quick filter shows or the rows are grouped, when it is a line,
+// which may be a header.
 func (m Model[T]) Index() int {
 	return m.sel
 }

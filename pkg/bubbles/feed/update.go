@@ -185,7 +185,8 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	c = &m.chunks[msg.index]
 	c.items, c.n, c.loaded, c.kept, c.texts = msg.items, len(msg.items), true, kept, nil
 	m.pages++
-	if appended || msg.next != c.next {
+	moved := appended || msg.next != c.next
+	if moved {
 		// The chunks after this one no longer follow from it, so fetch
 		// them again from its new next cursor.
 		clear(m.chunks[msg.index+1:])
@@ -195,12 +196,19 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.done = msg.next == ""
 		m.refreshError()
 	}
+	before := len(m.lines)
 	m.reindex()
+	if moved && m.Grouped() {
+		m.fill = len(m.lines) > before
+	}
 	m.pruneMarks()
 	if m.anchored {
 		if i, ok := m.indexOf(m.anchor); ok {
-			i = m.posOf(i)
-			m.sel, m.top = i, i-m.anchorRow
+			// An item in a closed group has no line, and the cursor stays
+			// where reindex put it.
+			if i = m.posOf(i); i >= 0 {
+				m.sel, m.top = i, i-m.anchorRow
+			}
 		}
 	}
 	var seek tea.Cmd
@@ -241,7 +249,9 @@ func (m Model[T]) wantsTail() bool {
 	}
 	if m.Grouped() {
 		// Count the loaded items after the cursor's item, not the headers.
-		return m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin()
+		// A chunk that added no line, because its groups are closed, leaves
+		// the window as empty as it was, so more would not fill it.
+		return m.fill && m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin()
 	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
 }
