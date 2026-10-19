@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"cmp"
 	"slices"
 	"sort"
 	"strings"
@@ -29,6 +30,11 @@ type Block struct {
 	// Folded is the state the block starts in. It is read the first time its
 	// ID is given.
 	Folded bool
+	// OnlyAtLine has the block show only while its Anchor is a line the diff
+	// shows. Without it a block under a line that is not shown sits under the
+	// header of its file. A block of this kind makes its file parse as soon as
+	// the block is given, as it takes its rows only once it knows the lines.
+	OnlyAtLine bool
 }
 
 // placed is a block of a file once it has been rendered, and placed among the
@@ -114,7 +120,7 @@ func (l *Layout) applyBlocks(blocks []Block) []int {
 	touched := slices.Clone(l.blockFiles)
 	for _, f := range l.blockFiles {
 		s := &l.files[f]
-		s.blocks, s.blockRows = nil, 0
+		s.blocks, s.held, s.blockRows = nil, nil, 0
 	}
 	folded := make(map[string]bool, len(blocks))
 	l.blocks = make([]Block, 0, len(blocks))
@@ -153,6 +159,8 @@ func (l *Layout) applyBlocks(blocks []Block) []int {
 		l.renderBlocks(f)
 		if l.files[f].parsed {
 			l.place(f)
+		} else if l.onlyAtLine(f) {
+			l.ensure(f)
 		}
 	}
 	if len(touched) > 0 {
@@ -172,7 +180,16 @@ func (l *Layout) attach(i int) {
 		s.blocks = append(s.blocks, placed{blk: b})
 	}
 	l.renderBlocks(i)
+	if l.onlyAtLine(i) {
+		l.ensure(i)
+	}
 	l.blockFiles = append(l.blockFiles, i)
+}
+
+// onlyAtLine says whether file f has a block that sits only under a line that
+// is shown.
+func (l *Layout) onlyAtLine(f int) bool {
+	return slices.ContainsFunc(l.files[f].blocks, func(p placed) bool { return l.blocks[p.blk].OnlyAtLine })
 }
 
 // setBlockWidth does SetBlockWidth, and returns the files whose rows may have
@@ -254,6 +271,14 @@ func (l *Layout) renderBlock(i int) []string {
 // by it. The file must be parsed.
 func (l *Layout) place(f int) {
 	s := &l.files[f]
+	if len(s.held) > 0 {
+		// The lines may have changed, as when the file is shown whole.
+		for _, p := range s.held {
+			p.rows = l.renderBlock(p.blk)
+			s.blocks = append(s.blocks, p)
+		}
+		s.held = nil
+	}
 	if len(s.blocks) == 0 {
 		return
 	}
@@ -287,7 +312,18 @@ func (l *Layout) place(f int) {
 			p.at = row
 		}
 	}
-	slices.SortStableFunc(s.blocks, func(a, b placed) int { return a.at - b.at })
+	s.blocks = slices.DeleteFunc(s.blocks, func(p placed) bool {
+		if p.at >= 0 || !l.blocks[p.blk].OnlyAtLine {
+			return false
+		}
+		s.held = append(s.held, p)
+		return true
+	})
+	s.blockRows = 0
+	for _, p := range s.blocks {
+		s.blockRows += len(p.rows)
+	}
+	slices.SortStableFunc(s.blocks, func(a, b placed) int { return cmp.Or(a.at-b.at, a.blk-b.blk) })
 	s.offsets()
 }
 

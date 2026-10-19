@@ -25,6 +25,9 @@ type state struct {
 	// the number of rows they take.
 	blocks    []placed
 	blockRows int
+	// held are the blocks that sit under no line of the body and ask not to sit
+	// under the header; they are tried again when the file is parsed again.
+	held []placed
 }
 
 // bodyRows is how many rows the file has below its header, known without
