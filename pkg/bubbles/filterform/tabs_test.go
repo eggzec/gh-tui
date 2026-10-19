@@ -46,7 +46,7 @@ func TestApplyFromEitherTab(t *testing.T) {
 	const q = "is:closed label:docs sort:comments-asc fix"
 	got := make([]AppliedMsg, 0, 4)
 	for _, tab := range []Tab{FiltersTab, SortTab} {
-		for _, keys := range [][]tea.Msg{{enter}, {keyBigG, enter}} {
+		for _, keys := range [][]tea.Msg{{enter}, {tab, enter}} {
 			m := open(t, prSpec(nil), WithQuery(q), WithTab(tab))
 			_, sent := press(t, m, keys...)
 			if len(sent) != 1 {
@@ -76,7 +76,7 @@ func TestEscStepsBackThenCloses(t *testing.T) {
 	}{
 		{name: "from the filters", keys: []tea.Msg{down, space, esc}},
 		{name: "from the sort", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{prevTab, down, space, esc, nextTab}},
-		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{keyBigG, keyI, esc}},
+		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{tab, keyI, esc}},
 		{name: "from a text", keys: append(keys(down, rowBase), keyI, esc)},
 	}
 	for _, tt := range tests {
@@ -111,7 +111,7 @@ func TestSetTabClosesTheEditor(t *testing.T) {
 	if v, _ := m.Value("base"); v.Text() != "main-x" {
 		t.Errorf("base = %q, want what was typed kept", v.Text())
 	}
-	m, _ = press(t, m, keyBigG, keyI)
+	m, _ = press(t, m, tab, keyI)
 	m.SetTab(FiltersTab)
 	if m.Capturing() || m.Tab() != FiltersTab || m.row != rowState {
 		t.Errorf("capturing %v, tab %v, row %d; want the filters' first row", m.Capturing(), m.Tab(), m.row)

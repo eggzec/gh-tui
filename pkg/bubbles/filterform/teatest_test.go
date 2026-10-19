@@ -66,7 +66,7 @@ func TestProgram(t *testing.T) {
 		},
 		{
 			name:      "type in the query line",
-			keys:      []tea.KeyPressMsg{keyBigG, keyA, ctrlU},
+			keys:      []tea.KeyPressMsg{tab, keyA, ctrlU},
 			typed:     `is:merged label:"good first issue" crash`,
 			wantQuery: `is:merged label:"good first issue" sort:updated-desc crash`,
 		},

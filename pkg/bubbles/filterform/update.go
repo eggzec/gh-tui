@@ -82,7 +82,9 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case key.Matches(msg, k.Top):
 		m.moveTo(0)
 	case key.Matches(msg, k.Bottom):
-		m.moveTo(m.queryRow())
+		m.moveTo(m.queryRow() - 1)
+	case key.Matches(msg, k.NextPane), key.Matches(msg, k.PrevPane):
+		m.togglePane()
 	case key.Matches(msg, k.Cancel), key.Matches(msg, k.Quit):
 		return send(CancelMsg{ID: m.id})
 	case key.Matches(msg, k.Apply):
@@ -161,10 +163,26 @@ func (m *Model) typeIn(msg tea.Msg) tea.Cmd {
 	}
 }
 
-// moveTo moves the focus to row r, which stops at the first row and at the
-// query line.
+// moveTo moves the focus to row r, which stops at the first and the last
+// row. The query line is a pane of its own, so nothing moves on it.
 func (m *Model) moveTo(r int) {
-	m.row = max(min(r, m.queryRow()), 0)
+	if m.onQuery() {
+		return
+	}
+	m.row = max(min(r, m.queryRow()-1), 0)
+}
+
+// onQuery is whether the query line has the focus, rather than a row.
+func (m *Model) onQuery() bool { return m.row == m.queryRow() }
+
+// togglePane moves the focus from the rows to the query line, or back to
+// the row it left.
+func (m *Model) togglePane() {
+	if m.onQuery() {
+		m.row = max(min(m.fieldRow, m.queryRow()-1), 0)
+		return
+	}
+	m.fieldRow, m.row = m.row, m.queryRow()
 }
 
 // insert starts insert mode on a Text field or the query line, with the

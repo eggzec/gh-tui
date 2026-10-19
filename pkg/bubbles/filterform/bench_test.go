@@ -65,7 +65,7 @@ func BenchmarkUpdate(b *testing.B) {
 	// Typing on the query line parses the query on every key.
 	b.Run("type query", func(b *testing.B) {
 		m := benchForm(b)
-		m, _ = press(b, m, keyBigG, keyA)
+		m, _ = press(b, m, tab, keyA)
 		a := tea.Msg(tea.KeyPressMsg{Code: 'a', Text: "a"})
 		b.ReportAllocs()
 		for b.Loop() {

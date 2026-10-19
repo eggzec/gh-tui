@@ -15,7 +15,7 @@ Filter
   previous field | k up | k/↑ | off
   next field | j down | j/↓ | off
   first field | g home | g/home | off
-  query | G end | G/end | off
+  last field | G end | G/end | off
   previous | h left | h/← | off
   next | l right | l/→ | off
   toggle | space | space | off
@@ -28,6 +28,8 @@ Filter
   retry | r | r | off
   next tab | ] | ] | on
   previous tab | [ | [ | on
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
   apply | enter | ↵ | off
   done | esc | esc | off
   up | up ctrl+p | ↑/^p | off

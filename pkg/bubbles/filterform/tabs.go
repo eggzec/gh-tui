@@ -72,7 +72,7 @@ func (m *Model) showTab(t Tab) {
 		m.query.Blur()
 		m.syncQuery()
 	}
-	m.tab, m.row, m.top = t, 0, 0
+	m.tab, m.row, m.fieldRow, m.top = t, 0, 0, 0
 }
 
 // switchTab shows the tab delta after the one on view, wrapping around.

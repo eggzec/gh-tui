@@ -48,15 +48,15 @@ func TestView(t *testing.T) {
 		{name: "list filter many 80", width: 80, height: 16, spec: languageSpec, keys: []tea.Msg{space}},
 		{name: "list filter typed 80", width: 80, height: 16, spec: languageSpec, keys: []tea.Msg{space, keySlash}, typed: "py"},
 		{name: "list light 80", width: 80, height: 14, opts: []Option{WithStyles(DefaultStyles(false))}, keys: []tea.Msg{down, down, space}},
-		{name: "list above 80", width: 80, height: 14, spec: lastChoiceSpec, keys: []tea.Msg{keyBigG, keyK, space, down}},
+		{name: "list above 80", width: 80, height: 14, spec: lastChoiceSpec, keys: []tea.Msg{keyBigG, space, down}},
 		{name: "list failed 80", width: 80, height: 14, fail: true, keys: []tea.Msg{down, down, down, space}},
 		{name: "list loading 80", width: 80, height: 14, blockOpen: true, keys: []tea.Msg{down, down, down}},
 		{name: "people typing 120", width: 120, height: 16, keys: []tea.Msg{down, space, keySlash}, typed: "octo"},
 		{name: "people 80", width: 80, height: 14, keys: []tea.Msg{down, space}},
 		{name: "editing text", width: 60, height: 12, keys: []tea.Msg{down, down, down, down, down, keyA}, typed: "-next"},
 		{name: "insert text 80", width: 80, height: 12, keys: []tea.Msg{down, down, down, down, down, keyA}, typed: "-next"},
-		{name: "insert query 80", width: 80, height: 12, keys: []tea.Msg{keyBigG, keyA}, typed: " fix"},
-		{name: "query focused", width: 60, height: 12, keys: []tea.Msg{keyBigG}},
+		{name: "insert query 80", width: 80, height: 12, keys: []tea.Msg{tab, keyA}, typed: " fix"},
+		{name: "query focused", width: 60, height: 12, keys: []tea.Msg{tab}},
 		{name: "ascii 80", width: 80, height: 14, opts: []Option{WithStyles(asciiStyles()), WithKeyNames(strings.NewReplacer("↵", "enter").Replace)}, keys: []tea.Msg{down, down}},
 		{name: "free text", width: 100, height: 12, query: "is:merged fix crash repo:cli/cli"},
 		{name: "empty query", width: 60, height: 12, query: "sort:updated-desc", keys: []tea.Msg{down, down, down, del, del}},
@@ -129,7 +129,7 @@ func TestViewFits(t *testing.T) {
 				assertFits(t, m.View(), w, h)
 				m, _ = press(t, m, down, down, down, space)
 				assertFits(t, m.View(), w, h)
-				m, _ = press(t, m, esc, keyBigG, keyA)
+				m, _ = press(t, m, esc, tab, keyA)
 				assertFits(t, m.View(), w, h)
 				m.SetSize(h*3, w%7+1)
 				assertFits(t, m.View(), h*3, w%7+1)
@@ -273,7 +273,7 @@ func TestViewASCII(t *testing.T) {
 		{name: "failed list", keys: []tea.Msg{down, down, down, space}, fail: true},
 		{name: "sort list", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}},
 		{name: "insert", keys: append(keys(down, rowBase), keyA)},
-		{name: "insert query", keys: []tea.Msg{keyBigG, keyA}},
+		{name: "insert query", keys: []tea.Msg{tab, keyA}},
 		{name: "sort", opts: []Option{WithTab(SortTab)}},
 		{name: "sort order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}},
 	} {

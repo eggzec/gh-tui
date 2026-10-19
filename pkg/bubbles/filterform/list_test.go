@@ -395,13 +395,13 @@ func TestDropdownPlacement(t *testing.T) {
 	}
 	// Above the last row, which has no room below.
 	s := open(t, lastChoiceSpec(nil), WithSize(80, 14))
-	s, _ = press(t, s, keyBigG, keyK, space)
+	s, _ = press(t, s, keyBigG, space)
 	if bottom, row := line(s, "╰"), line(s, "‹"); bottom != row-1 {
 		t.Errorf("the box ends at line %d, want the line over its row %d", bottom, row)
 	}
 	// Never over the help line, whatever the height.
 	for h := 4; h <= 20; h++ {
-		for _, tt := range [][]tea.Msg{{space}, {down, down, space}, {keyBigG, keyK, space}} {
+		for _, tt := range [][]tea.Msg{{space}, {down, down, space}, {keyBigG, space}} {
 			f := open(t, lastChoiceSpec(nil), WithSize(80, h))
 			f, _ = press(t, f, tt...)
 			lines := strings.Split(view(f), "\n")
@@ -521,7 +521,7 @@ func TestDropdownExtra(t *testing.T) {
 		items int
 	}{
 		{"labels", func() Spec { return prSpec(f.load) }, keys2(down, rowLabels, space), len(labels)},
-		{"last row", func() Spec { return lastChoiceSpec(nil) }, []tea.Msg{keyBigG, keyK, space}, 5},
+		{"last row", func() Spec { return lastChoiceSpec(nil) }, []tea.Msg{keyBigG, space}, 5},
 		{"language", func() Spec { return languageSpec(nil) }, []tea.Msg{space}, dropRows},
 		{"dashboard language", func() Spec {
 			s := languageSpec(nil)

@@ -72,7 +72,7 @@ func TestFIsTypedWhereTyping(t *testing.T) {
 		name string
 		keys []tea.Msg
 	}{
-		{name: "query line", keys: append(keys(down, rowQuery), keyA)},
+		{name: "query line", keys: append([]tea.Msg{tab}, keyA)},
 		{name: "text editor", keys: append(keys(down, rowBase), keyA)},
 		{name: "picker", keys: append(keys(down, rowAuthor), space, keySlash)},
 	}

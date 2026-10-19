@@ -31,9 +31,11 @@ func TestKeyMapComplete(t *testing.T) {
 // with no two on one key.
 func TestFullHelpState(t *testing.T) {
 	// The keys every row takes, by their help keys: the moves, apply, close
-	// and the tabs.
-	always := []string{"k/↑", "j/↓", "g/home", "G/end", "↵", "esc", "q", "[", "]"}
-	with := func(extra ...string) []string { return slices.Concat(always, extra) }
+	// the tabs and the panes. The moves stay on the rows.
+	always := []string{"↵", "esc", "q", "[", "]", "tab", "shift+tab"}
+	with := func(extra ...string) []string {
+		return slices.Concat(always, []string{"k/↑", "j/↓", "g/home", "G/end"}, extra)
+	}
 	// What a dropdown in its normal mode takes besides its own list keys:
 	// the moves, enter and esc, q, and the tabs.
 	listNormal := []string{"k/↑", "j/↓", "^b/pgup", "^f/pgdn", "^u", "^d", "g/home", "G/end", "↵", "esc", "backspace", "q", "[", "]"}
@@ -54,12 +56,12 @@ func TestFullHelpState(t *testing.T) {
 		{name: "person row", keys: keys(down, rowAuthor), want: with("space", "delete")},
 		{name: "multi row", keys: keys(down, rowLabels), want: with("space", "delete")},
 		{name: "text row", keys: keys(down, rowBase), want: with("i", "a", "delete")},
-		{name: "query line", keys: keys(down, rowQuery), want: with("i", "a")},
+		{name: "query line", keys: []tea.Msg{tab}, want: slices.Concat(always, []string{"i", "a"})},
 		{name: "sort by", opts: []Option{WithTab(SortTab)}, want: with("h/←", "l/→", "space")},
 		{name: "order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down}, want: with("h/←", "l/→", "space")},
-		{name: "sort query line", opts: []Option{WithTab(SortTab)}, keys: keys(down, sortRows), want: with("i", "a")},
+		{name: "sort query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{tab}, want: slices.Concat(always, []string{"i", "a"})},
 		{name: "text insert", keys: append(keys(down, rowBase), keyA), want: []string{"↵", "esc"}},
-		{name: "query insert", keys: []tea.Msg{keyBigG, keyI}, want: []string{"↵", "esc"}},
+		{name: "query insert", keys: []tea.Msg{tab, keyI}, want: []string{"↵", "esc"}},
 		{name: "list", keys: []tea.Msg{space}, want: list("delete")},
 		{name: "list of the sort by", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{space}, want: list()},
 		{name: "list of the order", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{down, space}, want: list()},

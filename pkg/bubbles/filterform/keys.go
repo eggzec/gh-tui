@@ -20,12 +20,16 @@ type KeyMap struct {
 	// NextTab and PrevTab switch between the Filters and Sort tabs.
 	NextTab key.Binding `keymap:"global.next_tab" help:"next tab"`
 	PrevTab key.Binding `keymap:"global.prev_tab" help:"previous tab"`
-	// Up and Down move between the rows and the query line, and stop at
-	// the ends. Top and Bottom go to the first row and the query line.
+	// NextPane and PrevPane move the focus between the rows and the query
+	// line, the form's two panes, so each goes to the other one.
+	NextPane key.Binding `keymap:"global.next_pane" help:"next pane"`
+	PrevPane key.Binding `keymap:"global.prev_pane" help:"previous pane"`
+	// Up and Down move between the rows, and stop at the ends. Top and
+	// Bottom go to the first row and the last. None moves on the query line.
 	Up     key.Binding `keymap:"up" help:"previous field"`
 	Down   key.Binding `keymap:"down" help:"next field"`
 	Top    key.Binding `keymap:"top" help:"first field"`
-	Bottom key.Binding `keymap:"bottom" help:"query"`
+	Bottom key.Binding `keymap:"bottom" help:"last field"`
 	// Prev and Next change the value of a Choice, what is sorted by and
 	// the order, and flip a Toggle.
 	Prev key.Binding `keymap:"left" help:"previous"`
@@ -103,7 +107,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Top, k.Bottom, k.Prev, k.Next, k.Toggle},
 		{k.Insert, k.Append, k.Clear, k.Apply, k.Cancel, k.Quit, k.Retry},
-		{k.NextTab, k.PrevTab},
+		{k.NextTab, k.PrevTab, k.NextPane, k.PrevPane},
 		{k.Typing.Submit, k.Typing.Leave, k.Typing.Up, k.Typing.Down},
 		{k.ListClear, k.List.Choose, k.List.Cancel},
 		{
@@ -211,7 +215,10 @@ func (m *Model) helpItems() []hint {
 		return m.listHints()
 	case rowsMode:
 	}
-	out := []hint{h(pair(k.Down, k.Up, "field"), rankMove)}
+	var out []hint
+	if !m.onQuery() {
+		out = append(out, h(pair(k.Down, k.Up, "field"), rankMove))
+	}
 	if m.changes() {
 		out = append(out, h(pair(k.Prev, k.Next, "change"), rankChange))
 	}
@@ -231,7 +238,15 @@ func (m *Model) helpItems() []hint {
 	if m.tabbed() {
 		out = append(out, h(m.tabHelp(), rankTab))
 	}
-	return out
+	return append(out, h(m.paneHelp(), rankTab))
+}
+
+// paneHelp returns the key to the other pane, named after it.
+func (m *Model) paneHelp() key.Binding {
+	if m.onQuery() {
+		return relabel(m.keys.NextPane, "fields")
+	}
+	return relabel(m.keys.NextPane, "query")
 }
 
 // listHints returns the hints of list mode: the keys of the dropdown
@@ -303,7 +318,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	}
 	n := &k.List.Normal
 	form := []*key.Binding{
-		&k.NextTab, &k.PrevTab, &k.Up, &k.Down, &k.Top, &k.Bottom, &k.Prev, &k.Next, &k.Toggle,
+		&k.NextTab, &k.PrevTab, &k.NextPane, &k.PrevPane, &k.Up, &k.Down, &k.Top, &k.Bottom, &k.Prev, &k.Next, &k.Toggle,
 		&k.Insert, &k.Append, &k.Apply, &k.Clear, &k.Cancel, &k.Quit, &k.Retry, &k.ListClear,
 		&k.Typing.Submit, &k.Typing.Leave, &k.Typing.Up, &k.Typing.Down,
 	}
@@ -340,7 +355,10 @@ func (m Model) FullHelp() [][]key.Binding {
 	case m.mode == listMode:
 		on = tabs([]*key.Binding{&k.List.Cancel, &k.Quit})
 	default:
-		on = tabs([]*key.Binding{&k.Up, &k.Down, &k.Top, &k.Bottom, &k.Apply, &k.Cancel, &k.Quit})
+		on = tabs([]*key.Binding{&k.NextPane, &k.PrevPane, &k.Apply, &k.Cancel, &k.Quit})
+		if !m.onQuery() {
+			on = append(on, &k.Up, &k.Down, &k.Top, &k.Bottom)
+		}
 		if m.changes() {
 			on = append(on, &k.Prev, &k.Next)
 		}
