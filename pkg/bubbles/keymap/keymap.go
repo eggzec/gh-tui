@@ -18,6 +18,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
 )
@@ -146,6 +148,29 @@ func qualify(ctx, name string) string {
 	return ctx + "." + name
 }
 
+// Sequence splits the name of a sequence of two keys, such as "g g", into
+// the names of its keys, and returns false for the name of one key or of
+// anything else, such as three keys or an empty one.
+func Sequence(name string) (first, second string, ok bool) {
+	first, second, ok = strings.Cut(name, " ")
+	if !ok || first == "" || second == "" || strings.Contains(second, " ") {
+		return "", "", false
+	}
+	return first, second, true
+}
+
+// Sequences returns the sequences of two keys among the keys of b, each as
+// the names of its first and second key, in the order of its keys.
+func Sequences(b key.Binding) [][2]string {
+	var out [][2]string
+	for _, k := range b.Keys() {
+		if first, second, ok := Sequence(k); ok {
+			out = append(out, [2]string{first, second})
+		}
+	}
+	return out
+}
+
 // Labels is the help label of a binding with keys: each key's Label, in
 // order and joined by "/", such as "↑/k" for up and k, so help shows every
 // key that works.
@@ -157,9 +182,24 @@ func Labels(keys []string) string {
 	return strings.Join(ls, "/")
 }
 
+// printableRune reports whether name is one printable character.
+func printableRune(name string) bool {
+	r, n := utf8.DecodeRuneInString(name)
+	return n == len(name) && r != utf8.RuneError && unicode.IsPrint(r)
+}
+
 // Label shortens a key name for help: "enter" is "↵", "up" is "↑", "left"
-// is "←", and "ctrl+x" is "^x".
+// is "←", and "ctrl+x" is "^x". A sequence of keys, such as "g g", is the
+// label of each joined with nothing when every key is one character, "gg",
+// and else with a space, "^w x".
 func Label(k string) string {
+	if first, second, ok := Sequence(k); ok {
+		sep := " "
+		if printableRune(first) && printableRune(second) {
+			sep = ""
+		}
+		return Label(first) + sep + Label(second)
+	}
 	switch k {
 	case "enter":
 		return "↵"

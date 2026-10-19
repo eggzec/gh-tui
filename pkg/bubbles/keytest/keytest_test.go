@@ -104,6 +104,29 @@ func TestNoConflicts(t *testing.T) {
 	}
 }
 
+// TestNoConflictsSequences checks that a key and a sequence that starts with
+// it do not conflict, as vim's g and gg do not, but two equal sequences do.
+func TestNoConflictsSequences(t *testing.T) {
+	r := &recorder{TB: t}
+	NoConflicts(r, newKeys(func(k keys) [][]key.Binding {
+		k.Up.SetKeys("g")
+		k.Down.SetKeys("g g")
+		return [][]key.Binding{{k.Up, k.Down, k.Nested.Next}}
+	}))
+	if len(r.errs) != 0 {
+		t.Errorf("g and \"g g\": errors %q", r.errs)
+	}
+	r = &recorder{TB: t}
+	NoConflicts(r, newKeys(func(k keys) [][]key.Binding {
+		k.Up.SetKeys("g g")
+		k.Down.SetKeys("g g")
+		return [][]key.Binding{{k.Up, k.Down, k.Nested.Next}}
+	}))
+	if len(r.errs) != 1 || !strings.Contains(r.errs[0], "both hold g g") {
+		t.Errorf("equal sequences: errors %q", r.errs)
+	}
+}
+
 type tagged struct {
 	Up     key.Binding `keymap:"up" help:"up"`
 	Down   key.Binding `keymap:"down" help:"next"`
