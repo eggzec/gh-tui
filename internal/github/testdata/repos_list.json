@@ -15,6 +15,7 @@
             "isPrivate": false,
             "isFork": false,
             "isArchived": false,
+            "viewerPermission": "ADMIN",
             "updatedAt": "2026-09-21T10:00:00Z",
             "url": "https://github.com/eggzec/gh-tui"
           },
@@ -32,6 +33,7 @@
             "isArchived": true,
             "isTemplate": true,
             "isMirror": true,
+            "viewerPermission": "READ",
             "updatedAt": "2026-08-02T08:30:00Z",
             "url": "https://github.com/octo-org/dotfiles"
           }

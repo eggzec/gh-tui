@@ -29,6 +29,9 @@ func TestViewerOwnRepos(t *testing.T) {
 	if !got.Last() || len(got.Items) != 2 || got.Items[1].Ref != (core.RepoRef{Owner: "octocat", Name: "Spoon-Knife"}) {
 		t.Errorf("page = %+v, want the last page of two, ending with octocat/Spoon-Knife", got)
 	}
+	if a, b := got.Items[0].Caps.Permission, got.Items[1].Caps.Permission; a != core.PermissionAdmin || b != core.PermissionWrite {
+		t.Errorf("permissions = %q, %q, want admin, write", a, b)
+	}
 }
 
 func TestOrgRepos(t *testing.T) {
@@ -54,6 +57,9 @@ func TestOrgRepos(t *testing.T) {
 	vhs := got.Items[0]
 	if vhs.Ref != (core.RepoRef{Owner: "charmbracelet", Name: "vhs"}) || vhs.Language != "Go" || vhs.DefaultBranch != "main" || vhs.UpdatedAt.Before(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("first repo = %+v, want charmbracelet/vhs in Go", vhs)
+	}
+	if a, b := vhs.Caps.Permission, got.Items[1].Caps.Permission; a != core.PermissionMaintain || b != core.PermissionTriage {
+		t.Errorf("permissions = %q, %q, want maintain, triage", a, b)
 	}
 }
 

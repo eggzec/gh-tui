@@ -237,6 +237,9 @@ func TestUserStars(t *testing.T) {
 	if len(got.Items) != 1 || got.Items[0].Ref != (core.RepoRef{Owner: "octocat", Name: "zeta"}) || got.Next != "c3Rhcg==" {
 		t.Errorf("page = %+v, want octocat/zeta and a next cursor", got)
 	}
+	if p := got.Items[0].Caps.Permission; p != core.PermissionWrite {
+		t.Errorf("permission = %q, want write", p)
+	}
 }
 
 func TestUserStarsEmpty(t *testing.T) {

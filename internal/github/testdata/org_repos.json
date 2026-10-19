@@ -28,6 +28,7 @@
             "isPrivate": false,
             "isFork": false,
             "isArchived": false,
+            "viewerPermission": "MAINTAIN",
             "updatedAt": "2026-09-24T12:09:19Z",
             "url": "https://github.com/charmbracelet/vhs"
           },
@@ -49,6 +50,7 @@
             "isPrivate": false,
             "isFork": false,
             "isArchived": false,
+            "viewerPermission": "TRIAGE",
             "updatedAt": "2026-09-24T11:25:21Z",
             "url": "https://github.com/charmbracelet/bubbletea"
           }

@@ -29,6 +29,7 @@
       "archived": false,
       "open_issues_count": 5,
       "default_branch": "main",
+      "permissions": {"admin": false, "maintain": false, "push": true, "triage": true, "pull": true},
       "score": 1.0
     },
     {

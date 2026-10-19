@@ -1,6 +1,7 @@
 package github
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -27,6 +28,7 @@ func TestSearchRepos(t *testing.T) {
 			Stars:         42,
 			UpdatedAt:     issueTime("2026-09-22T12:30:00Z"),
 			URL:           "https://github.com/eggzec/gh-tui",
+			Caps:          core.RepoCaps{Permission: core.PermissionWrite},
 		},
 		{
 			ID:            "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
@@ -160,6 +162,32 @@ func TestSearchInvalidQuery(t *testing.T) {
 	}
 	if want := "Validation Failed (The search is longer than 256 characters.)"; ghErr.Message != want {
 		t.Errorf("message = %q, want %q", ghErr.Message, want)
+	}
+}
+
+// The highest role the permissions object grants wins, and an absent or
+// all-false object is no permission.
+func TestSearchRepoPermission(t *testing.T) {
+	tests := map[string]core.Permission{
+		`{"admin":true,"maintain":true,"push":true,"triage":true,"pull":true}`:      core.PermissionAdmin,
+		`{"admin":false,"maintain":true,"push":true,"triage":true,"pull":true}`:     core.PermissionMaintain,
+		`{"admin":false,"maintain":false,"push":true,"triage":true,"pull":true}`:    core.PermissionWrite,
+		`{"admin":false,"maintain":false,"push":false,"triage":true,"pull":true}`:   core.PermissionTriage,
+		`{"admin":false,"maintain":false,"push":false,"triage":false,"pull":true}`:  core.PermissionRead,
+		`{"admin":false,"maintain":false,"push":false,"triage":false,"pull":false}`: "",
+		`null`: "",
+	}
+	for perms, want := range tests {
+		var r searchRepo
+		if err := json.Unmarshal([]byte(`{"permissions":`+perms+`}`), &r); err != nil {
+			t.Fatalf("decode %s: %v", perms, err)
+		}
+		if got := r.core().Caps; got.Permission != want || got.Known {
+			t.Errorf("%s: caps = %+v, want permission %q and unknown", perms, got, want)
+		}
+	}
+	if got := (searchRepo{}).core().Caps.Permission; got != "" {
+		t.Errorf("absent permissions = %q, want none", got)
 	}
 }
 

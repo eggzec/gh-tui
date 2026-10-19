@@ -45,8 +45,9 @@ const (
 	kindContributions = "dashcontrib"
 	kindRepos         = "ownerrepos"
 	// schema 6 keeps the avatar of each repository's owner, and 7
-	// whether the author of each task is an app.
-	schema = 7
+	// whether the author of each task is an app, and 8 the viewer's
+	// permission in each repository.
+	schema = 8
 )
 
 // New returns a Service that fetches from api.

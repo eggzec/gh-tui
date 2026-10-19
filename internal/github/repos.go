@@ -29,6 +29,7 @@ const repoFields = `fragment repoFields on Repository {
   isArchived
   isTemplate
   isMirror
+  viewerPermission
   updatedAt
   url
 }`
@@ -57,7 +58,6 @@ const listReposQuery = `query ListRepos($first: Int!, $after: String) {
 // repository asks for them: they cost nothing, but a list has no use for
 // them. Whether pull requests are on comes from REST (restRepoFlags).
 const repoCapsFields = `fragment repoCapsFields on Repository {
-  viewerPermission
   isLocked
   hasIssuesEnabled
   hasDiscussionsEnabled
@@ -98,8 +98,10 @@ type repoNode struct {
 	IsArchived       bool          `json:"isArchived"`
 	IsTemplate       bool          `json:"isTemplate"`
 	IsMirror         bool          `json:"isMirror"`
-	UpdatedAt        time.Time     `json:"updatedAt"`
-	URL              string        `json:"url"`
+	// ViewerPermission is null for a GitHub App.
+	ViewerPermission string    `json:"viewerPermission"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	URL              string    `json:"url"`
 }
 
 func (n repoNode) core() core.Repo {
@@ -118,6 +120,9 @@ func (n repoNode) core() core.Repo {
 		URL:         n.URL,
 
 		OwnerAvatarURL: n.Owner.AvatarURL,
+		// The rest of the caps stay unknown: only the read of one repository
+		// asks for them.
+		Caps: core.RepoCaps{Permission: permission(n.ViewerPermission)},
 	}
 	if n.DefaultBranchRef != nil {
 		r.DefaultBranch = n.DefaultBranchRef.Name
@@ -131,8 +136,6 @@ func (n repoNode) core() core.Repo {
 // repoDetail is the JSON shape of the repository in getRepoQuery.
 type repoDetail struct {
 	repoNode
-	// ViewerPermission is null for a GitHub App.
-	ViewerPermission         string `json:"viewerPermission"`
 	IsLocked                 bool   `json:"isLocked"`
 	HasIssuesEnabled         bool   `json:"hasIssuesEnabled"`
 	HasDiscussionsEnabled    bool   `json:"hasDiscussionsEnabled"`
@@ -167,7 +170,7 @@ func (d repoDetail) core() core.Repo {
 	r := d.repoNode.core()
 	r.Caps = core.RepoCaps{
 		Known:        true,
-		Permission:   permission(d.ViewerPermission),
+		Permission:   r.Caps.Permission,
 		Archived:     d.IsArchived,
 		Locked:       d.IsLocked,
 		Private:      d.IsPrivate,
