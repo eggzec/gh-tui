@@ -26,6 +26,7 @@ Notifications
   read all |  |  | off
   filter | f | f | on
   clear filters | F | F | off
+  filter on/off | alt+f | alt+f | on
   refresh | r | r | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on

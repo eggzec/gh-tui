@@ -51,12 +51,13 @@ func (s *Section) Filter() (ui.Filter, bool) {
 	if s.focus != reposPane {
 		return ui.Filter{}, false
 	}
-	return ui.Filter{Spec: s.repos.spec(), Query: s.repos.filter().Query(), Subject: paneTitles[reposPane]}, true
+	return ui.Filter{Spec: s.repos.spec(), Query: s.repos.toggle.Edited(s.repos.filter().Query()), Subject: paneTitles[reposPane]}, true
 }
 
 // ApplyFilter implements ui.Filterable. The default sort is left out of
 // the query, so that it alone filters nothing.
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
+	s.repos.toggle.On()
 	cmd := s.repos.setFilter(ownerui.WithoutDefaultSort(msg.Query))
 	s.render()
 	return cmd

@@ -89,6 +89,7 @@ func (s *Section) setRepo(repo core.RepoRef) tea.Cmd {
 	}
 	s.repo, s.hasRepo = repo, true
 	s.tab, s.query, s.chips = tabs[0].state, "", ""
+	s.toggle.On()
 	s.caps = ui.CachedCaps(s.repos, repo)
 	s.others.Reset(s.ctx, repo.String())
 	s.renderHeader()
@@ -137,7 +138,14 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.others.Arm()
 		return s.show(nextTab(s.tab, -1), s.query)
 	case keymap.Matches(msg, k.ClearFilter):
+		s.toggle.On()
 		return s.show(s.tab, "")
+	case keymap.Matches(msg, k.ToggleFilter):
+		next, ok := s.toggle.Switch(s.query, "")
+		if !ok {
+			return ui.NothingToSwitch()
+		}
+		return s.show(s.tab, next)
 	case keymap.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
 		s.ahead.Resume()

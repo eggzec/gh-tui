@@ -28,6 +28,8 @@ type keyMap struct {
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding
+	// ToggleFilter switches the filter off, and back on.
+	ToggleFilter key.Binding
 	// NextTab and PrevTab switch the state shown.
 	NextTab key.Binding
 	PrevTab key.Binding
@@ -68,23 +70,24 @@ const (
 func newKeyMap(keys config.Keymap) keyMap {
 	list := ui.In(keys, ctxList)
 	k := keyMap{
-		Select:      list.Binding("global.select", "open"),
-		Back:        list.Binding("global.dismiss", "close"),
-		Filter:      list.Binding("filter", "filter"),
-		Sort:        list.Binding("sort", "sort"),
-		ClearFilter: list.Binding("clear_filter", "clear filters"),
-		NextTab:     list.Binding("global.next_tab", "next state"),
-		PrevTab:     list.Binding("global.prev_tab", "previous state"),
-		Refresh:     list.Binding("global.refresh", "refresh"),
-		Open:        list.Binding("global.open", "browser"),
-		Close:       list.Binding("close", "close issue"),
-		Reopen:      list.Binding("reopen", "reopen issue"),
-		Comment:     ui.In(keys, ctxModal).Binding("comment", "comment"),
-		Label:       ui.In(keys, ctxModal).Binding("labels", "labels"),
-		References:  ui.In(keys, ctxModal).Binding("references", "linked items"),
-		confirm:     ui.NewConfirmKeys(keys),
-		prompt:      prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
-		owner:       list.Binding("global.owner", "author"),
+		Select:       list.Binding("global.select", "open"),
+		Back:         list.Binding("global.dismiss", "close"),
+		Filter:       list.Binding("filter", "filter"),
+		Sort:         list.Binding("sort", "sort"),
+		ClearFilter:  list.Binding("clear_filter", "clear filters"),
+		ToggleFilter: list.Binding("filter_toggle", "filter on/off"),
+		NextTab:      list.Binding("global.next_tab", "next state"),
+		PrevTab:      list.Binding("global.prev_tab", "previous state"),
+		Refresh:      list.Binding("global.refresh", "refresh"),
+		Open:         list.Binding("global.open", "browser"),
+		Close:        list.Binding("close", "close issue"),
+		Reopen:       list.Binding("reopen", "reopen issue"),
+		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
+		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
+		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
+		confirm:      ui.NewConfirmKeys(keys),
+		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
+		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
 		// and the thread get only the keys they leave them.
 		feed:   feed.NewKeyMap(list),
@@ -124,7 +127,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
-		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
+		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort},
 	}
 }
 

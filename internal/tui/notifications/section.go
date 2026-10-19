@@ -107,7 +107,9 @@ type Section struct {
 	feed feed.Model[core.Notification]
 	// filt is the filter in force, nil for the default inbox. Fetches,
 	// which run in commands, read it.
-	filt    atomic.Pointer[filter]
+	filt atomic.Pointer[filter]
+	// toggle holds the query that the filter key switched off.
+	toggle  ui.FilterToggle[string]
 	started bool
 	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice

@@ -414,6 +414,8 @@ func keyPress(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyRight}
 	case "shift+tab":
 		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+	case "alt+f":
+		return tea.KeyPressMsg{Code: 'f', Mod: tea.ModAlt}
 	}
 	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
 		r, _ := utf8.DecodeRuneInString(c)

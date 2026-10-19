@@ -24,6 +24,7 @@ Issue
   next state | ] | ] | off
   previous state | [ | [ | off
   clear filters | F | F | off
+  filter on/off | alt+f | alt+f | on
   filter | f | f | off
   sort | s | s | off
   author | @ | @ | on

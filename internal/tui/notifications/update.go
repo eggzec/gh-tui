@@ -102,10 +102,21 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		s.opener.Resume()
 		return s.reload(), true
 	case keymap.Matches(msg, k.ClearFilter):
-		if !s.filtered() {
+		if !s.filtered() && !s.toggle.Off() {
 			return nil, true
 		}
-		return s.setFilter(defaultQuery), true
+		s.toggle.On()
+		cmd := s.setFilter(defaultQuery)
+		s.renderHeader()
+		return cmd, true
+	case keymap.Matches(msg, k.ToggleFilter):
+		next, ok := s.toggle.Switch(s.filter().query, defaultQuery)
+		if !ok {
+			return ui.NothingToSwitch(), true
+		}
+		cmd := s.setFilter(next)
+		s.renderHeader()
+		return cmd, true
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab), true
 	case keymap.Matches(msg, k.Select):

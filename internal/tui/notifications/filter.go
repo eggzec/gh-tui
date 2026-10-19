@@ -262,12 +262,15 @@ func (s *Section) filter() *filter {
 
 // Filter implements ui.Filterable.
 func (s *Section) Filter() (ui.Filter, bool) {
-	return ui.Filter{Spec: s.spec(), Query: s.filter().query}, true
+	return ui.Filter{Spec: s.spec(), Query: s.toggle.Edited(s.filter().query)}, true
 }
 
 // ApplyFilter implements ui.Filterable.
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
-	return s.setFilter(msg.Query)
+	s.toggle.On()
+	cmd := s.setFilter(msg.Query)
+	s.renderHeader()
+	return cmd
 }
 
 // setFilter lists the threads that query keeps, unless it does already.

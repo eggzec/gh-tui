@@ -618,6 +618,10 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    filter_toggle: [alt+f]
+    #Switch the filter off for a look at the list without it, and back on.
+    # On macOS, alt keys need the terminal's "Option as Meta" setting.
+    filter_toggle: [alt+f]
   # Dashboard: the pull requests and issues waiting on you.
   dashboard_work:
     up: [up, k]
@@ -691,6 +695,7 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    filter_toggle: [alt+f]
     # Mark the pull request under the cursor, or unmark it, and move to the
     # next row. Esc unmarks
     # them all, after it has cleared a search and a quick filter. While
@@ -733,6 +738,7 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    filter_toggle: [alt+f]
     # Mark the issue under the cursor, or unmark it, and move to the next
     # row. Esc unmarks them all,
     # after it has cleared a search and a quick filter. While some are
@@ -760,6 +766,7 @@ keys:
     prev_match: [N]
     filter: [f]
     clear_filter: [F]
+    filter_toggle: [alt+f]
     # Mark the notification under the cursor, or unmark it, and move to the
     # next row. Esc unmarks
     # them all, after it has cleared a search and a quick filter. While
@@ -822,6 +829,7 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
+    filter_toggle: [alt+f]
   # The page of a user: its contributions, a day at a time.
   owner_calendar:
     up: [up, k]

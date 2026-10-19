@@ -37,6 +37,8 @@ type KeyMap struct {
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding
+	// ToggleFilter switches the filter off, and back on.
+	ToggleFilter key.Binding
 	// Up, Down, Left and Right move through the cards.
 	Up    key.Binding `keymap:"owner_pinned.up" help:"up"`
 	Down  key.Binding `keymap:"owner_pinned.down" help:"down"`
@@ -65,17 +67,18 @@ var paneContext = [numPanes]string{"owner_pinned", "owner_list", "owner_readme",
 func newKeyMap(keys config.Keymap) KeyMap {
 	page, list := ui.In(keys, ctxPage), ui.In(keys, paneContext[listPane])
 	k := KeyMap{
-		Next:        page.Binding("global.next_pane", "next pane"),
-		Prev:        page.Binding("global.prev_pane", "previous pane"),
-		NextTab:     list.Binding("global.next_tab", "next tab"),
-		PrevTab:     list.Binding("global.prev_tab", "previous tab"),
-		Zoom:        page.Binding("global.zoom", "zoom"),
-		Select:      page.Binding("global.select", "open"),
-		Open:        page.Binding("global.open", "browser"),
-		Refresh:     page.Binding("global.refresh", "refresh"),
-		Filter:      list.Binding("filter", "filter"),
-		Sort:        list.Binding("sort", "sort"),
-		ClearFilter: list.Binding("clear_filter", "clear filters"),
+		Next:         page.Binding("global.next_pane", "next pane"),
+		Prev:         page.Binding("global.prev_pane", "previous pane"),
+		NextTab:      list.Binding("global.next_tab", "next tab"),
+		PrevTab:      list.Binding("global.prev_tab", "previous tab"),
+		Zoom:         page.Binding("global.zoom", "zoom"),
+		Select:       page.Binding("global.select", "open"),
+		Open:         page.Binding("global.open", "browser"),
+		Refresh:      page.Binding("global.refresh", "refresh"),
+		Filter:       list.Binding("filter", "filter"),
+		Sort:         list.Binding("sort", "sort"),
+		ClearFilter:  list.Binding("clear_filter", "clear filters"),
+		ToggleFilter: list.Binding("filter_toggle", "filter on/off"),
 	}
 	keymap.Fill(&k, page)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
@@ -115,7 +118,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -165,7 +168,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case pinnedPane:
 		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
 	case listPane:
-		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.Filter, k.Sort}
+		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort}
 	case readmePane:
 		return []key.Binding{k.Open}
 	case calendarPane, numPanes:
@@ -195,12 +198,14 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.page != nil {
 		focus = s.page.focus
 	}
-	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.Filter, &k.Sort} {
+	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort} {
 		b.SetEnabled(b.Enabled() && s.page != nil)
 	}
 	if focus == listPane {
 		l := s.repoTab()
-		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && l != nil && l.Filter().Active())
+		active := l != nil && (l.Filter().Active() || l.toggle.Off())
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && active)
+		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && active)
 		k.Filter.SetEnabled(k.Filter.Enabled() && l != nil)
 		k.Sort.SetEnabled(k.Sort.Enabled() && l != nil)
 		// The tabs are known once the header says whose the page is.

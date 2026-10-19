@@ -27,6 +27,7 @@ List
   next tab | ] | ] | on
   previous tab | [ | [ | on
   clear filters | F | F | off
+  filter on/off | alt+f | alt+f | off
   filter | f | f | on
   sort | s | s | on
   up | up k | ↑/k | on

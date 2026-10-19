@@ -202,7 +202,7 @@ func TestFilterLists(t *testing.T) {
 		t.Errorf("listed %+v in %d requests, want the unread page once", q, svc.listCount()-lists)
 	}
 	view := ansi.Strip(s.View())
-	if !strings.Contains(view, "Unread · mention  f filter · F clear") {
+	if !strings.Contains(view, "Unread · mention  f filter · alt+f on/off · F clear") {
 		t.Errorf("the header should name the filter:\n%s", view)
 	}
 
@@ -223,6 +223,44 @@ func TestFilterLists(t *testing.T) {
 	press(t, s, "F")
 	if svc.listCount() != lists {
 		t.Error("F on the unread inbox listed it again")
+	}
+}
+
+// TestFilterToggle checks that alt+f lists the inbox as if unfiltered and
+// back, f edits the filter kept, and F clears it.
+func TestFilterToggle(t *testing.T) {
+	svc := newFake(inbox()...)
+	s := newSection(t, svc, 80, 12)
+
+	// The unread inbox is the default, so there is nothing to switch.
+	press(t, s, "alt+f")
+	if s.toggle.Off() {
+		t.Fatal("alt+f switched off the default filter")
+	}
+
+	press(t, s, showAll+"is:unread reason:mention")
+	if got := rows(s); !slices.Equal(got, []string{"2"}) {
+		t.Fatalf("rows = %v, want the mention", got)
+	}
+	press(t, s, "alt+f")
+	if got := rows(s); !slices.Equal(got, []string{"1", "2", "3", "6"}) {
+		t.Errorf("rows while off = %v, want the unread", got)
+	}
+	if view := ansi.Strip(s.View()); !strings.Contains(view, "mention · off") {
+		t.Errorf("the header should say the filter is off:\n%s", view)
+	}
+	if f, _ := s.Filter(); f.Query != "is:unread reason:mention" {
+		t.Errorf("the form opens on %q, want the kept filter", f.Query)
+	}
+
+	press(t, s, "alt+f")
+	if got := rows(s); !slices.Equal(got, []string{"2"}) || s.toggle.Off() {
+		t.Errorf("rows after switching on = %v, want the mention", got)
+	}
+
+	press(t, s, "alt+f", "F")
+	if got := rows(s); !slices.Equal(got, []string{"1", "2", "3", "6"}) || s.toggle.Off() || s.filtered() {
+		t.Errorf("rows after F while off = %v, want the unread, on", got)
 	}
 }
 

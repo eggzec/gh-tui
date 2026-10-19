@@ -19,6 +19,8 @@ import (
 // keeps of up to owners.MaxAllRepos of them instead.
 type repoList struct {
 	q owners.ReposQuery
+	// toggle holds the query that the filter key switched off.
+	toggle ui.FilterToggle[string]
 	tableTab
 }
 
@@ -152,12 +154,15 @@ func (s *Section) Filter() (ui.Filter, bool) {
 	if l == nil || s.page.focus != listPane {
 		return ui.Filter{}, false
 	}
-	return ui.Filter{Spec: ownerui.Spec(s.cachedRepos(l), l.Filter()), Query: l.Filter().Query(), Subject: tabTitles[s.page.tab]}, true
+	return ui.Filter{Spec: ownerui.Spec(s.cachedRepos(l), l.Filter()), Query: l.toggle.Edited(l.Filter().Query()), Subject: tabTitles[s.page.tab]}, true
 }
 
 // ApplyFilter implements ui.Filterable. The default sort is left out of
 // the query, so that it alone filters nothing.
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
+	if l := s.repoTab(); l != nil {
+		l.toggle.On()
+	}
 	cmd := s.setFilter(ownerui.WithoutDefaultSort(msg.Query))
 	s.render()
 	return cmd
