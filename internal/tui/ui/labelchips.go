@@ -46,7 +46,20 @@ func NewLabelChips(label lipgloss.Style, dark bool, ellipsis string, nameWidth i
 // Get returns the chip of l and its width in cells, rendering it the first
 // time it is shown.
 func (cc *LabelChips) Get(l core.Label) (text string, width int) {
+	return cc.get(l, false)
+}
+
+// GetBold is Get for the chip of a selected row, which is bold like its other
+// cells. It takes the same width.
+func (cc *LabelChips) GetBold(l core.Label) (text string, width int) {
+	return cc.get(l, true)
+}
+
+func (cc *LabelChips) get(l core.Label, bold bool) (text string, width int) {
 	k := l.Name + "\x00" + l.Color
+	if bold {
+		k += "\x00b"
+	}
 	if c, ok := cc.chips[k]; ok {
 		return c.text, c.width
 	}
@@ -57,6 +70,9 @@ func (cc *LabelChips) Get(l core.Label) (text string, width int) {
 	st := cc.label
 	if fg, bg, ok := chipColors(l.Color, cc.dark); ok {
 		st = lipgloss.NewStyle().Foreground(fg).Background(bg).Padding(0, 1)
+	}
+	if bold {
+		st = st.Bold(true)
 	}
 	text = st.Render(name)
 	c := labelChip{text: text, width: ansi.StringWidth(text)}

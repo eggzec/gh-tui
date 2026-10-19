@@ -41,6 +41,12 @@ type Theme struct {
 	Success lipgloss.Style
 	Warning lipgloss.Style
 	Error   lipgloss.Style
+
+	// Row is what the cells of the selected row of a list add to their
+	// styles, and Pick the title of that row in a focused pane. A blurred
+	// pane keeps Row and drops the accent.
+	Row  lipgloss.Style
+	Pick lipgloss.Style
 }
 
 // NewTheme returns the theme for palette p on a dark or light terminal.
@@ -57,6 +63,31 @@ func NewTheme(p config.Palette, dark bool) Theme {
 		Success: fg(lipgloss.Color(p.Success)),
 		Warning: fg(lipgloss.Color(p.Warning)),
 		Error:   fg(lipgloss.Color(p.Error)),
+		Row:     lipgloss.NewStyle().Bold(true),
+		Pick:    fg(lipgloss.Color(p.Accent)).Bold(true),
+	}
+}
+
+// Cell returns the style of a cell of a row: s, made bold when the row is
+// the selected one, so the glyphs and the muted cells keep their colors.
+func (t Theme) Cell(s lipgloss.Style, selected bool) lipgloss.Style {
+	if selected {
+		return s.Inherit(t.Row)
+	}
+	return s
+}
+
+// RowTitle returns the style of the title of a row, or the name of a
+// repository: the accent when the row is selected in a focused pane, bold
+// when it is selected in a blurred one.
+func (t Theme) RowTitle(selected, focused bool) lipgloss.Style {
+	switch {
+	case !selected:
+		return t.Text
+	case focused:
+		return t.Pick
+	default:
+		return t.Title
 	}
 }
 

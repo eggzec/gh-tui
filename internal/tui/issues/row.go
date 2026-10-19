@@ -126,8 +126,8 @@ func (p paint) write(b *strings.Builder, text string) {
 
 // rowStyles are the styles of the list rows.
 type rowStyles struct {
-	number, title, selected paint
-	meta, age, more         paint
+	// look holds the cells of a row in each of its looks.
+	look [numLooks]cells
 	// states are the glyphs of the states of issues in their colors, and
 	// badges the states in the detail header.
 	states, badges [ui.NumStates]string
@@ -149,21 +149,53 @@ var stateNames = map[ui.State]string{
 	ui.IssueOpen: "Open", ui.IssueClosed: "Closed", ui.IssueNotPlanned: "Closed as not planned",
 }
 
+// The looks of a row: as it is, selected in a blurred pane, and selected in
+// a focused one.
+const (
+	lookPlain = iota
+	lookBlurred
+	lookFocused
+	numLooks
+)
+
+// cells are the glyphs and paints of the cells of a row in one look.
+type cells struct {
+	states          [ui.NumStates]string
+	number, title   paint
+	meta, age, more paint
+}
+
+func newCells(t ui.Theme, icons ui.Icons, look int) cells {
+	selected := look != lookPlain
+	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
+	var states [ui.NumStates]string
+	for s := range stateNames {
+		states[s] = cell(t.State(s)).Render(icons.State(s))
+	}
+	return cells{
+		states: states,
+		number: newPaint(cell(t.Muted)),
+		title:  newPaint(t.Cell(t.RowTitle(selected, look == lookFocused), selected)),
+		meta:   newPaint(cell(t.Muted)),
+		age:    newPaint(cell(t.Subtle)),
+		more:   newPaint(cell(t.Subtle)),
+	}
+}
+
 func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 	var states, badges [ui.NumStates]string
 	for s, name := range stateNames {
 		states[s] = t.State(s).Render(icons.State(s))
 		badges[s] = t.State(s).Bold(true).Render(icons.State(s) + " " + name)
 	}
+	var look [numLooks]cells
+	for i := range look {
+		look[i] = newCells(t, icons, i)
+	}
 	return rowStyles{
 		states:   states,
 		badges:   badges,
-		number:   newPaint(t.Muted),
-		title:    newPaint(t.Text),
-		selected: newPaint(t.Title),
-		meta:     newPaint(t.Muted),
-		age:      newPaint(t.Subtle),
-		more:     newPaint(t.Subtle),
+		look:     look,
 		label:    t.Muted.Padding(0, 1),
 		dark:     t.Dark,
 		comment:  termtext.Cells(icons.Comment, 1) + " ",
@@ -177,46 +209,49 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	if width != s.colsWidth || c.ageWidth != s.dates.Width() {
 		c = layout(width, s.room, s.dates.Width())
 	}
-	st := &s.rows
+	look := lookPlain
+	switch {
+	case selected && s.focused:
+		look = lookFocused
+	case selected:
+		look = lookBlurred
+	}
+	st, cl := &s.rows, &s.rows.look[look]
 	var b strings.Builder
 	b.Grow(width + 160)
 
-	b.WriteString(st.states[ui.IssueState(it)])
+	b.WriteString(cl.states[ui.IssueState(it)])
 	b.WriteByte(' ')
 	// The number and the title link to the issue's page.
 	var link strings.Builder
 	link.Grow(c.title + 64)
 	num := "#" + strconv.Itoa(it.Number)
 	over := ui.NumberOver(num)
-	st.number.write(&link, num)
+	cl.number.write(&link, num)
 	pad(&link, ui.NumberWidth+over-len(num)+1)
 
-	title := st.title
-	if selected {
-		title = st.selected
-	}
 	tcells := max(c.title-over, 0)
-	tw := writeCut(&link, title, ui.OneLine(it.Title), tcells, st.ellipsis)
+	tw := writeCut(&link, cl.title, ui.OneLine(it.Title), tcells, st.ellipsis)
 	b.WriteString(s.links.Link(it.URL, link.String()))
 	pad(&b, tcells-tw)
 
 	if c.chips > 0 {
 		pad(&b, gap)
-		s.writeLabels(&b, it.Labels, c)
+		s.writeLabels(&b, it.Labels, c, cl, selected)
 	}
 	if c.comments {
 		pad(&b, gap)
 		if it.Comments > 0 {
 			n := count(it.Comments)
 			pad(&b, commentsWidth-commentMarkWidth-len(n))
-			st.meta.write(&b, st.comment+n)
+			cl.meta.write(&b, st.comment+n)
 		} else {
 			pad(&b, commentsWidth)
 		}
 	}
 	if c.author {
 		pad(&b, gap)
-		writeFit(&b, st.meta, ui.OneLine(it.Author.Login), authorWidth, st.ellipsis)
+		writeFit(&b, cl.meta, ui.OneLine(it.Author.Login), authorWidth, st.ellipsis)
 	}
 	if c.age {
 		pad(&b, gap)
@@ -225,7 +260,7 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 			age = s.dates.Short(it.UpdatedAt, s.now())
 		}
 		pad(&b, c.ageWidth-ansi.StringWidth(age))
-		st.age.write(&b, age)
+		cl.age.write(&b, age)
 	}
 	if over >= c.title {
 		// With no title left to take from, the glyph and the number may
@@ -237,8 +272,8 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 
 // writeLabels writes up to c.chips chips, and how many labels they leave
 // out, right-aligned in the labels column.
-func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns) {
-	chips, shown, more, w := s.fitLabels(labels, c.chips, c.labels)
+func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns, cl *cells, selected bool) {
+	chips, shown, more, w := s.fitLabels(labels, c.chips, c.labels, selected)
 	pad(b, c.labels-w)
 	for i, ch := range chips[:shown] {
 		if i > 0 {
@@ -250,16 +285,21 @@ func (s *Section) writeLabels(b *strings.Builder, labels []core.Label, c columns
 		if shown > 0 {
 			b.WriteByte(' ')
 		}
-		s.rows.more.write(b, more)
+		cl.more.write(b, more)
 	}
 }
 
 // fitLabels returns the chips of up to n labels that fit in width cells
 // together with the count of the labels they leave out, that count, and
-// the width they all take.
-func (s *Section) fitLabels(labels []core.Label, n, width int) (chips [2]string, shown int, more string, w int) {
+// the width they all take. The chips are bold in a selected row, with the
+// same widths.
+func (s *Section) fitLabels(labels []core.Label, n, width int, selected bool) (chips [2]string, shown int, more string, w int) {
 	for _, l := range labels[:min(len(labels), n, len(chips))] {
-		ch, cw := s.chips.Get(l)
+		get := s.chips.Get
+		if selected {
+			get = s.chips.GetBold
+		}
+		ch, cw := get(l)
 		if shown > 0 {
 			cw++
 		}
@@ -304,7 +344,7 @@ func (s *Section) labelsWidth(labels []core.Label, n int) int {
 	if len(labels) == 0 {
 		return 0
 	}
-	_, _, _, w := s.fitLabels(labels, n, labelsCap(n))
+	_, _, _, w := s.fitLabels(labels, n, labelsCap(n), false)
 	return w
 }
 
