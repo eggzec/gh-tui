@@ -27,8 +27,8 @@ type Subject struct {
 	// have none, such as discussions.
 	URL string
 	// WebURL is the page to open in a browser. When GitHub doesn't say
-	// which page, as for discussions and releases, it is the closest page
-	// of the repository.
+	// which page, as for discussions, it is the closest page of the
+	// repository. Releases and check suites start there too, until Resolved.
 	WebURL string
 	// Number is that of the issue, pull request or discussion, or 0 when
 	// URL doesn't say.

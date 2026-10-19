@@ -3,6 +3,7 @@ package notifications
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
@@ -45,6 +46,46 @@ func TestListResolvesSubjectURLs(t *testing.T) {
 	}
 	if n := api.resolves.Load(); n != 2 {
 		t.Errorf("resolved %d subjects, want 2", n)
+	}
+}
+
+func TestResolvedURLLookedUpAgainForUpdatedThread(t *testing.T) {
+	// A check suite has no API URL, and GitHub reuses its thread for the next
+	// run of the workflow, so only the update time tells the runs apart.
+	run := "https://github.com/o/r/actions/runs/100"
+	updated := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	api := &fakeAPI{
+		list: func(_ core.NotificationFilter, _ int, _ string, cond github.Conditional) (page, github.Response, error) {
+			n := core.Notification{ID: "1", UpdatedAt: updated, Subject: core.Subject{Type: core.SubjectCheckSuite, Title: "CI workflow run failed for main branch", WebURL: "actions"}}
+			return page{Items: []core.Notification{n}}, github.Response{LastModified: modified1 + cond.LastModified}, nil
+		},
+		resolve: func(core.Notification) (string, error) { return run, nil },
+	}
+	s := New(api)
+	if _, err := s.List(t.Context(), ListQuery{}); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	// The same thread, unchanged, keeps its page.
+	s.Invalidate()
+	if _, err := s.List(t.Context(), ListQuery{}); err != nil {
+		t.Fatalf("second List: %v", err)
+	}
+	if n := api.resolves.Load(); n != 1 {
+		t.Fatalf("resolved %d times for an unchanged thread, want 1", n)
+	}
+	// The next run notifies the same thread again.
+	updated = updated.Add(time.Hour)
+	run = "https://github.com/o/r/actions/runs/200"
+	s.Invalidate()
+	p, err := s.List(t.Context(), ListQuery{})
+	if err != nil {
+		t.Fatalf("third List: %v", err)
+	}
+	if n := api.resolves.Load(); n != 2 {
+		t.Errorf("resolved %d times, want 2: the thread changed", n)
+	}
+	if sub := p.Items[0].Subject; sub.WebURL != run || !sub.Resolved {
+		t.Errorf("subject after an update = %+v, want the new run", sub)
 	}
 }
 
