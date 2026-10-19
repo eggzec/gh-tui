@@ -5,7 +5,27 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestUIChordWait(t *testing.T) {
+	if got := Default().UI.ChordWait; got != 400*time.Millisecond {
+		t.Errorf("default chord wait = %v, want 400ms", got)
+	}
+	for _, wait := range []time.Duration{0, -time.Second} {
+		cfg := Default()
+		cfg.UI.ChordWait = wait
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "ui.chord_wait") {
+			t.Errorf("chord wait %v: Validate() = %v, want an error naming the field", wait, err)
+		}
+	}
+	cfg := Default()
+	cfg.UI.ChordWait = 50 * time.Millisecond
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("chord wait 50ms: Validate() = %v, want none", err)
+	}
+}
 
 func TestUIIcons(t *testing.T) {
 	if got := Default().UI.Icons; got != IconsNerd {

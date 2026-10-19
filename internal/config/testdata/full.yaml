@@ -123,6 +123,7 @@ ui:
   icons: unicode
   toast:
     info: 6s
+  chord_wait: 250ms
   date_format: "2006-01-02 15:04"
 
 images:

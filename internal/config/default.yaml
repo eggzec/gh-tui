@@ -36,6 +36,11 @@ ui:
   # with the dismiss key.
   toast:
     info: 4s
+  # How long a key that starts a sequence of keys, such as the first g of
+  # "g g", waits for the next one. When none comes in time, or another key
+  # comes, the first key counts alone, and where none of its own is bound it
+  # does nothing.
+  chord_wait: 400ms
   # How every date reads, in the lists, the modals and the history:
   # relative, as an age (3d in a row, 3d ago in a sentence), absolute
   # (2006-01-02 15:04 MST), or a Go time layout such as "2006-01-02 15:04".
