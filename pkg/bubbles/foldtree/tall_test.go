@@ -39,6 +39,7 @@ func TestTallRowRead(t *testing.T) {
 		{"ctrl+d scrolls half a page in the row", []string{"j", "ctrl+d"}, "T", "T 2"},
 		{"ctrl+d stops at the bottom", []string{"j", "ctrl+d", "ctrl+d", "ctrl+d"}, "T", "T 6"},
 		{"ctrl+d leaves once the bottom shows", []string{"j", "ctrl+d", "ctrl+d", "ctrl+d", "ctrl+d"}, "b", "T 7"},
+		{"ctrl+d from a row that fits enters the row at its top", []string{"ctrl+d"}, "T", "T 0"},
 		{"ctrl+f scrolls a page in the row", []string{"j", "ctrl+f"}, "T", "T 4"},
 		{"ctrl+f clamps at the bottom", []string{"j", "ctrl+f", "ctrl+f"}, "T", "T 6"},
 		{"ctrl+u scrolls up in the row", []string{"j", "ctrl+f", "ctrl+f", "ctrl+u"}, "T", "T 4"},
@@ -61,6 +62,27 @@ func TestTallRowRead(t *testing.T) {
 			assertFits(t, m.View(), 24, 4)
 		})
 	}
+}
+
+// A reveal shows a tall row from its top, whichever side of it the window is
+// on, and keeps the window when the cursor is already on the row.
+func TestRevealTallRow(t *testing.T) {
+	m := newTree(tallRows(), WithSize(24, 4))
+	m, _ = keys(t, m, "G")
+	m.Reveal("T")
+	if got := selected(m); got != "T" {
+		t.Fatalf("cursor on %q, want T", got)
+	}
+	if got := lines(m)[0]; !strings.Contains(got, "T 0") {
+		t.Fatalf("window starts with %q, want T 0", got)
+	}
+	m, _ = keys(t, m, "j", "j")
+	want := lines(m)[0]
+	m.Reveal("T")
+	if got := lines(m)[0]; got != want {
+		t.Fatalf("window starts with %q, want %q kept", got, want)
+	}
+	assertFits(t, m.View(), 24, 4)
 }
 
 // A row that fits keeps the moves it had: j and k go row to row.

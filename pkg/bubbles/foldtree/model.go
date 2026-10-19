@@ -220,9 +220,15 @@ func (m *Model) Reveal(id string) bool {
 	if r < 0 {
 		return false
 	}
+	prev := m.sel
 	m.open(r)
 	m.reflow()
 	m.setCur(m.selectable(m.visIndex(id), 1))
+	// A tall row the cursor comes to is read from its top, as a key does; on
+	// the row it was on, the window stays where the user left it.
+	if m.sel != prev && m.tall() {
+		m.off = m.starts[m.cur]
+	}
 	m.scroll()
 	return true
 }
@@ -465,14 +471,13 @@ const maxPins = 2
 // scroll moves the window the least that shows the row under the cursor, or
 // keeps it where it is inside the row when the row is taller than the window
 // (the keys put it at the row's first lines, or its last when [Model.bottom]
-// is set), and pins the ancestors
-// of the row at its top. The pins take lines off the window and which rows
-// they are depends on where it is, so the window is settled again with the
-// lines the pins of its last place took, until they take no more than that.
-// It starts from the pins the window had, so a cursor that moves within it
-// does not shift it for pins that are no longer there, and when the window
-// lands where there are fewer, it comes back up as far as the cursor row
-// allows.
+// is set), and pins the ancestors of the row at its top. The pins take lines
+// off the window and which rows they are depends on where it is, so the
+// window is settled again with the lines the pins of its last place took,
+// until they take no more than that. It starts from the pins the window had,
+// so a cursor that moves within it does not shift it for pins that are no
+// longer there, and when the window lands where there are fewer, it comes
+// back up as far as the cursor row allows.
 func (m *Model) scroll() {
 	taken, from := len(m.pins), m.off
 	defer func() { m.bottom = false }()
