@@ -97,6 +97,7 @@ var graphqlOperations = map[string]string{
 	"pullMentionsQuery":         pullMentionsQuery,
 	"issueMentionsQuery":        issueMentionsQuery,
 	"resolveReferencesQuery":    resolveReferencesQuery,
+	"subjectStatesQuery":        subjectStatesQuery,
 	"codeownersQuery":           codeownersQuery,
 	"pullLinksQuery":            pullLinksQuery,
 	"issuePreviewQuery":         issuePreviewQuery,
