@@ -23,6 +23,9 @@ type Styles struct {
 	// check ends the row of a file marked viewed, and rerequested leads the
 	// note of one that changed since.
 	check, rerequested string
+	// failure, warning and notice are the glyphs of the levels of annotations,
+	// colored as the checks tree draws them.
+	failure, warning, notice string
 	// fileIcon returns the icon of the file at a path, followed by a space, or
 	// "" in an icon set without file icons.
 	fileIcon func(path string) string
@@ -46,6 +49,9 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		del:         lipgloss.NewStyle().Foreground(d.Deleted.GetForeground()),
 		check:       t.Subtle.Render(ic.Yes),
 		rerequested: ui.NewGlyphStyles(t, ic).Render(ui.GlyphRerequested),
+		failure:     t.Run(ui.RunFailure).Render(g.Failure),
+		warning:     t.Run(ui.RunInProgress).Render(g.Warning),
+		notice:      t.Subtle.Render(g.Notice),
 		in:          t.Accent.Render(g.Commit),
 		out:         t.Subtle.Render(g.Commit),
 		fileIcon: func(p string) string {

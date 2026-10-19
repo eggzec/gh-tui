@@ -161,6 +161,7 @@ func TestRowsFilesGolden(t *testing.T) {
 	}{
 		{"rows-files-tree", Data{Commits: pc, Range: All(2), Files: changed()}},
 		{"rows-files-viewed", Data{Commits: pc, Range: All(2), Files: changed(), Viewed: viewed(true)}},
+		{"rows-files-findings", Data{Commits: pc, Range: All(2), Files: changed(), Viewed: viewed(true), Findings: findings()}},
 		{"rows-files-viewed-unsupported", Data{Commits: pc, Range: All(2), Files: changed(), Viewed: viewed(false)}},
 		{"rows-files-truncated", Data{Commits: pc, Range: All(2), Files: changed(), Truncated: "first 300 files of this range"}},
 		{"rows-files-error", Data{Commits: pc, Range: All(2), Files: changed(), FilesErr: "these commits are no longer on the branch"}},
@@ -177,6 +178,83 @@ func TestRowsFilesGolden(t *testing.T) {
 			}
 			golden.RequireEqual(t, sb.String())
 		})
+	}
+}
+
+// findings are what the checks found in some of changed(): a viewed file with
+// a failure among its notes, one that changed since viewed with a warning, a
+// viewed one with a notice, and a file that isn't viewed with several failures.
+func findings() map[string]Finding {
+	return Findings([]core.Annotation{
+		{Path: "internal/tui/pulls/panes.go", Level: core.AnnotationNotice},
+		{Path: "internal/tui/pulls/panes.go", Level: core.AnnotationFailure},
+		{Path: "internal/tui/pulls/panes.go", Level: core.AnnotationWarning},
+		{Path: "cmd/gh-tui/main.go", Level: core.AnnotationWarning},
+		{Path: "README.md", Level: core.AnnotationNotice},
+		{Path: "README.md", Level: core.AnnotationNotice},
+		{Path: "internal/a-very-long-directory-name/with/more/levels/than/fit/in/the/pane/file.go", Level: core.AnnotationFailure},
+	})
+}
+
+func TestFindings(t *testing.T) {
+	t.Parallel()
+	got := findings()
+	for path, want := range map[string]Finding{
+		"internal/tui/pulls/panes.go": {Count: 3, Level: core.AnnotationFailure},
+		"cmd/gh-tui/main.go":          {Count: 1, Level: core.AnnotationWarning},
+		"README.md":                   {Count: 2, Level: core.AnnotationNotice},
+	} {
+		if got[path] != want {
+			t.Errorf("finding of %s = %+v, want %+v", path, got[path], want)
+		}
+	}
+	if _, ok := got["assets/logo.png"]; ok {
+		t.Error("a file with no annotations has a finding")
+	}
+}
+
+func TestFindingsTrimsDotSlash(t *testing.T) {
+	t.Parallel()
+	got := Findings([]core.Annotation{
+		{Path: "./a.go", Level: core.AnnotationWarning},
+		{Path: "a.go", Level: core.AnnotationFailure},
+	})
+	if want := (Finding{Count: 2, Level: core.AnnotationFailure}); got["a.go"] != want || len(got) != 1 {
+		t.Errorf("findings = %+v, want a.go %+v only", got, want)
+	}
+}
+
+// TestFindingsBadge checks the order and the colors of the badge: on a file
+// that isn't viewed it goes before the note of a change since, and on a viewed
+// one it stays colored and the check follows.
+func TestFindingsBadge(t *testing.T) {
+	t.Parallel()
+	o := opts(config.IconsUnicode, 80)
+	rows := Rows(Data{Commits: pull(2), Range: All(2), Files: changed(), Viewed: viewed(true), Findings: findings()}, o)
+	line := func(p string) string {
+		for _, r := range rows {
+			if r.ID == FileID(p) {
+				return r.Lines[0]
+			}
+		}
+		t.Fatalf("no row for %s", p)
+		return ""
+	}
+	st := &o.Styles
+	failure := st.failure + " " + st.dim.Render("3")
+	if got := line("internal/tui/pulls/panes.go"); !strings.HasSuffix(got, failure+" "+st.check) {
+		t.Errorf("viewed row = %q, want it to end in the colored badge and the check", got)
+	}
+	main := line("cmd/gh-tui/main.go")
+	badge := st.warning + " " + st.dim.Render("1")
+	i, j := strings.Index(main, badge), strings.Index(main, st.rerequested)
+	if i < 0 || j < 0 || i > j {
+		t.Errorf("changed row = %q, want the badge before the note of the change", main)
+	}
+	for _, r := range Rows(Data{Commits: pull(2), Range: All(2), Files: changed(), Viewed: viewed(true)}, o) {
+		if r.ID == FileID("assets/logo.png") && r.Lines[0] != line("assets/logo.png") {
+			t.Errorf("a file without findings changed: %q, want %q", line("assets/logo.png"), r.Lines[0])
+		}
 	}
 }
 

@@ -53,6 +53,33 @@ func TestCommitChecks(t *testing.T) {
 	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=false")
 }
 
+// A read with Again asks GitHub although the cache holds the checks fresh, and
+// leaves the new ones where the reads after it find them.
+func TestCommitChecksAgain(t *testing.T) {
+	f := newFake()
+	f.commits["abc"] = commitRun(core.RunInProgress, "")
+	s := New(f)
+	q := CommitChecksQuery{Repo: repo, SHA: "abc", Notes: true}
+	if _, err := s.CommitChecks(t.Context(), q); err != nil {
+		t.Fatal(err)
+	}
+	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=true")
+	f.commits["abc"] = commitRun(core.RunCompleted, core.ConclusionFailure)
+	if got, err := s.CommitChecks(t.Context(), q); err != nil || got.Runs[0].Status != core.RunInProgress {
+		t.Fatalf("a read without Again = %+v, %v; want the cached checks", got, err)
+	}
+	q.Again = true
+	got, err := s.CommitChecks(t.Context(), q)
+	if err != nil || got.Runs[0].Status != core.RunCompleted {
+		t.Fatalf("a read with Again = %+v, %v; want the new checks", got, err)
+	}
+	checkCalls(t, f, "CommitChecksAll octo-org/hello @abc notes=true")
+	q.Again = false
+	if got, _ := s.CachedCommitChecks(q); got.Runs[0].Status != core.RunCompleted {
+		t.Errorf("cached = %+v, want the checks of the read with Again", got)
+	}
+}
+
 // Checks that completed while the repository was invalidated are not kept
 // for long: the change may be the rerun that made them pending again.
 func TestCommitChecksInvalidatedDuringRead(t *testing.T) {

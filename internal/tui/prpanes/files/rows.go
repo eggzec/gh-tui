@@ -85,6 +85,9 @@ type Data struct {
 	// open, whose top rows are at depth. With Children set, a commit that has
 	// checks is a fold, closed at first; without it, no commit is.
 	Children func(oid string, depth int) []foldtree.Row
+	// Findings is what the checks found in each file of the range, by path; a
+	// file that is not in it shows no badge.
+	Findings map[string]Finding
 }
 
 // Options are how the rows are drawn.
@@ -114,12 +117,14 @@ type builder struct {
 	o     Options
 	st    *Styles
 	width int
+	// findings are the badges of the files, by path.
+	findings map[string]Finding
 }
 
 // Rows returns the rows of the pane: the Commits section with a row for each
 // commit, a rule, and the Files section.
 func Rows(d Data, o Options) []foldtree.Row {
-	b := builder{o: o, st: &o.Styles, width: o.Width}
+	b := builder{o: o, st: &o.Styles, width: o.Width, findings: d.Findings}
 	if b.width <= 0 {
 		b.width = defaultWidth
 	}
@@ -261,8 +266,14 @@ func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) fol
 	name := termtext.OneLine(path.Base(f.Path))
 	viewed := state == core.Viewed
 	text := b.st.fileIcon(f.Path) + name
-	if viewed {
+	badge := b.badge(f.Path)
+	switch {
+	case viewed && badge != "":
+		text = b.st.dim.Render(ansi.Strip(text)) + " " + badge + " " + b.st.check
+	case viewed:
 		text = b.st.dim.Render(ansi.Strip(text)) + " " + b.st.check
+	case badge != "":
+		text += " " + badge
 	}
 	if state == core.ViewedChanged {
 		text += " " + b.st.rerequested + b.st.dim.Render(" changed since viewed")

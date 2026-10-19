@@ -12,6 +12,9 @@ type Glyphs struct {
 	Commit string
 	// Pass, Fail and Pending mark how the checks of a commit stand.
 	Pass, Fail, Pending string
+	// Failure, Warning and Notice mark the worst level of the annotations the
+	// checks left on a file.
+	Failure, Warning, Notice string
 	// Fold is what a closed fold hides, Dot goes between the parts of a
 	// title, Rule draws the lines between the sections, and Cut ends a text
 	// that was cut.
@@ -28,6 +31,9 @@ func NewGlyphs(set string, ic ui.Icons) Glyphs {
 		Pass:    ic.Run(ui.RunSuccess),
 		Fail:    ic.Run(ui.RunFailure),
 		Pending: ic.Run(ui.RunInProgress),
+		Failure: ic.No,
+		Warning: ic.Warning,
+		Notice:  ic.Info,
 		Cut:     ic.Ellipsis,
 		Minus:   ic.Minus,
 	}
