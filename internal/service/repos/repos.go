@@ -85,7 +85,7 @@ type Service struct {
 const (
 	kind     = "repolist"
 	kindRepo = "repo"
-	schema   = 4
+	schema   = 5
 )
 
 // New returns a Service that fetches from api.

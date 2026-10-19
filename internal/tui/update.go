@@ -346,6 +346,8 @@ func (m *Model) key(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openActions()
 	case m.canStar() && keymap.Matches(msg, m.keys.Star):
 		return m.star()
+	case m.canForkSwitch() && keymap.Matches(msg, m.keys.ForkSwitch):
+		return m.forkSwitch()
 	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
 	case m.canZoom() && m.width >= narrowWidth && keymap.Matches(msg, m.keys.Zoom):

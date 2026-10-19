@@ -144,4 +144,9 @@ type Repo struct {
 	// an organization, as GitHub gave it.
 	OwnerAvatarURL string
 	Caps           RepoCaps
+	// Parent is the repository this one is a fork of, and ViewerFork the
+	// viewer's own fork of this one. Each is zero when there is none, and
+	// both are known only when the repository was read on its own.
+	Parent     RepoRef
+	ViewerFork RepoRef
 }
