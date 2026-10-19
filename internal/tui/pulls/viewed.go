@@ -54,18 +54,24 @@ type viewedSetMsg struct {
 
 // viewedQuery returns the query of the marks of the files at the head of the
 // pull request.
-func (o *diffOverlay) viewedQuery() pulls.ViewedQuery {
-	m := o.m
+func (o *diffOverlay) viewedQuery() pulls.ViewedQuery { return o.m.viewedQuery() }
+
+// viewedQuery returns the query of the marks of the files at the head of the
+// pull request.
+func (m *panesModal) viewedQuery() pulls.ViewedQuery {
 	return pulls.ViewedQuery{Repo: m.repo, Number: m.number, Head: m.detail.HeadSHA}
 }
 
 // viewingOf says whether the file at path counts as viewed, by the marks read
 // from GitHub, which tell by themselves that a marked file has changed since.
-func (o *diffOverlay) viewingOf(path string) viewing {
-	if !o.vw.in {
+func (o *diffOverlay) viewingOf(path string) viewing { return o.vw.viewing(path) }
+
+// viewing says whether the file at path counts as viewed, by the marks held.
+func (v *viewedState) viewing(path string) viewing {
+	if !v.in {
 		return notViewed
 	}
-	switch o.vw.pv.State(path) {
+	switch v.pv.State(path) {
 	case core.Viewed:
 		return viewedFile
 	case core.ViewedChanged:
@@ -186,10 +192,14 @@ func (o *diffOverlay) readViewed() tea.Cmd {
 
 // showCachedViewed takes the marks that are cached, if any, and says whether
 // there were any.
-func (o *diffOverlay) showCachedViewed() bool {
-	pv, ok := o.m.svc.CachedViewed(o.viewedQuery())
+func (o *diffOverlay) showCachedViewed() bool { return o.m.cachedViewed(&o.vw) }
+
+// cachedViewed takes the marks that are cached into vw, if any, and says
+// whether there were any.
+func (m *panesModal) cachedViewed(vw *viewedState) bool {
+	pv, ok := m.svc.CachedViewed(m.viewedQuery())
 	if ok {
-		o.vw.pv, o.vw.in = pv, true
+		vw.pv, vw.in = pv, true
 	}
 	return ok
 }
@@ -205,15 +215,23 @@ func (o *diffOverlay) receiveViewed(msg viewedMsg) tea.Cmd {
 		slog.WarnContext(o.ctx, "viewed files not read", "span", "tui", "err", msg.err)
 		return ui.Fail("read the files you viewed of #"+strconv.Itoa(o.m.number), msg.err)
 	}
-	pv := msg.pv
-	if len(o.vw.sending) > 0 {
+	o.vw.receive(msg.pv)
+	for _, p := range o.src.paths() {
+		o.foldViewed(p)
+	}
+	return nil
+}
+
+// receive takes the marks that were read.
+func (v *viewedState) receive(pv core.PullViewed) {
+	if len(v.sending) > 0 {
 		// The read may have been answered before a change that is still on its
 		// way, so what it says would take the change off the screen.
 		states := maps.Clone(pv.States)
 		if states == nil {
 			states = map[string]core.ViewedState{}
 		}
-		for path, marked := range o.vw.sending {
+		for path, marked := range v.sending {
 			if marked {
 				states[path] = core.Viewed
 			} else {
@@ -222,26 +240,34 @@ func (o *diffOverlay) receiveViewed(msg viewedMsg) tea.Cmd {
 		}
 		pv.States = states
 	}
-	o.vw.pv, o.vw.in, o.vw.failed = pv, true, false
-	for _, p := range o.src.paths() {
-		o.foldViewed(p)
-	}
-	return nil
+	v.pv, v.in, v.failed = pv, true, false
 }
 
 // viewedSet takes GitHub's answer to a mark or unmark. A refusal has been
 // rolled back in the cache, so the file goes back to what the cache says; the
 // command that sent it has shown why.
 func (o *diffOverlay) viewedSet(msg viewedSetMsg) {
-	delete(o.vw.sending, msg.path)
-	if msg.err == nil || o.done {
+	if o.done {
+		delete(o.vw.sending, msg.path)
 		return
 	}
-	if !o.showCachedViewed() {
-		// The cache doesn't hold the entry any more, so put back what the file had.
-		o.markViewed(msg.path, !msg.marked)
+	if o.m.settleViewed(&o.vw, msg.path, msg.marked, msg.err) {
+		o.setFold(msg.path, o.vw.pv.State(msg.path) == core.Viewed)
 	}
-	o.setFold(msg.path, o.vw.pv.State(msg.path) == core.Viewed)
+}
+
+// settleViewed takes GitHub's answer to the mark or unmark of the file at path
+// in vw, and says whether it was a refusal, which it has put back.
+func (m *panesModal) settleViewed(vw *viewedState, path string, marked bool, err error) bool {
+	delete(vw.sending, path)
+	if err == nil {
+		return false
+	}
+	if !m.cachedViewed(vw) {
+		// The cache doesn't hold the entry any more, so put back what the file had.
+		vw.mark(path, !marked)
+	}
+	return true
 }
 
 // setFold folds the file at path, or opens it, in the diff of the whole patch.
@@ -252,10 +278,9 @@ func (o *diffOverlay) setFold(path string, fold bool) {
 	}
 }
 
-// markViewed sets the mark of the file at path in the marks the overlay holds,
-// so that they show it whether or not the cache still has the entry.
-func (o *diffOverlay) markViewed(path string, marked bool) {
-	states := maps.Clone(o.vw.pv.States)
+// mark sets the mark of the file at path in the marks held.
+func (v *viewedState) mark(path string, marked bool) {
+	states := maps.Clone(v.pv.States)
 	if states == nil {
 		states = map[string]core.ViewedState{}
 	}
@@ -264,60 +289,70 @@ func (o *diffOverlay) markViewed(path string, marked bool) {
 	} else {
 		delete(states, path)
 	}
-	o.vw.pv.States = states
+	v.pv.States = states
 }
 
 // toggleViewed marks the file at path as viewed, which folds it, or takes the
 // mark off, which opens it, and keeps the marks. With next set, a file that was
 // marked moves the diff on to the next one that isn't viewed.
 func (o *diffOverlay) toggleViewed(path string, next bool) tea.Cmd {
-	m := o.m
+	cmd, marked := o.m.toggleViewed(&o.vw, path,
+		func(marked bool) { o.setFold(path, marked) },
+		func(marked bool, err error) tea.Msg {
+			return viewedSetMsg{o: o, path: path, marked: marked, err: err}
+		})
+	if marked && next {
+		if p := o.nextUnviewed(path); p != "" {
+			return tea.Batch(cmd, o.goTo(p))
+		}
+	}
+	return cmd
+}
+
+// toggleViewed marks the file at path as viewed in vw, or takes the mark off,
+// and sends the change to GitHub. fold shows the change at once, and answer
+// makes the message that carries GitHub's answer back. It says whether a mark
+// was set, and does nothing but a hint where the marks can't be changed.
+func (m *panesModal) toggleViewed(vw *viewedState, path string, fold func(marked bool), answer func(marked bool, err error) tea.Msg) (tea.Cmd, bool) {
 	if path == "" {
-		return nil
+		return nil, false
 	}
 	switch {
-	case !o.vw.in && o.vw.failed:
-		return ui.Notify(toast.Info, "The files you viewed couldn't be read, so nothing was marked.")
-	case !o.vw.in:
-		return ui.Notify(toast.Info, "Still reading the files you viewed; try again in a moment.")
-	case !o.vw.pv.Supported:
-		return ui.Notify(toast.Info, "This GitHub server keeps no viewed marks, so nothing was marked.")
+	case !vw.in && vw.failed:
+		return ui.Notify(toast.Info, "The files you viewed couldn't be read, so nothing was marked."), false
+	case !vw.in:
+		return ui.Notify(toast.Info, "Still reading the files you viewed; try again in a moment."), false
+	case !vw.pv.Supported:
+		return ui.Notify(toast.Info, "This GitHub server keeps no viewed marks, so nothing was marked."), false
 	}
-	if _, ok := o.vw.sending[path]; ok {
+	if _, ok := vw.sending[path]; ok {
 		// The answer to the last change of this file isn't in.
-		return nil
+		return nil, false
 	}
-	marked := o.viewingOf(path) != viewedFile
-	if o.vw.sending == nil {
-		o.vw.sending = map[string]bool{}
+	marked := vw.viewing(path) != viewedFile
+	if vw.sending == nil {
+		vw.sending = map[string]bool{}
 	}
-	o.vw.sending[path] = marked
-	op := m.svc.SetViewed(o.viewedQuery(), path, marked)
-	o.setFold(path, marked)
-	o.showCachedViewed()
-	o.markViewed(path, marked)
+	vw.sending[path] = marked
+	op := m.svc.SetViewed(m.viewedQuery(), path, marked)
+	fold(marked)
+	m.cachedViewed(vw)
+	vw.mark(path, marked)
+	m.syncViewed()
 	what := "unmark a file of #" + strconv.Itoa(m.number) + " viewed"
 	if marked {
 		what = "mark a file of #" + strconv.Itoa(m.number) + " viewed"
 	}
 	about := core.Target{Repo: m.repo, Number: m.number}.String()
 	do := ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), what)
-	cmds := []tea.Cmd{func() tea.Msg {
+	return func() tea.Msg {
 		done, _ := do().(ui.DoneMsg)
-		answer := func() tea.Msg {
-			return viewedSetMsg{o: o, path: path, marked: marked, err: done.Err}
-		}
+		reply := func() tea.Msg { return answer(marked, done.Err) }
 		if done.Err == nil {
-			return answer()
+			return reply()
 		}
 		// The modal may be closed by now, and then nothing else would say that
 		// the change was refused.
-		return tea.BatchMsg{ui.Fail(what, done.Err), answer}
-	}}
-	if marked && next {
-		if p := o.nextUnviewed(path); p != "" {
-			cmds = append(cmds, o.goTo(p))
-		}
-	}
-	return tea.Batch(cmds...)
+		return tea.BatchMsg{ui.Fail(what, done.Err), reply}
+	}, marked
 }

@@ -27,6 +27,8 @@ type filesKeys struct {
 	// all selects every commit, and since the commits made since the viewer's
 	// last review.
 	all, since key.Binding
+	// next and prev move to the next and the previous file.
+	next, prev key.Binding
 }
 
 // treeUses reports whether msg is a key of the tree.
@@ -57,6 +59,8 @@ func newFilesKeys(keys config.Keymap) filesKeys {
 		tree:  foldtree.NewKeyMap(ui.Lookup(keys, ctxFiles)),
 		all:   pane.Binding("select_all", "all commits"),
 		since: pane.Binding("since_review", "since your review"),
+		next:  pane.Binding("next_file", "next file"),
+		prev:  pane.Binding("prev_file", "previous file"),
 	}
 }
 
@@ -66,7 +70,7 @@ func (k filesKeys) layer() keyhelp.Layer {
 	for _, row := range k.tree.FullHelp() {
 		all = append(all, row...)
 	}
-	all = append(all, k.all, k.since)
+	all = append(all, k.all, k.since, k.next, k.prev)
 	short := append(slices.Clone(k.tree.ShortHelp()), k.all, k.since)
 	return ui.ContextLayer(ctxFiles, all, short)
 }
@@ -102,6 +106,15 @@ type filesPane struct {
 	// read is the read of the files of the range.
 	read filesRead
 
+	// vw holds the marks of the files the viewer made viewed on GitHub, and
+	// viewedVer counts the changes of them, which the rows show. viewedAsked is
+	// the head whose marks were asked for.
+	vw          viewedState
+	viewedVer   int
+	viewedAsked string
+	// fileIDs are the IDs of the rows of the files, in the order of the tree.
+	fileIDs []string
+
 	// loader reads the checks of the commits that are open, and checksVer
 	// counts the changes of what it holds, which the rows show. wanted are the
 	// commits it was asked for, targets what enter on a row of the checks
@@ -121,10 +134,29 @@ type filesBuilt struct {
 	rng     files.Range
 	folded  bool
 	gen     int
-	// data is the version of the files read, and checks that of the checks
-	// of the commits.
+	// data is the version of the files read, checks that of the checks of the
+	// commits, and viewed that of the marks of the files.
 	data   int
 	checks int
+	viewed int
+}
+
+// filesViewedMsg carries the marks read for the files of the modal m, for the
+// pull request at head.
+type filesViewedMsg struct {
+	m    *panesModal
+	head string
+	pv   core.PullViewed
+	err  error
+}
+
+// filesViewedSetMsg carries GitHub's answer to a mark or unmark of the file at
+// path in the Files pane of m.
+type filesViewedSetMsg struct {
+	m      *panesModal
+	path   string
+	marked bool
+	err    error
 }
 
 // filesCommitsMsg carries the commits of a pull request at a head to the modal
@@ -218,9 +250,9 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 		// The commits start folded; the tree keeps the user's folds after.
 		folded = true
 	}
-	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen, f.read.version, f.checksVer}
+	want := filesBuilt{true, in.W, f.version, f.rng, folded, m.gen, f.read.version, f.checksVer, f.viewedVer}
 	if f.built != want {
-		f.tree.SetRows(m.filesRows(in.W, folded))
+		f.setRows(m.filesRows(in.W, folded))
 		f.built = want
 	}
 	m.revealFound()
@@ -254,12 +286,22 @@ func (m *panesModal) pressFiles(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return m.openDiff(path), true
 		}
 	}
+	if keymap.Matches(msg, k.tree.Mark) {
+		// A file is marked viewed; a commit or another row is the tree's.
+		if path, ok := m.hoveredFile(); ok {
+			return m.markFile(path), true
+		}
+	}
 	var cmd tea.Cmd
 	switch {
 	case keymap.Matches(msg, k.all):
 		f.rng = files.All(len(f.commits.Commits))
 	case keymap.Matches(msg, k.since):
 		cmd = m.selectSince()
+	case keymap.Matches(msg, k.next):
+		m.stepFile(1)
+	case keymap.Matches(msg, k.prev):
+		m.stepFile(-1)
 	case k.treeUses(msg):
 		f.tree.Focus()
 		var t tea.Cmd
@@ -348,7 +390,7 @@ func (m *panesModal) showCommit(oid string) {
 	f.tree.SetFolded(files.IDCommits, false)
 	// The rows are built again before the tree can be asked for the commit.
 	f.built.ok = false
-	f.tree.SetRows(m.filesRows(max(f.built.width, 40), false))
+	f.setRows(m.filesRows(max(f.built.width, 40), false))
 	f.tree.Reveal(files.CommitID(oid))
 	f.seq++
 }

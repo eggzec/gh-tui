@@ -1185,11 +1185,15 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
-    # Add the commit under the cursor to the selected commits, or take it
-    # off. The selection is always one run of commits.
+    # On a commit, add it to the selected commits, or take it off; the
+    # selection is always one run of commits. On a file, mark it viewed on
+    # GitHub, or take the mark off, and move to the next file.
     mark: [space]
     # Select every commit.
     select_all: [A]
+    # Move to the next file, or the previous one, opening the folders above it.
+    next_file: [J]
+    prev_file: [K]
     # Select the commits made since your last review.
     since_review: [w]
   # The modal of a pull request: the people on it. Expand and collapse fold
