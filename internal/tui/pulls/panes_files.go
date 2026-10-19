@@ -239,6 +239,20 @@ func (m *panesModal) setCommits(head string, pc core.PullCommits) {
 	f.seq++
 }
 
+// filesStyles builds the styles of the Files pane and of what the checks put in
+// the diff again when the theme or the icons changed, and returns the
+// checks' styles.
+func (m *panesModal) filesStyles() *checktree.Styles {
+	f := &m.files
+	if f.stylesGen != m.gen {
+		f.styles = files.NewStyles(m.theme, m.icons, m.icons.Set())
+		f.checkStyles = checktree.NewStyles(m.theme, m.icons, m.icons.Set())
+		f.tree.SetStyles(foldtree.DefaultStyles(m.theme.Dark))
+		f.stylesGen = m.gen
+	}
+	return &f.checkStyles
+}
+
 // filesContent draws the Files pane.
 func (m *panesModal) filesContent(b panes.Box) panes.Content {
 	f := &m.files
@@ -249,12 +263,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 		return panes.Content{Body: m.theme.Subtle.Render("Loading the commits…")}
 	}
 	in := b.Rect.Inner()
-	if f.stylesGen != m.gen {
-		f.styles = files.NewStyles(m.theme, m.icons, m.icons.Set())
-		f.checkStyles = checktree.NewStyles(m.theme, m.icons, m.icons.Set())
-		f.tree.SetStyles(foldtree.DefaultStyles(m.theme.Dark))
-		f.stylesGen = m.gen
-	}
+	m.filesStyles()
 	folded := f.tree.Folded(files.IDCommits)
 	if !f.built.ok {
 		// The commits start folded; the tree keeps the user's folds after.

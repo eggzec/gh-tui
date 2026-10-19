@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -137,19 +136,7 @@ func (o *diffOverlay) readDrafts() { o.m.refreshDrafts(o) }
 // pane's.
 func (m *panesModal) refreshDrafts(first *diffOverlay) {
 	drafts := m.reviewDrafts()
-	var shown []*diffOverlay
-	if first != nil {
-		shown = append(shown, first)
-	}
-	if pv := &m.files.pv; pv.on && !slices.Contains(shown, pv.o) {
-		shown = append(shown, pv.o)
-	}
-	for _, ov := range m.overlays {
-		if d, ok := ov.overlay.(*diffOverlay); ok && !slices.Contains(shown, d) {
-			shown = append(shown, d)
-		}
-	}
-	for _, d := range shown {
+	for _, d := range m.diffOverlays(first) {
 		d.drafts = drafts
 		d.setBlocks()
 	}
@@ -169,6 +156,7 @@ func (o *diffOverlay) setBlocks() {
 		}
 		blocks = append(blocks, o.block(*d))
 	}
+	blocks = append(blocks, o.findingBlocks()...)
 	o.d.SetBlocks(blocks)
 }
 

@@ -65,6 +65,19 @@ func (s *Styles) icon(c core.CheckState) string {
 	return s.state[c]
 }
 
+// Level returns the colored glyph that marks an annotation of level l: a level
+// that GitHub adds later counts as a notice.
+func (s *Styles) Level(l core.AnnotationLevel) string {
+	switch l {
+	case core.AnnotationFailure:
+		return s.failure
+	case core.AnnotationWarning:
+		return s.warning
+	case core.AnnotationNotice:
+	}
+	return s.notice
+}
+
 // link returns text, cleaned, as a link to addr when it is a safe address.
 func (s *Styles) link(addr, text string) string {
 	text = termtext.OneLine(text)

@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -204,7 +205,7 @@ func TestFindings(t *testing.T) {
 		"cmd/gh-tui/main.go":          {Count: 1, Level: core.AnnotationWarning},
 		"README.md":                   {Count: 2, Level: core.AnnotationNotice},
 	} {
-		if got[path] != want {
+		if !reflect.DeepEqual(got[path], want) {
 			t.Errorf("finding of %s = %+v, want %+v", path, got[path], want)
 		}
 	}
@@ -219,7 +220,7 @@ func TestFindingsTrimsDotSlash(t *testing.T) {
 		{Path: "./a.go", Level: core.AnnotationWarning},
 		{Path: "a.go", Level: core.AnnotationFailure},
 	})
-	if want := (Finding{Count: 2, Level: core.AnnotationFailure}); got["a.go"] != want || len(got) != 1 {
+	if want := (Finding{Count: 2, Level: core.AnnotationFailure}); !reflect.DeepEqual(got["a.go"], want) || len(got) != 1 {
 		t.Errorf("findings = %+v, want a.go %+v only", got, want)
 	}
 }
