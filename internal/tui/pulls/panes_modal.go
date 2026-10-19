@@ -253,7 +253,7 @@ func (m *panesModal) Link() string { return m.detail.URL }
 // Commands implements ui.Commanded: the pull request can be copied, and
 // while a diff is open its files can be stepped through.
 func (m *panesModal) Commands() []string {
-	if _, ok := m.top().(*diffOverlay); ok {
+	if _, ok := m.top().(*diffOverlay); ok || m.filesDiffFocused() {
 		return []string{ui.CommandCopy, ui.CommandNextFile, ui.CommandPrevFile}
 	}
 	return []string{ui.CommandCopy}
@@ -312,12 +312,15 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case viewedMsg:
 		read := msg.o.receiveViewed(msg)
 		m.syncViewed()
+		m.files.seq++
 		return read
 	case fullMsg:
+		m.files.seq++
 		return msg.o.receiveFull(msg)
 	case viewedSetMsg:
 		msg.o.viewedSet(msg)
 		m.syncViewed()
+		m.files.seq++
 		return nil
 	case filesViewedMsg:
 		return m.filesViewedRead(msg)
@@ -390,6 +393,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
+		if m.filesDiffFocused() && m.files.pv.o.typing() {
+			// The search prompt of the diff beside the tree takes every key as text.
+			return m.pressFilesDiff(msg)
+		}
 		cmd := m.press(msg)
 		m.syncConvFocus()
 		m.follow()
@@ -405,6 +412,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// The diff takes its threads even when the composer of a draft is open
 		// over it.
 		msg.o.receiveThreads(msg)
+		m.files.seq++
 		return nil
 	case appCheckNotesMsg:
 		// The page takes its annotations wherever it sits in the stack, such as

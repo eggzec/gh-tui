@@ -16,14 +16,14 @@ import (
 
 // zoomedFiles opens the Files pane zoomed, with the patches of the files in
 // the fake, and waits for the first diff.
-func zoomedFiles(t *testing.T, fs []core.CommitFile, setup func(*fakeService)) (*host, *panesModal, *fakeService) {
+func zoomedFiles(t *testing.T, fs []core.CommitFile, setup func(*fakeService), opts ...Option) (*host, *panesModal, *fakeService) {
 	t.Helper()
 	h, m, svc := rangePanes(t, sampleCommits(nil), func(svc *fakeService) {
 		svc.changed = fs
 		if setup != nil {
 			setup(svc)
 		}
-	})
+	}, opts...)
 	press(t, h, "z")
 	if !m.zoom {
 		t.Fatal("z didn't zoom the pane")
@@ -132,36 +132,33 @@ func TestFilesDiffTabFocusesIt(t *testing.T) {
 	hoverFile(t, h, m)
 	path := m.files.pv.path
 	press(t, h, "tab")
-	if m.sub[panes.Files-1] != panes.Preview || !m.files.pv.d.Focused() {
-		t.Fatalf("tab left box %v, diff focused %v", m.sub[panes.Files-1], m.files.pv.d.Focused())
+	if m.sub[panes.Files-1] != panes.Preview || !m.files.pv.o.d.Focused() {
+		t.Fatalf("tab left box %v, diff focused %v", m.sub[panes.Files-1], m.files.pv.o.d.Focused())
 	}
-	at := m.files.pv.d.Cursor()
+	at := m.files.pv.o.d.Cursor()
 	press(t, h, "j")
-	if got := m.files.pv.d.Cursor(); got != at+1 {
+	if got := m.files.pv.o.d.Cursor(); got != at+1 {
 		t.Errorf("j moved the cursor of the diff from %d to %d", at, got)
 	}
 	if m.files.pv.path != path {
 		t.Errorf("j changed the file to %q", m.files.pv.path)
 	}
 	press(t, h, "tab")
-	if m.sub[panes.Files-1] != panes.List || m.files.pv.d.Focused() {
-		t.Errorf("tab left box %v, diff focused %v", m.sub[panes.Files-1], m.files.pv.d.Focused())
+	if m.sub[panes.Files-1] != panes.List || m.files.pv.o.d.Focused() {
+		t.Errorf("tab left box %v, diff focused %v", m.sub[panes.Files-1], m.files.pv.o.d.Focused())
 	}
 }
 
 func TestFilesDiffTakesANewTheme(t *testing.T) {
 	t.Parallel()
 	_, m, _ := zoomedFiles(t, patched(), nil)
-	before, seq := m.files.pv.d.View(), m.files.seq
+	before, seq := m.files.pv.o.d.View(), m.files.seq
 	p, err := config.Default().Palette(!m.theme.Dark)
 	if err != nil {
 		t.Fatal(err)
 	}
 	m.SetTheme(ui.NewTheme(p, !m.theme.Dark))
-	if m.files.pv.stylesGen != m.gen {
-		t.Errorf("diff styled at generation %d, want %d", m.files.pv.stylesGen, m.gen)
-	}
-	if m.files.pv.d.View() == before {
+	if m.files.pv.o.d.View() == before {
 		t.Error("the diff keeps the colours of the old theme")
 	}
 	if m.files.seq == seq {

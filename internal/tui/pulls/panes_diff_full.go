@@ -38,13 +38,18 @@ type fullMsg struct {
 	err  error
 }
 
-// modeNote says what the diff shows of the file at path, with the key that
-// switches it.
-func (o *diffOverlay) modeNote(path string) string {
-	note := viewNote
+// viewLabel says what the diff shows of the file at path: its hunks only, or
+// the file whole.
+func (o *diffOverlay) viewLabel(path string) string {
 	if o.d.Full(path) {
-		note = fullNote
+		return fullNote
 	}
+	return viewNote
+}
+
+// modeNote is viewLabel with the key that switches it.
+func (o *diffOverlay) modeNote(path string) string {
+	note := o.viewLabel(path)
 	if keys := hintKeys(o.keys.full); keys != "" {
 		note += " [" + keys + "]"
 	}
