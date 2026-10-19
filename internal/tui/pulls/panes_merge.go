@@ -107,6 +107,14 @@ type mergePane struct {
 	// width, and drawnVer the version they were drawn at.
 	drawn    map[drawnMerge]merge.Preview
 	drawnVer int
+	// logs are the logs read of the jobs shown, by job. stopLog ends the follow
+	// of the log of the running job watchedLog, which is 0 while none is.
+	logs       map[int64]*jobLog
+	stopLog    func()
+	watchedLog int64
+	// follow starts the poll of a run, which keeps the log of its running job
+	// current while the job is shown.
+	follow RunFollow
 
 	styles merge.Styles
 	data   merge.Data
@@ -125,7 +133,9 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 		model:  merge.New(foldtree.WithKeyMap(k.tree), foldtree.WithFocused(true)),
 		behind: -1,
 		drawn:  map[drawnMerge]merge.Preview{},
+		logs:   map[int64]*jobLog{},
 		now:    s.now,
+		follow: s.runFollow,
 
 		codeOwners: s.codeOwners,
 	}
@@ -342,6 +352,9 @@ func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
 	o.Width = dk.width
 	v, ok := merge.PreviewOf(p.data, dk.id, o)
 	if ok {
+		if body, isJob := m.jobLogBody(dk.id, dk.width); isJob {
+			v.Body = body
+		}
 		p.drawn[dk] = v
 	}
 	return v, ok
@@ -426,6 +439,8 @@ func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 		}
 	case mergeOwnersMsg:
 		p.ownersTaken(m, msg)
+	case mergeLogMsg:
+		m.receiveLog(msg)
 	case mergeSentMsg:
 		return m.mergeSent(msg)
 	case mergeRevalidateMsg:

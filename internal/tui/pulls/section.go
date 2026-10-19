@@ -150,6 +150,8 @@ type Section struct {
 	commitWatch CommitWatch
 	// codeOwners reads who owns the files that a pull request changes.
 	codeOwners CodeOwners
+	// runFollow keeps the log of a running job of the Merge pane current.
+	runFollow RunFollow
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
 	dev dev.Service
