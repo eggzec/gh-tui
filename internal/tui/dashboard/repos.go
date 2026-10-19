@@ -57,6 +57,8 @@ type repoTabs struct {
 	s    *Section
 	tabs []*owner
 	cur  int
+	// toggle holds the query that the filter key switched off.
+	toggle ui.FilterToggle[string]
 
 	width, height int
 }

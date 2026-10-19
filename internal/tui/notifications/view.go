@@ -175,14 +175,22 @@ func (s *Section) renderHeader() {
 	}
 	h := strings.Repeat(" ", s.feed.Gutter()) + s.styles.filter.render(name)
 	sep := s.icons.Separator
-	if chips := f.chips(sep); chips != "" {
+	kept, off := s.toggle.Kept()
+	if off {
+		kf := parseFilter(kept)
+		h += s.styles.filter.render(sep + ui.OffChip(kf.chips(sep), sep))
+	} else if chips := f.chips(sep); chips != "" {
 		h += s.styles.filter.render(sep + chips)
 	}
 	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
 		hints = append(hints, s.icons.Key(k)+" filter")
 	}
-	if k := s.keys.ClearFilter.Help().Key; k != "" && s.filtered() {
+	switched := s.filtered() || off
+	if k := s.keys.ToggleFilter.Help().Key; k != "" && switched {
+		hints = append(hints, s.icons.Key(k)+" on/off")
+	}
+	if k := s.keys.ClearFilter.Help().Key; k != "" && switched {
 		hints = append(hints, s.icons.Key(k)+" clear")
 	}
 	if len(hints) > 0 {

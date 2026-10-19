@@ -207,9 +207,11 @@ type Section struct {
 	// tab is the state shown, or empty for all of them, and query the
 	// other filters, in GitHub's search syntax; chips are those for the
 	// pane's title.
-	tab     core.State
-	query   string
-	chips   string
+	tab   core.State
+	query string
+	chips string
+	// toggle holds the query that the filter key switched off.
+	toggle  ui.FilterToggle[string]
 	facets  Facets
 	started bool
 	focused bool

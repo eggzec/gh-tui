@@ -205,7 +205,10 @@ func (s *Section) paneLabel(p paneID) string {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	case reposPane:
-		if chips := s.repos.filter().Chips(s.icons); chips != "" {
+		if kept, off := s.repos.toggle.Kept(); off {
+			f := ownerui.ParseFilter(kept)
+			text += s.icons.Separator + ui.OffChip(f.Chips(s.icons), s.icons.Separator)
+		} else if chips := s.repos.filter().Chips(s.icons); chips != "" {
 			text += s.icons.Separator + chips
 		}
 	case workPane:

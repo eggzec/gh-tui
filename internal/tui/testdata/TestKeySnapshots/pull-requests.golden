@@ -34,6 +34,7 @@ Pull requests
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off
+  filter on/off | alt+f | alt+f | on
   refresh | r | r | on
   open in browser | o | o | on
   filter | f | f | on

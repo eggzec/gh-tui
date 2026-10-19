@@ -22,7 +22,9 @@ type KeyMap struct {
 	// threads.
 	Filter      key.Binding
 	ClearFilter key.Binding
-	Refresh     key.Binding
+	// ToggleFilter switches the filter off, and back on.
+	ToggleFilter key.Binding
+	Refresh      key.Binding
 
 	// confirm answers the question that marking all read asks.
 	confirm ui.ConfirmKeys
@@ -47,11 +49,12 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		MarkDone: screen.Binding("done", "done"),
 		// Reading everything is the read command with all, which has no
 		// key of its own: help lists it by the read action it is part of.
-		MarkAllRead: keymap.Record(keymap.Unbound(key.NewBinding(key.WithHelp("", "read all"))), "notifications.read"),
-		Filter:      screen.Binding("filter", "filter"),
-		ClearFilter: screen.Binding("clear_filter", "clear filters"),
-		Refresh:     screen.Binding("global.refresh", "refresh"),
-		confirm:     ui.NewConfirmKeys(keys),
+		MarkAllRead:  keymap.Record(keymap.Unbound(key.NewBinding(key.WithHelp("", "read all"))), "notifications.read"),
+		Filter:       screen.Binding("filter", "filter"),
+		ClearFilter:  screen.Binding("clear_filter", "clear filters"),
+		ToggleFilter: screen.Binding("filter_toggle", "filter on/off"),
+		Refresh:      screen.Binding("global.refresh", "refresh"),
+		confirm:      ui.NewConfirmKeys(keys),
 		// The section matches these keys first, so the list gets only the
 		// keys it leaves it. Refresh retries what failed, so the list's error
 		// row names its keys.
@@ -63,7 +66,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 }
 
 func (k KeyMap) bindings() []key.Binding {
-	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.Refresh}
+	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.Refresh}
 }
 
 // ShortHelp implements help.KeyMap.

@@ -37,6 +37,7 @@ Issues
   next state | ] | ] | on
   previous state | [ | [ | on
   clear filters | F | F | off
+  filter on/off | alt+f | alt+f | on
   filter | f | f | on
   sort | s | s | on
   up | up k | ↑/k | on

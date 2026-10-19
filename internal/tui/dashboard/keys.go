@@ -33,6 +33,8 @@ type KeyMap struct {
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding
+	// ToggleFilter switches the filter off, and back on.
+	ToggleFilter key.Binding
 	// NextOwner and PrevOwner switch the repositories between the viewer's
 	// own and those of each organization, and NextList and PrevList the
 	// work between its lists, with the keys of the tabs and each pane's own.
@@ -88,6 +90,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:        repos.Binding("filter", "filter"),
 		Sort:          repos.Binding("sort", "sort"),
 		ClearFilter:   repos.Binding("clear_filter", "clear filters"),
+		ToggleFilter:  repos.Binding("filter_toggle", "filter on/off"),
 		NextOwner:     repos.Binding("global.next_tab", "next owner"),
 		PrevOwner:     repos.Binding("global.prev_tab", "previous owner"),
 		NextList:      work.Binding("global.next_tab", "next list"),
@@ -132,7 +135,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // dashboard matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.Filter, k.Sort, k.Notifications},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.Notifications},
 		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
@@ -176,7 +179,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case pinnedPane:
 		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
 	case reposPane:
-		return []key.Binding{k.Select, k.Open, k.NextOwner, k.PrevOwner, k.ClearFilter, k.Filter, k.Sort}
+		return []key.Binding{k.Select, k.Open, k.NextOwner, k.PrevOwner, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort}
 	case workPane:
 		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
 	case inboxPane:
@@ -208,7 +211,9 @@ func (k KeyMap) paneShort(p paneID) []key.Binding {
 func (k KeyMap) state(s *Section) KeyMap {
 	switch s.focus {
 	case reposPane:
-		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.repos.filter().Active())
+		active := s.repos.filter().Active() || s.repos.toggle.Off()
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && active)
+		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && active)
 	case inboxPane:
 		k.Select.SetHelp(k.Select.Help().Key, "open")
 		if s.opener.MarksRead() {

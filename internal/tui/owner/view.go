@@ -268,7 +268,10 @@ func (s *Section) paneLabel(p paneID) string {
 		}
 	default:
 		if l := s.repoTab(); l != nil {
-			if chips := l.Filter().Chips(s.icons); chips != "" {
+			if kept, off := l.toggle.Kept(); off {
+				f := ownerui.ParseFilter(kept)
+				text += s.icons.Separator + ui.OffChip(f.Chips(s.icons), s.icons.Separator)
+			} else if chips := l.Filter().Chips(s.icons); chips != "" {
 				text += s.icons.Separator + chips
 			}
 		}

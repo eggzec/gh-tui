@@ -171,7 +171,20 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case keymap.Matches(msg, k.PrevTab):
 			return s.stepTab(-1), true
 		case repos && keymap.Matches(msg, k.ClearFilter):
+			if l := s.repoTab(); l != nil {
+				l.toggle.On()
+			}
 			return s.setFilter(""), true
+		case repos && keymap.Matches(msg, k.ToggleFilter):
+			l := s.repoTab()
+			if l == nil {
+				return nil, true
+			}
+			next, ok := l.toggle.Switch(l.Filter().Query(), "")
+			if !ok {
+				return ui.NothingToSwitch(), true
+			}
+			return s.setFilter(next), true
 		case repos && keymap.Matches(msg, k.Filter):
 			return ui.OpenFilter(filterform.FiltersTab), true
 		case repos && keymap.Matches(msg, k.Sort):
