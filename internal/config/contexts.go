@@ -149,6 +149,9 @@ var contexts = []Context{
 	// instead of being typed. Space checks the item under the cursor of a
 	// dropdown with several choices.
 	{Name: "picker_normal", Title: "Picker (normal mode)", Reach: ReachCapture},
+	// The keys of the chosen items of a two-pane ordered picker, whose left
+	// pane has those of picker and picker_normal. Nothing types there.
+	{Name: "order_pick", Title: "Order picker", Reach: ReachCapture},
 	{Name: "search_prompt", Title: "Search", Reach: ReachCapture, Typing: true},
 	{Name: "pager_option", Title: "Option", Reach: ReachCapture},
 	// What names an option after a log's option key: it takes one key and

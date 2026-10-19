@@ -1237,7 +1237,9 @@ var reserved = map[string]string{
 
 // reservedContexts are the contexts of default.yaml whose actions nothing
 // reads yet, each with its reason.
-var reservedContexts = map[string]string{}
+var reservedContexts = map[string]string{
+	"order_pick": "the sort and group-by modals read them once they land",
+}
 
 // reservedReason is the reason an action is reserved, by its name or by its
 // context.

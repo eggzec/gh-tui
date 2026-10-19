@@ -222,6 +222,16 @@ func (m Model) Following() (Item, bool) {
 	return m.listed[m.sel+1].Item, true
 }
 
+// Preceding returns the listed item above the selected one, or false when the
+// selection is the first or there is none. A parent reads it, like Following,
+// before it takes the selected item out, for when that was the last.
+func (m Model) Preceding() (Item, bool) {
+	if m.sel < 1 || m.sel > len(m.listed) {
+		return Item{}, false
+	}
+	return m.listed[m.sel-1].Item, true
+}
+
 // chosen returns what enter chooses. While a search is waiting or running,
 // the list is out of date, so a picker that offers the typed text chooses
 // that instead of whatever the old results have under the selection.
