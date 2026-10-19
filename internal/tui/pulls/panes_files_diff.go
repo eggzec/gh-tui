@@ -5,12 +5,10 @@ import (
 	"slices"
 	"strconv"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/diffview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -22,36 +20,29 @@ type filesDiff struct {
 	key   string
 	src   *diffSource
 	order []string
-	// path is the file shown, and on says that d is built for it.
+	// path is the file the tree follows, and on says that o is built.
 	path string
 	on   bool
-	d    diff.Model
-	// w and h are the size d was given.
-	w, h   int
-	cancel context.CancelFunc
-	// styles are the diff's, for the m.gen they were made at.
-	styles    diff.Styles
-	stylesGen int
-	styled    bool
+	// o is the diff, the one the diff modal is: it takes the same keys and
+	// shows the same drafts and threads.
+	o *diffOverlay
+	// w and h are the size o was given.
+	w, h int
 }
 
-// drop ends the read of the diff and forgets it. The source stays, so that
+// drop ends the reads of the diff and forgets it. The source stays, so that
 // the files are not read again when a diff is built over it.
 func (pv *filesDiff) drop() {
-	if pv.cancel != nil {
-		pv.cancel()
-		pv.cancel = nil
+	if pv.o != nil {
+		pv.o.finish()
 	}
-	pv.on, pv.d = false, diff.Model{}
+	pv.on, pv.o = false, nil
 }
 
-// previewKeys are the keys of the diff beside the tree: those that move in it.
-func (k diffKeys) previewKeys() diff.KeyMap {
-	d := k.diff
-	for _, b := range []*key.Binding{&d.Left, &d.Right, &d.NextFile, &d.PrevFile, &d.Fold, &d.Search, &d.Confirm, &d.Cancel, &d.CancelEmpty, &d.Next, &d.Prev, &d.Retry} {
-		b.SetEnabled(false)
-	}
-	return d
+// filesDiffFocused reports that the diff beside the tree has the keys.
+func (m *panesModal) filesDiffFocused() bool {
+	pv := &m.files.pv
+	return pv.on && m.focus == panes.Files && m.sub[panes.Files-1] == panes.Preview && m.top() == nil
 }
 
 // syncFilesDiff makes the diff beside the tree the diff of the file the tree
@@ -75,7 +66,11 @@ func (m *panesModal) syncFilesDiff() tea.Cmd {
 		f.seq++
 	}
 	want := pv.path
-	if p, ok := m.hoveredFile(); ok && slices.Contains(pv.order, p) {
+	// A file the diff stepped to is under the tree's cursor only once the pane
+	// is drawn, which reveals it.
+	if slices.Contains(pv.order, m.found) {
+		want = m.found
+	} else if p, ok := m.hoveredFile(); ok && slices.Contains(pv.order, p) {
 		want = p
 	}
 	if !slices.Contains(pv.order, want) {
@@ -93,19 +88,25 @@ func (m *panesModal) syncFilesDiff() tea.Cmd {
 	case want != pv.path || !pv.on:
 		cmd = m.buildFilesDiff(want, in.W, in.H)
 	case pv.w != in.W || pv.h != in.H:
-		pv.d.SetSize(in.W, in.H)
-		pv.w, pv.h = in.W, in.H
+		pv.setSize(in.W, in.H)
 		f.seq++
 	}
-	if focused := pv.on && m.focus == panes.Files && m.sub[panes.Files-1] == panes.Preview && m.top() == nil; focused != pv.d.Focused() {
+	if focused := m.filesDiffFocused(); pv.on && focused != pv.o.d.Focused() {
 		if focused {
-			pv.d.Focus()
+			pv.o.d.Focus()
 		} else {
-			pv.d.Blur()
+			pv.o.d.Blur()
 		}
 		f.seq++
 	}
 	return cmd
+}
+
+// setSize gives the diff the size of its box.
+func (pv *filesDiff) setSize(w, h int) {
+	pv.o.w, pv.o.h = w, h
+	pv.o.d.SetSize(w, h)
+	pv.w, pv.h = w, h
 }
 
 // buildFilesDiff shows the file at path in a new diff of w by h cells, and
@@ -114,22 +115,18 @@ func (m *panesModal) buildFilesDiff(path string, w, h int) tea.Cmd {
 	f := &m.files
 	pv := &f.pv
 	pv.drop()
-	if !pv.styled || pv.stylesGen != m.gen {
-		pv.styles, pv.stylesGen, pv.styled = m.theme.Diff(m.icons), m.gen, true
-	}
 	ctx, cancel := context.WithCancel(m.ctx)
-	pv.cancel = cancel
-	pv.path, pv.on = path, true
-	pv.d = diff.New(pv.src.fetch(path),
-		diff.WithContext(ctx),
-		diff.WithKeyMap(m.keys.diff.previewKeys()),
-		diff.WithStyles(pv.styles),
-		diff.WithFocused(false),
-	)
-	pv.d.SetSize(w, h)
+	o := &diffOverlay{m: m, src: pv.src, keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel, w: w, h: h}
+	o.showCachedViewed()
+	o.drafts = m.reviewDrafts()
+	// The threads come before the first build, so that cached ones are drawn
+	// with it.
+	read := o.loadThreads()
+	cmd := tea.Batch(o.build(), o.readViewed(), read)
+	pv.o, pv.path, pv.on = o, path, true
 	pv.w, pv.h = w, h
 	f.seq++
-	return pv.d.Init()
+	return cmd
 }
 
 // restyleFilesDiff gives the diff the colours of a new theme at once, not
@@ -139,8 +136,12 @@ func (m *panesModal) restyleFilesDiff() {
 	if !pv.on {
 		return
 	}
-	pv.styles, pv.stylesGen = m.theme.Diff(m.icons), m.gen
-	pv.d.SetStyles(pv.styles)
+	o := pv.o
+	o.d.SetStyles(m.theme.Diff(m.icons))
+	o.seen = m.theme.Success.Render(m.icons.Yes)
+	o.changed = m.theme.Subtle.Render(m.icons.Changed)
+	// The blocks are drawn with the theme as well.
+	o.setBlocks()
 	m.files.seq++
 }
 
@@ -156,8 +157,7 @@ func (m *panesModal) resizeFilesDiff() {
 		return
 	}
 	if in := b.Rect.Inner(); in.W != pv.w || in.H != pv.h {
-		pv.d.SetSize(in.W, in.H)
-		pv.w, pv.h = in.W, in.H
+		pv.setSize(in.W, in.H)
 		m.files.seq++
 	}
 }
@@ -166,26 +166,44 @@ func (m *panesModal) resizeFilesDiff() {
 // part of the modal takes.
 func (m *panesModal) filesDiffUpdate(msg tea.Msg) tea.Cmd {
 	pv := &m.files.pv
-	if !pv.on || !pv.d.Handles(msg) {
+	if !pv.on || !pv.o.d.Handles(msg) {
 		return nil
 	}
-	var cmd tea.Cmd
-	pv.d, cmd = pv.d.Update(msg)
+	cmd := pv.o.update(msg)
 	m.files.seq++
 	return cmd
 }
 
-// pressFilesDiff takes a key while the diff has the focus: it moves in it,
-// and any other key does nothing.
+// pressFilesDiff takes a key while the diff has the focus: the diff takes it as
+// that of the diff modal does, and the tree follows the file it moves to.
 func (m *panesModal) pressFilesDiff(msg tea.KeyPressMsg) tea.Cmd {
 	pv := &m.files.pv
-	if !pv.on || !pv.d.Focused() {
+	if !pv.on || !pv.o.d.Focused() {
 		return nil
 	}
-	var cmd tea.Cmd
-	pv.d, cmd = pv.d.Update(msg)
+	o := pv.o
+	cmd := o.update(msg)
+	switch {
+	case o.mode == diffview.ThisFile && o.path != pv.path:
+		// The diff went to another file, such as when it left the whole patch.
+		pv.path = o.path
+		m.reveal(o.path)
+	case slices.Contains(pv.order, m.found):
+		// It stepped to another file in the whole patch.
+		pv.path = m.found
+	}
 	m.files.seq++
 	return cmd
+}
+
+// clearFilesDiff drops what is transient in the diff that has the focus, such as
+// a range being picked, and says whether there was any.
+func (m *panesModal) clearFilesDiff() bool {
+	if !m.filesDiffFocused() || !m.files.pv.o.clear() {
+		return false
+	}
+	m.files.seq++
+	return true
 }
 
 // filesPreview is the body of the preview beside the tree: the diff of the
@@ -203,13 +221,14 @@ func (m *panesModal) filesPreview(panes.Box) string {
 	case !pv.on:
 		return m.theme.Subtle.Render("Loading the diff…")
 	}
-	if err := pv.d.Err(); err != nil {
+	d := &pv.o.d
+	if err := d.Err(); err != nil {
 		return m.theme.Subtle.Render("The diff couldn't be read: " + ui.OneLine(err.Error()))
 	}
-	if pv.d.Len() == 0 && !pv.d.Done() {
+	if d.Len() == 0 && !d.Done() {
 		return m.theme.Subtle.Render("Loading the diff…")
 	}
-	return pv.d.View()
+	return d.View()
 }
 
 // filesPreviewTitle is the title of the preview beside the tree: that of the
@@ -219,9 +238,16 @@ func (m *panesModal) filesPreviewTitle(b panes.Box) string {
 	if pv.path == "" || !pv.on {
 		return "Diff"
 	}
-	i, n := diffview.Place(pv.order, pv.path)
-	pct := pv.d.Cursor() * 100 / max(pv.d.Len()-1, 1)
-	return diffview.Title(diffview.ThisFile, m.rangeLabel(), pv.path, i, n, viewNote, pct, b.Rect.Inner().W)
+	o := pv.o
+	path := o.current()
+	if path == "" {
+		path = pv.path
+	}
+	i, n := diffview.Place(pv.order, path)
+	pct := o.d.Cursor() * 100 / max(o.d.Len()-1, 1)
+	// The pane is narrow: the key stays out of its title, so the path and the
+	// percentage fit. The status line hints it.
+	return diffview.Title(o.mode, m.rangeLabel(), path, i, n, o.viewLabel(path), pct, b.Rect.Inner().W)
 }
 
 // rangeLabel names the range of commits the Files pane shows.

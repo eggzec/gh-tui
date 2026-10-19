@@ -190,9 +190,8 @@ func (o *diffOverlay) readViewed() tea.Cmd {
 	}
 }
 
-// showCachedViewed takes the marks that are cached, if any, and says whether
-// there were any.
-func (o *diffOverlay) showCachedViewed() bool { return o.m.cachedViewed(&o.vw) }
+// showCachedViewed takes the marks that are cached, if any.
+func (o *diffOverlay) showCachedViewed() { o.m.cachedViewed(&o.vw) }
 
 // cachedViewed takes the marks that are cached into vw, if any, and says
 // whether there were any.

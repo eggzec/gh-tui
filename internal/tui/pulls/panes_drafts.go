@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -126,10 +127,33 @@ func (o *diffOverlay) noteCount() int {
 	return n
 }
 
-// readDrafts reads the drafts again and puts them in the diff.
-func (o *diffOverlay) readDrafts() {
-	o.drafts = o.m.reviewDrafts()
-	o.setBlocks()
+// readDrafts reads the drafts again and puts them in the diffs that show them:
+// this one, and the other, which the modal has open or the zoomed Files pane
+// shows beside its tree.
+func (o *diffOverlay) readDrafts() { o.m.refreshDrafts(o) }
+
+// refreshDrafts reads the drafts again and puts them in every diff that shows
+// them: first, if given, the one the modal has open, and the zoomed Files
+// pane's.
+func (m *panesModal) refreshDrafts(first *diffOverlay) {
+	drafts := m.reviewDrafts()
+	var shown []*diffOverlay
+	if first != nil {
+		shown = append(shown, first)
+	}
+	if pv := &m.files.pv; pv.on && !slices.Contains(shown, pv.o) {
+		shown = append(shown, pv.o)
+	}
+	for _, ov := range m.overlays {
+		if d, ok := ov.overlay.(*diffOverlay); ok && !slices.Contains(shown, d) {
+			shown = append(shown, d)
+		}
+	}
+	for _, d := range shown {
+		d.drafts = drafts
+		d.setBlocks()
+	}
+	m.files.seq++
 }
 
 // setBlocks gives the diff one block for each draft, under the last line it is

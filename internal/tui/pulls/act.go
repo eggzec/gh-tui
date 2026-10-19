@@ -21,8 +21,15 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	}
 	o := m.top()
 	if o == nil {
+		if m.filesDiffFocused() && m.files.pv.o.typing() {
+			// The search of the diff beside the tree takes the keys as text.
+			return nil, false
+		}
 		switch action {
 		case ui.ActDismiss:
+			if m.clearFilesDiff() {
+				return nil, true
+			}
 			return m.close(), true
 		case "owner":
 			return m.author(), true

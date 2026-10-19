@@ -173,6 +173,8 @@ func (m *panesModal) reviewed(msg reviewedMsg) tea.Cmd {
 	}
 	slog.InfoContext(m.ctx, "review submitted", "span", "tui")
 	m.overlays = nil
+	// The sent drafts left the store; the zoomed diff still shows them.
+	m.refreshDrafts(nil)
 	return tea.Batch(ui.Notify(toast.Success, "Review submitted on "+num+"."), m.revalidate())
 }
 

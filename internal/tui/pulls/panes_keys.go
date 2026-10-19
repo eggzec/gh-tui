@@ -196,6 +196,14 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review, k.merge, k.find})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
+	if m.filesDiffFocused() {
+		// The focused diff beside the tree takes the keys of the diff modal.
+		layers := m.files.pv.o.layers()
+		if m.files.pv.o.typing() {
+			return layers
+		}
+		return []keyhelp.Layer{own, layers[len(layers)-1]}
+	}
 	if ctx == ctxPreview {
 		var all []key.Binding
 		for _, row := range k.scroll.FullHelp() {
