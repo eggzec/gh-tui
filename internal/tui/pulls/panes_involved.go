@@ -28,11 +28,18 @@ type involvedPane struct {
 	st   involved.Styles
 	data involved.Data
 	ver  int
+	// dver counts the changes of data and styles, and not of the cursor.
+	// drawn keeps the previews drawn since, by row and width, with the
+	// versions of the people and of the conversation they were drawn at.
+	dver      int
+	drawn     map[drawnInvolved]drawnPerson
+	drawnVer  int
+	drawnConv int
 }
 
 // newInvolved returns the pane, with the keys of the tree.
 func newInvolved(k foldtree.KeyMap) *involvedPane {
-	p := &involvedPane{tree: involved.New()}
+	p := &involvedPane{tree: involved.New(), drawn: map[drawnInvolved]drawnPerson{}}
 	p.tree.SetKeyMap(k)
 	p.tree.Focus()
 	return p
@@ -78,6 +85,7 @@ func (m *panesModal) refreshInvolved() {
 	p.data = m.involvedData()
 	p.tree.SetData(p.data, involved.Options{Styles: p.st})
 	p.ver++
+	p.dver++
 }
 
 // restyleInvolved draws the pane in the theme and icons of the modal.

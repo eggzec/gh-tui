@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -76,6 +77,35 @@ func (m *Model) SetView(key string, n Narrow) {
 		v.gen++
 	}
 	m.sync()
+}
+
+// Peek draws the view with key, narrowed by n, as a preview width cells wide
+// and as tall as its rows, and leaves the view that shows as it was, at its own
+// size. The view is made when it is new and keeps its own folds. ok is false
+// when the conversation isn't read yet, or the view has no rows. Like SetView
+// with a Narrow, it builds the rows again, so call it when the narrowing or the
+// width changed.
+func (m *Model) Peek(key string, n Narrow, width int) (view string, ok bool) {
+	if key == "" || !m.ready() || width < minWidth {
+		return "", false
+	}
+	v := m.view(key)
+	v.narrow, v.narrowed = n, true
+	v.gen++
+	cur, w, h := m.cur, m.width, m.height
+	m.cur, m.width, m.height = key, width, 1
+	v.tree.SetSize(width, 1)
+	m.sync()
+	m.cur, m.width, m.height = cur, w, h
+	lines := 0
+	for _, r := range v.rows {
+		lines += max(len(r.Lines), 1)
+	}
+	if lines == 0 {
+		return "", false
+	}
+	v.tree.SetSize(width, lines)
+	return strings.TrimRight(v.tree.View(), " \n"), true
 }
 
 // sync builds the rows of the view that shows if what they are built from
