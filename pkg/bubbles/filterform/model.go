@@ -69,9 +69,10 @@ type Model struct {
 
 	// tab is the tab on view, and row the row in focus on it: a field, or
 	// on the Sort tab what is sorted by and the order, then the query
-	// line.
-	tab Tab
-	row int
+	// line. fieldRow is the row the focus left for the query line.
+	tab      Tab
+	row      int
+	fieldRow int
 	// mode is what keys do. before is the value a Text field had when it
 	// was opened for typing, which leaving it puts back when it doesn't
 	// keep the text. picking is whether the dropdown's picker is open,

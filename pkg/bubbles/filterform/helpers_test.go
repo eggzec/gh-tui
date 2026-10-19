@@ -28,6 +28,8 @@ func testKeys(tb testing.TB) KeyMap {
 		"clear":                        {"delete"},
 		"global.next_tab":              {"]"},
 		"global.prev_tab":              {"["},
+		"global.next_pane":             {"tab"},
+		"global.prev_pane":             {"shift+tab"},
 		"global.select":                {"enter"},
 		"global.dismiss":               {"esc"},
 		"global.quit":                  {"q"},
@@ -81,6 +83,8 @@ var (
 	ctrlU    = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
 	nextTab  = tea.KeyPressMsg{Code: ']', Text: "]"}
 	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
+	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
+	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	keyI     = tea.KeyPressMsg{Code: 'i', Text: "i"}
 	keySlash = tea.KeyPressMsg{Code: '/', Text: "/"}
 	keyA     = tea.KeyPressMsg{Code: 'a', Text: "a"}
@@ -252,6 +256,15 @@ func open(tb testing.TB, spec Spec, opts ...Option) Model {
 	m := newKeyed(tb, spec, append([]Option{WithSize(60, 20)}, opts...)...)
 	m.Focus()
 	return m
+}
+
+// rowKeys returns the presses that take the focus from the first row to row
+// of m: downs, and tab for the query line.
+func rowKeys(m Model, row int) []tea.Msg {
+	if row >= m.queryRow() {
+		return append(keys(down, m.queryRow()-1), tab)
+	}
+	return keys(down, row)
 }
 
 // keys returns n presses of k.
