@@ -66,6 +66,11 @@ type Styles struct {
 	Chip lipgloss.Style
 	// Notice styles a note on the last key, such as "Pattern not found".
 	Notice lipgloss.Style
+	// Group styles the label of a group header and its marker.
+	Group lipgloss.Style
+	// OpenGlyph marks a group that is open, and ClosedGlyph one that is
+	// closed, each cut or padded to one cell. The defaults are "▾" and "▸".
+	OpenGlyph, ClosedGlyph string
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal.
@@ -97,5 +102,8 @@ func DefaultStyles(isDark bool) Styles {
 		PromptText:     lipgloss.NewStyle().Foreground(text),
 		Chip:           lipgloss.NewStyle().Foreground(accent).Reverse(true).Padding(0, 1),
 		Notice:         lipgloss.NewStyle().Foreground(errColor),
+		Group:          lipgloss.NewStyle().Foreground(text).Bold(true),
+		OpenGlyph:      "▾",
+		ClosedGlyph:    "▸",
 	}
 }

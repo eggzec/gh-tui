@@ -89,6 +89,9 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
 	case keymap.Matches(msg, m.markKeys.Mark) && m.canMark():
+		if m.onHeader() {
+			return nil
+		}
 		// Marking moves on as the down key does, so that a run of rows
 		// takes one key each; on the last row the cursor stays.
 		m.toggleMark()
@@ -236,6 +239,10 @@ func (m Model[T]) wantsTail() bool {
 	if m.done || m.tail.fetching || m.tail.err != nil || m.filter != "" {
 		return false
 	}
+	if m.Grouped() {
+		// Count the loaded items after the cursor's item, not the headers.
+		return m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin()
+	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
 }
 
@@ -253,6 +260,17 @@ func (m Model[T]) margin() int {
 func (m *Model[T]) keep() tea.Cmd {
 	// A filter shows rows by position among the items it keeps, so the
 	// window says nothing of which chunks are near it.
+	if m.Grouped() {
+		// The groups need every item, so none is evicted, and any that was
+		// is fetched again.
+		var cmd tea.Cmd
+		for i := range m.chunks {
+			if c := &m.chunks[i]; !c.loaded && !c.fetching && c.err == nil {
+				cmd = tea.Batch(cmd, m.startFetch(i))
+			}
+		}
+		return cmd
+	}
 	if m.total == 0 || m.filter != "" {
 		return nil
 	}
