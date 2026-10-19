@@ -108,6 +108,9 @@ type mergePane struct {
 	// width, and drawnVer the version they were drawn at.
 	drawn    map[drawnMerge]merge.Preview
 	drawnVer int
+	// drawnConv is the version of the conversation that the previews drawn from
+	// it were drawn at.
+	drawnConv int
 	// logs are the logs read of the jobs shown, by job. stopLog ends the follow
 	// of the log of the running job watchedLog, which is 0 while none is.
 	logs       map[int64]*jobLog
@@ -347,9 +350,9 @@ func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
 	if p == nil {
 		return merge.Preview{}, false
 	}
-	if p.drawnVer != p.version {
+	if p.drawnVer != p.version || p.drawnConv != m.conv.version {
 		clear(p.drawn)
-		p.drawnVer = p.version
+		p.drawnVer, p.drawnConv = p.version, m.conv.version
 	}
 	dk := drawnMerge{m.hover[b.Pane-1].id, b.Rect.Inner().W}
 	if v, ok := p.drawn[dk]; ok {
@@ -359,7 +362,16 @@ func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
 	o.Width = dk.width
 	v, ok := merge.PreviewOf(p.data, dk.id, o)
 	if ok {
-		if body, isJob := m.jobLogBody(dk.id, dk.width); isJob {
+		if rev, isChanges := merge.ChangesOf(p.data, dk.id); isChanges {
+			body, final := m.changesBody(rev, dk.width)
+			v.Body = body
+			if !rev.SubmittedAt.IsZero() {
+				v.Info = m.conv.dates.Short(rev.SubmittedAt, o.Now)
+			}
+			if !final {
+				return v, true
+			}
+		} else if body, isJob := m.jobLogBody(dk.id, dk.width); isJob {
 			v.Body = body
 		} else if body, isCheck := m.checkBody(dk.id, dk.width); isCheck {
 			v.Body = body
