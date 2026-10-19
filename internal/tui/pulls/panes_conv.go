@@ -299,6 +299,10 @@ func (m *panesModal) convPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.openConvFilter(), true
 	case keymap.Matches(msg, m.keys.convSort):
 		return m.stepConvSort(), true
+	case keymap.Matches(msg, m.keys.convResolve):
+		return m.resolveConv(), true
+	case keymap.Matches(msg, m.keys.convDelete):
+		return m.deleteConv(), true
 	}
 	t := m.keys.tree
 	var mine bool

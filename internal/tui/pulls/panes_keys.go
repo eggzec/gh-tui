@@ -68,7 +68,10 @@ type panesKeys struct {
 	// convFilter opens the kinds of items to show, convSort steps the order,
 	// and pick is the keys of the checklist of the kinds.
 	convFilter, convSort key.Binding
-	pick                 picker.KeyMap
+	// convResolve resolves or reopens the thread under the cursor, and
+	// convDelete deletes the comment or reply there.
+	convResolve, convDelete key.Binding
+	pick                    picker.KeyMap
 	// inv is the keys of the involved pane's rows.
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
@@ -105,6 +108,9 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),
 		convSort:   ui.In(keys, ctxConversation).Binding("sort", "sort"),
 		pick:       picker.NewKeyMap(ui.Lookup(keys, "picker")),
+
+		convResolve: ui.In(keys, ctxConversation).Binding("resolve", "resolve"),
+		convDelete:  ui.In(keys, ctxConversation).Binding("delete", "delete"),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 		diff:      newDiffKeys(keys),
@@ -228,7 +234,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 				}
 			}
 		}
-		all = append(all, k.convFilter, k.convSort)
+		all = append(all, k.convFilter, k.convSort, k.convResolve, k.convDelete)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
 	}
 	if ctx == ctxInvolved {

@@ -1091,8 +1091,11 @@ keys:
     # items.
     filter: [f]
     sort: [s]
-    # Resolve the unresolved thread under the cursor, after a question.
+    # Resolve the thread under the cursor, or open it again when it is
+    # resolved, after a question.
     resolve: [T]
+    # Delete your comment or reply under the cursor, after a question.
+    delete: [D]
     # Write a comment on the pull request, after a question.
     comment: [c]
   # The modal of a pull request: the preview beside the list of a zoomed

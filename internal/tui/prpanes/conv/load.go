@@ -77,6 +77,9 @@ type loadMsg struct {
 	// cached marks the pages that were kept, and first the first page of a
 	// read from the network, which replaces what the model has.
 	cached, first bool
+	// local marks pages that were kept and are taken in alone, with no read
+	// from the network after them.
+	local bool
 	// cursor is the one a read from the network started at.
 	cursor string
 	chunk  chunk
@@ -171,6 +174,10 @@ func (m Model) load(msg loadMsg) (Model, tea.Cmd) {
 	switch {
 	case msg.err != nil:
 		f.err, f.done = msg.err, true
+	case msg.local:
+		if c.have {
+			m.take(msg.src, c, true)
+		}
 	case msg.cached:
 		if c.have {
 			m.take(msg.src, c, true)

@@ -1232,7 +1232,6 @@ func keyContexts() []keyContext {
 // reserved are the actions of default.yaml that nothing reads yet, each
 // with its reason.
 var reserved = map[string]string{
-	"pull_conversation.resolve": "the conversation's actions read them once they land",
 	"pull_conversation.comment": "the conversation's actions read them once they land",
 }
 

@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"context"
+	"maps"
 	"slices"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -52,6 +53,66 @@ func (f *fakeService) CachedTimeline(q pulls.TimelineQuery) (core.Page[core.Time
 	defer f.mu.Unlock()
 	p, ok := f.timeline.cache[q.Cursor]
 	return p, ok
+}
+
+// convHold holds the send of a change of the conversation: started is closed
+// when the send begins, and the send goes on once release is closed.
+type convHold struct{ started, release chan struct{} }
+
+// editThreads applies edit to every thread of the kept pages and of the pages
+// served, as a change of the service does to its cache, and returns what puts
+// them back.
+func (f *fakeService) editThreads(edit func(*core.Thread)) (undo func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	all := []map[string]core.ThreadPage{f.threadPages, f.threadCache}
+	before := make([]map[string]core.ThreadPage, len(all))
+	for i, pages := range all {
+		before[i] = maps.Clone(pages)
+	}
+	for _, pages := range all {
+		for cursor, p := range pages {
+			p.Threads = slices.Clone(p.Threads)
+			for i := range p.Threads {
+				edit(&p.Threads[i])
+			}
+			pages[cursor] = p
+		}
+	}
+	return func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for i, pages := range all {
+			clear(pages)
+			maps.Copy(pages, before[i])
+		}
+	}
+}
+
+// dropItem removes the item with id from the pages of the timeline, kept or
+// served, and returns what puts them back.
+func (f *fakeService) dropItem(id string) (undo func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	all := []map[string]core.Page[core.TimelineItem]{f.timeline.pages, f.timeline.cache}
+	before := make([]map[string]core.Page[core.TimelineItem], len(all))
+	for i, pages := range all {
+		before[i] = maps.Clone(pages)
+	}
+	for _, pages := range all {
+		for cursor, p := range pages {
+			p.Items = slices.DeleteFunc(slices.Clone(p.Items), func(it core.TimelineItem) bool { return it.ID == id })
+			pages[cursor] = p
+		}
+	}
+	return func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		for i, pages := range all {
+			clear(pages)
+			maps.Copy(pages, before[i])
+		}
+	}
 }
 
 // timelineReads returns the reads of Timeline so far.
