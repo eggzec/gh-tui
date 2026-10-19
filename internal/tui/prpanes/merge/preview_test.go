@@ -72,12 +72,26 @@ func TestPreviewGoldens(t *testing.T) {
 	}
 }
 
+func TestChangesOf(t *testing.T) {
+	t.Parallel()
+	d := lacking()
+	v, ok := ChangesOf(d, idChanges+"carol")
+	if !ok || v.Author.Login != "carol" || v.State != core.ReviewStateChangesRequested {
+		t.Errorf("ChangesOf(carol) = %+v, %v; want carol's review that asks for changes", v, ok)
+	}
+	for _, id := range []string{"nope", idChanges + "nobody", idReview} {
+		if _, ok := ChangesOf(d, id); ok {
+			t.Errorf("ChangesOf(%q) found a review", id)
+		}
+	}
+}
+
 func TestPreviewTitlesOfRowsWithoutOne(t *testing.T) {
 	t.Parallel()
 	d := lacking()
 	for _, c := range []struct{ id, title string }{
 		{idReview, "Required review"},
-		{idChanges + "carol", "Changes requested: Carol Diaz"},
+		{idChanges + "carol", "Carol Diaz · changes requested"},
 		{"job/1", "test"},
 		// The frame of a check run of an App names the App and tells how it stands.
 		{"check/4", "Codecov · coverage"},

@@ -41,18 +41,29 @@ func PreviewOf(d Data, id string, o Options) (p Preview, ok bool) {
 	case id == idReview && d.Detail.ReviewDecision == core.ReviewRequired:
 		return ownersPreview(d, o), true
 	case strings.HasPrefix(id, idChanges):
-		for i, v := range changers(d.Detail.Reviewers) {
-			if id == idChanges+v.Author.Login || (v.Author.Login == "" && id == idChanges+strconv.Itoa(i)) {
-				return Preview{Title: "Changes requested: " + conv.Name(v.Author)}, true
-			}
+		v, ok := ChangesOf(d, id)
+		if !ok {
+			return Preview{}, false
 		}
-		return Preview{}, false
+		return Preview{Title: conv.Name(v.Author) + " · changes requested"}, true
 	}
 	if !d.ChecksLoaded {
 		return Preview{}, false
 	}
 	co := checktree.Options{Mode: checktree.Merge, Now: o.Now, Width: o.Width}
 	return checktree.PreviewOf(d.Checks, id, co, st.Checks)
+}
+
+// ChangesOf returns the review that the Changes requested row with the ID id
+// stands for. ok is false for an ID that is not one of those rows. The body of
+// its preview is the review in the conversation, which only the host has.
+func ChangesOf(d Data, id string) (v core.Verdict, ok bool) {
+	for i, v := range changers(d.Detail.Reviewers) {
+		if id == idChanges+v.Author.Login || (v.Author.Login == "" && id == idChanges+strconv.Itoa(i)) {
+			return v, true
+		}
+	}
+	return core.Verdict{}, false
 }
 
 // behindPreview explains why a branch that is behind its base is held, and
