@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
@@ -17,6 +18,11 @@ type Styles struct {
 	// color of success.
 	Ready string
 
+	// Files draws the changed files that an owner owns.
+	Files files.Styles
+
+	tree     foldtree.Styles
+	warn, ok lipgloss.Style
 	glyphs   ui.GlyphStyles
 	dim      lipgloss.Style
 	bold     lipgloss.Style
@@ -35,8 +41,15 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	if top == "" {
 		top = "-"
 	}
+	// The tree of an owner's files has no cursor, so its column stays blank.
+	tree := foldtree.DefaultStyles(t.Dark)
+	tree.CursorGlyph = " "
 	return Styles{
 		Checks:   ck,
+		Files:    files.NewStyles(t, ic, set),
+		tree:     tree,
+		warn:     t.Warning,
+		ok:       t.Success,
 		Ready:    t.Success.Render(ck.Glyphs.Pass),
 		glyphs:   ui.NewGlyphStyles(t, ic),
 		dim:      t.Subtle,

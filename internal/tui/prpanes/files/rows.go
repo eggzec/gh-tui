@@ -161,18 +161,32 @@ func (b *builder) files(d Data) []foldtree.Row {
 	if d.FilesErr != "" {
 		return []foldtree.Row{b.note(idFilesErr, d.FilesErr)}
 	}
-	fs := slices.Clone(d.Files)
+	rows := b.fileTree(d.Files, fileDepth, d.Viewed)
+	if d.Truncated != "" {
+		rows = append(rows, b.note(idTruncated, d.Truncated))
+	}
+	return rows
+}
+
+// fileTree returns the rows of fs as folders and files by path, the top ones
+// at depth.
+func (b *builder) fileTree(fs []core.CommitFile, depth int, v core.PullViewed) []foldtree.Row {
+	fs = slices.Clone(fs)
 	slices.SortStableFunc(fs, func(x, y core.CommitFile) int { return strings.Compare(x.Path, y.Path) })
 	root := &dirNode{}
 	for _, f := range fs {
 		root.add(f)
 	}
 	rows := make([]foldtree.Row, 0, len(fs)+len(root.dirs)+1)
-	rows = b.tree(rows, root, "", fileDepth, d.Viewed)
-	if d.Truncated != "" {
-		rows = append(rows, b.note(idTruncated, d.Truncated))
-	}
-	return rows
+	return b.tree(rows, root, "", depth, v)
+}
+
+// Tree returns the rows of fs as the Files section draws them, folders and
+// files by path with no file marked viewed, the top ones at depth. A host that
+// shows files outside the pane uses it, so that they look the same.
+func Tree(fs []core.CommitFile, depth int, o Options) []foldtree.Row {
+	b := builder{o: o, st: &o.Styles, width: o.Width}
+	return b.fileTree(fs, depth, core.PullViewed{})
 }
 
 // dirNode is a folder of the changed files: the folders and the files in it.

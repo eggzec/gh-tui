@@ -1,0 +1,14 @@
+Required review | CODEOWNERS
+Review is required from the owners of the changed files.
+
+[1malice[m [38;2;138;144;160mcode owner[m
+[38;2;138;144;160m [m[38;2;138;144;160m▾[m api[38;2;138;144;160m/[m
+ [38;2;138;144;160m├─ [mroutes.go                                                                 [38;2;47;125;79m+4[m
+ [38;2;138;144;160m╰─ [mserver.go                                                             [38;2;47;125;79m+12[m [38;2;192;57;43m−3[m
+
+[1mbob[m [38;2;47;125;79mapproved · not required[m
+[38;2;138;144;160m [m[38;2;138;144;160m▾[m docs[38;2;138;144;160m/[m
+ [38;2;138;144;160m╰─ [mguide.md                                                               [38;2;47;125;79m+1[m [38;2;192;57;43m−1[m
+
+[1mcore[m [38;2;138;144;160mcode owner[m
+[38;2;138;144;160m [mREADME.md                                                                    [38;2;47;125;79m+2[m

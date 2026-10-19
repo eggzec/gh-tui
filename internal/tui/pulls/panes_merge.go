@@ -98,6 +98,11 @@ type mergePane struct {
 	// base are the commits of the base that the head lacks, as far as the read
 	// of behind listed them.
 	base core.BaseCommits
+	// codeOwners reads the owners of the changed files, and owners holds what
+	// the read of ownersKey found, or that it is under way.
+	codeOwners CodeOwners
+	ownersKey  string
+	owners     merge.Owners
 	// drawn keeps the previews drawn since the pane last changed, by row and
 	// width, and drawnVer the version they were drawn at.
 	drawn    map[drawnMerge]merge.Preview
@@ -121,6 +126,8 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 		behind: -1,
 		drawn:  map[drawnMerge]merge.Preview{},
 		now:    s.now,
+
+		codeOwners: s.codeOwners,
 	}
 	if s.commits != nil {
 		p.reader, p.has = commitReader{s.commits}, true
@@ -195,7 +202,7 @@ func (p *mergePane) refresh(m *panesModal) tea.Cmd {
 		p.loader, cmd = p.loader.Want(sha, false)
 		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, p.readBehind(m))
+	cmds = append(cmds, p.readBehind(m), p.readOwners(m))
 	p.rebuild(m, false)
 	return tea.Batch(cmds...)
 }
@@ -231,7 +238,7 @@ func (p *mergePane) readBehind(m *panesModal) tea.Cmd {
 // rebuild makes the rows from what m holds, and counts a change unless nothing
 // changed.
 func (p *mergePane) rebuild(m *panesModal, force bool) {
-	d := merge.Data{Detail: m.detail, Behind: p.behind, BaseCommits: p.base}
+	d := merge.Data{Detail: m.detail, Behind: p.behind, BaseCommits: p.base, Owners: p.owners}
 	if sha := d.Detail.HeadSHA; p.has && sha != "" {
 		d.Checks, d.ChecksLoaded = p.reader.CachedCommitChecks(checktree.Query{Repo: m.repo, SHA: sha})
 	}
@@ -417,6 +424,8 @@ func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 			p.behind, p.base = msg.n, msg.base
 			p.rebuild(m, false)
 		}
+	case mergeOwnersMsg:
+		p.ownersTaken(m, msg)
 	case mergeSentMsg:
 		return m.mergeSent(msg)
 	case mergeRevalidateMsg:

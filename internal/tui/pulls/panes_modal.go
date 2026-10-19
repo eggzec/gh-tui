@@ -391,7 +391,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
-	case mergeBehindMsg, mergeSentMsg, mergeRevalidateMsg:
+	case mergeBehindMsg, mergeOwnersMsg, mergeSentMsg, mergeRevalidateMsg:
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
 	case appCheckNotesMsg:

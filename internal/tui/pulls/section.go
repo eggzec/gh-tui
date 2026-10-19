@@ -148,6 +148,8 @@ type Section struct {
 	commits CommitChecks
 	// commitWatch keeps those checks live while some are pending.
 	commitWatch CommitWatch
+	// codeOwners reads who owns the files that a pull request changes.
+	codeOwners CodeOwners
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
 	dev dev.Service
