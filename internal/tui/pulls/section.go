@@ -16,6 +16,7 @@ import (
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
@@ -173,6 +174,9 @@ type Section struct {
 	// drafts, an edited message is lost when the dialog closes.
 	drafts     composer.Drafts
 	draftScope string
+	// reviewDrafts keeps the review comments written in the diff of a modal
+	// until the review is sent, in memory unless it is given a place on disk.
+	reviewDrafts ReviewDrafts
 
 	repo    core.RepoRef
 	hasRepo bool
@@ -252,6 +256,20 @@ func WithMergeMethod(m core.MergeMethod) Option {
 // the drafts of another.
 func WithDrafts(d composer.Drafts, scope string) Option {
 	return func(s *Section) { s.drafts, s.draftScope = d, scope }
+}
+
+// ReviewDrafts keeps the review comments that were written and not sent, under
+// the key of their pull request. A [tray.Store] is one.
+type ReviewDrafts interface {
+	Load(key string) ([]tray.Draft, error)
+	Put(key string, d tray.Draft) (tray.Draft, error)
+	Remove(key, id string) error
+}
+
+// WithReviewDrafts keeps the review comments of the modals in d, so that they
+// outlast the session. Without it they last until it ends.
+func WithReviewDrafts(d ReviewDrafts) Option {
+	return func(s *Section) { s.reviewDrafts = d }
 }
 
 // WithRepos reads what the viewer may do in the repository of a modal
@@ -376,6 +394,9 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if s.reviewDrafts == nil {
+		s.reviewDrafts = &tray.Memory{}
 	}
 	// Bubbles copy the voice, and read the icons through it.
 	s.voice.Icons = &s.icons

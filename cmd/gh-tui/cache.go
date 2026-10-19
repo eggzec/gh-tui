@@ -155,6 +155,20 @@ func draftsDir(cfg config.Disk, host, account string) (string, error) {
 	return filepath.Join(root, hostDir(host), entryDir, account, "drafts"), nil
 }
 
+// reviewDraftsDir returns the directory of the review comments that account
+// wrote on host and did not send, in its directory of the disk cache. It
+// returns "" when the disk cache is off, and they then last for the session.
+func reviewDraftsDir(cfg config.Disk, host, account string) (string, error) {
+	if !cfg.Enabled {
+		return "", nil
+	}
+	root, err := cfg.Path()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, hostDir(host), entryDir, account, "review-drafts"), nil
+}
+
 // entryDir holds the directories of the accounts' entries in the directory
 // of a host. Its objects go by kinds of lowercase letters, and account
 // names are longer than their two-digit subdirectories, so nothing clashes.

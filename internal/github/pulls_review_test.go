@@ -96,6 +96,80 @@ func TestSubmitReview(t *testing.T) {
 	}
 }
 
+const reviewFileAdded = `{"data":{"result":{"thread":{"id":"PRRT_file"}}}}`
+
+// A comment on a whole file has no line, so it is not one of the threads that
+// start the review: it is added to the pending review, before its submission.
+func TestSubmitReviewFileComments(t *testing.T) {
+	c, reqs := sequenceServer(t, reviewAdded, reviewFileAdded, reviewReplied, reviewSubmitted)
+	threads := []ReviewThreadDraft{
+		reviewThreads[0],
+		{Path: "c.go", File: true, Body: "about the file"},
+	}
+	if _, err := c.SubmitReview(t.Context(), "PR_1", "abc123", core.ReviewEventComment, "", threads, reviewReplies); err != nil {
+		t.Fatalf("SubmitReview: %v", err)
+	}
+	got := reqs()
+	want := []struct {
+		op   string
+		vars map[string]any
+	}{
+		{"addPullRequestReview(", map[string]any{
+			"pull": "PR_1", "commit": "abc123",
+			"threads": []any{map[string]any{"path": "a.go", "side": "RIGHT", "line": float64(7), "body": "one line"}},
+		}},
+		{"subjectType: FILE", map[string]any{"pull": "PR_1", "review": "PRR_pending", "path": "c.go", "body": "about the file"}},
+		{"addPullRequestReviewThreadReply(", map[string]any{"review": "PRR_pending", "thread": "PRRT_1", "body": "a reply"}},
+		{"submitPullRequestReview(", map[string]any{"pull": "PR_1", "review": "PRR_pending", "event": "COMMENT", "body": ""}},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d requests, want %d", len(got), len(want))
+	}
+	for i, w := range want {
+		if !strings.Contains(got[i].Query, w.op) {
+			t.Errorf("request %d query does not contain %q:\n%s", i, w.op, got[i].Query)
+		}
+		if !reflect.DeepEqual(got[i].Variables, w.vars) {
+			t.Errorf("request %d variables = %#v, want %#v", i, got[i].Variables, w.vars)
+		}
+	}
+}
+
+func TestSubmitReviewFileCommentsOnly(t *testing.T) {
+	c, reqs := sequenceServer(t, reviewAdded, reviewFileAdded, reviewSubmitted)
+	threads := []ReviewThreadDraft{{Path: "c.go", File: true, Body: "about the file"}}
+	if _, err := c.SubmitReview(t.Context(), "PR_1", "abc123", core.ReviewEventComment, "", threads, nil); err != nil {
+		t.Fatalf("SubmitReview: %v", err)
+	}
+	if _, ok := reqs()[0].Variables["threads"]; ok {
+		t.Errorf("start variables = %#v, want no threads", reqs()[0].Variables)
+	}
+}
+
+func TestSubmitReviewFileCommentFailureDeletesThePendingReview(t *testing.T) {
+	c, reqs := sequenceServer(t, reviewAdded, reviewRefused, reviewDeleted)
+	threads := []ReviewThreadDraft{{Path: "c.go", File: true, Body: "about the file"}}
+	if _, err := c.SubmitReview(t.Context(), "PR_1", "abc123", core.ReviewEventComment, "", threads, nil); !errors.Is(err, core.ErrConflict) {
+		t.Fatalf("err = %v, want GitHub's refusal", err)
+	}
+	got := reqs()
+	if len(got) != 3 || !strings.Contains(got[2].Query, "deletePullRequestReview(") {
+		t.Fatalf("got %d requests, want start, file comment, delete", len(got))
+	}
+}
+
+func TestSubmitPendingReviewFileComments(t *testing.T) {
+	c, reqs := sequenceServer(t, reviewFileAdded, reviewSubmitted)
+	threads := []ReviewThreadDraft{{Path: "c.go", File: true, Body: "about the file"}}
+	if err := c.SubmitPendingReview(t.Context(), "PR_1", "PRR_old", core.ReviewEventComment, "", threads, nil); err != nil {
+		t.Fatalf("SubmitPendingReview: %v", err)
+	}
+	got := reqs()
+	if len(got) != 2 || !strings.Contains(got[0].Query, "subjectType: FILE") {
+		t.Fatalf("got %d requests, first %q, want the file comment and the submit", len(got), got[0].Query)
+	}
+}
+
 func TestSubmitReviewWithoutDrafts(t *testing.T) {
 	c, reqs := sequenceServer(t, reviewAdded, reviewSubmitted)
 	if _, err := c.SubmitReview(t.Context(), "PR_1", "abc123", core.ReviewEventComment, "", nil, nil); err != nil {

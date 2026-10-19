@@ -24,6 +24,10 @@ type diffKeys struct {
 	readOn key.Binding
 	// full shows the file under the cursor whole, or takes it back to its hunks.
 	full key.Binding
+	// rng starts a range of lines, or ends it; comment writes a review comment
+	// on the line, the range or the file, or edits the draft the cursor is on;
+	// deleteDraft deletes that draft; nextNote and prevNote move between drafts.
+	rng, comment, deleteDraft, nextNote, prevNote key.Binding
 }
 
 // newDiffKeys makes the keys of the diff from keys.
@@ -34,5 +38,11 @@ func newDiffKeys(keys config.Keymap) diffKeys {
 		viewed: ui.In(keys, ctxDiff).Binding("viewed", "mark viewed"),
 		readOn: ui.In(keys, ctxDiff).Binding("read_on", "read on"),
 		full:   ui.In(keys, ctxDiff).Binding("full_file", "full file"),
+
+		rng:         ui.In(keys, ctxDiff).Binding("range", "select lines"),
+		comment:     ui.In(keys, ctxDiff).Binding("comment", "comment"),
+		deleteDraft: ui.In(keys, ctxDiff).Binding("delete_draft", "delete draft"),
+		nextNote:    ui.In(keys, ctxDiff).Binding("next_note", "next draft"),
+		prevNote:    ui.In(keys, ctxDiff).Binding("prev_note", "previous draft"),
 	}
 }

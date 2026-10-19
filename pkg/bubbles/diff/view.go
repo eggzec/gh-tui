@@ -24,6 +24,8 @@ type visible struct {
 	index  int  // the row's number; -1 for none
 	status bool // the loading, error or empty row
 	sticky bool // the header that stands in for the file's rows above
+	// selected is set for a line between the anchor and the cursor.
+	selected bool
 }
 
 // View renders the visible rows in exactly Height lines of Width cells.
@@ -35,6 +37,7 @@ func (m Model) View() string {
 	n := m.layout.Len()
 	rows := make([]visible, h)
 	sticky := m.sticky()
+	lo, hi := m.selection()
 	for s := range rows {
 		r := m.top + s
 		switch {
@@ -45,7 +48,7 @@ func (m Model) View() string {
 			rows[s] = visible{row: row, index: start, sticky: true}
 		case r < n:
 			row, _ := m.layout.RowAt(r)
-			rows[s] = visible{row: row, index: r}
+			rows[s] = visible{row: row, index: r, selected: r >= lo && r <= hi}
 		case r == n && m.hasStatus():
 			rows[s] = visible{index: -1, status: true}
 		default:
@@ -164,8 +167,26 @@ func (m Model) numberCells(numW int) int {
 	return numW + 1
 }
 
-// line renders one row of the window.
+// line renders one row of the window, in the style of the selection if it is
+// a line of it.
 func (m Model) line(v visible, numW int) string {
+	s := m.plainLine(v, numW)
+	if !v.selected || m.wrap.selected.pre == "" {
+		return s
+	}
+	switch v.row.Kind {
+	case KindContext, KindAdded, KindDeleted:
+	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw, KindBlock:
+		return s
+	}
+	pre := m.wrap.selected.pre
+	s = strings.ReplaceAll(s, "\x1b[m", "\x1b[m"+pre)
+	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+pre)
+	return pre + s + "\x1b[m"
+}
+
+// plainLine renders one row of the window.
+func (m Model) plainLine(v visible, numW int) string {
 	if v.index < 0 && !v.status {
 		return strings.Repeat(" ", m.width)
 	}

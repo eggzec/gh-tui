@@ -33,6 +33,7 @@ import (
 	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
@@ -277,6 +278,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	)
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
 		pullOpts = append(pullOpts, pulls.WithDrafts(drafts.New(dir), client.Host()+"/"+client.Account()))
+	}
+	if dir, err := reviewDraftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
+		pullOpts = append(pullOpts, pulls.WithReviewDrafts(tray.New(dir)))
 	}
 	// The notifications screen and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the

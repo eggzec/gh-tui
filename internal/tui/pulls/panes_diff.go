@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/diffview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
@@ -41,6 +42,9 @@ type diffOverlay struct {
 	seen, changed string
 	// full is what is known of the files shown whole.
 	full fullFiles
+	// drafts are the review comments written on the pull request, which the
+	// diff shows as blocks.
+	drafts []tray.Draft
 }
 
 // openDiff opens the diff of the file at path over the panes, and shows the
@@ -49,6 +53,7 @@ func (m *panesModal) openDiff(path string) tea.Cmd {
 	ctx, cancel := context.WithCancel(m.ctx)
 	o := &diffOverlay{m: m, src: m.diffSource(), keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
 	o.showCachedViewed()
+	o.drafts = m.reviewDrafts()
 	cmd := tea.Batch(o.build(), o.readViewed())
 	m.open(o)
 	m.reveal(path)
@@ -83,6 +88,7 @@ func (o *diffOverlay) build() tea.Cmd {
 	o.d.SetStatusNote(func() string {
 		return diffview.Note(o.d.Cursor()+1, o.d.Len(), o.hints())
 	})
+	o.setBlocks()
 	return o.d.Init()
 }
 
@@ -90,6 +96,12 @@ func (o *diffOverlay) build() tea.Cmd {
 func (o *diffOverlay) hints() []string {
 	k := o.keys
 	var hs []string
+	if n := o.noteCount(); n > 0 {
+		hs = append(hs, plural(n, "draft"))
+	}
+	if keys := hintKeys(k.comment); keys != "" {
+		hs = append(hs, keys+" comment")
+	}
 	if keys := hintKeys(k.diff.NextFile, k.diff.PrevFile); keys != "" {
 		hs = append(hs, keys+" file")
 	}
@@ -143,8 +155,16 @@ func (o *diffOverlay) title() string {
 func (o *diffOverlay) kind() panes.OverlayKind { return panes.Viewer }
 func (o *diffOverlay) items() int              { return 0 }
 func (o *diffOverlay) text() int               { return 0 }
-func (o *diffOverlay) clear() bool             { return o.d.ClearSearch() }
 func (o *diffOverlay) closed() bool            { return o.done }
+
+// clear ends a range being picked, and then the search.
+func (o *diffOverlay) clear() bool {
+	if _, ok := o.d.Anchor(); ok {
+		o.d.ClearAnchor()
+		return true
+	}
+	return o.d.ClearSearch()
+}
 
 // typing reports that the overlay takes the keys of the app's actions as text,
 // while its search prompt is open.
@@ -174,8 +194,9 @@ func (o *diffOverlay) layers() []keyhelp.Layer {
 	if empty := keys.CancelEmpty.Keys(); len(empty) > 0 {
 		l.Bindings = slices.DeleteFunc(l.Bindings, func(b key.Binding) bool { return slices.Equal(b.Keys(), empty) })
 	}
-	l.Bindings = append(l.Bindings, o.keys.whole, o.keys.full, o.keys.viewed, o.keys.readOn)
-	l.Short = append(l.Short, o.keys.whole, o.keys.full, o.keys.viewed, o.keys.readOn)
+	k := o.keys
+	l.Bindings = append(l.Bindings, k.whole, k.full, k.viewed, k.readOn, k.rng, k.comment, k.deleteDraft, k.nextNote, k.prevNote)
+	l.Short = append(l.Short, k.whole, k.full, k.viewed, k.readOn, k.comment)
 	// The keys of the modal don't reach the diff, so its layer lists none; the
 	// chain still has it, as that of every overlay of the panes.
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
@@ -201,6 +222,18 @@ func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
 			return o.toggle()
 		case keymap.Matches(press, o.keys.full):
 			return o.toggleFull()
+		case keymap.Matches(press, o.keys.rng):
+			return o.toggleRange()
+		case keymap.Matches(press, o.keys.comment):
+			return o.comment()
+		case keymap.Matches(press, o.keys.deleteDraft):
+			return o.askDelete()
+		case keymap.Matches(press, o.keys.nextNote):
+			o.d.NextBlock(isDraft)
+			return nil
+		case keymap.Matches(press, o.keys.prevNote):
+			o.d.PrevBlock(isDraft)
+			return nil
 		}
 	}
 	var cmd tea.Cmd

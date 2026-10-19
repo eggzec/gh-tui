@@ -40,3 +40,8 @@ Diff
   full file | x | x | on
   mark viewed | v | v | on
   read on | space | space | on
+  select lines | V | V | on
+  comment | c | c | on
+  delete draft | D | D | on
+  next draft | ) | ) | on
+  previous draft | ( | ( | on
