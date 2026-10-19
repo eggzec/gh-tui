@@ -80,6 +80,7 @@ type Model[T any] struct {
 	fetch  Fetch[T]
 	render Render[T]
 	key    func(T) string
+	onLoad func([]T) tea.Cmd
 
 	// gen counts Resets and Reloads; ctx is cancelled when it changes.
 	gen    int
@@ -163,6 +164,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		opt(&m.settings)
 	}
 	m.key, _ = m.settings.key.(func(T) string)
+	m.onLoad, _ = m.settings.onLoad.(func([]T) tea.Cmd)
 	m.prompt = m.newPrompt()
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	// Init fetches the first chunk, and it cannot record that itself.

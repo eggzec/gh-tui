@@ -5,6 +5,7 @@ package notifications
 
 import (
 	"context"
+	"maps"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -35,6 +36,26 @@ type Service interface {
 	// Invalidate marks every cached page stale, so that the reads after it
 	// ask GitHub.
 	Invalidate()
+}
+
+// States reads the state of the subjects of threads: pull requests, issues
+// and discussions. The section works without it, and its rows are the same.
+type States interface {
+	// CachedStates returns what is held in memory, without I/O.
+	CachedStates(items []core.Notification) map[core.SubjectRef]core.SubjectState
+	// States returns the states held, and asks for those that are due.
+	States(ctx context.Context, items []core.Notification) (map[core.SubjectRef]core.SubjectState, error)
+}
+
+// statesMsg carries the states a read answered, for the section to keep.
+type statesMsg struct {
+	states map[core.SubjectRef]core.SubjectState
+}
+
+// WithStates has the section read the state of the threads it lists from st,
+// once their rows show. By default it reads none.
+func WithStates(st States) Option {
+	return func(s *Section) { s.reader = st }
 }
 
 // Option configures a Section.
@@ -95,6 +116,10 @@ type Section struct {
 	dates ui.Dates
 	// opener opens the threads and reads them ahead.
 	opener *threads.Opener
+	// reader reads the states of the subjects, if set, and states holds
+	// them. Both are used in Update only.
+	reader States
+	states map[core.SubjectRef]core.SubjectState
 
 	width, height int
 	theme         ui.Theme
@@ -112,10 +137,31 @@ var (
 	_ ui.Filterable = (*Section)(nil)
 )
 
+// loaded runs when the feed stores a page: it keeps the states held in
+// memory at once, and returns the command that reads the rest, so that the
+// rows show before their states do.
+func (s *Section) loaded(items []core.Notification) tea.Cmd {
+	if s.reader == nil || len(items) == 0 {
+		return nil
+	}
+	maps.Copy(s.states, s.reader.CachedStates(items))
+	return func() tea.Msg {
+		// A failure is logged by the service; the rows stay as they are.
+		got, _ := s.reader.States(s.ctx, items)
+		return statesMsg{states: got}
+	}
+}
+
+// State returns the state of the subject of n, or false if it isn't known.
+func (s *Section) State(n core.Notification) (core.SubjectState, bool) {
+	st, ok := s.states[core.SubjectRef{Repo: n.Repo, Number: n.Subject.Number, Type: n.Subject.Type}]
+	return st, ok
+}
+
 // New returns the section, which reads through svc and binds the actions
 // in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
-	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
+	s := &Section{ctx: ctx, svc: svc, keys: newKeyMap(keys), now: time.Now, states: map[core.SubjectRef]core.SubjectState{}, voice: ui.NewVoice(keys, ""), icons: ui.NewIcons(config.Default().UI.Icons)}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -129,6 +175,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	}
 	s.feed = feed.New(ui.FeedPages("list.notifications", s.query, s.list), s.render,
 		feed.WithContext(ctx),
+		feed.WithOnLoad(s.loaded),
 		feed.WithKey(func(n core.Notification) string { return n.ID }),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithMarkKeys(s.keys.mark),

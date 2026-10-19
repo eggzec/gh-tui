@@ -3,6 +3,8 @@ package feed
 import (
 	"context"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 )
 
@@ -30,6 +32,8 @@ type settings struct {
 	prefetch   int
 	// key is a func(T) string, checked against the item type in New.
 	key any
+	// onLoad is a func([]T) tea.Cmd, checked against the item type in New.
+	onLoad any
 }
 
 func defaultSettings() settings {
@@ -48,6 +52,15 @@ func defaultSettings() settings {
 // At common page sizes of 30 to 100 items that is several screens around
 // the window.
 const DefaultMaxChunks = 8
+
+// WithOnLoad has the feed call f with the items of every chunk it stores,
+// kept or stale ones too, from its Update, and run the command f returns.
+// It lets the owner read more about the items, such as their state, without
+// delaying the rows: the rows show first. Chunks that fail, or that a newer
+// fetch made obsolete, aren't passed.
+func WithOnLoad[T any](f func(items []T) tea.Cmd) Option {
+	return func(s *settings) { s.onLoad = f }
+}
 
 // WithMaxChunks sets how many chunks the feed keeps loaded. It evicts the
 // items of chunks farther from the window, and fetches them again when the

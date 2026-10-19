@@ -157,5 +157,13 @@ func (s *Service) Poll(ctx context.Context) (watch.Result, error) {
 // load fetches the page for a normalized q, conditionally when a previous
 // entry exists, and keeps what GitHub sends.
 func (s *Service) load(q ListQuery) cache.FetchFunc[page] {
-	return fallback.Keep(s.kept, q.key(s.pageSize), s.fetcher(q))
+	keep := fallback.Keep(s.kept, q.key(s.pageSize), s.fetcher(q))
+	return func(ctx context.Context, prev cache.Entry[page], ok bool) (cache.Entry[page], error) {
+		e, err := keep(ctx, prev, ok)
+		if err == nil {
+			// The state of what GitHub just sent is asked for again.
+			s.await(e.Value.Items)
+		}
+		return e, err
+	}
 }
