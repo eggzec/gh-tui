@@ -63,3 +63,15 @@ func TestFollowingIsTheItemBelowTheSelection(t *testing.T) {
 		t.Fatalf("Following after the last item = %v, want none", it)
 	}
 }
+
+func TestPrecedingIsTheItemAboveTheSelection(t *testing.T) {
+	t.Parallel()
+	m := open(t, nil, WithItems(described))
+	if it, ok := m.Preceding(); ok {
+		t.Fatalf("Preceding before the first item = %v, want none", it)
+	}
+	m.Select("docs")
+	if it, ok := m.Preceding(); !ok || it.Value != "bug" {
+		t.Fatalf("Preceding = %v, %v; want bug", it, ok)
+	}
+}

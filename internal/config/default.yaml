@@ -1425,6 +1425,17 @@ keys:
     toggle: [space]
     # Close without applying.
     back: [backspace]
+  # The right pane of a two-pane ordered picker, which lists the chosen items
+  # in order. Its moves are those of picker_normal, and the left pane's keys
+  # are those of picker and picker_normal.
+  order_pick:
+    # Move the item under the cursor down or up the order.
+    move_down: [J]
+    move_up: [K]
+    # Reverse the direction of the item under the cursor.
+    flip: [space]
+    # Take the item under the cursor back to the left pane.
+    remove: [x, delete]
   # The query of the search page while it types. Esc is the way out: it
   # stops typing and moves to the results.
   search_query:
