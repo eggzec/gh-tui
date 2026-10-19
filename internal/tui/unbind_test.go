@@ -10,7 +10,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/files"
 	"github.com/eggzec/gh-tui/internal/tui/history"
@@ -221,7 +220,7 @@ func newUnboundApp(t *testing.T, cfg config.Config, repo bool) *Model {
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v))),
+			pulls.WithChecks(keyActions{})),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v)),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v)),

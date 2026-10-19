@@ -17,8 +17,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tray"
-	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -116,7 +116,27 @@ type Service interface {
 // ChecksService is what the section needs to show the checks of pull
 // requests and to read them ahead.
 type ChecksService interface {
-	checks.Service
+	jobview.Service
+	// CachedChecks returns the checks of a commit from memory, without a
+	// request.
+	CachedChecks(q actions.ChecksQuery) (core.Checks, bool)
+	Checks(ctx context.Context, q actions.ChecksQuery) (core.Checks, error)
+	// CachedRun returns a run from memory, without a request, as a change
+	// or a poll left it.
+	CachedRun(repo core.RepoRef, runID int64) (core.Run, bool)
+	Run(ctx context.Context, repo core.RepoRef, runID int64) (core.Run, error)
+	// CachedAllJobs returns the jobs of an attempt from memory, without a
+	// request.
+	CachedAllJobs(q actions.JobsQuery) (core.Page[core.Job], bool)
+	// AllJobs returns the jobs of an attempt, every page of them up to
+	// actions.MaxJobPages.
+	AllJobs(ctx context.Context, q actions.JobsQuery) (core.Page[core.Job], error)
+	// Invalidate marks what is cached of repo stale, so that the reads
+	// after it ask GitHub.
+	Invalidate(repo core.RepoRef)
+	// RerunFailedJobs shows the failed jobs of a run queued in the cache
+	// at once. The returned Op sends the re-run.
+	RerunFailedJobs(repo core.RepoRef, runID int64) *optimistic.Op
 	// FreshChecks reports whether Checks returns the checks of q without
 	// a request. It does no I/O.
 	FreshChecks(q actions.ChecksQuery) bool
@@ -139,11 +159,9 @@ type Section struct {
 	// rawKeys are the configured keys, for the steps of the modal.
 	rawKeys config.Keymap
 	now     func() time.Time
-	// checks reads the checks of the modal's Checks step, and those read
-	// ahead, and checksOpts configure the step. Without checks, the modal
-	// has no such step.
-	checks     ChecksService
-	checksOpts []checks.Option
+	// checks reads the checks of the modal's panes, and those read ahead.
+	// Without checks, the modal has no such panes.
+	checks ChecksService
 	// commits reads the checks of the head commit for the Merge pane.
 	commits CommitChecks
 	// commitWatch keeps those checks live while some are pending.
@@ -325,11 +343,11 @@ func WithAvatars(a *ui.Images) Option {
 	return func(s *Section) { s.avatars = a }
 }
 
-// WithChecks shows the checks of a pull request on a tab of its modal,
+// WithChecks shows the checks of a pull request on the panes of its modal,
 // which the checks key opens there and on the rows of the list, read from
-// svc and configured by opts. The default has no such tab.
-func WithChecks(svc ChecksService, opts ...checks.Option) Option {
-	return func(s *Section) { s.checks, s.checksOpts = svc, opts }
+// svc. The default has no such panes.
+func WithChecks(svc ChecksService) Option {
+	return func(s *Section) { s.checks = svc }
 }
 
 // WithDevelopment shows what a pull request closes and what is linked to it

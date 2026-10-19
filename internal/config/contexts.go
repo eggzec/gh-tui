@@ -104,11 +104,6 @@ var contexts = []Context{
 	{Name: "pull_files", Title: "Changed files", Reach: ReachPane, Parent: "pull_modal"},
 	// The diff of a file or of the whole patch, over the panes.
 	{Name: "pull_diff", Title: "Diff", Reach: ReachPane, Parent: "pull_modal"},
-	// The panes of the Checks step of the pull request.
-	{Name: "pull_check_list", Title: "Checks", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_log", Title: "Log", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_annotations", Title: "Annotations", Reach: ReachPane, Parent: "pull_modal"},
-	{Name: "pull_check_detail", Title: "Detail", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "issue_modal", Title: "Issue", Reach: ReachScreen, Modal: true},
 	// The links of a pull request or an issue show in place of what its
 	// modal showed, so its keys are a layer of their own and the modal's
