@@ -5,6 +5,7 @@ package notifications
 import (
 	"cmp"
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -23,6 +24,7 @@ type API interface {
 	// ResolveSubjectURL returns the page of a release or check suite
 	// notification.
 	ResolveSubjectURL(ctx context.Context, n core.Notification) (string, error)
+	SubjectStates(ctx context.Context, subjects []core.SubjectRef) (map[core.SubjectRef]core.SubjectState, error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -46,6 +48,13 @@ type Service struct {
 	interval atomic.Int64
 	// pageSize is the size of a page whose query sets none.
 	pageSize int
+	// states holds the state of subjects, keptStates what an earlier session
+	// read of them, and pending the subjects of pages that came from GitHub
+	// whose state is to be asked for again.
+	states     *cache.Cache[core.SubjectState]
+	keptStates *cache.Shelf[core.SubjectState]
+	mu         sync.Mutex
+	pending    map[core.SubjectRef]struct{}
 }
 
 type page = core.Page[core.Notification]
@@ -131,6 +140,9 @@ func New(api API, opts ...Option) *Service {
 		kept:     cache.NewShelf[page](o.store, kind, schema),
 		ttl:      ttl,
 		pageSize: cmp.Or(o.pageSize, d.PageSize.Notifications),
+
+		states:     cache.New[core.SubjectState](cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))),
+		keptStates: cache.NewShelf[core.SubjectState](o.store, statesKind, statesSchema),
 	}
 }
 

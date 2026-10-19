@@ -204,7 +204,11 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	if m.seeking {
 		seek = m.seekStep()
 	}
-	cmd := tea.Batch(seek, m.sync())
+	var loaded tea.Cmd
+	if m.onLoad != nil {
+		loaded = m.onLoad(msg.items)
+	}
+	cmd := tea.Batch(seek, m.sync(), loaded)
 	if !stale {
 		return cmd
 	}

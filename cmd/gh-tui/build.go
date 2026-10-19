@@ -317,6 +317,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
 		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
+			notifications.WithStates(notifSvc),
 			notifications.WithVoice(voice), notifications.WithOpener(opener),
 			notifications.WithIcons(icons), notifications.WithDates(dates)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),

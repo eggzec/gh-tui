@@ -25,9 +25,11 @@ type fakeAPI struct {
 	onMark   func()
 	// resolve answers ResolveSubjectURL; nil fails it.
 	resolve func(n core.Notification) (string, error)
+	states  func(subjects []core.SubjectRef) (map[core.SubjectRef]core.SubjectState, error)
 
-	lists    atomic.Int32
-	resolves atomic.Int32
+	lists      atomic.Int32
+	resolves   atomic.Int32
+	stateCalls atomic.Int32
 }
 
 func (f *fakeAPI) ResolveSubjectURL(_ context.Context, n core.Notification) (string, error) {
@@ -68,6 +70,14 @@ func (f *fakeAPI) MarkNotificationsRead(_ context.Context, at time.Time) error {
 		return errUnexpected
 	}
 	return f.markAll(at)
+}
+
+func (f *fakeAPI) SubjectStates(_ context.Context, subjects []core.SubjectRef) (map[core.SubjectRef]core.SubjectState, error) {
+	f.stateCalls.Add(1)
+	if f.states == nil {
+		return nil, errUnexpected
+	}
+	return f.states(subjects)
 }
 
 func (f *fakeAPI) mark() {
