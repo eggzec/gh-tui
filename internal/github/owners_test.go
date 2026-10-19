@@ -151,6 +151,9 @@ func TestUserRepos(t *testing.T) {
 	if got.Next != "Y3Vyc29yOjI=" || len(got.Items) != 2 || got.Items[0].Ref != (core.RepoRef{Owner: "octocat", Name: "zeta"}) {
 		t.Errorf("page = %+v, want two repos starting with octocat/zeta and a next cursor", got)
 	}
+	if a, b := got.Items[0].Caps.Permission, got.Items[1].Caps.Permission; a != core.PermissionAdmin || b != core.PermissionRead {
+		t.Errorf("permissions = %q, %q, want admin, read", a, b)
+	}
 }
 
 // Every order field has a GitHub name, and the zero order is the most

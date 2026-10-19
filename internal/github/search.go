@@ -35,6 +35,35 @@ type searchRepo struct {
 	MirrorURL     string    `json:"mirror_url"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	HTMLURL       string    `json:"html_url"`
+	// Permissions is the viewer's access, absent when GitHub doesn't say.
+	Permissions *struct {
+		Admin    bool `json:"admin"`
+		Maintain bool `json:"maintain"`
+		Push     bool `json:"push"`
+		Triage   bool `json:"triage"`
+		Pull     bool `json:"pull"`
+	} `json:"permissions"`
+}
+
+// permission maps the permissions object to the highest role it grants, or
+// the empty permission when there is none.
+func (r searchRepo) permission() core.Permission {
+	p := r.Permissions
+	switch {
+	case p == nil:
+		return ""
+	case p.Admin:
+		return core.PermissionAdmin
+	case p.Maintain:
+		return core.PermissionMaintain
+	case p.Push:
+		return core.PermissionWrite
+	case p.Triage:
+		return core.PermissionTriage
+	case p.Pull:
+		return core.PermissionRead
+	}
+	return ""
 }
 
 // core maps the repository. Search results don't say whether the viewer
@@ -54,6 +83,7 @@ func (r searchRepo) core() core.Repo {
 		Mirror:        r.MirrorURL != "",
 		UpdatedAt:     r.UpdatedAt,
 		URL:           r.HTMLURL,
+		Caps:          core.RepoCaps{Permission: r.permission()},
 	}
 }
 

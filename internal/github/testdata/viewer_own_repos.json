@@ -26,6 +26,7 @@
             "isPrivate": false,
             "isFork": false,
             "isArchived": false,
+            "viewerPermission": "ADMIN",
             "updatedAt": "2026-09-24T10:49:42Z",
             "url": "https://github.com/octocat/Hello-World"
           },
@@ -47,6 +48,7 @@
             "isPrivate": false,
             "isFork": false,
             "isArchived": false,
+            "viewerPermission": "WRITE",
             "updatedAt": "2026-09-24T08:23:12Z",
             "url": "https://github.com/octocat/Spoon-Knife"
           }

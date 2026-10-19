@@ -67,6 +67,7 @@ fragment searchRepo on Repository {
   isFork
   isTemplate
   isMirror
+  viewerPermission
   defaultBranchRef { name }
   updatedAt
   url
@@ -190,6 +191,7 @@ type searchRepoNode struct {
 	IsFork           bool          `json:"isFork"`
 	IsTemplate       bool          `json:"isTemplate"`
 	IsMirror         bool          `json:"isMirror"`
+	ViewerPermission string        `json:"viewerPermission"`
 	DefaultBranchRef *struct {
 		Name string `json:"name"`
 	} `json:"defaultBranchRef"`
@@ -212,6 +214,7 @@ func (r searchRepoNode) hit() core.SearchHit {
 		Mirror:      r.IsMirror,
 		UpdatedAt:   r.UpdatedAt,
 		URL:         r.URL,
+		Caps:        core.RepoCaps{Permission: permission(r.ViewerPermission)},
 	}
 	if r.PrimaryLanguage != nil {
 		repo.Language, repo.LanguageColor = r.PrimaryLanguage.Name, r.PrimaryLanguage.Color

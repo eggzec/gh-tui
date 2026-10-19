@@ -86,8 +86,10 @@ func TestListRepos(t *testing.T) {
 
 	starred := ghTUI
 	starred.Starred = true
+	starred.Caps.Permission = core.PermissionAdmin
 	want := core.Page[core.Repo]{
 		Items: []core.Repo{starred, {
+			Caps:      core.RepoCaps{Permission: core.PermissionRead},
 			ID:        "R_kgDOLx9a1A",
 			Ref:       core.RepoRef{Owner: "octo-org", Name: "dotfiles"},
 			Private:   true,

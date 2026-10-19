@@ -32,6 +32,7 @@
             "isArchived": false,
             "isTemplate": false,
             "isMirror": false,
+            "viewerPermission": "ADMIN",
             "updatedAt": "2026-09-24T08:23:12Z",
             "url": "https://github.com/octocat/zeta"
           },
@@ -54,6 +55,7 @@
             "isArchived": false,
             "isTemplate": false,
             "isMirror": false,
+            "viewerPermission": "READ",
             "updatedAt": "2026-09-24T08:23:12Z",
             "url": "https://github.com/octocat/Spoon-Knife"
           }

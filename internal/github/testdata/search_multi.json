@@ -32,6 +32,7 @@
           "defaultBranchRef": {
             "name": "main"
           },
+          "viewerPermission": "ADMIN",
           "updatedAt": "2026-09-24T09:53:31Z",
           "url": "https://github.com/charmbracelet/lipgloss"
         },
@@ -52,6 +53,7 @@
           "defaultBranchRef": {
             "name": "master"
           },
+          "viewerPermission": "READ",
           "updatedAt": "2026-09-13T02:46:02Z",
           "url": "https://github.com/76creates/stickers"
         },

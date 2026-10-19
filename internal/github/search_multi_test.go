@@ -59,6 +59,7 @@ func TestSearch(t *testing.T) {
 		Stars:         repo.Stars,
 		UpdatedAt:     repo.UpdatedAt,
 		URL:           "https://github.com/charmbracelet/lipgloss",
+		Caps:          core.RepoCaps{Permission: core.PermissionAdmin},
 	}
 	if repo != wantRepo || repo.Stars < 10000 || repo.UpdatedAt.IsZero() {
 		t.Errorf("repo 0 = %+v, want %+v", repo, wantRepo)
