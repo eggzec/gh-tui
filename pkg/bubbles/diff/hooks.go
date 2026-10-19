@@ -6,6 +6,36 @@ import tea "charm.land/bubbletea/v2"
 // file's header row; see [WithHeaderMark]. Nil draws nothing.
 func (m *Model) SetHeaderMark(mark func(File) string) { m.headerMark = mark }
 
+// SetLineMark sets the function whose string is drawn in the second cell of the
+// gutter of each added, deleted and context line, such as a mark for a line that
+// has a comment. It gets the position of the line on the side it is drawn for,
+// and for a context line the new side first, then the old; an empty string
+// draws nothing. It runs on every draw of a line, so it must be cheap and its
+// string one cell wide. Nil draws nothing.
+func (m *Model) SetLineMark(mark func(Pos) string) { m.lineMark = mark }
+
+// markOf is the mark of the line row is, or "" when the row is no line or the
+// line has none.
+func (m Model) markOf(row Row) string {
+	if m.lineMark == nil || row.File < 0 || row.File >= len(m.layout.files) {
+		return ""
+	}
+	path := m.layout.files[row.File].file.Path
+	switch row.Kind {
+	case KindAdded:
+		return m.lineMark(Pos{Path: path, Side: NewSide, Line: row.New})
+	case KindDeleted:
+		return m.lineMark(Pos{Path: path, Side: OldSide, Line: row.Old})
+	case KindContext:
+		if s := m.lineMark(Pos{Path: path, Side: NewSide, Line: row.New}); s != "" {
+			return s
+		}
+		return m.lineMark(Pos{Path: path, Side: OldSide, Line: row.Old})
+	case KindFileHeader, KindHunkHeader, KindNoNewline, KindNote, KindRaw, KindBlock:
+	}
+	return ""
+}
+
 // SetStatusNote sets the function whose string ends the status line, after the
 // position, such as a count of the files that have been read. It runs on every
 // draw of the line, so it must be cheap. Nil, or an empty string, adds nothing.

@@ -22,6 +22,7 @@ type settings struct {
 
 	highlightLimit int
 	headerMark     func(File) string
+	lineMark       func(Pos) string
 	statusNote     func() string
 }
 

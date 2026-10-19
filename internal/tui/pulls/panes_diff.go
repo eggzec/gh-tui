@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/diffview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -45,6 +46,11 @@ type diffOverlay struct {
 	// drafts are the review comments written on the pull request, which the
 	// diff shows as blocks.
 	drafts []tray.Draft
+	// threads are the review threads of the pull request, which the diff shows
+	// as blocks, and marks the lines they are on.
+	threads     []core.Thread
+	threadState threadsState
+	marks       map[diff.Pos]struct{}
 }
 
 // openDiff opens the diff of the file at path over the panes, and shows the
@@ -54,7 +60,10 @@ func (m *panesModal) openDiff(path string) tea.Cmd {
 	o := &diffOverlay{m: m, src: m.diffSource(), keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
 	o.showCachedViewed()
 	o.drafts = m.reviewDrafts()
-	cmd := tea.Batch(o.build(), o.readViewed())
+	// The threads come before the first build, so that cached ones are drawn
+	// with it.
+	read := o.loadThreads()
+	cmd := tea.Batch(o.build(), o.readViewed(), read)
 	m.open(o)
 	m.reveal(path)
 	return cmd
@@ -85,6 +94,7 @@ func (o *diffOverlay) build() tea.Cmd {
 	o.seen = o.m.theme.Success.Render(o.m.icons.Yes)
 	o.changed = o.m.theme.Subtle.Render(o.m.icons.Changed)
 	o.d.SetHeaderMark(o.viewMark)
+	o.d.SetLineMark(o.threadMark)
 	o.d.SetStatusNote(func() string {
 		return diffview.Note(o.d.Cursor()+1, o.d.Len(), o.hints())
 	})
@@ -223,10 +233,10 @@ func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
 		case keymap.Matches(press, o.keys.deleteDraft):
 			return o.askDelete()
 		case keymap.Matches(press, o.keys.nextNote):
-			o.d.NextBlock(isDraft)
+			o.d.NextBlock(isNote)
 			return nil
 		case keymap.Matches(press, o.keys.prevNote):
-			o.d.PrevBlock(isDraft)
+			o.d.PrevBlock(isNote)
 			return nil
 		}
 	}

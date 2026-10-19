@@ -401,6 +401,11 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case mergeBehindMsg, mergeOwnersMsg, mergeLogMsg, mergeNotesMsg, mergeSentMsg, mergeRevalidateMsg:
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
+	case diffThreadsMsg:
+		// The diff takes its threads even when the composer of a draft is open
+		// over it.
+		msg.o.receiveThreads(msg)
+		return nil
 	case appCheckNotesMsg:
 		// The page takes its annotations wherever it sits in the stack, such as
 		// under the question of a re-request.

@@ -228,6 +228,9 @@ func (m Model) plainLine(v visible, numW int) string {
 		marker = ""
 	case KindFileHeader, KindHunkHeader, KindContext, KindNote, KindBlock:
 	}
+	if mark := m.markOf(row); mark != "" {
+		gutter = strings.TrimSuffix(gutter, " ") + mark
+	}
 	numbers := m.numbers(row, numW)
 	width := max(m.textWidth(numW)+1-len(marker), 0)
 	hits := m.rowHits(row, v.index)
