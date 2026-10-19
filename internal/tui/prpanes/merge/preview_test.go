@@ -79,7 +79,8 @@ func TestPreviewTitlesOfRowsWithoutOne(t *testing.T) {
 		{idReview, "Required review"},
 		{idChanges + "carol", "Changes requested: Carol Diaz"},
 		{"job/1", "test"},
-		{"check/4", "coverage"},
+		// The frame of a check run of an App names the App and tells how it stands.
+		{"check/4", "Codecov · coverage"},
 	} {
 		p, ok := PreviewOf(d, c.id, opts(t, 60))
 		if !ok || p.Title != c.title || p.Body != "" {
