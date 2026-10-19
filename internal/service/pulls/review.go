@@ -169,7 +169,7 @@ func (s *Service) reviewParts(repo core.RepoRef, number int, head string, event 
 			replies = append(replies, github.ReviewReplyDraft{ThreadID: d.ThreadID, Body: d.Body})
 			continue
 		}
-		threads = append(threads, github.ReviewThreadDraft{Path: d.Path, Side: d.Side, Line: d.Line, StartLine: d.StartLine, Body: d.Body})
+		threads = append(threads, github.ReviewThreadDraft{Path: d.Path, Side: d.Side, Line: d.Line, StartLine: d.StartLine, File: d.Line == 0, Body: d.Body})
 	}
 	return threads, replies, nil
 }

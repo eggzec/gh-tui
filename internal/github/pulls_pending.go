@@ -178,7 +178,8 @@ func (c *Client) SubmitPendingReview(
 	ctx context.Context, pullID, reviewID string, event core.ReviewEvent, body string,
 	threads []ReviewThreadDraft, replies []ReviewReplyDraft,
 ) error {
-	for _, t := range threads {
+	lines, files := splitFileComments(threads)
+	for _, t := range lines {
 		vars := map[string]any{"pull": pullID, "review": reviewID, "path": t.Path, "line": t.Line, "side": t.Side, "body": t.Body}
 		if t.StartLine > 0 {
 			vars["startLine"], vars["startSide"] = t.StartLine, t.Side
@@ -187,5 +188,5 @@ func (c *Client) SubmitPendingReview(
 			return fmt.Errorf("add thread on %s to review %s: %w", t.Path, reviewID, err)
 		}
 	}
-	return c.finishReview(ctx, pullID, reviewID, event, body, replies)
+	return c.finishReview(ctx, pullID, reviewID, event, body, files, replies)
 }

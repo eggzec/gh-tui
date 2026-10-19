@@ -51,6 +51,9 @@ type Styles struct {
 	// last jump went to. They replace the colors of the match.
 	Match        lipgloss.Style
 	CurrentMatch lipgloss.Style
+	// Selected styles the lines between the anchor of a selection and the
+	// cursor, over their own colors.
+	Selected lipgloss.Style
 	// Prompt styles the "/" before the search input, and InputCursor its
 	// cursor, with its foreground.
 	Prompt      lipgloss.Style
@@ -116,6 +119,7 @@ func DefaultStyles(isDark bool) Styles {
 		Status:        lipgloss.NewStyle().Foreground(muted),
 		Match:         lipgloss.NewStyle().Foreground(text).Background(match),
 		CurrentMatch:  lipgloss.NewStyle().Foreground(onCurrent).Background(current),
+		Selected:      lipgloss.NewStyle().Background(ld(lipgloss.Color("#dfe2ea"), lipgloss.Color("#363b4d"))),
 		Prompt:        lipgloss.NewStyle().Foreground(accent),
 		InputCursor:   lipgloss.NewStyle().Foreground(accent),
 		Loading:       lipgloss.NewStyle().Foreground(muted),
@@ -148,7 +152,7 @@ func (w sgr) on(text string) string { return w.pre + text + w.suf }
 type wraps struct {
 	FileHeader, HunkHeader, Added, Deleted, Context, NoNewline, Note sgr
 	LineNumber, Status, Loading, Empty, Error, Hint                  sgr
-	match, current                                                   sgr
+	match, current, selected                                         sgr
 	// code is how the code of a context, an added and a deleted line
 	// looks once highlighted.
 	code [3]tokenStyles
@@ -167,7 +171,7 @@ func newWraps(s Styles) wraps {
 		Added: wrapOf(s.Added), Deleted: wrapOf(s.Deleted), Context: wrapOf(s.Context),
 		NoNewline: wrapOf(s.NoNewline), Note: wrapOf(s.Note),
 		LineNumber: wrapOf(s.LineNumber), Status: wrapOf(s.Status),
-		Loading: wrapOf(s.Loading), Empty: wrapOf(s.Empty),
+		Loading: wrapOf(s.Loading), Empty: wrapOf(s.Empty), selected: wrapOf(s.Selected),
 		Error: wrapOf(s.Error), Hint: wrapOf(s.Hint),
 		match: wrapOf(s.Match), current: wrapOf(s.CurrentMatch),
 		code: [3]tokenStyles{

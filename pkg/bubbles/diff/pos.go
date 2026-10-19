@@ -19,6 +19,40 @@ func (l *Layout) PosAt(i int) (Pos, bool) {
 	return Pos{}, false
 }
 
+// OnHeader reports whether the cursor is on the header of a file.
+func (m Model) OnHeader() bool {
+	r, ok := m.layout.RowAt(m.cursor)
+	return ok && r.Kind == KindFileHeader
+}
+
+// SetAnchor starts a selection on the line p, which reaches to the cursor and
+// follows it. ClearAnchor ends it.
+func (m *Model) SetAnchor(p Pos) { m.anchor = &p }
+
+// ClearAnchor ends the selection.
+func (m *Model) ClearAnchor() { m.anchor = nil }
+
+// Anchor returns the line a selection started on.
+func (m Model) Anchor() (Pos, bool) {
+	if m.anchor == nil {
+		return Pos{}, false
+	}
+	return *m.anchor, true
+}
+
+// selection returns the first and last row of the selection, or an empty
+// range when there is none or its line is not shown.
+func (m Model) selection() (lo, hi int) {
+	if m.anchor == nil {
+		return 0, -1
+	}
+	row, found := m.layout.Find(*m.anchor)
+	if !found {
+		return 0, -1
+	}
+	return min(row, m.cursor), max(row, m.cursor)
+}
+
 // Line returns the text of the line p names, as the fetched files show it,
 // and whether the diff shows that line. known is false when that can't be
 // said yet: the file may still come with a later page, or the diff of the file
@@ -60,6 +94,29 @@ func (l *Layout) Find(p Pos) (row int, found bool) {
 	}
 	return row, false
 }
+
+// SameHunk reports whether the lines a and b are in one hunk of one file: both
+// are shown, and no hunk header lies between them.
+func (l *Layout) SameHunk(a, b Pos) bool {
+	if a.Path != b.Path {
+		return false
+	}
+	ra, okA := l.Find(a)
+	rb, okB := l.Find(b)
+	if !okA || !okB {
+		return false
+	}
+	for i := min(ra, rb); i <= max(ra, rb); i++ {
+		if r, ok := l.RowAt(i); ok && r.Kind == KindHunkHeader {
+			return false
+		}
+	}
+	return true
+}
+
+// SameHunk reports whether the lines a and b are in one hunk, as
+// Layout.SameHunk does.
+func (m Model) SameHunk(a, b Pos) bool { return m.layout.SameHunk(a, b) }
 
 // lineIn is the index of the row of body that shows p, which is a line of
 // some file.

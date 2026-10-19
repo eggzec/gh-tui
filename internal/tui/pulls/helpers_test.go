@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -145,6 +146,10 @@ type fakeService struct {
 	sentReviews []sentReview
 	reviewErr   error
 	reviewGate  chan struct{}
+	// submitted are the reviews with comments SubmitReview was given, and
+	// submitErr fails it.
+	submitted []submittedReview
+	submitErr error
 	// timeline is what the timeline reads serve and record.
 	timeline timelineFake
 }
@@ -169,6 +174,29 @@ func (f *fakeService) SendReview(ctx context.Context, _ core.RepoRef, number int
 		}
 	}
 	return err
+}
+
+// submittedReview is one call of SubmitReview.
+type submittedReview struct {
+	number     int
+	head, body string
+	event      core.ReviewEvent
+	drafts     []tray.Draft
+}
+
+// SubmitReview is what the service sends a review with comments with.
+func (f *fakeService) SubmitReview(_ context.Context, _ core.RepoRef, number int, head string, event core.ReviewEvent, body string, drafts []tray.Draft) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.submitted = append(f.submitted, submittedReview{number, head, body, event, slices.Clone(drafts)})
+	return f.submitErr
+}
+
+// submits returns what SubmitReview was given.
+func (f *fakeService) submits() []submittedReview {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.submitted)
 }
 
 // sends returns what SendReview was given.

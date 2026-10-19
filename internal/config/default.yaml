@@ -1245,6 +1245,18 @@ keys:
     # Show the file the cursor is in whole, as it is at the end of the range
     # with the changes marked, or go back to its hunks only.
     full_file: [x]
+    # Start a range of lines at the cursor, which the cursor moves the end of,
+    # or end it.
+    range: [V]
+    # Write a review comment on the line, or on the range, or on the file when
+    # the cursor is on its header. On a draft it edits the draft. A draft stays on
+    # this machine until the review is sent.
+    comment: [c]
+    # Delete the draft the cursor is on, after asking.
+    delete_draft: [D]
+    # Move to the next draft, or the one before.
+    next_note: [")"]
+    prev_note: ["("]
   # The modal of a pull request: what it closes, with what blocks each issue,
   # and the pull requests linked to it, in groups that fold. Enter opens the
   # item under the cursor, or folds a group.

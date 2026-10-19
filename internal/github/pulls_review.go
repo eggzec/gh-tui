@@ -21,7 +21,10 @@ type ReviewThreadDraft struct {
 	// range, or 0 for one line.
 	Line      int
 	StartLine int
-	Body      string
+	// File makes it a comment on the whole file, with no line, side or range.
+	// GitHub takes those only as a thread added to a review that exists.
+	File bool
+	Body string
 }
 
 // ReviewReplyDraft is a reply to an existing review thread, sent with a
@@ -36,13 +39,16 @@ type ReviewReplyDraft struct {
 // has a pending review on the pull request, which GitHub allows only one of.
 var ErrPendingReview = errors.New("you have a pending review on this pull request")
 
-// A review is sent in three steps, so that every comment of it lands in one
-// review: a pending one (no event) that holds the threads, replies to existing
-// threads added to it, and its submission. The payloads are aliased to
-// result, so that one shape decodes them.
+// A review is sent in four steps, so that every comment of it lands in one
+// review: a pending one (no event) that holds the threads on lines, comments on
+// whole files and replies to existing threads added to it, and its submission.
+// The payloads are aliased to result, so that one shape decodes them.
 const (
 	addReviewMutation = `mutation AddPullRequestReview($pull: ID!, $commit: GitObjectID, $threads: [DraftPullRequestReviewThread]) {
   result: addPullRequestReview(input: {pullRequestId: $pull, commitOID: $commit, threads: $threads}) { pullRequestReview { id } }
+}`
+	addReviewFileMutation = `mutation AddPullRequestReviewFileComment($pull: ID!, $review: ID!, $path: String!, $body: String!) {
+  result: addPullRequestReviewThread(input: {pullRequestId: $pull, pullRequestReviewId: $review, path: $path, subjectType: FILE, body: $body}) { thread { id } }
 }`
 	addReviewReplyMutation = `mutation AddPullRequestReviewThreadReply($review: ID!, $thread: ID!, $body: String!) {
   result: addPullRequestReviewThreadReply(input: {pullRequestReviewId: $review, pullRequestReviewThreadId: $thread, body: $body}) { comment { id } }
@@ -67,8 +73,9 @@ const cleanupTimeout = 10 * time.Second
 // with node ID pullID, on commit commitOID (the head the user saw), with the
 // summary body and the verdict event, and returns the review's node ID.
 //
-// It makes a pending review with the threads, adds each reply to it, and
-// submits it. If a reply or the submission fails, the pending review is
+// It makes a pending review with the threads on lines, adds the comments on
+// whole files and each reply to it, and submits it. If one of those or the
+// submission fails, the pending review is
 // deleted, so that nothing half-sent lingers on GitHub, and the error is
 // returned (joined with the deletion's, if that failed too). If the viewer
 // already has a pending review, which GitHub allows one of, the error wraps
@@ -77,11 +84,12 @@ func (c *Client) SubmitReview(
 	ctx context.Context, pullID, commitOID string, event core.ReviewEvent, body string,
 	threads []ReviewThreadDraft, replies []ReviewReplyDraft,
 ) (string, error) {
-	reviewID, err := c.addReview(ctx, pullID, commitOID, threads)
+	lines, files := splitFileComments(threads)
+	reviewID, err := c.addReview(ctx, pullID, commitOID, lines)
 	if err != nil {
 		return "", err
 	}
-	if err := c.finishReview(ctx, pullID, reviewID, event, body, replies); err != nil {
+	if err := c.finishReview(ctx, pullID, reviewID, event, body, files, replies); err != nil {
 		// The caller's context may be what failed the step, and the deletion
 		// must still go out.
 		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
@@ -113,8 +121,27 @@ func (c *Client) addReview(ctx context.Context, pullID, commitOID string, thread
 	return id, nil
 }
 
-// finishReview adds replies to the pending review and submits it.
-func (c *Client) finishReview(ctx context.Context, pullID, reviewID string, event core.ReviewEvent, body string, replies []ReviewReplyDraft) error {
+// splitFileComments separates the comments on whole files from the threads on
+// lines.
+func splitFileComments(threads []ReviewThreadDraft) (lines, files []ReviewThreadDraft) {
+	for _, t := range threads {
+		if t.File {
+			files = append(files, t)
+		} else {
+			lines = append(lines, t)
+		}
+	}
+	return lines, files
+}
+
+// finishReview adds the comments on files and the replies to the pending
+// review and submits it.
+func (c *Client) finishReview(ctx context.Context, pullID, reviewID string, event core.ReviewEvent, body string, files []ReviewThreadDraft, replies []ReviewReplyDraft) error {
+	for _, f := range files {
+		if err := c.addFileComment(ctx, pullID, reviewID, f); err != nil {
+			return err
+		}
+	}
 	for _, r := range replies {
 		vars := map[string]any{"review": reviewID, "thread": r.ThreadID, "body": r.Body}
 		if err := c.Query(ctx, addReviewReplyMutation, vars, nil); err != nil {
@@ -124,6 +151,15 @@ func (c *Client) finishReview(ctx context.Context, pullID, reviewID string, even
 	vars := map[string]any{"pull": pullID, "review": reviewID, "event": string(event), "body": body}
 	if _, err := c.reviewMutation(ctx, submitReviewMutation, vars); err != nil {
 		return fmt.Errorf("submit review %s: %w", reviewID, err)
+	}
+	return nil
+}
+
+// addFileComment adds the comment f on a whole file to the pending review.
+func (c *Client) addFileComment(ctx context.Context, pullID, reviewID string, f ReviewThreadDraft) error {
+	vars := map[string]any{"pull": pullID, "review": reviewID, "path": f.Path, "body": f.Body}
+	if err := c.Query(ctx, addReviewFileMutation, vars, nil); err != nil {
+		return fmt.Errorf("comment on file %s in review %s: %w", f.Path, reviewID, err)
 	}
 	return nil
 }

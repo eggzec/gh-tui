@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -24,6 +25,11 @@ import (
 // GitHub is on an older commit than the head: the service refuses to send into
 // it, so a review sent from here would not be one of the head.
 const outdatedPendingText = "Your pending review on GitHub is on an older commit than the head; update or discard it on GitHub first."
+
+// pendingAppearedText is what the user reads when a review sent with comments
+// found one pending on GitHub, which holds comments made elsewhere: the
+// drafts are kept.
+const pendingAppearedText = "You have a pending review on GitHub; submit or discard it there, then send this one. Your drafts are kept."
 
 // verdicts are the choices of the picker, in the order they show.
 var verdicts = [...]struct {
@@ -43,6 +49,8 @@ type reviewPlan struct {
 	label, body string
 	head        string
 	number      int
+	// drafts are the review comments that go with it.
+	drafts []tray.Draft
 }
 
 // planReview returns what a submit of the verdict (a row of verdicts) with
@@ -58,7 +66,11 @@ func planReview(verdict int, summary, head string, number int) (p reviewPlan, re
 
 // question asks to submit the plan.
 func (p reviewPlan) question() string {
-	return "Submit review (" + p.label + ") on #" + strconv.Itoa(p.number) + "?"
+	q := "Submit review (" + p.label + ") on #" + strconv.Itoa(p.number)
+	if n := len(p.drafts); n > 0 {
+		q += " with " + plural(n, "comment")
+	}
+	return q + "?"
 }
 
 // reviewedMsg reports that GitHub answered the review sent by the modal.
@@ -96,7 +108,7 @@ func (m *panesModal) submitReview(o *composerOverlay) tea.Cmd {
 	if m.sending {
 		return nil
 	}
-	p, why := planReview(o.verdict, o.comp.Value(), m.detail.HeadSHA, m.number)
+	p, why := m.reviewWithDrafts(o)
 	if why != "" {
 		return ui.Notify(toast.Info, why)
 	}
@@ -104,7 +116,7 @@ func (m *panesModal) submitReview(o *composerOverlay) tea.Cmd {
 		if m.closed || m.sending {
 			return ui.Confirm{}, false, nil
 		}
-		p, why := planReview(o.verdict, o.comp.Value(), m.detail.HeadSHA, m.number)
+		p, why := m.reviewWithDrafts(o)
 		if why != "" {
 			return ui.Confirm{}, false, ui.Notify(toast.Info, why)
 		}
@@ -121,8 +133,22 @@ func (m *panesModal) submitReview(o *composerOverlay) tea.Cmd {
 func (m *panesModal) sendReview(p reviewPlan) tea.Cmd {
 	m.sending = true
 	svc, ctx, repo, n := m.svc, m.sendCtx, m.repo, m.number
+	store, dkey := m.draftStore(), m.draftKey()
 	return func() tea.Msg {
-		return reviewedMsg{owner: m, err: svc.SendReview(ctx, repo, n, p.head, p.event, p.body)}
+		dr, ok := svc.(draftReviewer)
+		if !ok || len(p.drafts) == 0 {
+			return reviewedMsg{owner: m, err: svc.SendReview(ctx, repo, n, p.head, p.event, p.body)}
+		}
+		err := dr.SubmitReview(ctx, repo, n, p.head, p.event, p.body, p.drafts)
+		if err == nil {
+			// The comments are on GitHub now; a failure leaves them kept.
+			for i := range p.drafts {
+				if rerr := store.Remove(dkey, p.drafts[i].ID); rerr != nil {
+					slog.WarnContext(ctx, "sent review draft not removed", "span", "tui", "err", ui.ShortPath(rerr.Error()))
+				}
+			}
+		}
+		return reviewedMsg{owner: m, err: err}
 	}
 }
 
@@ -139,6 +165,9 @@ func (m *panesModal) reviewed(msg reviewedMsg) tea.Cmd {
 		slog.WarnContext(m.ctx, "review not submitted", "span", "tui", "err", ui.ShortPath(msg.err.Error()))
 		if errors.Is(msg.err, pulls.ErrPendingReviewOutdated) {
 			return ui.Notify(toast.Error, outdatedPendingText)
+		}
+		if errors.Is(msg.err, pulls.ErrPendingAppeared) {
+			return ui.Notify(toast.Error, pendingAppearedText)
 		}
 		return ui.Fail("submit the review of "+num, msg.err)
 	}

@@ -69,6 +69,8 @@ type Model struct {
 	search    search
 	// dirty asks the next Update to fetch what a new size or a seek shows.
 	dirty bool
+	// anchor is the line a selection started on, which reaches to the cursor.
+	anchor *Pos
 
 	// Rendered once in SetStyles, so View only copies them.
 	gutterFocused string

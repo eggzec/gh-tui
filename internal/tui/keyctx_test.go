@@ -29,6 +29,7 @@ import (
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
+	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/checks"
 	"github.com/eggzec/gh-tui/internal/tui/dashboard"
@@ -259,6 +260,29 @@ func keyDiff() string {
 		}
 	}
 	return b.String()
+}
+
+// keyReviewDrafts keeps a review comment on each file of the pull request, so
+// that the keys that move between drafts have one to reach wherever the
+// cursor starts.
+func keyReviewDrafts() *tray.Memory {
+	store := &tray.Memory{}
+	for _, f := range keyChanged {
+		// One in the first hunk and one in the last, since the cursor is
+		// reached in the last hunk, and the keys go both ways.
+		for _, line := range []int{20, 100} {
+			_, _ = store.Put(tray.Key(testRepo.String(), keyPull.Number), tray.Draft{
+				Commit: keyPull.HeadSHA, Path: f.Path, Side: tray.Right, Line: line, Body: "Why wide?",
+			})
+		}
+	}
+	return store
+}
+
+// SubmitReview takes a review with its comments, which the service of a
+// pull request does when the review has drafts.
+func (keyPulls) SubmitReview(context.Context, core.RepoRef, int, string, core.ReviewEvent, string, []tray.Draft) error {
+	return nil
 }
 
 // keyIssueRows are the issues the list serves: one, unless a test sets more.
@@ -1043,7 +1067,8 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithCommitChecks(keyActions{})),
+			pulls.WithChecks(keyActions{}, checks.WithVoice(v)), pulls.WithCommitChecks(keyActions{}),
+			pulls.WithReviewDrafts(keyReviewDrafts())),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),

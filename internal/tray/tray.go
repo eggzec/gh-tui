@@ -128,6 +128,11 @@ func (s *Store) path(key string) string {
 func (s *Store) Load(key string) ([]Draft, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.load(key)
+}
+
+// load is Load for a caller that holds the lock.
+func (s *Store) load(key string) ([]Draft, error) {
 	p := s.path(key)
 	data, err := os.ReadFile(p)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -154,6 +159,11 @@ func (s *Store) Load(key string) ([]Draft, error) {
 func (s *Store) Save(key string, drafts []Draft) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.save(key, drafts)
+}
+
+// save is Save for a caller that holds the lock.
+func (s *Store) save(key string, drafts []Draft) error {
 	if len(drafts) == 0 {
 		if err := os.Remove(s.path(key)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("delete drafts: %w", err)
