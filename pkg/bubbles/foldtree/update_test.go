@@ -375,6 +375,10 @@ func TestScrollKeepsTallRowsInView(t *testing.T) {
 	if m.off != 2 {
 		t.Errorf("window at %d on a row taller than the window, want its first line (2)", m.off)
 	}
+	m, _ = keys(t, m, "j", "j", "j")
+	if selected(m) != "body" || m.off != 9-4 {
+		t.Errorf("cursor on %q, window at %d, want body with its end in view at 5", selected(m), m.off)
+	}
 	m, _ = keys(t, m, "j")
 	if selected(m) != "z" || m.off != 9-4+1 {
 		t.Errorf("cursor on %q, window at %d, want z at 6", selected(m), m.off)

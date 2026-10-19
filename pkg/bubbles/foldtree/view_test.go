@@ -268,10 +268,19 @@ func TestViewCursorClimbsOntoAPinnedAncestor(t *testing.T) {
 }
 
 // assertShowsOnce checks that the row under the cursor is drawn once, with the
-// cursor, whatever the pins are.
+// cursor, whatever the pins are. A row taller than the window may be read
+// from its middle, so it only has to show a line with the cursor.
 func assertShowsOnce(tb testing.TB, m Model) {
 	tb.Helper()
 	id := selected(m)
+	if m.tall() {
+		for l := range strings.SplitSeq(plain(m.View()), "\n") {
+			if strings.HasPrefix(l, "▌") {
+				return
+			}
+		}
+		tb.Fatalf("no line of the tall row %q has the cursor:\n%s", id, plain(m.View()))
+	}
 	n, cursor := 0, 0
 	for l := range strings.SplitSeq(plain(m.View()), "\n") {
 		if strings.HasSuffix(strings.TrimRight(l, " "), id) {

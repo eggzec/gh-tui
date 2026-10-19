@@ -52,6 +52,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	page := max(m.inner(), 1)
+	prev := m.cur
 	switch {
 	case keymap.Matches(msg, m.keyMap.Up):
 		m.step(-1)
@@ -82,31 +83,73 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	default:
 		return nil
 	}
+	if m.cur != prev && !m.bottom && m.tall() {
+		m.off = m.starts[m.cur]
+	}
 	m.scroll()
 	return cmd
 }
 
+// tall reports whether the row under the cursor has more lines than the
+// window shows of rows.
+func (m Model) tall() bool { return m.lines(m.cur) > max(m.inner(), 1) }
+
+// readRow moves the window lines lines inside the row under the cursor when
+// it is taller than the window and has more to show that way, and reports
+// whether it did. A negative lines is up.
+func (m *Model) readRow(lines int) bool {
+	if !m.tall() {
+		return false
+	}
+	s, e := m.starts[m.cur], m.starts[m.cur+1]
+	switch {
+	case lines > 0 && e > m.off+m.inner():
+		m.off = min(m.off+lines, e-m.inner())
+	case lines < 0 && s < m.off:
+		m.off = max(m.off+lines, s)
+	default:
+		return false
+	}
+	return true
+}
+
 // step moves the cursor one row in direction dir, over rows it may not rest
-// on, and stays where it is at the ends.
+// on, and stays where it is at the ends. Inside a row taller than the window
+// it scrolls a line first, and a row it enters from below shows its end.
 func (m *Model) step(dir int) {
+	if m.readRow(dir) {
+		return
+	}
 	for j := m.cur + dir; j >= 0 && j < len(m.vis); j += dir {
 		if !m.row(j).Skip {
 			m.setCur(j)
+			m.bottom = dir < 0
 			return
 		}
 	}
 }
 
 // jump moves the cursor lines lines down, or up when negative, to the row
-// that has that line, and never the wrong way.
+// that has that line, and never the wrong way. Inside a row taller than the
+// window it scrolls first, and leaves the row only once its end, or its top
+// going up, is in view.
 func (m *Model) jump(lines int) {
-	target := min(max(m.starts[m.cur]+lines, 0), m.starts[len(m.vis)]-1)
+	if m.readRow(lines) {
+		return
+	}
+	from := m.starts[m.cur]
+	if lines > 0 && m.tall() {
+		from = max(from, m.starts[m.cur+1]-lines)
+	}
+	target := min(max(from+lines, 0), m.starts[len(m.vis)]-1)
 	j := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > target })
 	if lines > 0 {
 		m.setCur(max(m.selectable(j, 1), m.cur))
 		return
 	}
+	prev := m.cur
 	m.setCur(min(m.selectable(j, -1), m.cur))
+	m.bottom = m.cur != prev
 }
 
 // expand opens a closed fold, or moves to the first child of an open one.
