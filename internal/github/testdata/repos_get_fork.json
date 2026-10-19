@@ -33,7 +33,16 @@
       "squashMergeAllowed": true,
       "rebaseMergeAllowed": true,
       "autoMergeAllowed": false,
-      "viewerDefaultMergeMethod": "MERGE"
+      "viewerDefaultMergeMethod": "MERGE",
+      "parent": {
+        "owner": {
+          "login": "slk-dev"
+        },
+        "name": "slk"
+      },
+      "viewerFork": {
+        "nodes": []
+      }
     }
   }
 }

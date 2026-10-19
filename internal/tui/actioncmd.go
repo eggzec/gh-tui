@@ -160,6 +160,8 @@ func (m *Model) actionOpen(action string) bool {
 		return m.canOpenActions()
 	case config.ActionStar:
 		return m.canStar()
+	case config.ActionForkSwitch:
+		return m.canForkSwitch()
 	case config.ActionFindFile:
 		return m.fileFinder() != nil
 	case config.ActionZoom:

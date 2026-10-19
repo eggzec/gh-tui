@@ -183,6 +183,35 @@ func TestGetRepoCaps(t *testing.T) {
 	}
 }
 
+// TestGetRepoForks decodes the parent of a fork and the fork of the viewer,
+// and leaves both zero when the fixture has none.
+func TestGetRepoForks(t *testing.T) {
+	tests := []struct {
+		fixture     string
+		ref         core.RepoRef
+		parent, own core.RepoRef
+	}{
+		{"repos_get_fork.json", core.RepoRef{Owner: "laraibg786", Name: "slk"}, core.RepoRef{Owner: "slk-dev", Name: "slk"}, core.RepoRef{}},
+		{"repos_get_forked.json", core.RepoRef{Owner: "slk-dev", Name: "slk"}, core.RepoRef{}, core.RepoRef{Owner: "laraibg786", Name: "slk"}},
+		{"repos_get.json", ghTUI.Ref, core.RepoRef{}, core.RepoRef{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.fixture, func(t *testing.T) {
+			c, reqs := serveFixture(t, tt.fixture)
+			got, err := c.GetRepo(t.Context(), tt.ref)
+			if err != nil {
+				t.Fatalf("GetRepo: %v", err)
+			}
+			if got.Parent != tt.parent || got.ViewerFork != tt.own {
+				t.Errorf("parent %v and fork %v, want %v and %v", got.Parent, got.ViewerFork, tt.parent, tt.own)
+			}
+			if req := <-reqs; !strings.Contains(req.Query, "forks(first: 1, affiliations: [OWNER])") {
+				t.Errorf("query asks no viewer fork: %q", req.Query)
+			}
+		})
+	}
+}
+
 func TestPermission(t *testing.T) {
 	for in, want := range map[string]core.Permission{
 		"ADMIN": core.PermissionAdmin, "MAINTAIN": core.PermissionMaintain, "WRITE": core.PermissionWrite,

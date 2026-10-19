@@ -102,6 +102,9 @@ const (
 	// ActionStar stars the repository, or unstars it, after asking. It has
 	// no key by default, and is the star command.
 	ActionStar = "repo.star"
+	// ActionForkSwitch goes from a fork to the repository it is a fork of,
+	// and from a repository the viewer has forked to that fork.
+	ActionForkSwitch = "repo.fork_switch"
 )
 
 // Of returns the keys of action, such as "pulls.merge", or none.

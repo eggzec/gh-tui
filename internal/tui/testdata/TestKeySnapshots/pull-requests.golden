@@ -22,6 +22,7 @@ Repository
   history | B | B | on
   actions | A | A | on
   star |  |  | off
+  fork/parent | x | x | off
 
 Pull requests
   merge | M | M | on

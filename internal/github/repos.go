@@ -68,6 +68,8 @@ const repoCapsFields = `fragment repoCapsFields on Repository {
   rebaseMergeAllowed
   autoMergeAllowed
   viewerDefaultMergeMethod
+  parent { owner { login } name }
+  viewerFork: forks(first: 1, affiliations: [OWNER]) { nodes { owner { login } name } }
 }`
 
 const getRepoQuery = `query GetRepo($owner: String!, $name: String!) {
@@ -141,6 +143,24 @@ type repoDetail struct {
 	RebaseMergeAllowed       bool   `json:"rebaseMergeAllowed"`
 	AutoMergeAllowed         bool   `json:"autoMergeAllowed"`
 	ViewerDefaultMergeMethod string `json:"viewerDefaultMergeMethod"`
+	// Parent is null for a repository that is not a fork.
+	Parent     *forkRef `json:"parent"`
+	ViewerFork struct {
+		Nodes []forkRef `json:"nodes"`
+	} `json:"viewerFork"`
+}
+
+// forkRef is a repository named by its owner and name, as the parent of a
+// fork and the viewer's fork of a repository come.
+type forkRef struct {
+	Owner struct {
+		Login string `json:"login"`
+	} `json:"owner"`
+	Name string `json:"name"`
+}
+
+func (f forkRef) core() core.RepoRef {
+	return repoRef(f.Owner.Login, f.Name)
 }
 
 func (d repoDetail) core() core.Repo {
@@ -160,6 +180,12 @@ func (d repoDetail) core() core.Repo {
 		Rebase:       d.RebaseMergeAllowed,
 		AutoMerge:    d.AutoMergeAllowed,
 		DefaultMerge: core.MergeMethod(strings.ToLower(d.ViewerDefaultMergeMethod)),
+	}
+	if d.Parent != nil {
+		r.Parent = d.Parent.core()
+	}
+	if len(d.ViewerFork.Nodes) > 0 {
+		r.ViewerFork = d.ViewerFork.Nodes[0].core()
 	}
 	return r
 }

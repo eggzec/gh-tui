@@ -641,6 +641,9 @@ keys:
     # Star the repository, or unstar it, asking first. It has no key: type
     # :star.
     star: []
+    # Go to the repository this one is a fork of, or, on a repository you
+    # have forked, to your fork.
+    fork_switch: [x]
   # Repository: the file tree.
   files:
     up: [up, k]
