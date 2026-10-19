@@ -889,7 +889,9 @@ func TestContextChains(t *testing.T) {
 // unopenedContexts are the contexts that no screen opens yet, so that no
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
-var unopenedContexts = map[string]string{}
+var unopenedContexts = map[string]string{
+	"order_pick": "the sort and group-by modals open it once they land",
+}
 
 // foldedContexts are the contexts whose keys help lists in the layer of
 // another, because one widget holds both: the keys of a picker in normal
