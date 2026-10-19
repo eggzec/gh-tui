@@ -229,6 +229,21 @@ func TestGroupsPrefetchCountsItems(t *testing.T) {
 	}
 }
 
+func TestGroupsClosedGroupsDoNotLoadTheFeed(t *testing.T) {
+	m := load(t, newSource(1000, 10), WithSize(40, 6))
+	m = applyGroups(t, m, []Group[item]{{Key: parity}})
+	m = apply(t, m, (*Model[item]).CollapseAll)
+	m = keys(t, m, "end")
+	if m.Done() || m.Len() >= 100 {
+		t.Fatalf("Len() = %d, Done() = %v with every group closed, want a few chunks", m.Len(), m.Done())
+	}
+	n := m.Len()
+	m = apply(t, m, (*Model[item]).ExpandAll)
+	if m.Len() < n || m.Done() || m.Len() >= 100 {
+		t.Fatalf("Len() = %d after opening the groups, want only what the window needs", m.Len())
+	}
+}
+
 func TestGroupsView(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -243,7 +258,7 @@ func TestGroupsView(t *testing.T) {
 			t.Helper()
 			m := load(t, newSource(12, 12), WithSize(30, 12))
 			m = applyGroups(t, m, []Group[item]{{Key: parity}, {Key: third}})
-			return keys(t, m, "down", "down")
+			return keys(t, m, "down", "down", "down")
 		}},
 		{"collapsed", func(t *testing.T) Model[item] {
 			t.Helper()

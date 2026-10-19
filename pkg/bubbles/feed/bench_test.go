@@ -27,6 +27,19 @@ func BenchmarkView(b *testing.B) {
 	}
 }
 
+// BenchmarkViewGrouped draws the same feed grouped in two levels, with the
+// cursor in the middle of the lines.
+func BenchmarkViewGrouped(b *testing.B) {
+	m := benchFeed(b)
+	m = run(b, m, m.SetGroups([]Group[item]{{Key: parity}, {Key: third}}))
+	m.sel = len(m.lines) / 2
+	m = run(b, m, m.sync())
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
 func BenchmarkUpdate(b *testing.B) {
 	m := benchFeed(b)
 	// Box the keys once so the benchmark measures the feed, not the boxing.
