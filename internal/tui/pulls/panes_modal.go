@@ -337,6 +337,11 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return m.openAppCheck(msg)
 	case convViewerMsg:
 		return m.receiveViewer(msg)
+	case convRecacheMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		return m.recacheConv()
 	case conv.EnterMsg:
 		switch msg.Kind {
 		case conv.KindThread, conv.KindReply:

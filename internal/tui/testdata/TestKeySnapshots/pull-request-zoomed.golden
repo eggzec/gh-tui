@@ -42,3 +42,5 @@ Conversation
   open | enter | ↵ | on
   filter | f | f | on
   sort | s | s | on
+  resolve | T | T | on
+  delete | D | D | on

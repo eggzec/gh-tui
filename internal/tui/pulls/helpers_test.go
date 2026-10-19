@@ -137,6 +137,9 @@ type fakeService struct {
 	threadsErr  error
 	// threadCache are the pages CachedThreads serves, by cursor.
 	threadCache map[string]core.ThreadPage
+	// convHold, when set, holds the send of the next change of the
+	// conversation until it is released.
+	convHold *convHold
 	// summaries are the thread counts the detail of a pull request has, by
 	// number, and ResolveThread moves them.
 	summaries map[int]core.ThreadSummary
@@ -842,6 +845,57 @@ func (f *fakeService) EditPull(_ core.RepoRef, number int, title, body string) *
 
 func (f *fakeService) Comment(_ core.RepoRef, number int, body, author string) *optimistic.Op {
 	return f.change("comment by "+author+": "+body, number, func(*core.PullRequest) {})
+}
+
+// convChange records a change of the conversation as an op, and returns the
+// Op that fails when sendErr is set and runs rollback then.
+func (f *fakeService) convChange(what string, rollback func()) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ops = append(f.ops, what)
+	return optimistic.New(func(context.Context) error {
+		f.mu.Lock()
+		hold := f.convHold
+		f.mu.Unlock()
+		if hold != nil {
+			close(hold.started)
+			<-hold.release
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.sendErr
+	}, func() {
+		if rollback != nil {
+			rollback()
+		}
+	})
+}
+
+// ResolveThread changes the kept pages of threads at once, as the service
+// does, and puts them back when the send fails.
+func (f *fakeService) ResolveThread(_ core.RepoRef, _ int, id string, resolved bool) *optimistic.Op {
+	undo := f.editThreads(func(t *core.Thread) {
+		if t.ID == id {
+			t.Resolved = resolved
+		}
+	})
+	return f.convChange("resolve thread "+id+" "+strconv.FormatBool(resolved), undo)
+}
+
+// DeleteComment drops the comment from the kept pages of the timeline.
+func (f *fakeService) DeleteComment(_ core.RepoRef, _ int, id string) *optimistic.Op {
+	undo := f.dropItem(id)
+	return f.convChange("delete comment "+id, undo)
+}
+
+// DeleteReviewComment drops the comment from its thread in the kept pages.
+func (f *fakeService) DeleteReviewComment(_ core.RepoRef, _ int, threadID, id string) *optimistic.Op {
+	undo := f.editThreads(func(t *core.Thread) {
+		if t.ID == threadID {
+			t.Comments = slices.DeleteFunc(slices.Clone(t.Comments), func(c core.ThreadComment) bool { return c.ID == id })
+		}
+	})
+	return f.convChange("delete review comment "+threadID+" "+id, undo)
 }
 
 func (f *fakeService) changes() []string {

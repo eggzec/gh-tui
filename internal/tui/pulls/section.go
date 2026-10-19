@@ -111,6 +111,7 @@ type Service interface {
 	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
 	reviewRequester
 	viewedService
+	convEditor
 }
 
 // ChecksService is what the section needs to show the checks of pull
