@@ -125,6 +125,10 @@ type filesPane struct {
 	targets     checktree.Targets
 	checkStyles checktree.Styles
 
+	// finds is what the checks found in the files, for the last commit of the
+	// range; its changes count in checksVer.
+	finds findingsRead
+
 	// pv is the diff beside the tree of the zoomed pane.
 	pv filesDiff
 }

@@ -31,6 +31,9 @@ type CommitChecksQuery struct {
 	// object up by it, so an abbreviation finds nothing.
 	SHA   string
 	Notes bool
+	// Again reads the checks from GitHub even when the cache holds them fresh,
+	// for a view that knows they moved. It is not part of the cache key.
+	Again bool
 }
 
 var errNoSHA = errors.New("commit checks query names no commit")
@@ -181,7 +184,9 @@ func (s *Service) CommitChecks(ctx context.Context, q CommitChecksQuery) (core.C
 		return core.CommitChecks{}, errNoSHA
 	}
 	key := commitChecksKey(q)
-	if e, st := s.commit.get(key); st == cache.Fresh {
+	if q.Again {
+		s.commit.invalidate(key)
+	} else if e, st := s.commit.get(key); st == cache.Fresh {
 		return e.Value, nil
 	}
 	e, err := s.commit.live.Fetch(ctx, key, func(ctx context.Context, _ cache.Entry[core.CommitChecks], _ bool) (cache.Entry[core.CommitChecks], error) {

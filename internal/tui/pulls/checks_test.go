@@ -36,6 +36,15 @@ type fakeChecks struct {
 	// notes the annotations that CachedAnnotations returns for it.
 	app   *core.CommitCheck
 	notes []core.Annotation
+	// runs are the check runs that a read with annotations returns for a
+	// commit, pages the annotations that reading a run's own returns, noted the
+	// commits that such a read was made for, and notedErr makes it fail.
+	runs     map[string][]core.CommitCheck
+	pages    map[int64][]core.Annotation
+	noted    []string
+	notedErr error
+	// again are the commits that such a read asked GitHub for, not the cache.
+	again []string
 	// suites are the check suites that were asked to run again.
 	suites []int64
 	// suiteErr makes the re-request of a suite fail.
@@ -122,8 +131,10 @@ func (f *fakeChecks) WatchLog(core.RepoRef, int64, int64) func() { return func()
 func (f *fakeChecks) CachedAnnotations(actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
 	return core.Page[core.Annotation]{Items: f.notes}, f.notes != nil
 }
-func (f *fakeChecks) Annotations(context.Context, actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
-	return core.Page[core.Annotation]{}, nil
+func (f *fakeChecks) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return core.Page[core.Annotation]{Items: slices.Clone(f.pages[q.CheckRunID])}, nil
 }
 
 // commitChecks returns the checks of a commit: one failing job of GitHub
@@ -160,6 +171,16 @@ func (f *fakeChecks) suitesAsked() []int64 {
 func (f *fakeChecks) CommitChecks(_ context.Context, q actionssvc.CommitChecksQuery) (core.CommitChecks, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if q.Notes {
+		f.noted = append(f.noted, q.SHA)
+		if q.Again {
+			f.again = append(f.again, q.SHA)
+		}
+		if f.notedErr != nil {
+			return core.CommitChecks{}, f.notedErr
+		}
+		return core.CommitChecks{SHA: q.SHA, Runs: slices.Clone(f.runs[q.SHA]), Notes: true}, nil
+	}
 	f.commits = append(f.commits, q.SHA)
 	return f.commitChecks(q.SHA), nil
 }

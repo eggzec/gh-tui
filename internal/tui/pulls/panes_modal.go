@@ -280,7 +280,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	// The checks of the head commit moved, as a poll found and cached.
 	var syncCmd tea.Cmd
 	if sync, ok := msg.(ui.SyncMsg); ok {
-		syncCmd = m.merge.synced(m, sync)
+		syncCmd = tea.Batch(m.merge.synced(m, sync), m.refreshFindings(sync))
 		m.refreshLog(sync)
 	}
 	// Whatever the message changed, a new range of commits is read, and the log
@@ -292,7 +292,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			}
 			return
 		}
-		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
+		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
@@ -301,6 +301,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return m.commitsRead(msg)
 	case filesRangeMsg:
 		m.rangeRead(msg)
+		return nil
+	case findingsMsg:
+		m.findingsRecv(msg)
 		return nil
 	case devLinksMsg:
 		return m.receiveDev(msg)

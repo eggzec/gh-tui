@@ -153,7 +153,7 @@ func rangeErrText(err error) string {
 // filesData is what the rows of the pane are built from.
 func (m *panesModal) filesData() files.Data {
 	f := &m.files
-	d := files.Data{Commits: f.commits, Range: f.rng}
+	d := files.Data{Commits: f.commits, Range: f.rng, Findings: f.finds.byPath}
 	if f.vw.in {
 		d.Viewed = f.vw.pv
 	}
