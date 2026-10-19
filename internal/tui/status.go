@@ -26,11 +26,10 @@ func WithLogin(login string) Option {
 }
 
 // The ranks of what the status bar shows, in the order it gives way as
-// the terminal narrows: the hints but the help key's, the account, the
-// rate limits, the help key, and the connection, which lasts longest.
+// the terminal narrows: the hints but the help key's, the rate limits, the
+// help key, and the connection with the account, which lasts longest.
 const (
 	rankHint = iota
-	rankAccount
 	rankRates
 	rankHelp
 	rankLink
@@ -120,16 +119,13 @@ func (m *Model) drawHints() {
 }
 
 // drawStatus renders what the right of the bar tells: the rate limits,
-// the connection and the account.
+// and the connection with the account.
 func (m *Model) drawStatus() {
 	m.stats = m.stats[:0]
 	if it := m.ratesItem(); len(it.Forms) > 0 {
 		m.stats = append(m.stats, it)
 	}
-	if it := m.linkItem(); len(it.Forms) > 0 {
-		m.stats = append(m.stats, it)
-	}
-	m.stats = append(m.stats, statusbar.Item{Forms: []string{m.bst.label.Render(m.account())}, Rank: rankAccount})
+	m.stats = append(m.stats, m.linkItem())
 	m.status.SetItems(m.hints, m.stats)
 }
 
@@ -248,17 +244,21 @@ func limitedUntil(r core.RateStatus) time.Time {
 	return until
 }
 
-// linkItem is the connection as the bar tells it, or with no forms while
-// it is unknown. Its shorter form is the dot alone.
+// linkItem is the connection and the account as the bar tells them: a dot
+// coloured by the state of the connection, the account, and for a state
+// other than online, what it is. Its shorter forms are the dot and the
+// account, and the dot alone. While the state is unknown it is the account
+// with no dot.
 func (m *Model) linkItem() statusbar.Item {
 	state, at := m.linkNow()
+	account := m.bst.label.Render(m.account())
 	var dot lipgloss.Style
 	var text string
 	switch state {
 	case linkUnknown:
-		return statusbar.Item{}
+		return statusbar.Item{Forms: []string{account}, Rank: rankLink}
 	case linkOnline:
-		dot, text = m.bst.online, "online"
+		dot = m.bst.online
 	case linkOffline:
 		dot, text = m.bst.warn, "offline since "+ui.Clock(at, m.rate.At)
 	case linkLimited:
@@ -269,7 +269,12 @@ func (m *Model) linkItem() statusbar.Item {
 		dot, text = m.bst.warn, "GitHub failing since "+ui.Clock(at, m.rate.At)
 	}
 	mark := dot.Render(m.icons.Dot)
-	return statusbar.Item{Forms: []string{mark + " " + m.bst.value.Render(text), mark}, Rank: rankLink}
+	short := mark + " " + account
+	forms := []string{short, mark}
+	if text != "" {
+		forms = []string{short + " " + m.bst.value.Render(text), short, mark}
+	}
+	return statusbar.Item{Forms: forms, Rank: rankLink}
 }
 
 // ratesItem is the rate limits as the bar tells them: what is left of
