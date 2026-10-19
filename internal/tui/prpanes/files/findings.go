@@ -1,6 +1,7 @@
 package files
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,17 @@ import (
 type Finding struct {
 	Count int
 	Level core.AnnotationLevel
+	// Notes are the annotations that sit on a line, which the diff shows under
+	// it. An annotation of the file as a whole is counted and not listed.
+	Notes []Note
+}
+
+// Note is one annotation of a check run, on the last line it names.
+type Note struct {
+	Line    int
+	Level   core.AnnotationLevel
+	App     string
+	Message string
 }
 
 // Add returns f with one more annotation of level l.
@@ -21,6 +33,27 @@ func (f Finding) Add(l core.AnnotationLevel) Finding {
 	}
 	f.Count++
 	return f
+}
+
+// ByLine returns the notes of f by the line they are on, each line's worst
+// level first, then by the name of the app.
+func (f Finding) ByLine() map[int][]Note {
+	if len(f.Notes) == 0 {
+		return nil
+	}
+	out := map[int][]Note{}
+	for _, n := range f.Notes {
+		out[n.Line] = append(out[n.Line], n)
+	}
+	for _, ns := range out {
+		slices.SortStableFunc(ns, func(a, b Note) int {
+			if c := rank(b.Level) - rank(a.Level); c != 0 {
+				return c
+			}
+			return strings.Compare(a.App, b.App)
+		})
+	}
+	return out
 }
 
 // rank orders the levels of annotations by how severe they are. A level that
@@ -39,7 +72,13 @@ func rank(l core.AnnotationLevel) int {
 
 // Findings returns the finding of each path that notes name.
 func Findings(notes []core.Annotation) map[string]Finding {
-	var out map[string]Finding
+	return AddFindings(nil, "", notes)
+}
+
+// AddFindings adds to out, which may be nil, the annotations notes of a check
+// run of the app named app, and returns it. The notes of a line keep the app's
+// name and the first line of their message.
+func AddFindings(out map[string]Finding, app string, notes []core.Annotation) map[string]Finding {
 	for _, n := range notes {
 		// A problem matcher of an Action may name a file as ./a.go.
 		p := strings.TrimPrefix(n.Path, "./")
@@ -49,7 +88,12 @@ func Findings(notes []core.Annotation) map[string]Finding {
 		if out == nil {
 			out = map[string]Finding{}
 		}
-		out[p] = out[p].Add(n.Level)
+		f := out[p].Add(n.Level)
+		if line := n.EndLine; line > 0 {
+			msg, _, _ := strings.Cut(strings.TrimSpace(n.Message), "\n")
+			f.Notes = append(slices.Clip(f.Notes), Note{Line: line, Level: n.Level, App: app, Message: strings.TrimSpace(msg)})
+		}
+		out[p] = f
 	}
 	return out
 }

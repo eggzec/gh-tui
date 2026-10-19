@@ -60,8 +60,10 @@ func (m *panesModal) readFindings() tea.Cmd {
 	svc, repo, id, seq := m.checks, m.repo, m.id, f.finds.seq
 	if by, ok := cachedFindings(svc, repo, sha); ok {
 		f.finds.byPath = by
+		m.showFindings()
 		return nil
 	}
+	m.showFindings()
 	return func() tea.Msg {
 		by, err := readFindings(ctx, svc, repo, sha, false)
 		return findingsMsg{id: id, seq: seq, sha: sha, byPath: by, err: err}
@@ -107,6 +109,7 @@ func (m *panesModal) findingsRecv(msg findingsMsg) {
 	f.finds.byPath = msg.byPath
 	f.checksVer++
 	f.seq++
+	m.showFindings()
 }
 
 // cachedFindings returns the findings of the commit sha when the cache holds
@@ -116,16 +119,24 @@ func cachedFindings(svc ChecksService, repo core.RepoRef, sha string) (map[strin
 	if !ok {
 		return nil, false
 	}
-	var notes []core.Annotation
+	var out map[string]files.Finding
 	for i := range c.Runs {
 		run := c.Runs[i]
 		n, ok := keptNotes(svc, notesQuery(repo, run), run)
 		if !ok {
 			return nil, false
 		}
-		notes = append(notes, n...)
+		out = files.AddFindings(out, appName(run.App), n)
 	}
-	return files.Findings(notes), true
+	return out, true
+}
+
+// appName is the name of the app of a check run, or "" for a run with none.
+func appName(a *core.CheckApp) string {
+	if a == nil {
+		return ""
+	}
+	return a.Name
 }
 
 // readFindings reads the checks of the commit sha with their annotations, and
@@ -136,7 +147,7 @@ func readFindings(ctx context.Context, svc ChecksService, repo core.RepoRef, sha
 	if err != nil {
 		return nil, err
 	}
-	var notes []core.Annotation
+	var out map[string]files.Finding
 	for i := range c.Runs {
 		run := c.Runs[i]
 		q := notesQuery(repo, run)
@@ -146,7 +157,7 @@ func readFindings(ctx context.Context, svc ChecksService, repo core.RepoRef, sha
 				return nil, err
 			}
 		}
-		notes = append(notes, n...)
+		out = files.AddFindings(out, appName(run.App), n)
 	}
-	return files.Findings(notes), nil
+	return out, nil
 }

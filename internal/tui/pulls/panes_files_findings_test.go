@@ -16,6 +16,12 @@ func note(path string, l core.AnnotationLevel) core.Annotation {
 	return core.Annotation{Path: path, StartLine: 1, EndLine: 1, Level: l, Message: "m"}
 }
 
+// sameBadges says whether two findings have the same counts and worst levels,
+// whatever the annotations that they list.
+func sameBadges(a, b map[string]files.Finding) bool {
+	return maps.EqualFunc(a, b, func(x, y files.Finding) bool { return x.Count == y.Count && x.Level == y.Level })
+}
+
 // findingsChecks serves two check runs on the last commit: a job of GitHub
 // Actions that brings its annotations, and an App's whose annotations are read
 // from the run. The middle commit has one run with a notice on a file that the
@@ -60,7 +66,7 @@ func TestFilesPaneFindingsOfTheLastCommit(t *testing.T) {
 		"internal/b.go": {Count: 1, Level: core.AnnotationWarning},
 	}
 	got := m.filesData().Findings
-	if !maps.Equal(got, want) {
+	if !sameBadges(got, want) {
 		t.Fatalf("findings = %v, want %v", got, want)
 	}
 	if len(fc.noted) != 1 || fc.noted[0] != "ddd4444" {
@@ -81,7 +87,7 @@ func TestFilesPaneFindingsFollowTheRange(t *testing.T) {
 	}
 	drain(t, h, cmd)
 	want := map[string]files.Finding{"docs/c.md": {Count: 1, Level: core.AnnotationNotice}}
-	if got := m.filesData().Findings; !maps.Equal(got, want) {
+	if got := m.filesData().Findings; !sameBadges(got, want) {
 		t.Errorf("findings of bbb2222 = %v, want %v", got, want)
 	}
 	if want := []string{"ddd4444", "bbb2222"}; !slices.Equal(fc.noted, want) {
@@ -143,7 +149,7 @@ func TestFilesPaneFindingsRefreshWhenThePollChanges(t *testing.T) {
 	if got, want := m.filesData().Findings, map[string]files.Finding{
 		"a.go":          {Count: 1, Level: core.AnnotationWarning},
 		"internal/b.go": {Count: 1, Level: core.AnnotationWarning},
-	}; !maps.Equal(got, want) {
+	}; !sameBadges(got, want) {
 		t.Fatalf("findings before = %v, want %v", got, want)
 	}
 
@@ -169,7 +175,7 @@ func TestFilesPaneFindingsRefreshWhenThePollChanges(t *testing.T) {
 		"a.go":          {Count: 3, Level: core.AnnotationFailure},
 		"internal/b.go": {Count: 1, Level: core.AnnotationWarning},
 	}
-	if got := m.filesData().Findings; !maps.Equal(got, want) {
+	if got := m.filesData().Findings; !sameBadges(got, want) {
 		t.Errorf("findings after = %v, want %v", got, want)
 	}
 	if !slices.Equal(fc.again, []string{"ddd4444"}) {
@@ -188,7 +194,7 @@ func TestFilesPaneFindingsRefreshFailureKeepsTheBadges(t *testing.T) {
 	fc.notedErr = errors.New("offline")
 	fc.mu.Unlock()
 	drain(t, h, m.Update(syncOf(m, "ddd4444")))
-	if got := m.filesData().Findings; !maps.Equal(got, want) {
+	if got := m.filesData().Findings; !sameBadges(got, want) {
 		t.Errorf("findings = %v after a failed read again, want %v", got, want)
 	}
 }
@@ -220,7 +226,7 @@ func TestFilesPaneFindingsDropsOlderAnswers(t *testing.T) {
 		"a.go":          {Count: 3, Level: core.AnnotationFailure},
 		"internal/b.go": {Count: 1, Level: core.AnnotationWarning},
 	}
-	if got := m.filesData().Findings; !maps.Equal(got, want) {
+	if got := m.filesData().Findings; !sameBadges(got, want) {
 		t.Fatalf("findings = %v, want %v", got, want)
 	}
 
