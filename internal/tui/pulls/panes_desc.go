@@ -132,9 +132,18 @@ func (m *panesModal) imagesChanged() {
 }
 
 // pressDescription takes a key of the description's own: the tree moves the
-// cursor and opens and closes the details blocks. It takes only a key that
-// the tree binds, so that any other key leaves the drawn panes as they are.
+// cursor and opens and closes the details blocks, and the keys that edit the
+// title and the description and quote it. It takes only a key that one of
+// them binds, so that any other key leaves the drawn panes as they are.
 func (m *panesModal) pressDescription(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	// Editing and quoting work on an empty description too: the first adds one,
+	// the second says there is nothing to quote.
+	switch {
+	case keymap.Matches(msg, m.keys.editDesc):
+		return m.openDescEdit(), true
+	case keymap.Matches(msg, m.keys.quoteDesc):
+		return m.quoteDescription(), true
+	}
 	d := &m.desc
 	if !d.made {
 		return nil, false

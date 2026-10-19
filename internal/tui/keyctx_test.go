@@ -1153,6 +1153,7 @@ func keyContexts() []keyContext {
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "merge_dialog", want: "always, merge_dialog (types)"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: description", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1", "pull_description.expand"}, context: "pull_description", want: "global, pull_modal, pull_description"},
+		{name: "pull request: description editor", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1", "pull_description.edit"}, context: "pull_desc_edit", want: "always, pull_desc_edit (types)"},
 		{name: "pull request: merge", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_3"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "pull request: involved", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_4"}, context: "pull_involved", want: "global, pull_modal, pull_involved"},
 		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},

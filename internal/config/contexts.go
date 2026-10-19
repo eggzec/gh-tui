@@ -145,6 +145,9 @@ var contexts = []Context{
 	// The dialog of a merge, with the fields of its commit message. Its keys
 	// are control keys, since the letters are typed.
 	{Name: "merge_dialog", Title: "Merge", Reach: ReachCapture, Typing: true},
+	// The editor of the title and the description of a pull request, with the
+	// keys of the merge dialog's fields.
+	{Name: "pull_desc_edit", Title: "Edit description", Reach: ReachCapture, Typing: true},
 	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
 	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true},
 	// A picker in normal mode, where letters move and start its search

@@ -41,3 +41,5 @@ Description
   all |  |  | off
   open | enter | ↵ | on
   mark |  |  | off
+  edit | e | e | on
+  quote | c | c | on

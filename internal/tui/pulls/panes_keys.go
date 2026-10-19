@@ -43,6 +43,10 @@ type panesKeys struct {
 	scroll ui.MoveKeys
 	// desc are the keys of the description's tree.
 	desc foldtree.KeyMap
+	// editDesc edits the title and the description, quoteDesc quotes the
+	// description in a new comment, and descEdit is the keys of the editor.
+	editDesc, quoteDesc key.Binding
+	descEdit            descEditKeys
 	// review opens the verdicts, choose takes the one under the cursor and
 	// cancel steps back out of them. composer is the keys of the summary.
 	review, choose, cancel key.Binding
@@ -107,6 +111,10 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
 		desc:    foldtree.NewKeyMap(ui.Lookup(keys, ctxDescription)),
+
+		editDesc:  ui.In(keys, ctxDescription).Binding("edit", "edit"),
+		quoteDesc: ui.In(keys, ctxDescription).Binding("comment", "quote"),
+		descEdit:  newDescEditKeys(keys),
 	}
 	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
 		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
@@ -220,7 +228,12 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 		for _, row := range k.desc.FullHelp() {
 			all = append(all, row...)
 		}
-		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.desc.ShortHelp())}
+		if m.loaded {
+			k.editDesc = m.gate().Gated(k.editDesc, ui.ActDraft, &m.detail.Issue)
+			k.quoteDesc = m.gate().Gated(k.quoteDesc, ui.ActComment, &m.detail.Issue)
+		}
+		all = append(all, k.editDesc, k.quoteDesc)
+		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, append(k.desc.ShortHelp(), k.editDesc, k.quoteDesc))}
 	}
 	return []keyhelp.Layer{own, ui.ContextLayer(ctx, nil, nil)}
 }
