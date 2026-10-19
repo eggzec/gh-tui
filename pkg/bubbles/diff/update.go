@@ -122,20 +122,28 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, m.keyMap.Up):
 		m.cursor--
+		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.Down):
 		m.cursor++
+		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.PageUp):
 		m.cursor -= h
+		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.PageDown):
 		m.cursor += h
+		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.HalfPageUp):
 		m.cursor -= max(h/2, 1)
+		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.cursor += max(h/2, 1)
+		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.Home):
 		m.cursor = 0
+		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.End):
 		m.cursor = m.layout.Len() - 1
+		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.Left):
 		m.left = max(m.left-sideStep, 0)
 	case keymap.Matches(msg, m.keyMap.Right):
@@ -164,6 +172,29 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	return m.sync()
+}
+
+// passRows moves the cursor on in direction dir (1 or -1) while it is on a row
+// of a [Block.Passive] block, and back the other way when it reaches an end of
+// the diff first.
+func (m *Model) passRows(dir int) {
+	m.cursor = max(min(m.cursor, m.layout.Len()-1), 0)
+	for range 2 {
+		for m.cursor >= 0 && m.cursor < m.layout.Len() && m.passive(m.cursor) {
+			m.cursor += dir
+		}
+		if m.cursor >= 0 && m.cursor < m.layout.Len() {
+			return
+		}
+		m.cursor = max(min(m.cursor, m.layout.Len()-1), 0)
+		dir = -dir
+	}
+}
+
+// passive reports whether row is a row of a [Block.Passive] block.
+func (m *Model) passive(row int) bool {
+	b, ok := m.layout.BlockAt(row)
+	return ok && b.Passive
 }
 
 // fold folds or unfolds the block the cursor is on, or the file whose header

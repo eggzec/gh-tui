@@ -290,6 +290,81 @@ func TestOnlyAtLineBlocks(t *testing.T) {
 	}
 }
 
+// passive is the block of three rows under new line n of path that the cursor
+// passes over.
+func passive(id, path string, n int) Block {
+	b := note(id, path, NewSide, n, "x")
+	b.Passive = true
+	return b
+}
+
+// The cursor does not stop on the rows of a passive block, whether it moves by
+// a row, a page or to an end, and neither do NextBlock and PrevBlock; the rows
+// are still there.
+func TestPassiveBlocksAreNotStops(t *testing.T) {
+	m := withBlocks(t, blockFiles(), 60, 20,
+		passive("quiet", "a.go", 2),
+		at("loud", "a.go", 22),
+	)
+	first, ok := m.layout.BlockRow("quiet")
+	if !ok {
+		t.Fatal("the passive block has no rows")
+	}
+	if b, ok := m.layout.BlockAt(first); !ok || b.ID != "quiet" {
+		t.Fatalf("row %d is not a row of the passive block", first)
+	}
+	m = keys(t, m, "g")
+	var seen []int
+	for range m.Len() {
+		prev := m.Cursor()
+		m = keys(t, m, "down")
+		if m.Cursor() == prev {
+			break
+		}
+		seen = append(seen, m.Cursor())
+		if m.passive(m.Cursor()) {
+			t.Fatalf("down stopped on row %d of the passive block", m.Cursor())
+		}
+	}
+	if !slices.Contains(seen, first-1) || slices.Contains(seen, first) || !slices.Contains(seen, first+3) {
+		t.Errorf("down went over rows %v, want the row before and after the block %d and not its rows", seen, first)
+	}
+	for range m.Len() {
+		prev := m.Cursor()
+		m = keys(t, m, "up")
+		if m.passive(m.Cursor()) {
+			t.Fatalf("up stopped on row %d of the passive block", m.Cursor())
+		}
+		if m.Cursor() == prev {
+			break
+		}
+	}
+	if m.Cursor() != 0 {
+		t.Errorf("up ended on row %d, want 0", m.Cursor())
+	}
+	for _, k := range []string{"pgdown", "ctrl+d", "pgup", "ctrl+u", "G", "g"} {
+		m = keys(t, m, k)
+		if m.passive(m.Cursor()) {
+			t.Errorf("%s stopped on row %d of the passive block", k, m.Cursor())
+		}
+	}
+
+	m = keys(t, m, "g")
+	all := func(Block) bool { return true }
+	if !m.NextBlock(all) || m.cursorBlockID() != "loud" {
+		t.Errorf("NextBlock went to %q, want loud", m.cursorBlockID())
+	}
+	if m.PrevBlock(all) {
+		t.Errorf("PrevBlock went to %q, want none before loud", m.cursorBlockID())
+	}
+}
+
+// cursorBlockID is the ID of the block the cursor is on, or "".
+func (m Model) cursorBlockID() string {
+	b, _ := m.CursorBlock()
+	return b.ID
+}
+
 // A block that is only at its line waits for its file like any other.
 func TestOnlyAtLineBlockWaitsForItsFile(t *testing.T) {
 	src := &source{size: 1, files: []File{goFile("a.go", 8), goFile("b.go", 8), goFile("c.go", 8), goFile("d.go", 8)}}
