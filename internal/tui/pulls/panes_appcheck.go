@@ -94,16 +94,9 @@ func (o *appCheckOverlay) show() {
 // readNotes takes the annotations that are kept, and returns the command that
 // reads them when they aren't.
 func (o *appCheckOverlay) readNotes() tea.Cmd {
-	c := o.check
-	if c.Annotations == 0 && len(c.Notes) == 0 {
-		return nil
-	}
-	if len(c.Notes) > 0 && len(c.Notes) >= c.Annotations {
-		o.notes = slices.Clone(c.Notes)
-		return nil
-	}
-	svc, q := o.m.checks, actions.AnnotationsQuery{Repo: o.m.repo, CheckRunID: c.ID, PageSize: 100}
-	if notes, ok := cachedNotes(svc, q); ok {
+	svc, q := o.m.checks, notesQuery(o.m.repo, o.check)
+	notes, kept := keptNotes(svc, q, o.check)
+	if kept {
 		o.notes = notes
 		return nil
 	}
@@ -113,6 +106,24 @@ func (o *appCheckOverlay) readNotes() tea.Cmd {
 		notes, err := readNotes(ctx, svc, q)
 		return appCheckNotesMsg{o: o, notes: notes, err: err}
 	}
+}
+
+// notesQuery is the read of the annotations of the check run c of repo.
+func notesQuery(repo core.RepoRef, c core.CommitCheck) actions.AnnotationsQuery {
+	return actions.AnnotationsQuery{Repo: repo, CheckRunID: c.ID, PageSize: 100}
+}
+
+// keptNotes returns the annotations of c that are at hand, and reports whether
+// they are all there: c has none, brought them, or the cache holds them. When
+// it doesn't, they are read with q.
+func keptNotes(svc ChecksService, q actions.AnnotationsQuery, c core.CommitCheck) ([]core.Annotation, bool) {
+	if c.Annotations == 0 && len(c.Notes) == 0 {
+		return nil, true
+	}
+	if len(c.Notes) > 0 && len(c.Notes) >= c.Annotations {
+		return slices.Clone(c.Notes), true
+	}
+	return cachedNotes(svc, q)
 }
 
 func cachedNotes(svc ChecksService, q actions.AnnotationsQuery) ([]core.Annotation, bool) {

@@ -291,7 +291,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			}
 			return
 		}
-		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog())
+		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.loadLog(), m.loadNotes())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
@@ -397,7 +397,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
-	case mergeBehindMsg, mergeOwnersMsg, mergeLogMsg, mergeSentMsg, mergeRevalidateMsg:
+	case mergeBehindMsg, mergeOwnersMsg, mergeLogMsg, mergeNotesMsg, mergeSentMsg, mergeRevalidateMsg:
 		// The answers to what the Merge pane asked, whatever is open over it.
 		return m.mergeUpdate(msg)
 	case appCheckNotesMsg:

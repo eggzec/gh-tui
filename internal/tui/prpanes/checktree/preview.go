@@ -64,16 +64,20 @@ func PreviewOf(c core.CommitChecks, id string, o Options, st Styles) (p Preview,
 			}
 		}
 	case "job", "check":
-		// These have no preview yet: the title is all.
+		// The body is the host's: the log of a job, the page of a check run.
 		for i := range c.Runs {
 			cc := &c.Runs[i]
 			n := cc.ID
 			if kind == "job" && cc.JobID != 0 {
 				n = cc.JobID
 			}
-			if strconv.FormatInt(n, 10) == key {
-				return Preview{Title: termtext.OneLine(cc.Name)}, true
+			if strconv.FormatInt(n, 10) != key {
+				continue
 			}
+			if kind == "check" {
+				return b.checkPreview(cc), true
+			}
+			return Preview{Title: termtext.OneLine(cc.Name)}, true
 		}
 	}
 	return Preview{}, false
@@ -303,6 +307,17 @@ func findGroup(nodes []core.JobNode, key string) (core.JobNode, bool) {
 		}
 	}
 	return core.JobNode{}, false
+}
+
+// checkPreview is the frame of the page of a check run of an App: the App and
+// the run in the title, and how it stands and how long it took in the info. The
+// host draws the page.
+func (b *builder) checkPreview(cc *core.CommitCheck) Preview {
+	title := termtext.OneLine(cc.Name)
+	if cc.App != nil && cc.App.Name != "" {
+		title = termtext.OneLine(cc.App.Name) + b.st.Glyphs.Separator + title
+	}
+	return Preview{Title: title, Info: b.took(cc.Outcome(), cc.Status, cc.StartedAt, cc.CompletedAt)}
 }
 
 // appPreview lists every check run of an App, with the title each reported.

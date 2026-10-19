@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/actions"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/appcheck"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -115,6 +116,10 @@ type mergePane struct {
 	// follow starts the poll of a run, which keeps the log of its running job
 	// current while the job is shown.
 	follow RunFollow
+	// notes are the annotations read of the check runs shown, by check run, and
+	// page what their pages are drawn with.
+	notes map[int64]*checkNotes
+	page  *appcheck.Options
 
 	styles merge.Styles
 	data   merge.Data
@@ -134,6 +139,7 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 		behind: -1,
 		drawn:  map[drawnMerge]merge.Preview{},
 		logs:   map[int64]*jobLog{},
+		notes:  map[int64]*checkNotes{},
 		now:    s.now,
 		follow: s.runFollow,
 
@@ -186,6 +192,7 @@ func (p *mergePane) synced(m *panesModal, msg ui.SyncMsg) tea.Cmd {
 // restyle draws the pane with the theme and icons of m.
 func (p *mergePane) restyle(m *panesModal) {
 	p.styles = merge.NewStyles(m.theme, m.icons, m.icons.Set())
+	p.page = nil
 	// No row says that nothing blocks: the ready mark in the title does.
 	st := foldtree.DefaultStyles(m.theme.Dark)
 	st.EmptyText = ""
@@ -354,6 +361,8 @@ func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
 	if ok {
 		if body, isJob := m.jobLogBody(dk.id, dk.width); isJob {
 			v.Body = body
+		} else if body, isCheck := m.checkBody(dk.id, dk.width); isCheck {
+			v.Body = body
 		}
 		p.drawn[dk] = v
 	}
@@ -441,6 +450,8 @@ func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 		p.ownersTaken(m, msg)
 	case mergeLogMsg:
 		m.receiveLog(msg)
+	case mergeNotesMsg:
+		m.receiveNotes(msg)
 	case mergeSentMsg:
 		return m.mergeSent(msg)
 	case mergeRevalidateMsg:
