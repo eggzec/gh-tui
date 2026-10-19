@@ -53,6 +53,8 @@ type panesKeys struct {
 	composer               composer.KeyMap
 	// merge asks to merge the pull request, from any pane.
 	merge key.Binding
+	// labels opens the picker of the labels, from any pane.
+	labels key.Binding
 	// find opens the finder of the changed files, and finder is its keys.
 	find   key.Binding
 	finder finder.KeyMap
@@ -95,6 +97,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 
 		review:   modal.Binding("review", "review"),
 		merge:    modal.Binding("merge", "merge"),
+		labels:   modal.Binding("labels", "labels"),
 		choose:   modal.Binding("global.select", "choose"),
 		cancel:   modal.Binding("global.back", "back"),
 		composer: composer.NewKeyMap(ui.Lookup(keys, "composer")),
@@ -199,7 +202,8 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
 	k.find.SetEnabled(k.find.Enabled() && m.canFind())
 	k.merge.SetEnabled(k.merge.Enabled() && m.loaded && m.detail.State == core.StateOpen)
-	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review, k.merge, k.find})
+	k.labels.SetEnabled(k.labels.Enabled() && m.loaded)
+	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review, k.merge, k.labels, k.find})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
 	if m.filesDiffFocused() {

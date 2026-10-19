@@ -358,9 +358,9 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		{"rerun over the pull request", true, []string{"global.pane_2", "global.select"}, "rerun", "Close the pull request first to use rerun."},
 		{"star on the dashboard", false, nil, "star", "star works in Repository screen."},
 		{"star over history", true, []string{"repo.history"}, "star", "Close History first to use star."},
-		{"labels on the files", true, nil, "labels", "labels works in Issue modal."},
-		{"labels on the pull requests", true, []string{"global.pane_2"}, "labels", "labels works in Issue modal."},
-		{"labels on the issues", true, []string{"global.pane_3"}, "labels", "labels works in Issue modal."},
+		{"labels on the files", true, nil, "labels", "labels works in Pull request modal and Issue modal."},
+		{"labels on the pull requests", true, []string{"global.pane_2"}, "labels", "labels works in Pull request modal and Issue modal."},
+		{"labels on the issues", true, []string{"global.pane_3"}, "labels", "labels works in Pull request modal and Issue modal."},
 		{"labels over history", true, []string{"repo.history"}, "labels", "Close History first to use labels."},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -755,7 +755,7 @@ func TestLabelsCommandOnTheIssueList(t *testing.T) {
 		if got := layerNames(m.keyLayers()); got != before {
 			t.Errorf(":labels on the list changed the keys from %q to %q", before, got)
 		}
-		if want := "labels works in Issue modal."; !hasToast(m, want) {
+		if want := "labels works in Pull request modal and Issue modal."; !hasToast(m, want) {
 			t.Errorf(":labels toasts %s, want %q", toasted(m), want)
 		}
 	})

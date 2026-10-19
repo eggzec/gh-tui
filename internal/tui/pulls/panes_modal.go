@@ -297,6 +297,8 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	switch msg := msg.(type) {
 	case panesDetailMsg:
 		return m.receive(msg)
+	case labelsReadMsg:
+		return m.labelsRead(msg)
 	case filesCommitsMsg:
 		return m.commitsRead(msg)
 	case filesRangeMsg:
@@ -503,6 +505,8 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openReview()
 	case keymap.Matches(msg, k.merge):
 		return m.askMerge()
+	case keymap.Matches(msg, k.labels):
+		return m.openLabels()
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
 	case m.inPreview(l):

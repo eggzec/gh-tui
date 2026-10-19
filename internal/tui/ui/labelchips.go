@@ -64,6 +64,17 @@ func (cc *LabelChips) Get(l core.Label) (text string, width int) {
 	return c.text, c.width
 }
 
+// Tint returns base with the colors of the chip of a label whose color is hex,
+// for text that names the label outside a chip. It returns base if hex is not
+// a color.
+func (cc *LabelChips) Tint(base lipgloss.Style, hex string) lipgloss.Style {
+	fg, bg, ok := chipColors(hex, cc.dark)
+	if !ok {
+		return base
+	}
+	return base.Foreground(fg).Background(bg)
+}
+
 // chipColors turns a label's hex color into a quiet chip: its hue with the
 // saturation capped, on a dim background of the same hue. The lightness is
 // fixed per terminal background, so every label stays legible and none

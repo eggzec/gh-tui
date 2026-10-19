@@ -829,6 +829,8 @@ keys:
   pull_modal:
     review: []
     merge: [M]
+    # Pick the labels of the pull request, from any pane.
+    labels: [L]
 
   # The modal of an issue.
   issue_modal:
