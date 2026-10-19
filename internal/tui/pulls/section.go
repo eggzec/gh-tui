@@ -103,6 +103,10 @@ type Service interface {
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
 	MarkReady(repo core.RepoRef, number int) *optimistic.Op
 	ConvertToDraft(repo core.RepoRef, number int) *optimistic.Op
+	// EditPull sets the title and the description, and Comment adds a comment
+	// by author to the conversation.
+	EditPull(repo core.RepoRef, number int, title, body string) *optimistic.Op
+	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
 	reviewRequester
 	viewedService
 }

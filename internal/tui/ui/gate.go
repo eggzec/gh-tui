@@ -19,7 +19,8 @@ const (
 	ActMerge Action = iota + 1
 	ActClose
 	ActReopen
-	// ActDraft converts a pull request to a draft or marks it ready.
+	// ActDraft converts a pull request to a draft or marks it ready, and edits
+	// its title and description: what the viewer may update.
 	ActDraft
 	ActComment
 	ActLabel

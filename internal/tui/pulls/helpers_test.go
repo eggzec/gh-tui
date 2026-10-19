@@ -808,6 +808,14 @@ func (f *fakeService) ConvertToDraft(_ core.RepoRef, number int) *optimistic.Op 
 	return f.change("draft", number, func(pr *core.PullRequest) { pr.Draft = true })
 }
 
+func (f *fakeService) EditPull(_ core.RepoRef, number int, title, body string) *optimistic.Op {
+	return f.change("edit title="+title+" body="+body, number, func(pr *core.PullRequest) { pr.Title = title })
+}
+
+func (f *fakeService) Comment(_ core.RepoRef, number int, body, author string) *optimistic.Op {
+	return f.change("comment by "+author+": "+body, number, func(*core.PullRequest) {})
+}
+
 func (f *fakeService) changes() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()

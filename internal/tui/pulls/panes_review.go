@@ -225,21 +225,25 @@ func (m *panesModal) writeSummary(row int) tea.Cmd {
 		// with the reason, not with the composer's note.
 		composer.WithOptional(),
 	)
-	o := &composerOverlay{m: m, comp: c, verdict: row}
+	o := &composerOverlay{m: m, comp: c, verdict: row, head: "Review #" + strconv.Itoa(m.number), submit: (*panesModal).submitReview}
 	m.open(o)
 	return tea.Batch(o.comp.Init(), o.comp.Focus())
 }
 
-// composerOverlay takes the summary of a review. It is a viewer in the way it
-// is placed, but it types: it takes every key itself, and its own keys close it.
+// composerOverlay takes the summary of a review, or the text of a comment. It
+// is a viewer in the way it is placed, but it types: it takes every key itself,
+// and its own keys close it. head is what its frame says, and submit what its
+// submit key does.
 type composerOverlay struct {
 	m       *panesModal
 	comp    composer.Model
 	verdict int
+	head    string
+	submit  func(m *panesModal, o *composerOverlay) tea.Cmd
 	done    bool
 }
 
-func (o *composerOverlay) title() string           { return "Review #" + strconv.Itoa(o.m.number) }
+func (o *composerOverlay) title() string           { return o.head }
 func (o *composerOverlay) kind() panes.OverlayKind { return panes.Viewer }
 func (o *composerOverlay) items() int              { return 0 }
 func (o *composerOverlay) text() int               { return 0 }
@@ -262,7 +266,7 @@ func (o *composerOverlay) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case composer.SubmitMsg:
 		if msg.ID == o.comp.ID() {
-			return o.m.submitReview(o)
+			return o.submit(o.m, o)
 		}
 		return nil
 	case composer.CancelMsg:
