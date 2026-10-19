@@ -23,8 +23,19 @@ type fakeAPI struct {
 	markDone func(id string) error
 	markAll  func(at time.Time) error
 	onMark   func()
+	// resolve answers ResolveSubjectURL; nil fails it.
+	resolve func(n core.Notification) (string, error)
 
-	lists atomic.Int32
+	lists    atomic.Int32
+	resolves atomic.Int32
+}
+
+func (f *fakeAPI) ResolveSubjectURL(_ context.Context, n core.Notification) (string, error) {
+	f.resolves.Add(1)
+	if f.resolve == nil {
+		return "", errUnexpected
+	}
+	return f.resolve(n)
 }
 
 func (f *fakeAPI) ListNotifications(_ context.Context, filter core.NotificationFilter, perPage int, cursor string, cond github.Conditional) (core.Page[core.Notification], github.Response, error) {

@@ -71,11 +71,22 @@ func parseKey(key string) (ListQuery, bool) {
 // fetcher reads the page for a normalized q, conditionally when there is a
 // previous entry, without falling back to it or keeping what GitHub sends.
 func (s *Service) fetcher(q ListQuery) cache.FetchFunc[page] {
-	return recheck.Load(func(ctx context.Context, cond github.Conditional) (page, github.Response, error) {
+	load := recheck.Load(func(ctx context.Context, cond github.Conditional) (page, github.Response, error) {
 		p, res, err := s.api.ListNotifications(ctx, q.Filter, q.PageSize, q.Cursor, cond)
 		if err == nil && res.PollInterval > 0 {
 			s.interval.Store(int64(res.PollInterval))
 		}
 		return p, res, err
 	}, func(page) []string { return []string{tag} })
+	return func(ctx context.Context, prev cache.Entry[page], ok bool) (cache.Entry[page], error) {
+		e, err := load(ctx, prev, ok)
+		if err == nil {
+			var before page
+			if ok {
+				before = prev.Value
+			}
+			s.resolve(ctx, e.Value.Items, before.Items)
+		}
+		return e, err
+	}
 }

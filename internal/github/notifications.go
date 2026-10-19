@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +75,11 @@ func parseSubject(repoURL, apiURL string, typ core.SubjectType, title string) co
 				// The API names releases by ID, which the web doesn't
 				// use.
 				return core.Subject{ReleaseID: rid, WebURL: repoURL + "/releases"}
+			case "check-suites":
+				sid, _ := strconv.ParseInt(id, 10, 64)
+				// A check suite has no page of its own; ResolveSubjectURL
+				// finds its run.
+				return core.Subject{CheckSuiteID: sid, WebURL: repoURL + "/actions"}
 			}
 		}
 	}
@@ -107,6 +113,89 @@ func (c *Client) ListNotifications(ctx context.Context, filter core.Notification
 		return core.Page[core.Notification]{}, res, nil
 	}
 	return core.Page[core.Notification]{Items: convert(threads, notification.core), Next: res.Next}, res, nil
+}
+
+// ResolveSubjectURL returns the page that a release or check suite
+// notification is about: the release's page, or the page of the first run of
+// the check suite. The web URL of such a subject names only the repository's
+// list of them, since the API names them by IDs the web doesn't use. A
+// subject of another kind, or a check suite with no run, is an error.
+func (c *Client) ResolveSubjectURL(ctx context.Context, n core.Notification) (string, error) {
+	sub := n.Subject
+	switch {
+	case sub.ReleaseID > 0:
+		var r restRelease
+		if _, err := c.Get(ctx, releasePath(n.Repo, sub.ReleaseID), Conditional{}, &r); err != nil {
+			return "", fmt.Errorf("resolve release %d of %s: %w", sub.ReleaseID, n.Repo, err)
+		}
+		if r.HTMLURL == "" {
+			return "", fmt.Errorf("resolve release %d of %s: no page", sub.ReleaseID, n.Repo)
+		}
+		return r.HTMLURL, nil
+	case sub.CheckSuiteID > 0:
+		q := url.Values{"check_suite_id": {strconv.FormatInt(sub.CheckSuiteID, 10)}, "per_page": {"1"}}
+		var body restRuns
+		if _, err := c.Get(ctx, actionsPath(n.Repo)+"/runs?"+q.Encode(), Conditional{}, &body); err != nil {
+			return "", fmt.Errorf("resolve check suite %d of %s: %w", sub.CheckSuiteID, n.Repo, err)
+		}
+		if len(body.WorkflowRuns) == 0 || body.WorkflowRuns[0].HTMLURL == "" {
+			return "", fmt.Errorf("resolve check suite %d of %s: no run", sub.CheckSuiteID, n.Repo)
+		}
+		return body.WorkflowRuns[0].HTMLURL, nil
+	case sub.Type == core.SubjectCheckSuite:
+		return c.runOfTitle(ctx, n)
+	default:
+		return "", fmt.Errorf("resolve subject of notification %s: not a release or check suite", n.ID)
+	}
+}
+
+// runTitle is the title GitHub gives a notification of a workflow run, such
+// as "CI workflow run failed for main branch".
+var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
+
+// runOfTitle finds the run that the title of a check suite notification
+// names, which GitHub gives no URL: among the runs of that branch that ended
+// as the title says, the workflow's run last updated nearest to the
+// notification.
+func (c *Client) runOfTitle(ctx context.Context, n core.Notification) (string, error) {
+	m := runTitle.FindStringSubmatch(n.Subject.Title)
+	if m == nil {
+		return "", fmt.Errorf("resolve run of notification %s: title names no run", n.ID)
+	}
+	q := url.Values{"branch": {m[3]}, "per_page": {strconv.Itoa(actionsMaxPerPage)}}
+	switch m[2] {
+	case "failed":
+		q.Set("status", string(core.ConclusionFailure))
+	case "succeeded":
+		q.Set("status", string(core.ConclusionSuccess))
+	case "cancelled":
+		q.Set("status", string(core.ConclusionCancelled))
+	}
+	var body restRuns
+	if _, err := c.Get(ctx, actionsPath(n.Repo)+"/runs?"+q.Encode(), Conditional{}, &body); err != nil {
+		return "", fmt.Errorf("resolve run of notification %s in %s: %w", n.ID, n.Repo, err)
+	}
+	var best *restRun
+	for i := range body.WorkflowRuns {
+		r := &body.WorkflowRuns[i]
+		if r.HTMLURL == "" || !strings.EqualFold(r.Name, m[1]) {
+			continue
+		}
+		if best == nil || absDuration(r.UpdatedAt.Sub(n.UpdatedAt)) < absDuration(best.UpdatedAt.Sub(n.UpdatedAt)) {
+			best = r
+		}
+	}
+	if best == nil {
+		return "", fmt.Errorf("resolve run of notification %s in %s: no matching run", n.ID, n.Repo)
+	}
+	return best.HTMLURL, nil
+}
+
+func absDuration(d time.Duration) time.Duration {
+	if d < 0 {
+		return -d
+	}
+	return d
 }
 
 func notificationsPath(filter core.NotificationFilter, perPage int) string {
