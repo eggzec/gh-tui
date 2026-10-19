@@ -23,11 +23,14 @@ type filter struct {
 	query string
 	// all lists read threads too, which GitHub does for all=true.
 	all bool
-	// reason, repo and typ keep the threads with that reason, in that
-	// repository, and about that type of subject, when they are set.
-	reason string
-	repo   string
-	typ    string
+	// reasons, owners, repos and typs keep the threads with one of those
+	// reasons, in a repository of one of those owners, in one of those
+	// repositories, and about one of those types of subject, when they are
+	// set. Several values of a key are alternatives; the keys all apply.
+	reasons []string
+	owners  []string
+	repos   []string
+	typs    []string
 }
 
 // parseFilter reads query. Without is:unread it lists every thread, read or
@@ -42,31 +45,45 @@ func parseFilter(query string) filter {
 				f.all = false
 			}
 		case "reason":
-			f.reason = v
+			f.reasons = appendValues(f.reasons, t)
+		case "owner":
+			f.owners = appendValues(f.owners, t)
 		case "repo":
-			f.repo = v
+			f.repos = appendValues(f.repos, t)
 		case "type":
-			f.typ = v
+			f.typs = appendValues(f.typs, t)
 		}
 	}
 	return f
 }
 
+// appendValues adds the values of t, in lower case, to list.
+func appendValues(list []string, t filterform.Token) []string {
+	for _, v := range t.Values() {
+		if v = strings.ToLower(v); !slices.Contains(list, v) {
+			list = append(list, v)
+		}
+	}
+	return list
+}
+
 // local reports whether the filter leaves out threads of the pages GitHub
 // sends.
-func (f *filter) local() bool { return f.reason != "" || f.repo != "" || f.typ != "" }
+func (f *filter) local() bool {
+	return len(f.reasons) > 0 || len(f.owners) > 0 || len(f.repos) > 0 || len(f.typs) > 0
+}
 
 // keeps reports whether n passes the filter.
 func (f *filter) keeps(n *core.Notification) bool {
-	switch {
-	case f.reason != "" && !strings.EqualFold(n.Reason, f.reason):
-		return false
-	case f.repo != "" && !strings.EqualFold(n.Repo.String(), f.repo):
-		return false
-	case f.typ != "" && typeName(n.Subject.Type) != f.typ:
-		return false
-	}
-	return true
+	return oneOf(f.reasons, n.Reason) &&
+		oneOf(f.owners, n.Repo.Owner) &&
+		oneOf(f.repos, n.Repo.String()) &&
+		oneOf(f.typs, typeName(n.Subject.Type))
+}
+
+// oneOf reports whether want is empty or has v, ignoring case.
+func oneOf(want []string, v string) bool {
+	return len(want) == 0 || slices.ContainsFunc(want, func(w string) bool { return strings.EqualFold(w, v) })
 }
 
 // apply returns the threads of items the filter keeps.
@@ -112,7 +129,6 @@ func typeName(t core.SubjectType) string {
 
 // reasons are the reasons GitHub gives, the ones most asked for first.
 var reasons = []filterform.Item{
-	{Label: "Any"},
 	{Label: "Review requested", Value: "review_requested"},
 	{Label: "Mention", Value: "mention"},
 	{Label: "Team mention", Value: "team_mention"},
@@ -123,41 +139,58 @@ var reasons = []filterform.Item{
 	{Label: "State change", Value: "state_change"},
 	{Label: "Subscribed", Value: "subscribed"},
 	{Label: "Security alert", Value: "security_alert"},
+	{Label: "Approval requested", Value: "approval_requested"},
+	{Label: "Invitation", Value: "invitation"},
+	{Label: "Manual", Value: "manual"},
+	{Label: "Member feature requested", Value: "member_feature_requested"},
+	{Label: "Security advisory credit", Value: "security_advisory_credit"},
 }
 
 // spec returns the fields of the filter.
 func (s *Section) spec() filterform.Spec {
 	f := s.filter()
-	typeItems := make([]filterform.Item, 0, len(types)+1)
-	typeItems = append(typeItems, filterform.Item{Label: "Any"})
+	typeItems := make([]filterform.Item, 0, len(types))
 	for _, t := range types {
 		typeItems = append(typeItems, filterform.Item{Label: t.label, Value: t.name})
 	}
+	owners, repos := s.repoItems()
 	return filterform.Spec{Fields: []filterform.Field{
 		{
 			Key: "unread", Label: "Unread", Kind: filterform.Toggle, Qualifier: defaultQuery,
 			Hint: "unread only", Default: filterform.BoolValue(true),
 		},
-		{Key: "reason", Label: "Reason", Kind: filterform.Choice, Qualifier: "reason", Options: withValue(reasons, f.reason)},
-		{Key: "repo", Label: "Repository", Kind: filterform.Choice, Qualifier: "repo", Options: s.repoItems(f.repo)},
-		{Key: "type", Label: "Type", Kind: filterform.Choice, Qualifier: "type", Options: withValue(typeItems, f.typ)},
+		multi("reason", "Reason", withValues(reasons, f.reasons)),
+		multi("owner", "Owner", withValues(owners, f.owners)),
+		multi("repo", "Repository", withValues(repos, f.repos)),
+		multi("type", "Type", withValues(typeItems, f.typs)),
 	}}
 }
 
-// withValue returns items with v among them, so that the form shows a
-// value typed in the query.
-func withValue(items []filterform.Item, v string) []filterform.Item {
-	if v == "" || slices.ContainsFunc(items, func(it filterform.Item) bool { return strings.EqualFold(it.Value, v) }) {
-		return items
+// multi is a field that picks any number of items, one qualifier of its
+// key each.
+func multi(key, label string, items []filterform.Item) filterform.Field {
+	return filterform.Field{
+		Key: key, Label: label, Kind: filterform.Multi, Qualifier: key, Each: true,
+		Options: items, Hint: "any",
 	}
-	return append(slices.Clip(items), filterform.Item{Label: v, Value: v})
 }
 
-// repoItems offers the repositories of the threads cached for the inbox
-// on view, the most recent first, and repo.
-func (s *Section) repoItems(repo string) []filterform.Item {
-	items := []filterform.Item{{Label: "Any"}}
-	seen := map[string]bool{}
+// withValues returns items with each of vs among them, so that the form
+// shows the values typed in the query.
+func withValues(items []filterform.Item, vs []string) []filterform.Item {
+	for _, v := range vs {
+		if slices.ContainsFunc(items, func(it filterform.Item) bool { return strings.EqualFold(it.Value, v) }) {
+			continue
+		}
+		items = append(slices.Clip(items), filterform.Item{Label: v, Value: v})
+	}
+	return items
+}
+
+// repoItems offers the owners and the repositories of the threads cached
+// for the inbox on view, the most recent first.
+func (s *Section) repoItems() (owners, repos []filterform.Item) {
+	seenOwner, seenRepo := map[string]bool{}, map[string]bool{}
 	q := s.query("")
 	for range maxRepoPages {
 		p, ok := s.svc.CachedList(q)
@@ -165,10 +198,15 @@ func (s *Section) repoItems(repo string) []filterform.Item {
 			break
 		}
 		for i := range p.Items {
-			r := p.Items[i].Repo.String()
-			if k := strings.ToLower(r); !seen[k] {
-				seen[k] = true
-				items = append(items, filterform.Item{Label: r, Value: k})
+			ref := p.Items[i].Repo
+			if k := strings.ToLower(ref.Owner); !seenOwner[k] {
+				seenOwner[k] = true
+				owners = append(owners, filterform.Item{Label: ref.Owner, Value: k})
+			}
+			r := ref.String()
+			if k := strings.ToLower(r); !seenRepo[k] {
+				seenRepo[k] = true
+				repos = append(repos, filterform.Item{Label: r, Value: k})
 			}
 		}
 		if p.Last() {
@@ -176,7 +214,7 @@ func (s *Section) repoItems(repo string) []filterform.Item {
 		}
 		q.Cursor = p.Next
 	}
-	return withValue(items, repo)
+	return owners, repos
 }
 
 // maxRepoPages bounds the cached pages the filter looks through for
@@ -233,9 +271,11 @@ func (f *filter) chips(sep string) string {
 			}
 			parts = append(parts, t.Raw)
 		case "reason":
-			parts = append(parts, shortReason(strings.ToLower(t.Value)))
-		case "repo", "type":
-			parts = append(parts, t.Value)
+			for _, v := range t.Values() {
+				parts = append(parts, shortReason(strings.ToLower(v)))
+			}
+		case "owner", "repo", "type":
+			parts = append(parts, t.Values()...)
 		default:
 			parts = append(parts, t.Raw)
 		}

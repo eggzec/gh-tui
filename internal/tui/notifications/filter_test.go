@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,13 +20,24 @@ func TestParseFilter(t *testing.T) {
 	}{
 		{"", filter{all: true}},
 		{"is:unread", filter{}},
-		{"is:Unread reason:Mention repo:Cli/Cli type:pr", filter{reason: "mention", repo: "cli/cli", typ: "pr"}},
-		{"type:ci label:bug", filter{all: true, typ: "ci"}},
+		{"is:Unread reason:Mention repo:Cli/Cli type:pr", filter{reasons: []string{"mention"}, repos: []string{"cli/cli"}, typs: []string{"pr"}}},
+		{"type:ci label:bug", filter{all: true, typs: []string{"ci"}}},
+		{
+			"reason:mention reason:Assign owner:Cli owner:golang repo:a/b repo:c/d type:pr type:issue reason:mention",
+			filter{
+				all:     true,
+				reasons: []string{"mention", "assign"},
+				owners:  []string{"cli", "golang"},
+				repos:   []string{"a/b", "c/d"},
+				typs:    []string{"pr", "issue"},
+			},
+		},
+		{"reason:mention,assign type:pr,issue", filter{all: true, reasons: []string{"mention", "assign"}, typs: []string{"pr", "issue"}}},
 	}
 	for _, tt := range tests {
 		got := parseFilter(tt.query)
 		tt.want.query = tt.query
-		if got != tt.want {
+		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("parseFilter(%q) = %+v, want %+v", tt.query, got, tt.want)
 		}
 	}
@@ -44,6 +56,13 @@ func TestFilterKeeps(t *testing.T) {
 		{"type:repositoryvulnerabilityalert", []string{"7"}},
 		{"type:issue repo:eggzec/gh-tui reason:mention", []string{"2"}},
 		{"type:release reason:mention", nil},
+		{"reason:review_requested reason:mention", []string{"1", "2"}},
+		{"reason:mention reason:ci_activity type:issue type:ci", []string{"2", "6"}},
+		{"owner:eggzec", []string{"2", "7"}},
+		{"owner:EggZec owner:cli", []string{"2", "4", "7"}},
+		{"owner:charmbracelet repo:charmbracelet/lipgloss repo:cli/cli", []string{"5"}},
+		{"owner:nobody", nil},
+		{"repo:cli/cli repo:golang/go", []string{"3", "4"}},
 	}
 	for _, tt := range tests {
 		f := parseFilter(tt.query)
@@ -68,14 +87,55 @@ func TestFilterSpec(t *testing.T) {
 		"",
 		"is:unread reason:review_requested repo:charmbracelet/bubbletea type:pr",
 		"reason:mention type:discussion",
+		// Several values of a key are written one qualifier each.
+		"reason:review_requested reason:mention owner:eggzec repo:eggzec/gh-tui type:pr type:issue",
+		"owner:cli owner:golang",
 		// Values the form doesn't offer are shown as typed.
-		"reason:invitation repo:someone/else",
+		"reason:invitation owner:someone repo:someone/else type:foo",
 	} {
 		s := newSection(t, newFake(inbox()...), 80, 12)
 		press(t, s, showAll+q)
 		f, _ := s.Filter()
 		if got := filterform.New(f.Spec, filterform.WithQuery(f.Query)).Query(); got != q {
 			t.Errorf("the form of %q writes %q", q, got)
+		}
+	}
+}
+
+// TestFilterOffersEveryReason checks that the form offers each reason
+// GitHub gives, as a field that picks several.
+func TestFilterOffersEveryReason(t *testing.T) {
+	s := newSection(t, newFake(inbox()...), 80, 12)
+	f, _ := s.Filter()
+	field := f.Spec.Fields[1]
+	if field.Kind != filterform.Multi || !field.Each || field.Qualifier != "reason" {
+		t.Fatalf("the reason field is %+v, want a multi pick of one qualifier per value", field)
+	}
+	got := make([]string, 0, len(field.Options))
+	for _, it := range field.Options {
+		got = append(got, it.Value)
+	}
+	want := []string{
+		"approval_requested", "assign", "author", "ci_activity", "comment", "invitation", "manual",
+		"member_feature_requested", "mention", "review_requested", "security_advisory_credit",
+		"security_alert", "state_change", "subscribed", "team_mention",
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, want) {
+		t.Errorf("the filter offers the reasons %v, want %v", got, want)
+	}
+}
+
+func TestFilterChips(t *testing.T) {
+	tests := []struct{ query, want string }{
+		{"is:unread", ""},
+		{"is:unread reason:review_requested reason:mention", "review, mention"},
+		{"reason:team_mention,assign owner:cli owner:golang repo:cli/cli type:pr type:issue", "team, assign, cli, golang, cli/cli, pr, issue"},
+	}
+	for _, tt := range tests {
+		f := parseFilter(tt.query)
+		if got := f.chips(", "); got != tt.want {
+			t.Errorf("chips of %q = %q, want %q", tt.query, got, tt.want)
 		}
 	}
 }
@@ -94,11 +154,19 @@ func TestFilterRepos(t *testing.T) {
 		"a-very-long-organization-name/with-an-even-longer-repository-name",
 	}
 	repos := make([]string, 0, len(want))
-	for _, it := range f.Spec.Fields[2].Options[1:] {
+	for _, it := range f.Spec.Fields[3].Options {
 		repos = append(repos, it.Label)
 	}
 	if !slices.Equal(repos, want) {
 		t.Errorf("the filter offers %v, want %v", repos, want)
+	}
+	wantOwners := []string{"charmbracelet", "eggzec", "golang", "cli", "a-very-long-organization-name"}
+	owners := make([]string, 0, len(wantOwners))
+	for _, it := range f.Spec.Fields[2].Options {
+		owners = append(owners, it.Label)
+	}
+	if !slices.Equal(owners, wantOwners) {
+		t.Errorf("the filter offers the owners %v, want %v", owners, wantOwners)
 	}
 	if svc.listCount() != lists {
 		t.Error("offering the repositories listed the inbox")
