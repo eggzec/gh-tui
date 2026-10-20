@@ -24,7 +24,7 @@ func TestGroupKeyOpensTheModal(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 80, 12)
 	for _, m := range press(t, s, "g") {
 		if open, ok := m.(ui.OpenModalMsg); ok {
-			if open.Modal.Title() != "Group · Notifications" && !strings.HasPrefix(open.Modal.Title(), "Group") {
+			if open.Modal.Title() != "Group · Notifications" {
 				t.Errorf("title = %q", open.Modal.Title())
 			}
 			return
@@ -98,5 +98,11 @@ func TestGroupExpandKeys(t *testing.T) {
 	press(t, s, "*")
 	if after := ansi.Strip(s.View()); after == before {
 		t.Error("* did not change the grouped list")
+	}
+	press(t, s, "h")
+	closed := ansi.Strip(s.View())
+	press(t, s, "l")
+	if open := ansi.Strip(s.View()); open == closed {
+		t.Error("h and l did not close and open the group")
 	}
 }

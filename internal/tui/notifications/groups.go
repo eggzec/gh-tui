@@ -91,7 +91,20 @@ func groupItems() []orderpick.Item {
 	return items
 }
 
-// GroupModal returns the modal that picks the levels the list is grouped by.
+// groupedByState reports whether the list is grouped, and by state at some level.
+func (s *Section) groupedByState() bool {
+	if s.off {
+		return false
+	}
+	for _, c := range s.levels {
+		if c.Value == "state" {
+			return true
+		}
+	}
+	return false
+}
+
+// groupModal returns the modal that picks the levels the list is grouped by.
 func (s *Section) groupModal() ui.Modal {
 	return ui.NewGroupModal(s.Title(), groupItems(), s.levels, s.keys.order, s.icons, s.setGroups)
 }
