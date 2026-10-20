@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // Filterable is a Section whose list is filtered and sorted in the filter
@@ -99,9 +100,6 @@ const (
 	// filterBelow is what the form shows under its rows besides the
 	// query: the rule and the help line.
 	filterBelow = 2
-	// sortRows are the rows of the Sort tab: what is sorted by, and the
-	// order.
-	sortRows = 2
 )
 
 // FilterHeight returns the height that a filter form width cells wide with
@@ -118,17 +116,10 @@ func FilterHeight(rows, width int, f *filterform.Model) int {
 type FilterOption func(*filterOptions)
 
 type filterOptions struct {
-	tab   filterform.Tab
 	keys  filterform.KeyMap
 	voice *Voice
 	icons Icons
 	back  key.Binding
-}
-
-// OnTab opens the modal on tab t. A list without a sort has only the
-// Filters tab.
-func OnTab(t filterform.Tab) FilterOption {
-	return func(o *filterOptions) { o.tab = t }
 }
 
 // WithFormKeys sets the keys of the form.
@@ -165,6 +156,12 @@ func FilterFormKeys(keys config.Keymap, ctx string) filterform.KeyMap {
 	return filterform.NewKeyMap(Lookup(keys, ctx))
 }
 
+// OrderPickKeys returns the keys of an ordered picker, such as that of the
+// sort modal.
+func OrderPickKeys(keys config.Keymap) orderpick.KeyMap {
+	return orderpick.NewKeyMap(Lookup(keys, "order_pick"))
+}
+
 // NewFilterModal returns the modal that filters target with f, titled
 // "Filter · section · subject". ctx bounds what the form loads.
 func NewFilterModal(ctx context.Context, section string, target Filterable, f Filter, opts ...FilterOption) *FilterModal {
@@ -172,11 +169,13 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	for _, opt := range opts {
 		opt(&o)
 	}
+	// The sort has a modal of its own. The sort: words in the query stay in it
+	// as free words, after those of the form, so a sort survives a filter edit.
+	f.Spec.Sort = nil
 	m := &FilterModal{target: target, section: section, subject: f.Subject, icons: o.icons, back: o.back}
 	m.retitle()
 	formOpts := []filterform.Option{
 		filterform.WithQuery(f.Query),
-		filterform.WithTab(o.tab),
 		filterform.WithTabBar(false),
 		filterform.WithHelpLine(true),
 		// The icons are read as the help line draws, so that it follows a
@@ -195,11 +194,7 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	m.form = filterform.New(f.Spec, formOpts...)
 	// Focusing the rows, where the form starts, needs no command.
 	_ = m.form.Focus()
-	// The modal keeps its height on either tab.
 	m.rows = len(f.Spec.Fields)
-	if f.Spec.Sort != nil {
-		m.rows = max(m.rows, sortRows)
-	}
 	m.back.SetEnabled(false)
 	return m
 }

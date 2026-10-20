@@ -191,7 +191,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case keymap.Matches(msg, k.Filter):
 			return ui.OpenFilter(filterform.FiltersTab), true
 		case keymap.Matches(msg, k.Sort):
-			return ui.OpenFilter(filterform.SortTab), true
+			return ui.OpenSort(), true
 		case keymap.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				s.aheadRepos.Opened(r.Ref)

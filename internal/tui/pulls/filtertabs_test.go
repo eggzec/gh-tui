@@ -1,7 +1,6 @@
 package pulls
 
 import (
-	"slices"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -10,9 +9,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
-// The filter shows the sort on its own tab, and either tab applies the
-// query the combined form did.
-func TestFilterTabs(t *testing.T) {
+// The filter has no Sort tab, since the sort has a modal of its own, and a
+// sort in the query survives a filter edit.
+func TestFilterHasNoSortTab(t *testing.T) {
 	s := started(t, newFakeService(), 80, 20)
 	apply(t, s, "is:open author:@me label:cache -is:draft sort:created-asc crash")
 	f, _ := s.Filter()
@@ -20,29 +19,26 @@ func TestFilterTabs(t *testing.T) {
 		t.Errorf("the filter opens on the %q row, want the search", got)
 	}
 	const want = "crash is:open author:@me label:cache -is:draft sort:created-asc"
-	for i, tab := range []filterform.Tab{filterform.FiltersTab, filterform.SortTab} {
-		msg, names, active := applyOn(t, s, f, tab)
-		if !slices.Equal(names, []string{"Filters", "Sort"}) || active != i {
-			t.Errorf("the modal shows tabs %q on %d, want Filters and Sort on %d", names, active, i)
-		}
-		if msg.Query != want {
-			t.Errorf("applying from %v gave %q, want %q", tab, msg.Query, want)
-		}
+	msg, names, _ := applyOn(t, s, f)
+	if names != nil {
+		t.Errorf("the modal shows tabs %q, want none", names)
+	}
+	if msg.Query != want {
+		t.Errorf("applying gave %q, want %q", msg.Query, want)
 	}
 	// The tab goes to the list's tabs, and the rest is the filter.
-	msg, _, _ := applyOn(t, s, f, filterform.SortTab)
 	drain(t, s, s.ApplyFilter(msg))
 	if s.tab != "open" || s.query != "crash author:@me label:cache -is:draft sort:created-asc" {
 		t.Errorf("the list shows %q filtered by %q", s.tab, s.query)
 	}
 }
 
-// applyOn opens the filter modal of target on tab, as the app does, and
+// applyOn opens the filter modal of target, as the app does, and
 // applies it as it opened, from the query line, which every tab has. It
 // returns what the form sent, and the tabs of the modal.
-func applyOn(t *testing.T, target ui.Filterable, f ui.Filter, tab filterform.Tab) (msg filterform.AppliedMsg, names []string, active int) {
+func applyOn(t *testing.T, target ui.Filterable, f ui.Filter) (msg filterform.AppliedMsg, names []string, active int) {
 	t.Helper()
-	m := ui.NewFilterModal(t.Context(), "List", target, f, ui.OnTab(tab))
+	m := ui.NewFilterModal(t.Context(), "List", target, f)
 	names, active = m.Tabs()
 	m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

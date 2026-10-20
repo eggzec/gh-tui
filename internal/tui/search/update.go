@@ -206,7 +206,7 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab)
 	case keymap.Matches(msg, k.Sort):
-		return ui.OpenFilter(filterform.SortTab)
+		return ui.OpenSort()
 	}
 	if s.text == "" {
 		switch {
