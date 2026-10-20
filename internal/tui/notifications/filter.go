@@ -23,6 +23,12 @@ type filter struct {
 	query string
 	// all lists read threads too, which GitHub does for all=true.
 	all bool
+	// participating lists only the threads the user takes part in, which
+	// GitHub does for participating=true.
+	participating bool
+	// since is the window of time, one of sinceWindows, that GitHub keeps
+	// the threads updated within. Empty keeps every thread.
+	since string
 	// reasons, owners, repos and typs keep the threads with one of those
 	// reasons, in a repository of one of those owners, in one of those
 	// repositories, and about one of those types of subject, when they are
@@ -41,8 +47,15 @@ func parseFilter(query string) filter {
 		v := strings.ToLower(t.Value)
 		switch strings.ToLower(t.Qualifier) {
 		case "is":
-			if v == "unread" {
+			switch v {
+			case "unread":
 				f.all = false
+			case "participating":
+				f.participating = true
+			}
+		case "since":
+			if slices.ContainsFunc(sinceWindows, func(it filterform.Item) bool { return it.Value == v }) {
+				f.since = v
 			}
 		case "reason":
 			f.reasons = appendValues(f.reasons, t)
@@ -146,6 +159,15 @@ var reasons = []filterform.Item{
 	{Label: "Security advisory credit", Value: "security_advisory_credit"},
 }
 
+// sinceWindows are the windows of time the filter offers for the threads
+// updated within them; the first, any, writes nothing.
+var sinceWindows = []filterform.Item{
+	{Label: "Any"},
+	{Label: "1 day", Value: "1d"},
+	{Label: "1 week", Value: "1w"},
+	{Label: "1 month", Value: "1m"},
+}
+
 // spec returns the fields of the filter.
 func (s *Section) spec() filterform.Spec {
 	f := s.filter()
@@ -158,6 +180,14 @@ func (s *Section) spec() filterform.Spec {
 		{
 			Key: "unread", Label: "Unread", Kind: filterform.Toggle, Qualifier: defaultQuery,
 			Hint: "unread only", Default: filterform.BoolValue(true),
+		},
+		{
+			Key: "participating", Label: "Participating", Kind: filterform.Toggle, Qualifier: "is:participating",
+			Hint: "threads you take part in",
+		},
+		{
+			Key: "since", Label: "Updated since", Kind: filterform.Choice, Qualifier: "since",
+			Options: sinceWindows,
 		},
 		multi("reason", "Reason", withValues(reasons, f.reasons)),
 		multi("owner", "Owner", withValues(owners, f.owners)),
@@ -266,10 +296,17 @@ func (f *filter) chips(sep string) string {
 	for _, t := range filterform.Tokenize(f.query) {
 		switch strings.ToLower(t.Qualifier) {
 		case "is":
-			if strings.EqualFold(t.Value, "unread") {
-				continue
+			switch strings.ToLower(t.Value) {
+			case "unread":
+			case "participating":
+				parts = append(parts, "participating")
+			default:
+				parts = append(parts, t.Raw)
 			}
-			parts = append(parts, t.Raw)
+		case "since":
+			if v := strings.ToLower(t.Value); v == f.since {
+				parts = append(parts, "since "+v)
+			}
 		case "reason":
 			for _, v := range t.Values() {
 				parts = append(parts, shortReason(strings.ToLower(v)))
@@ -283,7 +320,11 @@ func (f *filter) chips(sep string) string {
 	return strings.Join(parts, sep)
 }
 
-// listQuery is what GitHub is asked for the filter: read threads or not.
+// listQuery is what GitHub is asked for the filter: read threads or not, the
+// ones the user takes part in, and the ones updated within the window.
 func (f *filter) listQuery(cursor string) notifications.ListQuery {
-	return notifications.ListQuery{Filter: core.NotificationFilter{All: f.all}, Cursor: cursor}
+	return notifications.ListQuery{
+		Filter: core.NotificationFilter{All: f.all, Participating: f.participating, Since: f.since},
+		Cursor: cursor,
+	}
 }

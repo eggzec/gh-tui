@@ -62,4 +62,24 @@ type NotificationFilter struct {
 	// Participating keeps only threads the user takes part in, for example
 	// by being mentioned, assigned or asked for a review.
 	Participating bool
+	// Since is a window of time, such as 1d, 1w or 1m, that keeps only the
+	// threads updated within it. It is a token, not a time, so that what
+	// keys a cached page stays the same as the clock moves; SinceTime turns
+	// it into a time when the request is made. Empty, or a token SinceTime
+	// doesn't know, keeps every thread.
+	Since string
+}
+
+// SinceTime returns when the window of Since began, counted back from now,
+// or the zero time when the filter has no window.
+func (f NotificationFilter) SinceTime(now time.Time) time.Time {
+	switch f.Since {
+	case "1d":
+		return now.AddDate(0, 0, -1)
+	case "1w":
+		return now.AddDate(0, 0, -7)
+	case "1m":
+		return now.AddDate(0, -1, 0)
+	}
+	return time.Time{}
 }

@@ -14,6 +14,7 @@ func TestParseKey(t *testing.T) {
 	for _, q := range []ListQuery{
 		{},
 		{Filter: core.NotificationFilter{All: true, Participating: true}, PageSize: 50, Cursor: "https://api.github.com/notifications?all=true&page=2"},
+		{Filter: core.NotificationFilter{Participating: true, Since: "1w"}, PageSize: 50},
 	} {
 		want := q.normalize(30)
 		if got, ok := parseKey(q.key(30)); !ok || got != want {

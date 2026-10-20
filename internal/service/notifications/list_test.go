@@ -243,6 +243,7 @@ func TestListCacheKey(t *testing.T) {
 		{"default page size", with(func(q *ListQuery) { q.PageSize = 0 }), false},
 		{"all", with(func(q *ListQuery) { q.Filter.All = false }), false},
 		{"participating", with(func(q *ListQuery) { q.Filter.Participating = true }), false},
+		{"since", with(func(q *ListQuery) { q.Filter.Since = "1w" }), false},
 	} {
 		if _, ok := s.CachedList(tt.q); ok != tt.want {
 			t.Errorf("%s: CachedList(%+v) hit = %v, want %v", tt.name, tt.q, ok, tt.want)
