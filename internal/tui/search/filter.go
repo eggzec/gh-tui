@@ -57,7 +57,7 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 	case core.SearchRepos:
 		return filterform.Spec{
 			Fields: []filterform.Field{
-				languageField(query),
+				ui.SearchField, languageField(query),
 				{
 					Key: "stars", Label: "Stars", Kind: filterform.Choice, Qualifier: "stars",
 					Options: []filterform.Item{
@@ -95,6 +95,7 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 			states = append(states, filterform.Item{Label: "Merged", Value: "merged"})
 		}
 		fields := []filterform.Field{
+			ui.SearchField,
 			{Key: "state", Label: "State", Kind: filterform.Choice, Qualifier: "is", Options: states},
 			personField("author", "Author", "author"),
 			personField("assignee", "Assignee", "assignee"),
@@ -133,7 +134,7 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 	default:
 		// Code search takes no sort.
 		return filterform.Spec{Fields: []filterform.Field{
-			languageField(query),
+			ui.SearchField, languageField(query),
 			textField("repo", "Repository", "repo", "any, as owner/name"),
 			textField("org", "Organization", "org", "any"),
 			textField("path", "Path", "path", "anywhere"),

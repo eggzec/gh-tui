@@ -139,6 +139,85 @@ func TestFormatAndParse(t *testing.T) {
 	}
 }
 
+func wordsSpec() Spec {
+	return Spec{Fields: []Field{
+		{Key: "search", Label: "Search", Kind: Text},
+		{Key: "state", Label: "State", Kind: Choice, Qualifier: "is", Options: []Item{{"All", "", ""}, {"Open", "open", ""}}},
+		{Key: "base", Label: "Base", Kind: Text, Qualifier: "base"},
+	}}
+}
+
+// A Text field with no qualifier takes the words nothing else claims, and
+// writes them first, in the order they were typed.
+func TestSearchFieldTakesTheWords(t *testing.T) {
+	m := newKeyed(t, wordsSpec(), WithQuery(`is:open fix base:main bug`))
+	if v, _ := m.Value("search"); v.Text() != "fix bug" {
+		t.Errorf("search = %q, want %q", v.Text(), "fix bug")
+	}
+	if v, _ := m.Value("base"); v.Text() != "main" {
+		t.Errorf("base = %q, want main", v.Text())
+	}
+	if got, want := m.Query(), "fix bug is:open base:main"; got != want {
+		t.Errorf("Query = %q, want %q", got, want)
+	}
+}
+
+func TestSearchFieldKeepsQuotedPhrases(t *testing.T) {
+	m := newKeyed(t, wordsSpec(), WithQuery(`"fix bug" is:open other`))
+	if v, _ := m.Value("search"); v.Text() != `"fix bug" other` {
+		t.Errorf("search = %q", v.Text())
+	}
+	if got, want := m.Query(), `"fix bug" other is:open`; got != want {
+		t.Errorf("Query = %q, want %q", got, want)
+	}
+}
+
+// A form has one place for its words: a second Text field with no qualifier
+// claims and writes nothing.
+func TestSecondWordsFieldIsRefused(t *testing.T) {
+	spec := Spec{Fields: []Field{
+		{Key: "a", Kind: Text},
+		{Key: "b", Kind: Text},
+	}}
+	m := newKeyed(t, spec, WithQuery("one two"))
+	if v, _ := m.Value("a"); v.Text() != "one two" {
+		t.Errorf("a = %q, want %q", v.Text(), "one two")
+	}
+	if v, _ := m.Value("b"); v.Text() != "" {
+		t.Errorf("b = %q, want empty", v.Text())
+	}
+	if got, want := m.Query(), "one two"; got != want {
+		t.Errorf("Query = %q, want %q", got, want)
+	}
+}
+
+// Words typed in a row reach the query line, and words typed in the line
+// reach the row.
+func TestSearchFieldRoundTrip(t *testing.T) {
+	m := open(t, wordsSpec(), WithQuery("is:open"))
+	m, _ = press(t, m, keyI)
+	m = typeText(t, m, `fix "two words"`)
+	m, _ = press(t, m, enter)
+	if got, want := m.Query(), `fix "two words" is:open`; got != want {
+		t.Errorf("Query after the row edit = %q, want %q", got, want)
+	}
+
+	m, _ = press(t, m, tab, keyA, ctrlU)
+	m = typeText(t, m, "other words")
+	if v, _ := m.Value("search"); v.Text() != "other words" {
+		t.Errorf("search after the line edit = %q, want %q", v.Text(), "other words")
+	}
+}
+
+// Clearing the row removes the words from the query.
+func TestSearchFieldClears(t *testing.T) {
+	m := open(t, wordsSpec(), WithQuery("fix is:open"))
+	m, _ = press(t, m, del)
+	if got, want := m.Query(), "is:open"; got != want {
+		t.Errorf("Query = %q, want %q", got, want)
+	}
+}
+
 // A Choice with no empty option, and a sort with none, can't be left out,
 // so an empty query keeps their defaults.
 func TestClearedKeepsRequiredDefaults(t *testing.T) {

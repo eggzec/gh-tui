@@ -12,7 +12,7 @@ import (
 )
 
 // TestFilterSpecs checks that the form of each kind opens on a query and
-// writes it back: its fields in order, then the sort, then the words.
+// writes it back: the words, then its fields in order, then the sort.
 func TestFilterSpecs(t *testing.T) {
 	tests := []struct {
 		kind         core.SearchKind
@@ -22,7 +22,7 @@ func TestFilterSpecs(t *testing.T) {
 		{
 			core.SearchRepos,
 			"tea sort:stars-desc user:charmbracelet is:public archived:false fork:true stars:>1000 language:go",
-			"language:go stars:>1000 fork:true archived:false is:public user:charmbracelet sort:stars-desc tea",
+			"tea language:go stars:>1000 fork:true archived:false is:public user:charmbracelet sort:stars-desc",
 		},
 		{core.SearchRepos, "fork:only language:zig sort:updated-asc", "language:zig fork:only sort:updated-asc"},
 		// What the fields don't take stays as it was typed.
@@ -30,7 +30,7 @@ func TestFilterSpecs(t *testing.T) {
 		{
 			core.SearchIssues,
 			`render org:charmbracelet repo:charmbracelet/bubbletea label:"good first issue" assignee:@me author:meowgorithm is:open sort:comments-desc`,
-			`is:open author:meowgorithm assignee:@me label:"good first issue" repo:charmbracelet/bubbletea org:charmbracelet sort:comments-desc render`,
+			`render is:open author:meowgorithm assignee:@me label:"good first issue" repo:charmbracelet/bubbletea org:charmbracelet sort:comments-desc`,
 		},
 		{
 			core.SearchPulls,
@@ -39,7 +39,7 @@ func TestFilterSpecs(t *testing.T) {
 		},
 		// Drafts and reviews are for pull requests only.
 		{core.SearchIssues, "is:draft review:approved", "is:draft review:approved"},
-		{core.SearchCode, "NewCmd path:pkg/cmd org:cli repo:cli/cli language:go", "language:go repo:cli/cli org:cli path:pkg/cmd NewCmd"},
+		{core.SearchCode, "NewCmd path:pkg/cmd org:cli repo:cli/cli language:go", "NewCmd language:go repo:cli/cli org:cli path:pkg/cmd"},
 		// Code search takes no sort.
 		{core.SearchCode, "tea sort:indexed-desc", "tea sort:indexed-desc"},
 	}
@@ -58,7 +58,7 @@ func TestFilterSorts(t *testing.T) {
 		filterform.WithKeyMap(ui.FilterFormKeys(config.Default().Keys, "filter")))
 	form.Focus()
 	form, _ = form.Update(keyPress("right"))
-	if got := form.Query(); got != "sort:stars-desc tea" {
+	if got := form.Query(); got != "tea sort:stars-desc" {
 		t.Errorf("choosing the stars wrote %q, want them descending", got)
 	}
 }
@@ -80,7 +80,7 @@ func TestFilterIsPerKind(t *testing.T) {
 		}
 		return out
 	}
-	if got := keys(); !slices.Equal(got, []string{"language", "stars", "forks", "archived", "visibility", "owner"}) {
+	if got := keys(); !slices.Equal(got, []string{"search", "language", "stars", "forks", "archived", "visibility", "owner"}) {
 		t.Errorf("the repositories filter by %v", got)
 	}
 	press(t, s, "esc", "]", "]")

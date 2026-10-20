@@ -20,9 +20,9 @@ func TestFilterTabs(t *testing.T) {
 		query string
 		want  string
 	}{
-		{core.SearchRepos, "tea language:go sort:stars-asc", "language:go sort:stars-asc tea"},
-		{core.SearchIssues, "is:open sort:comments-desc crash", "is:open sort:comments-desc crash"},
-		{core.SearchPulls, "is:merged tea", "is:merged tea"},
+		{core.SearchRepos, "tea language:go sort:stars-asc", "tea language:go sort:stars-asc"},
+		{core.SearchIssues, "is:open sort:comments-desc crash", "crash is:open sort:comments-desc"},
+		{core.SearchPulls, "is:merged tea", "tea is:merged"},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.kind), func(t *testing.T) {

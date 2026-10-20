@@ -221,10 +221,7 @@ func (f *Filter) Chips(ic ui.Icons) string {
 func Spec(repos []core.Repo, f *Filter) filterform.Spec {
 	return filterform.Spec{
 		Fields: []filterform.Field{
-			{
-				Key: "name", Label: "Name", Kind: filterform.Text, Hint: "any name",
-				Format: writeWords, Parse: claimWord,
-			},
+			ui.SearchField,
 			{
 				Key: "visibility", Label: "Visibility", Kind: filterform.Choice, Qualifier: "is",
 				Options: []filterform.Item{{Label: "All"}, {Label: "Public", Value: "public"}, {Label: "Private", Value: "private"}},
@@ -246,17 +243,6 @@ func Spec(repos []core.Repo, f *Filter) filterform.Spec {
 			Default: filterform.Sort{By: "updated", Desc: true},
 		},
 	}
-}
-
-// writeWords writes the words of the name field as free text.
-func writeWords(v filterform.Value) string { return strings.Join(strings.Fields(v.Text()), " ") }
-
-// claimWord takes the free words of a query for the name field.
-func claimWord(tok filterform.Token, v filterform.Value) (filterform.Value, bool) {
-	if tok.Qualifier != "" {
-		return v, false
-	}
-	return filterform.TextValue(strings.TrimSpace(v.Text() + " " + tok.Raw)), true
 }
 
 // languageItems offers the languages of repos, the most common first, and

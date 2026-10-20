@@ -53,6 +53,10 @@ func SortByName(label, value string) filterform.SortOption {
 	return filterform.SortOption{Label: label, Value: value, Desc: "Z to A", Asc: "A to Z", Ascending: true}
 }
 
+// SearchField is the first row of a list's filter: the plain words of the
+// query, which the list searches for.
+var SearchField = filterform.Field{Key: "search", Label: "Search", Kind: filterform.Text, Hint: "any words"}
+
 // BestMatch is the sort option of GitHub's search that writes no sort:
 // it ranks by relevance, which has no order.
 var BestMatch = filterform.SortOption{Label: "Best match"}

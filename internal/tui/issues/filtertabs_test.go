@@ -16,7 +16,10 @@ func TestFilterTabs(t *testing.T) {
 	s := started(t, newFakeService(sampleIssues(12)), 80, 20)
 	apply(t, s, `is:open label:bug assignee:@me sort:comments-desc fix`)
 	f, _ := s.Filter()
-	const want = "is:open label:bug assignee:@me sort:comments-desc fix"
+	if got := f.Spec.Fields[0].Key; got != "search" {
+		t.Errorf("the filter opens on the %q row, want the search", got)
+	}
+	const want = "fix is:open label:bug assignee:@me sort:comments-desc"
 	for i, tab := range []filterform.Tab{filterform.FiltersTab, filterform.SortTab} {
 		msg, names, active := applyOn(t, s, f, tab)
 		if !slices.Equal(names, []string{"Filters", "Sort"}) || active != i {
