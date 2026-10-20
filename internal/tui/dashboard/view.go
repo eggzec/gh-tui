@@ -211,6 +211,9 @@ func (s *Section) paneLabel(p paneID) string {
 		} else if chips := s.repos.filter().Chips(s.icons); chips != "" {
 			text += s.icons.Separator + chips
 		}
+		if chip := s.repos.grouping.Chip(s.icons.Separator); chip != "" {
+			text += s.icons.Separator + chip
+		}
 	case workPane:
 		if s.work.ok {
 			text += s.icons.Separator + strconv.Itoa(s.tasks.count(s.work.value))
