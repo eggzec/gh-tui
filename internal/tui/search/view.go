@@ -332,7 +332,7 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if hit.Kind == core.SearchRepos {
 		return s.renderRepo(hit.Repo, selected, width)
 	}
-	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
+	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
 	is := &hit.Issue
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""
@@ -449,7 +449,7 @@ func (c repoCols) width() int {
 // of what it is, with its language, stars and age in columns at the
 // right, then its description.
 func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
-	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
+	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
 	cols := repoColumns(width, s.dates.Width())
 	right := make([]string, 0, 3)
 	if cols.lang > 0 {
@@ -496,7 +496,7 @@ func (s *Section) langCell(r core.Repo, width int, text paint) string {
 // renderCode renders a file that matches: its repository and path, then a
 // few lines of what matched, the matches in the accent.
 func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string {
-	st := &s.st.look[lookOf(selected, s.focused && s.area == resultsArea)]
+	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
 	lines := make([]string, 0, codeHeight)
 	// The repository and the file link to their pages.
 	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))

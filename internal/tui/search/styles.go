@@ -26,17 +26,8 @@ type styles struct {
 	cursor, blurred string
 
 	// look holds the cells of a result in each of its looks.
-	look [numLooks]cells
+	look [ui.NumLooks]cells
 }
-
-// The looks of a result: as it is, selected in a blurred pane, and selected
-// in a focused one.
-const (
-	lookPlain = iota
-	lookBlurred
-	lookFocused
-	numLooks
-)
 
 // cells are the paints of the cells of a result in one look.
 type cells struct {
@@ -46,10 +37,10 @@ type cells struct {
 }
 
 func newCells(t ui.Theme, look int) cells {
-	selected := look != lookPlain
+	selected := look != ui.LookPlain
 	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
 	c := cells{
-		title:  newPaint(t.Cell(t.RowTitle(selected, look == lookFocused), selected)),
+		title:  newPaint(t.Cell(t.RowTitle(selected, look == ui.LookFocused), selected)),
 		muted:  newPaint(cell(t.Muted)),
 		subtle: newPaint(cell(t.Subtle)),
 		text:   newPaint(cell(t.Text)),
@@ -60,24 +51,13 @@ func newCells(t ui.Theme, look int) cells {
 	return c
 }
 
-// lookOf returns the look of a result, for the pane being focused or not.
-func lookOf(selected, focused bool) int {
-	switch {
-	case selected && focused:
-		return lookFocused
-	case selected:
-		return lookBlurred
-	}
-	return lookPlain
-}
-
 func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	var states [ui.NumStates]paint
 	for i := range states {
 		states[i] = newPaint(t.State(ui.State(i)))
 	}
-	var look [numLooks]cells
+	var look [ui.NumLooks]cells
 	for i := range look {
 		look[i] = newCells(t, i)
 	}
