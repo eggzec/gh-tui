@@ -1,6 +1,7 @@
 package owner
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -60,5 +61,39 @@ func TestFilterToggle(t *testing.T) {
 	run(t, s, s.ApplyFilter(filterApplied("language:go")))
 	if l.toggle.Off() || !l.Filter().Active() {
 		t.Errorf("applying while off left off %v, active %v; want the filter on", l.toggle.Off(), l.Filter().Active())
+	}
+}
+
+// Alt+s lists the repositories without the sort token and brings it back,
+// keeping the filter, and a list with no sort refuses.
+func TestSortToggle(t *testing.T) {
+	s := newSection(t, newFake(), "octocat", 80, 24)
+	l := s.repoTab()
+
+	if msgs := press(t, s, "alt+s"); !toasted(msgs) || l.sortToggle.Off() {
+		t.Errorf("alt+s with no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), l.sortToggle.Off())
+	}
+
+	run(t, s, s.ApplyFilter(filterApplied("language:rust sort:stars-desc")))
+	query := l.Filter().Query()
+	if !strings.Contains(query, "sort:") {
+		t.Fatalf("the filter has no sort: %q", query)
+	}
+	press(t, s, "alt+s")
+	if got := l.Filter().Query(); strings.Contains(got, "sort:") || !strings.Contains(got, "language:rust") || !l.sortToggle.Off() {
+		t.Errorf("alt+s left the filter %q, off %v; want the filter without the sort, off", got, l.sortToggle.Off())
+	}
+	if f, _ := s.Filter(); f.Query != query {
+		t.Errorf("the form opens on %q while off, want %q", f.Query, query)
+	}
+
+	press(t, s, "alt+s")
+	if got := l.Filter().Query(); got != query || l.sortToggle.Off() {
+		t.Errorf("alt+s again left the filter %q, off %v; want %q on", got, l.sortToggle.Off(), query)
+	}
+
+	run(t, s, s.ApplyFilter(filterApplied("language:rust")))
+	if msgs := press(t, s, "alt+s"); !toasted(msgs) || l.sortToggle.Off() {
+		t.Errorf("alt+s with a filter and no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), l.sortToggle.Off())
 	}
 }

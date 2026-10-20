@@ -74,6 +74,37 @@ func TestFilterToggle(t *testing.T) {
 	}
 }
 
+// Alt+s lists without the sort token and brings it back, keeping the filter,
+// and a list with no sort refuses.
+func TestSortToggle(t *testing.T) {
+	svc := newFakeService()
+	h := started(t, svc, 80, 20)
+
+	if msgs := press(t, h, "alt+s"); !toasted(msgs) || h.sortToggle.Off() {
+		t.Errorf("alt+s with no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), h.sortToggle.Off())
+	}
+
+	apply(t, h, "is:open author:octocat sort:created-asc")
+	sorted := pulls.ListQuery{Repo: repo, State: core.StateOpen, Filter: "author:octocat sort:created-asc"}
+	press(t, h, "alt+s")
+	if want := (pulls.ListQuery{Repo: repo, State: core.StateOpen, Filter: "author:octocat"}); lastFirst(svc) != want || !h.sortToggle.Off() {
+		t.Errorf("alt+s listed %+v, off %v; want %+v with the sort off", lastFirst(svc), h.sortToggle.Off(), want)
+	}
+	if chips := ansi.Strip(h.Chips()); !strings.Contains(chips, "@octocat") || !strings.Contains(chips, "sort") || !strings.Contains(chips, "off") {
+		t.Errorf("chips %q, want the filter and the sort with off", chips)
+	}
+
+	press(t, h, "alt+s")
+	if lastFirst(svc) != sorted || h.sortToggle.Off() || strings.Contains(ansi.Strip(h.Chips()), "off") {
+		t.Errorf("alt+s again listed %+v, chips %q, off %v; want %+v on", lastFirst(svc), h.Chips(), h.sortToggle.Off(), sorted)
+	}
+
+	apply(t, h, "is:open author:octocat")
+	if msgs := press(t, h, "alt+s"); !toasted(msgs) || h.sortToggle.Off() {
+		t.Errorf("alt+s with a filter and no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), h.sortToggle.Off())
+	}
+}
+
 // A repository opens with no filter, so a filter that was switched off in
 // the one before doesn't come with it.
 func TestFilterToggleEndsWithTheRepository(t *testing.T) {
