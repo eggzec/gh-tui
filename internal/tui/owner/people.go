@@ -80,7 +80,7 @@ func (s *Section) newPeopleList(t tab, login string, roles bool) *peopleList {
 		return svc.People(ctx, q)
 	}
 	render := func(p core.Person, selected bool, _ int) string {
-		return s.personRow(l.cols, p, ownerui.Look(selected, l.Feed.Focused()), l.roles)
+		return s.personRow(l.cols, p, ui.Look(selected, l.Feed.Focused()), l.roles)
 	}
 	what := strings.ToLower(tabTitles[t])
 	l.Feed = feed.New(ui.FeedPages("owner."+l.q.List.String(), query, read), render,

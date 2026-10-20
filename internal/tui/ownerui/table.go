@@ -132,7 +132,7 @@ func (c Cols) Header(star, tail string) string {
 
 // Row renders a repository of a table in its columns c: its name, flags,
 // description, language, stars and age, measured against now in dates. look
-// is [LookPlain] or one of the looks of the selected row; every cell of that
+// is [ui.LookPlain] or one of the looks of the selected row; every cell of that
 // row is bold.
 func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() time.Time) string {
 	st := &d.Styles.Rows[look]
@@ -176,7 +176,7 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 		if r.Language != "" {
 			g := d.Icons.Language(r.Language)
 			lang := d.Lang(r)
-			if look != LookPlain {
+			if look != ui.LookPlain {
 				lang = lang.Bold()
 			}
 			lang.Write(&b, g)

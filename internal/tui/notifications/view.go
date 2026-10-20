@@ -50,18 +50,9 @@ const (
 type styles struct {
 	// look holds the cells of a row in each of its looks, for a read thread
 	// and for an unread one.
-	look         [numLooks][2]cells
+	look         [ui.NumLooks][2]cells
 	filter, hint paint
 }
-
-// The looks of a row: as it is, selected in a blurred pane, and selected in
-// a focused one.
-const (
-	lookPlain = iota
-	lookBlurred
-	lookFocused
-	numLooks
-)
 
 // cells are the paints of the cells of a row in one look, and its dot.
 type cells struct {
@@ -74,7 +65,7 @@ type cells struct {
 }
 
 func newCells(t ui.Theme, ic ui.Icons, look int, unread bool) cells {
-	selected := look != lookPlain
+	selected := look != ui.LookPlain
 	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
 	c := cells{
 		tag:    newPaint(cell(t.Muted)),
@@ -83,7 +74,7 @@ func newCells(t ui.Theme, ic ui.Icons, look int, unread bool) cells {
 		age:    newPaint(cell(t.Muted)),
 		dot:    " ",
 	}
-	title := t.RowTitle(selected, look == lookFocused)
+	title := t.RowTitle(selected, look == ui.LookFocused)
 	switch {
 	case unread:
 		c.dot = cell(t.Accent).Render(ic.Dot)
@@ -192,13 +183,7 @@ func newLayout(width, age, tag int) layout {
 // where the glyph after the dot tells the kind of the thread and its state,
 // or is a tag such as "pr" in the ASCII set.
 func (s *Section) render(n core.Notification, selected bool, width int) string {
-	look := lookPlain
-	switch {
-	case selected && s.feed.Focused():
-		look = lookFocused
-	case selected:
-		look = lookBlurred
-	}
+	look := ui.Look(selected, s.feed.Focused())
 	unread := 0
 	if n.Unread {
 		unread = 1

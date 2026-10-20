@@ -21,7 +21,7 @@ func TestSelectedLooks(t *testing.T) {
 	bold := func(p paint) bool { return strings.HasPrefix(p.render("x"), "\x1b[1") }
 
 	for unread := range 2 {
-		plain, blurred, focused := st.look[lookPlain][unread], st.look[lookBlurred][unread], st.look[lookFocused][unread]
+		plain, blurred, focused := st.look[ui.LookPlain][unread], st.look[ui.LookBlurred][unread], st.look[ui.LookFocused][unread]
 		if plain.title.render("x") == blurred.title.render("x") && unread == 0 {
 			t.Errorf("read title is the same selected and not: %q", plain.title.render("x"))
 		}
@@ -38,7 +38,7 @@ func TestSelectedLooks(t *testing.T) {
 		}
 	}
 	unread := func(look int) string { return st.look[look][1].dot + st.look[look][1].title.render("x") }
-	if unread(lookPlain) == unread(lookBlurred) || unread(lookPlain) == unread(lookFocused) {
+	if unread(ui.LookPlain) == unread(ui.LookBlurred) || unread(ui.LookPlain) == unread(ui.LookFocused) {
 		t.Errorf("an unread thread looks the same selected and not")
 	}
 }

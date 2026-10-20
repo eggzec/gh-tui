@@ -104,7 +104,7 @@ func (s *Section) newRepoList(o core.Owner) *repoList {
 		return p, err
 	}
 	render := func(r core.Repo, selected bool, _ int) string {
-		return s.drawer().Row(l.Cols(), r, ownerui.Look(selected, l.Feed.Focused()), s.dates, s.now)
+		return s.drawer().Row(l.Cols(), r, ui.Look(selected, l.Feed.Focused()), s.dates, s.now)
 	}
 	l.Feed = feed.New(ui.FeedPages("owner.repos", query, read), render,
 		feed.WithContext(s.ctx),
