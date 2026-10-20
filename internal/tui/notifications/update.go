@@ -46,7 +46,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		// shows them.
 		// A state filter keeps the rows by them, so a state that differs
 		// from the one the list was filtered with lists the rows again.
-		if s.keepStates(msg.states) && s.filter().stated() {
+		if s.keepStates(msg.states) && (s.filter().stated() || s.groupedByState()) {
 			return s.reload()
 		}
 		return nil

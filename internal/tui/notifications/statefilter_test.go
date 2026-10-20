@@ -3,8 +3,11 @@ package notifications
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -133,6 +136,22 @@ func TestSectionFiltersByState(t *testing.T) {
 	run(t, s, s.setFilter("is:unread state:merged state:answered"))
 	if got, want := stateRows(s), []string{"3", "8"}; !slices.Equal(got, want) {
 		t.Errorf("rows = %v, want %v", got, want)
+	}
+}
+
+func TestSectionRegroupsByStateWhenTheyArrive(t *testing.T) {
+	t.Parallel()
+	_, states := stateInbox()
+	// The read of the states fails, so every row is in the group of none.
+	s := stateSection(t, &fakeStates{err: errors.New("boom")})
+	run(t, s, s.setGroups(levels("state")))
+	if view := ansi.Strip(s.View()); !strings.Contains(view, "none") {
+		t.Fatalf("no group of none before the states arrived:\n%s", view)
+	}
+	run(t, s, s.Update(statesMsg{states: states}))
+	view := ansi.Strip(s.View())
+	if !strings.Contains(view, "Open") {
+		t.Errorf("no group of open rows after the states arrived:\n%s", view)
 	}
 }
 
