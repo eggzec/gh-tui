@@ -244,9 +244,19 @@ func (s *Section) renderHeader() {
 	} else if chips := f.chips(sep); chips != "" {
 		h += s.styles.filter.render(sep + chips)
 	}
+	if s.off && len(s.levels) > 0 {
+		names := make([]string, len(s.levels))
+		for i, c := range s.levels {
+			names[i], _ = c.Value.(string)
+		}
+		h += s.styles.filter.render(sep + ui.OffChip("by "+strings.Join(names, ", "), sep))
+	}
 	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
 		hints = append(hints, s.icons.Key(k)+" filter")
+	}
+	if k := s.keys.ToggleGroups.Help().Key; k != "" && len(s.levels) > 0 {
+		hints = append(hints, s.icons.Key(k)+" group on/off")
 	}
 	switched := s.filtered() || off
 	if k := s.keys.ToggleFilter.Help().Key; k != "" && switched {

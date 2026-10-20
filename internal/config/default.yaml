@@ -758,9 +758,10 @@ keys:
 
   # The notifications screen.
   notifications:
-    expand: []
-    collapse: []
-    toggle_all: []
+    # Open, close and toggle the groups of a grouped list.
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -778,6 +779,10 @@ keys:
     filter: [f]
     clear_filter: [F]
     filter_toggle: [alt+f]
+    # Group the list by repository, owner, type, state, reason or unread, and
+    # switch the grouping off and on again.
+    group_by: [g]
+    group_toggle: [alt+g]
     # Mark the notification under the cursor, or unmark it, and move to the
     # next row. Esc unmarks
     # them all, after it has cleared a search and a quick filter. While

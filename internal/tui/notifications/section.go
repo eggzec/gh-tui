@@ -21,6 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -110,7 +111,11 @@ type Section struct {
 	// which run in commands, read it.
 	filt atomic.Pointer[filter]
 	// toggle holds the query that the filter key switched off.
-	toggle  ui.FilterToggle[string]
+	toggle ui.FilterToggle[string]
+	// levels are the levels the list is grouped by, outermost first, and off
+	// says the grouping is switched off, with the levels kept.
+	levels  []orderpick.Choice
+	off     bool
 	started bool
 	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice

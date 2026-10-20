@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // KeyMap holds the keys of the section. It implements help.KeyMap.
@@ -24,8 +25,14 @@ type KeyMap struct {
 	ClearFilter key.Binding
 	// ToggleFilter switches the filter off, and back on.
 	ToggleFilter key.Binding
+	// GroupBy opens the choice of the levels the list is grouped by, and
+	// ToggleGroups switches the grouping off, and back on.
+	GroupBy      key.Binding
+	ToggleGroups key.Binding
 	Refresh      key.Binding
 
+	// order are the keys of the picker of the levels.
+	order orderpick.KeyMap
 	// confirm answers the question that marking all read asks.
 	confirm ui.ConfirmKeys
 	// feed is the navigation of the list, which gets the keys above
@@ -53,7 +60,10 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:       screen.Binding("filter", "filter"),
 		ClearFilter:  screen.Binding("clear_filter", "clear filters"),
 		ToggleFilter: screen.Binding("filter_toggle", "filter on/off"),
+		GroupBy:      screen.Binding("group_by", "group by"),
+		ToggleGroups: screen.Binding("group_toggle", "group on/off"),
 		Refresh:      screen.Binding("global.refresh", "refresh"),
+		order:        ui.OrderPickKeys(keys),
 		confirm:      ui.NewConfirmKeys(keys),
 		// The section matches these keys first, so the list gets only the
 		// keys it leaves it. Refresh retries what failed, so the list's error
@@ -66,7 +76,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 }
 
 func (k KeyMap) bindings() []key.Binding {
-	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.Refresh}
+	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Refresh}
 }
 
 // ShortHelp implements help.KeyMap.
