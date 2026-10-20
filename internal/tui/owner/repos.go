@@ -22,6 +22,8 @@ type repoList struct {
 	q owners.ReposQuery
 	// toggle holds the query that the filter key switched off.
 	toggle ui.FilterToggle[string]
+	// sortToggle holds the query that the sort key switched off.
+	sortToggle ui.SortToggle
 	tableTab
 }
 
@@ -200,7 +202,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 	if l == nil || s.page.focus != listPane {
 		return ui.Filter{}, false
 	}
-	return ui.Filter{Spec: ownerui.Spec(s.cachedRepos(l), l.Filter()), Query: l.toggle.Edited(l.Filter().Query()), Subject: tabTitles[s.page.tab]}, true
+	return ui.Filter{Spec: ownerui.Spec(s.cachedRepos(l), l.Filter()), Query: l.toggle.Edited(l.sortToggle.Edited(l.Filter().Query())), Subject: tabTitles[s.page.tab]}, true
 }
 
 // ApplyFilter implements ui.Filterable. The default sort is left out of
@@ -208,6 +210,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 	if l := s.repoTab(); l != nil {
 		l.toggle.On()
+		l.sortToggle.On()
 	}
 	cmd := s.setFilter(ownerui.WithoutDefaultSort(msg.Query))
 	s.render()

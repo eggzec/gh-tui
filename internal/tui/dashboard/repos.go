@@ -62,6 +62,8 @@ type repoTabs struct {
 	toggle ui.FilterToggle[string]
 	// grouping is how every tab groups its repositories.
 	grouping ui.Grouping[core.Repo]
+	// sortToggle holds the query that the sort key switched off.
+	sortToggle ui.SortToggle
 
 	width, height int
 }

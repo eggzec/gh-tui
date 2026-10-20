@@ -152,7 +152,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 	if !s.hasRepo {
 		return ui.Filter{}, false
 	}
-	q := s.toggle.Edited(s.query)
+	q := s.toggle.Edited(s.sortToggle.Edited(s.query))
 	if s.tab != "" {
 		q = strings.TrimSpace("is:" + string(s.tab) + " " + q)
 	}
@@ -163,6 +163,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 // the rest, without the default sort, is the filter.
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 	s.toggle.On()
+	s.sortToggle.On()
 	state := core.State(msg.Values["state"].Text())
 	query := ui.Without(msg.Query, func(t filterform.Token) bool {
 		if strings.EqualFold(t.Raw, defaultSort) {
@@ -201,6 +202,9 @@ func (s *Section) show(state core.State, query string) tea.Cmd {
 func (s *Section) Chips() string {
 	if kept, off := s.toggle.Kept(); off {
 		return ui.OffChip(ui.Chips(kept, s.icons.Separator), s.icons.Separator)
+	}
+	if s.sortToggle.Off() {
+		return ui.SortOffChip(s.chips, s.icons.Separator)
 	}
 	return s.chips
 }

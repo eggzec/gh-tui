@@ -30,6 +30,8 @@ type keyMap struct {
 	ClearFilter key.Binding
 	// ToggleFilter switches the filter off, and back on.
 	ToggleFilter key.Binding
+	// ToggleSort switches the sort off, and back on.
+	ToggleSort key.Binding
 	// NextTab and PrevTab switch the state shown.
 	NextTab key.Binding
 	PrevTab key.Binding
@@ -76,6 +78,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Sort:         list.Binding("sort", "sort"),
 		ClearFilter:  list.Binding("clear_filter", "clear filters"),
 		ToggleFilter: list.Binding("filter_toggle", "filter on/off"),
+		ToggleSort:   list.Binding("sort_toggle", "sort on/off"),
 		NextTab:      list.Binding("global.next_tab", "next state"),
 		PrevTab:      list.Binding("global.prev_tab", "previous state"),
 		Refresh:      list.Binding("global.refresh", "refresh"),
@@ -127,7 +130,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
-		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort},
+		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
 

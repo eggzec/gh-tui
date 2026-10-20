@@ -39,6 +39,7 @@ Pull requests
   open in browser | o | o | on
   filter | f | f | on
   sort | s | s | on
+  sort on/off | alt+s | alt+s | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on

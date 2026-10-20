@@ -176,15 +176,23 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case keymap.Matches(msg, k.PrevOwner):
 			return t.switchTab(-1), true
 		case keymap.Matches(msg, k.ClearFilter):
-			if !t.filter().Active() && !t.toggle.Off() {
+			if !t.filter().Active() && !t.toggle.Off() && !t.sortToggle.Off() {
 				return nil, true
 			}
 			t.toggle.On()
+			t.sortToggle.On()
 			return t.setFilter(""), true
 		case keymap.Matches(msg, k.ToggleFilter):
+			t.sortToggle.On()
 			next, ok := t.toggle.Switch(t.filter().Query(), "")
 			if !ok {
 				return ui.NothingToSwitch(), true
+			}
+			return t.setFilter(next), true
+		case keymap.Matches(msg, k.ToggleSort):
+			next, ok := t.sortToggle.Switch(t.filter().Query())
+			if !ok {
+				return ui.NoSortToSwitch(), true
 			}
 			return t.setFilter(next), true
 		case keymap.Matches(msg, k.Filter):

@@ -271,7 +271,9 @@ func (s *Section) paneLabel(p paneID) string {
 			if kept, off := l.toggle.Kept(); off {
 				f := ownerui.ParseFilter(kept)
 				text += s.icons.Separator + ui.OffChip(f.Chips(s.icons), s.icons.Separator)
-			} else if chips := l.Filter().Chips(s.icons); chips != "" {
+			} else if chips := l.Filter().Chips(s.icons); l.sortToggle.Off() {
+				text += s.icons.Separator + ui.SortOffChip(chips, s.icons.Separator)
+			} else if chips != "" {
 				text += s.icons.Separator + chips
 			}
 		}

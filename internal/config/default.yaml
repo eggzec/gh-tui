@@ -620,9 +620,10 @@ keys:
     # filters back to their defaults.
     filter: [f]
     sort: [s]
+    sort_toggle: [alt+s]
     clear_filter: [F]
     # Switch the filter off for a look at the list without it, and back on.
-    # alt+s does the same for the sort, in each list with one.
+    # alt+s does the same for the sort.
     # On macOS, alt keys need the terminal's "Option as Meta" setting.
     filter_toggle: [alt+f]
     # Group the repositories by owner, language, visibility, kind or role,
@@ -704,6 +705,7 @@ keys:
     # filters back to their defaults.
     filter: [f]
     sort: [s]
+    sort_toggle: [alt+s]
     clear_filter: [F]
     filter_toggle: [alt+f]
     # Mark the pull request under the cursor, or unmark it, and move to the
@@ -750,6 +752,7 @@ keys:
     prev_match: [N]
     filter: [f]
     sort: [s]
+    sort_toggle: [alt+s]
     clear_filter: [F]
     filter_toggle: [alt+f]
     # Mark the issue under the cursor, or unmark it, and move to the next
@@ -862,6 +865,7 @@ keys:
     prev_match: [N]
     filter: [f]
     sort: [s]
+    sort_toggle: [alt+s]
     clear_filter: [F]
     filter_toggle: [alt+f]
     # Group the repositories and the stars by owner, language, visibility,

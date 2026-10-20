@@ -48,9 +48,11 @@ type Section struct {
 	query       string
 	filterChips string
 	// toggle holds the query that the filter key switched off.
-	toggle  ui.FilterToggle[string]
-	started bool
-	focused bool
+	toggle ui.FilterToggle[string]
+	// sortToggle holds the query that the sort key switched off.
+	sortToggle ui.SortToggle
+	started    bool
+	focused    bool
 	// facets offer what the filter chooses from, and milestonesRead is
 	// set once the milestones of repo were read ahead.
 	facets         Facets
