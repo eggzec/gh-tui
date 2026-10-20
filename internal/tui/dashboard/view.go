@@ -439,17 +439,16 @@ func (s *Section) workBody(w, h int) []string {
 		// GitHub refused this list's search and answered the others.
 		return append(lines, ownerui.Indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
 	}
-	for i := t.top; i < len(t.rows); i++ {
-		// Rows show whole, but for one taller than the pane.
-		if n := t.lines(i); len(lines)+n > h && i > t.top {
-			break
-		}
+	if t.items > 0 {
+		lines = append(lines, st.shared.Muted.Render(l.header()))
+	}
+	for i := t.top; i < len(t.rows) && len(lines) < h; i++ {
 		r := &t.rows[i]
 		if r.hit == nil {
 			lines = append(lines, "   "+st.shared.Subtle.Render(r.note))
 			continue
 		}
-		lines = s.workItem(lines, r, i == t.sel, focused, w)
+		lines = append(lines, s.workItem(r, i == t.sel, focused))
 	}
 	return lines
 }
@@ -493,12 +492,11 @@ func (s *Section) workTabs(w int) string {
 	return b.String()
 }
 
-// workItem appends the lines of a pull request or issue waiting on the
-// viewer: its state, where it is and its title, wrapped under the text
-// with the age at the end. The cursor marks every line of the selected
-// one.
-func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w int) []string {
-	st := &s.st
+// workItem renders the line of a pull request or issue waiting on the
+// viewer, in the columns of the header: its state, where it is, its title
+// cut to its column and when it was updated.
+func (s *Section) workItem(r *workRow, selected, focused bool) string {
+	st, l := &s.st, &s.tasks
 	gutter := "  "
 	if selected {
 		gutter = st.shared.Blurred
@@ -509,39 +507,28 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 	rp := &st.shared.Rows[ui.Look(selected, focused)]
 	titleStyle := rp.Title
 	hit := r.hit
-	age := s.dates.Short(hit.Issue.UpdatedAt, s.now())
-	for i, text := range r.lines {
-		var b, link strings.Builder
-		b.WriteString(gutter)
-		used := workIndent
-		if i == 0 {
-			state := ui.HitState(*hit)
-			glyph := st.states[state]
-			if selected {
-				glyph = glyph.Bold()
-			}
-			glyph.Write(&b, s.icons.State(state))
-			b.WriteByte(' ')
-			rp.Muted.Write(&link, r.ref)
-			used += ansi.StringWidth(r.ref)
-			if text != "" {
-				link.WriteByte(' ')
-				used++
-			}
-		} else {
-			b.WriteString("  ")
-		}
-		// Where it is and each line of its title link to its page.
-		titleStyle.Write(&link, text)
-		b.WriteString(s.links.Link(hit.Issue.URL, link.String()))
-		used += ansi.StringWidth(text)
-		if i == len(r.lines)-1 {
-			b.WriteString(strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1)))
-			rp.Subtle.Write(&b, age)
-		}
-		lines = append(lines, b.String())
+	var b strings.Builder
+	b.WriteString(gutter)
+	state := ui.HitState(*hit)
+	glyph := st.states[state]
+	if selected {
+		glyph = glyph.Bold()
 	}
-	return lines
+	glyph.Write(&b, s.icons.State(state))
+	b.WriteByte(' ')
+	// Where it is and its title link to its page.
+	ref := cell(r.ref, l.refW, s.icons.Ellipsis)
+	b.WriteString(s.links.Link(hit.Issue.URL, rp.Muted.Render(ref)))
+	b.WriteString(strings.Repeat(" ", max(l.refW-ansi.StringWidth(ref), 0)))
+	if tw := l.title(); tw > 0 {
+		title := ownerui.Truncate(ownerui.CleanLine(hit.Issue.Title), tw, s.icons.Ellipsis)
+		b.WriteByte(' ')
+		b.WriteString(s.links.Link(hit.Issue.URL, titleStyle.Render(title)))
+		b.WriteString(strings.Repeat(" ", max(tw-ansi.StringWidth(title), 0)))
+	}
+	b.WriteByte(' ')
+	rp.Subtle.Write(&b, s.dates.Short(hit.Issue.UpdatedAt, s.now()))
+	return b.String()
 }
 
 func (s *Section) inboxBody(w, h int) []string {

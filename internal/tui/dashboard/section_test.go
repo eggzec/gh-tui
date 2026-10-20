@@ -35,7 +35,7 @@ func TestInitLoadsEverything(t *testing.T) {
 	for _, want := range []string{
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
 		ui.NewIcons(config.IconsNerd).Here, "spoon-knife", "Yours", "github", "charmbracelet",
-		"repo-000", "Review requests 3", "bubbletea#1402", "Your pull requests 2",
+		"repo-000", "Review requests 3", "#1402", "Your pull requests 2",
 		"Render only the cells that changed", "contributions in the last 90 days",
 	} {
 		if !strings.Contains(view, want) {

@@ -19,11 +19,8 @@ type workRow struct {
 	// note is shown when a list is empty, or holds more than it lists.
 	note string
 
-	// ref and lines are an item wrapped to the pane: ref, such as
-	// "cli#12", starts the first line, and lines hold its title, the first
-	// after ref. The last line leaves room for the age.
-	ref   string
-	lines []string
+	// ref is where an item is, such as "eggzec/cli#12".
+	ref string
 }
 
 // workTab is a list of the work pane, with its own cursor and scroll. Its
@@ -42,8 +39,8 @@ type workTab struct {
 
 // workList is the work pane: a tab for each list of work waiting on the
 // viewer, one on view at a time, with a cursor over its items. An item
-// takes as many lines as its title needs, and the window scrolls by whole
-// rows.
+// takes a line, in columns: its state, where it is, its title and when it
+// was updated.
 type workList struct {
 	tabs [len(workLists)]workTab
 	cur  int
@@ -53,6 +50,8 @@ type workList struct {
 	// width is the width of the pane inside its frame, and height the
 	// lines under the tabs.
 	width, height int
+	// refW and ageW are the widths of the columns of references and ages.
+	refW, ageW int
 	// now is the clock that ages are measured against, and dates tell
 	// them.
 	now   func() time.Time
@@ -115,7 +114,7 @@ func (l *workList) set(w core.Work) {
 			}
 		}
 	}
-	l.wrap()
+	l.layout()
 	for i := range l.tabs {
 		l.tabs[i].scroll(l.height)
 	}
@@ -160,10 +159,10 @@ func (l *workList) switchTab(delta int) {
 // resize sizes the pane to width by height inside its frame, the tabs
 // included.
 func (l *workList) resize(width, height int) {
-	width, height = max(width, 0), max(height-1, 0)
+	width, height = max(width, 0), max(height-2, 0)
 	if width != l.width {
 		l.width = width
-		l.wrap()
+		l.layout()
 	}
 	l.height = height
 	for i := range l.tabs {
@@ -171,85 +170,69 @@ func (l *workList) resize(width, height int) {
 	}
 }
 
-// wrap breaks the items into lines of the pane's width.
-func (l *workList) wrap() {
+// Headers of the columns of an item.
+const (
+	refHeader   = "Ref"
+	titleHeader = "Title"
+	ageHeader   = "Updated"
+)
+
+// layout sizes the columns of the items to the pane: the reference is as
+// wide as the widest, a third of the pane at most, and the age as wide as
+// the widest or its header.
+func (l *workList) layout() {
+	now := l.now()
+	l.refW, l.ageW = 0, ansi.StringWidth(ageHeader)
 	for i := range l.tabs {
 		for j := range l.tabs[i].items {
 			r := &l.tabs[i].rows[j]
-			age := ansi.StringWidth(l.dates.Short(r.hit.Issue.UpdatedAt, l.now()))
-			r.ref, r.lines = wrapWork(r.hit.Issue, l.width-workIndent, age, l.ellipsis)
+			r.ref = r.hit.Issue.Repo.String() + "#" + strconv.Itoa(r.hit.Issue.Number)
+			l.refW = max(l.refW, ansi.StringWidth(r.ref))
+			l.ageW = max(l.ageW, ansi.StringWidth(l.dates.Short(r.hit.Issue.UpdatedAt, now)))
 		}
 	}
+	l.refW = min(l.refW, l.width/3)
 }
 
-// wrapWork breaks the reference and title of is into lines of width
-// cells. The reference starts the first line, cut to half of it at most,
-// and lines holds the title, the first after the reference. The last line
-// leaves room for an age of age cells and a space, on a line of its own if
-// need be. A reference cut short ends in tail.
-func wrapWork(is core.Issue, width, age int, tail string) (ref string, lines []string) {
-	if width <= 0 {
-		return "", []string{""}
-	}
-	ref = is.Repo.Name + "#" + strconv.Itoa(is.Number)
-	ref = ownerui.Truncate(ref, min(ansi.StringWidth(ref), max(width/2, 1)), tail)
-	title := ownerui.CleanLine(is.Title)
-	if title == "" {
-		lines = []string{""}
-	} else {
-		// A stand-in without breakpoints keeps the reference whole, so the
-		// title's first line starts after it.
-		refW := ansi.StringWidth(ref)
-		text := strings.Repeat("x", refW) + " " + title
-		lines = strings.Split(ansi.Wrap(text, width, ""), "\n")
-		lines[0] = lines[0][min(refW, len(lines[0])):]
-		for i := range lines {
-			lines[i] = strings.TrimSpace(lines[i])
-		}
-	}
-	last := ansi.StringWidth(lines[len(lines)-1])
-	if len(lines) == 1 {
-		last += ansi.StringWidth(ref) + 1
-	}
-	if last+1+age > width {
-		lines = append(lines, "")
-	}
-	return ref, lines
+// title is the width of the title column in the pane, or 0 when there is
+// no room for it.
+func (l *workList) title() int {
+	return max(l.width-workIndent-l.refW-1-1-l.ageW, 0)
 }
 
-// lines is how many lines row i takes.
-func (t *workTab) lines(i int) int {
-	if r := &t.rows[i]; r.hit != nil {
-		return len(r.lines)
+// cell is ref in a column of width cells. A reference too long loses the
+// end of its repository, never its number. A cut ends in tail.
+func cell(ref string, width int, tail string) string {
+	if ansi.StringWidth(ref) <= width {
+		return ref
 	}
-	return 1
+	i := strings.LastIndexByte(ref, '#')
+	num := ref[i:]
+	if room := width - ansi.StringWidth(num); room > 0 {
+		return ownerui.Truncate(ref[:i], room, tail) + num
+	}
+	return ownerui.Truncate(num, width, tail)
 }
 
-// span is how many lines rows first to last take.
-func (t *workTab) span(first, last int) int {
-	n := 0
-	for i := first; i <= last; i++ {
-		n += t.lines(i)
-	}
-	return n
+// header names the columns of the items.
+func (l *workList) header() string {
+	return strings.Repeat(" ", workIndent) + ui.Header([]ui.Column{
+		{Title: refHeader, Width: l.refW},
+		{Title: titleHeader, Width: l.title()},
+		{Title: ageHeader, Width: l.ageW},
+	}, 1, l.ellipsis)
 }
 
-// scroll shows the whole item under the cursor in height lines, and fills
-// the window from the bottom.
+// scroll shows the item under the cursor, and fills the window from the
+// bottom.
 func (t *workTab) scroll(height int) {
 	if height <= 0 || len(t.rows) == 0 {
 		return
 	}
 	if t.sel < t.items {
-		t.top = min(t.top, t.sel)
-		for t.top < t.sel && t.span(t.top, t.sel) > height {
-			t.top++
-		}
+		t.top = min(max(t.top, t.sel-height+1), t.sel)
 	}
 	// The last rows fill the window rather than leave it half empty.
 	last := len(t.rows) - 1
-	for t.top > 0 && t.span(t.top-1, last) <= height {
-		t.top--
-	}
-	t.top = min(max(t.top, 0), last)
+	t.top = min(max(t.top, 0), last, max(len(t.rows)-height, 0))
 }
