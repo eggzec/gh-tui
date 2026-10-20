@@ -16,7 +16,10 @@ func TestFilterTabs(t *testing.T) {
 	s := started(t, newFakeService(), 80, 20)
 	apply(t, s, "is:open author:@me label:cache -is:draft sort:created-asc crash")
 	f, _ := s.Filter()
-	const want = "is:open author:@me label:cache -is:draft sort:created-asc crash"
+	if got := f.Spec.Fields[0].Key; got != "search" {
+		t.Errorf("the filter opens on the %q row, want the search", got)
+	}
+	const want = "crash is:open author:@me label:cache -is:draft sort:created-asc"
 	for i, tab := range []filterform.Tab{filterform.FiltersTab, filterform.SortTab} {
 		msg, names, active := applyOn(t, s, f, tab)
 		if !slices.Equal(names, []string{"Filters", "Sort"}) || active != i {
@@ -29,7 +32,7 @@ func TestFilterTabs(t *testing.T) {
 	// The tab goes to the list's tabs, and the rest is the filter.
 	msg, _, _ := applyOn(t, s, f, filterform.SortTab)
 	drain(t, s, s.ApplyFilter(msg))
-	if s.tab != "open" || s.query != "author:@me label:cache -is:draft sort:created-asc crash" {
+	if s.tab != "open" || s.query != "crash author:@me label:cache -is:draft sort:created-asc" {
 		t.Errorf("the list shows %q filtered by %q", s.tab, s.query)
 	}
 }

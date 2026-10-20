@@ -136,6 +136,12 @@ func write(f *Field, v Value) string {
 			return ""
 		}
 		if f.Qualifier == "" {
+			if f.words {
+				return strings.TrimSpace(v.text)
+			}
+			if f.Kind == Text {
+				return ""
+			}
 			return v.text
 		}
 		return f.Qualifier + ":" + quote(v.text)
@@ -158,6 +164,12 @@ func claim(f *Field, tok Token, v Value) (Value, bool) {
 			return TextValue(opt.Value), true
 		}
 		return v, false
+	}
+	if f.words {
+		if tok.Qualifier != "" {
+			return v, false
+		}
+		return TextValue(strings.TrimSpace(v.text + " " + tok.Raw)), true
 	}
 	if f.Qualifier == "" || !strings.EqualFold(tok.Qualifier, f.Qualifier) || tok.Value == "" {
 		return v, false
@@ -289,17 +301,25 @@ func parse(s *Spec, q string) state {
 	return st
 }
 
+// take gives tok to the first field that claims it, then to the sort. The
+// field of the words comes last, so that it takes only what nothing else
+// reads.
 func (st *state) take(s *Spec, tok Token) bool {
-	for i := range s.Fields {
-		if v, ok := claim(&s.Fields[i], tok, st.values[i]); ok {
-			st.values[i] = v
-			return true
+	for _, words := range []bool{false, true} {
+		for i := range s.Fields {
+			if s.Fields[i].words != words {
+				continue
+			}
+			if v, ok := claim(&s.Fields[i], tok, st.values[i]); ok {
+				st.values[i] = v
+				return true
+			}
 		}
-	}
-	if s.Sort != nil {
-		if so, ok := claimSort(s.Sort, tok); ok {
-			st.sort = so
-			return true
+		if s.Sort != nil && !words {
+			if so, ok := claimSort(s.Sort, tok); ok {
+				st.sort = so
+				return true
+			}
 		}
 	}
 	return false

@@ -88,7 +88,11 @@ type Field struct {
 	// as label or is: a Choice writes is:open, a Multi label:bug,docs, a
 	// Text base:main and a Person author:@me. A Toggle writes Qualifier
 	// whole when it is on, so it holds a full token such as -is:draft. A
-	// Choice with no Qualifier writes its option's Value whole.
+	// Choice with no Qualifier writes its option's Value whole. A Text with
+	// none takes the plain words of the query, such as fix "two words", and
+	// writes them back as they were typed, quotes included. Only the first
+	// such Text field does: a form has one place for its words, so a later
+	// one claims and writes nothing.
 	Qualifier string
 	// Each makes a Multi write one qualifier per value, label:a label:b,
 	// which GitHub reads as all of them, instead of one comma list, which
@@ -109,6 +113,10 @@ type Field struct {
 	// whether it claimed the token; the form keeps unclaimed tokens as
 	// free text.
 	Parse func(tok Token, v Value) (Value, bool)
+
+	// words is set on the first Text field with no Qualifier, Format or
+	// Parse, which takes the words of the query that nothing else claims.
+	words bool
 }
 
 // Sort is a sort order: the value of a sort option, and its direction.
@@ -151,10 +159,13 @@ type SortOption struct {
 
 func (s Spec) clone() Spec {
 	out := Spec{Fields: slices.Clone(s.Fields)}
+	hasWords := false
 	for i := range out.Fields {
 		f := &out.Fields[i]
 		f.Options = slices.Clone(f.Options)
 		f.Default = f.Default.clone()
+		f.words = !hasWords && f.Kind == Text && f.Qualifier == "" && f.Format == nil && f.Parse == nil
+		hasWords = hasWords || f.words
 	}
 	if s.Sort != nil {
 		sf := *s.Sort

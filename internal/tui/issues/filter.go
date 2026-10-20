@@ -87,6 +87,7 @@ func (s *Section) spec() filterform.Spec {
 	}
 	return filterform.Spec{
 		Fields: []filterform.Field{
+			ui.SearchField,
 			{
 				Key: "state", Label: "State", Kind: filterform.Choice, Qualifier: "is",
 				Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}, {Label: "All"}},
