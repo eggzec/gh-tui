@@ -99,7 +99,7 @@ func (m *Modal) layout() {
 // sizePanes sizes the runs and the log to their panes.
 func (m *Modal) sizePanes() {
 	h := m.bodyHeight()
-	m.runs.SetSize(m.paneWidth(runsPane), h)
+	m.runs.SetSize(m.paneWidth(runsPane), max(h-1, 0))
 	m.log.SetSize(m.paneWidth(logPane), h)
 }
 
@@ -107,8 +107,9 @@ func (m *Modal) sizePanes() {
 func (m *Modal) paneLines(p pane, w, h int) []string {
 	switch p {
 	case runsPane:
-		// The feed renders its size exactly.
-		return ui.PadLines(strings.Split(m.runs.View(), "\n"), w, h)
+		// The feed renders its size exactly, under the header's line.
+		lines := append([]string{m.runsHeader(m.paneWidth(runsPane))}, strings.Split(m.runs.View(), "\n")...)
+		return ui.PadLines(lines, w, h)
 	case jobsPane:
 		return m.jobLines(w, h)
 	case logPane:

@@ -15,6 +15,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // me stands for the signed-in user in a filter until a read asks who that
@@ -154,7 +155,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithPromptKeys(m.keys.search),
 		feed.WithStyles(m.theme.Feed(m.opts.icons)),
 		feed.WithItemHeight(2),
-		feed.WithSize(m.paneWidth(runsPane), m.bodyHeight()),
+		feed.WithSize(m.paneWidth(runsPane), max(m.bodyHeight()-1, 0)),
 		feed.WithFocused(m.focus == runsPane),
 		feed.WithEmptyText(m.emptyText()),
 		feed.WithErrorText(ui.ErrorText("load the runs", m.repo.String(), *m.opts.voice)),
@@ -239,6 +240,31 @@ func (m *Modal) clearRun() {
 	m.unfollow()
 }
 
+// runGap separates the run's title from its date.
+const runGap = "  "
+
+// createdTitle heads the date column, which is never narrower than it.
+const createdTitle = "Created"
+
+// runCols splits a run row of w cells into the width of its head, which
+// takes what the date leaves, and of the date column, which goes first when
+// the head would be left too little.
+func (m *Modal) runCols(w int) (headW, dateW int) {
+	dateW = max(m.opts.dates.Width(), len(createdTitle))
+	if w-dateW-len(runGap) < 16 {
+		return w, 0
+	}
+	return w - dateW - len(runGap), dateW
+}
+
+// runsHeader is the line of titles above the runs, laid out as the rows are.
+func (m *Modal) runsHeader(w int) string {
+	inner := max(w-m.runs.Gutter(), 0)
+	headW, dateW := m.runCols(inner)
+	line := ui.Header([]ui.Column{{Title: "Run", Width: headW}, {Title: createdTitle, Width: dateW}}, len(runGap), m.opts.icons.Ellipsis)
+	return strings.Repeat(" ", m.runs.Gutter()) + m.st.row[ui.Look(false, m.focus == runsPane)].Muted.Render(line)
+}
+
 // renderRun renders a run in two lines: its state, workflow, number,
 // title and age, and below them its branch, event, actor and how long it
 // ran.
@@ -251,7 +277,12 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	// The workflow, the number and the title link to the run's page.
 	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
 		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+"  "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
-	first := ui.Spread(head, st.Subtle.Render(m.opts.dates.Short(r.CreatedAt, now)), w, m.opts.icons.Ellipsis)
+	headW, dateW := m.runCols(w)
+	first := termtext.Truncate(head, headW, m.opts.icons.Ellipsis)
+	first += strings.Repeat(" ", max(headW-ansi.StringWidth(first), 0))
+	if dateW > 0 {
+		first += runGap + st.Subtle.Render(m.opts.dates.Short(r.CreatedAt, now))
+	}
 
 	parts := make([]string, 0, 3)
 	for _, p := range []string{r.Branch, r.Event, r.Actor} {
