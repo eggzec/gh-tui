@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -273,7 +272,7 @@ func TestFilterKeysStayOffTheList(t *testing.T) {
 				t.Fatal("nothing is selected")
 			}
 			msgs := press(t, s, k)
-			if want := k == "f"; want != (len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}) || !want && len(msgs) != 0 {
+			if want := k == "f"; want != (len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{}) || !want && len(msgs) != 0 {
 				t.Errorf("%s sent %v", k, msgs)
 			}
 			if after, _ := s.feed.Selected(); after.ID != before.ID {
@@ -338,6 +337,26 @@ func TestLayoutDropsColumns(t *testing.T) {
 		if (l.repo > 0) != tt.repo || (l.tag > 0) != tt.tag || (l.reason > 0) != tt.withReason {
 			t.Errorf("newLayout(%d) = %+v, want repo %v, tag %v, reason %v", tt.width, l, tt.repo, tt.tag, tt.withReason)
 		}
+	}
+}
+
+// A glyph costs less than a tag, so a kind column of one cell stays at a
+// width where the tag has been dropped.
+func TestLayoutKeepsGlyphLongerThanTag(t *testing.T) {
+	t.Parallel()
+	for width := 20; width <= 120; width++ {
+		if newLayout(width, 4, tagWidth).tag > 0 && newLayout(width, 4, 1).tag == 0 {
+			t.Fatalf("width %d keeps the tag but drops the glyph", width)
+		}
+	}
+	found := false
+	for width := 20; width <= 120; width++ {
+		if newLayout(width, 4, tagWidth).tag == 0 && newLayout(width, 4, 1).tag > 0 {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("no width keeps the glyph while dropping the tag")
 	}
 }
 
