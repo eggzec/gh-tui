@@ -36,7 +36,7 @@ func TestGlyphs(t *testing.T) {
 	r := repo("cli", "cli", "GitHub's official command line tool", "Go", 38000, 0)
 	r.Repo.Fork, r.Repo.Private, r.Repo.Archived = true, true, true
 	got := ansi.Strip(s.renderHit(r, false, 80))
-	for _, want := range []string{"cli/cli F P A", "o Go"} {
+	for _, want := range []string{"F P A cli/cli", "o Go"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("repository row = %q, want %q in it", got, want)
 		}

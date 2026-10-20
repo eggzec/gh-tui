@@ -45,6 +45,12 @@ func Truncate(s string, width int, tail string) string {
 	return termtext.Truncate(s, width, tail)
 }
 
+// TruncateMiddle cuts plain text s to width cells from the middle, so its
+// start and its end show, joined by tail, an ellipsis, where it cuts.
+func TruncateMiddle(s string, width int, tail string) string {
+	return termtext.TruncateMiddle(s, width, tail)
+}
+
 // Wrap breaks plain text s into at most n lines of width cells at spaces,
 // and ends the last with tail, an ellipsis, if s doesn't fit.
 func Wrap(s string, width, n int, tail string) []string {

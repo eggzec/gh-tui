@@ -26,6 +26,34 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestTruncateMiddle(t *testing.T) {
+	for _, tt := range []struct {
+		s     string
+		width int
+		tail  string
+		want  string
+	}{
+		{"abcdefghij", 10, "…", "abcdefghij"},
+		{"abcdefghij", 20, "…", "abcdefghij"},
+		{"abcdefghij", 7, "…", "abc…hij"},
+		{"abcdefghij", 6, "…", "abc…ij"},
+		{"abcdefghij", 8, "...", "abc...ij"},
+		{"abcdefghij", 3, "...", "..."},
+		// A tail wider than the cut is left out.
+		{"abcdefghij", 2, "...", "ab"},
+		{"abcdefghij", 1, "…", "…"},
+		{"abcdefghij", 0, "…", ""},
+		// A wide rune that straddles the cut is dropped.
+		{"日本語日本語", 7, "…", "日…本語"},
+		{"日本語日本語", 12, "…", "日本語日本語"},
+		{"\x1b[1mabcdefghij\x1b[m", 7, "…", "\x1b[1mabc\x1b[m…\x1b[1mhij\x1b[m"},
+	} {
+		if got := TruncateMiddle(tt.s, tt.width, tt.tail); got != tt.want {
+			t.Errorf("TruncateMiddle(%q, %d, %q) = %q, want %q", tt.s, tt.width, tt.tail, got, tt.want)
+		}
+	}
+}
+
 func TestCells(t *testing.T) {
 	for _, tt := range []struct {
 		g    string

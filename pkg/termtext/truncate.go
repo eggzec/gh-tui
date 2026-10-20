@@ -21,6 +21,27 @@ func Truncate(s string, width int, tail string) string {
 	return ansi.Truncate(s, width, tail)
 }
 
+// TruncateMiddle cuts s to width cells like Truncate, but from the middle:
+// its start and its end show, joined by tail where it is cut. A tail wider
+// than width is left out, and one as wide as width shows alone. A wide rune
+// that straddles a cut is dropped, so the result may be a cell short.
+func TruncateMiddle(s string, width int, tail string) string {
+	if width <= 0 {
+		return ""
+	}
+	w := ansi.StringWidth(s)
+	if w <= width {
+		return s
+	}
+	tw := ansi.StringWidth(tail)
+	if tw > width {
+		return ansi.Truncate(s, width, "")
+	}
+	keep := width - tw
+	right := keep / 2
+	return ansi.Truncate(s, keep-right, "") + tail + ansi.TruncateLeft(s, w-right, "")
+}
+
 // Cells cuts or pads g, a glyph such as a cursor or a mark, to exactly n
 // cells, so the columns after it stay where they are whatever glyph a
 // program picks.
