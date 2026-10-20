@@ -107,6 +107,8 @@ type Icons struct {
 	runs   [NumRunStates]string
 	// glyphs are the glyphs of pull request views, which Glyph returns.
 	glyphs [NumGlyphs]string
+	// marks are the glyphs of notifications, which Mark returns.
+	marks [NumMarks]string
 	// files holds the glyphs of files and directories, in the sets that
 	// have them.
 	files *fileIcons
@@ -138,6 +140,7 @@ func NewIcons(set string) Icons {
 	ic.set = set
 	ic.runs = runGlyphs(set)
 	ic.glyphs = glyphTable(set)
+	ic.marks = markGlyphs(set, ic.states)
 	ic.setDrawing(set)
 	return ic
 }
