@@ -48,8 +48,13 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	if m.Grouped() {
 		l := m.lines[i]
 		indent = strings.Repeat("  ", l.depth)
-		if l.head {
+		switch {
+		case l.head:
 			m.writeHead(w, l, m.gutter(selected, false), indent)
+			return
+		case l.more:
+			w.line(m.gutter(selected, false), m.styles.Hint.Render(m.moreText()))
+			w.blank(m.itemHeight - 1)
 			return
 		}
 	}

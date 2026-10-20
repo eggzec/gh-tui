@@ -51,6 +51,10 @@ var testKeys = map[string][]string{
 	"quick_filter": {"&"},
 	"next_match":   {"n"},
 	"prev_match":   {"N"},
+
+	"expand":     {"l", "right"},
+	"collapse":   {"h", "left"},
+	"toggle_all": {"*"},
 }
 
 // testPromptKeys are the keys of the prompt of a find or filter.

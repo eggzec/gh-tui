@@ -21,9 +21,11 @@ type Group[T any] struct {
 	Desc bool
 }
 
-// line is one row of a grouped feed: a group header or an item.
+// line is one row of a grouped feed: a group header, an item, or the row after
+// the last one that stands for the items not loaded yet.
 type line struct {
 	head  bool
+	more  bool
 	depth int
 	// path identifies a header among the others, from the keys of the groups
 	// that lead to it.
@@ -54,7 +56,10 @@ type cursorRef struct {
 // level and each next inside it, or shows the plain list again for none. Every
 // group starts open, and the cursor stays on its item. While the groups are
 // set the feed counts lines, headers and items, rather than items, and a quick
-// filter does not take part.
+// filter narrows the items before they are grouped, so the headers count
+// only the rows it keeps. A feed whose items are not all loaded ends in a row
+// that stands for the rest, which is not an item: see [Model.Activate] and
+// [Model.SetTotal].
 func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 	ref := m.cursor()
 	m.groups = m.groups[:0:0]
@@ -64,20 +69,31 @@ func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 		}
 	}
 	m.closed = nil
+	m.anchored, m.seeking, m.fill = false, false, true
 	if !m.Grouped() {
 		m.sel = m.flatSel()
-		m.lines, m.heads, m.nitems = nil, nil, 0
+		m.lines, m.heads, m.order, m.nitems = nil, nil, nil, 0
+		if m.filter != "" {
+			m.rebuildRows()
+		} else {
+			m.refind()
+		}
 	} else {
-		m.build()
-		m.restore(ref)
+		m.regroup(ref)
 	}
-	m.anchored, m.seeking, m.fill = false, false, true
-	if m.filter != "" {
-		m.rebuildRows()
-	} else if m.query != "" {
-		m.refind()
-	}
+	m.enableKeys()
 	return m.sync()
+}
+
+// regroup builds the lines again over the items the quick filter keeps, and
+// the find over those, and puts the cursor back on ref. It reports whether
+// ref was found.
+func (m *Model[T]) regroup(ref cursorRef) bool {
+	m.filterRows()
+	m.build()
+	found := m.restore(ref)
+	m.refind()
+	return found
 }
 
 // Grouped reports whether the rows are grouped.
@@ -168,15 +184,97 @@ func (m Model[T]) headRef(depth int) cursorRef {
 	return cursorRef{}
 }
 
+// right is the key that goes into a group: it opens a closed header, and on
+// an open one moves to its first line. It does nothing on an item.
+func (m *Model[T]) right() tea.Cmd {
+	if !m.onHeader() {
+		return nil
+	}
+	l := m.lines[m.sel]
+	if !l.open {
+		return m.setOpen(true)
+	}
+	// An open header has items, and its first line is the next one.
+	if m.sel+1 < len(m.lines) && m.lines[m.sel+1].depth > l.depth {
+		m.sel++
+		return m.sync()
+	}
+	return nil
+}
+
+// left is the key that goes out of a group: it closes an open header, and
+// from an item or a closed header moves to the header of the group around it.
+func (m *Model[T]) left() tea.Cmd {
+	if !m.Grouped() || m.sel < 0 || m.sel >= len(m.lines) {
+		return nil
+	}
+	l := m.lines[m.sel]
+	if l.more {
+		return nil
+	}
+	if l.head && l.open {
+		return m.setOpen(false)
+	}
+	for i := m.sel - 1; i >= 0; i-- {
+		if p := m.lines[i]; p.head && p.depth < l.depth {
+			m.sel = i
+			return m.sync()
+		}
+	}
+	return nil
+}
+
+// toggleAll opens every group if any is closed, and closes them all otherwise.
+func (m *Model[T]) toggleAll() tea.Cmd {
+	for _, p := range m.heads {
+		if _, closed := m.closed[p]; closed {
+			return m.ExpandAll()
+		}
+	}
+	return m.CollapseAll()
+}
+
 // onHeader reports whether the cursor is on a group header.
 func (m Model[T]) onHeader() bool {
 	return m.Grouped() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].head
 }
 
-// members returns the items the groups cover, in the order of the feed. It
-// is the one place that decides which items are grouped: every loaded one
-// for now.
+// onMore reports whether the cursor is on the row of the items not loaded.
+func (m Model[T]) onMore() bool {
+	return m.Grouped() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].more
+}
+
+// Activate is what enter does on the row of the items not loaded: it fetches
+// the next chunk, if there is one to fetch. It reports whether the cursor was
+// on that row, so the parent knows the key was taken, and does nothing for
+// any other row.
+func (m *Model[T]) Activate() (tea.Cmd, bool) {
+	if !m.onMore() {
+		return nil, false
+	}
+	return m.fetchMore(), true
+}
+
+// SetTotal tells how many items the source holds in all, so that the row of
+// the items not loaded can say how many are left. Zero means it is not known.
+func (m *Model[T]) SetTotal(n int) {
+	m.known = n
+}
+
+// moreText reads the row of the items not loaded.
+func (m Model[T]) moreText() string {
+	if left := m.known - m.nitems; m.known > 0 && left > 0 {
+		return strconv.Itoa(left) + " more not loaded"
+	}
+	return "more not loaded"
+}
+
+// members returns the items the groups cover, in the order of the feed: those
+// the quick filter keeps, or every loaded one without it.
 func (m Model[T]) members() []int {
+	if m.filter != "" {
+		return m.rows
+	}
 	var items []int
 	for i := range m.total {
 		if _, ok := m.item(i); ok {
@@ -188,11 +286,14 @@ func (m Model[T]) members() []int {
 
 // build makes the lines of the groups over the loaded items.
 func (m *Model[T]) build() {
-	m.lines, m.heads = nil, nil
+	m.lines, m.heads, m.order = nil, nil, nil
 	items := m.members()
 	m.nitems = len(items)
 	n := 0
 	m.group(items, 0, "", true, &n)
+	if !m.done && len(m.lines) > 0 {
+		m.lines = append(m.lines, line{more: true, before: n})
+	}
 }
 
 // group adds the lines of items, grouped by the groups from level on. A group
@@ -200,6 +301,7 @@ func (m *Model[T]) build() {
 func (m *Model[T]) group(items []int, level int, parent string, visible bool, n *int) {
 	if level == len(m.groups) {
 		for _, i := range items {
+			m.order = append(m.order, i)
 			if visible {
 				m.lines = append(m.lines, line{depth: level, item: i, before: *n})
 			}
@@ -272,47 +374,53 @@ func (m Model[T]) cursor() cursorRef {
 	if m.sel < 0 || m.sel >= len(m.lines) {
 		return cursorRef{}
 	}
-	if l := m.lines[m.sel]; l.head {
+	switch l := m.lines[m.sel]; {
+	case l.head:
 		return cursorRef{valid: true, head: true, path: l.path}
+	case l.more:
+		return cursorRef{}
 	}
 	return m.itemRef(m.lines[m.sel].item)
 }
 
 // restore puts the cursor on ref in the grouped lines, if it is there, and
-// leaves it where it is otherwise.
-func (m *Model[T]) restore(ref cursorRef) {
+// leaves it where it is otherwise. It reports whether it found it.
+func (m *Model[T]) restore(ref cursorRef) bool {
 	if !ref.valid {
-		return
+		return false
 	}
 	for i, l := range m.lines {
 		if ref.head {
 			if l.head && l.path == ref.path {
 				m.sel = i
-				return
+				return true
 			}
 			continue
 		}
-		if l.head {
+		if l.head || l.more {
 			continue
 		}
 		if ref.byKey {
 			if it, ok := m.item(l.item); ok && m.key(it) == ref.key {
 				m.sel = i
-				return
+				return true
 			}
 		} else if l.item == ref.item {
 			m.sel = i
-			return
+			return true
 		}
 	}
+	return false
 }
 
 // flatSel returns the index of the item at or after the cursor's line, for
 // when the groups go and the cursor is on an item again.
 func (m Model[T]) flatSel() int {
 	for i := max(m.sel, 0); i < len(m.lines); i++ {
-		if !m.lines[i].head {
-			return m.posOf(m.lines[i].item)
+		if l := m.lines[i]; l.more {
+			return max(m.total-1, 0)
+		} else if !l.head {
+			return m.posOf(l.item)
 		}
 	}
 	return 0
@@ -325,6 +433,9 @@ func (m Model[T]) itemsAfter() int {
 		return 0
 	}
 	l := m.lines[m.sel]
+	if l.more {
+		return 0
+	}
 	after := m.nitems - l.before
 	if !l.head {
 		after--

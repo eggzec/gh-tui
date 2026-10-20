@@ -30,6 +30,10 @@ func third(it item) string { return "m" + strconv.Itoa(idNum(it)%3) }
 func outline[T any](m Model[T]) []string {
 	var got []string
 	for _, l := range m.lines {
+		if l.more {
+			got = append(got, "more")
+			continue
+		}
 		if !l.head {
 			got = append(got, strings.Repeat(".", l.depth)+strconv.Itoa(l.item))
 			continue
@@ -151,9 +155,9 @@ func TestGroupsCursorKeptOnNewChunk(t *testing.T) {
 	groups := []Group[item]{{Key: parity}}
 	m := load(t, newSource(12, 6), WithSize(40, 5), WithKey(itemKey), WithPrefetch(1))
 	m = applyGroups(t, m, groups)
-	// The last row is item 5, and reading it fetches the next chunk, which
-	// puts new rows above it.
-	m = keys(t, m, "end")
+	// The last item is 5, and fetching the next chunk puts new rows above it.
+	m.sel = len(m.lines) - 2
+	m = run(t, m, m.fetchMore())
 	if m.Len() != 12 {
 		t.Fatalf("Len() = %d, want the next chunk fetched", m.Len())
 	}

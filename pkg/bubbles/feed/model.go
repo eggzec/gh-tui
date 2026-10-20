@@ -120,7 +120,9 @@ type Model[T any] struct {
 	// prompt is the prompt of find and the quick filter, open while it is
 	// focused.
 	prompt cmdline.Model
-	// query is the find shown and hits the positions of its matches; filter
+	// query is the find shown and hits the positions of its matches, among
+	// the rows, or among the items in the order of the groups while grouped
+	// (order); filter
 	// is the quick filter shown and rows the items it keeps, in order.
 	query  string
 	hits   []int
@@ -147,6 +149,10 @@ type Model[T any] struct {
 	nitems int
 	heads  []string
 	fill   bool
+	// order is every grouped item in the order of the groups, whether its line
+	// shows or not, and known the number of items the source holds, or 0.
+	order []int
+	known int
 
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
 	groupOpen     string
@@ -264,7 +270,7 @@ func (m Model[T]) ID() int {
 }
 
 // Selected returns the selected item, or false if there is none or it is not
-// loaded.
+// loaded, such as on a group header or on the row of the items not loaded.
 func (m Model[T]) Selected() (T, bool) {
 	return m.item(m.at(m.sel))
 }
@@ -477,16 +483,7 @@ func (m *Model[T]) reindex() {
 		m.total += c.n
 	}
 	if m.Grouped() {
-		ref := m.cursor()
-		m.build()
-		m.restore(ref)
-		// The groups cover every loaded item; the filter and the find
-		// still count their rows for the footer.
-		if m.filter != "" {
-			m.rebuildRows()
-		} else if m.query != "" {
-			m.refind()
-		}
+		m.regroup(m.cursor())
 		return
 	}
 	if m.filter != "" {

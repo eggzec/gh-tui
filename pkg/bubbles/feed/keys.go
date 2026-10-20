@@ -31,6 +31,16 @@ type KeyMap struct {
 	QuickFilter key.Binding `keymap:"quick_filter" help:"quick filter"`
 	Next        key.Binding `keymap:"next_match" help:"next match"`
 	Prev        key.Binding `keymap:"prev_match" help:"prev match"`
+
+	// Expand, Collapse and ToggleAll work on the groups of a grouped feed, and
+	// the feed enables them only while its rows are grouped. Expand opens a
+	// closed group, and on an open one moves to its first line. Collapse
+	// closes an open group, and on an item or a closed group moves to the
+	// group around it. ToggleAll opens every group, or closes every group when
+	// all are open.
+	Expand    key.Binding `keymap:"expand" help:"expand"`
+	Collapse  key.Binding `keymap:"collapse" help:"collapse"`
+	ToggleAll key.Binding `keymap:"toggle_all" help:"all"`
 }
 
 // MarkKeys holds the key that marks rows. Only the lists whose rows can be
@@ -61,6 +71,9 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	k.Retry.SetEnabled(false)
 	k.Next.SetEnabled(false)
 	k.Prev.SetEnabled(false)
+	k.Expand.SetEnabled(false)
+	k.Collapse.SetEnabled(false)
+	k.ToggleAll.SetEnabled(false)
 	return k
 }
 
@@ -79,5 +92,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown},
 		{k.Home, k.End, k.Retry},
 		{k.Find, k.QuickFilter, k.Next, k.Prev},
+		{k.Expand, k.Collapse, k.ToggleAll},
 	}
 }
