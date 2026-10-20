@@ -91,7 +91,7 @@ func LayoutCols(width int, m Measure, star string, age int) Cols {
 // Width is how many cells the columns take with their gaps.
 func (c Cols) Width() int {
 	n, cols := 0, 0
-	for _, w := range []int{c.name, c.flags, c.desc, c.lang, c.stars, c.age} {
+	for _, w := range []int{c.flags, c.name, c.desc, c.lang, c.stars, c.age} {
 		if w > 0 {
 			n += w
 			cols++
@@ -121,8 +121,8 @@ func (c Cols) Header(star, tail string) string {
 			b.WriteString(pad)
 		}
 	}
-	cell(nameHeader, c.name, false)
 	cell("", c.flags, false)
+	cell(nameHeader, c.name, false)
 	cell(descHeader, c.desc, false)
 	cell(langHeader, c.lang, false)
 	cell(star, c.stars, true)
@@ -145,12 +145,6 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 		}
 		first = false
 	}
-	if c.name > 0 {
-		gap()
-		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
-		b.WriteString(d.Links.Link(d.URL(r), st.Title.Render(name)))
-		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
-	}
 	if c.flags > 0 {
 		gap()
 		used := 0
@@ -164,9 +158,15 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 		}
 		b.WriteString(strings.Repeat(" ", max(c.flags-used, 0)))
 	}
+	if c.name > 0 {
+		gap()
+		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
+		b.WriteString(d.Links.Link(d.URL(r), st.Title.Render(name)))
+		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
+	}
 	if c.desc > 0 {
 		gap()
-		desc := Truncate(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
+		desc := TruncateMiddle(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
 		st.Muted.Write(&b, desc)
 		b.WriteString(strings.Repeat(" ", c.desc-ansi.StringWidth(desc)))
 	}

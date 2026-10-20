@@ -294,7 +294,7 @@ func (s *Section) startLines(w, h int) []string {
 		name := s.truncate(r.Ref.String(), w-2)
 		line := gutter + st.name.render(name)
 		if d := cleanLine(r.Description); d != "" && ansi.StringWidth(name)+4 < w-2 {
-			line += "  " + st.muted.render(s.truncate(d, w-2-ansi.StringWidth(name)-2))
+			line += "  " + st.muted.render(termtext.TruncateMiddle(d, max(w-2-ansi.StringWidth(name)-2, 0), s.icons.Ellipsis))
 		}
 		lines = append(lines, line)
 	}
@@ -465,15 +465,15 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	flags := s.icons.Flags(r)
 	room := width - ansi.StringWidth(cellsRight) - 1 - 2*len(flags)
 	var head strings.Builder
-	head.WriteString(s.links.Link(s.repoURL(r), st.title.render(s.truncate(r.Ref.String(), max(room, 0)))))
 	for _, f := range flags {
-		head.WriteByte(' ')
 		st.muted.write(&head, f)
+		head.WriteByte(' ')
 	}
+	head.WriteString(s.links.Link(s.repoURL(r), st.title.render(s.truncate(r.Ref.String(), max(room, 0)))))
 	first := s.spread(head.String(), cellsRight, width)
 	second := ""
 	if d := cleanLine(r.Description); d != "" {
-		second = "  " + st.muted.render(s.truncate(d, width-2))
+		second = "  " + st.muted.render(termtext.TruncateMiddle(d, max(width-2, 0), s.icons.Ellipsis))
 	}
 	return first + "\n" + fit(second, width)
 }
