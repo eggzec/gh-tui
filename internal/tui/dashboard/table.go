@@ -3,12 +3,13 @@ package dashboard
 import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // renderRepo renders a repository of the list in the columns of the tab:
 // its name, flags, description, language, stars and age.
 func (s *Section) renderRepo(c ownerui.Cols, r core.Repo, selected, focused bool) string {
-	return s.drawer().Row(c, r, ownerui.Look(selected, focused), s.dates, s.now)
+	return s.drawer().Row(c, r, ui.Look(selected, focused), s.dates, s.now)
 }
 
 // langPaint returns the paint of the language glyph of r, built once per

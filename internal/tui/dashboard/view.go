@@ -501,7 +501,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 			gutter = st.shared.Cursor
 		}
 	}
-	rp := &st.shared.Rows[ownerui.Look(selected, focused)]
+	rp := &st.shared.Rows[ui.Look(selected, focused)]
 	titleStyle := rp.Title
 	hit := r.hit
 	age := s.dates.Short(hit.Issue.UpdatedAt, s.now())
@@ -580,7 +580,7 @@ func (s *Section) inboxBody(w, h int) []string {
 				gutter = st.shared.Cursor
 			}
 		}
-		rp := &st.shared.Rows[ownerui.Look(i == l.sel, focused)]
+		rp := &st.shared.Rows[ui.Look(i == l.sel, focused)]
 		age := s.dates.Short(nt.UpdatedAt, s.now())
 		room := max(w-4-s.dates.Width()-1, 0)
 		repo := ownerui.Truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)

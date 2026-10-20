@@ -61,7 +61,7 @@ func (s *Section) newTeamList(login string, membersOnly bool) *teamList {
 		return svc.Teams(ctx, q)
 	}
 	render := func(t core.Team, selected bool, _ int) string {
-		return s.teamRow(l.cols, t, ownerui.Look(selected, l.Feed.Focused()))
+		return s.teamRow(l.cols, t, ui.Look(selected, l.Feed.Focused()))
 	}
 	l.Feed = feed.New(ui.FeedPages("owner.teams", query, read), render,
 		s.feedOptions(feed.WithKey(func(t core.Team) string { return t.Slug }), "No teams you can see.", "load the teams", login)...)

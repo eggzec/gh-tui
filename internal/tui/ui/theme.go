@@ -92,6 +92,26 @@ func (t Theme) RowTitle(selected, focused bool) lipgloss.Style {
 	}
 }
 
+// The looks of a row: as it is, selected in a blurred pane, and selected in
+// a focused one. Lists build their row styles once for each look.
+const (
+	LookPlain = iota
+	LookBlurred
+	LookFocused
+	NumLooks
+)
+
+// Look returns the look of a row.
+func Look(selected, focused bool) int {
+	switch {
+	case selected && focused:
+		return LookFocused
+	case selected:
+		return LookBlurred
+	}
+	return LookPlain
+}
+
 // Each bubble keeps the shape of its default styles and takes its colors
 // from the palette, and its glyphs, such as its cursor, marks, ellipsis
 // and lines, and its spinner from the icons.

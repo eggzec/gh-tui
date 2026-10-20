@@ -11,15 +11,6 @@ import (
 // each side.
 const sepWidth = 3
 
-// The looks of a run row: as it is, selected in a blurred pane, and
-// selected in a focused one.
-const (
-	lookPlain = iota
-	lookBlurred
-	lookFocused
-	numLooks
-)
-
 // styles are the modal's own, built once per theme.
 type styles struct {
 	// ic draws the crumbs, separators and ellipses.
@@ -36,14 +27,14 @@ type styles struct {
 
 	ui.RunStyles
 	// row holds the styles of the cells of a run row in each of its looks.
-	row [numLooks]ui.RunStyles
+	row [ui.NumLooks]ui.RunStyles
 	// confirm styles the confirmation.
 	confirm ui.ConfirmStyles
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
-	s := styles{
+	return styles{
 		ic:         ic,
 		title:      t.Muted,
 		focusTitle: t.Accent.Bold(true),
@@ -57,11 +48,10 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		unfolded:   t.Muted.Render(ic.Unfolded) + " ",
 		RunStyles:  ui.NewRunStyles(t, ic),
 		confirm:    t.Confirm(ic),
+		row: [ui.NumLooks]ui.RunStyles{
+			ui.LookPlain:   ui.NewRowRunStyles(t, ic, false, false),
+			ui.LookBlurred: ui.NewRowRunStyles(t, ic, true, false),
+			ui.LookFocused: ui.NewRowRunStyles(t, ic, true, true),
+		},
 	}
-	s.row = [numLooks]ui.RunStyles{
-		lookPlain:   ui.NewRowRunStyles(t, ic, false, false),
-		lookBlurred: ui.NewRowRunStyles(t, ic, true, false),
-		lookFocused: ui.NewRowRunStyles(t, ic, true, true),
-	}
-	return s
 }

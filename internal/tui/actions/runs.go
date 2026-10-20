@@ -235,14 +235,7 @@ func (m *Modal) clearRun() {
 // ran.
 func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	r = m.current(r)
-	look := lookPlain
-	switch {
-	case selected && m.focus == runsPane:
-		look = lookFocused
-	case selected:
-		look = lookBlurred
-	}
-	ic, st := m.st.ic, &m.st.row[look]
+	ic, st := m.st.ic, &m.st.row[ui.Look(selected, m.focus == runsPane)]
 	now := m.now()
 	state := ui.RunStateOf(r.Status, r.Conclusion)
 	name := st.Strong.Render(ui.OneLine(r.Name))

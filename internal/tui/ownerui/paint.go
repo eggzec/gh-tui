@@ -49,26 +49,6 @@ func (p Paint) Bold() Paint {
 	return Paint{pre: "\x1b[1;" + rest, post: p.post}
 }
 
-// The looks of a row: as it is, selected in a blurred pane, and selected in
-// a focused one.
-const (
-	LookPlain = iota
-	LookBlurred
-	LookFocused
-	NumLooks
-)
-
-// Look returns the look of a row.
-func Look(selected, focused bool) int {
-	switch {
-	case selected && focused:
-		return LookFocused
-	case selected:
-		return LookBlurred
-	}
-	return LookPlain
-}
-
 // RowPaints are the paints of the cells of a row in one look. Title paints
 // the name or the title of the row, which takes the accent in a focused
 // pane.
@@ -77,13 +57,13 @@ type RowPaints struct {
 }
 
 // NewRowPaints returns the paints of a row in each of its looks.
-func NewRowPaints(t ui.Theme) [NumLooks]RowPaints {
-	var rows [NumLooks]RowPaints
+func NewRowPaints(t ui.Theme) [ui.NumLooks]RowPaints {
+	var rows [ui.NumLooks]RowPaints
 	for look := range rows {
-		selected := look != LookPlain
+		selected := look != ui.LookPlain
 		cell := func(s lipgloss.Style) Paint { return NewPaint(t.Cell(s, selected)) }
 		rows[look] = RowPaints{
-			Title:  cell(t.RowTitle(selected, look == LookFocused)),
+			Title:  cell(t.RowTitle(selected, look == ui.LookFocused)),
 			Text:   cell(t.Text),
 			Muted:  cell(t.Muted),
 			Subtle: cell(t.Subtle),
@@ -97,7 +77,7 @@ func NewRowPaints(t ui.Theme) [NumLooks]RowPaints {
 type Styles struct {
 	Name, Login, Text, Muted, Subtle, Accent Paint
 	// Rows are the paints of the cells of the rows of lists, by look.
-	Rows [NumLooks]RowPaints
+	Rows [ui.NumLooks]RowPaints
 	// Cursor and Blurred mark the selected card, while its pane is focused
 	// and while it isn't.
 	Cursor, Blurred string
