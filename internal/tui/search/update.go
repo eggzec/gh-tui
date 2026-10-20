@@ -207,6 +207,13 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return ui.OpenFilter(filterform.FiltersTab)
 	case keymap.Matches(msg, k.Sort):
 		return ui.OpenSort()
+	case s.kind == core.SearchRepos && keymap.Matches(msg, k.GroupBy):
+		return ui.OpenModal(s.groupModal())
+	case s.kind == core.SearchRepos && keymap.Matches(msg, k.ToggleGroups):
+		if !s.grouping.Toggle() {
+			return ui.NothingToSwitch()
+		}
+		return s.regroup()
 	}
 	if s.text == "" {
 		switch {

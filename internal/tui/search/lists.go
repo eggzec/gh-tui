@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // Lines of a result: a repository, issue or pull request takes two, and a
@@ -98,12 +99,37 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		feed.WithEmptyText(emptyText(k)),
 		feed.WithErrorText(ui.ErrorText("search", "", s.voice)),
 	)
+	if groups := s.grouping.Groups(); k == core.SearchRepos && len(groups) > 0 {
+		// Nothing is loaded yet, so there is nothing to regroup.
+		_ = l.feed.SetGroups(groups)
+	}
 	s.sizeList(&l.feed)
 	if s.focused && s.area == resultsArea && s.kind == k {
 		l.feed.Focus()
 	}
 	s.hits[k] = l
 	return l.feed.Init()
+}
+
+// groupModal returns the modal that picks the levels the repositories are
+// grouped by.
+func (s *Section) groupModal() ui.Modal {
+	return s.grouping.Modal("Repositories", s.keys.order, s.icons, s.setGroups)
+}
+
+// setGroups groups the repositories by levels.
+func (s *Section) setGroups(levels []orderpick.Choice) tea.Cmd {
+	s.grouping.Choose(levels)
+	return s.regroup()
+}
+
+// regroup gives the list of repositories the groups in force.
+func (s *Section) regroup() tea.Cmd {
+	l := s.hits[core.SearchRepos]
+	if l == nil {
+		return nil
+	}
+	return l.feed.SetGroups(s.grouping.Groups())
 }
 
 // searchCode searches code for the query, unless it has, or code search

@@ -825,6 +825,10 @@ keys:
     sort: [s]
     # Show the checks of the pull request under the cursor.
     checks: [C]
+    # Group the repositories by owner, language, visibility, kind or role,
+    # and switch the grouping off and on again.
+    group_by: [g]
+    group_toggle: [alt+g]
 
   # The page of a user or an organization: its pinned repositories, as
   # cards.

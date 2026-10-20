@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // KeyMap holds the keys of the search page. While the query types, only
@@ -42,7 +43,13 @@ type KeyMap struct {
 	Filter  key.Binding
 	Sort    key.Binding
 	Refresh key.Binding
+	// GroupBy opens the choice of the levels the repositories are grouped
+	// by, and ToggleGroups switches the grouping off, and back on.
+	GroupBy      key.Binding
+	ToggleGroups key.Binding
 
+	// order are the keys of the picker of the levels to group by.
+	order orderpick.KeyMap
 	// query holds the keys of the query while it types.
 	query queryKeys
 	// feed is the navigation of the results, which gets the keys above
@@ -87,7 +94,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:  results.Binding("filter", "filter"),
 		Sort:    results.Binding("sort", "sort"),
 		Refresh: page.Binding("global.refresh", "refresh"),
+
+		GroupBy:      results.Binding("group_by", "group by"),
+		ToggleGroups: results.Binding("group_toggle", "group on/off"),
 	}
+	k.order = ui.OrderPickKeys(keys)
 	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2"} {
 		k.Panes[i] = page.Binding(a, areaTitles[i])
 	}
@@ -104,7 +115,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
-		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort,
+		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
 	}
 }
 
@@ -148,7 +159,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		moves = []key.Binding{k.feed.Up, k.feed.Down}
 	}
 	own := keyhelp.Layer{
-		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Open, k.Checks, k.Refresh, k.Filter, k.Sort}),
+		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}),
 		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Open, k.Filter, k.Sort}),
 	}
 	page := ui.ContextLayer("search", screen, []key.Binding{k.Insert, k.NextTab, k.Next})
@@ -175,5 +186,8 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.Select.SetHelp(k.Select.Help().Key, "preview")
 	}
 	k.Checks.SetEnabled(k.Checks.Enabled() && s.kind == core.SearchPulls)
+	repos := s.kind == core.SearchRepos
+	k.GroupBy.SetEnabled(k.GroupBy.Enabled() && repos)
+	k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && repos && len(s.grouping.Levels) > 0)
 	return k
 }

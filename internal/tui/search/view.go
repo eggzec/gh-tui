@@ -185,6 +185,9 @@ func (s *Section) resultsLabel() string {
 		}
 		label += s.icons.Separator + commas(n) + noun
 	}
+	if s.kind == core.SearchRepos {
+		label += s.grouping.Chip(s.icons.Separator)
+	}
 	return label
 }
 
