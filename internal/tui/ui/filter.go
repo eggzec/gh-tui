@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -57,6 +58,42 @@ func SortByName(label, value string) filterform.SortOption {
 // SearchField is the first row of a list's filter: the plain words of the
 // query, which the list searches for.
 var SearchField = filterform.Field{Key: "search", Label: "Search", Kind: filterform.Text, Hint: "any words"}
+
+// Words returns the words of query that name no qualifier, in lower case,
+// with a quoted phrase as one word.
+func Words(query string) []string {
+	var words []string
+	for _, t := range filterform.Tokenize(query) {
+		if t.Qualifier == "" && t.Value != "" {
+			words = append(words, strings.ToLower(t.Value))
+		}
+	}
+	return words
+}
+
+// HasWords reports whether every one of words, in lower case, is in one of
+// texts, ignoring case.
+func HasWords(words []string, texts ...string) bool {
+	if len(words) == 0 {
+		return true
+	}
+	text := strings.ToLower(strings.Join(texts, "\n"))
+	for _, w := range words {
+		if !strings.Contains(text, w) {
+			return false
+		}
+	}
+	return true
+}
+
+// QuoteWords writes the words of query, each in quotes, for a chip.
+func QuoteWords(query string) string {
+	words := Words(query)
+	for i, w := range words {
+		words[i] = `"` + w + `"`
+	}
+	return strings.Join(words, " ")
+}
 
 // BestMatch is the sort option of GitHub's search that writes no sort:
 // it ranks by relevance, which has no order.

@@ -40,12 +40,15 @@ type filter struct {
 	// states keeps the threads whose subject is in one of those states, one
 	// of stateNames. A thread whose state isn't known is left out then.
 	states []string
+	// words are the words of the query that name no qualifier, in lower
+	// case: a thread's title has every one of them.
+	words []string
 }
 
 // parseFilter reads query. Without is:unread it lists every thread, read or
 // not. Tokens it doesn't know keep every thread.
 func parseFilter(query string) filter {
-	f := filter{query: query, all: true}
+	f := filter{query: query, all: true, words: ui.Words(query)}
 	for _, t := range filterform.Tokenize(query) {
 		v := strings.ToLower(t.Value)
 		switch strings.ToLower(t.Qualifier) {
@@ -88,7 +91,7 @@ func appendValues(list []string, t filterform.Token) []string {
 // local reports whether the filter leaves out threads of the pages GitHub
 // sends.
 func (f *filter) local() bool {
-	return len(f.reasons) > 0 || len(f.owners) > 0 || len(f.repos) > 0 || len(f.typs) > 0
+	return len(f.reasons) > 0 || len(f.owners) > 0 || len(f.repos) > 0 || len(f.typs) > 0 || len(f.words) > 0
 }
 
 // keeps reports whether n passes the filter.
@@ -96,7 +99,8 @@ func (f *filter) keeps(n *core.Notification) bool {
 	return oneOf(f.reasons, n.Reason) &&
 		oneOf(f.owners, n.Repo.Owner) &&
 		oneOf(f.repos, n.Repo.String()) &&
-		oneOf(f.typs, typeName(n.Subject.Type))
+		oneOf(f.typs, typeName(n.Subject.Type)) &&
+		ui.HasWords(f.words, n.Subject.Title)
 }
 
 // oneOf reports whether want is empty or has v, ignoring case.
@@ -244,6 +248,7 @@ func (s *Section) spec() filterform.Spec {
 	}
 	owners, repos := s.repoItems()
 	return filterform.Spec{Fields: []filterform.Field{
+		ui.SearchField,
 		{
 			Key: "unread", Label: "Unread", Kind: filterform.Toggle, Qualifier: defaultQuery,
 			Hint: "unread only", Default: filterform.BoolValue(true),
@@ -387,6 +392,10 @@ func (f *filter) chips(sep string) string {
 		case "state":
 			for _, v := range t.Values() {
 				parts = append(parts, "state "+strings.ToLower(v))
+			}
+		case "":
+			if t.Value != "" {
+				parts = append(parts, `"`+strings.ToLower(t.Value)+`"`)
 			}
 		default:
 			parts = append(parts, t.Raw)

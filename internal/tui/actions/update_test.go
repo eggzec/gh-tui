@@ -1158,7 +1158,7 @@ func TestFilterStepFitsItsForm(t *testing.T) {
 			t.Errorf("layer %s has short help %v for the footer", l.Source, l.Short)
 		}
 	}
-	h.keys("j", "i")
+	h.keys("i")
 	if s := screen(m); !strings.Contains(s, "INSERT") {
 		t.Errorf("insert mode isn't labelled:\n%s", s)
 	}

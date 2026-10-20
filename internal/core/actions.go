@@ -92,6 +92,10 @@ type RunFilter struct {
 	Actor      string
 	WorkflowID int64
 	HeadSHA    string
+	// Words is the text the runs are searched for as typed: every word is in
+	// the title or the workflow name of a run. The app matches it on the runs
+	// it loaded; GitHub isn't asked.
+	Words string
 }
 
 // Workflow is a workflow file of a repository.
