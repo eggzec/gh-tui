@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // The headers of the columns of the repositories. The flags have none:
@@ -166,7 +167,7 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 	}
 	if c.desc > 0 {
 		gap()
-		desc := TruncateMiddle(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
+		desc := termtext.TruncateMiddle(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
 		st.Muted.Write(&b, desc)
 		b.WriteString(strings.Repeat(" ", max(c.desc-ansi.StringWidth(desc), 0)))
 	}
