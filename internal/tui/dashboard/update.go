@@ -6,7 +6,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
@@ -189,7 +188,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 			return t.setFilter(next), true
 		case keymap.Matches(msg, k.Filter):
-			return ui.OpenFilter(filterform.FiltersTab), true
+			return ui.OpenFilter(), true
 		case keymap.Matches(msg, k.Sort):
 			return ui.OpenSort(), true
 		case keymap.Matches(msg, k.GroupBy):

@@ -41,7 +41,7 @@ func (s *filterSection) Update(msg tea.Msg) tea.Cmd {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case s.ready && keymap.Matches(k, s.filter):
-			return ui.OpenFilter(filterform.FiltersTab)
+			return ui.OpenFilter()
 		case s.ready && s.sorts && keymap.Matches(k, s.sort):
 			return ui.OpenSort()
 		}

@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -376,7 +375,7 @@ func TestFilterKeysStayOffTheList(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			h := started(t, newFakeService(sampleIssues(40)), 80, 20)
 			before, _ := h.list.Selected()
-			var want tea.Msg = ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+			var want tea.Msg = ui.OpenFilterMsg{}
 			if k == "s" {
 				want = ui.OpenSortMsg{}
 			}
