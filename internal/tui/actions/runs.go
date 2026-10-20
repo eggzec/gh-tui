@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func (m *Modal) switchTab(d int) tea.Cmd {
 // formFiltered reports whether f has something the filter form set: the
 // tabs set the status and the actor, and a link to a commit the head SHA.
 func formFiltered(f core.RunFilter) bool {
-	return f.Branch != "" || f.Event != "" || f.WorkflowID != 0
+	return f.Branch != "" || f.Event != "" || f.WorkflowID != 0 || f.Words != ""
 }
 
 // cleared returns f without what the filter form set, keeping the tab it
@@ -124,6 +125,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 	query := func(cursor string) actionssvc.RunsQuery {
 		return actionssvc.RunsQuery{Repo: repo, Filter: f, Cursor: cursor}
 	}
+	words := ui.Words(f.Words)
 	read := func(ctx context.Context, q actionssvc.RunsQuery, again bool) (core.Page[core.Run], error) {
 		q.Again = again
 		if q.Filter.Actor == me {
@@ -136,7 +138,14 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 			}
 			q.Filter.Actor = login
 		}
-		return svc.Runs(ctx, q)
+		p, err := svc.Runs(ctx, q)
+		if len(words) > 0 {
+			// GitHub can't search the runs, so the page is cut to the matches.
+			p.Items = slices.DeleteFunc(slices.Clone(p.Items), func(r core.Run) bool {
+				return !ui.HasWords(words, r.DisplayTitle, r.Name)
+			})
+		}
+		return p, err
 	}
 	return feed.New(ui.FeedPages("list.runs", query, read), m.renderRun,
 		feed.WithContext(m.ctx),
@@ -288,8 +297,10 @@ func (m *Modal) runsTitle() string {
 // filterText is the filter as a query, for the title of the runs when it
 // is more than a tab.
 func (m *Modal) filterText() string {
-	if _, ok := tabOf(m.filter); ok && m.filter.Branch == "" && m.filter.Event == "" && m.filter.WorkflowID == 0 {
+	if _, ok := tabOf(m.filter); ok && !formFiltered(m.filter) {
 		return ""
 	}
-	return ansi.Strip(queryOf(m.filter, m.workflows.items))
+	f := m.filter
+	f.Words = ""
+	return strings.TrimSpace(ansi.Strip(queryOf(f, m.workflows.items)) + " " + ui.QuoteWords(m.filter.Words))
 }

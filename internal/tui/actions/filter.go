@@ -131,6 +131,7 @@ func (m *Modal) rereadWorkflows() tea.Cmd {
 // showForm shows the form of the filter, on the filter shown.
 func (m *Modal) showForm() tea.Cmd {
 	spec := filterform.Spec{Fields: []filterform.Field{
+		ui.SearchField,
 		{Key: fieldWorkflow, Label: "Workflow", Kind: filterform.Choice, Qualifier: "workflow", Options: m.workflowItems()},
 		{Key: fieldBranch, Label: "Branch", Kind: filterform.Text, Qualifier: "branch", Hint: "any branch"},
 		{Key: fieldEvent, Label: "Event", Kind: filterform.Choice, Qualifier: "event", Options: eventItems()},
@@ -230,6 +231,7 @@ func (m *Modal) filterOf(v map[string]filterform.Value) core.RunFilter {
 		Event:  v[fieldEvent].Text(),
 		Status: v[fieldStatus].Text(),
 		Actor:  strings.TrimSpace(v[fieldActor].Text()),
+		Words:  strings.Join(strings.Fields(v[ui.SearchField.Key].Text()), " "),
 	}
 	if f.Actor != me {
 		f.Actor = strings.TrimPrefix(f.Actor, "@")
@@ -271,6 +273,9 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 	add("event", f.Event)
 	add("status", f.Status)
 	add("actor", f.Actor)
+	if f.Words != "" {
+		parts = append(parts, f.Words)
+	}
 	return strings.Join(parts, " ")
 }
 

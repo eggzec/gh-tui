@@ -16,12 +16,12 @@ Filter
   next field | j down | j/↓ | on
   first field | g g home | gg/home | on
   last field | G end | G/end | on
-  previous | h left | h/← | on
-  next | l right | l/→ | on
-  toggle | space | space | on
-  insert | i | i | off
-  append | a | a | off
-  clear | delete | delete | on
+  previous | h left | h/← | off
+  next | l right | l/→ | off
+  toggle | space | space | off
+  insert | i | i | on
+  append | a | a | on
+  clear | delete | delete | off
   apply | enter | ↵ | on
   close | esc | esc | on
   close | q | q | on

@@ -86,6 +86,43 @@ func TestFilterKeeps(t *testing.T) {
 	}
 }
 
+func TestFilterWords(t *testing.T) {
+	threads := []core.Notification{
+		thread("1", "a/b", core.SubjectIssue, "Fix the Crash on start", "mention", true, 0),
+		thread("2", "a/b", core.SubjectIssue, "Crash when closing", "assign", true, 0),
+		thread("3", "a/b", core.SubjectIssue, "Docs for start", "mention", true, 0),
+	}
+	tests := []struct {
+		query string
+		want  []string
+	}{
+		{"", []string{"1", "2", "3"}},
+		{"crash", []string{"1", "2"}},
+		{"CRASH start", []string{"1"}},
+		{`"crash on"`, []string{"1"}},
+		{`"start crash"`, nil},
+		{"crash reason:mention", []string{"1"}},
+	}
+	for _, tt := range tests {
+		f := parseFilter(tt.query)
+		var got []string
+		for _, n := range f.apply(threads) {
+			got = append(got, n.ID)
+		}
+		if !slices.Equal(got, tt.want) {
+			t.Errorf("filter %q keeps %v, want %v", tt.query, got, tt.want)
+		}
+	}
+	crash := parseFilter("crash")
+	if !crash.local() {
+		t.Error("words don't make the filter local")
+	}
+	quoted := parseFilter(`Crash "On Start"`)
+	if got, want := quoted.chips(", "), `"crash", "on start"`; got != want {
+		t.Errorf("chips = %q, want %q", got, want)
+	}
+}
+
 func TestFilterSpec(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 80, 12)
 	f, ok := s.Filter()
@@ -119,7 +156,7 @@ func TestFilterSpec(t *testing.T) {
 func TestFilterOffersEveryReason(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 80, 12)
 	f, _ := s.Filter()
-	field := f.Spec.Fields[3]
+	field := f.Spec.Fields[4]
 	if field.Kind != filterform.Multi || !field.Each || field.Qualifier != "reason" {
 		t.Fatalf("the reason field is %+v, want a multi pick of one qualifier per value", field)
 	}
@@ -168,7 +205,7 @@ func TestFilterRepos(t *testing.T) {
 		"a-very-long-organization-name/with-an-even-longer-repository-name",
 	}
 	repos := make([]string, 0, len(want))
-	for _, it := range f.Spec.Fields[5].Options {
+	for _, it := range f.Spec.Fields[6].Options {
 		repos = append(repos, it.Label)
 	}
 	if !slices.Equal(repos, want) {
@@ -176,7 +213,7 @@ func TestFilterRepos(t *testing.T) {
 	}
 	wantOwners := []string{"charmbracelet", "eggzec", "golang", "cli", "a-very-long-organization-name"}
 	owners := make([]string, 0, len(wantOwners))
-	for _, it := range f.Spec.Fields[4].Options {
+	for _, it := range f.Spec.Fields[5].Options {
 		owners = append(owners, it.Label)
 	}
 	if !slices.Equal(owners, wantOwners) {
