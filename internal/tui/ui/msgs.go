@@ -187,6 +187,15 @@ type OpenIssueMsg struct {
 // on Tab, which a list sends when its filter or sort key is pressed.
 type OpenFilterMsg struct{ Tab filterform.Tab }
 
+// OpenSortMsg asks for the sort modal of the focused list to be opened,
+// which a list sends when its sort key is pressed.
+type OpenSortMsg struct{}
+
+// OpenSort returns the command that sends an OpenSortMsg.
+func OpenSort() tea.Cmd {
+	return func() tea.Msg { return OpenSortMsg{} }
+}
+
 // MarkAllReadMsg asks the notifications list to ask whether to mark every
 // notification read, which the read all command sends: that has no key.
 type MarkAllReadMsg struct{}

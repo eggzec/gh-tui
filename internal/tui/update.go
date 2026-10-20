@@ -226,6 +226,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.openFilter(p.section, msg.Tab)
 		}
 		return m, nil
+	case ui.OpenSortMsg:
+		if p := m.focused(); p != nil {
+			m.openSort(p.section)
+		}
+		return m, nil
 	case ui.OpenActionsMsg:
 		cmd := m.openActionsOn(msg)
 		return m, cmd
@@ -419,8 +424,19 @@ func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
 	if !ok {
 		return false
 	}
-	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.OnTab(tab), ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
+	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
 		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))))
+	return true
+}
+
+// openSort opens the sort modal of s, and reports whether s has a sort to
+// change.
+func (m *Model) openSort(s ui.Section) bool {
+	fl, f, ok := filterOf(s, filterform.SortTab)
+	if !ok {
+		return false
+	}
+	m.openModal(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)))
 	return true
 }
 

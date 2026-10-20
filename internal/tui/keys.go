@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -39,6 +40,8 @@ type KeyMap struct {
 	Command key.Binding
 	// form holds the keys of the filter modal's form.
 	form filterform.KeyMap
+	// order holds the keys of the sort modal's ordered picker.
+	order orderpick.KeyMap
 	// Notifications switches between the screen on view and the
 	// notifications, and Dashboard between it and the dashboard.
 	Notifications key.Binding
@@ -87,6 +90,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		form:          ui.FilterFormKeys(keys, "filter"),
+		order:         ui.OrderPickKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),

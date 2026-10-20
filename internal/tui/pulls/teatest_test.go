@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -61,12 +62,12 @@ func (a app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return a, tea.Quit
 		case "f", "s":
-			tab := filterform.FiltersTab
-			if msg.String() == "s" {
-				tab = filterform.SortTab
-			}
 			if f, ok := a.h.Filter(); ok {
-				return a, ui.OpenModal(ui.NewFilterModal(context.Background(), a.h.Title(), a.h.Section, f, ui.OnTab(tab)))
+				if msg.String() == "s" {
+					d := config.Default()
+					return a, ui.OpenModal(ui.NewSortModal(a.h.Title(), a.h.Section, f, ui.OrderPickKeys(d.Keys), ui.NewIcons(d.UI.Icons)))
+				}
+				return a, ui.OpenModal(ui.NewFilterModal(context.Background(), a.h.Title(), a.h.Section, f))
 			}
 		}
 	case ui.OpenModalMsg, ui.CloseModalMsg:

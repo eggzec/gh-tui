@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -417,6 +418,27 @@ func (t Theme) Picker(ic Icons) picker.Styles {
 	s.Detail = s.Detail.Foreground(subtle)
 	s.Empty = s.Empty.Foreground(muted)
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
+	return s
+}
+
+// OrderPick returns the styles of an ordered picker. The pane in focus takes
+// the accent for its frame, and the left pane the styles of a search popup.
+func (t Theme) OrderPick(ic Icons) orderpick.Styles {
+	s := orderpick.DefaultStyles(t.Dark)
+	c := lipgloss.Color
+	p := t.Palette
+	s.Picker = t.Picker(ic)
+	s.Frame = lipgloss.NewStyle().Border(ic.Border).BorderForeground(c(p.Border))
+	s.FocusFrame = s.Frame.BorderForeground(c(p.Accent))
+	s.Heading = s.Heading.Foreground(c(p.Muted))
+	s.Status = s.Status.Foreground(c(p.Subtle))
+	s.Number = s.Number.Foreground(c(p.Subtle))
+	s.Title = s.Title.Foreground(c(p.Foreground))
+	s.SelectedTitle = s.SelectedTitle.Foreground(c(p.Foreground))
+	s.Direction = s.Direction.Foreground(c(p.Subtle))
+	s.Empty = s.Empty.Foreground(c(p.Muted))
+	s.Gutter = s.Gutter.Foreground(c(p.Accent))
+	s.CursorGlyph, s.Ellipsis = ic.Cursor, ic.Ellipsis
 	return s
 }
 

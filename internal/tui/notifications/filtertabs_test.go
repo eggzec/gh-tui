@@ -17,18 +17,18 @@ func TestFilterHasNoTabs(t *testing.T) {
 	if f.Spec.Sort != nil {
 		t.Fatal("the notifications have a sort")
 	}
-	msg, names, _ := applyOn(t, s, f, filterform.SortTab)
+	msg, names, _ := applyOn(t, s, f)
 	if names != nil || msg.Query != "is:unread" {
 		t.Errorf("the filter shows tabs %q and applies %q; want no tabs, is:unread", names, msg.Query)
 	}
 }
 
-// applyOn opens the filter modal of target on tab, as the app does, and
+// applyOn opens the filter modal of target, as the app does, and
 // applies it as it opened, from the query line, which every tab has. It
 // returns what the form sent, and the tabs of the modal.
-func applyOn(t *testing.T, target ui.Filterable, f ui.Filter, tab filterform.Tab) (msg filterform.AppliedMsg, names []string, active int) {
+func applyOn(t *testing.T, target ui.Filterable, f ui.Filter) (msg filterform.AppliedMsg, names []string, active int) {
 	t.Helper()
-	m := ui.NewFilterModal(t.Context(), "List", target, f, ui.OnTab(tab))
+	m := ui.NewFilterModal(t.Context(), "List", target, f)
 	names, active = m.Tabs()
 	m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

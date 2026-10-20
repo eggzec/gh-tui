@@ -175,7 +175,8 @@ func drain(cmd tea.Cmd) []tea.Msg {
 	}
 }
 
-func TestFilterModalTabs(t *testing.T) {
+// The sort has a modal of its own, so the filter has no Sort tab.
+func TestFilterModalNoSortTab(t *testing.T) {
 	fields := []filterform.Field{{
 		Key: "state", Label: "State", Kind: filterform.Choice, Qualifier: "is",
 		Options: []filterform.Item{{Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}},
@@ -193,15 +194,8 @@ func TestFilterModalTabs(t *testing.T) {
 		wantNames  []string
 		wantActive int
 	}{
-		{name: "opens on the filters", sort: sort, wantNames: []string{"Filters", "Sort"}, wantActive: 0},
-		{name: "opens on the sort", sort: sort, opts: []FilterOption{OnTab(filterform.SortTab)}, wantNames: []string{"Filters", "Sort"}, wantActive: 1},
-		{
-			name: "switches with the keys of next_tab", sort: sort,
-			opts:      []FilterOption{WithFormKeys(FilterFormKeys(withNextTab("}"), "filter"))},
-			keys:      []tea.KeyPressMsg{{Code: ']', Text: "]"}, {Code: '}', Text: "}"}},
-			wantNames: []string{"Filters", "Sort"}, wantActive: 1,
-		},
-		{name: "a list without a sort has no tabs", opts: []FilterOption{OnTab(filterform.SortTab)}, wantActive: -1},
+		{name: "a list with a sort has no tabs", sort: sort, wantActive: -1},
+		{name: "a list without a sort has no tabs", wantActive: -1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -219,14 +213,8 @@ func TestFilterModalTabs(t *testing.T) {
 			if a, ok := msg.(filterform.AppliedMsg); !ok || !strings.HasPrefix(a.Query, "is:closed") {
 				t.Errorf("enter sent %#v, want the query applied", msg)
 			}
-			// The modal keeps its height on either tab: the rows of the
-			// longer one.
-			rows := len(fields)
-			if tt.sort != nil {
-				rows = sortRows
-			}
-			if _, h := m.Fit(300, 300); h != rows+filterBelow+1 {
-				t.Errorf("Fit height = %d, want %d", h, rows+filterBelow+1)
+			if _, h := m.Fit(300, 300); h != len(fields)+filterBelow+1 {
+				t.Errorf("Fit height = %d, want %d", h, len(fields)+filterBelow+1)
 			}
 		})
 	}
