@@ -21,7 +21,7 @@ App check
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  first | g home | g/home | on
+  first | g g home | gg/home | on
   last | G end | G/end | on
   choose | enter | ↵ | on
   re-request | R | R | on

@@ -81,6 +81,40 @@ func TestReaderKeysFollowTheConfig(t *testing.T) {
 	})
 }
 
+// TestReaderGoesToTheTopOnGG checks that the default keys take a pager to
+// its top on "g g", and that a lone g doesn't.
+func TestReaderGoesToTheTopOnGG(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := newUnboundApp(t, config.Default(), false)
+		driveKeys(t, m, m.openText("go.mod", "go.mod", numberedText(100), true))
+
+		press1 := func(k string) {
+			t.Helper()
+			msg, _ := keyPress(k)
+			driveKeys(t, m, m.key(msg))
+		}
+		press1("G")
+		if got := textLine(t, m); got == "line 1/100" {
+			t.Fatal("G didn't go to the bottom")
+		}
+		// The first g only waits: its timer isn't driven, since the bubble
+		// would fire it at once and count the g alone.
+		msg, _ := keyPress("g")
+		m.key(msg)
+		if !m.chord.waiting {
+			t.Fatal("the first g doesn't wait for a second")
+		}
+		if got := textLine(t, m); got == "line 1/100" {
+			t.Error("a lone g went to the top")
+		}
+		press1("g")
+		if got := textLine(t, m); got != "line 1/100" {
+			t.Errorf("g g went to %s, want line 1/100", got)
+		}
+	})
+}
+
 // TestReaderKeysCanBeUnbound checks that a reader's action with no key is
 // off, in its keys and in its help, and that its key does nothing.
 func TestReaderKeysCanBeUnbound(t *testing.T) {

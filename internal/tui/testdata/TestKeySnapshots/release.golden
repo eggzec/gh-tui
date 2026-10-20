@@ -22,7 +22,7 @@ Release
   page down | space ctrl+f pgdown | space/^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  top | g home | g/home | on
+  top | g g home | gg/home | on
   bottom | G end | G/end | on
   diagram code | enter | ↵ | off
   retry |  |  | off
