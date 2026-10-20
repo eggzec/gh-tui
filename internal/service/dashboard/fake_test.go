@@ -21,7 +21,7 @@ type fakeAPI struct {
 	t testing.TB
 
 	header        func() (core.Header, error)
-	work          func(first int) (core.Work, error)
+	work          func(first int, list core.WorkKind, after string) (core.Work, error)
 	contributions func() (core.Contributions, error)
 	ownRepos      func(first int, after string) (core.Page[core.Repo], error)
 	orgRepos      func(login string, first int, after string) (core.Page[core.Repo], error)
@@ -61,13 +61,17 @@ func (f *fakeAPI) ViewerHeader(context.Context) (core.Header, error) {
 	return f.header()
 }
 
-func (f *fakeAPI) ViewerWork(_ context.Context, first int) (core.Work, error) {
-	f.record(fmt.Sprintf("work %d", first))
+func (f *fakeAPI) ViewerWork(_ context.Context, first int, list core.WorkKind, after string) (core.Work, error) {
+	if after == "" {
+		f.record(fmt.Sprintf("work %d", first))
+	} else {
+		f.record(fmt.Sprintf("work %d %d %s", first, list, after))
+	}
 	if f.work == nil {
 		f.t.Error("unexpected ViewerWork")
 		return core.Work{}, errUnexpected
 	}
-	return f.work(first)
+	return f.work(first, list, after)
 }
 
 func (f *fakeAPI) ViewerContributions(context.Context) (core.Contributions, error) {

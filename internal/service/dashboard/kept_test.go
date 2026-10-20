@@ -47,7 +47,9 @@ var keptReads = []keptRead{
 	{
 		name: "work",
 		fake: func(api *fakeAPI, err error) {
-			api.work = func(int) (core.Work, error) { return core.Work{Assigned: core.WorkList{Count: 3}}, err }
+			api.work = func(int, core.WorkKind, string) (core.Work, error) {
+				return core.Work{Assigned: core.WorkList{Count: 3}}, err
+			}
 		},
 		read: func(ctx context.Context, s *Service, again bool) (served, error) {
 			w, err := s.Work(ctx, WorkQuery{Again: again})

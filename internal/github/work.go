@@ -15,15 +15,16 @@ import (
 // in one request. GraphQL search counts against the GraphQL quota, not the
 // REST search limit of 30 requests a minute, and the three together cost
 // one point.
-const viewerWorkQuery = `query ViewerWork($first: Int!) {
+const viewerWorkQuery = `query ViewerWork($first: Int!, $after: String, $review: Boolean!, $authored: Boolean!, $assigned: Boolean!) {
   ` + rateLimitField + `
-  reviewRequested: search(type: ISSUE, first: $first, query: "is:open is:pr review-requested:@me archived:false sort:updated-desc") { ...workHits }
-  authored: search(type: ISSUE, first: $first, query: "is:open is:pr author:@me archived:false sort:updated-desc") { ...workHits }
-  assigned: search(type: ISSUE, first: $first, query: "is:open is:issue assignee:@me archived:false sort:updated-desc") { ...workHits }
+  reviewRequested: search(type: ISSUE, first: $first, after: $after, query: "is:open is:pr review-requested:@me archived:false sort:updated-desc") @include(if: $review) { ...workHits }
+  authored: search(type: ISSUE, first: $first, after: $after, query: "is:open is:pr author:@me archived:false sort:updated-desc") @include(if: $authored) { ...workHits }
+  assigned: search(type: ISSUE, first: $first, after: $after, query: "is:open is:issue assignee:@me archived:false sort:updated-desc") @include(if: $assigned) { ...workHits }
 }
 
 fragment workHits on SearchResultItemConnection {
   issueCount
+  pageInfo { hasNextPage endCursor }
   nodes {
     __typename
     ... on PullRequest { id number title pullState: state isDraft author { __typename login } comments { totalCount } createdAt updatedAt url repository { name owner { login } } }
@@ -87,6 +88,10 @@ func (n workNode) core() core.SearchHit {
 
 type workHits struct {
 	IssueCount int `json:"issueCount"`
+	PageInfo   struct {
+		HasNextPage bool   `json:"hasNextPage"`
+		EndCursor   string `json:"endCursor"`
+	} `json:"pageInfo"`
 	nodes[workNode]
 }
 
@@ -96,7 +101,11 @@ func (h *workHits) core() core.WorkList {
 	if h == nil {
 		return core.WorkList{Refused: true}
 	}
-	return core.WorkList{Count: h.IssueCount, Items: convert(h.Nodes, workNode.core)}
+	l := core.WorkList{Count: h.IssueCount, Items: convert(h.Nodes, workNode.core)}
+	if h.PageInfo.HasNextPage {
+		l.Next = h.PageInfo.EndCursor
+	}
+	return l
 }
 
 // ViewerWork returns the open work waiting on the signed-in user: the pull
@@ -108,18 +117,42 @@ func (h *workHits) core() core.WorkList {
 // holds the others, and the refused ones are empty with Refused set,
 // rather than it failing whole, which would drop what was kept of the
 // work.
-func (c *Client) ViewerWork(ctx context.Context, first int) (core.Work, error) {
+//
+// With after set, only list is read, the page after that cursor, and the
+// other lists of the work are left empty.
+func (c *Client) ViewerWork(ctx context.Context, first int, list core.WorkKind, after string) (core.Work, error) {
 	var data struct {
 		ReviewRequested *workHits `json:"reviewRequested"`
 		Authored        *workHits `json:"authored"`
 		Assigned        *workHits `json:"assigned"`
 	}
-	if err := c.Query(ctx, viewerWorkQuery, map[string]any{"first": first}, &data); err != nil {
+	vars := map[string]any{
+		"first":    first,
+		"review":   after == "" || list == core.WorkReviewRequested,
+		"authored": after == "" || list == core.WorkAuthored,
+		"assigned": after == "" || list == core.WorkAssigned,
+	}
+	if after != "" {
+		vars["after"] = after
+	}
+	if err := c.Query(ctx, viewerWorkQuery, vars, &data); err != nil {
 		answered := data.ReviewRequested != nil || data.Authored != nil || data.Assigned != nil
 		if !answered || !rootsRefused(err) {
 			return core.Work{}, fmt.Errorf("viewer work: %w", err)
 		}
 		slog.WarnContext(ctx, "viewer work partly refused", "span", "http", "err", err.Error())
+	}
+	if after != "" {
+		var w core.Work
+		switch list {
+		case core.WorkReviewRequested:
+			w.ReviewRequested = data.ReviewRequested.core()
+		case core.WorkAuthored:
+			w.Authored = data.Authored.core()
+		case core.WorkAssigned:
+			w.Assigned = data.Assigned.core()
+		}
+		return w, nil
 	}
 	return core.Work{
 		ReviewRequested: data.ReviewRequested.core(),

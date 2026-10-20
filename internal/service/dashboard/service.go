@@ -18,7 +18,7 @@ import (
 // API is the part of the GitHub client the service uses.
 type API interface {
 	ViewerHeader(ctx context.Context) (core.Header, error)
-	ViewerWork(ctx context.Context, first int) (core.Work, error)
+	ViewerWork(ctx context.Context, first int, list core.WorkKind, after string) (core.Work, error)
 	ViewerContributions(ctx context.Context) (core.Contributions, error)
 	ViewerOwnRepos(ctx context.Context, first int, after string) (core.Page[core.Repo], error)
 	OrgRepos(ctx context.Context, login string, first int, after string) (core.Page[core.Repo], error)
@@ -46,8 +46,9 @@ const (
 	kindRepos         = "ownerrepos"
 	// schema 6 keeps the avatar of each repository's owner, and 7
 	// whether the author of each task is an app, and 8 the viewer's
-	// permission in each repository.
-	schema = 8
+	// permission in each repository, and 9 the cursor of each list of
+	// work.
+	schema = 9
 )
 
 // New returns a Service that fetches from api.

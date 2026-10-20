@@ -22,6 +22,7 @@ const (
 	kindContributions
 	kindInbox
 	kindHere
+	kindWorkPage
 )
 
 // loadedMsg carries the value of one read, for the dashboard with id, in
@@ -58,6 +59,51 @@ func (s *Section) readWork(again bool) tea.Cmd {
 		w, err := s.svc.Work(ctx, dashboard.WorkQuery{Again: again})
 		return w, served{w.Stale, w.Offline, w.Limited}, err
 	})
+}
+
+// workPage is the page of one list of work, read after the list's items.
+type workPage struct {
+	list int
+	work core.Work
+}
+
+// readWorkPage reads the page after the items of list i, if it is due.
+func (s *Section) readWorkPage(i int) tea.Cmd {
+	t := &s.tasks.tabs[i]
+	if t.next == "" || t.loading {
+		return nil
+	}
+	t.loading, t.err = true, nil
+	q := dashboard.WorkQuery{List: core.WorkKind(i), Cursor: t.next}
+	return readCmd(s, kindWorkPage, "dashboard.work.page", func(ctx context.Context) (workPage, served, error) {
+		w, err := s.svc.Work(ctx, q)
+		return workPage{list: i, work: w}, served{w.Stale, w.Offline, w.Limited}, err
+	})
+}
+
+// workPaged takes the page of a list of work, or the reason it failed, and
+// goes on to the page after it while the cursor is still near the end.
+func (s *Section) workPaged(msg loadedMsg) tea.Cmd {
+	p, _ := msg.value.(workPage)
+	if p.list < 0 || p.list >= len(s.tasks.tabs) {
+		return nil
+	}
+	if msg.err != nil {
+		t := &s.tasks.tabs[p.list]
+		t.loading, t.err = false, msg.err
+		return nil
+	}
+	s.tasks.appendPage(p.list, workLists[p.list].list(&p.work))
+	return s.moreWork()
+}
+
+// moreWork reads the next page of the tab on view when the cursor nears its
+// end.
+func (s *Section) moreWork() tea.Cmd {
+	if t := s.tasks.current(); t.wantMore(s.tasks.height) {
+		return s.readWorkPage(s.tasks.cur)
+	}
+	return nil
 }
 
 func (s *Section) readContributions(again bool) tea.Cmd {
@@ -138,6 +184,9 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		if s.work.value.Stale {
 			return s.readWork(true)
 		}
+		return s.moreWork()
+	case kindWorkPage:
+		return s.workPaged(msg)
 	case kindContributions:
 		if !take(&s.contribs, msg) {
 			return nil

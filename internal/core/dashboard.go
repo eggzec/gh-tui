@@ -68,7 +68,20 @@ type WorkList struct {
 	// several in a query that it answers the others of, so the list is
 	// unknown rather than empty.
 	Refused bool
+	// Next is the cursor of the page after Items, empty when they are the
+	// last.
+	Next string
 }
+
+// WorkKind names one of the lists of Work.
+type WorkKind int
+
+// The lists of Work.
+const (
+	WorkReviewRequested WorkKind = iota
+	WorkAuthored
+	WorkAssigned
+)
 
 // Work is the open work waiting on the viewer, across every repository.
 type Work struct {

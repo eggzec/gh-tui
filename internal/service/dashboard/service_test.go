@@ -66,7 +66,7 @@ func TestTTLs(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				api := &fakeAPI{t: t,
 					header:        func() (core.Header, error) { return octocat, nil },
-					work:          func(int) (core.Work, error) { return core.Work{}, nil },
+					work:          func(int, core.WorkKind, string) (core.Work, error) { return core.Work{}, nil },
 					contributions: func() (core.Contributions, error) { return core.Contributions{}, nil },
 					ownRepos:      func(int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, nil },
 				}
@@ -106,7 +106,7 @@ func TestTTLs(t *testing.T) {
 }
 
 func TestWorkPageSize(t *testing.T) {
-	api := &fakeAPI{t: t, work: func(first int) (core.Work, error) {
+	api := &fakeAPI{t: t, work: func(first int, _ core.WorkKind, _ string) (core.Work, error) {
 		return core.Work{Authored: core.WorkList{Count: first}}, nil
 	}}
 	s := New(api)
@@ -121,6 +121,34 @@ func TestWorkPageSize(t *testing.T) {
 	}
 	if _, ok := s.CachedWork(WorkQuery{PageSize: 20}); ok {
 		t.Error("CachedWork(20) = hit, want a miss")
+	}
+}
+
+// A cursor names the page and the list it reads, so each is cached apart
+// from the first page, which keeps its key.
+func TestWorkCursor(t *testing.T) {
+	api := &fakeAPI{t: t, work: func(_ int, list core.WorkKind, after string) (core.Work, error) {
+		return core.Work{Assigned: core.WorkList{Count: int(list), Next: after + "+"}}, nil
+	}}
+	s := New(api)
+	queries := []WorkQuery{
+		{PageSize: 10},
+		{PageSize: 10, List: core.WorkAssigned, Cursor: "c1"},
+		{PageSize: 10, List: core.WorkAuthored, Cursor: "c1"},
+		{PageSize: 10, List: core.WorkAssigned, Cursor: "c2"},
+		{PageSize: 10, List: core.WorkAssigned, Cursor: "c1"},
+	}
+	for _, q := range queries {
+		if _, err := s.Work(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	api.wantCalls(t, "work 10", "work 10 2 c1", "work 10 1 c1", "work 10 2 c2")
+	if w, ok := s.CachedWork(queries[1]); !ok || w.Assigned.Next != "c1+" {
+		t.Errorf("CachedWork(c1) = %+v, %v; want the page after c1", w, ok)
+	}
+	if _, ok := s.CachedWork(WorkQuery{PageSize: 10, Cursor: "c3"}); ok {
+		t.Error("CachedWork(c3) = hit, want a miss")
 	}
 }
 
@@ -222,7 +250,7 @@ func TestReadErrors(t *testing.T) {
 	missing := errors.Join(errors.New("no such organization"), core.ErrNotFound)
 	api := &fakeAPI{t: t,
 		header:        func() (core.Header, error) { return core.Header{}, core.ErrUnauthorized },
-		work:          func(int) (core.Work, error) { return core.Work{}, core.ErrUnauthorized },
+		work:          func(int, core.WorkKind, string) (core.Work, error) { return core.Work{}, core.ErrUnauthorized },
 		contributions: func() (core.Contributions, error) { return core.Contributions{}, core.ErrUnauthorized },
 		orgRepos:      func(string, int, string) (core.Page[core.Repo], error) { return core.Page[core.Repo]{}, missing },
 	}

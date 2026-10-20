@@ -16,7 +16,7 @@ import (
 // stands in for them.
 type workRow struct {
 	hit *core.SearchHit
-	// note is shown when a list is empty, or holds more than it lists.
+	// note is shown when a list is empty.
 	note string
 
 	// ref is where an item is, such as "eggzec/cli#12".
@@ -32,6 +32,12 @@ type workTab struct {
 	refused bool
 	rows    []workRow
 	items   int
+	// next is the cursor of the page after the last item, empty when all
+	// are listed. loading is set while that page is read, and err holds why
+	// the read failed.
+	next    string
+	loading bool
+	err     error
 	sel     int
 	// top is the first row on view.
 	top int
@@ -91,14 +97,10 @@ func (l *workList) set(w core.Work) {
 		for j := range list.Items {
 			rows = append(rows, workRow{hit: &list.Items[j]})
 		}
-		switch more := list.Count - len(list.Items); {
-		case list.Refused:
-		case len(list.Items) == 0:
+		if !list.Refused && len(list.Items) == 0 {
 			rows = append(rows, workRow{note: wl.empty})
-		case more > 0:
-			rows = append(rows, workRow{note: "and " + strconv.Itoa(more) + " more on GitHub"})
 		}
-		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: len(list.Items), top: t.top}
+		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: len(list.Items), next: list.Next, top: t.top}
 		for j := range t.items {
 			if prev != "" && rows[j].hit.Issue.URL == prev {
 				t.sel = j
@@ -118,6 +120,30 @@ func (l *workList) set(w core.Work) {
 	for i := range l.tabs {
 		l.tabs[i].scroll(l.height)
 	}
+}
+
+// wantMore reports whether the page after the items is due: the cursor is
+// within a page of the end.
+func (t *workTab) wantMore(height int) bool {
+	return t.next != "" && !t.loading && t.err == nil && t.sel >= t.items-max(height, 1)
+}
+
+// appendPage lists the items of the page that followed those of tab i.
+func (l *workList) appendPage(i int, list core.WorkList) {
+	t := &l.tabs[i]
+	t.loading, t.err = false, nil
+	rows := make([]workRow, 0, len(t.rows)+len(list.Items))
+	rows = append(rows, t.rows[:t.items]...)
+	for j := range list.Items {
+		rows = append(rows, workRow{hit: &list.Items[j]})
+	}
+	rows = append(rows, t.rows[t.items:]...)
+	t.rows, t.items, t.next = rows, t.items+len(list.Items), list.Next
+	if list.Count > 0 {
+		t.count = list.Count
+	}
+	l.layout()
+	t.scroll(l.height)
 }
 
 // count is how many items wait on the viewer in all.

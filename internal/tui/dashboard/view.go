@@ -450,6 +450,12 @@ func (s *Section) workBody(w, h int) []string {
 		}
 		lines = append(lines, s.workItem(r, i == t.sel, focused))
 	}
+	switch {
+	case t.err != nil:
+		lines = append(lines, ownerui.Indent(s.failure("load more of the list (down retries)", t.err, w-1))...)
+	case t.loading:
+		lines = append(lines, "   "+st.shared.Muted.Render("Loading more"+s.icons.Ellipsis))
+	}
 	return lines
 }
 
