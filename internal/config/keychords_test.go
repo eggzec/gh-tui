@@ -12,7 +12,7 @@ import (
 func TestKeySequences(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
 		{"two keys", "keys:\n  dashboard_repos:\n    bottom: [\"g g\"]\n    top: [home]\n", ""},
-		{"a key and a sequence that starts with it", "keys:\n  dashboard_repos:\n    top: [g, home]\n    bottom: [\"g g\"]\n", ""},
+		{"a key and a sequence that starts with it", "keys:\n  dashboard_calendar:\n    top: [g, home]\n    bottom: [\"g g\"]\n", ""},
 		{"keys with modifiers", "keys:\n  dashboard_repos:\n    bottom: [\"ctrl+w x\"]\n", ""},
 		{"three keys", "keys:\n  dashboard_repos:\n    bottom: [\"g g g\"]\n", `line 3: keys.dashboard_repos.bottom: the sequence "g g g" has 3 keys: a sequence is two keys`},
 		{"an empty key", "keys:\n  dashboard_repos:\n    bottom: [\"g  \"]\n", `keys.dashboard_repos.bottom: the sequence "g  " has an empty key`},
