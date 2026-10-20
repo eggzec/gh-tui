@@ -608,7 +608,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -636,7 +636,7 @@ keys:
     down: [down, j]
     left: [left, h]
     right: [right, l]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
   # Dashboard: your newest notifications.
   dashboard_inbox:
@@ -663,7 +663,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Expand the directory under the cursor, or go to its first entry when
     # it is open; on a file, preview it as the select key does. Collapse a
@@ -687,7 +687,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -735,7 +735,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -767,7 +767,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -804,7 +804,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -835,7 +835,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -853,7 +853,7 @@ keys:
     down: [down, j]
     left: [left, h]
     right: [right, l]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
 
   # The modal of a pull request, over each of its panes. Review has no key: it
@@ -880,7 +880,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
 
   # The links of a pull request or an issue: what it closes or is closed by,
@@ -894,7 +894,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Expand the group under the cursor, or go to its first item when it is
     # open; on an item, open it as the select key does. Collapse a group, or
@@ -918,7 +918,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Narrow the branches by typing a part of a name.
     filter: [f]
@@ -932,7 +932,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     base: [b]
   # History: the files of a commit. Show the files at the commit.
@@ -943,7 +943,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     base: [b]
 
@@ -968,7 +968,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Search the rows of the list for text, show only the rows that hold
     # it, and step between the rows a search found.
@@ -984,7 +984,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     rerun_job: [J]
   # Actions: the log of a job. Re-run the job, and move the focus between
@@ -1000,7 +1000,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     toggle_all: ["*"]
     option: ["-"]
@@ -1032,7 +1032,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     option: ["-"]
     find: [/]
@@ -1050,7 +1050,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     option: ["-"]
     find: [/]
@@ -1068,7 +1068,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     option: ["-"]
     find: [/]
@@ -1085,7 +1085,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
   # The modal of a pull request: the description. Enter opens and closes
   # the details block on the cursor's line; expand opens it, or moves into it
@@ -1098,7 +1098,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     expand: [l]
     collapse: [h]
@@ -1119,7 +1119,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Open a fold, close one, or open every fold (or close them all when all
     # are open).
@@ -1146,7 +1146,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
   # The modal of a pull request: what a check run of an App reported. Its
   # moves are those of the preview; enter on an annotation opens its line in
@@ -1163,7 +1163,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     expand: [right, l]
     collapse: [left, h]
@@ -1179,7 +1179,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     expand: [right, l]
     collapse: [left, h]
@@ -1205,7 +1205,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     expand: [right, l]
     collapse: [left, h]
@@ -1222,7 +1222,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     next_file: [J]
     prev_file: [K]
@@ -1269,7 +1269,7 @@ keys:
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
     # Go to the first row, or the last.
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Expand the group under the cursor, or go to its first item when it is
     # open.
@@ -1286,7 +1286,7 @@ keys:
     page_down: [space, ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
 
   # What the search prompt of a pager or a log takes: enter searches, esc
@@ -1317,7 +1317,7 @@ keys:
   filter:
     up: [k, up]
     down: [j, down]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     left: [h, left]
     right: [l, right]
@@ -1332,7 +1332,7 @@ keys:
   actions_filter:
     up: [k, up]
     down: [j, down]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     left: [h, left]
     right: [l, right]
@@ -1450,7 +1450,7 @@ keys:
     page_down: [ctrl+f, pgdown]
     half_page_up: [ctrl+u]
     half_page_down: [ctrl+d]
-    top: [g, home]
+    top: ["g g", home]
     bottom: [G, end]
     # Start searching: what you type filters the list.
     search: [/]

@@ -14,7 +14,7 @@ global
 Filter
   previous field | k up | k/↑ | on
   next field | j down | j/↓ | on
-  first field | g home | g/home | on
+  first field | g g home | gg/home | on
   last field | G end | G/end | on
   previous | h left | h/← | on
   next | l right | l/→ | on
@@ -49,7 +49,7 @@ Filter
   page down | ctrl+f pgdown | ^f/pgdn | off
   half page up | ctrl+u | ^u | off
   half page down | ctrl+d | ^d | off
-  top | g home | g/home | off
+  top | g g home | gg/home | off
   bottom | G end | G/end | off
   search | / | / | off
   toggle | space | space | off

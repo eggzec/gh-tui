@@ -32,7 +32,7 @@ Branches
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  newest | g home | g/home | on
+  newest | g g home | gg/home | on
   oldest loaded | G end | G/end | on
   open | enter | ↵ | off
   retry | r | r | off

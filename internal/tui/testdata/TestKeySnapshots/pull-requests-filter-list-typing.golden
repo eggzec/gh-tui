@@ -7,7 +7,7 @@ always
 Picker (types)
   previous field | k up | k/↑ | off
   next field | j down | j/↓ | off
-  first field | g home | g/home | off
+  first field | g g home | gg/home | off
   last field | G end | G/end | off
   previous | h left | h/← | off
   next | l right | l/→ | off
@@ -42,7 +42,7 @@ Picker (types)
   page down | ctrl+f pgdown | ^f/pgdn | off
   half page up | ctrl+u | ^u | off
   half page down | ctrl+d | ^d | off
-  top | g home | g/home | off
+  top | g g home | gg/home | off
   bottom | G end | G/end | off
   search | / | / | off
   toggle | space | space | off

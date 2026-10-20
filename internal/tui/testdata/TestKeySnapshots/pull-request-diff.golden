@@ -23,7 +23,7 @@ Diff
   page down | ctrl+f pgdown | ^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  top | g home | g/home | on
+  top | g g home | gg/home | on
   bottom | G end | G/end | on
   next file | J | J | on
   prev file | K | K | on

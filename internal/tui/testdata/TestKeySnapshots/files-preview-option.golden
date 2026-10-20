@@ -11,7 +11,7 @@ Option (types)
   page down | space ctrl+f pgdown | space/^f/pgdn | off
   ½ page up | ctrl+u | ^u | off
   ½ page down | ctrl+d | ^d | off
-  top | g home | g/home | off
+  top | g g home | gg/home | off
   bottom | G end | G/end | off
   left | left h | ←/h | off
   right | right l | →/l | off
