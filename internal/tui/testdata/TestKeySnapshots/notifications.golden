@@ -27,6 +27,8 @@ Notifications
   filter | f | f | on
   clear filters | F | F | off
   filter on/off | alt+f | alt+f | on
+  group by | g | g | on
+  group on/off | alt+g | alt+g | on
   refresh | r | r | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
@@ -41,7 +43,7 @@ Notifications
   quick filter | & | & | on
   next match | n | n | off
   prev match | N | N | off
-  expand |  |  | off
-  collapse |  |  | off
-  all |  |  | off
+  expand | right l | →/l | off
+  collapse | left h | ←/h | off
+  all | * | * | off
   mark | space | space | on
