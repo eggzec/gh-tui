@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // yours labels the tab of the viewer's own repositories.
@@ -59,12 +60,14 @@ type repoTabs struct {
 	cur  int
 	// toggle holds the query that the filter key switched off.
 	toggle ui.FilterToggle[string]
+	// grouping is how every tab groups its repositories.
+	grouping ui.Grouping[core.Repo]
 
 	width, height int
 }
 
 func newRepoTabs(s *Section) repoTabs {
-	t := repoTabs{s: s}
+	t := repoTabs{s: s, grouping: ui.Grouping[core.Repo]{Fields: ui.RepoGroupFields()}}
 	t.tabs = []*owner{t.newOwner(yours, dashboard.ReposQuery{Viewer: true})}
 	return t
 }
@@ -106,7 +109,42 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText("load your repositories", "", s.voice)),
 	)
+	if groups := t.grouping.Groups(); len(groups) > 0 {
+		// Nothing is loaded yet, so there is nothing to regroup.
+		_ = o.Feed.SetGroups(groups)
+	}
 	return o
+}
+
+// groupModal returns the modal that picks the levels the tabs are grouped by.
+func (t *repoTabs) groupModal() ui.Modal {
+	s := t.s
+	return t.grouping.Modal("Repositories", s.keys.order, s.icons, t.setGroups)
+}
+
+// setGroups groups every tab by levels.
+func (t *repoTabs) setGroups(levels []orderpick.Choice) tea.Cmd {
+	t.grouping.Choose(levels)
+	return t.regroup()
+}
+
+// toggleGroups switches the grouping off, and back on; it is false with no
+// levels to switch.
+func (t *repoTabs) toggleGroups() (tea.Cmd, bool) {
+	if !t.grouping.Toggle() {
+		return nil, false
+	}
+	return t.regroup(), true
+}
+
+// regroup gives every tab the groups in force.
+func (t *repoTabs) regroup() tea.Cmd {
+	groups := t.grouping.Groups()
+	cmds := make([]tea.Cmd, len(t.tabs))
+	for i, o := range t.tabs {
+		cmds[i] = o.Feed.SetGroups(groups)
+	}
+	return tea.Batch(cmds...)
 }
 
 // listTop is how many lines the tabs and the headers of the columns take

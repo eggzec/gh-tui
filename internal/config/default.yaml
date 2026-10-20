@@ -624,6 +624,10 @@ keys:
     # Switch the filter off for a look at the list without it, and back on.
     # On macOS, alt keys need the terminal's "Option as Meta" setting.
     filter_toggle: [alt+f]
+    # Group the repositories by owner, language, visibility, kind or role,
+    # and switch the grouping off and on again.
+    group_by: [g]
+    group_toggle: [alt+g]
   # Dashboard: the pull requests and issues waiting on you.
   dashboard_work:
     up: [up, k]

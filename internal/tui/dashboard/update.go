@@ -192,6 +192,14 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return ui.OpenFilter(filterform.FiltersTab), true
 		case keymap.Matches(msg, k.Sort):
 			return ui.OpenSort(), true
+		case keymap.Matches(msg, k.GroupBy):
+			return ui.OpenModal(t.groupModal()), true
+		case keymap.Matches(msg, k.ToggleGroups):
+			cmd, ok := t.toggleGroups()
+			if !ok {
+				return ui.NothingToSwitch(), true
+			}
+			return cmd, true
 		case keymap.Matches(msg, k.Select):
 			if r, ok := t.selected(); ok {
 				s.aheadRepos.Opened(r.Ref)
