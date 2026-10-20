@@ -429,7 +429,7 @@ func TestMarksAsk(t *testing.T) {
 				}
 				// The answers arrive before what the first starts runs,
 				// as a repeated key does.
-				m := asking[s]
+				m, _ := asked(s)
 				var cmds []tea.Cmd
 				for _, k := range answer {
 					cmds = append(cmds, m.Update(keyPress(k)))
