@@ -537,6 +537,8 @@ func keyPress(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnd}
 	case "alt+f":
 		return tea.KeyPressMsg{Code: 'f', Mod: tea.ModAlt}
+	case "alt+g":
+		return tea.KeyPressMsg{Code: 'g', Mod: tea.ModAlt}
 	}
 	r, _ := utf8.DecodeRuneInString(k)
 	return tea.KeyPressMsg{Code: r, Text: k}
