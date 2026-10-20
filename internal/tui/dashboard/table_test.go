@@ -49,16 +49,16 @@ func TestReposColumnsLineUp(t *testing.T) {
 			}
 			// Every cell is a byte, but for the cursor and the ellipsis.
 			l := strings.NewReplacer("▌", " ", "…", ".").Replace(row)
-			// Every row puts its description under the header, and ends its
-			// age where the header ends.
+			// Every row puts its description under the header, and starts its
+			// age where the header starts.
 			if l[desc-1] != ' ' || l[desc] == ' ' {
 				t.Errorf("%d columns: the description doesn't start under its header:\n%s\n%s", width, head, l)
 			}
 			if g := l[lang]; l[lang-1] != ' ' || g != 'o' && g != ' ' {
 				t.Errorf("%d columns: the language isn't under its header:\n%s\n%s", width, head, l)
 			}
-			if l[end-1] == ' ' || strings.TrimRight(l, " ") != l[:end] {
-				t.Errorf("%d columns: the age doesn't end under its header:\n%s\n%s", width, head, l)
+			if at := end - len("Updated"); l[at-1] != ' ' || l[at] == ' ' || len(strings.TrimRight(l, " ")) > end {
+				t.Errorf("%d columns: the age doesn't start under its header:\n%s\n%s", width, head, l)
 			}
 		}
 		if row := lines[2]; !strings.Contains(row, "F T  repo-001  ") {
@@ -67,6 +67,26 @@ func TestReposColumnsLineUp(t *testing.T) {
 		if row := lines[5]; !strings.Contains(row, "12k") {
 			t.Errorf("%d columns: the stars are missing: %q", width, row)
 		}
+	}
+}
+
+func TestReposCursorOnLastRowShows(t *testing.T) {
+	svc := newFake()
+	svc.repos["@me"] = repos("octocat", 30)
+	s := newSection(t, svc, nil, 140, 20, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "G")
+	lines := reposLines(s)
+	if !strings.Contains(lines[0], "Updated") {
+		t.Errorf("the header scrolled away: %q", lines[0])
+	}
+	last := ""
+	for _, l := range lines {
+		if strings.TrimSpace(l) != "" {
+			last = l
+		}
+	}
+	if !strings.Contains(last, "repo-029") || !strings.HasPrefix(last, ">") {
+		t.Errorf("the cursor isn't on the last row, which is %q", last)
 	}
 }
 

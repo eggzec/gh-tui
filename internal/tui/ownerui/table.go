@@ -104,31 +104,14 @@ func (c Cols) Width() int {
 // Header renders the headers of the columns, the stars' headed by star and
 // those cut short ending in tail.
 func (c Cols) Header(star, tail string) string {
-	var b strings.Builder
-	cell := func(text string, w int, right bool) {
-		if w <= 0 {
-			return
-		}
-		if b.Len() > 0 {
-			b.WriteString(strings.Repeat(" ", colGap))
-		}
-		text = Truncate(text, w, tail)
-		pad := strings.Repeat(" ", w-ansi.StringWidth(text))
-		if right {
-			b.WriteString(pad)
-			b.WriteString(text)
-		} else {
-			b.WriteString(text)
-			b.WriteString(pad)
-		}
-	}
-	cell("", c.flags, false)
-	cell(nameHeader, c.name, false)
-	cell(descHeader, c.desc, false)
-	cell(langHeader, c.lang, false)
-	cell(star, c.stars, true)
-	cell(ageHeader, c.age, true)
-	return b.String()
+	return ui.Header([]ui.Column{
+		{Width: c.flags},
+		{Title: nameHeader, Width: c.name},
+		{Title: descHeader, Width: c.desc},
+		{Title: langHeader, Width: c.lang},
+		{Title: star, Width: c.stars, Right: true},
+		{Title: ageHeader, Width: c.age},
+	}, colGap, tail)
 }
 
 // Row renders a repository of a table in its columns c: its name, flags,
@@ -197,8 +180,8 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 		if !r.UpdatedAt.IsZero() {
 			age = dates.Short(r.UpdatedAt, now())
 		}
-		b.WriteString(strings.Repeat(" ", max(c.age-ansi.StringWidth(age), 0)))
 		st.Subtle.Write(&b, age)
+		b.WriteString(strings.Repeat(" ", max(c.age-ansi.StringWidth(age), 0)))
 	}
 	return b.String()
 }

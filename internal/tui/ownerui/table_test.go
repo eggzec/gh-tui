@@ -1,6 +1,65 @@
 package ownerui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+)
+
+func TestHeaderAndAgeAlign(t *testing.T) {
+	t.Parallel()
+	icons := ui.NewIcons(config.IconsASCII)
+	d := rowDrawer(icons)
+	now := time.Now()
+	r := core.Repo{
+		Ref:         core.RepoRef{Owner: "octo", Name: "tea"},
+		Description: "A description",
+		Language:    "Go",
+		Stars:       7,
+		UpdatedAt:   now.Add(-3 * time.Hour),
+	}
+	var m Measure
+	m.Add(r, icons)
+	for _, tt := range []struct {
+		name    string
+		width   int
+		wantAll []string
+		wantNot []string
+	}{
+		{"wide", 100, []string{"Name", "Description", "Lang", "*", "Updated"}, nil},
+		{"narrow", 26, []string{"Name", "*", "Updated"}, []string{"Description"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			c := LayoutCols(tt.width, m, "*", ui.Dates{}.Width())
+			header := c.Header("*", icons.Ellipsis)
+			for _, s := range tt.wantAll {
+				if !strings.Contains(header, s) {
+					t.Errorf("header %q lacks %q", header, s)
+				}
+			}
+			for _, s := range tt.wantNot {
+				if strings.Contains(header, s) {
+					t.Errorf("header %q has %q, want it dropped", header, s)
+				}
+			}
+			row := ansi.Strip(d.Row(c, r, ui.LookPlain, ui.Dates{}, func() time.Time { return now }))
+			at := c.Width() - c.age
+			if !strings.HasPrefix(header[at:], "Updated") {
+				t.Errorf("header %q: Updated not at the age column %d", header, at)
+			}
+			if cell := row[at:]; cell == "" || cell[0] == ' ' || strings.TrimSpace(cell) == "" {
+				t.Errorf("row %q: age not left-aligned at %d", row, at)
+			}
+		})
+	}
+}
 
 func TestLayoutCols(t *testing.T) {
 	m := Measure{name: 16, flags: 2, stars: 3}

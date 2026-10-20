@@ -364,7 +364,7 @@ func (s *Section) reposBody(w, h int) []string {
 	// The headers name the columns once there are rows under them.
 	head := ""
 	if o.Feed.Len() > 0 {
-		head = strings.Repeat(" ", gutterWidth) + s.st.shared.Subtle.Render(o.Cols().Header(s.icons.Star, s.icons.Ellipsis))
+		head = strings.Repeat(" ", gutterWidth) + s.st.shared.Muted.Render(o.Cols().Header(s.icons.Star, s.icons.Ellipsis))
 	}
 	lines = append(lines, head)
 	if body := o.Feed.View(); body != "" {
