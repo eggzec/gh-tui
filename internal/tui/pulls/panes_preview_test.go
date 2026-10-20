@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -125,9 +126,18 @@ func TestPreviewScroll(t *testing.T) {
 	if m.offset() != end {
 		t.Errorf("G again moved to %d, past the end %d", m.offset(), end)
 	}
+	// The root sends the press of the top action when "g g" completes.
+	top := keymap.Actions(m.keys.scroll.Home)
+	if len(top) == 0 {
+		t.Fatal("the top binding of the preview names no action")
+	}
+	m.Update(keymap.ActionPress(top[0]))
+	if m.offset() != 0 {
+		t.Errorf("top: offset %d, want 0", m.offset())
+	}
 	m.Update(keyMsg("g"))
 	if m.offset() != 0 {
-		t.Errorf("g: offset %d, want 0", m.offset())
+		t.Errorf("a lone g moved the preview to %d", m.offset())
 	}
 	m.Update(keyMsg("G"))
 

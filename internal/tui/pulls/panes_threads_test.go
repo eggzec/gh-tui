@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // threadOn is a thread of a.go by alice, with body, three hours old.
@@ -95,10 +96,10 @@ func TestThreadsDiffView(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			p, _ := config.Default().Palette(dark)
-			h, m, _ := draftThenThreads(t, sampleThreads())
+			h, m, o := draftThenThreads(t, sampleThreads())
 			m.SetTheme(ui.NewTheme(p, dark))
 			m.SetSize(80, 24)
-			press(t, h, "g")
+			pressTop(t, h, o)
 			golden.RequireEqual(t, h.modals[len(h.modals)-1].View())
 		})
 	}
@@ -183,6 +184,17 @@ func TestThreadsFailedReadIsNotRetried(t *testing.T) {
 	}
 }
 
+// pressTop sends the press of the diff's top action, which the root sends
+// when "g g" completes, since a lone g no longer goes to the top.
+func pressTop(t *testing.T, h *host, o *diffOverlay) {
+	t.Helper()
+	actions := keymap.Actions(o.keys.diff.Home)
+	if len(actions) == 0 {
+		t.Fatal("the top binding of the diff names no action")
+	}
+	drain(t, h, h.Update(keymap.ActionPress(actions[0])))
+}
+
 // blockID is the ID of the block under the cursor.
 func blockID(o *diffOverlay) string {
 	b, _ := o.d.CursorBlock()
@@ -192,7 +204,7 @@ func blockID(o *diffOverlay) string {
 func TestThreadsPreviousAndNextStopOnDraftsAndThreads(t *testing.T) {
 	t.Parallel()
 	h, _, o := draftThenThreads(t, sampleThreads()[:3])
-	press(t, h, "g")
+	pressTop(t, h, o)
 	order := make([]string, 0, 4)
 	for range 4 {
 		press(t, h, ")")
@@ -217,7 +229,7 @@ func TestThreadsPreviousAndNextStopOnDraftsAndThreads(t *testing.T) {
 func TestThreadsCannotBeEditedFromTheDiff(t *testing.T) {
 	t.Parallel()
 	h, m, o, _ := threadPanes(t, readThreads)
-	press(t, h, "g")
+	pressTop(t, h, o)
 	press(t, h, ")")
 	if !strings.HasPrefix(blockID(o), threadPrefix) {
 		t.Fatalf(") did not reach a thread: %q", blockID(o))
