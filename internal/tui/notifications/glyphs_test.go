@@ -123,11 +123,11 @@ func TestRowOfAnUnknownKind(t *testing.T) {
 // A glyph stays in a row too narrow for the ASCII tag.
 func TestLayoutKeepsTheGlyph(t *testing.T) {
 	t.Parallel()
-	if l := newLayout(47, 4, glyphWidth); l.tag != glyphWidth {
-		t.Errorf("newLayout(47, 4, glyphWidth) = %+v, want the glyph kept", l)
+	if l := newLayout(50, 4, glyphWidth); l.tag != glyphWidth {
+		t.Errorf("newLayout(50, 4, glyphWidth) = %+v, want the glyph kept", l)
 	}
-	if l := newLayout(47, 4, tagWidth); l.tag != 0 {
-		t.Errorf("newLayout(47, 4, tagWidth) = %+v, want the tag dropped", l)
+	if l := newLayout(50, 4, tagWidth); l.tag != 0 {
+		t.Errorf("newLayout(50, 4, tagWidth) = %+v, want the tag dropped", l)
 	}
 }
 
