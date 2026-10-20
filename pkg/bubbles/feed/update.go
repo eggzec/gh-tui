@@ -88,6 +88,12 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.step(1)
 	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
+	case m.Grouped() && keymap.Matches(msg, m.keyMap.Expand):
+		return m.afterMove(m.right())
+	case m.Grouped() && keymap.Matches(msg, m.keyMap.Collapse):
+		return m.afterMove(m.left())
+	case m.Grouped() && keymap.Matches(msg, m.keyMap.ToggleAll):
+		return m.afterMove(m.toggleAll())
 	case keymap.Matches(msg, m.markKeys.Mark) && m.canMark():
 		if m.onHeader() {
 			return nil
@@ -114,7 +120,18 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	n := m.shown()
 	past := m.filter != "" && (n == 0 || before == n-1) && m.sel > before && m.sel >= n
 	cmd := m.sync()
-	if past {
+	if past || m.onMore() {
+		cmd = tea.Batch(cmd, m.fetchMore())
+	}
+	return cmd
+}
+
+// afterMove ends a key that moved or changed the groups: the user moved, as
+// for the keys that move, and reaching the row of the items not loaded
+// fetches the next chunk, which a filter's feed does not read ahead to do.
+func (m *Model[T]) afterMove(cmd tea.Cmd) tea.Cmd {
+	m.anchored, m.seeking = false, false
+	if m.onMore() {
 		cmd = tea.Batch(cmd, m.fetchMore())
 	}
 	return cmd
@@ -251,7 +268,10 @@ func (m Model[T]) wantsTail() bool {
 		// Count the loaded items after the cursor's item, not the headers.
 		// A chunk that added no line, because its groups are closed, leaves
 		// the window as empty as it was, so more would not fill it.
-		return m.fill && m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin()
+		// On the row of the items not loaded the key that reached it has
+		// fetched one chunk already; sitting there does not fetch the rest,
+		// which closed groups would never show.
+		return m.fill && m.top+m.slots() >= m.shown() || !m.onMore() && m.itemsAfter() <= m.margin()
 	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
 }

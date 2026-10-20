@@ -1,6 +1,7 @@
 package feed
 
 import (
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -93,7 +94,7 @@ func (m Model[T]) shown() int {
 // which is also what a group header gives.
 func (m Model[T]) at(p int) int {
 	if m.Grouped() {
-		if p < 0 || p >= len(m.lines) || m.lines[p].head {
+		if p < 0 || p >= len(m.lines) || m.lines[p].head || m.lines[p].more {
 			return -1
 		}
 		return m.lines[p].item
@@ -116,7 +117,7 @@ func (m Model[T]) posOf(g int) int {
 	if m.Grouped() {
 		// An item in a closed group has no row.
 		for p, l := range m.lines {
-			if !l.head && l.item == g {
+			if !l.head && !l.more && l.item == g {
 				return p
 			}
 		}
@@ -167,21 +168,27 @@ func (m *Model[T]) textOf(i int) (string, bool) {
 // rebuildRows finds the rows the quick filter matches among the loaded
 // items, and the rows the find matches among those.
 func (m *Model[T]) rebuildRows() {
-	if m.filter != "" {
-		match := matcher(m.filter)
-		m.rows = nil
-		for i := range m.total {
-			if t, ok := m.textOf(i); ok && match(t) {
-				m.rows = append(m.rows, i)
-			}
-		}
-	} else {
-		m.rows = nil
-	}
+	m.filterRows()
 	m.refind()
 }
 
-// refind finds the rows the find matches.
+// filterRows finds the loaded items the quick filter keeps.
+func (m *Model[T]) filterRows() {
+	m.rows = nil
+	if m.filter == "" {
+		return
+	}
+	match := matcher(m.filter)
+	for i := range m.total {
+		if t, ok := m.textOf(i); ok && match(t) {
+			m.rows = append(m.rows, i)
+		}
+	}
+}
+
+// refind finds the rows the find matches. While the rows are grouped it looks
+// at the items, hidden in a closed group or not, and a hit is the place of
+// its item in the order of the groups.
 func (m *Model[T]) refind() {
 	m.hits = nil
 	if m.query == "" {
@@ -189,19 +196,45 @@ func (m *Model[T]) refind() {
 		return
 	}
 	match := matcher(m.query)
-	for p := range m.shown() {
-		if t, ok := m.textOf(m.at(p)); ok && match(t) {
-			m.hits = append(m.hits, p)
+	if m.Grouped() {
+		for o, i := range m.order {
+			if t, ok := m.textOf(i); ok && match(t) {
+				m.hits = append(m.hits, o)
+			}
+		}
+	} else {
+		for p := range m.shown() {
+			if t, ok := m.textOf(m.at(p)); ok && match(t) {
+				m.hits = append(m.hits, p)
+			}
 		}
 	}
 	m.enableKeys()
 }
 
+// spot returns where the cursor is among the hits, which is its row, or its
+// place in the order of the groups while grouped, and whether it is on an
+// item, which a header and the row of the items not loaded are not: they sit
+// before the item that follows them.
+func (m Model[T]) spot() (pos int, item bool) {
+	if !m.Grouped() {
+		return m.sel, true
+	}
+	if m.sel < 0 || m.sel >= len(m.lines) {
+		return 0, false
+	}
+	l := m.lines[m.sel]
+	return l.before, !l.head && !l.more
+}
+
 // enableKeys enables the keys that do something in the state of the find
-// and the filter, so help shows only those.
+// and the filter, and of the groups, so help shows only those.
 func (m *Model[T]) enableKeys() {
 	keymap.Enable(&m.keyMap.Next, len(m.hits) > 0)
 	keymap.Enable(&m.keyMap.Prev, len(m.hits) > 0)
+	keymap.Enable(&m.keyMap.Expand, m.Grouped())
+	keymap.Enable(&m.keyMap.Collapse, m.Grouped())
+	keymap.Enable(&m.keyMap.ToggleAll, m.Grouped())
 }
 
 func (m *Model[T]) openPrompt(p string) tea.Cmd {
@@ -266,8 +299,9 @@ func (m *Model[T]) findFor(line string) tea.Cmd {
 		m.scroll()
 		return nil
 	}
-	i := sort.SearchInts(m.hits, m.sel)
-	return m.moveTo(m.hits[i%len(m.hits)])
+	pos, _ := m.spot()
+	i := sort.SearchInts(m.hits, pos)
+	return m.moveToHit(m.hits[i%len(m.hits)])
 }
 
 // step moves to the next match after the selection, or the previous one
@@ -277,10 +311,36 @@ func (m *Model[T]) step(d int) tea.Cmd {
 	if n == 0 {
 		return nil
 	}
+	pos, item := m.spot()
 	if d > 0 {
-		return m.moveTo(m.hits[sort.SearchInts(m.hits, m.sel+1)%n])
+		if item {
+			pos++
+		}
+		return m.moveToHit(m.hits[sort.SearchInts(m.hits, pos)%n])
 	}
-	return m.moveTo(m.hits[(sort.SearchInts(m.hits, m.sel)-1+n)%n])
+	return m.moveToHit(m.hits[(sort.SearchInts(m.hits, pos)-1+n)%n])
+}
+
+// moveToHit selects the row of a hit. In a closed group it opens the groups
+// around the item first, to reach it.
+func (m *Model[T]) moveToHit(h int) tea.Cmd {
+	if !m.Grouped() {
+		return m.moveTo(h)
+	}
+	i := m.order[h]
+	if m.posOf(i) < 0 {
+		it, _ := m.item(i)
+		closed, path := maps.Clone(m.closed), ""
+		for _, g := range m.groups {
+			path += "\x1f" + g.Key(it)
+			delete(closed, path)
+		}
+		// Opening for a hit adds lines, but no more is fetched to fill the
+		// window.
+		m.closed, m.fill = closed, false
+		m.build()
+	}
+	return m.moveTo(m.posOf(i))
 }
 
 // moveTo selects the row at position p.
@@ -301,9 +361,17 @@ func (m *Model[T]) filterFor(line string) tea.Cmd {
 	if g >= 0 {
 		m.held = g
 	}
+	ref := m.cursor()
 	m.filter = line
-	m.rebuildRows()
-	m.sel, m.top = max(m.posOf(g), 0), 0
+	if m.Grouped() {
+		if !m.regroup(ref) {
+			m.sel = 0
+		}
+		m.top = 0
+	} else {
+		m.rebuildRows()
+		m.sel, m.top = max(m.posOf(g), 0), 0
+	}
 	m.anchored, m.seeking = false, false
 	return m.sync()
 }
@@ -318,9 +386,18 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 		// The filter keeps no row: go back to the one it started at.
 		g = m.held
 	}
+	m.anchored, m.seeking = false, false
+	if m.Grouped() {
+		ref := m.cursor()
+		if !ref.valid {
+			ref = m.itemRef(g)
+		}
+		m.filter = ""
+		m.regroup(ref)
+		return m.sync()
+	}
 	m.filter, m.rows = "", nil
 	m.sel = max(m.posOf(g), 0)
-	m.anchored, m.seeking = false, false
 	m.refind()
 	return m.sync()
 }
@@ -352,8 +429,12 @@ func (m Model[T]) footer() string {
 	}
 	if m.query != "" {
 		s := promptFind + m.query
-		if i, ok := slices.BinarySearch(m.hits, m.sel); ok {
-			s += "  " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(m.hits))
+		if pos, item := m.spot(); item {
+			if i, ok := slices.BinarySearch(m.hits, pos); ok {
+				s += "  " + strconv.Itoa(i+1) + "/" + strconv.Itoa(len(m.hits))
+			} else {
+				s += "  " + strconv.Itoa(len(m.hits)) + " matches"
+			}
 		} else {
 			s += "  " + strconv.Itoa(len(m.hits)) + " matches"
 		}
@@ -420,7 +501,7 @@ func (m Model[T]) FullHelp() [][]key.Binding {
 	if m.prompt.Focused() {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Retry, &k.Find, &k.QuickFilter, &k.Next, &k.Prev,
+			&k.Retry, &k.Find, &k.QuickFilter, &k.Next, &k.Prev, &k.Expand, &k.Collapse, &k.ToggleAll,
 		} {
 			b.SetEnabled(false)
 		}
