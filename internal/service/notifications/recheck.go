@@ -65,7 +65,7 @@ func parseKey(key string) (ListQuery, bool) {
 	if aerr != nil || perr != nil || serr != nil {
 		return ListQuery{}, false
 	}
-	return ListQuery{Filter: core.NotificationFilter{All: all, Participating: part}, PageSize: size, Cursor: cursor}, true
+	return ListQuery{Filter: core.NotificationFilter{All: all, Participating: part, Since: v.Get("since")}, PageSize: size, Cursor: cursor}, true
 }
 
 // fetcher reads the page for a normalized q, conditionally when there is a

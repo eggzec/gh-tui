@@ -33,6 +33,8 @@ func TestParseFilter(t *testing.T) {
 			},
 		},
 		{"reason:mention,assign type:pr,issue", filter{all: true, reasons: []string{"mention", "assign"}, typs: []string{"pr", "issue"}}},
+		{"is:unread is:participating since:1W", filter{participating: true, since: "1w"}},
+		{"since:1y", filter{all: true}},
 	}
 	for _, tt := range tests {
 		got := parseFilter(tt.query)
@@ -40,6 +42,14 @@ func TestParseFilter(t *testing.T) {
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("parseFilter(%q) = %+v, want %+v", tt.query, got, tt.want)
 		}
+	}
+}
+
+func TestFilterListQuery(t *testing.T) {
+	f := parseFilter("is:participating since:1w")
+	want := core.NotificationFilter{All: true, Participating: true, Since: "1w"}
+	if q := f.listQuery("c"); q.Filter != want || q.Cursor != "c" {
+		t.Errorf("listQuery = %+v, want filter %+v and cursor c", q, want)
 	}
 }
 
@@ -85,6 +95,8 @@ func TestFilterSpec(t *testing.T) {
 	for _, q := range []string{
 		"is:unread",
 		"",
+		"is:unread is:participating since:1w",
+		"is:participating since:1m reason:mention",
 		"is:unread reason:review_requested repo:charmbracelet/bubbletea type:pr",
 		"reason:mention type:discussion",
 		// Several values of a key are written one qualifier each.
@@ -107,7 +119,7 @@ func TestFilterSpec(t *testing.T) {
 func TestFilterOffersEveryReason(t *testing.T) {
 	s := newSection(t, newFake(inbox()...), 80, 12)
 	f, _ := s.Filter()
-	field := f.Spec.Fields[1]
+	field := f.Spec.Fields[3]
 	if field.Kind != filterform.Multi || !field.Each || field.Qualifier != "reason" {
 		t.Fatalf("the reason field is %+v, want a multi pick of one qualifier per value", field)
 	}
@@ -131,6 +143,8 @@ func TestFilterChips(t *testing.T) {
 		{"is:unread", ""},
 		{"is:unread reason:review_requested reason:mention", "review, mention"},
 		{"reason:team_mention,assign owner:cli owner:golang repo:cli/cli type:pr type:issue", "team, assign, cli, golang, cli/cli, pr, issue"},
+		{"is:unread is:participating since:1w", "participating, since 1w"},
+		{"is:unread since:1y", ""},
 	}
 	for _, tt := range tests {
 		f := parseFilter(tt.query)
@@ -154,7 +168,7 @@ func TestFilterRepos(t *testing.T) {
 		"a-very-long-organization-name/with-an-even-longer-repository-name",
 	}
 	repos := make([]string, 0, len(want))
-	for _, it := range f.Spec.Fields[3].Options {
+	for _, it := range f.Spec.Fields[5].Options {
 		repos = append(repos, it.Label)
 	}
 	if !slices.Equal(repos, want) {
@@ -162,7 +176,7 @@ func TestFilterRepos(t *testing.T) {
 	}
 	wantOwners := []string{"charmbracelet", "eggzec", "golang", "cli", "a-very-long-organization-name"}
 	owners := make([]string, 0, len(wantOwners))
-	for _, it := range f.Spec.Fields[2].Options {
+	for _, it := range f.Spec.Fields[4].Options {
 		owners = append(owners, it.Label)
 	}
 	if !slices.Equal(owners, wantOwners) {

@@ -49,11 +49,14 @@ func (q ListQuery) normalize(size int) ListQuery {
 }
 
 // key is the cache key of q, which the defaults and the clamp don't change;
-// size is the service's page size.
+// size is the service's page size. The Since window is keyed by its token,
+// not the time it counts back to, so a page found again later is the same
+// entry, and is revalidated like any other.
 func (q ListQuery) key(size int) string {
 	q = q.normalize(size)
 	return "notifications?all=" + strconv.FormatBool(q.Filter.All) +
 		"&participating=" + strconv.FormatBool(q.Filter.Participating) +
+		"&since=" + q.Filter.Since +
 		"&page_size=" + strconv.Itoa(q.PageSize) +
 		"&cursor=" + q.Cursor
 }

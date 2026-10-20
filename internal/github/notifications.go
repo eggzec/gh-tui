@@ -102,7 +102,7 @@ func parseSubject(repoURL, apiURL string, typ core.SubjectType, title string) co
 func (c *Client) ListNotifications(ctx context.Context, filter core.NotificationFilter, perPage int, cursor string, cond Conditional) (core.Page[core.Notification], Response, error) {
 	path := cursor
 	if path == "" {
-		path = notificationsPath(filter, perPage)
+		path = notificationsPath(filter, perPage, time.Now())
 	}
 	var threads []notification
 	res, err := c.Get(ctx, path, cond, &threads)
@@ -198,7 +198,9 @@ func absDuration(d time.Duration) time.Duration {
 	return d
 }
 
-func notificationsPath(filter core.NotificationFilter, perPage int) string {
+// notificationsPath is the path of the first page of the filter; now is
+// where its Since window is counted back from.
+func notificationsPath(filter core.NotificationFilter, perPage int, now time.Time) string {
 	q := url.Values{}
 	if perPage > 0 {
 		q.Set("per_page", strconv.Itoa(perPage))
@@ -208,6 +210,9 @@ func notificationsPath(filter core.NotificationFilter, perPage int) string {
 	}
 	if filter.Participating {
 		q.Set("participating", "true")
+	}
+	if t := filter.SinceTime(now); !t.IsZero() {
+		q.Set("since", t.UTC().Format(time.RFC3339))
 	}
 	if len(q) == 0 {
 		return "notifications"

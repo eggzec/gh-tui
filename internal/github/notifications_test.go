@@ -27,6 +27,29 @@ func fixture(t *testing.T, name string) []byte {
 	return b
 }
 
+func TestNotificationsPathSince(t *testing.T) {
+	now := time.Date(2026, 10, 20, 12, 30, 0, 0, time.FixedZone("x", 2*3600))
+	tests := []struct {
+		since string
+		want  string
+	}{
+		{"", "notifications"},
+		{"1d", "notifications?since=2026-10-19T10%3A30%3A00Z"},
+		{"1w", "notifications?since=2026-10-13T10%3A30%3A00Z"},
+		{"1m", "notifications?since=2026-09-20T10%3A30%3A00Z"},
+		{"2y", "notifications"},
+	}
+	for _, tt := range tests {
+		if got := notificationsPath(core.NotificationFilter{Since: tt.since}, 0, now); got != tt.want {
+			t.Errorf("notificationsPath(since %q) = %q, want %q", tt.since, got, tt.want)
+		}
+	}
+	got := notificationsPath(core.NotificationFilter{Participating: true, Since: "1d"}, 30, now)
+	if want := "notifications?participating=true&per_page=30&since=2026-10-19T10%3A30%3A00Z"; got != want {
+		t.Errorf("notificationsPath = %q, want %q", got, want)
+	}
+}
+
 func TestListNotifications(t *testing.T) {
 	tests := []struct {
 		name      string
