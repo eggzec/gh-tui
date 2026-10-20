@@ -141,6 +141,8 @@ type Section struct {
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string
+	// columns is the line of the titles of the columns.
+	columns string
 	// unreadable is drawn in place of the list while the token may not
 	// read notifications, or is "".
 	unreadable string

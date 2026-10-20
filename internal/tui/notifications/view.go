@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -12,8 +13,9 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// headerHeight is the line above the list that shows the filter.
-const headerHeight = 1
+// headerHeight is the lines above the list: the filter and the titles of the
+// columns.
+const headerHeight = 2
 
 // Widths of the fixed columns and of the gaps between columns.
 const (
@@ -155,7 +157,7 @@ func newLayout(width, age, tag int) layout {
 	l := layout{
 		age:    age,
 		tag:    tag,
-		repo:   min(max(width/5, 12), 28),
+		repo:   min(max(width/5, 12), 32),
 		reason: reasonWidth,
 	}
 	l.title = rest - l.tag - 1 - l.repo - gap - l.reason - gap
@@ -207,7 +209,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		b.WriteByte(' ')
 	}
 	if l.repo > 0 {
-		repo.write(&b, fit(repoLabel(n.Repo, l.repo, ell), l.repo, ell))
+		repo.write(&b, fit(refLabel(n.Repo, n.Subject.Number, l.repo, ell), l.repo, ell))
 		spaces(&b, gap)
 	}
 	// The title links to the thread's page.
@@ -222,7 +224,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	if !n.UpdatedAt.IsZero() {
 		age = s.dates.Short(n.UpdatedAt, s.now())
 	}
-	st.age.write(&b, fitRight(age, l.age))
+	st.age.write(&b, fit(age, l.age, ""))
 	return b.String()
 }
 
@@ -279,6 +281,9 @@ func (s *Section) renderHeader() {
 		h += s.styles.hint.render("  " + strings.Join(hints, sep))
 	}
 	s.header = fitANSI(h, s.width, s.icons.Ellipsis)
+	l := newLayout(max(s.width-s.feed.Gutter(), 0), s.dates.Width(), kindWidth(s.icons))
+	titles := strings.Repeat(" ", s.feed.Gutter()) + newPaint(s.theme.Muted).render(columnHeader(l, s.icons.Ellipsis))
+	s.columns = fitANSI(titles, s.width, s.icons.Ellipsis)
 	s.feed.SetEmptyText(s.emptyText())
 }
 
@@ -301,7 +306,7 @@ func (s *Section) View() string {
 	if s.height < headerHeight+1 {
 		return body
 	}
-	return s.header + "\n" + body
+	return s.header + "\n" + s.columns + "\n" + body
 }
 
 // refused reports whether the token may not read notifications.
@@ -367,20 +372,44 @@ func shortReason(r string) string {
 	return ui.OneLine(strings.ReplaceAll(r, "_", " "))
 }
 
-// repoLabel names r in at most width cells. The name tells repositories
-// apart better than the owner, so the owner is shortened first, to end in
-// tail.
-func repoLabel(r core.RepoRef, width int, tail string) string {
+// refLabel names the thread of r in at most width cells, as "owner/name#7"
+// or, without a number, "owner/name". The name tells repositories apart
+// better than the owner, so the owner is shortened first, to end in tail;
+// the number is always kept.
+func refLabel(r core.RepoRef, number, width int, tail string) string {
+	num := ""
+	if number > 0 {
+		num = "#" + strconv.Itoa(number)
+	}
+	width = max(width-len(num), 0)
 	full := r.String()
 	if ansi.StringWidth(full) <= width {
-		return full
+		return full + num
 	}
 	// Keep at least a letter of the owner, an ellipsis and the slash.
 	room := width - ansi.StringWidth(r.Name) - 1
 	if room < 2 {
-		return r.Name
+		return termtext.Truncate(r.Name, width, tail) + num
 	}
-	return termtext.Truncate(r.Owner, room, tail) + "/" + r.Name
+	return termtext.Truncate(r.Owner, room, tail) + "/" + r.Name + num
+}
+
+// columnHeader renders the titles of the columns of the rows of l, in the
+// cells the rows give them.
+func columnHeader(l layout, tail string) string {
+	var b strings.Builder
+	b.WriteString(strings.Repeat(" ", dotWidth+1))
+	if l.tag > 0 {
+		b.WriteString(ui.Header([]ui.Column{{Title: "Type", Width: l.tag}}, 1, tail))
+		b.WriteByte(' ')
+	}
+	b.WriteString(ui.Header([]ui.Column{
+		{Title: "Ref", Width: l.repo},
+		{Title: "Title", Width: l.title},
+		{Title: "Reason", Width: l.reason},
+		{Title: "Updated", Width: l.age},
+	}, gap, tail))
+	return b.String()
 }
 
 // fit truncates plain s to width cells, ending in tail, and pads it on the
@@ -396,15 +425,6 @@ func cut(s string, width int, tail string) string {
 		return termtext.Truncate(s, width, tail)
 	}
 	return s
-}
-
-// fitRight truncates plain s to width cells and pads it on the left.
-func fitRight(s string, width int) string {
-	w := ansi.StringWidth(s)
-	if w > width {
-		return ansi.Truncate(s, width, "")
-	}
-	return strings.Repeat(" ", width-w) + s
 }
 
 // fitANSI truncates styled s to width cells, ending in tail, and pads it
