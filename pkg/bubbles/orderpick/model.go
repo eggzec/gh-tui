@@ -76,6 +76,7 @@ func New(opts ...Option) Model {
 	}
 	s.keys = withState(s.keys)
 	m := Model{settings: s, id: lastID.Add(1)}
+	m.chosen = m.initial()
 	m.left = picker.New(nil,
 		picker.WithItems(m.available()),
 		picker.WithGroupHeaders(false),
@@ -138,6 +139,22 @@ func (m Model) KeyMap() KeyMap { return m.keys }
 func (m *Model) SetKeyMap(k KeyMap) {
 	m.keys = withState(k)
 	m.left.SetKeyMap(m.keys.Picker)
+}
+
+// initial returns the right pane the picker starts with, from WithChosen.
+func (m Model) initial() []chosenItem {
+	var out []chosenItem
+	for _, c := range m.start {
+		i := slices.IndexFunc(m.items, func(it Item) bool { return it.Value == c.Value })
+		if i < 0 || slices.ContainsFunc(out, func(o chosenItem) bool { return o.index == i }) {
+			continue
+		}
+		out = append(out, chosenItem{index: i, desc: c.Desc})
+		if m.single {
+			break
+		}
+	}
+	return out
 }
 
 // available returns the items of the left pane: those not chosen, in their

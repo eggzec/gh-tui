@@ -8,6 +8,7 @@ type Option func(*settings)
 // settings holds what the options set.
 type settings struct {
 	items     []Item
+	start     []Choice
 	single    bool
 	keys      KeyMap
 	styles    Styles
@@ -46,6 +47,14 @@ func WithItems(items []Item) Option {
 // and the old one goes back to the left pane.
 func WithSingle(on bool) Option {
 	return func(s *settings) { s.single = on }
+}
+
+// WithChosen starts with choices in the right pane, in order, each in the
+// direction it names. A choice whose value no item has is left out, and a
+// picker made WithSingle keeps only the first. Values are compared with ==,
+// so they must be comparable.
+func WithChosen(choices ...Choice) Option {
+	return func(s *settings) { s.start = slices.Clone(choices) }
 }
 
 // WithKeyMap sets the key bindings. Without it every binding is disabled.
