@@ -255,6 +255,9 @@ type Section struct {
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string
+	// titles is the line of column titles under the header, rebuilt when
+	// the size, theme, settings or feed change.
+	titles string
 	// blank is the empty state shown until a repository is picked, and
 	// hint what it tells the user to do.
 	blank string
@@ -502,6 +505,7 @@ func (s *Section) newFeed() tea.Cmd {
 	s.feed, s.cancelFeed = &f, cancel
 	s.layout()
 	s.renderHeader()
+	s.renderTitles()
 	return f.Init()
 }
 
@@ -516,6 +520,7 @@ func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.layout()
 	s.renderHeader()
+	s.renderTitles()
 	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 
@@ -534,6 +539,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 		s.feed.SetStyles(t.Feed(s.icons))
 	}
 	s.renderHeader()
+	s.renderTitles()
 	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 
@@ -565,7 +571,7 @@ func (s *Section) View() string {
 		return s.header
 	}
 	if s.height == headerHeight+headsHeight {
-		return s.header + "\n" + s.renderHeads()
+		return s.header + "\n" + s.titles
 	}
-	return s.header + "\n" + s.renderHeads() + "\n" + s.feed.View()
+	return s.header + "\n" + s.titles + "\n" + s.feed.View()
 }

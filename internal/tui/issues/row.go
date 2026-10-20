@@ -32,11 +32,8 @@ const (
 	titleShare = 0.35
 )
 
-// ageHeader titles the dates, which are never narrower than it.
-const ageHeader = "Updated"
-
 // ageRoom is how wide the dates column is: the widest date, or its title.
-func (s *Section) ageRoom() int { return max(s.dates.Width(), len(ageHeader)) }
+func (s *Section) ageRoom() int { return max(s.dates.Width(), len(ui.AgeTitle)) }
 
 // commentMarkWidth is the width of the mark of the comment count and the
 // space after it, in cells.

@@ -19,9 +19,13 @@ type Column struct {
 	Right bool
 }
 
+// AgeTitle titles the column of the dates, which lists never make narrower.
+const AgeTitle = "Updated"
+
 // Header renders the line of titles above a list's rows, each in the width
 // of its column and gap cells apart. A title wider than its column ends in
-// tail. The line is plain text; the list styles it.
+// tail, and one that would show nothing but tail is left blank. The line is
+// plain text; the list styles it.
 func Header(cols []Column, gap int, tail string) string {
 	var b strings.Builder
 	for _, c := range cols {
@@ -32,6 +36,9 @@ func Header(cols []Column, gap int, tail string) string {
 			b.WriteString(strings.Repeat(" ", gap))
 		}
 		text := termtext.Truncate(c.Title, c.Width, tail)
+		if tail != "" && text == tail && c.Title != tail {
+			text = ""
+		}
 		pad := strings.Repeat(" ", max(c.Width-ansi.StringWidth(text), 0))
 		if c.Right {
 			b.WriteString(pad)

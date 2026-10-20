@@ -24,9 +24,6 @@ const headsHeight = 1
 // the selection.
 const gutter = "  "
 
-// ageHeader titles the column of the dates.
-const ageHeader = "Updated"
-
 // Widths of the fixed columns of a row, in cells.
 const (
 	stateWidth  = 2 // the state's glyph and a space
@@ -420,16 +417,18 @@ func (p paint) write(b *strings.Builder, text string) {
 // ageRoom is the width of the dates' column: the widest date, or the room of
 // its title when that is wider.
 func (s *Section) ageRoom() int {
-	return max(s.dates.Width(), len(ageHeader))
+	return max(s.dates.Width(), len(ui.AgeTitle))
 }
 
-// renderHeads renders the line of column titles over the rows, laid out as
-// the rows are. It is blank while the list has no rows.
-func (s *Section) renderHeads() string {
-	if s.feed == nil || s.feed.Len() == 0 {
-		return ""
+// renderTitles renders the line of column titles over the rows, laid out as
+// the rows are, and keeps it in titles. It stays while the list has no rows.
+func (s *Section) renderTitles() {
+	if s.feed == nil {
+		s.titles = ""
+		return
 	}
-	c := columnsFor(max(s.width-s.feed.Gutter(), 0), s.ageRoom())
+	w := max(s.width-s.feed.Gutter(), 0)
+	c := columnsFor(w, s.ageRoom())
 	// The gaps are columns of their own, since the rows' gaps differ.
 	gap := func(on bool, n int) ui.Column {
 		if !on {
@@ -446,9 +445,11 @@ func (s *Section) renderHeads() string {
 		gap(c.diff, 2), {Title: "Diff", Width: boolWidth(c.diff, diffWidth)},
 		gap(c.labels, 2), {Title: "Labels", Width: boolWidth(c.labels, labelsWidth)},
 		gap(c.author, 2), {Title: "Author", Width: boolWidth(c.author, authorWidth)},
-		gap(c.age, 2), {Title: ageHeader, Width: boolWidth(c.age, c.ageWidth)},
+		gap(c.age, 2), {Title: ui.AgeTitle, Width: boolWidth(c.age, c.ageWidth)},
 	}, 0, s.st.ic.Ellipsis)
-	return s.indent() + s.st.theme.Muted.Render(head)
+	head = termtext.Truncate(head, w, "")
+	head += strings.Repeat(" ", max(w-ansi.StringWidth(head), 0))
+	s.titles = s.indent() + s.st.theme.Muted.Render(head)
 }
 
 func boolWidth(on bool, w int) int {

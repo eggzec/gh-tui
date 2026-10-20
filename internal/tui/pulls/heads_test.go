@@ -48,10 +48,11 @@ func TestHeadsAgeLinesUpWithRows(t *testing.T) {
 	svc.pulls = manyPulls(12)
 	h := started(t, svc, 140, 10)
 	lines := screenLines(h)
-	col := strings.Index(lines[1], "Updated")
-	if col < 0 {
+	i := strings.Index(lines[1], "Updated")
+	if i < 0 {
 		t.Fatalf("no Updated in %q", lines[1])
 	}
+	col := ansi.StringWidth(lines[1][:i])
 	row := strings.TrimRight(lines[2], " ")
 	if got := ansi.StringWidth(row[:strings.LastIndex(row, " ")+1]); got != col {
 		t.Errorf("age starts at cell %d, header at %d:\n%s\n%s", got, col, lines[1], lines[2])
