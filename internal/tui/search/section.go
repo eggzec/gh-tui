@@ -171,6 +171,8 @@ type Section struct {
 	hits   map[core.SearchKind]*hitList
 	code   *codeList
 	counts map[core.SearchKind]int
+	// grouping is how the repository results are grouped.
+	grouping ui.Grouping[core.SearchHit]
 
 	// codeReset is when code search resumes after GitHub ran out of
 	// them, and ticking is set while the countdown to it runs.
@@ -227,7 +229,8 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		stopOthers: func() {},
 		seen:       obs.NewPrefetched[othersKey]("search"),
 		hits:       make(map[core.SearchKind]*hitList),
-		stale:      make(map[core.SearchKind][]string),
+		grouping:   ui.Grouping[core.SearchHit]{Fields: ui.HitGroupFields()},
+		stale:     make(map[core.SearchKind][]string),
 		dots:       make(map[string]string),
 		langs:      make(map[string]string),
 		icons:      ui.NewIcons(config.Default().UI.Icons),
