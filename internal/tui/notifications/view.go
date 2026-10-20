@@ -48,49 +48,79 @@ const (
 
 // styles are the row styles, built once per theme.
 type styles struct {
-	tag, repo, title, reason, age paint
-	readRepo, readTitle, readTag  paint
-	selectedReadTitle             paint
-	filter, hint                  paint
-	unreadDot, readDot            string
-	// marks and readMarks hold the glyph of each mark of an unread and of a
-	// read row, as wide as the column and painted, or "" for a mark that
-	// has none, which is drawn from the type of the thread.
-	marks, readMarks [ui.NumMarks]string
+	// look holds the cells of a row in each of its looks, for a read thread
+	// and for an unread one.
+	look         [numLooks][2]cells
+	filter, hint paint
 }
 
-func newStyles(t ui.Theme, ic ui.Icons) styles {
-	st := newRowStyles(t, ic)
+// The looks of a row: as it is, selected in a blurred pane, and selected in
+// a focused one.
+const (
+	lookPlain = iota
+	lookBlurred
+	lookFocused
+	numLooks
+)
+
+// cells are the paints of the cells of a row in one look, and its dot.
+type cells struct {
+	tag, repo, title, reason, age paint
+	dot                           string
+	// marks holds the glyph of each mark, as wide as the column and painted,
+	// or "" for a mark that has none, which is drawn from the type of the
+	// thread.
+	marks [ui.NumMarks]string
+}
+
+func newCells(t ui.Theme, ic ui.Icons, look int, unread bool) cells {
+	selected := look != lookPlain
+	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
+	c := cells{
+		tag:    newPaint(cell(t.Muted)),
+		repo:   newPaint(cell(t.Muted)),
+		reason: newPaint(cell(t.Muted)),
+		age:    newPaint(cell(t.Muted)),
+		dot:    " ",
+	}
+	title := t.RowTitle(selected, look == lookFocused)
+	switch {
+	case unread:
+		c.dot = cell(t.Accent).Render(ic.Dot)
+		if !selected {
+			title = t.Title
+		}
+	case !selected:
+		title = t.Muted
+		c.tag, c.repo = newPaint(t.Subtle), newPaint(t.Subtle)
+	default:
+		c.tag, c.repo = newPaint(cell(t.Subtle)), newPaint(cell(t.Subtle))
+	}
+	c.title = newPaint(cell(title))
 	width := kindWidth(ic)
-	read := newPaint(t.Subtle)
 	for m := range ui.NumMarks {
 		g := ic.Mark(m)
 		if g == "" {
 			continue
 		}
-		g = fit(g, width, ic.Ellipsis)
-		st.marks[m] = newPaint(t.Mark(m)).render(g)
-		st.readMarks[m] = read.render(g)
+		style := t.Subtle
+		if unread {
+			style = t.Mark(m)
+		}
+		c.marks[m] = newPaint(cell(style)).render(fit(g, width, ic.Ellipsis))
 	}
-	return st
+	return c
 }
 
-func newRowStyles(t ui.Theme, ic ui.Icons) styles {
-	return styles{
-		tag:               newPaint(t.Muted),
-		repo:              newPaint(t.Muted),
-		title:             newPaint(t.Title),
-		reason:            newPaint(t.Muted),
-		age:               newPaint(t.Muted),
-		readTag:           newPaint(t.Subtle),
-		readRepo:          newPaint(t.Subtle),
-		readTitle:         newPaint(t.Muted),
-		selectedReadTitle: newPaint(t.Text),
-		filter:            newPaint(t.Text),
-		hint:              newPaint(t.Subtle),
-		unreadDot:         t.Accent.Render(ic.Dot),
-		readDot:           " ",
+func newStyles(t ui.Theme, ic ui.Icons) styles {
+	st := styles{
+		filter: newPaint(t.Text),
+		hint:   newPaint(t.Subtle),
 	}
+	for look := range st.look {
+		st.look[look] = [2]cells{newCells(t, ic, look, false), newCells(t, ic, look, true)}
+	}
+	return st
 }
 
 // paint is a style rendered once into the sequences around its text, so
@@ -162,19 +192,20 @@ func newLayout(width, age, tag int) layout {
 // where the glyph after the dot tells the kind of the thread and its state,
 // or is a tag such as "pr" in the ASCII set.
 func (s *Section) render(n core.Notification, selected bool, width int) string {
-	st := &s.styles
-	l := newLayout(width, s.dates.Width(), kindWidth(s.icons))
-	tag, repo, title := st.tag, st.repo, st.title
-	dot := st.unreadDot
-	marks := &st.marks
-	if !n.Unread {
-		dot = st.readDot
-		tag, repo, title = st.readTag, st.readRepo, st.readTitle
-		marks = &st.readMarks
-		if selected {
-			title = st.selectedReadTitle
-		}
+	look := lookPlain
+	switch {
+	case selected && s.feed.Focused():
+		look = lookFocused
+	case selected:
+		look = lookBlurred
 	}
+	unread := 0
+	if n.Unread {
+		unread = 1
+	}
+	st := &s.styles.look[look][unread]
+	l := newLayout(width, s.dates.Width(), kindWidth(s.icons))
+	tag, repo, title, dot := st.tag, st.repo, st.title, st.dot
 
 	ell := s.icons.Ellipsis
 	var b strings.Builder
@@ -183,7 +214,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	b.WriteByte(' ')
 	if l.tag > 0 {
 		sub, known := s.State(n)
-		if g := marks[ui.SubjectMark(n.Subject.Type, sub, known)]; g != "" {
+		if g := st.marks[ui.SubjectMark(n.Subject.Type, sub, known)]; g != "" {
 			b.WriteString(g)
 		} else {
 			tag.write(&b, fit(otherTag(n.Subject.Type), l.tag, ell))

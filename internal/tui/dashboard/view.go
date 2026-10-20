@@ -495,14 +495,14 @@ func (s *Section) workTabs(w int) string {
 func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w int) []string {
 	st := &s.st
 	gutter := "  "
-	titleStyle := st.shared.Text
 	if selected {
 		gutter = st.shared.Blurred
 		if focused {
 			gutter = st.shared.Cursor
 		}
-		titleStyle = st.shared.Selected
 	}
+	rp := &st.shared.Rows[ownerui.Look(selected, focused)]
+	titleStyle := rp.Title
 	hit := r.hit
 	age := s.dates.Short(hit.Issue.UpdatedAt, s.now())
 	for i, text := range r.lines {
@@ -511,9 +511,13 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		used := workIndent
 		if i == 0 {
 			state := ui.HitState(*hit)
-			st.states[state].Write(&b, s.icons.State(state))
+			glyph := st.states[state]
+			if selected {
+				glyph = glyph.Bold()
+			}
+			glyph.Write(&b, s.icons.State(state))
 			b.WriteByte(' ')
-			st.shared.Muted.Write(&link, r.ref)
+			rp.Muted.Write(&link, r.ref)
 			used += ansi.StringWidth(r.ref)
 			if text != "" {
 				link.WriteByte(' ')
@@ -528,7 +532,7 @@ func (s *Section) workItem(lines []string, r *workRow, selected, focused bool, w
 		used += ansi.StringWidth(text)
 		if i == len(r.lines)-1 {
 			b.WriteString(strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1)))
-			st.shared.Subtle.Write(&b, age)
+			rp.Subtle.Write(&b, age)
 		}
 		lines = append(lines, b.String())
 	}
@@ -570,23 +574,22 @@ func (s *Section) inboxBody(w, h int) []string {
 	for i := l.top; i < len(l.rows) && len(lines) < h; i++ {
 		nt := &l.rows[i]
 		gutter := "  "
-		titleStyle := st.shared.Text
 		if i == l.sel {
 			gutter = st.shared.Blurred
 			if focused {
 				gutter = st.shared.Cursor
 			}
-			titleStyle = st.shared.Selected
 		}
+		rp := &st.shared.Rows[ownerui.Look(i == l.sel, focused)]
 		age := s.dates.Short(nt.UpdatedAt, s.now())
 		room := max(w-4-s.dates.Width()-1, 0)
 		repo := ownerui.Truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)
 		title := ownerui.Truncate(ownerui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
 		// The repository and the title link to the thread's page.
-		link := s.links.Link(nt.Subject.WebURL, st.shared.Muted.Render(repo)+"  "+titleStyle.Render(title))
-		lines = append(lines, gutter+st.shared.Accent.Render(s.icons.Dot)+" "+link+
-			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+st.shared.Subtle.Render(age))
+		link := s.links.Link(nt.Subject.WebURL, rp.Muted.Render(repo)+"  "+rp.Title.Render(title))
+		lines = append(lines, gutter+rp.Accent.Render(s.icons.Dot)+" "+link+
+			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+rp.Subtle.Render(age))
 	}
 	return lines
 }

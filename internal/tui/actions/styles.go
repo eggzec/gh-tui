@@ -11,6 +11,15 @@ import (
 // each side.
 const sepWidth = 3
 
+// The looks of a run row: as it is, selected in a blurred pane, and
+// selected in a focused one.
+const (
+	lookPlain = iota
+	lookBlurred
+	lookFocused
+	numLooks
+)
+
 // styles are the modal's own, built once per theme.
 type styles struct {
 	// ic draws the crumbs, separators and ellipses.
@@ -26,6 +35,8 @@ type styles struct {
 	folded, unfolded string
 
 	ui.RunStyles
+	// row holds the styles of the cells of a run row in each of its looks.
+	row [numLooks]ui.RunStyles
 	// confirm styles the confirmation.
 	confirm ui.ConfirmStyles
 }
@@ -46,6 +57,11 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		unfolded:   t.Muted.Render(ic.Unfolded) + " ",
 		RunStyles:  ui.NewRunStyles(t, ic),
 		confirm:    t.Confirm(ic),
+	}
+	s.row = [numLooks]ui.RunStyles{
+		lookPlain:   ui.NewRowRunStyles(t, ic, false, false),
+		lookBlurred: ui.NewRowRunStyles(t, ic, true, false),
+		lookFocused: ui.NewRowRunStyles(t, ic, true, true),
 	}
 	return s
 }

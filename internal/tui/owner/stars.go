@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -31,7 +32,7 @@ func (s *Section) newStarList(login string) *starList {
 		return svc.Stars(ctx, q)
 	}
 	render := func(r core.Repo, selected bool, _ int) string {
-		return s.drawer().Row(l.Cols(), r, selected, s.dates, s.now)
+		return s.drawer().Row(l.Cols(), r, ownerui.Look(selected, l.Feed.Focused()), s.dates, s.now)
 	}
 	l.Feed = feed.New(ui.FeedPages("owner.stars", query, read), render,
 		s.feedOptions(feed.WithKey(func(r core.Repo) string { return r.Ref.String() }), "No stars yet.", "load the stars", login)...)

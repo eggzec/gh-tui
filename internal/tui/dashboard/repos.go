@@ -94,7 +94,9 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	}
 	clearKey := ui.KeyOf(s.icons, s.keys.ClearFilter)
 	empty := o.emptyText(o.Filter(), clearKey)
-	render := func(r core.Repo, selected bool, _ int) string { return s.renderRepo(o.Cols(), r, selected) }
+	render := func(r core.Repo, selected bool, _ int) string {
+		return s.renderRepo(o.Cols(), r, selected, o.Feed.Focused())
+	}
 	o.Feed = feed.New(ui.FeedPages("dashboard.repos", query, read), render,
 		feed.WithContext(s.ctx),
 		feed.WithKey(func(r core.Repo) string { return r.Ref.String() }),

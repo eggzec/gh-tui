@@ -147,6 +147,24 @@ func NewRunStyles(t Theme, ic Icons) RunStyles {
 	return s
 }
 
+// NewRowRunStyles returns the run styles of t for the cells of a row of a
+// list of runs. Strong styles the name of the workflow, which takes the
+// accent in the selected row of a focused pane; the other cells of that row
+// are bold and keep their colors.
+func NewRowRunStyles(t Theme, ic Icons, selected, focused bool) RunStyles {
+	cell := func(s lipgloss.Style) lipgloss.Style { return t.Cell(s, selected) }
+	s := RunStyles{
+		Text: cell(t.Text), Strong: cell(t.RowTitle(selected, focused)),
+		Muted: cell(t.Muted), Subtle: cell(t.Subtle),
+		Accent: cell(t.Accent), Warning: cell(t.Warning), Error: cell(t.Error),
+	}
+	for st := range NumRunStates {
+		s.States[st] = cell(t.Run(st))
+		s.Glyphs[st] = s.States[st].Render(ic.Run(st))
+	}
+	return s
+}
+
 // Took renders how long a job or a step ran, or where it is while it
 // hasn't started.
 func (s *RunStyles) Took(status core.RunStatus, c core.Conclusion, start, end, now time.Time) string {
