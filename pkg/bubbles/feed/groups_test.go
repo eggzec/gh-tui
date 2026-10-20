@@ -80,6 +80,31 @@ func TestGroupsOneLevel(t *testing.T) {
 	}
 }
 
+func TestGroupsSortByShownLabel(t *testing.T) {
+	m := load(t, newSource(6, 6), WithSize(40, 20))
+	key := func(it item) string {
+		if idNum(it) == 0 {
+			return ""
+		}
+		return parity(it)
+	}
+	label := func(k string) string {
+		switch k {
+		case "even":
+			return "Zed"
+		case "odd":
+			return "alpha"
+		}
+		return "Aardvark"
+	}
+	m = applyGroups(t, m, []Group[item]{{Key: key, Label: label}})
+	got := outline(m)
+	want := []string{"alpha(3)", ".1", ".3", ".5", "Zed(2)", ".2", ".4"}
+	if len(got) != len(want)+2 || !slices.Equal(got[:len(want)], want) || got[len(got)-1] != ".0" {
+		t.Fatalf("lines = %q, want %q then the empty key's group last", got, want)
+	}
+}
+
 func TestGroupsTwoLevels(t *testing.T) {
 	m := load(t, newSource(12, 12), WithSize(40, 30))
 	m = applyGroups(t, m, []Group[item]{{Key: parity}, {Key: third}})
