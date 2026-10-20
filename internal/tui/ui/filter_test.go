@@ -510,11 +510,3 @@ func TestFilterModalRoomForTheLastRow(t *testing.T) {
 		})
 	}
 }
-
-// withNextTab returns the default keys with the key that switches tabs
-// replaced by k.
-func withNextTab(k string) config.Keymap {
-	keys := config.Default().Keys
-	keys.Set(config.ActionNextTab, []string{k})
-	return keys
-}

@@ -376,9 +376,9 @@ func TestFilterKeysStayOffTheList(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			h := started(t, newFakeService(sampleIssues(40)), 80, 20)
 			before, _ := h.list.Selected()
-			want := ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+			var want tea.Msg = ui.OpenFilterMsg{Tab: filterform.FiltersTab}
 			if k == "s" {
-				want.Tab = filterform.SortTab
+				want = ui.OpenSortMsg{}
 			}
 			if msgs := press(t, h, k); len(msgs) != 1 || msgs[0] != want {
 				t.Errorf("%s sent %v, want %v", k, msgs, want)

@@ -1,57 +1,21 @@
 # label | keys | help key | on or off
 
-global
+always
   quit | ctrl+c | ^c | on
-  command | : | : | on
-  maximize | Z | Z | on
-  dashboard | 0 | 0 | off
-  notifications | I | I | off
-  search | S | S | off
-  this repo | . | . | off
-  owner page | @ | @ | off
   help | ? | ? | on
 
-Filter
-  previous field | k up | k/↑ | on
-  next field | j down | j/↓ | on
-  first field | g home | g/home | on
-  last field | G end | G/end | on
-  previous | h left | h/← | on
-  next | l right | l/→ | on
-  list | space | space | on
-  insert | i | i | off
-  append | a | a | off
-  clear | delete | delete | off
+Order picker
+  up | k up | k/↑ | on
+  down | j down | j/↓ | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  half page up | ctrl+u | ^u | on
+  half page down | ctrl+d | ^d | on
+  top | g home | g/home | on
+  bottom | G end | G/end | on
+  search | / | / | on
+  toggle | space | space | on
   apply | enter | ↵ | on
   close | esc | esc | on
-  close | q | q | on
-  retry | r | r | off
-  next tab | ] | ] | on
-  previous tab | [ | [ | on
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
-  apply | enter | ↵ | off
-  done | esc | esc | off
-  up | up ctrl+p | ↑/^p | off
-  down | down ctrl+n | ↓/^n | off
-  clear | delete | delete | off
-  choose | enter | ↵ | off
-  close | esc | esc | off
-  up | up ctrl+p | ↑/^p | off
-  down | down ctrl+n | ↓/^n | off
-  page up | pgup | pgup | off
-  page down | pgdown | pgdn | off
-  scope | tab | tab | off
-  previous scope | shift+tab | shift+tab | off
-  up | k up | k/↑ | off
-  down | j down | j/↓ | off
-  page up | ctrl+b pgup | ^b/pgup | off
-  page down | ctrl+f pgdown | ^f/pgdn | off
-  half page up | ctrl+u | ^u | off
-  half page down | ctrl+d | ^d | off
-  top | g home | g/home | off
-  bottom | G end | G/end | off
-  search | / | / | off
-  toggle | space | space | off
-  cancel | backspace | backspace | off
-  back | backspace | backspace | off

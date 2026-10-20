@@ -26,8 +26,8 @@ Filter
   close | esc | esc | on
   close | q | q | on
   retry | r | r | off
-  next tab | ] | ] | on
-  previous tab | [ | [ | on
+  next tab | ] | ] | off
+  previous tab | [ | [ | off
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   apply | enter | ↵ | off

@@ -889,9 +889,7 @@ func TestContextChains(t *testing.T) {
 // unopenedContexts are the contexts that no screen opens yet, so that no
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
-var unopenedContexts = map[string]string{
-	"order_pick": "the sort and group-by modals open it once they land",
-}
+var unopenedContexts = map[string]string{}
 
 // foldedContexts are the contexts whose keys help lists in the layer of
 // another, because one widget holds both: the keys of a picker in normal
@@ -1139,7 +1137,7 @@ func keyContexts() []keyContext {
 		{name: "owner: pinned", msg: octocat, after: []string{"global.pane_1"}, context: "owner_pinned", want: "global, owner, owner_pinned"},
 		{name: "owner: zoomed", msg: octocat, after: []string{"global.zoom"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: filter", msg: octocat, after: []string{"owner_list.filter"}, context: "filter", want: "global, filter"},
-		{name: "owner: sort", msg: octocat, after: []string{"owner_list.sort"}, context: "filter", want: "global, filter"},
+		{name: "owner: sort", msg: octocat, after: []string{"owner_list.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "owner: stars", msg: octocat, after: []string{"global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: followers", msg: octocat, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: following", msg: octocat, after: []string{"global.next_tab", "global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
@@ -1156,7 +1154,7 @@ func keyContexts() []keyContext {
 		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "global, dashboard, dashboard_inbox"},
 		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
-		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "filter", want: "global, filter"},
+		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "global, notifications"},
 		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
 		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
@@ -1164,7 +1162,7 @@ func keyContexts() []keyContext {
 		{name: "search: query", steps: []string{"global.search", "search.insert"}, context: "search_query", want: "always, global, search_query (types)"},
 		{name: "search: results", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},
 		{name: "search: filter", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
-		{name: "search: sort", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit", "search_results.sort"}, context: "filter", want: "global, filter"},
+		{name: "search: sort", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit", "search_results.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "files", repo: true, steps: []string{"files.expand", "files.down"}, context: "files", want: "global, repo, files"},
 		{name: "files: zoomed", repo: true, steps: []string{"files.expand", "files.down", "global.zoom"}, context: "files", want: "global, repo, files"},
 		{name: "files: error toast", repo: true, steps: []string{"files.expand", "files.down"}, msg: ui.NotifyMsg{Level: toast.Error, Text: "Keys collide."}, context: "files", want: "global, repo, files"},
@@ -1176,7 +1174,7 @@ func keyContexts() []keyContext {
 		{name: "files: finder preview", repo: true, steps: []string{"global.find_file", typed("R"), "finder.choose"}, after: []string{"preview.half_page_down", "preview.right"}, context: "preview", want: "global, preview"},
 		{name: "pull requests", repo: true, steps: []string{"global.pane_2"}, context: "pulls", want: "global, repo, pulls"},
 		{name: "pull requests: filter", repo: true, steps: []string{"global.pane_2", "pulls.filter"}, context: "filter", want: "global, filter"},
-		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "filter", want: "global, filter"},
+		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "pull requests: filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.down", "filter.toggle"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.down", "filter.toggle", "picker_normal.search"}, context: "picker", want: "always, picker (types)"},
 		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
@@ -1199,7 +1197,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: review", repo: true, steps: []string{"global.pane_2", "global.select", "global.command", typed("review"), "command_line.run", "global.select"}, context: "composer", want: "always, composer (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
-		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "filter", want: "global, filter"},
+		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},
 		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
 		{name: "issue: references", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references"}, context: "references", want: "global, references"},
@@ -1239,9 +1237,7 @@ var reserved = map[string]string{
 
 // reservedContexts are the contexts of default.yaml whose actions nothing
 // reads yet, each with its reason.
-var reservedContexts = map[string]string{
-	"order_pick": "the sort and group-by modals read them once they land",
-}
+var reservedContexts = map[string]string{}
 
 // reservedReason is the reason an action is reserved, by its name or by its
 // context.
