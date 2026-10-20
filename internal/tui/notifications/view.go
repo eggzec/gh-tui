@@ -18,10 +18,25 @@ const headerHeight = 1
 // Widths of the fixed columns and of the gaps between columns.
 const (
 	dotWidth    = 1
-	tagWidth    = 3
 	reasonWidth = 7
 	gap         = 2
 )
+
+// The kind column is one glyph wide, or three cells for the short tags of
+// the ASCII set.
+const (
+	glyphWidth = 1
+	tagWidth   = 3
+)
+
+// kindWidth returns the width of the column that tells the kind of a thread,
+// in the icon set ic.
+func kindWidth(ic ui.Icons) int {
+	if ic.Set() == config.IconsASCII {
+		return tagWidth
+	}
+	return glyphWidth
+}
 
 // Narrow rows give up columns, least important first, so the title keeps at
 // least this many cells.
@@ -38,9 +53,29 @@ type styles struct {
 	selectedReadTitle             paint
 	filter, hint                  paint
 	unreadDot, readDot            string
+	// marks and readMarks hold the glyph of each mark of an unread and of a
+	// read row, as wide as the column and painted, or "" for a mark that
+	// has none, which is drawn from the type of the thread.
+	marks, readMarks [ui.NumMarks]string
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
+	st := newRowStyles(t, ic)
+	width := kindWidth(ic)
+	read := newPaint(t.Subtle)
+	for m := range ui.NumMarks {
+		g := ic.Mark(m)
+		if g == "" {
+			continue
+		}
+		g = fit(g, width, ic.Ellipsis)
+		st.marks[m] = newPaint(t.Mark(m)).render(g)
+		st.readMarks[m] = read.render(g)
+	}
+	return st
+}
+
+func newRowStyles(t ui.Theme, ic ui.Icons) styles {
 	return styles{
 		tag:               newPaint(t.Muted),
 		repo:              newPaint(t.Muted),
@@ -91,14 +126,14 @@ type layout struct {
 	tag, repo, title, reason, age int
 }
 
-// newLayout lays out a row of width cells, with dates of age cells at
-// most.
-func newLayout(width, age int) layout {
+// newLayout lays out a row of width cells, with dates of age cells at most
+// and a kind column of tag cells.
+func newLayout(width, age, tag int) layout {
 	// The dot, the title and the age are always shown.
 	rest := width - dotWidth - 1 - gap - age
 	l := layout{
 		age:    age,
-		tag:    tagWidth,
+		tag:    tag,
 		repo:   min(max(width/5, 12), 28),
 		reason: reasonWidth,
 	}
@@ -107,7 +142,8 @@ func newLayout(width, age int) layout {
 		l.title += l.reason + gap
 		l.reason = 0
 	}
-	if l.title < minTitleWithTag {
+	// A glyph costs less than a tag, so it stays at a narrower title.
+	if l.title < minTitleWithTag-(tagWidth-tag) {
 		l.title += l.tag + 1
 		l.tag = 0
 	}
@@ -121,15 +157,20 @@ func newLayout(width, age int) layout {
 
 // render draws one notification in width cells:
 //
-//	● pr  owner/name      Title of the thread               mention  3h
+//	●  owner/name      Title of the thread               mention  3h
+//
+// where the glyph after the dot tells the kind of the thread and its state,
+// or is a tag such as "pr" in the ASCII set.
 func (s *Section) render(n core.Notification, selected bool, width int) string {
 	st := &s.styles
-	l := newLayout(width, s.dates.Width())
+	l := newLayout(width, s.dates.Width(), kindWidth(s.icons))
 	tag, repo, title := st.tag, st.repo, st.title
 	dot := st.unreadDot
+	marks := &st.marks
 	if !n.Unread {
 		dot = st.readDot
 		tag, repo, title = st.readTag, st.readRepo, st.readTitle
+		marks = &st.readMarks
 		if selected {
 			title = st.selectedReadTitle
 		}
@@ -141,7 +182,12 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	b.WriteString(dot)
 	b.WriteByte(' ')
 	if l.tag > 0 {
-		tag.write(&b, fit(subjectTag(n.Subject.Type, strings.TrimSpace(s.icons.Separator)), l.tag, ell))
+		sub, known := s.State(n)
+		if g := marks[ui.SubjectMark(n.Subject.Type, sub, known)]; g != "" {
+			b.WriteString(g)
+		} else {
+			tag.write(&b, fit(otherTag(n.Subject.Type), l.tag, ell))
+		}
 		b.WriteByte(' ')
 	}
 	if l.repo > 0 {
@@ -249,24 +295,10 @@ func (s *Section) renderUnreadable() {
 	s.unreadable = strings.Join(ui.FitLines(lines, s.width, h), "\n")
 }
 
-// subjectTag is the short tag of a subject type, or other for a type
-// without one.
-func subjectTag(t core.SubjectType, other string) string {
-	switch t {
-	case core.SubjectPullRequest:
-		return "pr"
-	case core.SubjectIssue:
-		return "iss"
-	case core.SubjectRelease:
-		return "rel"
-	case core.SubjectDiscussion:
-		return "dsc"
-	case core.SubjectCommit:
-		return "cmt"
-	case core.SubjectCheckSuite:
-		return "ci"
-	}
-	return other
+// otherTag is the short tag of a type that has no mark with a tag of its
+// own: the start of its name in lower case, as the other tags are.
+func otherTag(t core.SubjectType) string {
+	return ansi.Truncate(strings.ToLower(string(t)), tagWidth, "")
 }
 
 // shortReason names why the user got a notification in a word.
