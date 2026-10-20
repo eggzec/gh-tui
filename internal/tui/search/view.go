@@ -29,14 +29,21 @@ func (s *Section) layout() {
 	// The input draws one cell more than its width, for the cursor.
 	s.input.SetWidth(max(s.width-2-2-1-1, 1))
 	// The hits take a line of titles above them.
-	w, h := s.resultsSize()
+	_, h := s.resultsSize()
 	for _, l := range s.hits {
-		l.feed.SetSize(w, max(h-1, 0))
+		s.sizeHits(l)
 	}
 	if s.code != nil {
 		s.sizeList(&s.code.feed)
 	}
 	s.starts.resize(h)
+}
+
+// sizeHits sizes the feed of l, a line shorter than the room of the results,
+// which the titles of the columns take.
+func (s *Section) sizeHits(l *hitList) {
+	w, h := s.resultsSize()
+	l.feed.SetSize(w, max(h-1, 0))
 }
 
 func (s *Section) sizeList(f interface{ SetSize(width, height int) }) {
@@ -229,6 +236,11 @@ func (s *Section) results(w, h int) []string {
 			st.subtle.render("GitHub allows 10 code searches a minute. Repositories, issues and pull requests still search as you type."))
 	case f != nil:
 		if lines, ok := s.staleView(); ok {
+			// The titles stay in front of the dimmed rows, so nothing
+			// moves when the new results arrive.
+			if l, ok := s.visibleHits(); ok {
+				return append([]string{s.header(l, w)}, lines...)
+			}
 			return lines
 		}
 		lines := strings.Split(f.View(), "\n")
@@ -244,7 +256,9 @@ func (s *Section) results(w, h int) []string {
 }
 
 // header renders the titles of the columns of the hits of l over its rows,
-// w cells wide, laid out as renderRepo and renderHit lay out their rows.
+// w cells wide, laid out as renderRepo and renderHit lay out their rows: the
+// leading column of the other kinds and the widths after Item mirror
+// renderHit, so change them together.
 func (s *Section) header(l *hitList, w int) string {
 	gutter := l.feed.Gutter()
 	rw := max(w-gutter, 0)

@@ -103,7 +103,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 		// Nothing is loaded yet, so there is nothing to regroup.
 		_ = l.feed.SetGroups(groups)
 	}
-	s.sizeList(&l.feed)
+	s.sizeHits(l)
 	if s.focused && s.area == resultsArea && s.kind == k {
 		l.feed.Focus()
 	}
