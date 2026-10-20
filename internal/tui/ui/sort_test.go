@@ -82,6 +82,21 @@ func TestSortModalApplies(t *testing.T) {
 	}
 }
 
+func TestSortModalTakesNewIcons(t *testing.T) {
+	t.Parallel()
+	m, _ := sortFixture(t, "is:closed")
+	d := config.Default()
+	d.UI.Icons = config.IconsASCII
+	ic := NewIcons(config.IconsASCII)
+	m.Update(SettingsMsg{Config: d})
+	if want := "Sort" + ic.Separator + "Pull requests"; m.Title() != want {
+		t.Errorf("title %q after the icons changed, want %q", m.Title(), want)
+	}
+	if m.icons.Set() != config.IconsASCII {
+		t.Errorf("icons %q, want %q", m.icons.Set(), config.IconsASCII)
+	}
+}
+
 func TestSortModalEscapeApplies(t *testing.T) {
 	m, target := sortFixture(t, "is:closed sort:comments-asc")
 	msgs := drain(m.Update(keyOf("esc")))
