@@ -162,13 +162,13 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 		gap()
 		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
 		b.WriteString(d.Links.Link(d.URL(r), st.Title.Render(name)))
-		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
+		b.WriteString(strings.Repeat(" ", max(c.name-ansi.StringWidth(name), 0)))
 	}
 	if c.desc > 0 {
 		gap()
 		desc := TruncateMiddle(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
 		st.Muted.Write(&b, desc)
-		b.WriteString(strings.Repeat(" ", c.desc-ansi.StringWidth(desc)))
+		b.WriteString(strings.Repeat(" ", max(c.desc-ansi.StringWidth(desc), 0)))
 	}
 	if c.lang > 0 {
 		gap()
