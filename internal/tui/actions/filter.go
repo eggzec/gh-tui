@@ -226,14 +226,22 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 
 // filterOf returns the filter that the values of the form make. The words no
 // field claims, such as a qualifier the runs have none for, join the words
-// of the search row, so that they show in the title and cut the runs.
+// of the search row as quoted phrases, so that they show in the title and cut
+// the runs.
 func (m *Modal) filterOf(v map[string]filterform.Value, free []string) core.RunFilter {
+	words := make([]string, 1, 1+len(free))
+	words[0] = v[ui.SearchField.Key].Text()
+	for _, tok := range free {
+		// A quoted token reads as a plain word, not as a qualifier that the
+		// words would skip.
+		words = append(words, `"`+strings.ReplaceAll(tok, `"`, "")+`"`)
+	}
 	f := core.RunFilter{
 		Branch: strings.TrimSpace(v[fieldBranch].Text()),
 		Event:  v[fieldEvent].Text(),
 		Status: v[fieldStatus].Text(),
 		Actor:  strings.TrimSpace(v[fieldActor].Text()),
-		Words:  strings.TrimSpace(strings.Join(append([]string{v[ui.SearchField.Key].Text()}, free...), " ")),
+		Words:  strings.TrimSpace(strings.Join(words, " ")),
 	}
 	if f.Actor != me {
 		f.Actor = strings.TrimPrefix(f.Actor, "@")
