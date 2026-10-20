@@ -154,7 +154,7 @@ func stateNames(typ core.SubjectType, st core.SubjectState) []string {
 			names = append(names, "open")
 		}
 		return names
-	case core.SubjectRelease, core.SubjectCommit, core.SubjectCheckSuite:
+	case core.SubjectRelease, core.SubjectCommit, core.SubjectCheckSuite, core.SubjectVulnerabilityAlert:
 		return nil
 	}
 	return nil
