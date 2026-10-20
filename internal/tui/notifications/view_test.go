@@ -2,8 +2,10 @@ package notifications
 
 import (
 	"maps"
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -33,6 +35,29 @@ func TestView(t *testing.T) {
 			press(t, s, tt.keys...)
 			golden.RequireEqual(t, s.View())
 		})
+	}
+}
+
+// A row names the number of its subject, and the titles head the columns with
+// the age, which is left-aligned, last.
+func TestRefAndHeader(t *testing.T) {
+	t.Parallel()
+	r := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
+	if got, want := refLabel(r, 42, 40, "…"), "charmbracelet/bubbletea#42"; got != want {
+		t.Errorf("refLabel = %q, want %q", got, want)
+	}
+	if got := refLabel(r, 42, 16, "…"); !strings.HasSuffix(got, "#42") || ansi.StringWidth(got) > 16 {
+		t.Errorf("refLabel narrow = %q, want #42 kept within 16 cells", got)
+	}
+	if got := refLabel(r, 0, 40, "…"); got != "charmbracelet/bubbletea" {
+		t.Errorf("refLabel without number = %q", got)
+	}
+	h := columnHeader(newLayout(100, 7, tagWidth), "…")
+	if !strings.HasSuffix(strings.TrimRight(h, " "), "Updated") {
+		t.Errorf("header = %q, want Updated last", h)
+	}
+	if narrow := columnHeader(newLayout(40, 4, 0), "…"); strings.Contains(narrow, "Reason") {
+		t.Errorf("narrow header = %q, want the reason dropped", narrow)
 	}
 }
 
