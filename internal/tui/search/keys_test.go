@@ -60,7 +60,7 @@ func TestKeyLayersOrder(t *testing.T) {
 			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}
 		}},
 		{results, "s", "Results: sort", func(s, b *Section, msgs []tea.Msg) bool {
-			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.SortTab}
+			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenSortMsg{}
 		}},
 	}
 	for _, tt := range tests {

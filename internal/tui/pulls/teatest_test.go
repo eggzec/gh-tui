@@ -72,6 +72,10 @@ func (a app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ui.OpenModalMsg, ui.CloseModalMsg:
 		cmd := a.h.Update(msg)
+		// The tui sizes a modal as it opens it; the picker draws nothing before.
+		for _, m := range a.h.modals {
+			m.SetSize(80, 24)
+		}
 		if a.modals != nil {
 			a.modals <- struct{}{}
 		}
@@ -202,7 +206,7 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	select {
 	case msg := <-applied:
-		if msg.Query != "is:merged author:hubot sort:updated-desc" {
+		if msg.Query != "is:merged author:hubot" {
 			t.Errorf("applied %q, want the tab and the author", msg.Query)
 		}
 	case <-time.After(5 * time.Second):
@@ -226,8 +230,8 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 func TestProgramSorts(t *testing.T) {
 	svc := newFakeService()
 	h := newTest(t, svc, 80, 24)
-	applied, modals := make(chan filterform.AppliedMsg, 1), make(chan struct{}, 1)
-	tm := teatest.NewTestModel(t, app{h: h, done: make(chan ui.DoneMsg, 1), applied: applied, modals: modals}, teatest.WithInitialTermSize(80, 24))
+	modals := make(chan struct{}, 1)
+	tm := teatest.NewTestModel(t, app{h: h, done: make(chan ui.DoneMsg, 1), modals: modals}, teatest.WithInitialTermSize(80, 24))
 	waitModal := func(what string) {
 		t.Helper()
 		select {
@@ -244,35 +248,27 @@ func TestProgramSorts(t *testing.T) {
 	}
 	wait("Retry GraphQL requests")
 
-	// s opens the Sort tab, where right sorts by the next option, and
-	// down and right flip its order.
+	// s opens the sort modal with the sort in force chosen; tab moves to the
+	// chosen pane, where space reverses its order, and enter applies it.
 	tm.Type("s")
 	waitModal("opened")
-	wait("Newest first")
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyRight})
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyRight})
+	wait("Sorted by")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	select {
-	case msg := <-applied:
-		if msg.Query != "is:open sort:created-asc" {
-			t.Errorf("applied %q, want the open ones, oldest created first", msg.Query)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the sort was never applied")
-	}
+	// The sort modal applies to its list itself, with no message to the app.
 	waitModal("closed")
 	teatest.WaitFor(t, tm.Output(), func([]byte) bool {
 		q := svc.listed()
-		return len(q) > 0 && q[len(q)-1].Filter == "sort:created-asc"
+		return len(q) > 0 && q[len(q)-1].Filter == "sort:updated-asc"
 	}, teatest.WithDuration(5*time.Second))
 	tm.Type("q")
 
 	final := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(app).h
-	if final.tab != core.StateOpen || final.query != "sort:created-asc" || len(final.modals) != 0 {
-		t.Errorf("tab %q, query %q, %d modals; want the open ones sorted, the modal closed", final.tab, final.query, len(final.modals))
+	if final.tab != "" || final.query != "sort:updated-asc" || len(final.modals) != 0 {
+		t.Errorf("tab %q, query %q, %d modals; want every state, oldest updated first, the modal closed", final.tab, final.query, len(final.modals))
 	}
-	if q := svc.listed(); q[len(q)-1] != (pulls.ListQuery{Repo: repo, State: core.StateOpen, Filter: "sort:created-asc"}) {
-		t.Errorf("the service listed %+v last, want the open ones sorted", q[len(q)-1])
+	if q := svc.listed(); q[len(q)-1] != (pulls.ListQuery{Repo: repo, Filter: "sort:updated-asc"}) {
+		t.Errorf("the service listed %+v last, want every state, oldest updated first", q[len(q)-1])
 	}
 }

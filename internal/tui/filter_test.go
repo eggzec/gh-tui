@@ -43,7 +43,7 @@ func (s *filterSection) Update(msg tea.Msg) tea.Cmd {
 		case s.ready && keymap.Matches(k, s.filter):
 			return ui.OpenFilter(filterform.FiltersTab)
 		case s.ready && s.sorts && keymap.Matches(k, s.sort):
-			return ui.OpenFilter(filterform.SortTab)
+			return ui.OpenSort()
 		}
 	}
 	return s.fakeSection.Update(msg)
@@ -213,31 +213,39 @@ func TestPaneTitleChips(t *testing.T) {
 	}
 }
 
-func TestSortKeyOpensTheSortTab(t *testing.T) {
+func sortModal(t *testing.T, m *Model) *ui.SortModal {
+	t.Helper()
+	mod, ok := m.topModal().(*ui.SortModal)
+	if !ok {
+		t.Fatalf("modal = %T, want the sort modal", m.topModal())
+	}
+	return mod
+}
+
+// The filter modal has no tab for the sort, which has a modal of its own.
+func TestSortKeyOpensTheSortModal(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name       string
-		sorts      bool
-		keys       []string
-		wantTab    int
-		wantNoTabs bool
+		name  string
+		sorts bool
+		key   string
+		sort  bool
 	}{
-		{name: "f opens the filters", sorts: true, keys: []string{"f"}, wantTab: 0},
-		{name: "s opens the sort", sorts: true, keys: []string{"s"}, wantTab: 1},
-		{name: "] switches to the sort", sorts: true, keys: []string{"f", "]"}, wantTab: 1},
-		{name: "[ switches back", sorts: true, keys: []string{"s", "["}, wantTab: 0},
-		{name: "f opens a list without a sort, with no tabs", keys: []string{"f"}, wantTab: -1, wantNoTabs: true},
+		{name: "f opens the filters, with no tabs", sorts: true, key: "f"},
+		{name: "s opens the sort", sorts: true, key: "s", sort: true},
+		{name: "f opens a list without a sort, with no tabs", key: "f"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, pulls, _ := newFilterApp(t)
 			pulls.sorts = tt.sorts
-			for _, k := range tt.keys {
-				run(m, m.key(press(k)))
-			}
-			names, active := filterModal(t, m).Tabs()
-			if active != tt.wantTab || (names == nil) != tt.wantNoTabs {
-				t.Errorf("Tabs = %q, %d; want tab %d", names, active, tt.wantTab)
+			run(m, m.key(press(tt.key)))
+			if tt.sort {
+				if got, want := sortModal(t, m).Title(), "Sort · Pull requests · eggzec/gh-tui"; got != want {
+					t.Errorf("title = %q, want %q", got, want)
+				}
+			} else if names, active := filterModal(t, m).Tabs(); names != nil || active != -1 {
+				t.Errorf("Tabs = %q, %d; want none", names, active)
 			}
 			if pulls.got(isKey("s")) || pulls.got(isKey("f")) {
 				t.Error("the section got the key too")
@@ -293,8 +301,8 @@ func TestFilterModalAppliesAfterList(t *testing.T) {
 	}
 }
 
-// Applying from either tab applies the same query.
-func TestFilterModalAppliesFromEitherTab(t *testing.T) {
+// Applying from the filter or from the sort applies the same query.
+func TestFilterAndSortModalsApplyTheSameQuery(t *testing.T) {
 	t.Parallel()
 	for _, k := range []string{"f", "s"} {
 		m, pulls, _ := newFilterApp(t)
@@ -327,9 +335,7 @@ func TestSortKeyCanBeRebound(t *testing.T) {
 		t.Fatal("s still opens the sort")
 	}
 	run(m, m.key(press("O")))
-	if _, active := filterModal(t, m).Tabs(); active != 1 {
-		t.Errorf("O opened tab %d, want the sort", active)
-	}
+	sortModal(t, m)
 }
 
 // The tabs show in the top edge of the frame, at 80 columns too, where
@@ -358,9 +364,9 @@ func TestFilterModalFrame(t *testing.T) {
 	}
 }
 
-// TestFilterCommands checks that filter and sort open the filter modal of
-// the focused list on their tab, as their keys do, and say so where there
-// is none to open.
+// TestFilterCommands checks that filter and sort open the filter or the sort
+// modal of the focused list, as their keys do, and say so where there is
+// none to open.
 func TestFilterCommands(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -368,13 +374,13 @@ func TestFilterCommands(t *testing.T) {
 		line string
 		// sorts gives the list a sort, and ready a filter.
 		sorts, ready bool
-		// tab is the tab the modal opens on, if it opens, and toast the
+		// modal is the kind of modal that opens, if one does, and toast the
 		// text of the toast.
-		tab   string
+		modal string
 		toast string
 	}{
-		{name: "filter", line: "filter", ready: true, tab: "Filters"},
-		{name: "sort", line: "sort", ready: true, sorts: true, tab: "Sort"},
+		{name: "filter", line: "filter", ready: true, modal: "Filter"},
+		{name: "sort", line: "sort", ready: true, sorts: true, modal: "Sort"},
 		{name: "no sort", line: "sort", ready: true, toast: "Nothing here to sort."},
 		{name: "no filter", line: "filter", toast: "Nothing here to filter."},
 		{name: "an argument", line: "filter is:open", ready: true, toast: "The filter command takes no argument."},
@@ -385,18 +391,15 @@ func TestFilterCommands(t *testing.T) {
 			pulls.ready, pulls.sorts = tt.ready, tt.sorts
 			m.toast.SetDuration(0)
 			runCommand(t, m, tt.line)
-			if tt.tab == "" {
+			switch tt.modal {
+			case "":
 				if m.topModal() != nil {
 					t.Errorf("modal %q opened", m.topModal().Title())
 				}
-			} else {
-				tab := "Filters"
-				if names, active := filterModal(t, m).Tabs(); active >= 0 {
-					tab = names[active]
-				}
-				if tab != tt.tab {
-					t.Errorf("tab %q, want %q", tab, tt.tab)
-				}
+			case "Sort":
+				sortModal(t, m)
+			default:
+				filterModal(t, m)
 			}
 			if tt.toast != "" && !hasToast(m, tt.toast) {
 				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))

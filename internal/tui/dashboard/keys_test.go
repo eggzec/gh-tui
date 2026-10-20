@@ -41,7 +41,7 @@ func TestKeyLayersOrder(t *testing.T) {
 			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.FiltersTab)
 		}},
 		{nil, "s", "Repositories: sort", func(s, b *Section, msgs []tea.Msg) bool {
-			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.SortTab)
+			return selectedRepo(s) == selectedRepo(b) && len(msgs) == 1 && msgs[0] == ui.OpenSortMsg{}
 		}},
 		{nil, "F", "nothing", func(s, b *Section, msgs []tea.Msg) bool { return selectedRepo(s) == selectedRepo(b) && len(msgs) == 0 }},
 		{[]string{"tab"}, "j", "Work: down", func(s, b *Section, _ []tea.Msg) bool {
