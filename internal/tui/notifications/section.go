@@ -5,8 +5,9 @@ package notifications
 
 import (
 	"context"
-	"maps"
+	"slices"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -119,9 +120,11 @@ type Section struct {
 	// opener opens the threads and reads them ahead.
 	opener *threads.Opener
 	// reader reads the states of the subjects, if set, and states holds
-	// them. Both are used in Update only.
-	reader States
-	states map[core.SubjectRef]core.SubjectState
+	// them. A state filter has the read of the list use them off Update, so
+	// statesMu guards states.
+	reader   States
+	statesMu sync.RWMutex
+	states   map[core.SubjectRef]core.SubjectState
 
 	width, height int
 	theme         ui.Theme
@@ -146,7 +149,7 @@ func (s *Section) loaded(items []core.Notification) tea.Cmd {
 	if s.reader == nil || len(items) == 0 {
 		return nil
 	}
-	maps.Copy(s.states, s.reader.CachedStates(items))
+	s.keepStates(s.reader.CachedStates(items))
 	return func() tea.Msg {
 		// A failure is logged by the service; the rows stay as they are.
 		got, _ := s.reader.States(s.ctx, items)
@@ -156,8 +159,53 @@ func (s *Section) loaded(items []core.Notification) tea.Cmd {
 
 // State returns the state of the subject of n, or false if it isn't known.
 func (s *Section) State(n core.Notification) (core.SubjectState, bool) {
-	st, ok := s.states[core.SubjectRef{Repo: n.Repo, Number: n.Subject.Number, Type: n.Subject.Type}]
+	s.statesMu.RLock()
+	defer s.statesMu.RUnlock()
+	st, ok := s.states[subjectRef(n)]
 	return st, ok
+}
+
+func subjectRef(n core.Notification) core.SubjectRef {
+	return core.SubjectRef{Repo: n.Repo, Number: n.Subject.Number, Type: n.Subject.Type}
+}
+
+// keepStates holds got, and reports whether that changed what was held.
+func (s *Section) keepStates(got map[core.SubjectRef]core.SubjectState) (changed bool) {
+	s.statesMu.Lock()
+	defer s.statesMu.Unlock()
+	for ref, st := range got {
+		if old, ok := s.states[ref]; !ok || old != st {
+			s.states[ref] = st
+			changed = true
+		}
+	}
+	return changed
+}
+
+// byState returns the threads of items whose subject is in a state the
+// filter asks for. The states held are used, and those of the threads that
+// lack one are read first, which runs off Update, in the read of the list.
+// A thread whose state can't be read is left out.
+func (s *Section) byState(ctx context.Context, f *filter, items []core.Notification) []core.Notification {
+	if !f.stated() || len(items) == 0 {
+		return items
+	}
+	if s.reader != nil {
+		s.keepStates(s.reader.CachedStates(items))
+		if slices.ContainsFunc(items, func(n core.Notification) bool { _, ok := s.State(n); return !ok }) {
+			// A failure is logged by the service; those rows stay out.
+			got, _ := s.reader.States(ctx, items)
+			s.keepStates(got)
+		}
+	}
+	out := make([]core.Notification, 0, len(items))
+	for i := range items {
+		st, ok := s.State(items[i])
+		if f.keepsState(items[i].Subject.Type, st, ok) {
+			out = append(out, items[i])
+		}
+	}
+	return out
 }
 
 // New returns the section, which reads through svc and binds the actions
@@ -201,7 +249,7 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 	f := s.filter()
 	q.Again = again
 	p, err := s.svc.List(ctx, q)
-	p.Items = f.apply(p.Items)
+	p.Items = s.byState(ctx, f, f.apply(p.Items))
 	return p, err
 }
 
