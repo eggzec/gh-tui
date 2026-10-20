@@ -17,6 +17,7 @@ func TestHeader(t *testing.T) {
 	}{
 		{"drops zero width, aligns, truncates", cols, "Name      Stars  Upd…"},
 		{"none", nil, ""},
+		{"blank when only the tail would show", []Column{{Title: "Labels", Width: 1}, {Title: "Ok", Width: 3}}, "   Ok "},
 		{"right pads left", []Column{{Title: "N", Width: 3, Right: true}}, "  N"},
 	}
 	for _, tt := range tests {

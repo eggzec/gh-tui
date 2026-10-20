@@ -19,7 +19,6 @@ const (
 	nameHeader = "Name"
 	descHeader = "Description"
 	langHeader = "Lang"
-	ageHeader  = "Updated"
 )
 
 // Bounds of the columns of the repositories: the gap between two, the
@@ -66,7 +65,7 @@ func LayoutCols(width int, m Measure, star string, age int) Cols {
 	c := Cols{
 		lang:  len(langHeader),
 		stars: max(m.stars, ansi.StringWidth(star)),
-		age:   max(len(ageHeader), age),
+		age:   max(len(ui.AgeTitle), age),
 	}
 	if m.flags > 0 {
 		c.flags = 2*m.flags - 1
@@ -110,7 +109,7 @@ func (c Cols) Header(star, tail string) string {
 		{Title: descHeader, Width: c.desc},
 		{Title: langHeader, Width: c.lang},
 		{Title: star, Width: c.stars, Right: true},
-		{Title: ageHeader, Width: c.age},
+		{Title: ui.AgeTitle, Width: c.age},
 	}, colGap, tail)
 }
 

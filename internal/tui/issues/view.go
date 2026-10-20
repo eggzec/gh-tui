@@ -47,7 +47,7 @@ func (s *Section) renderHeads() {
 	more(c.chips > 0, ui.Column{Title: "Labels", Width: c.labels})
 	more(c.comments, ui.Column{Title: s.icons.Comment, Width: commentsWidth, Right: true})
 	more(c.author, ui.Column{Title: "Author", Width: authorWidth})
-	more(c.age, ui.Column{Title: ageHeader, Width: c.ageWidth})
+	more(c.age, ui.Column{Title: ui.AgeTitle, Width: c.ageWidth})
 	head := ui.Header(cols, 0, s.icons.Ellipsis)
 	s.heads = strings.Repeat(" ", s.list.Gutter()) + s.theme.Muted.Render(fitStyled(head, max(s.width-s.list.Gutter(), 0), ""))
 }

@@ -21,6 +21,7 @@ func (s *Section) configure(c config.Config) {
 	s.chips = ui.Chips(s.query, s.icons.Separator)
 	s.dates = ui.NewDates(c.UI.DateFormat)
 	s.setPrefetch(c.Prefetch)
+	s.renderTitles()
 }
 
 // setPrefetch reads ahead as p says for prefetch.pulls.
