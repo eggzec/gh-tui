@@ -521,7 +521,7 @@ func (s *Section) SetSize(width, height int) {
 
 func (s *Section) layout() {
 	if s.feed != nil {
-		s.feed.SetSize(s.width, max(s.height-headerHeight, 0))
+		s.feed.SetSize(s.width, max(s.height-headerHeight-headsHeight, 0))
 	}
 }
 
@@ -564,5 +564,8 @@ func (s *Section) View() string {
 	if s.height <= headerHeight {
 		return s.header
 	}
-	return s.header + "\n" + s.feed.View()
+	if s.height == headerHeight+headsHeight {
+		return s.header + "\n" + s.renderHeads()
+	}
+	return s.header + "\n" + s.renderHeads() + "\n" + s.feed.View()
 }

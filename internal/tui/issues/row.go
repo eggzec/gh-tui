@@ -32,6 +32,12 @@ const (
 	titleShare = 0.35
 )
 
+// ageHeader titles the dates, which are never narrower than it.
+const ageHeader = "Updated"
+
+// ageRoom is how wide the dates column is: the widest date, or its title.
+func (s *Section) ageRoom() int { return max(s.dates.Width(), len(ageHeader)) }
+
 // commentMarkWidth is the width of the mark of the comment count and the
 // space after it, in cells.
 const commentMarkWidth = 2
@@ -206,8 +212,8 @@ func newRowStyles(t ui.Theme, icons ui.Icons) rowStyles {
 // renderRow renders an issue as one line of the list.
 func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	c := s.cols
-	if width != s.colsWidth || c.ageWidth != s.dates.Width() {
-		c = layout(width, s.room, s.dates.Width())
+	if width != s.colsWidth || c.ageWidth != s.ageRoom() {
+		c = layout(width, s.room, s.ageRoom())
 	}
 	look := lookPlain
 	switch {
@@ -259,8 +265,8 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 		if !it.UpdatedAt.IsZero() {
 			age = s.dates.Short(it.UpdatedAt, s.now())
 		}
-		pad(&b, c.ageWidth-ansi.StringWidth(age))
 		cl.age.write(&b, age)
+		pad(&b, c.ageWidth-ansi.StringWidth(age))
 	}
 	if over >= c.title {
 		// With no title left to take from, the glyph and the number may

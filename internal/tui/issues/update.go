@@ -110,7 +110,8 @@ func (s *Section) scanLabels() {
 	}
 	if room != s.room {
 		s.room = room
-		s.cols = layout(s.colsWidth, room, s.dates.Width())
+		s.cols = layout(s.colsWidth, room, s.ageRoom())
+		s.renderHeads()
 	}
 }
 

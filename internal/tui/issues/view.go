@@ -25,7 +25,31 @@ func (s *Section) View() string {
 	if s.height == 1 {
 		return s.bar
 	}
-	return s.bar + "\n" + s.list.View()
+	if s.height == headsHeight+1 {
+		return s.bar + "\n" + s.heads
+	}
+	return s.bar + "\n" + s.heads + "\n" + s.list.View()
+}
+
+// renderHeads names the columns of the rows, over the cells they take.
+func (s *Section) renderHeads() {
+	c := s.cols
+	cols := []ui.Column{
+		{Width: 2},
+		{Title: "#", Width: ui.NumberWidth + 1},
+		{Title: "Title", Width: c.title},
+	}
+	more := func(on bool, col ui.Column) {
+		if on {
+			cols = append(cols, ui.Column{Width: gap}, col)
+		}
+	}
+	more(c.chips > 0, ui.Column{Title: "Labels", Width: c.labels})
+	more(c.comments, ui.Column{Title: s.icons.Comment, Width: commentsWidth, Right: true})
+	more(c.author, ui.Column{Title: "Author", Width: authorWidth})
+	more(c.age, ui.Column{Title: ageHeader, Width: c.ageWidth})
+	head := ui.Header(cols, 0, s.icons.Ellipsis)
+	s.heads = strings.Repeat(" ", s.list.Gutter()) + s.theme.Muted.Render(fitStyled(head, max(s.width-s.list.Gutter(), 0), ""))
 }
 
 // renderChrome renders what surrounds the bubbles: the bar over the list,
@@ -33,8 +57,9 @@ func (s *Section) View() string {
 func (s *Section) renderChrome() {
 	// The rows get the width less what the list draws before them.
 	w := max(s.width-s.list.Gutter(), 0)
-	s.cols, s.colsWidth = layout(w, s.room, s.dates.Width()), w
+	s.cols, s.colsWidth = layout(w, s.room, s.ageRoom()), w
 	s.renderBar()
+	s.renderHeads()
 	s.renderEmpty()
 	s.renderOff()
 }
