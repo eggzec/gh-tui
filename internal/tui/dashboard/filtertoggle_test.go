@@ -67,3 +67,39 @@ func TestFilterToggle(t *testing.T) {
 		t.Errorf("applying while off left off %v, active %v; want the filter on", s.repos.toggle.Off(), s.repos.filter().Active())
 	}
 }
+
+// Alt+s lists the repositories without the sort token and brings it back,
+// keeping the filter, and a pane with no sort refuses.
+func TestSortToggle(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+
+	if msgs := press(t, s, "alt+s"); !toasted(msgs) || s.repos.sortToggle.Off() {
+		t.Errorf("alt+s with no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), s.repos.sortToggle.Off())
+	}
+
+	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "is:private language:go sort:stars-desc"}))
+	query := s.repos.filter().Query()
+	if !strings.Contains(query, "sort:") {
+		t.Fatalf("the filter has no sort: %q", query)
+	}
+	press(t, s, "alt+s")
+	if got := s.repos.filter().Query(); strings.Contains(got, "sort:") || !strings.Contains(got, "language:go") || !s.repos.sortToggle.Off() {
+		t.Errorf("alt+s left the filter %q, off %v; want the filter without the sort, off", got, s.repos.sortToggle.Off())
+	}
+	if view := screen(s); !strings.Contains(view, "sort") || !strings.Contains(view, "off") {
+		t.Errorf("the title should say the sort is off:\n%s", view)
+	}
+	if f, _ := s.Filter(); f.Query != query {
+		t.Errorf("the form opens on %q while off, want %q", f.Query, query)
+	}
+
+	press(t, s, "alt+s")
+	if got := s.repos.filter().Query(); got != query || s.repos.sortToggle.Off() {
+		t.Errorf("alt+s again left the filter %q, off %v; want %q on", got, s.repos.sortToggle.Off(), query)
+	}
+
+	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "is:private"}))
+	if msgs := press(t, s, "alt+s"); !toasted(msgs) || s.repos.sortToggle.Off() {
+		t.Errorf("alt+s with a filter and no sort: toast %v, off %v; want a toast and no switch", toasted(msgs), s.repos.sortToggle.Off())
+	}
+}
