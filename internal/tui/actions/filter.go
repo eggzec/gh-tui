@@ -212,7 +212,7 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 		}
 		m.closeFilter()
 		m.toggle.On()
-		return m.setFilter(m.filterOf(msg.Values))
+		return m.setFilter(m.filterOf(msg.Values, f.FreeText()))
 	case filterform.CancelMsg:
 		if msg.ID == f.ID() {
 			m.closeFilter()
@@ -224,14 +224,16 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// filterOf returns the filter that the values of the form make.
-func (m *Modal) filterOf(v map[string]filterform.Value) core.RunFilter {
+// filterOf returns the filter that the values of the form make. The words no
+// field claims, such as a qualifier the runs have none for, join the words
+// of the search row, so that they show in the title and cut the runs.
+func (m *Modal) filterOf(v map[string]filterform.Value, free []string) core.RunFilter {
 	f := core.RunFilter{
 		Branch: strings.TrimSpace(v[fieldBranch].Text()),
 		Event:  v[fieldEvent].Text(),
 		Status: v[fieldStatus].Text(),
 		Actor:  strings.TrimSpace(v[fieldActor].Text()),
-		Words:  strings.Join(strings.Fields(v[ui.SearchField.Key].Text()), " "),
+		Words:  strings.TrimSpace(strings.Join(append([]string{v[ui.SearchField.Key].Text()}, free...), " ")),
 	}
 	if f.Actor != me {
 		f.Actor = strings.TrimPrefix(f.Actor, "@")

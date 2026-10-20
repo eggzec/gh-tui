@@ -183,6 +183,10 @@ func claim(f *Field, tok Token, v Value) (Value, bool) {
 	case Multi:
 		list := slices.Clone(v.list)
 		for _, s := range tok.Values() {
+			// A value typed in another case ticks the option it names.
+			if opt, ok := findItem(f.Options, s); ok {
+				s = opt.Value
+			}
 			if !slices.Contains(list, s) {
 				list = append(list, s)
 			}
