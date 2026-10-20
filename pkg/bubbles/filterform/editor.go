@@ -5,11 +5,11 @@ import (
 	"slices"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -127,35 +127,35 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		// The picker keeps the query on enter, and clears it, then leaves
 		// the search, on esc.
 		return m.typeIn(msg)
-	case key.Matches(msg, k.Quit):
+	case keymap.Matches(msg, k.Quit):
 		return send(CancelMsg{ID: m.id})
-	case m.tabbed() && key.Matches(msg, k.NextTab):
+	case m.tabbed() && keymap.Matches(msg, k.NextTab):
 		m.switchTab(1)
 		return nil
-	case m.tabbed() && key.Matches(msg, k.PrevTab):
+	case m.tabbed() && keymap.Matches(msg, k.PrevTab):
 		m.switchTab(-1)
 		return nil
 	case !m.picking:
 		// The options are loading or failed to.
 		switch {
-		case key.Matches(msg, k.List.Cancel), key.Matches(msg, k.List.Normal.Back):
+		case keymap.Matches(msg, k.List.Cancel), keymap.Matches(msg, k.List.Normal.Back):
 			m.closeEditor(false)
-		case key.Matches(msg, k.Retry) && m.tab == FiltersTab && m.fields[m.row].state == failed:
+		case keymap.Matches(msg, k.Retry) && m.tab == FiltersTab && m.fields[m.row].state == failed:
 			return m.load(m.row)
 		}
 		return nil
-	case key.Matches(msg, k.List.Normal.Toggle) && m.kind() == Multi:
+	case keymap.Matches(msg, k.List.Normal.Toggle) && m.kind() == Multi:
 		m.checkHighlighted(true)
 		return nil
-	case key.Matches(msg, k.ListClear):
+	case keymap.Matches(msg, k.ListClear):
 		m.clearList()
 		return nil
-	case key.Matches(msg, k.List.Choose):
+	case keymap.Matches(msg, k.List.Choose):
 		return m.chooseHighlighted()
-	case key.Matches(msg, k.List.Cancel) && m.pick.Query().Text != "":
+	case keymap.Matches(msg, k.List.Cancel) && m.pick.Query().Text != "":
 		// The picker clears the query it kept; the next esc closes.
 		return m.typeIn(msg)
-	case key.Matches(msg, k.List.Cancel), key.Matches(msg, k.List.Normal.Back):
+	case keymap.Matches(msg, k.List.Cancel), keymap.Matches(msg, k.List.Normal.Back):
 		m.closeEditor(false)
 		return nil
 	}
