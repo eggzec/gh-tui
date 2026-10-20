@@ -29,6 +29,8 @@ Notifications
   filter on/off | alt+f | alt+f | on
   group by | g | g | on
   group on/off | alt+g | alt+g | on
+  sort | s | s | on
+  sort on/off | alt+s | alt+s | on
   refresh | r | r | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on

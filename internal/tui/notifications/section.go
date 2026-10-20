@@ -114,8 +114,12 @@ type Section struct {
 	toggle ui.FilterToggle[string]
 	// levels are the levels the list is grouped by, outermost first, and off
 	// says the grouping is switched off, with the levels kept.
-	levels  []orderpick.Choice
-	off     bool
+	levels []orderpick.Choice
+	off    bool
+	// sorts are the fields the list is sorted by, first to last, and sortOff
+	// says the sort is switched off, with the fields kept.
+	sorts   []orderpick.Choice
+	sortOff bool
 	started bool
 	// voice words the feed's errors, and icons mark them.
 	voice ui.Voice

@@ -70,6 +70,31 @@ func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 		}
 	}
 	m.closed = nil
+	return m.reshape(ref)
+}
+
+// SetSort orders every loaded item by cmp, which returns a negative number
+// when a goes first, and the items of pages that load later are merged into
+// that order. Equal items keep the order the source gave them. A nil cmp
+// leaves the source's order. The cursor stays on its item. Sorted, the feed
+// counts lines like a grouped one does, though it has no headers unless
+// groups are set, and the items of each group are sorted.
+func (m *Model[T]) SetSort(cmp func(a, b T) int) tea.Cmd {
+	ref := m.cursor()
+	m.less = cmp
+	return m.reshape(ref)
+}
+
+// Resort puts the items in order again, for when what cmp reads has changed.
+func (m *Model[T]) Resort() {
+	if m.Grouped() {
+		m.regroup(m.cursor())
+	}
+}
+
+// reshape lays the rows out again after the groups or the sort changed, with
+// the cursor back on ref.
+func (m *Model[T]) reshape(ref cursorRef) tea.Cmd {
 	m.anchored, m.seeking, m.fill = false, false, true
 	if !m.Grouped() {
 		m.sel = m.flatSel()
@@ -99,7 +124,7 @@ func (m *Model[T]) regroup(ref cursorRef) bool {
 
 // Grouped reports whether the rows are grouped.
 func (m Model[T]) Grouped() bool {
-	return len(m.groups) > 0
+	return len(m.groups) > 0 || m.less != nil
 }
 
 // Expand opens the group of the header under the cursor.
@@ -273,15 +298,24 @@ func (m Model[T]) moreText() string {
 // members returns the items the groups cover, in the order of the feed: those
 // the quick filter keeps, or every loaded one without it.
 func (m Model[T]) members() []int {
-	if m.filter != "" {
-		return m.rows
-	}
-	var items []int
-	for i := range m.total {
-		if _, ok := m.item(i); ok {
-			items = append(items, i)
+	items := m.rows
+	if m.filter == "" {
+		items = nil
+		for i := range m.total {
+			if _, ok := m.item(i); ok {
+				items = append(items, i)
+			}
 		}
 	}
+	if m.less == nil {
+		return items
+	}
+	items = slices.Clone(items)
+	slices.SortStableFunc(items, func(a, b int) int {
+		x, _ := m.item(a)
+		y, _ := m.item(b)
+		return m.less(x, y)
+	})
 	return items
 }
 

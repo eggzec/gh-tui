@@ -45,6 +45,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		// shows them.
 		// A state filter keeps the rows by them, so a state that differs
 		// from the one the list was filtered with lists the rows again.
+		// A sort or grouping by state orders by what just arrived.
+		s.feed.Resort()
 		if s.keepStates(msg.states) && (s.filter().stated() || s.groupedByState()) {
 			return s.reload()
 		}
@@ -123,6 +125,14 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return ui.OpenModal(s.groupModal()), true
 	case keymap.Matches(msg, k.ToggleGroups):
 		cmd, ok := s.toggleGroups()
+		if !ok {
+			return ui.NothingToSwitch(), true
+		}
+		return cmd, true
+	case keymap.Matches(msg, k.Sort):
+		return ui.OpenModal(s.sortModal()), true
+	case keymap.Matches(msg, k.ToggleSort):
+		cmd, ok := s.toggleSort()
 		if !ok {
 			return ui.NothingToSwitch(), true
 		}
