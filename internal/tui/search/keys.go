@@ -97,17 +97,18 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 		GroupBy:      results.Binding("group_by", "group by"),
 		ToggleGroups: results.Binding("group_toggle", "group on/off"),
+
+		order: ui.OrderPickKeys(keys),
+		// The page matches these keys first, so the results get only the keys
+		// it leaves them.
+		feed:   feed.NewKeyMap(results),
+		search: ui.SearchPromptKeys(keys),
 	}
-	k.order = ui.OrderPickKeys(keys)
 	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2"} {
 		k.Panes[i] = page.Binding(a, areaTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	keymap.Fill(&k.query, ui.Lookup(keys, "search_query"))
-	// The page matches these keys first, so the results get only the keys
-	// it leaves them.
-	k.feed = feed.NewKeyMap(results)
-	k.search = ui.SearchPromptKeys(keys)
 	return k
 }
 
