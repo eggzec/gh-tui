@@ -28,13 +28,14 @@ func (s *Section) resultsSize() (width, height int) {
 func (s *Section) layout() {
 	// The input draws one cell more than its width, for the cursor.
 	s.input.SetWidth(max(s.width-2-2-1-1, 1))
+	// The hits take a line of titles above them.
+	w, h := s.resultsSize()
 	for _, l := range s.hits {
-		s.sizeList(&l.feed)
+		l.feed.SetSize(w, max(h-1, 0))
 	}
 	if s.code != nil {
 		s.sizeList(&s.code.feed)
 	}
-	_, h := s.resultsSize()
 	s.starts.resize(h)
 }
 
@@ -230,12 +231,41 @@ func (s *Section) results(w, h int) []string {
 		if lines, ok := s.staleView(); ok {
 			return lines
 		}
-		return strings.Split(f.View(), "\n")
+		lines := strings.Split(f.View(), "\n")
+		if l, ok := s.visibleHits(); ok {
+			return append([]string{s.header(l, w)}, lines...)
+		}
+		return lines
 	case s.kind == core.SearchCode:
 		return notice(w, st.text.render(s.codeAsk()),
 			st.subtle.render("Code search runs only when you ask, since GitHub allows 10 a minute."))
 	}
 	return nil
+}
+
+// header renders the titles of the columns of the hits of l over its rows,
+// w cells wide, laid out as renderRepo and renderHit lay out their rows.
+func (s *Section) header(l *hitList, w int) string {
+	gutter := l.feed.Gutter()
+	rw := max(w-gutter, 0)
+	var cols []ui.Column
+	if l.kind == core.SearchRepos {
+		c := repoColumns(rw, s.dates.Width())
+		cols = []ui.Column{
+			{Title: "Name", Width: rw - c.width() - 2},
+			{Title: "Language", Width: c.lang},
+			{Title: s.icons.Star, Width: starsWidth, Right: true},
+			{Title: updatedTitle, Width: c.age},
+		}
+	} else {
+		cols = []ui.Column{
+			{Width: 1},
+			{Title: "Item", Width: max(rw-1-commentsWidth-2, 0)},
+			{Title: termtext.Cells(s.icons.Comment, 1), Width: commentsWidth, Right: true},
+		}
+	}
+	line := strings.Repeat(" ", gutter) + ui.Header(cols, 2, s.icons.Ellipsis)
+	return fit(s.st.subtle.render(line), w)
 }
 
 // feedOf lets results read a feed of either kind of result.
@@ -421,10 +451,15 @@ type repoCols struct {
 // columns give way.
 const minRepoName = 20
 
+// updatedTitle heads the column of the dates of repositories.
+const updatedTitle = "Updated"
+
 // repoColumns returns the columns of repository rows of width cells,
 // with dates of age cells at most: the first that fits of "TypeScript"
 // and the date, a glyph and the date, and neither.
 func repoColumns(width, age int) repoCols {
+	// The column is as wide as its title, so the title shows whole.
+	age = max(age, len(updatedTitle))
 	for _, c := range []repoCols{{lang: 12, age: age}, {lang: 1, age: age}, {}} {
 		if width-c.width()-1 >= minRepoName {
 			return c
@@ -461,7 +496,7 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 		if !r.UpdatedAt.IsZero() {
 			age = s.dates.Short(r.UpdatedAt, s.now())
 		}
-		right = append(right, padLeft(st.subtle.render(age), cols.age))
+		right = append(right, fit(st.subtle.render(age), cols.age))
 	}
 	cellsRight := strings.Join(right, "  ")
 

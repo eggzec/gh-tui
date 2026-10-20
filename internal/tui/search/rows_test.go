@@ -77,6 +77,104 @@ func TestRepoRowsAlign(t *testing.T) {
 	}
 }
 
+// TestRepoHeader checks that the titles head the columns of the rows, drop
+// with them at narrow widths, and that the ages start in one column.
+func TestRepoHeader(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		width int
+		want  []string
+		not   []string
+	}{
+		{190, []string{"Name", "Language", "*", "Updated"}, nil},
+		{80, []string{"Name", "Language", "Updated"}, nil},
+		{44, []string{"Name"}, []string{"Language"}},
+	} {
+		s := newSection(t, flagged(), tc.width, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
+		typeText(t, s, "tea")
+		view := ansi.Strip(s.View())
+		if n := len(strings.Split(view, "\n")); n != 22 {
+			t.Errorf("width %d: %d lines, want 22", tc.width, n)
+		}
+		var header string
+		for l := range strings.SplitSeq(view, "\n") {
+			if strings.Contains(l, "Name") {
+				header = l
+			}
+		}
+		if header == "" {
+			t.Fatalf("width %d: no header in\n%s", tc.width, view)
+		}
+		for _, w := range tc.want {
+			if !strings.Contains(header, w) {
+				t.Errorf("width %d: header %q lacks %q", tc.width, header, w)
+			}
+		}
+		for _, w := range tc.not {
+			if strings.Contains(header, w) {
+				t.Errorf("width %d: header %q has %q", tc.width, header, w)
+			}
+		}
+	}
+
+	// The age is left-aligned: "5d" and "2h" and "1y" all start where the
+	// title does.
+	s := newSection(t, flagged(), 190, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
+	typeText(t, s, "tea")
+	var header string
+	starts := map[string]int{}
+	for l := range strings.SplitSeq(ansi.Strip(s.View()), "\n") {
+		if strings.Contains(l, "Name") {
+			header = l
+		}
+	}
+	before, _, ok := strings.Cut(header, updatedTitle)
+	if !ok {
+		t.Fatalf("no %q in header %q", updatedTitle, header)
+	}
+	col := ansi.StringWidth(before)
+	for l := range strings.SplitSeq(ansi.Strip(s.View()), "\n") {
+		for _, age := range []string{"2h", "1y"} {
+			if strings.Contains(l, "/tea-private") && age == "2h" || strings.Contains(l, "/tea-archived") && age == "1y" {
+				j := strings.LastIndex(l, age)
+				if j < 0 {
+					t.Fatalf("no %q in %q", age, l)
+				}
+				starts[age] = ansi.StringWidth(l[:j])
+			}
+		}
+	}
+	if len(starts) != 2 {
+		t.Fatalf("found ages %v, want 2h and 1y", starts)
+	}
+	for age, st := range starts {
+		if st != col {
+			t.Errorf("age %s starts at column %d, want %d", age, st, col)
+		}
+	}
+}
+
+func TestHitHeader(t *testing.T) {
+	t.Parallel()
+	for _, width := range []int{80, 40} {
+		s := newSection(t, newFake(), width, 22)
+		typeText(t, s, "tea")
+		press(t, s, "esc")
+		for range kinds {
+			if s.Kind() == core.SearchIssues {
+				break
+			}
+			press(t, s, "]")
+		}
+		if s.Kind() != core.SearchIssues {
+			t.Fatalf("width %d: kind is %v, want issues", width, s.Kind())
+		}
+		if !strings.Contains(ansi.Strip(s.View()), "Item") {
+			t.Errorf("width %d: no header over the issues", width)
+		}
+	}
+}
+
 func TestRepoRowLines(t *testing.T) {
 	s := newSection(t, flagged(), 190, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
 	archived := flagged().repos[2]
