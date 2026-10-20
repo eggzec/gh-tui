@@ -164,7 +164,14 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case m.focus == runsPane && keymap.Matches(msg, k.Filter):
 		return m.openFilter()
 	case m.focus == runsPane && keymap.Matches(msg, k.ClearFilter):
+		m.toggle.On()
 		return m.setFilter(cleared(m.filter))
+	case m.focus == runsPane && keymap.Matches(msg, k.ToggleFilter):
+		next, ok := m.toggle.Switch(m.filter, cleared(m.filter))
+		if !ok {
+			return ui.NothingToSwitch()
+		}
+		return m.setFilter(next)
 	case keymap.Matches(msg, k.Zoom):
 		m.zoom = !m.zoom
 		m.layout()

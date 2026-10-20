@@ -138,7 +138,7 @@ func (m *Modal) showForm() tea.Cmd {
 		{Key: fieldActor, Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Hint: "anyone", Options: m.actorItems()},
 	}}
 	f := filterform.New(spec,
-		filterform.WithQuery(queryOf(m.filter, m.workflows.items)),
+		filterform.WithQuery(queryOf(m.toggle.Edited(m.filter), m.workflows.items)),
 		filterform.WithContext(m.ctx),
 		// Read as the help line draws, so that it follows a switch of the icons.
 		filterform.WithKeyNames(func(k string) string { return m.opts.icons.Key(k) }),
@@ -210,6 +210,7 @@ func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		m.closeFilter()
+		m.toggle.On()
 		return m.setFilter(m.filterOf(msg.Values))
 	case filterform.CancelMsg:
 		if msg.ID == f.ID() {

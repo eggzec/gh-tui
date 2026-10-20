@@ -30,6 +30,7 @@ Runs
   jobs | enter | ↵ | on
   filter | f | f | on
   clear filter | F | F | off
+  filter on/off | alt+f | alt+f | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on

@@ -618,8 +618,7 @@ keys:
     filter: [f]
     sort: [s]
     clear_filter: [F]
-    filter_toggle: [alt+f]
-    #Switch the filter off for a look at the list without it, and back on.
+    # Switch the filter off for a look at the list without it, and back on.
     # On macOS, alt keys need the terminal's "Option as Meta" setting.
     filter_toggle: [alt+f]
   # Dashboard: the pull requests and issues waiting on you.
@@ -938,9 +937,10 @@ keys:
     cancel: [X]
   # Actions: the runs.
   actions_runs:
-    # Open the filter of the runs, and clear it.
+    # Open the filter of the runs, clear it, and switch it off and on.
     filter: [f]
     clear_filter: [F]
+    filter_toggle: [alt+f]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
