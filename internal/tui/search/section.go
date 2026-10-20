@@ -230,7 +230,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		seen:       obs.NewPrefetched[othersKey]("search"),
 		hits:       make(map[core.SearchKind]*hitList),
 		grouping:   ui.Grouping[core.SearchHit]{Fields: ui.HitGroupFields()},
-		stale:     make(map[core.SearchKind][]string),
+		stale:      make(map[core.SearchKind][]string),
 		dots:       make(map[string]string),
 		langs:      make(map[string]string),
 		icons:      ui.NewIcons(config.Default().UI.Icons),
