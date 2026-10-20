@@ -6,6 +6,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys and pastes while focused, the form's own loads and
@@ -75,35 +77,35 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := m.keys
 	switch {
-	case key.Matches(msg, k.Up):
+	case keymap.Matches(msg, k.Up):
 		m.moveTo(m.row - 1)
-	case key.Matches(msg, k.Down):
+	case keymap.Matches(msg, k.Down):
 		m.moveTo(m.row + 1)
-	case key.Matches(msg, k.Top):
+	case keymap.Matches(msg, k.Top):
 		m.moveTo(0)
-	case key.Matches(msg, k.Bottom):
+	case keymap.Matches(msg, k.Bottom):
 		m.moveTo(m.queryRow() - 1)
-	case key.Matches(msg, k.NextPane), key.Matches(msg, k.PrevPane):
+	case keymap.Matches(msg, k.NextPane), keymap.Matches(msg, k.PrevPane):
 		m.togglePane()
-	case key.Matches(msg, k.Cancel), key.Matches(msg, k.Quit):
+	case keymap.Matches(msg, k.Cancel), keymap.Matches(msg, k.Quit):
 		return send(CancelMsg{ID: m.id})
-	case key.Matches(msg, k.Apply):
+	case keymap.Matches(msg, k.Apply):
 		return send(m.applied())
-	case m.tabbed() && key.Matches(msg, k.NextTab):
+	case m.tabbed() && keymap.Matches(msg, k.NextTab):
 		m.switchTab(1)
-	case m.tabbed() && key.Matches(msg, k.PrevTab):
+	case m.tabbed() && keymap.Matches(msg, k.PrevTab):
 		m.switchTab(-1)
-	case key.Matches(msg, k.Prev):
+	case keymap.Matches(msg, k.Prev):
 		m.choose(-1)
-	case key.Matches(msg, k.Next):
+	case keymap.Matches(msg, k.Next):
 		m.choose(1)
-	case key.Matches(msg, k.Toggle):
+	case keymap.Matches(msg, k.Toggle):
 		return m.toggle()
-	case key.Matches(msg, k.Insert):
+	case keymap.Matches(msg, k.Insert):
 		return m.insert(false)
-	case key.Matches(msg, k.Append):
+	case keymap.Matches(msg, k.Append):
 		return m.insert(true)
-	case key.Matches(msg, k.Clear):
+	case keymap.Matches(msg, k.Clear):
 		m.remove()
 	}
 	return nil

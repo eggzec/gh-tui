@@ -1,8 +1,9 @@
 package orderpick
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys while the picker is focused, and passes the other
@@ -31,14 +32,14 @@ func (m Model) pressLeft(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	k := m.keys
 	if !m.left.Typing() {
 		switch {
-		case key.Matches(msg, k.NextPane, k.PrevPane):
+		case keymap.Matches(msg, k.NextPane, k.PrevPane):
 			cmd := m.setPane(PaneChosen)
 			return m, cmd
-		case key.Matches(msg, k.Picker.Choose):
+		case keymap.Matches(msg, k.Picker.Choose):
 			return m, m.confirm()
-		case key.Matches(msg, k.Picker.Cancel) && m.left.Query().Text == "":
+		case keymap.Matches(msg, k.Picker.Cancel) && m.left.Query().Text == "":
 			return m, m.Cancel()
-		case key.Matches(msg, k.Picker.Normal.Toggle):
+		case keymap.Matches(msg, k.Picker.Normal.Toggle):
 			m.tick()
 			return m, nil
 		}
@@ -53,36 +54,36 @@ func (m Model) pressRight(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	k, n := m.keys, m.keys.Picker.Normal
 	page := max(m.rows(), 1)
 	switch {
-	case key.Matches(msg, k.NextPane, k.PrevPane):
+	case keymap.Matches(msg, k.NextPane, k.PrevPane):
 		cmd := m.setPane(PaneAvailable)
 		return m, cmd
-	case key.Matches(msg, k.Picker.Choose):
+	case keymap.Matches(msg, k.Picker.Choose):
 		return m, m.confirm()
-	case key.Matches(msg, k.Picker.Cancel):
+	case keymap.Matches(msg, k.Picker.Cancel):
 		return m, m.Cancel()
-	case key.Matches(msg, k.MoveDown):
+	case keymap.Matches(msg, k.MoveDown):
 		m.shift(1)
-	case key.Matches(msg, k.MoveUp):
+	case keymap.Matches(msg, k.MoveUp):
 		m.shift(-1)
-	case key.Matches(msg, k.Flip):
+	case keymap.Matches(msg, k.Flip):
 		m.flip()
-	case key.Matches(msg, k.Remove):
+	case keymap.Matches(msg, k.Remove):
 		m.remove()
-	case key.Matches(msg, n.Up):
+	case keymap.Matches(msg, n.Up):
 		m.moveCursor(m.cursor - 1)
-	case key.Matches(msg, n.Down):
+	case keymap.Matches(msg, n.Down):
 		m.moveCursor(m.cursor + 1)
-	case key.Matches(msg, n.PageUp):
+	case keymap.Matches(msg, n.PageUp):
 		m.moveCursor(m.cursor - page)
-	case key.Matches(msg, n.PageDown):
+	case keymap.Matches(msg, n.PageDown):
 		m.moveCursor(m.cursor + page)
-	case key.Matches(msg, n.HalfPageUp):
+	case keymap.Matches(msg, n.HalfPageUp):
 		m.moveCursor(m.cursor - max(page/2, 1))
-	case key.Matches(msg, n.HalfPageDown):
+	case keymap.Matches(msg, n.HalfPageDown):
 		m.moveCursor(m.cursor + max(page/2, 1))
-	case key.Matches(msg, n.Top):
+	case keymap.Matches(msg, n.Top):
 		m.moveCursor(0)
-	case key.Matches(msg, n.Bottom):
+	case keymap.Matches(msg, n.Bottom):
 		m.moveCursor(len(m.chosen) - 1)
 	}
 	return m, nil
