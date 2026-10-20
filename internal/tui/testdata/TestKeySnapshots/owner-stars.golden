@@ -30,6 +30,8 @@ List
   filter on/off | alt+f | alt+f | off
   filter | f | f | off
   sort | s | s | off
+  group by | g | g | on
+  group on/off | alt+g | alt+g | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | ctrl+b pgup | ^b/pgup | on
