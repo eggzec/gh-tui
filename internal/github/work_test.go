@@ -1,9 +1,12 @@
 package github
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,7 +16,7 @@ import (
 func TestViewerWork(t *testing.T) {
 	c, reqs := serveFixture(t, "viewer_work.json")
 
-	got, err := c.ViewerWork(t.Context(), 2)
+	got, err := c.ViewerWork(t.Context(), 2, core.WorkReviewRequested, "")
 	if err != nil {
 		t.Fatalf("ViewerWork: %v", err)
 	}
@@ -22,8 +25,9 @@ func TestViewerWork(t *testing.T) {
 	if req.Query != viewerWorkQuery {
 		t.Errorf("query = %q, want viewerWorkQuery", req.Query)
 	}
-	if v := req.Variables; len(v) != 1 || v["first"] != 2.0 {
-		t.Errorf("variables = %v, want first 2", v)
+	want := map[string]any{"first": 2.0, "review": true, "authored": true, "assigned": true}
+	if v := req.Variables; !maps.Equal(v, want) {
+		t.Errorf("variables = %v, want %v", v, want)
 	}
 	counts := [3]int{got.ReviewRequested.Count, got.Authored.Count, got.Assigned.Count}
 	if counts != [3]int{117, 23, 133} {
@@ -76,9 +80,44 @@ func TestViewerWorkEmpty(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":{"reviewRequested":{"issueCount":0,"nodes":[]},"authored":{"issueCount":0,"nodes":[]},"assigned":{"issueCount":0,"nodes":[]}}}`)
 	}))
 
-	got, err := c.ViewerWork(t.Context(), 10)
+	got, err := c.ViewerWork(t.Context(), 10, core.WorkReviewRequested, "")
 	if err != nil || got.ReviewRequested.Items != nil || got.Authored.Count != 0 || got.Assigned.Items != nil {
 		t.Errorf("ViewerWork = %+v, %v; want nothing waiting", got, err)
+	}
+}
+
+// A cursor reads the page after it of one list, and its end cursor is the
+// next, until there is none.
+func TestViewerWorkCursor(t *testing.T) {
+	reqs := make(chan map[string]any, 2)
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Variables map[string]any `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		reqs <- req.Variables
+		more := req.Variables["after"] == "c1"
+		_, _ = io.WriteString(w, `{"data":{"authored":{"issueCount":3,"pageInfo":{"hasNextPage":`+strconv.FormatBool(!more)+`,"endCursor":"c2"},"nodes":[]}}}`)
+	}))
+
+	got, err := c.ViewerWork(t.Context(), 1, core.WorkAuthored, "c0")
+	if err != nil {
+		t.Fatalf("ViewerWork: %v", err)
+	}
+	want := map[string]any{"first": 1.0, "after": "c0", "review": false, "authored": true, "assigned": false}
+	if v := <-reqs; !maps.Equal(v, want) {
+		t.Errorf("variables = %v, want %v", v, want)
+	}
+	if got.Authored.Next != "c2" || got.Authored.Count != 3 {
+		t.Errorf("authored = %+v, want count 3 and next c2", got.Authored)
+	}
+	if got.ReviewRequested.Refused || got.Assigned.Refused {
+		t.Errorf("work = %+v, want the lists not read left unrefused", got)
+	}
+
+	got, err = c.ViewerWork(t.Context(), 1, core.WorkAuthored, "c1")
+	if err != nil || got.Authored.Next != "" {
+		t.Errorf("last page: next = %q, %v; want none", got.Authored.Next, err)
 	}
 }
 
@@ -89,7 +128,7 @@ func TestViewerWorkRateLimited(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":null,"errors":[{"type":"RATE_LIMITED","message":"API rate limit exceeded"}]}`)
 	}))
 
-	_, err := c.ViewerWork(t.Context(), 10)
+	_, err := c.ViewerWork(t.Context(), 10, core.WorkReviewRequested, "")
 	if _, ok := errors.AsType[*core.RateLimitError](err); !ok {
 		t.Errorf("error = %v, want a *core.RateLimitError", err)
 	}
@@ -106,19 +145,19 @@ func TestViewerWorkPartlyRefused(t *testing.T) {
 	}
 	c := answer(`{"data":{"reviewRequested":{"issueCount":2,"nodes":[]},"authored":null,"assigned":{"issueCount":1,"nodes":[]}},` +
 		`"errors":[{"type":"FORBIDDEN","message":"Resource not accessible","path":["authored"]}]}`)
-	got, err := c.ViewerWork(t.Context(), 10)
+	got, err := c.ViewerWork(t.Context(), 10, core.WorkReviewRequested, "")
 	if err != nil || got.ReviewRequested.Count != 2 || got.Assigned.Count != 1 || got.Authored.Count != 0 ||
 		!got.Authored.Refused || got.ReviewRequested.Refused || got.Assigned.Refused {
 		t.Errorf("ViewerWork = %+v, %v; want review requested and assigned, authored refused", got, err)
 	}
 
 	c = answer(`{"data":null,"errors":[{"type":"FORBIDDEN","message":"Resource not accessible","path":["reviewRequested"]}]}`)
-	if _, err := c.ViewerWork(t.Context(), 10); !errors.Is(err, core.ErrForbidden) {
+	if _, err := c.ViewerWork(t.Context(), 10, core.WorkReviewRequested, ""); !errors.Is(err, core.ErrForbidden) {
 		t.Errorf("all refused: error = %v, want ErrForbidden", err)
 	}
 	c = answer(`{"data":{"reviewRequested":{"issueCount":2,"nodes":[]},"authored":null,"assigned":null},` +
 		`"errors":[{"type":"INTERNAL","message":"Something went wrong","path":["authored"]}]}`)
-	if _, err := c.ViewerWork(t.Context(), 10); err == nil {
+	if _, err := c.ViewerWork(t.Context(), 10, core.WorkReviewRequested, ""); err == nil {
 		t.Error("an internal error: no error, want it")
 	}
 }

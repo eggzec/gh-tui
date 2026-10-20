@@ -231,6 +231,10 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case keymap.Matches(msg, k.WorkUp):
 			w.move(-1)
 		case keymap.Matches(msg, k.WorkDown):
+			// Another press at the end tries a page that failed again.
+			if t := w.current(); t.err != nil && t.sel == t.items-1 {
+				t.err = nil
+			}
 			w.move(1)
 		case keymap.Matches(msg, k.Select):
 			if hit, ok := w.selected(); ok {
@@ -247,7 +251,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		default:
 			return nil, false
 		}
-		return nil, true
+		return s.moreWork(), true
 	case inboxPane:
 		l := &s.threads
 		switch {

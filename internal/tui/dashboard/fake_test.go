@@ -42,6 +42,8 @@ type fakeService struct {
 	contrib core.Contributions
 	repos   map[string][]core.Repo
 	size    int
+	// pages are the pages of work after the first, by cursor.
+	pages map[string]core.WorkList
 
 	// cached makes the Cached reads of the header, work and contributions
 	// hit before any read.
@@ -128,9 +130,25 @@ func (f *fakeService) CachedWork(dashboard.WorkQuery) (core.Work, bool) {
 	return f.work, f.cached || f.read["work"]
 }
 
-func (f *fakeService) Work(context.Context, dashboard.WorkQuery) (core.Work, error) {
+func (f *fakeService) Work(_ context.Context, q dashboard.WorkQuery) (core.Work, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if q.Cursor != "" {
+		// A page after the first: the list under the cursor, in the list asked.
+		if err := f.call("work page " + q.Cursor); err != nil {
+			return core.Work{}, err
+		}
+		var w core.Work
+		switch q.List {
+		case core.WorkReviewRequested:
+			w.ReviewRequested = f.pages[q.Cursor]
+		case core.WorkAuthored:
+			w.Authored = f.pages[q.Cursor]
+		case core.WorkAssigned:
+			w.Assigned = f.pages[q.Cursor]
+		}
+		return w, nil
+	}
 	if err := f.call("work"); err != nil {
 		return core.Work{}, err
 	}

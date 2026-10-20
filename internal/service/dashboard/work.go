@@ -19,6 +19,11 @@ type WorkQuery struct {
 	// Again reads past a kept value: set it on the read that follows one
 	// that came back Stale. It doesn't key the cache.
 	Again bool
+	// List and Cursor read the page of one list after Cursor, the Next of
+	// the list's last page; the others of the work come back empty. An empty
+	// Cursor reads the first page of all three.
+	List   core.WorkKind
+	Cursor string
 }
 
 // normalize returns q with its defaults set: size is the service's work
@@ -32,7 +37,11 @@ func (q WorkQuery) normalize(size int) WorkQuery {
 }
 
 func (q WorkQuery) key() string {
-	return "dashwork?first=" + strconv.Itoa(q.PageSize)
+	k := "dashwork?first=" + strconv.Itoa(q.PageSize)
+	if q.Cursor != "" {
+		k += "&list=" + strconv.Itoa(int(q.List)) + "&after=" + q.Cursor
+	}
+	return k
 }
 
 // CachedWork returns the cached work for q, fresh or stale, without I/O.
@@ -53,6 +62,6 @@ func (s *Service) Work(ctx context.Context, q WorkQuery) (core.Work, error) {
 	q = q.normalize(s.workSize)
 	// The client already names the request in its error.
 	return s.work.get(ctx, q.key(), q.Again, func(ctx context.Context) (core.Work, error) {
-		return s.api.ViewerWork(ctx, q.PageSize)
+		return s.api.ViewerWork(ctx, q.PageSize, q.List, q.Cursor)
 	})
 }

@@ -510,7 +510,8 @@ func TestWork(t *testing.T) {
 	}
 }
 
-func TestWorkMore(t *testing.T) {
+func TestWorkTotal(t *testing.T) {
+	t.Parallel()
 	svc := newFake()
 	svc.work.ReviewRequested.Count = 14
 	svc.work.Assigned = core.WorkList{}
@@ -518,10 +519,55 @@ func TestWorkMore(t *testing.T) {
 	view := screen(s)
 	press(t, s, "3", "[")
 	view += screen(s)
-	for _, want := range []string{"and 12 more on GitHub", "No open issues assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
+	for _, want := range []string{"No open issues assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work doesn't show %q:\n%s", want, view)
 		}
+	}
+	if strings.Contains(view, "more on GitHub") {
+		t.Errorf("the work still says some is left on GitHub:\n%s", view)
+	}
+}
+
+// pagedWork gives svc a first page of review requests with a cursor, and a
+// second page behind it.
+func pagedWork(svc *fakeService) {
+	svc.work.ReviewRequested.Count = 3
+	svc.work.ReviewRequested.Next = "c1"
+	svc.pages = map[string]core.WorkList{"c1": {Count: 3, Items: []core.SearchHit{
+		hit(core.SearchPulls, "octocat/hello-world", 901, "Second page pull request", false, time.Hour),
+	}}}
+}
+
+func TestWorkPaging(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	pagedWork(svc)
+	s := newSection(t, svc, nil, 140, 50)
+	// The first page is shorter than the pane, so it is near its end at once.
+	press(t, s, "3")
+	view := screen(s)
+	if !strings.Contains(view, "Second page pull request") {
+		t.Errorf("the second page isn't listed:\n%s", view)
+	}
+	if strings.Contains(view, "more on GitHub") || strings.Contains(view, "Loading more") {
+		t.Errorf("the work still says it has more to load:\n%s", view)
+	}
+	if !slices.Contains(svc.calls, "work page c1") {
+		t.Errorf("calls = %v, want the page after c1 read", svc.calls)
+	}
+}
+
+func TestWorkPageFails(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	pagedWork(svc)
+	svc.fail["work page c1"] = errors.New("boom")
+	s := newSection(t, svc, nil, 140, 50)
+	press(t, s, "3")
+	view := screen(s)
+	if strings.Contains(view, "Second page pull request") || !strings.Contains(view, "Something went wrong") {
+		t.Errorf("a failed page isn't shown as an error row:\n%s", view)
 	}
 }
 
