@@ -321,7 +321,14 @@ func (m *Model[T]) group(items []int, level int, parent string, visible bool, n 
 		}
 		buckets[k] = append(buckets[k], i)
 	}
-	slices.SortFunc(keys, func(a, b string) int {
+	// Groups sort by the label the user sees, not by the key behind it.
+	shown := func(k string) string {
+		if g.Label != nil {
+			return strings.ToLower(g.Label(k))
+		}
+		return strings.ToLower(k)
+	}
+	slices.SortStableFunc(keys, func(a, b string) int {
 		switch {
 		case a == b:
 			return 0
@@ -330,9 +337,9 @@ func (m *Model[T]) group(items []int, level int, parent string, visible bool, n 
 		case b == "":
 			return -1
 		case g.Desc:
-			return strings.Compare(b, a)
+			return strings.Compare(shown(b), shown(a))
 		}
-		return strings.Compare(a, b)
+		return strings.Compare(shown(a), shown(b))
 	})
 	for _, k := range keys {
 		path := parent + "\x1f" + k
