@@ -131,6 +131,9 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter(filterform.FiltersTab), true
 	case keymap.Matches(msg, k.Select):
+		if cmd, more := s.feed.Activate(); more {
+			return cmd, true
+		}
 		return s.open(), true
 	case keymap.Matches(msg, k.Open):
 		if n, ok := s.feed.Selected(); ok {
