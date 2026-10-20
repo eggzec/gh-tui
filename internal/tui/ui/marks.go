@@ -69,7 +69,7 @@ func SubjectMark(t core.SubjectType, st core.SubjectState, known bool) Mark {
 		return MarkCommit
 	case core.SubjectCheckSuite:
 		return MarkCheckSuite
-	case core.SubjectType("RepositoryVulnerabilityAlert"):
+	case core.SubjectVulnerabilityAlert:
 		return MarkAlert
 	}
 	return MarkOther

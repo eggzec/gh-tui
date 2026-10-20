@@ -17,6 +17,8 @@ const (
 	// SubjectCheckSuite is a workflow run, whose subject URL names the check
 	// suite.
 	SubjectCheckSuite SubjectType = "CheckSuite"
+	// SubjectVulnerabilityAlert is a Dependabot alert on a repository.
+	SubjectVulnerabilityAlert SubjectType = "RepositoryVulnerabilityAlert"
 )
 
 // Subject is what a notification points at.
