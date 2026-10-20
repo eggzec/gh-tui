@@ -35,6 +35,9 @@ func (s *Section) newStarList(login string) *starList {
 	}
 	l.Feed = feed.New(ui.FeedPages("owner.stars", query, read), render,
 		s.feedOptions(feed.WithKey(func(r core.Repo) string { return r.Ref.String() }), "No stars yet.", "load the stars", login)...)
+	if groups := s.grouping.Groups(); len(groups) > 0 {
+		_ = l.Feed.SetGroups(groups)
+	}
 	return l
 }
 

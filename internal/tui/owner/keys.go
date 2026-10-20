@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // KeyMap holds the keys of the page.
@@ -39,6 +40,10 @@ type KeyMap struct {
 	ClearFilter key.Binding
 	// ToggleFilter switches the filter off, and back on.
 	ToggleFilter key.Binding
+	// GroupBy opens the choice of the levels the repositories and stars are
+	// grouped by, and ToggleGroups switches the grouping off, and back on.
+	GroupBy      key.Binding
+	ToggleGroups key.Binding
 	// Up, Down, Left and Right move through the cards.
 	Up    key.Binding `keymap:"owner_pinned.up" help:"up"`
 	Down  key.Binding `keymap:"owner_pinned.down" help:"down"`
@@ -53,6 +58,8 @@ type KeyMap struct {
 	feed feed.KeyMap
 	// search are the keys of the prompt of the lists' find and filter.
 	search cmdline.KeyMap
+	// order are the keys of the picker of the levels to group by.
+	order orderpick.KeyMap
 	// cal moves through the days of a user's contributions.
 	cal calendar.KeyMap
 }
@@ -79,6 +86,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Sort:         list.Binding("sort", "sort"),
 		ClearFilter:  list.Binding("clear_filter", "clear filters"),
 		ToggleFilter: list.Binding("filter_toggle", "filter on/off"),
+		GroupBy:      list.Binding("group_by", "group by"),
+		ToggleGroups: list.Binding("group_toggle", "group on/off"),
 	}
 	keymap.Fill(&k, page)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
@@ -92,6 +101,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// leaves it.
 	k.feed = feed.NewKeyMap(list)
 	k.search = ui.SearchPromptKeys(keys)
+	k.order = ui.OrderPickKeys(keys)
 	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
@@ -118,7 +128,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -168,7 +178,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case pinnedPane:
 		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
 	case listPane:
-		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort}
+		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}
 	case readmePane:
 		return []key.Binding{k.Open}
 	case calendarPane, numPanes:
@@ -198,7 +208,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.page != nil {
 		focus = s.page.focus
 	}
-	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort} {
+	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort, &k.GroupBy, &k.ToggleGroups} {
 		b.SetEnabled(b.Enabled() && s.page != nil)
 	}
 	if focus == listPane {
@@ -208,6 +218,9 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && active)
 		k.Filter.SetEnabled(k.Filter.Enabled() && l != nil)
 		k.Sort.SetEnabled(k.Sort.Enabled() && l != nil)
+		grouped := s.page != nil && (s.page.tab == reposTab || s.page.tab == starsTab)
+		k.GroupBy.SetEnabled(k.GroupBy.Enabled() && grouped)
+		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && grouped && len(s.grouping.Levels) > 0)
 		// The tabs are known once the header says whose the page is.
 		tabs := s.page != nil && s.page.header.ok
 		k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
