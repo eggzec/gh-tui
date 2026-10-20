@@ -35,8 +35,9 @@ type KeyMap struct {
 	// before the form shows, too.
 	Back, Dismiss key.Binding
 	// Filter edits the filter of the runs, in a step of the modal, and
-	// ClearFilter clears it. Both work with the focus on the runs.
-	Filter, ClearFilter key.Binding
+	// ClearFilter clears it. ToggleFilter switches it off and on. All work
+	// with the focus on the runs.
+	Filter, ClearFilter, ToggleFilter key.Binding
 	// Zoom shows the focused pane alone.
 	Zoom key.Binding
 	// Open opens the run or the job on GitHub.
@@ -81,26 +82,27 @@ const (
 func newKeyMap(keys config.Keymap) KeyMap {
 	modal, runs, jobs, log, notes := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxJobs), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
 	k := KeyMap{
-		NextTab:     modal.Binding("global.next_tab", "tab"),
-		PrevTab:     modal.Binding("global.prev_tab", "previous tab"),
-		Select:      modal.Binding("global.select", "open"),
-		Back:        modal.Binding("global.back", "back"),
-		Dismiss:     modal.Binding("global.dismiss", "close"),
-		Filter:      runs.Binding("filter", "filter"),
-		ClearFilter: runs.Binding("clear_filter", "clear filter"),
-		Zoom:        modal.Binding("global.zoom", "zoom"),
-		Open:        modal.Binding("global.open", "browser"),
-		Refresh:     modal.Binding("global.refresh", "refresh"),
-		RerunFailed: modal.Binding("rerun_failed", "rerun failed"),
-		Rerun:       modal.Binding("rerun", "rerun all"),
-		RerunJob:    jobs.Binding("rerun_job", "rerun job"),
-		rerunLog:    log.Binding("rerun_job", "rerun job"),
-		rerunNotes:  notes.Binding("rerun_job", "rerun job"),
-		Cancel:      modal.Binding("cancel", "cancel run"),
-		Annotations: log.Binding("annotations", "annotations"),
-		notes:       notes.Binding("annotations", "annotations"),
-		Confirm:     ui.NewConfirmKeys(keys),
-		form:        ui.FilterFormKeys(keys, "actions_filter"),
+		NextTab:      modal.Binding("global.next_tab", "tab"),
+		PrevTab:      modal.Binding("global.prev_tab", "previous tab"),
+		Select:       modal.Binding("global.select", "open"),
+		Back:         modal.Binding("global.back", "back"),
+		Dismiss:      modal.Binding("global.dismiss", "close"),
+		Filter:       runs.Binding("filter", "filter"),
+		ClearFilter:  runs.Binding("clear_filter", "clear filter"),
+		ToggleFilter: runs.Binding("filter_toggle", "filter on/off"),
+		Zoom:         modal.Binding("global.zoom", "zoom"),
+		Open:         modal.Binding("global.open", "browser"),
+		Refresh:      modal.Binding("global.refresh", "refresh"),
+		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
+		Rerun:        modal.Binding("rerun", "rerun all"),
+		RerunJob:     jobs.Binding("rerun_job", "rerun job"),
+		rerunLog:     log.Binding("rerun_job", "rerun job"),
+		rerunNotes:   notes.Binding("rerun_job", "rerun job"),
+		Cancel:       modal.Binding("cancel", "cancel run"),
+		Annotations:  log.Binding("annotations", "annotations"),
+		notes:        notes.Binding("annotations", "annotations"),
+		Confirm:      ui.NewConfirmKeys(keys),
+		form:         ui.FilterFormKeys(keys, "actions_filter"),
 		// The modal's own keys come before those of the lists and the log.
 		Next: modal.Binding("global.next_pane", "pane"),
 		Prev: modal.Binding("global.prev_pane", "previous pane"),
@@ -169,7 +171,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log pane's job view: the moves of the

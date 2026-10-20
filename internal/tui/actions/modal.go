@@ -82,6 +82,8 @@ type Modal struct {
 
 	// filter selects the runs; the tab shown is the one it matches.
 	filter core.RunFilter
+	// toggle holds the filter that the filter toggle key switched off.
+	toggle ui.FilterToggle[core.RunFilter]
 	runs   feed.Model[core.Run]
 	// live holds the runs as a change or a poll left them in the cache,
 	// newer than the feed's copies.
@@ -306,7 +308,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	own := keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{k.Select, rerun}}
 	switch m.focus {
 	case runsPane:
-		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter}, Short: []key.Binding{k.Select, k.Filter}}
+		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter}, Short: []key.Binding{k.Select, k.Filter}}
 		list, _ := ui.FeedLayer(m.runs)
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
 	case jobsPane:
@@ -328,7 +330,10 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	switch m.focus {
 	case runsPane:
 		k.Select = relabel(k.Select, "jobs")
-		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && formFiltered(m.filter))
+		// A filter that is switched off is kept, so the keys have it to act on.
+		set := formFiltered(m.filter) || m.toggle.Off()
+		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && set)
+		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && set)
 		// Nothing is before the runs.
 		k.Back.SetEnabled(false)
 		switch {

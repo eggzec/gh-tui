@@ -949,6 +949,59 @@ func TestClearFilterIsTheRunsKey(t *testing.T) {
 	}
 }
 
+// Alt+f lists the runs without the filter of the form and brings it back,
+// keeping the tab and the commit; F clears the kept filter and ends the
+// switch, and with no filter there is nothing to switch.
+func TestFilterToggleSwitchesTheFormOffAndOn(t *testing.T) {
+	form := core.RunFilter{Branch: "main", Event: "push", WorkflowID: 7, HeadSHA: "abc123"}
+	m, h := newModal(t, newFake(), wideW, wideH, WithFilter(form))
+	h.keys("alt+f")
+	if want := cleared(form); m.filter != want {
+		t.Fatalf("alt+f left the filter at %+v, want %+v", m.filter, want)
+	}
+	if kept, off := m.toggle.Kept(); !off || kept != form {
+		t.Errorf("the toggle holds %+v, off %v, want the form's filter", kept, off)
+	}
+	if got := m.paneTitle(runsPane, 80); !strings.Contains(got, "off") {
+		t.Errorf("the title %q doesn't say that the filter is off", ansi.Strip(got))
+	}
+	h.keys("alt+f")
+	if m.filter != form || m.toggle.Off() {
+		t.Errorf("alt+f again left the filter at %+v, off %v, want %+v", m.filter, m.toggle.Off(), form)
+	}
+	h.keys("alt+f", "F")
+	if want := cleared(form); m.filter != want || m.toggle.Off() {
+		t.Errorf("F while off left the filter at %+v, off %v, want %+v", m.filter, m.toggle.Off(), want)
+	}
+	before := m.filter
+	h.take()
+	h.keys("alt+f")
+	if m.filter != before || m.toggle.Off() {
+		t.Errorf("alt+f with no filter changed the filter to %+v", m.filter)
+	}
+	if len(h.take()) == 0 {
+		t.Error("alt+f with no filter said nothing")
+	}
+}
+
+// F while the filter is off edits the kept filter, and applying it switches
+// the filter on.
+func TestFilterOpensOnTheKeptFilter(t *testing.T) {
+	form := core.RunFilter{Branch: "main"}
+	m, h := newModal(t, newFake(), wideW, wideH, WithFilter(form))
+	h.keys("alt+f", "f")
+	if m.filterStep == nil || m.filterStep.form == nil {
+		t.Fatal("f didn't open the filter")
+	}
+	if q := m.filterStep.form.Query(); !strings.Contains(q, "branch:main") {
+		t.Errorf("the form opened on %q, want the kept filter", q)
+	}
+	h.keys("enter")
+	if m.toggle.Off() || m.filter.Branch != "main" {
+		t.Errorf("applying left the filter at %+v, off %v", m.filter, m.toggle.Off())
+	}
+}
+
 // Cancelling a run is X: x no longer asks.
 func TestLowercaseXDoesNotCancel(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
