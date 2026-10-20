@@ -271,7 +271,7 @@ func (m Model[T]) wantsTail() bool {
 		// On the row of the items not loaded the key that reached it has
 		// fetched one chunk already; sitting there does not fetch the rest,
 		// which closed groups would never show.
-		return m.fill && m.top+m.slots() >= m.shown() || !m.onMore() && m.itemsAfter() <= m.margin()
+		return !m.onMore() && (m.fill && m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin())
 	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
 }

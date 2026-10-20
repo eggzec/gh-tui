@@ -53,4 +53,7 @@ Issues
   quick filter | & | & | on
   next match | n | n | off
   prev match | N | N | off
+  expand |  |  | off
+  collapse |  |  | off
+  all |  |  | off
   mark | space | space | on
