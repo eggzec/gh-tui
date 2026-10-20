@@ -235,13 +235,17 @@ func (m *Modal) clearRun() {
 // ran.
 func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	r = m.current(r)
-	st := &m.st
+	look := lookPlain
+	switch {
+	case selected && m.focus == runsPane:
+		look = lookFocused
+	case selected:
+		look = lookBlurred
+	}
+	ic, st := m.st.ic, &m.st.row[look]
 	now := m.now()
 	state := ui.RunStateOf(r.Status, r.Conclusion)
 	name := st.Strong.Render(ui.OneLine(r.Name))
-	if !selected {
-		name = st.Text.Render(ui.OneLine(r.Name))
-	}
 	// The workflow, the number and the title link to the run's page.
 	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
 		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+"  "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
@@ -253,7 +257,7 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 			parts = append(parts, p)
 		}
 	}
-	detail := "  " + st.Muted.Render(strings.Join(parts, st.ic.Separator))
+	detail := "  " + st.Muted.Render(strings.Join(parts, ic.Separator))
 	var took string
 	switch d, ok := runSpan(r, now); {
 	case r.Status == core.RunCancelling:

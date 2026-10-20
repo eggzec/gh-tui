@@ -131,9 +131,11 @@ func (c Cols) Header(star, tail string) string {
 }
 
 // Row renders a repository of a table in its columns c: its name, flags,
-// description, language, stars and age, measured against now in dates.
-func (d Drawer) Row(c Cols, r core.Repo, selected bool, dates ui.Dates, now func() time.Time) string {
-	st := d.Styles
+// description, language, stars and age, measured against now in dates. look
+// is [LookPlain] or one of the looks of the selected row; every cell of that
+// row is bold.
+func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() time.Time) string {
+	st := &d.Styles.Rows[look]
 	var b strings.Builder
 	b.Grow(c.Width() + 96)
 	first := true
@@ -146,11 +148,7 @@ func (d Drawer) Row(c Cols, r core.Repo, selected bool, dates ui.Dates, now func
 	if c.name > 0 {
 		gap()
 		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
-		nameStyle := st.Text
-		if selected {
-			nameStyle = st.Selected
-		}
-		b.WriteString(d.Links.Link(d.URL(r), nameStyle.Render(name)))
+		b.WriteString(d.Links.Link(d.URL(r), st.Title.Render(name)))
 		b.WriteString(strings.Repeat(" ", c.name-ansi.StringWidth(name)))
 	}
 	if c.flags > 0 {
@@ -177,7 +175,11 @@ func (d Drawer) Row(c Cols, r core.Repo, selected bool, dates ui.Dates, now func
 		used := 0
 		if r.Language != "" {
 			g := d.Icons.Language(r.Language)
-			d.Lang(r).Write(&b, g)
+			lang := d.Lang(r)
+			if look != LookPlain {
+				lang = lang.Bold()
+			}
+			lang.Write(&b, g)
 			used = ansi.StringWidth(g)
 		}
 		b.WriteString(strings.Repeat(" ", max(c.lang-used, 0)))

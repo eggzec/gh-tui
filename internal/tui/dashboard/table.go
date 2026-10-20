@@ -7,8 +7,8 @@ import (
 
 // renderRepo renders a repository of the list in the columns of the tab:
 // its name, flags, description, language, stars and age.
-func (s *Section) renderRepo(c ownerui.Cols, r core.Repo, selected bool) string {
-	return s.drawer().Row(c, r, selected, s.dates, s.now)
+func (s *Section) renderRepo(c ownerui.Cols, r core.Repo, selected, focused bool) string {
+	return s.drawer().Row(c, r, ownerui.Look(selected, focused), s.dates, s.now)
 }
 
 // langPaint returns the paint of the language glyph of r, built once per

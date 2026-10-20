@@ -80,7 +80,7 @@ func (s *Section) newPeopleList(t tab, login string, roles bool) *peopleList {
 		return svc.People(ctx, q)
 	}
 	render := func(p core.Person, selected bool, _ int) string {
-		return s.personRow(l.cols, p, selected, l.roles)
+		return s.personRow(l.cols, p, ownerui.Look(selected, l.Feed.Focused()), l.roles)
 	}
 	what := strings.ToLower(tabTitles[t])
 	l.Feed = feed.New(ui.FeedPages("owner."+l.q.List.String(), query, read), render,
@@ -177,12 +177,9 @@ func (l *peopleList) header(s *Section) string {
 
 // personRow renders p in its columns c: the login, which links to the
 // profile, the name, and the role if roles is set, or else the bio.
-func (s *Section) personRow(c peopleCols, p core.Person, selected, roles bool) string {
-	st := &s.st.shared
-	login := st.Text
-	if selected {
-		login = st.Selected
-	}
+func (s *Section) personRow(c peopleCols, p core.Person, look int, roles bool) string {
+	st := &s.st.shared.Rows[look]
+	login := st.Title
 	last := ownerui.CleanLine(p.Bio)
 	if roles {
 		last = roleName(p.Role)

@@ -61,7 +61,7 @@ func (s *Section) newTeamList(login string, membersOnly bool) *teamList {
 		return svc.Teams(ctx, q)
 	}
 	render := func(t core.Team, selected bool, _ int) string {
-		return s.teamRow(l.cols, t, selected)
+		return s.teamRow(l.cols, t, ownerui.Look(selected, l.Feed.Focused()))
 	}
 	l.Feed = feed.New(ui.FeedPages("owner.teams", query, read), render,
 		s.feedOptions(feed.WithKey(func(t core.Team) string { return t.Slug }), "No teams you can see.", "load the teams", login)...)
@@ -153,12 +153,9 @@ func (l *teamList) header(s *Section) string {
 
 // teamRow renders t in its columns c: the name, which links to the team,
 // whether it is secret, how many members it has, and its description.
-func (s *Section) teamRow(c teamCols, t core.Team, selected bool) string {
-	st := &s.st.shared
-	name := st.Text
-	if selected {
-		name = st.Selected
-	}
+func (s *Section) teamRow(c teamCols, t core.Team, look int) string {
+	st := &s.st.shared.Rows[look]
+	name := st.Title
 	flag := ""
 	if t.Secret {
 		flag = s.icons.Private

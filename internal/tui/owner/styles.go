@@ -36,7 +36,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 			Muted:    ownerui.NewPaint(t.Muted),
 			Subtle:   ownerui.NewPaint(t.Subtle),
 			Accent:   ownerui.NewPaint(t.Accent),
-			Selected: ownerui.NewPaint(t.Title),
+			Rows:     ownerui.NewRowPaints(t),
 			Cursor:   t.Accent.Render(ic.Cursor) + " ",
 			Blurred:  t.Subtle.Render(ic.Cursor) + " ",
 		},
