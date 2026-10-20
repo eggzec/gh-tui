@@ -17,9 +17,15 @@ import (
 // repository and holds the tabs.
 const headerHeight = 1
 
+// headsHeight is the height of the line under it that names the columns.
+const headsHeight = 1
+
 // gutter lines text up with the rows of the feed, which keep two cells for
 // the selection.
 const gutter = "  "
+
+// ageHeader titles the column of the dates.
+const ageHeader = "Updated"
 
 // Widths of the fixed columns of a row, in cells.
 const (
@@ -254,7 +260,7 @@ func (st *styles) noRepo(width, height int, hint string) string {
 
 // renderRow renders pr in one line of width cells.
 func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) string {
-	if aw := s.dates.Width(); s.cols.width != width || s.cols.ageWidth != aw {
+	if aw := s.ageRoom(); s.cols.width != width || s.cols.ageWidth != aw {
 		s.cols = columnsFor(width, aw)
 	}
 	c := s.cols
@@ -319,8 +325,8 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 		if !pr.UpdatedAt.IsZero() {
 			ago = s.dates.Short(pr.UpdatedAt, s.now())
 		}
-		pad(&b, c.ageWidth-ansi.StringWidth(ago))
 		st.age.write(&b, ago)
+		pad(&b, c.ageWidth-ansi.StringWidth(ago))
 	}
 	if over >= c.title {
 		// With no title left to take from, the glyph and the number may
@@ -409,6 +415,47 @@ func (p paint) write(b *strings.Builder, text string) {
 	b.WriteString(p.pre)
 	b.WriteString(text)
 	b.WriteString(p.suf)
+}
+
+// ageRoom is the width of the dates' column: the widest date, or the room of
+// its title when that is wider.
+func (s *Section) ageRoom() int {
+	return max(s.dates.Width(), len(ageHeader))
+}
+
+// renderHeads renders the line of column titles over the rows, laid out as
+// the rows are. It is blank while the list has no rows.
+func (s *Section) renderHeads() string {
+	if s.feed == nil || s.feed.Len() == 0 {
+		return ""
+	}
+	c := columnsFor(max(s.width-s.feed.Gutter(), 0), s.ageRoom())
+	// The gaps are columns of their own, since the rows' gaps differ.
+	gap := func(on bool, n int) ui.Column {
+		if !on {
+			return ui.Column{}
+		}
+		return ui.Column{Width: n}
+	}
+	head := ui.Header([]ui.Column{
+		{Width: stateWidth},
+		{Title: "#", Width: ui.NumberWidth + 1},
+		{Title: "Title", Width: c.title},
+		gap(c.review, 2), {Title: "R", Width: boolWidth(c.review, 1)},
+		gap(c.checks, 1), {Title: "C", Width: boolWidth(c.checks, 1)},
+		gap(c.diff, 2), {Title: "Diff", Width: boolWidth(c.diff, diffWidth)},
+		gap(c.labels, 2), {Title: "Labels", Width: boolWidth(c.labels, labelsWidth)},
+		gap(c.author, 2), {Title: "Author", Width: boolWidth(c.author, authorWidth)},
+		gap(c.age, 2), {Title: ageHeader, Width: boolWidth(c.age, c.ageWidth)},
+	}, 0, s.st.ic.Ellipsis)
+	return s.indent() + s.st.theme.Muted.Render(head)
+}
+
+func boolWidth(on bool, w int) int {
+	if on {
+		return w
+	}
+	return 0
 }
 
 // indent is the blank that lines the header up with the rows, which the

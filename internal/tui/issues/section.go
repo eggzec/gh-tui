@@ -101,6 +101,7 @@ type Section struct {
 	// Rendered when what they show changes, so View only joins them. off
 	// is shown in place of the list when repo has no issues.
 	bar   string
+	heads string
 	empty string
 	off   string
 	// hint is what the empty state tells the user to do.
@@ -210,9 +211,12 @@ func (s *Section) Blur() {
 	s.list.Blur()
 }
 
-// bodyHeight is the height under the bar.
+// headsHeight is the line of column titles under the bar.
+const headsHeight = 1
+
+// bodyHeight is the height under the bar and the titles.
 func (s *Section) bodyHeight() int {
-	return max(s.height-1, 0)
+	return max(s.height-1-headsHeight, 0)
 }
 
 // newList returns a feed of the current repository, tab and filter, sized,

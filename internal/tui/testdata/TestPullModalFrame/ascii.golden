@@ -1,8 +1,8 @@
 - eggzec/gh-tui --------------------------------------------- * 1 notification -
 +-[1] Files -------------------++-[2] Pull requests ---------------------------+
 |> + cmd+- #2 ---------------------------------------------------------+d - All|
-|    REA| O #2 Match keys by order                                     |    now|
-|       | +- 2 Conversation ------------ 2 of 2 shown - filter: all -+ |       |
+|    REA| O #2 Match keys by order                                     |Updated|
+|       | +- 2 Conversation ------------ 2 of 2 shown - filter: all -+ |now    |
 |       | | ▌o bob                                               now | |       |
 |       | |  ╰─ * dee - b.go:7  Why?                             now | |       |
 |       | |     ╰─ bob  Because.                                 now | |       |
@@ -12,8 +12,8 @@
 |       | |                                                          | |-------+
 |       | |                                                          | |-------+
 |       | |                                                          | |d - All|
-|       | |                                                          | |    now|
-|       | |                                                          | |       |
+|       | |                                                          | |Updated|
+|       | |                                                          | |now    |
 |       | |                                                          | |       |
 |       | |                                                          | |       |
 |       | |                                                          | |       |
