@@ -1,6 +1,10 @@
 package termtext
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+)
 
 func TestTruncate(t *testing.T) {
 	for _, tt := range []struct {
@@ -44,12 +48,27 @@ func TestTruncateMiddle(t *testing.T) {
 		{"abcdefghij", 1, "…", "…"},
 		{"abcdefghij", 0, "…", ""},
 		// A wide rune that straddles the cut is dropped.
-		{"日本語日本語", 7, "…", "日…本語"},
+		{"日本語日本語", 7, "…", "日…語"},
 		{"日本語日本語", 12, "…", "日本語日本語"},
 		{"\x1b[1mabcdefghij\x1b[m", 7, "…", "\x1b[1mabc\x1b[m…\x1b[1mhij\x1b[m"},
+		// A wide rune that straddles only the right cut is dropped too.
+		{"abcd日本x", 6, "…", "abc…x"},
+		{"abcd🚀xyz", 6, "…", "abc…yz"},
 	} {
 		if got := TruncateMiddle(tt.s, tt.width, tt.tail); got != tt.want {
 			t.Errorf("TruncateMiddle(%q, %d, %q) = %q, want %q", tt.s, tt.width, tt.tail, got, tt.want)
+		}
+	}
+}
+
+func TestTruncateMiddleFits(t *testing.T) {
+	for _, s := range []string{"abcd日本x", "a日b本c語d", "🚀 ab🚀cd🚀 ef", "日本語日本語", "abcdefghij"} {
+		for _, tail := range []string{"…", "...", "日"} {
+			for w := range ansi.StringWidth(s) + 2 {
+				if got := TruncateMiddle(s, w, tail); ansi.StringWidth(got) > w {
+					t.Errorf("TruncateMiddle(%q, %d, %q) = %q, %d cells wide", s, w, tail, got, ansi.StringWidth(got))
+				}
+			}
 		}
 	}
 }
