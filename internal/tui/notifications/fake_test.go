@@ -286,7 +286,7 @@ func newSection(tb testing.TB, svc Service, width, height int) *Section {
 	s.Focus()
 	// asking is package-level, so a question left open must not outlive
 	// the test that opened it.
-	tb.Cleanup(func() { delete(asking, s) })
+	tb.Cleanup(func() { closeQuestion(s, nil) })
 	run(tb, s, s.Init())
 	return s
 }
@@ -314,13 +314,11 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			// The app opens the question over the section, and gives it
 			// the keys until it closes.
 			if m, ok := msg.Modal.(*ui.ConfirmModal); ok {
-				asking[s] = m
+				ask(s, m)
 			}
 			app = append(app, msg)
 		case ui.CloseModalMsg:
-			if asking[s] == msg.Modal {
-				delete(asking, s)
-			}
+			closeQuestion(s, msg.Modal)
 		case ui.DoneMsg:
 			app = append(app, msg)
 			queue = append(queue, s.Update(msg))
@@ -334,12 +332,41 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 	return app
 }
 
-// asking holds the question each section opened, until it closes.
-var asking = map[*Section]*ui.ConfirmModal{}
+// asking holds the question each section opened, until it closes. Tests run
+// in parallel, so askingMu guards it.
+var (
+	askingMu sync.Mutex
+	asking   = map[*Section]*ui.ConfirmModal{}
+)
+
+// asked returns the question open over s.
+func asked(s *Section) (*ui.ConfirmModal, bool) {
+	askingMu.Lock()
+	defer askingMu.Unlock()
+	m, ok := asking[s]
+	return m, ok
+}
+
+// ask records m as the question open over s.
+func ask(s *Section, m *ui.ConfirmModal) {
+	askingMu.Lock()
+	defer askingMu.Unlock()
+	asking[s] = m
+}
+
+// closeQuestion forgets the question open over s, if it is m, or any when m
+// is nil.
+func closeQuestion(s *Section, m ui.Modal) {
+	askingMu.Lock()
+	defer askingMu.Unlock()
+	if cur, ok := asking[s]; ok && (m == nil || ui.Modal(cur) == m) {
+		delete(asking, s)
+	}
+}
 
 // question returns what the question open over s asks, or "".
 func question(s *Section) string {
-	if m, ok := asking[s]; ok {
+	if m, ok := asked(s); ok {
 		return m.Question()
 	}
 	return ""
@@ -362,7 +389,7 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 			app = append(app, run(tb, s, s.ApplyFilter(filterform.AppliedMsg{Query: q}))...)
 			continue
 		}
-		if m, ok := asking[s]; ok {
+		if m, ok := asked(s); ok {
 			if k == readAll {
 				// No key does it, and the question that is open takes
 				// no other command.
