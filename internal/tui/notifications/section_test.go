@@ -328,7 +328,7 @@ func TestLayoutDropsColumns(t *testing.T) {
 		{118, true, true, true},
 		{78, true, true, true},
 		{60, true, true, false},
-		{44, true, false, false},
+		{47, true, false, false},
 		{36, false, false, false},
 		{20, false, false, false},
 	}

@@ -143,6 +143,12 @@ func defaultPalette() config.Palette {
 	return p
 }
 
+// updatedTitle heads the column of ages.
+const updatedTitle = "Updated"
+
+// typeTitle heads the column of kinds, when it is wide enough to hold it.
+const typeTitle = "Type"
+
 // layout is where the columns of a row go at one width. A zero width drops
 // the column.
 type layout struct {
@@ -152,6 +158,8 @@ type layout struct {
 // newLayout lays out a row of width cells, with dates of age cells at most
 // and a kind column of tag cells.
 func newLayout(width, age, tag int) layout {
+	// The age column is as wide as its title, so the title isn't cut.
+	age = max(age, len(updatedTitle))
 	// The dot, the title and the age are always shown.
 	rest := width - dotWidth - 1 - gap - age
 	l := layout{
@@ -400,14 +408,18 @@ func columnHeader(l layout, tail string) string {
 	var b strings.Builder
 	b.WriteString(strings.Repeat(" ", dotWidth+1))
 	if l.tag > 0 {
-		b.WriteString(ui.Header([]ui.Column{{Title: "Type", Width: l.tag}}, 1, tail))
+		title := typeTitle
+		if l.tag < len(typeTitle) {
+			title = ""
+		}
+		b.WriteString(ui.Header([]ui.Column{{Title: title, Width: l.tag}}, 1, tail))
 		b.WriteByte(' ')
 	}
 	b.WriteString(ui.Header([]ui.Column{
 		{Title: "Ref", Width: l.repo},
 		{Title: "Title", Width: l.title},
 		{Title: "Reason", Width: l.reason},
-		{Title: "Updated", Width: l.age},
+		{Title: updatedTitle, Width: l.age},
 	}, gap, tail))
 	return b.String()
 }
