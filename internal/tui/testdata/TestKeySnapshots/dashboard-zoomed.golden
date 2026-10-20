@@ -30,6 +30,7 @@ Repositories
   filter on/off | alt+f | alt+f | off
   filter | f | f | on
   sort | s | s | on
+  sort on/off | alt+s | alt+s | on
   group by | g | g | on
   group on/off | alt+g | alt+g | off
   up | up k | ↑/k | on

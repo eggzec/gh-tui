@@ -27,6 +27,7 @@ Issue
   filter on/off | alt+f | alt+f | on
   filter | f | f | off
   sort | s | s | off
+  sort on/off | alt+s | alt+s | on
   author | @ | @ | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on

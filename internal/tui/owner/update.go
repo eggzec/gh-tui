@@ -172,6 +172,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case repos && keymap.Matches(msg, k.ClearFilter):
 			if l := s.repoTab(); l != nil {
 				l.toggle.On()
+				l.sortToggle.On()
 			}
 			return s.setFilter(""), true
 		case repos && keymap.Matches(msg, k.ToggleFilter):
@@ -179,9 +180,20 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			if l == nil {
 				return nil, true
 			}
+			l.sortToggle.On()
 			next, ok := l.toggle.Switch(l.Filter().Query(), "")
 			if !ok {
 				return ui.NothingToSwitch(), true
+			}
+			return s.setFilter(next), true
+		case repos && keymap.Matches(msg, k.ToggleSort):
+			l := s.repoTab()
+			if l == nil {
+				return nil, true
+			}
+			next, ok := l.sortToggle.Switch(l.Filter().Query())
+			if !ok {
+				return ui.NoSortToSwitch(), true
 			}
 			return s.setFilter(next), true
 		case repos && keymap.Matches(msg, k.Filter):

@@ -211,10 +211,12 @@ type Section struct {
 	query string
 	chips string
 	// toggle holds the query that the filter key switched off.
-	toggle  ui.FilterToggle[string]
-	facets  Facets
-	started bool
-	focused bool
+	toggle ui.FilterToggle[string]
+	// sortToggle holds the query that the sort key switched off.
+	sortToggle ui.SortToggle
+	facets     Facets
+	started    bool
+	focused    bool
 
 	// feed lists the pull requests of repo in tab that query selects. It is nil until the
 	// section has started with a repository.

@@ -44,6 +44,8 @@ type KeyMap struct {
 	// grouped by, and ToggleGroups switches the grouping off, and back on.
 	GroupBy      key.Binding
 	ToggleGroups key.Binding
+	// ToggleSort switches the sort off, and back on.
+	ToggleSort key.Binding
 	// Up, Down, Left and Right move through the cards.
 	Up    key.Binding `keymap:"owner_pinned.up" help:"up"`
 	Down  key.Binding `keymap:"owner_pinned.down" help:"down"`
@@ -88,6 +90,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ToggleFilter: list.Binding("filter_toggle", "filter on/off"),
 		GroupBy:      list.Binding("group_by", "group by"),
 		ToggleGroups: list.Binding("group_toggle", "group on/off"),
+		ToggleSort:   list.Binding("sort_toggle", "sort on/off"),
 	}
 	keymap.Fill(&k, page)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
@@ -128,7 +131,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -178,7 +181,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case pinnedPane:
 		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
 	case listPane:
-		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}
+		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
 	case readmePane:
 		return []key.Binding{k.Open}
 	case calendarPane, numPanes:
@@ -208,16 +211,17 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.page != nil {
 		focus = s.page.focus
 	}
-	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort, &k.GroupBy, &k.ToggleGroups} {
+	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort, &k.ToggleSort, &k.GroupBy, &k.ToggleGroups} {
 		b.SetEnabled(b.Enabled() && s.page != nil)
 	}
 	if focus == listPane {
 		l := s.repoTab()
-		active := l != nil && (l.Filter().Active() || l.toggle.Off())
+		active := l != nil && (l.Filter().Active() || l.toggle.Off() || l.sortToggle.Off())
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && active)
 		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && active)
 		k.Filter.SetEnabled(k.Filter.Enabled() && l != nil)
 		k.Sort.SetEnabled(k.Sort.Enabled() && l != nil)
+		k.ToggleSort.SetEnabled(k.ToggleSort.Enabled() && l != nil)
 		grouped := s.page != nil && (s.page.tab == reposTab || s.page.tab == starsTab)
 		k.GroupBy.SetEnabled(k.GroupBy.Enabled() && grouped)
 		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && grouped && len(s.grouping.Levels) > 0)

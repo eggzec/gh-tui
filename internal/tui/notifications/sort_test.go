@@ -1,10 +1,13 @@
 package notifications
 
 import (
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -67,6 +70,74 @@ func TestSortOrder(t *testing.T) {
 	check("oldest first", oldest)
 }
 
+// TestSortMultiKeyOrder checks an explicit order of two keys: a tie falls
+// through to the newest update, and a thread without a value goes last.
+func TestSortMultiKeyOrder(t *testing.T) {
+	t.Parallel()
+	threads := []core.Notification{
+		thread("1", "a/x", core.SubjectIssue, "one", "mention", true, time.Hour),
+		thread("2", "b/y", core.SubjectIssue, "two", "mention", true, time.Hour),
+		thread("3", "b/y", core.SubjectIssue, "three", "author", true, 3*time.Hour),
+		thread("4", "b/y", core.SubjectIssue, "four", "author", true, 2*time.Hour),
+		thread("5", "a/x", core.SubjectIssue, "five", "", true, time.Minute),
+	}
+	s := newSection(t, newFake(threads...), 80, 12)
+	run(t, s, s.setSort(levels("reason", "repository")))
+	var got []string
+	for _, n := range loaded(s) {
+		got = append(got, n.ID)
+	}
+	if want := "4 3 1 2 5"; strings.Join(got, " ") != want {
+		t.Errorf("order = %v, want %s", got, want)
+	}
+}
+
+// TestSortKeepsTheOrderAcrossPages checks that a page that arrives while
+// sorted joins the order, and that the cursor stays on its thread.
+func TestSortKeepsTheOrderAcrossPages(t *testing.T) {
+	t.Parallel()
+	var threads []core.Notification
+	for i := range 60 {
+		repo := string(rune('a'+(i*7)%26)) + "/r"
+		threads = append(threads, thread(strconv.Itoa(i+1), repo, core.SubjectIssue, "t"+repo, "mention", true, time.Duration(i+1)*time.Hour))
+	}
+	svc := newFake(threads...)
+	svc.size = 3
+	s := newSection(t, svc, 80, 6)
+	run(t, s, s.setSort(levels("repository")))
+	less := s.sortLess(levels("repository"))
+	first := s.feed.Len()
+	var prev string
+	for range 2 * len(threads) {
+		if s.feed.Len() > first {
+			break
+		}
+		cur, _ := s.feed.Selected()
+		prev = cur.ID
+		press(t, s, "j")
+	}
+	if s.feed.Len() <= first {
+		t.Fatalf("no second page arrived: %d rows", first)
+	}
+	got := loaded(s)
+	for i := 1; i < len(got); i++ {
+		if less(got[i], got[i-1]) < 0 {
+			t.Errorf("%s before %s", got[i-1].ID, got[i].ID)
+		}
+	}
+	// The press moved the cursor one row on, in the order the new page made.
+	cur, _ := s.feed.Selected()
+	ok := false
+	for i, n := range got {
+		if n.ID == prev && i+1 < len(got) && got[i+1].ID == cur.ID {
+			ok = true
+		}
+	}
+	if !ok && cur.ID != prev {
+		t.Errorf("cursor on %s, want %s or the row after it", cur.ID, prev)
+	}
+}
+
 // TestSortKeepsTheCursor checks that the cursor stays on its thread.
 func TestSortKeepsTheCursor(t *testing.T) {
 	t.Parallel()
@@ -107,6 +178,7 @@ func TestSortToggle(t *testing.T) {
 	if view := ansi.Strip(s.View()); !strings.Contains(view, "sort updated") || !strings.Contains(view, "off") {
 		t.Errorf("the header should show the sort as off:\n%s", view)
 	}
+	golden.RequireEqual(t, s.View())
 	press(t, s, "alt+s")
 	if s.sortOff {
 		t.Fatal("alt+s did not restore the sort")
