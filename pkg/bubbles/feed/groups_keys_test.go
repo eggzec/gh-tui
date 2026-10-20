@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// at returns the label or id of the line under the cursor.
+// under returns the label or id of the line under the cursor.
 func under(t *testing.T, m Model[item]) string {
 	t.Helper()
 	l := m.lines[m.sel]
@@ -120,6 +120,10 @@ func TestGroupMoreRow(t *testing.T) {
 	if m.Len() != 10 {
 		t.Fatalf("%d items after the fetch, want 10", m.Len())
 	}
+	// The cursor stays on the row, which the new items pushed down.
+	if got := under(t, m); got != "more" {
+		t.Fatalf("cursor on %q after the fetch, want the row of the items not loaded", got)
+	}
 
 	// Enter on it fetches too, and on another row it is not taken.
 	m.sel = len(m.lines) - 1
@@ -139,6 +143,9 @@ func TestGroupMoreRow(t *testing.T) {
 	if got := src.callCount(); got != calls+1 {
 		t.Fatalf("%d fetches on enter, want %d", got, calls+1)
 	}
+	if got := under(t, m); got != "more" {
+		t.Fatalf("cursor on %q after enter, want the row of the items not loaded", got)
+	}
 	m.sel = 0
 	if _, ok := m.Activate(); ok {
 		t.Fatal("Activate() took a header")
@@ -157,6 +164,11 @@ func TestGroupQuickFilter(t *testing.T) {
 	m = typed(t, m, "&", "bug", "enter")
 	// Items 2 and 7 are the bug fixes: the headers count what is left.
 	wantOutline(t, m, "even(1)", ".2", "odd(1)", ".7")
+	// The row counts the items not fetched, not those the filter leaves out.
+	m.SetTotal(20)
+	if got := m.moreText(); got != "10 more not loaded" {
+		t.Fatalf("text = %q", got)
+	}
 	m = typed(t, m, "esc")
 	if got := len(m.lines); got != 12 {
 		t.Fatalf("%d lines after clearing the filter, want 12", got)

@@ -46,6 +46,7 @@ type line struct {
 type cursorRef struct {
 	valid bool
 	head  bool
+	more  bool
 	path  string
 	item  int
 	key   string
@@ -263,7 +264,7 @@ func (m *Model[T]) SetTotal(n int) {
 
 // moreText reads the row of the items not loaded.
 func (m Model[T]) moreText() string {
-	if left := m.known - m.nitems; m.known > 0 && left > 0 {
+	if left := m.known - m.total; m.known > 0 && left > 0 {
 		return strconv.Itoa(left) + " more not loaded"
 	}
 	return "more not loaded"
@@ -378,7 +379,7 @@ func (m Model[T]) cursor() cursorRef {
 	case l.head:
 		return cursorRef{valid: true, head: true, path: l.path}
 	case l.more:
-		return cursorRef{}
+		return cursorRef{valid: true, more: true}
 	}
 	return m.itemRef(m.lines[m.sel].item)
 }
@@ -388,6 +389,12 @@ func (m Model[T]) cursor() cursorRef {
 func (m *Model[T]) restore(ref cursorRef) bool {
 	if !ref.valid {
 		return false
+	}
+	if ref.more {
+		// The row stays at the end of the lines while items are missing. Once
+		// the feed is done it is gone, and the last line is the nearest one.
+		m.sel = max(len(m.lines)-1, 0)
+		return true
 	}
 	for i, l := range m.lines {
 		if ref.head {
@@ -418,7 +425,7 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 func (m Model[T]) flatSel() int {
 	for i := max(m.sel, 0); i < len(m.lines); i++ {
 		if l := m.lines[i]; l.more {
-			return max(m.total-1, 0)
+			return max(m.shown()-1, 0)
 		} else if !l.head {
 			return m.posOf(l.item)
 		}

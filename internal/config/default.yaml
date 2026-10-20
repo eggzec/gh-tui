@@ -599,6 +599,9 @@ keys:
 
   # Dashboard: your repositories, and those of each organization.
   dashboard_repos:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -675,6 +678,9 @@ keys:
     reset_base: [H]
   # Repository: the pull requests.
   pulls:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -720,6 +726,9 @@ keys:
     checks: [C]
   # Repository: the issues.
   issues:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -749,6 +758,9 @@ keys:
 
   # The notifications screen.
   notifications:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -783,6 +795,9 @@ keys:
 
   # Search: the results.
   search_results:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -811,6 +826,9 @@ keys:
     right: [right, l]
   # The page of a user or an organization: its list.
   owner_list:
+    expand: []
+    collapse: []
+    toggle_all: []
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -937,6 +955,9 @@ keys:
     cancel: [X]
   # Actions: the runs.
   actions_runs:
+    expand: []
+    collapse: []
+    toggle_all: []
     # Open the filter of the runs, clear it, and switch it off and on.
     filter: [f]
     clear_filter: [F]
