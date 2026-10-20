@@ -18,7 +18,7 @@ func (s *Section) configure(c config.Config) {
 		// The work wraps its titles around the dates, and the
 		// repositories keep a column as wide as the widest.
 		s.dates, s.tasks.dates = d, d
-		s.tasks.wrap()
+		s.tasks.layout()
 		s.repos.resize(s.repos.width, s.repos.height)
 	}
 	s.glyph = c.Dashboard.CalendarGlyph

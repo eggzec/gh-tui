@@ -376,7 +376,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	}
 	if s.tasks.ellipsis != s.icons.Ellipsis {
 		s.tasks.ellipsis = s.icons.Ellipsis
-		s.tasks.wrap()
+		s.tasks.layout()
 	}
 	s.repos.setTheme(t, s.icons)
 	s.render()

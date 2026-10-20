@@ -18,7 +18,7 @@ import (
 func checkLinks(t *testing.T, what string, lines []string, want string, width int) {
 	t.Helper()
 	got := uitest.Links(t, strings.Join(lines, "\n"))
-	if len(got) != len(lines) || slices.ContainsFunc(got, func(a string) bool { return a != want }) {
+	if len(got) < len(lines) || slices.ContainsFunc(got, func(a string) bool { return a != want }) {
 		t.Errorf("%s at %d: lines link to %q, want %q on each of %d", what, width, got, want, len(lines))
 	}
 	for _, l := range lines {
@@ -49,17 +49,19 @@ func TestRepoLinks(t *testing.T) {
 	}
 }
 
-// Work links where it is and each line of its title to its page.
+// Work links where it is and its title to its page.
 func TestWorkLinks(t *testing.T) {
 	s := newSection(t, newFake(), nil, 140, 40)
 	for _, host := range uitest.Hosts {
 		h := hit(core.SearchPulls, "o/r", 7, uitest.HostileTitle+" and a title long enough to wrap", false, 0)
 		h.Issue.URL = ui.WebURL(host, "o/r/pull/7")
 		for _, width := range []int{60, 30, 12} {
-			r := workRow{hit: &h}
-			r.ref, r.lines = wrapWork(h.Issue, width-workIndent, 3, "…")
-			lines := s.workItem(nil, &r, true, true, width)
-			checkLinks(t, host+" work", lines, h.Issue.URL, width)
+			l := &s.tasks
+			l.tabs[0] = workTab{rows: []workRow{{hit: &h}}, items: 1}
+			l.width = width
+			l.layout()
+			line := s.workItem(&l.tabs[0].rows[0], true, true)
+			checkLinks(t, host+" work", []string{line}, h.Issue.URL, width)
 		}
 	}
 }

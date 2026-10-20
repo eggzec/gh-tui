@@ -36,14 +36,17 @@ func TestRevisitReadsWhatWentStale(t *testing.T) {
 	s.Blur()
 	svc.expire("header", "work", "@me@")
 	svc.mu.Lock()
-	svc.work.ReviewRequested.Items[0].Issue.Title = "Render the cells anew"
+	// A copy, since the rows read the hits they were given.
+	items := slices.Clone(svc.work.ReviewRequested.Items)
+	items[0].Issue.Title = "Render the cells anew"
+	svc.work.ReviewRequested.Items = items
 	svc.mu.Unlock()
 	s.Focus()
 	cmd := s.Revisit()
 	if cmd == nil {
 		t.Fatal("Revisit read nothing, want what went stale")
 	}
-	if v := screen(s); !strings.Contains(v, "Render only the cells that changed") || !strings.Contains(v, "updating…") {
+	if v := screen(s); !strings.Contains(v, "Render only the cells") || !strings.Contains(v, "updating…") {
 		t.Errorf("before the new values arrive the dashboard should show the old ones, updating:\n%s", v)
 	}
 	run(t, s, cmd)

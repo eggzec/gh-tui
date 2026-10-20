@@ -12,51 +12,28 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-func TestWrapWork(t *testing.T) {
-	issue := func(repo string, number int, title string) core.Issue {
-		r, _ := core.ParseRepoRef(repo)
-		return core.Issue{Repo: r, Number: number, Title: title}
-	}
+// A reference too long for its column loses the end of its repository,
+// never its number.
+func TestWorkCell(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name  string
-		issue core.Issue
-		width int
 		ref   string
-		lines []string
+		width int
+		want  string
 	}{
-		{"fits", issue("o/cli", 12, "Fix it"), 40, "cli#12", []string{"Fix it"}},
-		{
-			"wraps under the text", issue("o/permit", 48, "Implement license key generation with batch metadata and error handling"), 40,
-			"permit#48", []string{"Implement license key", "generation with batch metadata and error", "handling"},
-		},
-		{
-			"leaves room for the age", issue("o/slk", 239, "abcdefghij abcdefghij abcdefghij"), 40,
-			"slk#239", []string{"abcdefghij abcdefghij abcdefghij", ""},
-		},
-		{"no title", issue("o/cli", 1, ""), 40, "cli#1", []string{""}},
-		{"a long name is cut", issue("o/a-very-long-repository-name", 7, "Title"), 20, "a-very-lo…", []string{"Title"}},
-		// A word too long for the rest of the first line starts the next.
-		{"a long word is broken", issue("o/x", 1, strings.Repeat("y", 30)), 20, "x#1", []string{"", strings.Repeat("y", 20), strings.Repeat("y", 10)}},
+		{"o/cli#12", 12, "o/cli#12"},
+		{"o/a-very-long-repository-name#7", 12, "o/a-very-…#7"},
+		{"o/cli#12345", 4, "#12…"},
+		{"o/cli#12", 0, ""},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ref, lines := wrapWork(tt.issue, tt.width, 3, "…")
-			if ref != tt.ref || strings.Join(lines, "|") != strings.Join(tt.lines, "|") {
-				t.Fatalf("wrapWork = %q, %q; want %q, %q", ref, lines, tt.ref, tt.lines)
-			}
-			for i, l := range lines {
-				w := ansi.StringWidth(l)
-				if i == 0 {
-					w += ansi.StringWidth(ref) + 1
-				}
-				if i == len(lines)-1 {
-					w += 1 + 3
-				}
-				if w > tt.width {
-					t.Errorf("line %d %q takes %d cells, more than %d", i, l, w, tt.width)
-				}
-			}
-		})
+		got := cell(tt.ref, tt.width, "…")
+		if got != tt.want {
+			t.Errorf("cell(%q, %d) = %q, want %q", tt.ref, tt.width, got, tt.want)
+		}
+		if w := ansi.StringWidth(got); w > tt.width {
+			t.Errorf("cell(%q, %d) takes %d cells", tt.ref, tt.width, w)
+		}
 	}
 }
 
@@ -91,35 +68,97 @@ func workLines(s *Section) []string {
 	return body
 }
 
-func TestWorkWraps(t *testing.T) {
+// An item takes one line, in columns under a header: the owner in its
+// reference, a long title cut at its end, and the age in its own column.
+func TestWorkColumns(t *testing.T) {
+	t.Parallel()
 	svc := newFake()
 	svc.work = longWork()
-	s := newSection(t, svc, nil, 56, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
-	press(t, s, "3")
-	want := [][]string{{
-		// The full titles of the tabs don't fit in 54 cells.
-		" Reviews 1  Mine 3  Assigned 1",
-		"> O permit#48 Implement license key generation with",
-		">   batch metadata and error handling              6mo",
-	}, {
-		" Reviews 1  Mine 3  Assigned 1",
-		"> O slk#239 fix(ui): preserve scroll position in",
-		">   messages.Model on resize; throttle the redraws  1h",
-		"  O playground#3 Add initial sample README content 9mo",
-		"  O gh-tui#71 feat(dashboard): wrap the work waiting",
-		"    on you under its text, and lay the repositories",
-		"    out in columns                                  2h",
-	}, {
-		" Reviews 1  Mine 3  Assigned 1",
-		"> o gh-tui#70 The dashboard cuts the titles of the",
-		">   work waiting on you                             3d",
-	}}
-	for i, want := range want {
-		got := strings.Join(workLines(s), "\n")
-		if got != strings.Join(want, "\n") {
-			t.Errorf("tab %d shows\n%s\nwant\n%s", i, got, strings.Join(want, "\n"))
+	s := newSection(t, svc, nil, 220, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "3", "]")
+	lines := workLines(s)
+	// The tabs, the header, and a line for each of the three items.
+	if len(lines) != 5 {
+		t.Fatalf("the pane shows %d lines, want 5:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+	header := lines[1]
+	for _, l := range lines[1:] {
+		if w := ansi.StringWidth(l); w > s.boxes[workPane].w-2 {
+			t.Errorf("%q takes %d cells, more than the pane", l, w)
 		}
-		press(t, s, "]")
+	}
+	titleAt, ageAt := strings.Index(header, titleHeader), strings.Index(header, ageHeader)
+	if strings.Index(header, refHeader) != workIndent || titleAt < 0 || ageAt < titleAt {
+		t.Fatalf("the header %q doesn't name the columns in order", header)
+	}
+	rows := lines[2:]
+	for i, want := range []struct{ ref, title, age string }{
+		{"eggzec/slk#239", "fix(ui): preserve scroll position in messages.Model on resize; throttle the redraws", "1h"},
+		{"eggzec/playground#3", "Add initial sample README content", "9mo"},
+		{"eggzec/gh-tui#71", "feat(dashboard): wrap the work waiting on you under its text, and lay the repositories out in columns", "2h"},
+	} {
+		row := rows[i]
+		if !strings.HasPrefix(row[workIndent:], want.ref) {
+			t.Errorf("row %d is %q, want it to start with the reference %q", i, row, want.ref)
+		}
+		// The titles line up under the header's, and the ages under theirs.
+		if !strings.HasPrefix(row[titleAt:], strings.TrimRight(want.title[:min(len(want.title), 10)], " ")) {
+			t.Errorf("row %d has %q where the title column starts, want %q", i, row[titleAt:], want.title)
+		}
+		if !strings.HasPrefix(row[ageAt:], want.age) {
+			t.Errorf("row %d has %q where the age column starts, want %q", i, row[ageAt:], want.age)
+		}
+	}
+	// A title too long for its column ends in the ellipsis, on the line.
+	long := rows[2]
+	if !strings.Contains(long[titleAt:ageAt], "...") {
+		t.Errorf("the long title isn't cut with an ellipsis: %q", long)
+	}
+	if strings.Contains(strings.Join(lines, "\n"), "out in columns") {
+		t.Errorf("the long title wasn't cut:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
+// A narrow pane cuts the repository of a reference and keeps its number.
+func TestWorkNarrowKeepsNumbers(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	svc.work = longWork()
+	s := newSection(t, svc, nil, 44, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "3", "]")
+	lines := workLines(s)
+	for _, want := range []string{"#239", "#3", "#71"} {
+		if !strings.Contains(strings.Join(lines, "\n"), want+" ") {
+			t.Errorf("the narrow pane lost %q:\n%s", want, strings.Join(lines, "\n"))
+		}
+	}
+	for _, l := range lines {
+		if w := ansi.StringWidth(l); w > s.boxes[workPane].w-2 {
+			t.Errorf("%q takes %d cells, more than the pane", l, w)
+		}
+	}
+}
+
+// The selected item is bold, with the cursor in its gutter and the accent on
+// its title, as in the other lists.
+func TestWorkSelectedStyle(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	svc.work = longWork()
+	s := newSection(t, svc, nil, 100, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
+	press(t, s, "3", "]")
+	l := &s.tasks
+	tab := l.current()
+	sel := s.workItem(&tab.rows[0], true, true)
+	plain := s.workItem(&tab.rows[1], false, true)
+	if !strings.HasPrefix(ansi.Strip(sel), ">") || strings.HasPrefix(ansi.Strip(plain), ">") {
+		t.Errorf("the cursor is on the wrong rows: %q, %q", ansi.Strip(sel), ansi.Strip(plain))
+	}
+	if !strings.Contains(sel, "\x1b[1") {
+		t.Errorf("the selected row isn't bold: %q", sel)
+	}
+	if strings.Contains(plain, "\x1b[1m") {
+		t.Errorf("a row that isn't selected is bold: %q", plain)
 	}
 }
 
@@ -197,22 +236,19 @@ func TestWorkScrollsByWholeItems(t *testing.T) {
 		if len(lines) > h {
 			t.Fatalf("step %d: %d lines in a pane of %d", step, len(lines), h)
 		}
-		// The selected item shows whole: its every line has the cursor,
-		// and the last of them its age.
+		// The selected item shows, once, under the cursor.
 		sel := tab.rows[tab.sel]
 		marked := 0
 		for _, l := range lines {
 			if strings.HasPrefix(l, ">") {
 				marked++
+				if !strings.Contains(l, sel.ref[strings.LastIndex(sel.ref, "#"):]) || !strings.Contains(l, sel.ref[:6]) {
+					t.Errorf("step %d: the cursor is on %q, want %s", step, l, sel.ref)
+				}
 			}
 		}
-		if marked != len(sel.lines) {
-			t.Errorf("step %d: %d lines have the cursor, want the %d of %s\n%s", step, marked, len(sel.lines), sel.ref, strings.Join(lines, "\n"))
-		}
-		// No item is cut at the bottom: the last line is the end of an
-		// item, which has its age.
-		if last := strings.TrimSpace(lines[len(lines)-1]); !strings.HasSuffix(last, "1h") && !strings.HasSuffix(last, "2h") && !strings.HasSuffix(last, "9mo") {
-			t.Errorf("step %d: the pane ends in the middle of an item:\n%s", step, strings.Join(lines, "\n"))
+		if marked != 1 {
+			t.Errorf("step %d: %d lines have the cursor, want 1\n%s", step, marked, strings.Join(lines, "\n"))
 		}
 		press(t, s, key)
 	}
@@ -239,7 +275,7 @@ func TestWorkStates(t *testing.T) {
 	view := strings.Join(workLines(s), "\n")
 	press(t, s, "]", "]")
 	view += strings.Join(workLines(s), "\n")
-	for _, want := range []string{"O a#5 Open", "D a#6 Draft", "M a#3 Merged", "X a#4 Declined", "o a#7 Open", "x a#1 Closed", "- a#2 Closed"} {
+	for _, want := range []string{"O o/a#5 Open", "D o/a#6 Draft", "M o/a#3 Merged", "X o/a#4 Declined", "o o/a#7 Open", "x o/a#1 Closed", "- o/a#2 Closed"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work pane doesn't show %q:\n%s", want, view)
 		}
