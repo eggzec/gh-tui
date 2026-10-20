@@ -13,6 +13,8 @@ import (
 // Enter applies the levels and closes the modal, and with none chosen the
 // list is flat; esc closes it as it was.
 type GroupModal struct {
+	// verb starts the title: "Group", or "Sort".
+	verb  string
 	title string
 	rows  int
 	pick  orderpick.Model
@@ -26,14 +28,26 @@ type GroupModal struct {
 // titled "Group · section". chosen are the levels in force, and apply takes
 // those the user picks, which may be none.
 func NewGroupModal(section string, fields []orderpick.Item, chosen []orderpick.Choice, keys orderpick.KeyMap, icons Icons, apply func([]orderpick.Choice) tea.Cmd) *GroupModal {
-	m := &GroupModal{rows: len(fields), icons: icons, section: section, apply: apply}
+	return newLevelsModal("Group", "Grouped by", "Nothing: a flat list", section, fields, chosen, keys, icons, apply)
+}
+
+// NewSortLevelsModal returns the modal that sorts the list of section by
+// several fields, one after the other, titled "Sort · section". chosen are
+// the levels in force, and apply takes those the user picks, which may be
+// none.
+func NewSortLevelsModal(section string, fields []orderpick.Item, chosen []orderpick.Choice, keys orderpick.KeyMap, icons Icons, apply func([]orderpick.Choice) tea.Cmd) *GroupModal {
+	return newLevelsModal("Sort", "Sorted by", "Nothing: the list's own order", section, fields, chosen, keys, icons, apply)
+}
+
+func newLevelsModal(verb, heading, empty, section string, fields []orderpick.Item, chosen []orderpick.Choice, keys orderpick.KeyMap, icons Icons, apply func([]orderpick.Choice) tea.Cmd) *GroupModal {
+	m := &GroupModal{verb: verb, rows: len(fields), icons: icons, section: section, apply: apply}
 	m.retitle()
 	m.pick = orderpick.New(
 		orderpick.WithItems(fields),
 		orderpick.WithSingle(false),
 		orderpick.WithKeyMap(keys),
-		orderpick.WithHeading("Grouped by"),
-		orderpick.WithEmptyText("Nothing: a flat list"),
+		orderpick.WithHeading(heading),
+		orderpick.WithEmptyText(empty),
 		orderpick.WithChosen(chosen...),
 	)
 	// Focusing the left pane, where the picker starts, needs no command.
@@ -43,7 +57,7 @@ func NewGroupModal(section string, fields []orderpick.Item, chosen []orderpick.C
 
 // retitle words the title with the separator of the icons.
 func (m *GroupModal) retitle() {
-	m.title = "Group" + m.icons.Separator + m.section
+	m.title = m.verb + m.icons.Separator + m.section
 }
 
 // Title implements Modal.

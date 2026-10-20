@@ -251,12 +251,22 @@ func (s *Section) renderHeader() {
 		}
 		h += s.styles.filter.render(sep + ui.OffChip("by "+strings.Join(names, ", "), sep))
 	}
+	if len(s.sorts) > 0 {
+		chip := s.sortChip()
+		if s.sortOff {
+			chip = ui.OffChip(chip, sep)
+		}
+		h += s.styles.filter.render(sep + chip)
+	}
 	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
 		hints = append(hints, s.icons.Key(k)+" filter")
 	}
 	if k := s.keys.ToggleGroups.Help().Key; k != "" && len(s.levels) > 0 {
 		hints = append(hints, s.icons.Key(k)+" group on/off")
+	}
+	if k := s.keys.ToggleSort.Help().Key; k != "" && len(s.sorts) > 0 {
+		hints = append(hints, s.icons.Key(k)+" sort on/off")
 	}
 	switched := s.filtered() || off
 	if k := s.keys.ToggleFilter.Help().Key; k != "" && switched {

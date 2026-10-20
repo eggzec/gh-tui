@@ -622,6 +622,7 @@ keys:
     sort: [s]
     clear_filter: [F]
     # Switch the filter off for a look at the list without it, and back on.
+    # alt+s does the same for the sort, in each list with one.
     # On macOS, alt keys need the terminal's "Option as Meta" setting.
     filter_toggle: [alt+f]
     # Group the repositories by owner, language, visibility, kind or role,
@@ -787,6 +788,10 @@ keys:
     # switch the grouping off and on again.
     group_by: [g]
     group_toggle: [alt+g]
+    # Sort the list by one field, then the next, and switch the sort off and
+    # on again. Off is GitHub's order, newest first.
+    sort: [s]
+    sort_toggle: [alt+s]
     # Mark the notification under the cursor, or unmark it, and move to the
     # next row. Esc unmarks them all, after it has cleared a search and a
     # quick filter. While some are marked, read and done act on all of them,

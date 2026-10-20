@@ -29,7 +29,11 @@ type KeyMap struct {
 	// ToggleGroups switches the grouping off, and back on.
 	GroupBy      key.Binding
 	ToggleGroups key.Binding
-	Refresh      key.Binding
+	// Sort opens the choice of the fields the list is sorted by, and
+	// ToggleSort switches the sort off, and back on.
+	Sort       key.Binding
+	ToggleSort key.Binding
+	Refresh    key.Binding
 
 	// order are the keys of the picker of the levels.
 	order orderpick.KeyMap
@@ -62,6 +66,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ToggleFilter: screen.Binding("filter_toggle", "filter on/off"),
 		GroupBy:      screen.Binding("group_by", "group by"),
 		ToggleGroups: screen.Binding("group_toggle", "group on/off"),
+		Sort:         screen.Binding("sort", "sort"),
+		ToggleSort:   screen.Binding("sort_toggle", "sort on/off"),
 		Refresh:      screen.Binding("global.refresh", "refresh"),
 		order:        ui.OrderPickKeys(keys),
 		confirm:      ui.NewConfirmKeys(keys),
@@ -76,7 +82,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 }
 
 func (k KeyMap) bindings() []key.Binding {
-	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Refresh}
+	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Refresh}
 }
 
 // ShortHelp implements help.KeyMap.

@@ -144,6 +144,8 @@ type Model[T any] struct {
 	// fill is whether another chunk may fill a window that is not full: the
 	// last one added lines, or the groups changed to show more.
 	groups []Group[T]
+	// less orders the items before they are grouped, or is nil.
+	less   func(a, b T) int
 	lines  []line
 	closed map[string]struct{}
 	nitems int
