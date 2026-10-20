@@ -4,8 +4,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
+
+// The repositories listed under their owners.
+func TestViewGrouped(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	press(t, s, "esc")
+	s.grouping.Choose([]orderpick.Choice{{Value: "owner"}})
+	press(t, s, "alt+g", "alt+g")
+	golden.RequireEqual(t, s.View())
+}
 
 // g opens the choice of the levels to group the repositories by, and alt+g
 // has nothing to switch while no level is chosen. Neither acts on the other
@@ -22,9 +36,10 @@ func TestGroupKeys(t *testing.T) {
 	if !strings.Contains(s.View(), "Repositories") {
 		t.Fatalf("the results lost their label:\n%s", s.View())
 	}
-	press(t, s, "g")
-	if got := len(s.keys.state(s).GroupBy.Keys()); got == 0 {
-		t.Fatal("group by has no key on repositories")
+	if cmd := s.Update(keyPress("g")); cmd == nil {
+		t.Fatal("g did nothing on repositories")
+	} else if _, ok := cmd().(ui.OpenModalMsg); !ok {
+		t.Fatal("g did not open the group modal on repositories")
 	}
 	press(t, s, "esc", "]")
 	if s.keys.state(s).GroupBy.Enabled() {
