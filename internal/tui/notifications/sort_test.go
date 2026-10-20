@@ -83,7 +83,7 @@ func TestSortMultiKeyOrder(t *testing.T) {
 	}
 	s := newSection(t, newFake(threads...), 80, 12)
 	run(t, s, s.setSort(levels("reason", "repository")))
-	var got []string
+	got := make([]string, 0, len(threads))
 	for _, n := range loaded(s) {
 		got = append(got, n.ID)
 	}
@@ -96,7 +96,7 @@ func TestSortMultiKeyOrder(t *testing.T) {
 // sorted joins the order, and that the cursor stays on its thread.
 func TestSortKeepsTheOrderAcrossPages(t *testing.T) {
 	t.Parallel()
-	var threads []core.Notification
+	threads := make([]core.Notification, 0, 60)
 	for i := range 60 {
 		repo := string(rune('a'+(i*7)%26)) + "/r"
 		threads = append(threads, thread(strconv.Itoa(i+1), repo, core.SubjectIssue, "t"+repo, "mention", true, time.Duration(i+1)*time.Hour))
