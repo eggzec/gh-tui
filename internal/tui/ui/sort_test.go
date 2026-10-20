@@ -97,6 +97,32 @@ func TestSortModalTakesNewIcons(t *testing.T) {
 	}
 }
 
+func TestSortModalRestylesPickerWithNewIcons(t *testing.T) {
+	t.Parallel()
+	p, _ := config.Default().Palette(true)
+	th := NewTheme(p, true)
+
+	m, _ := sortFixture(t, "is:closed")
+	m.SetTheme(th)
+	before := m.View()
+
+	d := config.Default()
+	d.UI.Icons = config.IconsASCII
+	m.Update(SettingsMsg{Config: d})
+	after := m.View()
+	if after == before {
+		t.Fatal("the picker drew the same after the icons changed, want its glyphs restyled")
+	}
+
+	// The picker now looks as one that was made with the ASCII icons.
+	want, _ := sortFixture(t, "is:closed")
+	want.Update(SettingsMsg{Config: d})
+	want.SetTheme(th)
+	if got := want.View(); after != got {
+		t.Errorf("picker after the icons changed differs from one themed with them:\n%s\nwant\n%s", after, got)
+	}
+}
+
 func TestSortModalEscapeApplies(t *testing.T) {
 	m, target := sortFixture(t, "is:closed sort:comments-asc")
 	msgs := drain(m.Update(keyOf("esc")))
