@@ -484,6 +484,52 @@ func TestKeepsResultsWhileLoading(t *testing.T) {
 	}
 }
 
+// The titles of the columns take a line of the room of the results, so the
+// feed of the hits is a line shorter than that room.
+func TestHitFeedLeavesALineForTheTitles(t *testing.T) {
+	s := newSection(t, newFake(), 80, 22)
+	typeText(t, s, "tea")
+	l, ok := s.visibleHits()
+	if !ok {
+		t.Fatal("no hits are on view")
+	}
+	_, h := s.resultsSize()
+	if got, want := strings.Count(l.feed.View(), "\n")+1, max(h-1, 0); got != want {
+		t.Errorf("the feed is %d lines tall, want %d", got, want)
+	}
+}
+
+// The titles stay in front of the dimmed rows, so the rows don't move when
+// the new results arrive.
+func TestKeepsTitlesWhileLoading(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	rowAt := func(view string) int {
+		for i, line := range strings.Split(view, "\n") {
+			if strings.Contains(line, "charmbracelet/bubbletea") {
+				return i
+			}
+		}
+		return -1
+	}
+	loaded := screen(s)
+	before := rowAt(loaded)
+	if before < 1 {
+		t.Fatalf("the first row isn't on view:\n%s", loaded)
+	}
+	s.Update(keyPress("-"))
+	if _, ok := s.staleView(); !ok {
+		t.Fatal("the results of tea should show dimmed while tea- loads")
+	}
+	view := screen(s)
+	if got := rowAt(view); got != before {
+		t.Errorf("the first row moved from line %d to %d while loading:\n%s", before, got, view)
+	}
+	if !strings.Contains(strings.Split(view, "\n")[before-1], "Name") {
+		t.Errorf("the titles should stay over the dimmed rows:\n%s", view)
+	}
+}
+
 func TestNewTextCancelsReads(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
