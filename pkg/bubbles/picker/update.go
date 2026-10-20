@@ -4,6 +4,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // Update handles keys while focused, and the picker's own search results,
@@ -53,7 +55,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	normal := m.modes && !m.typing
 	switch {
-	case key.Matches(msg, m.keys.Choose):
+	case keymap.Matches(msg, m.keys.Choose):
 		// A picker with modes searches in its own mode: enter keeps the
 		// query and returns to the list, where it chooses.
 		if m.modes && m.typing {
@@ -66,7 +68,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		m.stop()
 		return send(ChosenMsg{ID: m.id, Item: it})
-	case key.Matches(msg, m.keys.Cancel):
+	case keymap.Matches(msg, m.keys.Cancel):
 		// Esc clears the query before it leaves the search or closes.
 		if m.modes && m.input.Value() != "" {
 			return m.clearQuery()
@@ -79,18 +81,18 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		return send(CancelMsg{ID: m.id})
 	// The keys that move and scope in insert mode work in normal mode too,
 	// before it looks at its own.
-	case key.Matches(msg, m.keys.Up):
+	case keymap.Matches(msg, m.keys.Up):
 		m.move(-1)
-	case key.Matches(msg, m.keys.Down):
+	case keymap.Matches(msg, m.keys.Down):
 		m.move(1)
-	case key.Matches(msg, m.keys.PageUp):
+	case keymap.Matches(msg, m.keys.PageUp):
 		m.move(-max(m.listHeight(), 1))
-	case key.Matches(msg, m.keys.PageDown):
+	case keymap.Matches(msg, m.keys.PageDown):
 		m.move(max(m.listHeight(), 1))
-	case key.Matches(msg, m.keys.NextScope):
+	case keymap.Matches(msg, m.keys.NextScope):
 		m.scope = (m.scope + 1) % (len(m.scopes) + 1)
 		return m.refresh(false)
-	case key.Matches(msg, m.keys.PrevScope):
+	case keymap.Matches(msg, m.keys.PrevScope):
 		m.scope = (m.scope + len(m.scopes)) % (len(m.scopes) + 1)
 		return m.refresh(false)
 	case normal:
@@ -118,27 +120,27 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 	n := m.keys.Normal
 	half := max(m.listHeight()/2, 1)
 	switch {
-	case key.Matches(msg, n.Up):
+	case keymap.Matches(msg, n.Up):
 		m.move(-1)
-	case key.Matches(msg, n.Down):
+	case keymap.Matches(msg, n.Down):
 		m.move(1)
-	case key.Matches(msg, n.PageUp):
+	case keymap.Matches(msg, n.PageUp):
 		m.move(-max(m.listHeight(), 1))
-	case key.Matches(msg, n.PageDown):
+	case keymap.Matches(msg, n.PageDown):
 		m.move(max(m.listHeight(), 1))
-	case key.Matches(msg, n.HalfPageUp):
+	case keymap.Matches(msg, n.HalfPageUp):
 		m.move(-half)
-	case key.Matches(msg, n.HalfPageDown):
+	case keymap.Matches(msg, n.HalfPageDown):
 		m.move(half)
-	case key.Matches(msg, n.Top):
+	case keymap.Matches(msg, n.Top):
 		m.sel = 0
 		m.scroll()
-	case key.Matches(msg, n.Bottom):
+	case keymap.Matches(msg, n.Bottom):
 		m.sel = len(m.results) - 1
 		m.scroll()
-	case key.Matches(msg, n.Search):
+	case keymap.Matches(msg, n.Search):
 		return m.enterTyping()
-	case key.Matches(msg, n.Back):
+	case keymap.Matches(msg, n.Back):
 		m.stop()
 		return send(CancelMsg{ID: m.id})
 	default:
