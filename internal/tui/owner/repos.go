@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // repoList is the Repositories tab: the repositories of the account that
@@ -115,7 +116,52 @@ func (s *Section) newRepoList(o core.Owner) *repoList {
 		feed.WithStyles(s.theme.Feed(s.icons)),
 		feed.WithErrorText(ui.ErrorText("load the repositories", o.Profile.Login, s.voice)),
 	)
+	if groups := s.grouping.Groups(); len(groups) > 0 {
+		// Nothing is loaded yet, so there is nothing to regroup.
+		_ = l.Feed.SetGroups(groups)
+	}
 	return l
+}
+
+// groupModal returns the modal that picks the levels the repositories and
+// the stars are grouped by.
+func (s *Section) groupModal() ui.Modal {
+	return s.grouping.Modal("Repositories", s.keys.order, s.icons, s.setGroups)
+}
+
+// setGroups groups the repositories and the stars by levels.
+func (s *Section) setGroups(levels []orderpick.Choice) tea.Cmd {
+	s.grouping.Choose(levels)
+	return s.regroup()
+}
+
+// toggleGroups switches the grouping off, and back on; it is false with no
+// levels to switch.
+func (s *Section) toggleGroups() (tea.Cmd, bool) {
+	if !s.grouping.Toggle() {
+		return nil, false
+	}
+	return s.regroup(), true
+}
+
+// regroup gives the lists of repositories the groups in force.
+func (s *Section) regroup() tea.Cmd {
+	if s.page == nil {
+		return nil
+	}
+	groups := s.grouping.Groups()
+	var cmds []tea.Cmd
+	for _, l := range s.pages() {
+		for _, t := range l.lists {
+			switch t := t.(type) {
+			case *repoList:
+				cmds = append(cmds, t.Feed.SetGroups(groups))
+			case *starList:
+				cmds = append(cmds, t.Feed.SetGroups(groups))
+			}
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 // reposEmpty is what the list l says when it has no repository.

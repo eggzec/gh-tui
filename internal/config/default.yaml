@@ -856,6 +856,10 @@ keys:
     sort: [s]
     clear_filter: [F]
     filter_toggle: [alt+f]
+    # Group the repositories and the stars by owner, language, visibility,
+    # kind or role, and switch the grouping off and on again.
+    group_by: [g]
+    group_toggle: [alt+g]
   # The page of a user: its contributions, a day at a time.
   owner_calendar:
     up: [up, k]

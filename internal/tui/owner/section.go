@@ -161,6 +161,8 @@ type Section struct {
 
 	started bool
 	focused bool
+	// grouping is how the repositories and the stars are grouped.
+	grouping ui.Grouping[core.Repo]
 	// page is the page on view, or nil before the first, and back the
 	// pages it was opened from, the latest last.
 	page *page
@@ -246,6 +248,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		icons:      ui.NewIcons(def.UI.Icons),
 		defaultTab: tabFor(def.Owner.DefaultTab),
 		sc:         newSideConf(keys),
+		grouping:   ui.Grouping[core.Repo]{Fields: ui.RepoGroupFields()},
 	}
 	for _, opt := range opts {
 		opt(s)

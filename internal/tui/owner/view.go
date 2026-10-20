@@ -275,6 +275,11 @@ func (s *Section) paneLabel(p paneID) string {
 				text += s.icons.Separator + chips
 			}
 		}
+		if s.page != nil && (s.page.tab == reposTab || s.page.tab == starsTab) {
+			if chip := s.grouping.Chip(s.icons.Separator); chip != "" {
+				text += s.icons.Separator + chip
+			}
+		}
 	}
 	return text
 }
