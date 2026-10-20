@@ -11,7 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -57,7 +56,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		// The results ask the app to open the filter.
 		{results, "f", "Results: filter", func(s, b *Section, msgs []tea.Msg) bool {
-			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: filterform.FiltersTab}
+			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{}
 		}},
 		{results, "s", "Results: sort", func(s, b *Section, msgs []tea.Msg) bool {
 			return selectedHit(s) == selectedHit(b) && len(msgs) == 1 && msgs[0] == ui.OpenSortMsg{}

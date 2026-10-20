@@ -5,7 +5,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
@@ -186,7 +185,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 			return s.setFilter(next), true
 		case repos && keymap.Matches(msg, k.Filter):
-			return ui.OpenFilter(filterform.FiltersTab), true
+			return ui.OpenFilter(), true
 		case repos && keymap.Matches(msg, k.Sort):
 			return ui.OpenSort(), true
 		case (repos || p.tab == starsTab) && keymap.Matches(msg, k.GroupBy):

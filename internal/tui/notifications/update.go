@@ -10,7 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
@@ -129,7 +128,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 		return cmd, true
 	case keymap.Matches(msg, k.Filter):
-		return ui.OpenFilter(filterform.FiltersTab), true
+		return ui.OpenFilter(), true
 	case keymap.Matches(msg, k.Select):
 		if cmd, more := s.feed.Activate(); more {
 			return cmd, true

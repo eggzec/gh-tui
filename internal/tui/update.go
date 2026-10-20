@@ -223,7 +223,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.OpenFilterMsg:
 		// The focused list asked, with its own filter or sort key.
 		if p := m.focused(); p != nil {
-			m.openFilter(p.section, msg.Tab)
+			m.openFilter(p.section)
 		}
 		return m, nil
 	case ui.OpenSortMsg:
@@ -416,11 +416,11 @@ func (m *Model) takes(s ui.Section) bool {
 	return ok && c.Capturing()
 }
 
-// openFilter opens the filter modal of s on tab, and reports whether s has
-// one to open. The key goes on to a section that has none, which may use
-// it otherwise.
-func (m *Model) openFilter(s ui.Section, tab filterform.Tab) bool {
-	fl, f, ok := filterOf(s, tab)
+// openFilter opens the filter modal of s, and reports whether s has one to
+// open. The key goes on to a section that has none, which may use it
+// otherwise.
+func (m *Model) openFilter(s ui.Section) bool {
+	fl, f, ok := filterOf(s, filterform.FiltersTab)
 	if !ok {
 		return false
 	}

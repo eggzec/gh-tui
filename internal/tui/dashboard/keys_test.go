@@ -10,7 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
@@ -38,7 +37,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "1", "Dashboard: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == pinnedPane }},
 		// The list asks the app to open the filter.
 		{nil, "f", "Repositories: filter", func(s, b *Section, msgs []tea.Msg) bool {
-			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs, filterform.FiltersTab)
+			return selectedRepo(s) == selectedRepo(b) && opensFilter(msgs)
 		}},
 		{nil, "s", "Repositories: sort", func(s, b *Section, msgs []tea.Msg) bool {
 			return selectedRepo(s) == selectedRepo(b) && len(msgs) == 1 && msgs[0] == ui.OpenSortMsg{}
@@ -71,9 +70,9 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 }
 
-// opensFilter reports whether msgs ask the app to open the filter on tab.
-func opensFilter(msgs []tea.Msg, tab filterform.Tab) bool {
-	return len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{Tab: tab}
+// opensFilter reports whether msgs ask the app to open the filter.
+func opensFilter(msgs []tea.Msg) bool {
+	return len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{}
 }
 
 func selectedRepo(s *Section) string {

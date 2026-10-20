@@ -9,7 +9,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -204,7 +203,7 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
 	case keymap.Matches(msg, k.Filter):
-		return ui.OpenFilter(filterform.FiltersTab)
+		return ui.OpenFilter()
 	case keymap.Matches(msg, k.Sort):
 		return ui.OpenSort()
 	case s.kind == core.SearchRepos && keymap.Matches(msg, k.GroupBy):
