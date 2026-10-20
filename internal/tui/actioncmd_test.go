@@ -441,7 +441,7 @@ func TestCompletionListsTheFocusedChainFirst(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2")
 		got := texts(m.complete("c", 1))
-		want := []string{"checks", "clear_filter", "close", "config ", "copy "}
+		want := []string{"checks", "clear_filter", "close", "collapse", "config ", "copy "}
 		if !slices.Equal(got, want) {
 			t.Errorf("on the pull requests, c completes %q, want %q", got, want)
 		}
@@ -451,7 +451,7 @@ func TestCompletionListsTheFocusedChainFirst(t *testing.T) {
 			}
 		}
 		m = keysAfter(t, true, "global.pane_3")
-		if got := texts(m.complete("c", 1)); !slices.Equal(got, []string{"clear_filter", "close", "config ", "copy "}) {
+		if got := texts(m.complete("c", 1)); !slices.Equal(got, []string{"clear_filter", "close", "collapse", "config ", "copy "}) {
 			t.Errorf("on the issues, c completes %q", got)
 		}
 		m = keysAfter(t, true)
