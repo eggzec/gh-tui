@@ -106,7 +106,9 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	if mod := m.topModal(); mod != nil && action == config.ActionFindFile {
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+name+".")
 	}
-	if tab, ok := filterTabs[name]; ok && !m.canFilter(tab) {
+	// A list with an action of its own, such as the sort of the
+	// notifications, does what that action does, not what the global one does.
+	if tab, ok := filterTabs[name]; ok && !strings.HasPrefix(action, "notifications.") && !m.canFilter(tab) {
 		return m.toast.Push(toast.Warning, "Nothing here to "+name+".")
 	}
 	if !m.actionOpen(action) {
