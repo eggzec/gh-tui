@@ -37,6 +37,9 @@ type filter struct {
 	owners  []string
 	repos   []string
 	typs    []string
+	// states keeps the threads whose subject is in one of those states, one
+	// of stateNames. A thread whose state isn't known is left out then.
+	states []string
 }
 
 // parseFilter reads query. Without is:unread it lists every thread, read or
@@ -65,6 +68,8 @@ func parseFilter(query string) filter {
 			f.repos = appendValues(f.repos, t)
 		case "type":
 			f.typs = appendValues(f.typs, t)
+		case "state":
+			f.states = appendValues(f.states, t)
 		}
 	}
 	return f
@@ -99,7 +104,69 @@ func oneOf(want []string, v string) bool {
 	return len(want) == 0 || slices.ContainsFunc(want, func(w string) bool { return strings.EqualFold(w, v) })
 }
 
-// apply returns the threads of items the filter keeps.
+// stated reports whether the filter keeps threads by the state of their
+// subject, which the pages GitHub sends don't tell.
+func (f *filter) stated() bool { return len(f.states) > 0 }
+
+// keepsState reports whether a subject of type typ in state st, if known,
+// passes the filter. With a state asked for, a subject of unknown state
+// doesn't.
+func (f *filter) keepsState(typ core.SubjectType, st core.SubjectState, known bool) bool {
+	if !f.stated() {
+		return true
+	}
+	if !known {
+		return false
+	}
+	return slices.ContainsFunc(stateNames(typ, st), func(name string) bool { return oneOf(f.states, name) })
+}
+
+// stateNames are the names of the states the filter offers that a subject of
+// type typ in state st is in. An open pull request that is a draft is only a
+// draft, and an open discussion that is answered only answered.
+func stateNames(typ core.SubjectType, st core.SubjectState) []string {
+	switch typ {
+	case core.SubjectPullRequest:
+		switch {
+		case st.State == core.StateMerged:
+			return []string{"merged"}
+		case st.State == core.StateClosed:
+			return []string{"closed"}
+		case st.Draft:
+			return []string{"draft"}
+		}
+		return []string{"open"}
+	case core.SubjectIssue:
+		return []string{string(st.State)}
+	case core.SubjectDiscussion:
+		var names []string
+		if st.State == core.StateClosed {
+			names = append(names, "closed")
+		}
+		if st.Answered {
+			names = append(names, "answered")
+		} else if st.State == core.StateOpen {
+			names = append(names, "open")
+		}
+		return names
+	case core.SubjectRelease, core.SubjectCommit, core.SubjectCheckSuite:
+		return nil
+	}
+	return nil
+}
+
+// stateItems are the states the filter offers, by the name the query gives
+// them.
+var stateItems = []filterform.Item{
+	{Label: "Open", Value: "open"},
+	{Label: "Draft", Value: "draft"},
+	{Label: "Merged", Value: "merged"},
+	{Label: "Closed", Value: "closed"},
+	{Label: "Answered", Value: "answered"},
+}
+
+// apply returns the threads of items the filter keeps, leaving the states of
+// their subjects aside.
 func (f *filter) apply(items []core.Notification) []core.Notification {
 	if !f.local() {
 		return items
@@ -193,6 +260,7 @@ func (s *Section) spec() filterform.Spec {
 		multi("owner", "Owner", withValues(owners, f.owners)),
 		multi("repo", "Repository", withValues(repos, f.repos)),
 		multi("type", "Type", withValues(typeItems, f.typs)),
+		multi("state", "State", withValues(slices.Clone(stateItems), f.states)),
 	}}
 }
 
@@ -316,6 +384,10 @@ func (f *filter) chips(sep string) string {
 			}
 		case "owner", "repo", "type":
 			parts = append(parts, t.Values()...)
+		case "state":
+			for _, v := range t.Values() {
+				parts = append(parts, "state "+strings.ToLower(v))
+			}
 		default:
 			parts = append(parts, t.Raw)
 		}

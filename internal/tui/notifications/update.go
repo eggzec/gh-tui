@@ -1,7 +1,6 @@
 package notifications
 
 import (
-	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +44,11 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	case statesMsg:
 		// The rows read the states when they are drawn, so the next frame
 		// shows them.
-		maps.Copy(s.states, msg.states)
+		// A state filter keeps the rows by them, so a state that differs
+		// from the one the list was filtered with lists the rows again.
+		if s.keepStates(msg.states) && s.filter().stated() {
+			return s.reload()
+		}
 		return nil
 	case ui.SyncMsg:
 		// Poll already refreshed the cache, so a reload reads it. A failed
