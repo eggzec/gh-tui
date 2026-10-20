@@ -138,6 +138,8 @@ func (m Model[T]) statusLine() (text, hint string) {
 			text = "No loaded match. Move down for more."
 		}
 		return m.styles.Empty.Render(text), ""
+	case m.stalled() && !m.done:
+		return m.styles.Empty.Render("No match in the last pages. Move down for more."), ""
 	default:
 		return m.emptyLine, ""
 	}

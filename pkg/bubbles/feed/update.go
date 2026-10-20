@@ -118,7 +118,7 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	// fetch every chunk: moving down from its last row, or from where it
 	// shows none, fetches the next one.
 	n := m.shown()
-	past := m.filter != "" && (n == 0 || before == n-1) && m.sel > before && m.sel >= n
+	past := (m.filter != "" || m.stalled()) && (n == 0 || before == n-1) && m.sel > before && m.sel >= n
 	cmd := m.sync()
 	if past || m.onMore() {
 		cmd = tea.Batch(cmd, m.fetchMore())
@@ -261,7 +261,7 @@ func (m *Model[T]) sync() tea.Cmd {
 // wantsTail reports whether the next chunk should be fetched: the window is
 // not full, or the selection is within the prefetch threshold of the end.
 func (m Model[T]) wantsTail() bool {
-	if m.done || m.tail.fetching || m.tail.err != nil || m.filter != "" {
+	if m.done || m.tail.fetching || m.tail.err != nil || m.filter != "" || m.stalled() {
 		return false
 	}
 	if m.Grouped() {
@@ -274,6 +274,25 @@ func (m Model[T]) wantsTail() bool {
 		return !m.onMore() && (m.fill && m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin())
 	}
 	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
+}
+
+// emptyChunkWalk is how many chunks in a row may come back with no item, as
+// when the owner cuts each page to a rare word, before the feed stops reading
+// ahead and waits for the user to move down for the next one.
+const emptyChunkWalk = 5
+
+// stalled reports whether the last chunks loaded all hold no item, so that
+// reading ahead would walk every page of a source that has few matches.
+func (m Model[T]) stalled() bool {
+	if len(m.chunks) < emptyChunkWalk {
+		return false
+	}
+	for _, c := range m.chunks[len(m.chunks)-emptyChunkWalk:] {
+		if c.n > 0 || c.err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // margin returns how many rows beyond the window the feed keeps loaded.

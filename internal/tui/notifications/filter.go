@@ -46,7 +46,8 @@ type filter struct {
 }
 
 // parseFilter reads query. Without is:unread it lists every thread, read or
-// not. Tokens it doesn't know keep every thread.
+// not. A qualifier or value it doesn't know keeps every thread, while bare
+// words keep the threads whose title has them all.
 func parseFilter(query string) filter {
 	f := filter{query: query, all: true, words: ui.Words(query)}
 	for _, t := range filterform.Tokenize(query) {
