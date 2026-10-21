@@ -889,7 +889,9 @@ func TestContextChains(t *testing.T) {
 // unopenedContexts are the contexts that no screen opens yet, so that no
 // state of keyContexts reaches them. Add the state with the screen that
 // opens one, and delete its entry.
-var unopenedContexts = map[string]string{}
+var unopenedContexts = map[string]string{
+	"notifications": "the modal that shows them is not there yet",
+}
 
 // foldedContexts are the contexts whose keys help lists in the layer of
 // another, because one widget holds both: the keys of a picker in normal
@@ -900,6 +902,8 @@ var foldedContexts = map[string]string{"picker_normal": "picker"}
 // reached, has nothing to act on there: a motion at the end of what it
 // moves in. Each is listed by its context and label, with the reason.
 var idleRows = map[string]string{
+	"global notifications": "the modal that shows the notifications is not there yet",
+
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
@@ -1155,9 +1159,6 @@ func keyContexts() []keyContext {
 		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
 		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "order_pick", want: "always, order_pick"},
-		{name: "notifications", steps: []string{"global.notifications"}, context: "notifications", want: "global, notifications"},
-		{name: "notifications: filter", steps: []string{"global.notifications", "notifications.filter"}, context: "filter", want: "global, filter"},
-		{name: "notifications: mark read", steps: []string{"global.notifications", "notifications.read"}, context: "confirm", want: "always, confirm"},
 		{name: "search: normal mode", steps: []string{"global.search", "search.insert", typed("key"), "search_query.cancel", "global.pane_1"}, context: "search", want: "global, search"},
 		{name: "search: query", steps: []string{"global.search", "search.insert"}, context: "search_query", want: "always, global, search_query (types)"},
 		{name: "search: results", steps: []string{"global.search", "search.insert", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search, search_results"},

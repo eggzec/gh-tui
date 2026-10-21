@@ -380,8 +380,6 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 			}
 			return m.selectRepo(ui.RepoMsg{Repo: repo})
 		}
-	case keymap.Matches(msg, m.keys.Notifications):
-		return m.showScreen(notifScreen, m.focus)
 	case m.dash != nil && keymap.Matches(msg, m.keys.Dashboard):
 		return m.showScreen(dashScreen, m.focus)
 	}
@@ -519,9 +517,6 @@ func (m *Model) show(title string) tea.Cmd {
 		if p.section.Title() == title {
 			return m.showScreen(repoScreen, i)
 		}
-	}
-	if m.notif != nil && m.notif.section.Title() == title {
-		return m.showScreen(notifScreen, m.focus)
 	}
 	for s, p := range map[screen]*pane{dashScreen: m.dash, searchScreen: m.srch, ownerScreen: m.own} {
 		if p != nil && p.section.Title() == title {

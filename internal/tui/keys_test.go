@@ -46,7 +46,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Error("] didn't reach the focused pane")
 	}
 
-	m, fakes := newTestApp(t)
+	m, fakes := newDashApp(t, testRepo)
 	fakes[0].keyMap = backKeys{}
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	if got := winner(m, "esc"); got != "Files: back" {
@@ -71,14 +71,14 @@ func TestKeyLayersOrder(t *testing.T) {
 	fakes[0].capturing = false
 
 	// Away from the repository screen there are no panes to cycle.
-	run(m, m.key(press("I")))
-	if m.screen != notifScreen {
-		t.Fatalf("I showed screen %d, want the notifications", m.screen)
+	run(m, m.showScreen(dashScreen, 0))
+	if m.screen != dashScreen {
+		t.Fatalf("0 showed screen %d, want the dashboard", m.screen)
 	}
 	if got := winner(m, "tab"); got == "global: next pane" {
-		t.Error("the notifications offer the next pane")
+		t.Error("the dashboard offers the next pane")
 	}
-	run(m, m.key(press("I")))
+	run(m, m.key(press("backspace")))
 
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
@@ -113,15 +113,13 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 }
 
 // focusOf names where the focus is: the focused pane of the repository
-// screen, the notifications, or the part of the search page that has it
+// screen, or the part of the search page that has it
 // (the query typing, the query in normal mode, or the results), by its
 // last layer of keys, and the query it searches for.
 func focusOf(m *Model) string {
 	switch m.screen {
 	case repoScreen:
 		return "repo: " + m.focused().section.Title()
-	case notifScreen:
-		return "notifications"
 	case searchScreen:
 		layers := m.keyLayers()
 		part := map[string]string{"Query": "typing", "Search": "query", "Results": "results"}[layers[len(layers)-1].Source]
@@ -132,12 +130,11 @@ func focusOf(m *Model) string {
 }
 
 // Tab and shift+tab cycle the panes of the repository screen, which the
-// app does, and reach the section on the notifications and search screens,
-// which does what it defines for them: the search page moves between its
-// query and results, and its ] and [ show the next and the previous kind
-// without moving the focus; the query types them, and keeps tab. The
-// notifications have none of them. The help credits each key to what it
-// reaches.
+// app does, and reach the section on the search screen, which does what it
+// defines for them: the search page moves between its query and results,
+// and its ] and [ show the next and the previous kind without moving the
+// focus; the query types them, and keeps tab. The help credits each key to
+// what it reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -155,11 +152,6 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "global: previous pane", "repo: Issues"},
 		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
 		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
-
-		{"notifications: tab", false, []string{"I"}, "notifications", "tab", "nothing", "notifications"},
-		{"notifications: shift+tab", false, []string{"I"}, "notifications", "shift+tab", "nothing", "notifications"},
-		{"notifications: ]", false, []string{"I"}, "notifications", "]", "nothing", "notifications"},
-		{"notifications: [", false, []string{"I"}, "notifications", "[", "nothing", "notifications"},
 
 		{"search query: tab", false, []string{"S"}, `search: query ""`, "tab", "global: next", `search: results ""`},
 		{"search query: shift+tab", false, []string{"S"}, `search: query ""`, "shift+tab", "global: previous", `search: results ""`},
@@ -190,14 +182,10 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 				if got := winner(m, tt.key); got != tt.winner {
 					t.Errorf("the help credits %s to %q, want %q", tt.key, got, tt.winner)
 				}
-				before := onScreen(m)
 				msg, _ := keyPress(tt.key)
 				driveKeys(t, m, m.key(msg))
 				if got := focusOf(m); got != tt.want {
 					t.Errorf("%s moved the focus to %s, want %s", tt.key, got, tt.want)
-				}
-				if tt.from == "notifications" && onScreen(m) != before {
-					t.Errorf("%s changed the notifications, which have no use for it", tt.key)
 				}
 			})
 		})

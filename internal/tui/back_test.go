@@ -275,15 +275,15 @@ func TestBackSurvivesPreview(t *testing.T) {
 // way.
 func TestBackAfterChainEnds(t *testing.T) {
 	t.Parallel()
-	m, _ := newTestApp(t)
-	run(m, m.showScreen(notifScreen, 0))
+	m, _ := newDashApp(t, testRepo)
+	run(m, m.key(press("0")))
 	mods := chain(m, "A", "B")
 	run(m, m.key(press("esc")))
 	if m.modal != nil || mods[0].discarded != 1 {
 		t.Fatalf("the chain didn't end: open %v", m.topModal())
 	}
-	if m.screen != notifScreen {
-		t.Fatalf("on screen %d, want the notifications", m.screen)
+	if m.screen != dashScreen {
+		t.Fatalf("on screen %d, want the dashboard", m.screen)
 	}
 	run(m, m.key(backspace))
 	if m.screen != repoScreen {

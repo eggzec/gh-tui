@@ -17,7 +17,7 @@ import (
 // newDashApp returns an app of fake sections with a dashboard, on an 80x24
 // terminal, opened on repo if it isn't zero. The dashboard is the last
 // fake.
-func newDashApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
+func newDashApp(t *testing.T, repo core.RepoRef, extra ...Option) (*Model, []*fakeSection) {
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}, {title: ui.DashboardTitle}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
@@ -25,6 +25,7 @@ func newDashApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, WithRepo(repo))
 	}
+	opts = append(opts, extra...)
 	m := New(t.Context(), config.Default(), layout, opts...)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -115,26 +116,12 @@ func TestNotificationsFromDashboard(t *testing.T) {
 	t.Parallel()
 	m, fakes := newDashApp(t, core.RepoRef{})
 	run(m, m.key(press("I")))
-	if m.screen != notifScreen {
-		t.Fatal("I didn't show the notifications")
+	if m.screen != dashScreen || !fakes[4].focused || len(m.back) != 0 {
+		t.Error("I should leave the dashboard as it is")
 	}
-	run(m, m.key(press("I")))
-	if m.screen != notifScreen {
-		t.Error("I again should stay on the notifications")
-	}
-	run(m, m.key(press("backspace")))
-	if m.screen != dashScreen || !fakes[4].focused {
-		t.Error("backspace should go back to the dashboard")
-	}
-
-	// The dashboard shows the notifications, and the app goes back to it.
 	m.Update(ui.ShowMsg{Title: ui.NotificationsTitle})
-	if m.screen != notifScreen {
-		t.Fatal("ShowMsg didn't show the notifications")
-	}
-	run(m, m.key(press("backspace")))
 	if m.screen != dashScreen {
-		t.Error("backspace should go back to the dashboard that showed the notifications")
+		t.Error("ShowMsg for the notifications should not leave the dashboard")
 	}
 	m.Update(ui.ShowMsg{Title: ui.DashboardTitle})
 	if m.screen != dashScreen {
@@ -162,7 +149,7 @@ func TestNoDashboard(t *testing.T) {
 	t.Parallel()
 	m, fakes := newApp(t, core.RepoRef{})
 	run(m, m.key(press("0")))
-	if m.screen != notifScreen || !slices.Equal(focusedTitles(fakes), []string{"Notifications"}) {
+	if m.screen != repoScreen || !slices.Equal(focusedTitles(fakes), []string{"Files"}) {
 		t.Error("without a dashboard, 0 does nothing")
 	}
 	if s := onScreen(m); strings.Contains(s, "dashboard") {
@@ -225,7 +212,7 @@ func TestDashboardRevisitedOnReturn(t *testing.T) {
 	if dash.inits != 1 || dash.revisits != 0 {
 		t.Fatalf("opening on the dashboard: %d inits and %d revisits, want 1 and none", dash.inits, dash.revisits)
 	}
-	run(m, m.key(press("I")))
+	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	run(m, m.key(press("backspace")))
 	if m.screen != dashScreen || dash.revisits != 1 {
 		t.Fatalf("back on the dashboard: %d revisits, want 1", dash.revisits)
