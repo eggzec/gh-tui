@@ -171,6 +171,45 @@ func TestBlurCancelsReadsAhead(t *testing.T) {
 	})
 }
 
+// A modal opened over the notifications keeps their reads ahead going; the
+// modal's discard stops them.
+func TestModalHideKeepsReadsAheadDiscardStopsThem(t *testing.T) {
+	{
+		synctest.Test(t, func(t *testing.T) {
+			ps := &heldPulls{ctxs: make(chan context.Context, 4)}
+			svc := newFake()
+			s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Millisecond))))
+			mod := NewModal(s)
+			svc.mu.Lock()
+			svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
+			svc.mu.Unlock()
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+			}()
+			time.Sleep(time.Millisecond)
+			synctest.Wait()
+			var ctx context.Context
+			select {
+			case ctx = <-ps.ctxs:
+			default:
+				t.Fatal("nothing was read ahead")
+			}
+			mod.Hide()
+			synctest.Wait()
+			if ctx.Err() != nil {
+				t.Error("Hide cancelled the read ahead")
+			}
+			mod.Discard()
+			<-done
+			if ctx.Err() == nil {
+				t.Error("Discard left the read ahead running")
+			}
+		})
+	}
+}
+
 // A change to the inbox while another screen is on view reads nothing
 // ahead; the reads resume once the section is back.
 func TestNoReadsAheadOffScreen(t *testing.T) {
