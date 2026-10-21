@@ -4,46 +4,16 @@ import (
 	"context"
 	"slices"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
-// debounceMsg says the user stopped typing edit seq of the query, on the
-// page with id.
-type debounceMsg struct {
-	id  int64
-	seq int
-}
-
-// othersMsg says the query rested long enough after edit edits of it for
-// the first pages of the kinds not on view to be read, on the page with id.
-type othersMsg struct {
-	id    int64
-	edits int
-}
-
-// edited starts the wait after an edit of the query, after which the page
-// searches for it, and the longer one after which it reads the other kinds
-// ahead.
-func (s *Section) edited() tea.Cmd {
-	s.seq++
-	s.edits++
-	id, seq, edits := s.id, s.seq, s.edits
-	// The other kinds wait at least as long as the kind on view.
-	others := tea.Tick(max(s.othersWait, s.debounce), func(time.Time) tea.Msg { return othersMsg{id: id, edits: edits} })
-	if s.debounce == 0 {
-		return tea.Batch(s.settle(), others)
-	}
-	return tea.Batch(tea.Tick(s.debounce, func(time.Time) tea.Msg { return debounceMsg{id: id, seq: seq} }), others)
-}
-
-// settle shows the results of the query as it is now, of the kind on view
-// only. Code waits to be asked for; the other kinds wait for the query to
-// rest ([Section.readOthers]).
-func (s *Section) settle() tea.Cmd {
+// adopt makes the query as it is now the one the results are for, and
+// shows its results of the kind on view only. Code waits to be asked for;
+// the other kinds are read ahead by [Section.readOthers].
+func (s *Section) adopt() tea.Cmd {
 	text := strings.Join(strings.Fields(s.input.Value()), " ")
 	if text == s.text {
 		return nil
@@ -57,8 +27,8 @@ func (s *Section) settle() tea.Cmd {
 	if text == "" {
 		return nil
 	}
-	// Code waits to be asked for, but the kinds still count as the user
-	// types, which the search of repositories brings.
+	// Code waits to be asked for, but the kinds still count, which the
+	// search of repositories brings.
 	k := s.kind
 	if k == core.SearchCode {
 		k = core.SearchRepos
@@ -66,11 +36,11 @@ func (s *Section) settle() tea.Cmd {
 	return s.ensureHits(k)
 }
 
-// submit searches for the query at once, code too when its kind is on
-// view, remembers it, and moves the focus to the results.
+// submit searches for the query, code too when its kind is on view,
+// remembers it, and moves the focus to the results. Typing only edits the
+// text: nothing is searched until this runs.
 func (s *Section) submit() tea.Cmd {
-	s.seq++
-	cmd := s.settle()
+	cmd := s.adopt()
 	if s.text == "" {
 		return cmd
 	}
@@ -116,11 +86,10 @@ func (s *Section) setQuery(text string) tea.Cmd {
 // again reads it anew, not through a list whose reads were canceled.
 func (s *Section) Fresh() {
 	s.input.SetValue("")
-	s.seq++
 	clear(s.hits)
 	clear(s.stale)
 	s.code = nil
-	s.settle()
+	s.adopt()
 	s.focusArea(inputArea)
 	s.render()
 }

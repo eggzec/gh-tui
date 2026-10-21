@@ -18,9 +18,9 @@ func (s *Section) configure(c config.Config) {
 
 // setPrefetch reads ahead as p says for prefetch.search: the pull requests
 // and issues of the results around the cursor, and the first pages of the
-// other kinds once the query rests.
+// other kinds once the query is submitted.
 func (s *Section) setPrefetch(p config.PrefetchLayers) {
 	s.ahead.Configure(p)
 	others := ui.Resolve(p, "search", "other_kinds")
-	s.othersOn, s.othersWait = others.Enabled, others.Rest
+	s.othersOn = others.Enabled
 }

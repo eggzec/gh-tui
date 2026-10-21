@@ -77,7 +77,7 @@ func TestSearchModalCapturesKeys(t *testing.T) {
 			t.Fatalf("%s closed the search while the query types", k)
 		}
 	}
-	if got := m.srch.section.(*searchpage.Section).Query(); got != "qn0" {
+	if got := m.srch.section.(*searchpage.Section).Typed(); got != "qn0" {
 		t.Errorf("the query is %q, want the typed keys", got)
 	}
 }

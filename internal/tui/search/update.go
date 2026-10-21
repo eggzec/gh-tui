@@ -13,14 +13,10 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
-// Update handles the page's keys, the waits after typing and the
-// countdown of code search, and passes everything else to the results,
-// whose lists ignore the messages of others.
+// Update handles the page's keys and the countdown of code search, and
+// passes everything else to the results, whose lists ignore the messages
+// of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
-	if s.moot(msg) {
-		// Nothing changes, so the page needn't render again.
-		return nil
-	}
 	cmd := s.update(msg)
 	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead())
 	s.render()
@@ -31,18 +27,6 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return s.press(msg)
-	case debounceMsg:
-		if msg.id != s.id {
-			return nil
-		}
-		return s.settle()
-	case othersMsg:
-		// Off the page, the other kinds wait for the next rest or enter,
-		// which Update checks.
-		if msg.id != s.id {
-			return nil
-		}
-		return tea.Batch(s.settle(), s.readOthers(othersRest))
 	case ui.AheadMsg:
 		if !s.focused {
 			return nil
@@ -98,18 +82,6 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// moot reports whether msg is a wait that a later edit, or leaving the
-// page, made moot: one of every key typed.
-func (s *Section) moot(msg tea.Msg) bool {
-	switch msg := msg.(type) {
-	case debounceMsg:
-		return msg.id == s.id && msg.seq != s.seq
-	case othersMsg:
-		return msg.id == s.id && (msg.edits != s.edits || !s.focused)
-	}
-	return false
-}
-
 // press handles a key in the part of the page that has the focus.
 func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if !s.focused {
@@ -151,7 +123,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // pressTyping handles a key while the query types: the few keys that type
-// nothing act, and the rest edit the query.
+// nothing act, and the rest edit the query without searching it.
 func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	// A printable key is typed before any key that holds it.
@@ -159,16 +131,12 @@ func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
 	case keyhelp.Printable(msg.String()):
 	case keymap.Matches(msg, k.query.Cancel):
 		s.focusArea(resultsArea)
-		return s.settleNow()
+		return nil
 	case keymap.Matches(msg, k.query.Submit):
 		return s.submit()
 	}
-	before := s.input.Value()
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
-	if s.input.Value() != before {
-		return tea.Batch(cmd, s.edited())
-	}
 	return cmd
 }
 
@@ -177,12 +145,6 @@ func (s *Section) startTyping() {
 	s.focusArea(inputArea)
 	s.typing = true
 	s.input.Focus()
-}
-
-// settleNow searches for the query without waiting for the debounce.
-func (s *Section) settleNow() tea.Cmd {
-	s.seq++
-	return s.settle()
 }
 
 // moveKind shows the kind delta kinds away, going round at either end.

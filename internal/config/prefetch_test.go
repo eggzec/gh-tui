@@ -45,8 +45,8 @@ func TestResolveDefaults(t *testing.T) {
 			"prefetch.enabled", "", "", "prefetch.pulls.files.rest", true},
 		{"search", "details", true, 0, 0, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.search.window.before", "prefetch.search.window.after", "prefetch.rest", false},
-		{"search", "other_kinds", true, 0, 0, 700 * time.Millisecond,
-			"prefetch.enabled", "", "", "prefetch.search.other_kinds.rest", true},
+		{"search", "other_kinds", true, 0, 0, 150 * time.Millisecond,
+			"prefetch.enabled", "", "", "prefetch.rest", true},
 		{"files", "preview", true, 0, 32, 150 * time.Millisecond,
 			"prefetch.enabled", "prefetch.files.preview.window.before", "prefetch.files.preview.window.after", "prefetch.rest", false},
 		{"finder", "preview", true, 0, 0, 100 * time.Millisecond,
@@ -230,7 +230,7 @@ func TestGetInherited(t *testing.T) {
 		"prefetch.pulls.details.window.before":   "1 (from prefetch.window.before)",
 		"prefetch.pulls.checks.enabled":          "false",
 		"prefetch.search.details.window.after":   "0 (from prefetch.search.window.after)",
-		"prefetch.search.other_kinds.rest":       "700ms",
+		"prefetch.search.other_kinds.rest":       "150ms (from prefetch.rest)",
 		"prefetch.finder.preview.rest":           "100ms (from prefetch.finder.rest)",
 		"prefetch.pulls.other_tabs.window.after": "none: other tabs are read a page at a time, not around the cursor",
 		"prefetch.owner.people.enabled":          "false",
@@ -279,7 +279,7 @@ func TestPrefetchTable(t *testing.T) {
 	for _, want := range []string{
 		"pulls.details           enabled true  (prefetch.enabled)  window 1 (prefetch.window.before) / 4 (prefetch.window.after)  rest 150ms (prefetch.rest)",
 		"pulls.checks            enabled false (prefetch.pulls.checks.enabled)",
-		"search.other_kinds      enabled true  (prefetch.enabled)  rest 700ms (prefetch.search.other_kinds.rest)",
+		"search.other_kinds      enabled true  (prefetch.enabled)  rest 150ms (prefetch.rest)",
 		"owner.people            enabled false (prefetch.owner.people.enabled)  window 0 (prefetch.owner.people.window.before) / 2 (prefetch.owner.people.window.after)",
 		"owner.other_tabs        enabled false (prefetch.owner.other_tabs.enabled)  rest 150ms (prefetch.rest)",
 	} {

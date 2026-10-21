@@ -60,7 +60,7 @@ func (a *app) View() tea.View { return tea.NewView(a.s.View()) }
 
 func TestProgram(t *testing.T) {
 	svc := newFake()
-	s := New(t.Context(), svc, config.Default().Keys, WithNow(func() time.Time { return now }), WithDebounce(0))
+	s := New(t.Context(), svc, config.Default().Keys, WithNow(func() time.Time { return now }))
 	s.Focus()
 	a := &app{s: s, got: make(chan tea.Msg, 8), ready: make(chan struct{})}
 	tm := teatest.NewTestModel(t, a, teatest.WithInitialTermSize(120, 30))

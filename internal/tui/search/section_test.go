@@ -23,30 +23,92 @@ func screen(s *Section) string { return ansi.Strip(s.View()) }
 // flat is the view with styles removed and whitespace collapsed.
 func flat(s *Section) string { return strings.Join(strings.Fields(screen(s)), " ") }
 
-func TestDebounce(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		svc := newFake()
-		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce))
-		// Type a query a key at a time, faster than the debounce.
-		waits := make([]tea.Cmd, 0, 3)
-		press(t, s, "i")
-		for _, r := range "tea" {
-			waits = append(waits, s.Update(keyPress(string(r))))
-			time.Sleep(100 * time.Millisecond)
-		}
-		if n, _ := svc.stats(); n != 0 {
-			t.Fatalf("%d searches while typing, want none before the debounce", n)
-		}
-		for _, w := range waits {
-			run(t, s, w)
-		}
-		if n, _ := svc.stats(); n != 1 || svc.queries[0].Text != "tea" {
-			t.Errorf("searched %v, want one search for tea once typing settled", svc.queries)
-		}
-		if s.Query() != "tea" {
-			t.Errorf("the results are for %q, want tea", s.Query())
-		}
-	})
+// Typing only edits the text: nothing is searched or read ahead, and the
+// results are for no query yet.
+func TestTypingDoesNotSearch(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	typeOnly(t, s, "tea")
+	if s.input.Value() != "tea" || !s.typing {
+		t.Fatalf("the query is %q and typing %v, want tea still typed", s.input.Value(), s.typing)
+	}
+	if n, code := svc.stats(); n != 0 || code != 0 || svc.prefetches != 0 {
+		t.Errorf("%d searches, %d code searches and %d prefetches while typing, want none", n, code, svc.prefetches)
+	}
+	if s.Query() != "" {
+		t.Errorf("the results are for %q while typing, want no query", s.Query())
+	}
+	// Esc stops typing and leaves the query as it is, unsearched.
+	press(t, s, "esc")
+	if n, _ := svc.stats(); n != 0 || s.Query() != "" || s.area != resultsArea {
+		t.Errorf("esc searched %d times, results for %q, area %d, want nothing searched", n, s.Query(), s.area)
+	}
+}
+
+// Enter submits the query: it searches the kind on view and reads the other
+// kinds but code, once, and moves to the results.
+func TestSubmitSearches(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	typeOnly(t, s, "tea")
+	press(t, s, "enter")
+	if n, code := svc.stats(); n != 1 || code != 0 || svc.queries[0].Text != "tea" {
+		t.Errorf("%d searches (%v) and %d code searches, want one for tea", n, svc.queries, code)
+	}
+	if svc.prefetches != 2 {
+		t.Errorf("%d prefetches, want one for each other kind but code", svc.prefetches)
+	}
+	if s.Query() != "tea" || s.area != resultsArea || s.typing {
+		t.Errorf("the results are for %q, area %d, typing %v, want tea on the results", s.Query(), s.area, s.typing)
+	}
+}
+
+// After a submit, a kind whose results for the query aren't loaded loads
+// when the user switches to it, and none loads again for a kind that is.
+func TestSwitchKindAfterSubmitLoadsThatKind(t *testing.T) {
+	svc := newFake()
+	// Without the other kinds read ahead, switching is what loads them.
+	s := newSection(t, svc, 120, 30, func(s *Section) { s.othersOn = false })
+	typeText(t, s, "tea")
+	if n, _ := svc.stats(); n != 1 {
+		t.Fatalf("%d searches after the submit, want the kind on view", n)
+	}
+	press(t, s, "]")
+	if s.Kind() != core.SearchIssues {
+		t.Fatalf("] shows %v, want the issues", s.Kind())
+	}
+	if n, _ := svc.stats(); n != 2 || svc.queries[1].Kind != core.SearchIssues || svc.queries[1].Text != "tea" {
+		t.Errorf("searches %v, want the issues for tea loaded on the switch", svc.queries)
+	}
+	before := svc.fetches()
+	press(t, s, "[", "]")
+	if n := svc.fetches(); n != before {
+		t.Errorf("going back to a loaded kind made %d searches, want none", n-before)
+	}
+}
+
+// The search command counts as a submit: it searches the query it is given.
+func TestSearchCommandSubmits(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	run(t, s, s.Search("tea"))
+	if n, code := svc.stats(); n != 1 || code != 0 || svc.queries[0].Text != "tea" {
+		t.Errorf("%d searches (%v) and %d code searches, want one for tea", n, svc.queries, code)
+	}
+	if svc.prefetches != 2 || s.Query() != "tea" || s.area != resultsArea {
+		t.Errorf("%d prefetches, results for %q, area %d, want 2, tea and the results", svc.prefetches, s.Query(), s.area)
+	}
+}
+
+// Before a submit no kind loads, whatever tab is shown or typed.
+func TestNoLoadBeforeSubmit(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	typeOnly(t, s, "tea")
+	press(t, s, "esc", "]", "]", "]", "[")
+	if n, code := svc.stats(); n != 0 || code != 0 || svc.prefetches != 0 {
+		t.Errorf("%d searches, %d code searches and %d prefetches before a submit, want none", n, code, svc.prefetches)
+	}
 }
 
 func TestCounts(t *testing.T) {
@@ -58,10 +120,10 @@ func TestCounts(t *testing.T) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}
 	}
-	// Without a wait, each key settles a query: a search of the kind on
-	// view with the counts, and a prefetch of each other kind.
-	if n, code := svc.stats(); n != 3 || svc.prefetches != 6 || code != 0 {
-		t.Errorf("%d searches, %d prefetches and %d code searches, want 3, 6 and none", n, svc.prefetches, code)
+	// The submit makes one search of the kind on view with the counts, and a
+	// prefetch of each other kind.
+	if n, code := svc.stats(); n != 1 || svc.prefetches != 2 || code != 0 {
+		t.Errorf("%d searches, %d prefetches and %d code searches, want 1, 2 and none", n, svc.prefetches, code)
 	}
 }
 
@@ -98,14 +160,11 @@ func TestCodeOnDemand(t *testing.T) {
 	if !strings.Contains(screen(s), "pkg/cmd/tea/tea.go") {
 		t.Errorf("the code results are missing:\n%s", screen(s))
 	}
-	// A new query waits for enter.
+	// A new query waits for enter, and typing it searches nothing.
 	press(t, s, "1")
-	typeText(t, s, "s")
+	typeOnly(t, s, "s")
 	if _, code := svc.stats(); code != 1 {
 		t.Error("typing on the code searched it")
-	}
-	if !strings.Contains(screen(s), "Press ↵ to search code for “teas”") {
-		t.Errorf("the page should say how to search code:\n%s", screen(s))
 	}
 	press(t, s, "backspace", "enter")
 	if _, code := svc.stats(); code != 1 {
@@ -113,7 +172,6 @@ func TestCodeOnDemand(t *testing.T) {
 	}
 	press(t, s, "1")
 	typeText(t, s, "x")
-	press(t, s, "enter")
 	if _, code := svc.stats(); code != 2 {
 		t.Error("enter should search code for the new query")
 	}
@@ -293,8 +351,8 @@ func TestEscLeavesTypingForTheResults(t *testing.T) {
 	if got := press(t, s, "esc"); len(got) != 0 || s.area != resultsArea || s.Capturing() {
 		t.Errorf("esc while typing sent %v, area %d, capturing %v, want the results, not typing, no message", got, s.area, s.Capturing())
 	}
-	if s.Query() != "t" {
-		t.Errorf("the results are for %q, want the query searched when typing stopped", s.Query())
+	if s.Query() != "" {
+		t.Errorf("the results are for %q, want nothing searched when typing stopped", s.Query())
 	}
 	if got := press(t, s, "esc"); len(got) != 0 || s.area != resultsArea {
 		t.Errorf("esc in the results sent %v and focused area %d, want nothing", got, s.area)
@@ -358,7 +416,7 @@ func TestCapturing(t *testing.T) {
 	if s.Capturing() {
 		t.Error("the query takes every key only while it types")
 	}
-	typeText(t, s, "q]")
+	typeOnly(t, s, "q]")
 	if !s.Capturing() || s.input.Value() != "q]" {
 		t.Errorf("the query is %q, capturing %v, want the keys typed", s.input.Value(), s.Capturing())
 	}
@@ -386,6 +444,7 @@ func TestStart(t *testing.T) {
 	for range len("lipgloss") {
 		press(t, s, "backspace")
 	}
+	press(t, s, "enter")
 	if view := screen(s); !strings.Contains(view, "Recent searches") || !strings.Contains(view, "↺ lipgloss") {
 		t.Fatalf("the search should be remembered:\n%s", view)
 	}
@@ -438,35 +497,20 @@ func TestRefresh(t *testing.T) {
 	}
 }
 
-func TestResultsOfAnotherQueryAreDropped(t *testing.T) {
-	svc := newFake()
-	s := newSection(t, svc, 120, 30, WithDebounce(time.Hour))
-	// The wait isn't run, so it never ends.
-	press(t, s, "i")
-	s.Update(keyPress("t"))
-	stale := debounceMsg{id: s.id, seq: s.seq - 1}
-	s.Update(stale)
-	if s.Query() != "" {
-		t.Error("a wait for an earlier edit should be dropped")
-	}
-	s.Update(debounceMsg{id: s.id + 1, seq: s.seq})
-	if s.Query() != "" {
-		t.Error("a wait of another page should be dropped")
-	}
-}
-
 func TestKeepsResultsWhileLoading(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
 	// The first query has nothing to keep, so it shows the loading body.
-	press(t, s, "i")
-	s.Update(keyPress("t"))
+	typeOnly(t, s, "tea")
+	first := s.Update(keyPress("enter"))
 	if view := screen(s); !strings.Contains(view, "Loading…") {
 		t.Errorf("a first query should show the loading body:\n%s", view)
 	}
-	typeText(t, s, "ea")
+	run(t, s, first)
 	// A new query keeps the results of the one before, dimmed, until its
 	// own arrive, with a spinner in the title.
-	pending := s.Update(keyPress("-"))
+	press(t, s, "1")
+	typeOnly(t, s, "-")
+	pending := s.Update(keyPress("enter"))
 	view := screen(s)
 	if strings.Contains(view, "Loading…") || !strings.Contains(view, "charmbracelet/bubbletea") {
 		t.Errorf("the results of tea should stay while tea- loads:\n%s", view)
@@ -517,7 +561,9 @@ func TestKeepsTitlesWhileLoading(t *testing.T) {
 	if before < 1 {
 		t.Fatalf("the first row isn't on view:\n%s", loaded)
 	}
+	s.Update(keyPress("i"))
 	s.Update(keyPress("-"))
+	s.Update(keyPress("enter"))
 	if _, ok := s.staleView(); !ok {
 		t.Fatal("the results of tea should show dimmed while tea- loads")
 	}
@@ -537,8 +583,8 @@ func TestNewTextCancelsReads(t *testing.T) {
 	svc.mu.Lock()
 	old := slices.Clone(svc.ctxs)
 	svc.mu.Unlock()
-	if len(old) != 9 {
-		t.Fatalf("%d reads, want a search and two prefetches per key", len(old))
+	if len(old) != 3 {
+		t.Fatalf("%d reads, want a search and two prefetches for the submitted query", len(old))
 	}
 	typeText(t, s, "s")
 	for i, ctx := range old {
@@ -624,26 +670,6 @@ func TestFreshReadsTheSameQueryAnew(t *testing.T) {
 	l, ok := s.visibleHits()
 	if !ok || l.feed.Len() == 0 || l.feed.Err() != nil {
 		t.Errorf("the list of the query typed again has %d results, error %v, want results", l.feed.Len(), l.feed.Err())
-	}
-}
-
-func TestFreshDropsTheDebounceInFlight(t *testing.T) {
-	svc := newFake()
-	s := newSection(t, svc, 120, 30, WithDebounce(time.Second))
-	for _, r := range "tea" {
-		s.Update(keyPress(string(r)))
-	}
-	stale := debounceMsg{id: s.id, seq: s.seq}
-	s.Fresh()
-	run(t, s, s.Update(stale))
-	if s.Query() != "" || s.input.Value() != "" {
-		t.Errorf("query %q, input %q after the stale debounce, want both empty", s.Query(), s.input.Value())
-	}
-	if _, ok := s.visibleHits(); ok {
-		t.Error("the stale debounce made a list of results")
-	}
-	if svc.requests != 0 {
-		t.Errorf("%d requests after the stale debounce, want none", svc.requests)
 	}
 }
 

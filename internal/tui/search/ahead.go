@@ -22,7 +22,7 @@ func WithDetails(pulls details.Pulls, issues details.Issues) Option {
 //     cursor rests while the results have the focus, through what
 //     WithDetails gives. Each costs a request; what is cached is skipped.
 //   - other_kinds: the first page of the kinds of results not on view,
-//     once the query rests, so that switching kinds is instant. Each
+//     once the query is submitted, so that switching kinds is instant. Each
 //     costs a search.
 //
 // Without it, only the other kinds are read, as the defaults say.

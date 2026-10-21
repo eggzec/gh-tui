@@ -187,10 +187,7 @@ type prefetchMsg struct {
 }
 
 // What started the reads of the other kinds, for the log.
-const (
-	othersRest  = "rest"
-	othersEnter = "enter"
-)
+const othersEnter = "enter"
 
 // othersKey names the first page of one kind for one query, read ahead.
 type othersKey struct {
@@ -200,7 +197,7 @@ type othersKey struct {
 
 // readOthers reads the first page of every kind but code and the one on
 // view, each in a request of its own, so that switching kinds is instant.
-// They are guesses, so they wait until the query rests or is entered, run
+// They are guesses, so they wait until the query is submitted, run
 // as reads ahead, which charge the prefetch budget and wait for the
 // requests the user waits for, and stop when the page is left. A query
 // reads them once.
@@ -272,7 +269,7 @@ func (s *Section) readOthers(trigger string) tea.Cmd {
 }
 
 // leaveOthers stops the reads of the other kinds in flight, as the page
-// leaves the screen, and lets the next rest or enter read them again.
+// leaves the screen, and lets the next submit read them again.
 func (s *Section) leaveOthers() {
 	s.stopOthers()
 	s.stopOthers = func() {}
