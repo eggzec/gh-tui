@@ -38,6 +38,30 @@ func TestDigits(t *testing.T) {
 	}
 }
 
+func TestFoot(t *testing.T) {
+	t.Parallel()
+	keys := []string{"1", "2", "3"}
+	tiers := [][]string{{"Pinned", "Repositories", "Waiting"}, {"Pin", "Repos", "Wait"}}
+	tests := []struct {
+		name string
+		maxW int
+		want string
+	}{
+		{"titles", 100, "1 Pinned  [2] Repositories  3 Waiting"},
+		{"short titles", 30, "1 Pin  [2] Repos  3 Wait"},
+		{"keys alone", 10, "1 [2] 3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, w := Foot(keys, tiers, 1, Paint{}, Paint{}, tt.maxW)
+			if got != tt.want || w != ansi.StringWidth(tt.want) {
+				t.Errorf("Foot = %q, %d; want %q", got, w, tt.want)
+			}
+		})
+	}
+}
+
 func TestFrameFoot(t *testing.T) {
 	t.Parallel()
 	const foot = "1 2 3"

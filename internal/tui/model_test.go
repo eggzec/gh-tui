@@ -491,7 +491,7 @@ func TestZoomMovesDigitsToBottomEdge(t *testing.T) {
 	if !strings.Contains(top, "Pull requests") || strings.Contains(top, "[2]") {
 		t.Errorf("a zoomed pane should show its name alone in the top edge: %q", top)
 	}
-	if !strings.Contains(bottom, "1 [2] 3") {
+	if !strings.Contains(bottom, "[2] Pull requests") {
 		t.Errorf("a zoomed pane should show the keys of the panes in the bottom edge: %q", bottom)
 	}
 	run(m, m.key(press("z")))

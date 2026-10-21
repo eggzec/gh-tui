@@ -260,13 +260,13 @@ func (s *Section) foot() (label string, width int) {
 	if !s.zoomed() {
 		return "", 0
 	}
-	var keys [numPanes]string
+	var keys, long, short [numPanes]string
 	for i := range numPanes {
 		if s.hasPane(i) {
-			keys[i] = s.keyLabel(i)
+			keys[i], long[i], short[i] = s.keyLabel(i), s.title(i, false), s.title(i, true)
 		}
 	}
-	return ownerui.Digits(keys[:], int(s.page.focus), s.st.focusTitle, s.st.shared.Subtle)
+	return ownerui.Foot(keys[:], [][]string{long[:], short[:]}, int(s.page.focus), s.st.focusTitle, s.st.shared.Subtle, s.width-5)
 }
 
 // paneLabel is the label of pane p, with its key before it, such as

@@ -164,14 +164,14 @@ func TestZoomedDigitsUnbound(t *testing.T) {
 	lines := strings.Split(ansi.Strip(s.View()), "\n")
 	var edge string
 	for _, l := range lines {
-		if strings.Contains(l, "3 4") && strings.Contains(l, "╰") {
+		if strings.Contains(l, "3 Waiting on you  4 Contributions") && strings.Contains(l, "╰") {
 			edge = l
 		}
 	}
 	if edge == "" {
 		t.Fatalf("no bottom edge lists the bound pane keys:\n%s", strings.Join(lines, "\n"))
 	}
-	if strings.Contains(edge, "5") {
+	if strings.Contains(edge, "5") || strings.Contains(edge, "Notifications") {
 		t.Errorf("the bottom edge names the unbound pane 5: %q", edge)
 	}
 }
