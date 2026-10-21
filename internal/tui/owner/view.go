@@ -21,8 +21,12 @@ import (
 // others. They are the dashboard's, so the two pages change layout at the
 // same size.
 const (
-	wideWidth    = 100
-	wideHeight   = 30
+	wideWidth  = 100
+	wideHeight = 30
+	// chromeRows is what the app draws around the page, the header and the
+	// footer. The page is wide at a terminal of wideHeight rows, so it
+	// compares its own height with what is left of them.
+	chromeRows   = 2
 	pinnedHeight = ownerui.CardHeight + 2
 )
 
@@ -31,7 +35,7 @@ type box struct{ w, h int }
 
 // layout sizes the panes for the page's size.
 func (s *Section) layout() {
-	s.wide = s.width >= wideWidth && s.height >= wideHeight
+	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
