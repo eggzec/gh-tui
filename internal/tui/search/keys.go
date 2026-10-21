@@ -48,6 +48,9 @@ type KeyMap struct {
 	// by, and ToggleGroups switches the grouping off, and back on.
 	GroupBy      key.Binding
 	ToggleGroups key.Binding
+	// NextHit and PrevHit move the cursor of the results by one hit.
+	NextHit key.Binding
+	PrevHit key.Binding
 
 	// order are the keys of the picker of the levels to group by.
 	order orderpick.KeyMap
@@ -99,6 +102,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 		GroupBy:      results.Binding("group_by", "group by"),
 		ToggleGroups: results.Binding("group_toggle", "group on/off"),
+		NextHit:      results.Binding("next_hit", "next hit"),
+		PrevHit:      results.Binding("prev_hit", "previous hit"),
 
 		order: ui.OrderPickKeys(keys),
 		// The page matches these keys first, so the results get only the keys
@@ -126,6 +131,7 @@ func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
 		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
+		k.NextHit, k.PrevHit,
 	}
 }
 

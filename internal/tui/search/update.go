@@ -167,6 +167,13 @@ func (s *Section) moveKind(delta int) tea.Cmd {
 
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
+	// A step to a hit is a move of one row, as the arrow keys make it.
+	switch {
+	case keymap.Matches(msg, k.NextHit):
+		msg = keymap.ActionPress("search_results.down")
+	case keymap.Matches(msg, k.PrevHit):
+		msg = keymap.ActionPress("search_results.up")
+	}
 	switch {
 	case keymap.Matches(msg, k.Select):
 		return s.open(false)

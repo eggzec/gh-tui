@@ -94,6 +94,46 @@ func selectedHit(s *Section) string {
 	return fmt.Sprint(h)
 }
 
+// J and K step to the next and the previous hit, as j and k do.
+func TestNextPrevHit(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	first := selectedHit(s)
+	if first == "" {
+		t.Fatal("the search found no hit")
+	}
+	press(t, s, "J")
+	second := selectedHit(s)
+	if second == first {
+		t.Fatalf("J left the cursor on %s, want the next hit", first)
+	}
+	press(t, s, "j", "K")
+	if got := selectedHit(s); got != second {
+		t.Errorf("j then K left the cursor on %s, want %s", got, second)
+	}
+	press(t, s, "K")
+	if got := selectedHit(s); got != first {
+		t.Errorf("K moved to %s, want the first hit %s", got, first)
+	}
+}
+
+// J types in the query, where it is no step to a hit.
+func TestNextHitNeedsResultsFocus(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	press(t, s, "i")
+	before := selectedHit(s)
+	press(t, s, "J")
+	if got := s.input.Value(); got != "teaJ" {
+		t.Errorf("query = %q after J while typing, want teaJ", got)
+	}
+	if got := selectedHit(s); got != before {
+		t.Errorf("J while typing moved the cursor to %s, want it on %s", got, before)
+	}
+}
+
 // Before a query, the results are the suggestions, which move with the
 // keys of the results' context, and the help lists those moves once.
 func TestSuggestionsMoveWithTheResultsKeys(t *testing.T) {
