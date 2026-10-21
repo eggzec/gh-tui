@@ -1,6 +1,6 @@
 package config
 
-// Notifications configures the notifications screen and the dashboard's
+// Notifications configures the notifications list and the dashboard's
 // inbox.
 type Notifications struct {
 	// MarkReadOnOpen marks a thread read when the select key opens what

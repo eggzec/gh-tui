@@ -1,7 +1,7 @@
 // Package threads opens what a notification thread is about in the app,
 // in the modal of its issue, pull request, runs, commit or release, and
 // reads it ahead, so that it opens at once. What the app has no view of,
-// such as a discussion, opens in the browser. The notifications screen and
+// such as a discussion, opens in the browser. The notifications list and
 // the dashboard's inbox share one, so that a thread opens the same way from
 // both, and one rate limit stops the reads ahead of both.
 package threads

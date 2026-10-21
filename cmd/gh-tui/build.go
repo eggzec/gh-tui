@@ -281,7 +281,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	if dir, err := reviewDraftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
 		pullOpts = append(pullOpts, pulls.WithReviewDrafts(tray.New(dir)))
 	}
-	// The notifications screen and the dashboard's inbox open what each
+	// The notifications list and the dashboard's inbox open what each
 	// thread is about in its modal, and read it ahead as the lists of the
 	// repository screen do, with one opener: whichever is on view reads
 	// ahead, so one rate limit stops both and leaving the screen stops the
