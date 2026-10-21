@@ -14,12 +14,18 @@ func TestNotificationsOpenAsAModal(t *testing.T) {
 		if got := m.modalName(m.modal); got != notifName {
 			t.Fatalf("I opened %q, want %q", got, notifName)
 		}
-		for _, key := range []string{"esc", "backspace", "q", "I"} {
+		for _, key := range []string{"esc", "backspace", "q"} {
 			m := keysAfter(t, true, "global.notifications")
 			tap(t, m, key)
 			if m.modal != nil {
 				t.Errorf("%s left %s open", key, m.modalName(m.modal))
 			}
+		}
+		// I does nothing while the modal is open, as the help says.
+		host := m.modal
+		tap(t, m, "I")
+		if m.modal != host {
+			t.Errorf("I left %s, want the notifications still open", m.modalName(m.modal))
 		}
 	})
 }

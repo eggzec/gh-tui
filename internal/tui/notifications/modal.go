@@ -109,7 +109,7 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 			return cmd, true
 		}
 		return m.leave(), true
-	case ui.ActQuit, ui.ActBack, "notifications":
+	case ui.ActQuit, ui.ActBack:
 		return m.leave(), true
 	}
 	return nil, false
