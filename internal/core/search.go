@@ -23,7 +23,17 @@ const (
 	SearchOrgs  SearchKind = "orgs"
 	// SearchCommits looks for commits, whose hits are SearchCommits.
 	SearchCommits SearchKind = "commits"
+	// SearchTopics looks for topics, whose hits are SearchTopics.
+	SearchTopics SearchKind = "topics"
 )
+
+// SearchTopic is a topic that matches a topic search.
+type SearchTopic struct {
+	// Name is the topic as GitHub spells it, lowercase with hyphens, so
+	// "topic:"+Name finds its repositories.
+	Name             string
+	ShortDescription string
+}
 
 // SearchCommit is a commit that matches a commit search, with what a row
 // and opening the commit need.
