@@ -442,7 +442,17 @@ func (s *Section) workBody(w, h int) []string {
 	if t.items > 0 {
 		lines = append(lines, st.shared.Muted.Render(l.header()))
 	}
-	for i := t.top; i < len(t.rows) && len(lines) < h; i++ {
+	// The line for a page read or failed goes under the rows, which leave it
+	// room.
+	var status []string
+	switch {
+	case t.err != nil:
+		status = ownerui.Indent(s.failure("load more of the list (down retries)", t.err, w-1))
+	case t.loading:
+		status = []string{"   " + st.shared.Muted.Render("Loading more"+s.icons.Ellipsis)}
+	}
+	top := t.fit(t.top, h-len(lines)-len(status))
+	for i := top; i < len(t.rows) && len(lines) < h-len(status); i++ {
 		r := &t.rows[i]
 		if r.hit == nil {
 			lines = append(lines, "   "+st.shared.Subtle.Render(r.note))
@@ -450,13 +460,7 @@ func (s *Section) workBody(w, h int) []string {
 		}
 		lines = append(lines, s.workItem(r, i == t.sel, focused))
 	}
-	switch {
-	case t.err != nil:
-		lines = append(lines, ownerui.Indent(s.failure("load more of the list (down retries)", t.err, w-1))...)
-	case t.loading:
-		lines = append(lines, "   "+st.shared.Muted.Render("Loading more"+s.icons.Ellipsis))
-	}
-	return lines
+	return append(lines, status...)
 }
 
 // workTabs renders the tabs of the lists of work, each with its count, by
