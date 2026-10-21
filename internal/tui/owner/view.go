@@ -120,7 +120,8 @@ func (s *Section) renderPane(p paneID) {
 		edge = s.st.focusEdge
 	}
 	b := s.boxes[p]
-	s.frames[p] = ownerui.Frame(label, lw, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
+	foot, footW := s.foot()
+	s.frames[p] = ownerui.Frame(label, lw, foot, footW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
 }
 
 // compose joins the profile and the framed panes into the view.
@@ -200,7 +201,7 @@ func (s *Section) label(p paneID) (label string, width int) {
 	if s.focused && p == s.page.focus {
 		title = st.focusTitle
 	}
-	if !s.onePane() {
+	if !s.onePane() || s.zoomed() {
 		text := s.paneLabel(p)
 		return title.Render(text), ansi.StringWidth(text)
 	}
@@ -251,10 +252,29 @@ func (s *Section) keyLabel(p paneID) string {
 	return b.Help().Key
 }
 
-// paneLabel is the label of pane p, such as "[2] Repositories · go".
+// foot is the strip of pane keys in the bottom edge of the zoomed pane, as
+// in the pull request modal, and its width. The focused pane's key is in
+// brackets. Other layouts have none: the panes show their names alone, or
+// the narrow layout names every pane in the top edge.
+func (s *Section) foot() (label string, width int) {
+	if !s.zoomed() {
+		return "", 0
+	}
+	var keys [numPanes]string
+	for i := range numPanes {
+		if s.hasPane(i) {
+			keys[i] = s.keyLabel(i)
+		}
+	}
+	return ownerui.Digits(keys[:], int(s.page.focus), s.st.focusTitle, s.st.shared.Subtle)
+}
+
+// paneLabel is the label of pane p, with its key before it, such as
+// "[2] Repositories · go". The zoomed pane has its keys in its bottom edge
+// instead, so its label is the name alone.
 func (s *Section) paneLabel(p paneID) string {
 	text := s.title(p, false)
-	if k := s.keyLabel(p); k != "" {
+	if k := s.keyLabel(p); k != "" && !s.zoomed() {
 		text = "[" + k + "] " + text
 	}
 	switch p {
