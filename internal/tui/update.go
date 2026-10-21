@@ -222,12 +222,16 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case ui.OpenFilterMsg:
 		// The focused list asked, with its own filter or sort key.
-		if p := m.focused(); p != nil {
+		if m.notifHost() != nil {
+			m.openFilter(m.notifSection())
+		} else if p := m.focused(); p != nil {
 			m.openFilter(p.section)
 		}
 		return m, nil
 	case ui.OpenSortMsg:
-		if p := m.focused(); p != nil {
+		if m.notifHost() != nil {
+			m.openSort(m.notifSection())
+		} else if p := m.focused(); p != nil {
 			m.openSort(p.section)
 		}
 		return m, nil
@@ -380,6 +384,8 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 			}
 			return m.selectRepo(ui.RepoMsg{Repo: repo})
 		}
+	case keymap.Matches(msg, m.keys.Notifications):
+		return m.openNotifications()
 	case m.dash != nil && keymap.Matches(msg, m.keys.Dashboard):
 		return m.showScreen(dashScreen, m.focus)
 	}
@@ -422,8 +428,8 @@ func (m *Model) openFilter(s ui.Section) bool {
 	if !ok {
 		return false
 	}
-	m.openModal(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
-		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))))
+	m.openModalOver(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
+		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))), m.notifHost())
 	return true
 }
 
@@ -434,7 +440,7 @@ func (m *Model) openSort(s ui.Section) bool {
 	if !ok {
 		return false
 	}
-	m.openModal(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)))
+	m.openModalOver(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), m.notifHost())
 	return true
 }
 
