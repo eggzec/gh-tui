@@ -107,7 +107,7 @@ func (s *Section) box(label string, pane int, focused bool, w, h int, body []str
 // foot is the strip of keys that reach the results and the preview, for the
 // bottom edge of a frame w cells wide, and its width. The key of pane cur is
 // in brackets.
-func (s *Section) foot(cur, w int) (string, int) {
+func (s *Section) foot(cur, w int) (strip string, width int) {
 	var keys [2]string
 	for i, b := range []key.Binding{s.keys.Panes[resultsArea], s.keys.Next} {
 		if b.Enabled() {

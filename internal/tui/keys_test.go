@@ -165,7 +165,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search typing: [", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
 		{"search typing: esc", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},
 
-		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: query "key"`},
+		// Tab moves on to the preview beside the results, which is part of the results' area.
+		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: results "key"`},
 		{"search results: shift+tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: query "key"`},
 		{"search results: ]", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
 		{"search results: [", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
