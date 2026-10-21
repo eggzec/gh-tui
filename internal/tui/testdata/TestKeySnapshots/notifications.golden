@@ -1,22 +1,16 @@
 # label | keys | help key | on or off
 
 global
-  help | ? | ? | on
+  quit | ctrl+c | ^c | on
   command | : | : | on
-  quit | q ctrl+c | q | on
-  search | S | S | on
-  find file | ctrl+p | ^p | off
-  zoom | z | z | off
-  maximize | Z | Z | off
-  dismiss | esc | esc | off
-  back | backspace | backspace | on
-  owner page | @ | @ | on
-  this repo | . | . | on
+  maximize | Z | Z | on
+  back | backspace | backspace | off
+  dashboard | 0 | 0 | off
   notifications | I | I | off
-  dashboard | 0 | 0 | on
-  next pane | tab | tab | off
-  previous pane | shift+tab | shift+tab | off
-  focus pane | 1 2 3 | 1-3 | off
+  search | S | S | off
+  this repo | . | . | off
+  owner page | @ | @ | off
+  help | ? | ? | on
 
 Notifications
   open & read | enter | ↵ | on
