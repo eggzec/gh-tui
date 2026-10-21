@@ -1,8 +1,13 @@
 package tui
 
 import (
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 const notifName = "the notifications"
@@ -26,6 +31,40 @@ func TestNotificationsOpenAsAModal(t *testing.T) {
 		tap(t, m, "I")
 		if m.modal != host {
 			t.Errorf("I left %s, want the notifications still open", m.modalName(m.modal))
+		}
+	})
+}
+
+// TestSyncReachesTheNotificationsOnce checks that the modal, which shows the
+// shared notifications section, doesn't make a broadcast reach it twice.
+func TestSyncReachesTheNotificationsOnce(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var reads atomic.Int32
+		inbox := keyInbox{reads: &reads}
+		sync := ui.SyncMsg{Key: notifications.SyncKey}
+		edit := func(*config.Config) {}
+
+		closed := newKeysAppInbox(t, true, edit, inbox)
+		reads.Store(0)
+		driveKeys(t, closed, closed.broadcast(sync))
+		want := reads.Load()
+		if want == 0 {
+			t.Fatal("a sync didn't make the notifications read their list")
+		}
+
+		open := newKeysAppInbox(t, true, edit, inbox)
+		c := keyContext{name: "root rules", repo: true}
+		for _, name := range c.press(t, open.cfg.Keys, "global.notifications") {
+			tap(t, open, name)
+		}
+		if open.modalName(open.modal) != notifName {
+			t.Fatalf("I opened %q, want %q", open.modalName(open.modal), notifName)
+		}
+		reads.Store(0)
+		driveKeys(t, open, open.broadcast(sync))
+		if got := reads.Load(); got != want {
+			t.Errorf("one sync made %d reads with the modal open, want %d", got, want)
 		}
 	})
 }
