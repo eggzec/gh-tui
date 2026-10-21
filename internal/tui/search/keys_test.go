@@ -22,7 +22,7 @@ func TestKeyMapComplete(t *testing.T) {
 // its keys don't take, and the page's own keys come before the list's.
 // Each row checks the binding the key reaches, and then what the key does.
 func TestKeyLayersOrder(t *testing.T) {
-	typing, results := []string{"i"}, []string{"i", "t", "e", "a", "esc"}
+	typing, results := []string{"i"}, []string{"i", "t", "e", "a", "enter"}
 	tests := []struct {
 		to   []string
 		key  string
@@ -97,7 +97,7 @@ func selectedHit(s *Section) string {
 func TestSuggestionsMoveWithTheResultsKeys(t *testing.T) {
 	keys := config.Default().Keys
 	keys.Set("search_results.down", []string{"w"})
-	s := New(t.Context(), newFake(), keys, WithNow(func() time.Time { return now }), WithStart(startRepos), WithDebounce(0), withOthersWait(0))
+	s := New(t.Context(), newFake(), keys, WithNow(func() time.Time { return now }), WithStart(startRepos))
 	s.SetSize(120, 30)
 	s.Focus()
 	run(t, s, s.Init())

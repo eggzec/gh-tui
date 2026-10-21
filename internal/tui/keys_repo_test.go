@@ -175,13 +175,13 @@ func TestCompleteHere(t *testing.T) {
 }
 
 // TestRepoKeyOnASearchResultKeepsTheQuery checks that opening the
-// repository of a result keeps the query that found it among the recent
-// searches, even when it was never submitted.
+// repository of a result keeps the query that found it, which enter
+// submitted.
 func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "q", "z", "x", "esc")
+		pressKeys(t, m, "S", "i", "q", "z", "x", "enter")
 		if got := focusOf(m); got != `search: results "qzx"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -199,8 +199,8 @@ func TestBackspaceOnTheSearchPage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "backspace")
-		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Query() != "ke" {
-			t.Fatalf("backspace while typing: screen %d, query %q, want the page with ke", m.screen, m.srch.section.(*searchpage.Section).Query())
+		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Typed() != "ke" {
+			t.Fatalf("backspace while typing: screen %d, query %q, want the page with ke", m.screen, m.srch.section.(*searchpage.Section).Typed())
 		}
 		pressKeys(t, m, "esc", "backspace")
 		if m.searchHost() != nil {

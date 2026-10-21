@@ -178,7 +178,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 			// The key goes where it went before, and types a colon there.
 			got := false
 			if m.searchHost() != nil {
-				got = strings.Contains(m.srch.section.(*searchpage.Section).Query(), ":")
+				got = strings.Contains(m.srch.section.(*searchpage.Section).Typed(), ":")
 			} else if f, ok := mod.(*fakeModal); ok {
 				got = strings.Contains(strings.Join(f.keys(), ""), ":")
 			} else if f, ok := p.section.(*fakeSection); ok {

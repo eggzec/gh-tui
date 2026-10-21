@@ -10,7 +10,6 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -95,38 +94,35 @@ func countStats(t *testing.T) *obs.Stats {
 	return stats
 }
 
-// Typing searches only the kind on view; once the query rests long enough,
-// the other kinds are read ahead, once.
-func TestOthersWaitForTheQueryToRest(t *testing.T) {
+// Typing reads nothing; once the query is submitted, the other kinds are
+// read ahead, once.
+func TestOthersReadOnSubmit(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		stats := countStats(t)
 		svc := newFake()
-		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
+		s := newSection(t, svc, 120, 30)
 		p := newPump(s)
-		// Pauses longer than the debounce, and shorter than the rest.
 		for _, k := range []string{"i", "t", "e", "a"} {
 			p.key(t, k)
-			p.wait(t, 300*time.Millisecond)
+			p.wait(t, time.Second)
 		}
-		if n, _ := svc.stats(); n != 3 {
-			t.Errorf("%d searches while typing, want one per pause", n)
+		if n, _ := svc.stats(); n != 0 {
+			t.Errorf("%d searches while typing, want none", n)
 		}
 		if n := len(svc.prefetched()); n != 0 {
 			t.Fatalf("%d reads of the other kinds while typing, want none", n)
 		}
-		p.wait(t, defaultOthersWait-300*time.Millisecond)
+		p.key(t, "enter")
 		ctxs := svc.prefetched()
 		if len(ctxs) != 2 || svc.prefetches != 2 {
-			t.Fatalf("%d reads of the other kinds once the query rested, want 2", len(ctxs))
+			t.Fatalf("%d reads of the other kinds on submit, want 2", len(ctxs))
 		}
 		for i, ctx := range ctxs {
 			if ctx.Err() != nil {
 				t.Errorf("read %d of the other kinds was canceled", i)
 			}
 		}
-		// Enter reads nothing more, and nor does another rest.
-		p.key(t, "enter")
-		p.wait(t, 2*defaultOthersWait)
+		p.wait(t, time.Minute)
 		if n := len(svc.prefetched()); n != 2 {
 			t.Errorf("%d reads of the other kinds, want them read once", n)
 		}
@@ -141,42 +137,17 @@ func TestOthersWaitForTheQueryToRest(t *testing.T) {
 	})
 }
 
-// Enter reads the other kinds at once, without waiting for the rest.
-func TestOthersOnEnter(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		svc := newFake()
-		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
-		p := newPump(s)
-		for _, k := range []string{"i", "t", "e", "a"} {
-			p.key(t, k)
-			p.wait(t, 50*time.Millisecond)
-		}
-		p.key(t, "enter")
-		if n, _ := svc.stats(); n != 1 {
-			t.Errorf("%d searches, want one for the query entered", n)
-		}
-		if n := len(svc.prefetched()); n != 2 {
-			t.Fatalf("%d reads of the other kinds on enter, want 2", n)
-		}
-		p.wait(t, 2*defaultOthersWait)
-		if n := len(svc.prefetched()); n != 2 {
-			t.Errorf("%d reads of the other kinds, want them read once", n)
-		}
-	})
-}
-
 // Leaving the page cancels the reads of the other kinds, and not the
 // search of the kind on view.
 func TestLeavingCancelsOthers(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFake()
 		svc.hold = make(chan struct{})
-		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
+		s := newSection(t, svc, 120, 30)
 		p := newPump(s)
-		for _, k := range []string{"i", "t", "e", "a"} {
+		for _, k := range []string{"i", "t", "e", "a", "enter"} {
 			p.key(t, k)
 		}
-		p.wait(t, defaultOthersWait)
 		ctxs := svc.prefetched()
 		if len(ctxs) != 2 {
 			t.Fatalf("%d reads of the other kinds, want 2 in flight", len(ctxs))
@@ -205,26 +176,3 @@ func TestLeavingCancelsOthers(t *testing.T) {
 		}
 	})
 }
-
-// Leaving the page before the query rests reads nothing of the other
-// kinds.
-func TestLeavingBeforeTheRest(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		svc := newFake()
-		s := newSection(t, svc, 120, 30, WithDebounce(DefaultDebounce), withOthersWait(defaultOthersWait))
-		p := newPump(s)
-		for _, k := range []string{"i", "t", "e", "a"} {
-			p.key(t, k)
-		}
-		p.wait(t, defaultOthersWait/2)
-		s.Blur()
-		p.wait(t, 2*defaultOthersWait)
-		if n := len(svc.prefetched()); n != 0 {
-			t.Errorf("%d reads of the other kinds after leaving, want none", n)
-		}
-	})
-}
-
-// defaultOthersWait is how long the query rests by default before the
-// other kinds are read.
-var defaultOthersWait = ui.Resolve(config.Default().Prefetch, "search", "other_kinds").Rest

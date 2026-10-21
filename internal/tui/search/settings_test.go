@@ -27,7 +27,7 @@ func TestSettingsPrefetch(t *testing.T) {
 		t.Fatal("without WithPrefetch, want only the other kinds read ahead")
 	}
 	s.Update(ui.SettingsMsg{Config: config.Default()})
-	if !s.ahead.On() || !s.othersOn || s.othersWait != defaultOthersWait {
+	if !s.ahead.On() || !s.othersOn {
 		t.Fatal("the settings didn't turn the reads ahead on")
 	}
 	kinds := config.Default()

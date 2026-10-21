@@ -120,7 +120,7 @@ func focusOf(m *Model) string {
 	if m.searchHost() != nil {
 		layers := m.keyLayers()
 		part := map[string]string{"Query": "typing", "Search": "query", "Results": "results"}[layers[len(layers)-1].Source]
-		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
+		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Typed())
 	}
 	switch m.screen {
 	case repoScreen:

@@ -1,9 +1,9 @@
 // Package search is the search page, laid out like github.com's: the query
 // on top, the kinds of results on the left with their counts, and the
-// results of the chosen kind on the right. The kind on view is searched as
-// the user types, and the other kinds but code once the query rests or on
-// enter; code is searched only when its kind is chosen or on enter, since
-// GitHub allows few code searches a minute.
+// results of the chosen kind on the right. The kind on view, and the other
+// kinds but code, are searched when the query is submitted; code is searched
+// only when its kind is chosen or on enter, since GitHub allows few code
+// searches a minute.
 package search
 
 import (
@@ -41,10 +41,6 @@ type Service interface {
 // such as the viewer's own.
 type Start func(ctx context.Context) ([]core.Repo, error)
 
-// DefaultDebounce is how long the page waits after the last key before it
-// searches.
-const DefaultDebounce = 250 * time.Millisecond
-
 // maxRecent is how many recent searches the page keeps.
 const maxRecent = 8
 
@@ -60,12 +56,6 @@ func WithNow(now func() time.Time) Option {
 // WithStart offers the repositories of start while the query is empty.
 func WithStart(start Start) Option {
 	return func(s *Section) { s.start = start }
-}
-
-// WithDebounce sets how long the page waits after the last key before it
-// searches. The default is DefaultDebounce.
-func WithDebounce(d time.Duration) Option {
-	return func(s *Section) { s.debounce = max(d, 0) }
 }
 
 // WithHost sets the web host of the user's GitHub, with its port if it has
@@ -119,13 +109,12 @@ var lastID atomic.Int64
 
 // Section is the search page. Create one with New.
 type Section struct {
-	id       int64
-	ctx      context.Context
-	svc      Service
-	start    Start
-	keys     KeyMap
-	now      func() time.Time
-	debounce time.Duration
+	id    int64
+	ctx   context.Context
+	svc   Service
+	start Start
+	keys  KeyMap
+	now   func() time.Time
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
 	// voice words the errors of the results.
@@ -138,23 +127,18 @@ type Section struct {
 	typing  bool
 	focused bool
 
-	// seq counts the edits of the query; a debounce of an earlier one is
-	// dropped. text is the query the results are for, and textCtx bounds
-	// the reads for it, canceled when the text changes.
-	seq        int
+	// text is the query the results are for, the last one submitted, and
+	// textCtx bounds the reads for it, canceled when the text changes.
 	text       string
 	textCtx    context.Context
 	cancelText context.CancelFunc
 	kind       core.SearchKind
 
-	// edits counts the edits of the query alone, after the last of which
-	// the other kinds are read once it rests for othersWait, if othersOn
+	// The other kinds are read when the query is submitted, if othersOn
 	// is set, as prefetch.search.other_kinds says. othersFor is
 	// the text they were read for, stopOthers stops them, and seen counts
 	// them as reads ahead.
-	edits      int
 	othersOn   bool
-	othersWait time.Duration
 	othersFor  string
 	stopOthers context.CancelFunc
 	seen       *obs.Prefetched[othersKey]
@@ -222,10 +206,8 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		keys:       newKeyMap(keys),
 		voice:      ui.NewVoice(keys, ""),
 		now:        time.Now,
-		debounce:   DefaultDebounce,
 		kind:       core.SearchRepos,
 		othersOn:   others.Enabled,
-		othersWait: others.Rest,
 		stopOthers: func() {},
 		seen:       obs.NewPrefetched[othersKey]("search"),
 		hits:       make(map[core.SearchKind]*hitList),
@@ -268,6 +250,10 @@ func (s *Section) Capturing() bool { return s.focused && (s.typing || s.feedCapt
 
 // Query returns the query the results are for.
 func (s *Section) Query() string { return s.text }
+
+// Typed returns the text in the query box, which the results are not for
+// until it is submitted.
+func (s *Section) Typed() string { return s.input.Value() }
 
 // Kind returns the kind of results on view.
 func (s *Section) Kind() core.SearchKind { return s.kind }

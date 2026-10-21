@@ -233,7 +233,7 @@ func (s *Section) results(w, h int) []string {
 		return notice(w, st.fail.render(reason), st.subtle.render("Check the qualifiers, such as is:open, language:go or repo:owner/name."))
 	case s.kind == core.SearchCode && s.limited():
 		return notice(w, st.warning.render("Code search resumes in "+s.wait()+"."),
-			st.subtle.render("GitHub allows 10 code searches a minute. Repositories, issues and pull requests still search as you type."))
+			st.subtle.render("GitHub allows 10 code searches a minute. Repositories, issues and pull requests still search."))
 	case f != nil:
 		if lines, ok := s.staleView(); ok {
 			// The titles stay in front of the dimmed rows, so nothing

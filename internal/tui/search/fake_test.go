@@ -327,18 +327,11 @@ func startRepos(context.Context) ([]core.Repo, error) {
 	}, nil
 }
 
-// withOthersWait sets how long the query rests before the other kinds are
-// read. The default is defaultOthersWait.
-func withOthersWait(d time.Duration) Option {
-	return func(s *Section) { s.othersWait = d }
-}
-
 // newSection returns a focused page of width by height over svc, whose
-// clock is now and which searches on every key, and reads the other kinds
-// at once, unless opts say otherwise.
+// clock is now, unless opts say otherwise.
 func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
-	opts = append([]Option{WithNow(func() time.Time { return now }), WithStart(startRepos), WithDebounce(0), withOthersWait(0)}, opts...)
+	opts = append([]Option{WithNow(func() time.Time { return now }), WithStart(startRepos)}, opts...)
 	s := New(tb.Context(), svc, config.Default().Keys, opts...)
 	p, err := config.Default().Palette(true)
 	if err != nil {
@@ -418,9 +411,9 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 	return app
 }
 
-// typeText types text into the query, a key at a time, starting to type if
-// the query doesn't yet.
-func typeText(tb testing.TB, s *Section, text string) {
+// typeOnly types text into the query, a key at a time, starting to type if
+// the query doesn't yet. It searches for nothing.
+func typeOnly(tb testing.TB, s *Section, text string) {
 	tb.Helper()
 	if !s.typing {
 		press(tb, s, "i")
@@ -428,6 +421,14 @@ func typeText(tb testing.TB, s *Section, text string) {
 	for _, r := range text {
 		press(tb, s, string(r))
 	}
+}
+
+// typeText types text into the query and submits it with enter, which moves
+// to the results.
+func typeText(tb testing.TB, s *Section, text string) {
+	tb.Helper()
+	typeOnly(tb, s, text)
+	press(tb, s, "enter")
 }
 
 func keyPress(k string) tea.KeyPressMsg {
