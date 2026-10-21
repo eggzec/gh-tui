@@ -44,6 +44,7 @@ type box struct{ w, h int }
 // layout sizes the panes for the dashboard's size.
 func (s *Section) layout() {
 	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
+	s.zoom.SetNarrow(!s.wide)
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if !s.onePane() {
@@ -71,17 +72,11 @@ func (s *Section) layout() {
 
 // onePane reports whether the dashboard shows the focused pane alone:
 // when the panes don't fit, or while it is zoomed.
-func (s *Section) onePane() bool { return !s.wide || s.zoom }
+func (s *Section) onePane() bool { return s.zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A dashboard too small for every
 // pane shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom && s.wide }
-
-// setZoom shows the focused pane alone, or every pane again.
-func (s *Section) setZoom(zoom bool) {
-	s.zoom = zoom
-	s.layout()
-}
+func (s *Section) zoomed() bool { return s.zoom.Zoomed() && s.wide }
 
 // calendarWidth is the outer width of the calendar in the bottom row: what
 // its range needs, less recent weeks when the notifications would get

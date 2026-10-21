@@ -103,8 +103,9 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Prev):
 		s.setFocus(s.nextPane(-1))
 		return nil
-	case s.wide && keymap.Matches(msg, k.Zoom):
-		s.setZoom(!s.zoom)
+	case s.zoom.CanZoom() && keymap.Matches(msg, k.Zoom):
+		s.zoom.Toggle()
+		s.layout()
 		return nil
 	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()

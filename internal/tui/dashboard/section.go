@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -245,7 +246,7 @@ type Section struct {
 	width, height int
 	wide          bool
 	// zoom shows the focused pane alone, as a narrow dashboard does.
-	zoom bool
+	zoom panes.Zoom
 	// head is the profile above the panes, boxes are the sizes of the
 	// panes, and frames the panes rendered in their frames.
 	head   []string

@@ -106,11 +106,11 @@ func TestZoomEngagesAtThreshold(t *testing.T) {
 func TestEscKeepsTheZoom(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	press(t, s, "z")
-	if msgs := press(t, s, "esc"); len(msgs) > 0 || !s.zoom {
-		t.Errorf("esc sent %v with zoom %v, want the zoom kept", msgs, s.zoom)
+	if msgs := press(t, s, "esc"); len(msgs) > 0 || !s.zoom.User() {
+		t.Errorf("esc sent %v with zoom %v, want the zoom kept", msgs, s.zoom.User())
 	}
 	press(t, s, "z")
-	if s.zoom {
+	if s.zoom.User() {
 		t.Error("z left the page zoomed")
 	}
 }
