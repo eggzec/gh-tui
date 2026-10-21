@@ -38,6 +38,7 @@ var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPu
 type API interface {
 	Search(ctx context.Context, q github.SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error)
 	SearchCode(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
+	SearchUsers(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchUser], error)
 }
 
 // Query selects a page of search results.
@@ -92,6 +93,7 @@ type Service struct {
 	api    API
 	pages  *cache.Cache[core.SearchPage[core.SearchHit]]
 	code   *cache.Cache[core.SearchPage[core.CodeHit]]
+	users  *cache.Cache[core.SearchPage[core.SearchUser]]
 	counts *cache.Cache[map[core.SearchKind]int]
 	// pageSize is the size of a page whose query sets none.
 	pageSize int
@@ -113,6 +115,7 @@ func New(api API, opts ...Option) *Service {
 		api:      api,
 		pages:    cache.New[core.SearchPage[core.SearchHit]](ttl, capacity),
 		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(cmp.Or(o.codeTTL, d.Cache.TTL.CodeSearch)), capacity),
+		users:    cache.New[core.SearchPage[core.SearchUser]](ttl, capacity),
 		counts:   cache.New[map[core.SearchKind]int](ttl, capacity),
 		pageSize: cmp.Or(o.pageSize, d.PageSize.Search),
 	}
@@ -288,6 +291,7 @@ func (s *Service) cachedCounts(text string) map[core.SearchKind]int {
 func (s *Service) Invalidate() {
 	s.pages.InvalidateTag(allTag)
 	s.code.InvalidateTag(allTag)
+	s.users.InvalidateTag(allTag)
 	s.counts.InvalidateTag(allTag)
 }
 

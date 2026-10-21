@@ -14,7 +14,18 @@ const (
 	SearchIssues SearchKind = "issues"
 	SearchPulls  SearchKind = "pulls"
 	SearchCode   SearchKind = "code"
+	// SearchUsers and SearchOrgs look for accounts, whose hits are
+	// SearchUser values.
+	SearchUsers SearchKind = "users"
+	SearchOrgs  SearchKind = "orgs"
 )
+
+// SearchUser is an account that matches a user or organization search.
+type SearchUser struct {
+	Login string
+	// Kind is OwnerUser or OwnerOrg.
+	Kind OwnerKind
+}
 
 // SearchHit is one search result: a repository, or an issue or pull
 // request. Kind says which of Repo and Issue is set. For a pull request,
