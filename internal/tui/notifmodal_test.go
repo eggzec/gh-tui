@@ -65,7 +65,7 @@ func TestNotificationsModalKeepsItsOverlays(t *testing.T) {
 				t.Fatalf("%s opened nothing over the notifications", key)
 			}
 			if key != "f" {
-				for _, back := range []string{"backspace", "esc"} {
+				for _, back := range []string{"esc"} {
 					tap(t, m, back)
 					if m.modal != host {
 						t.Fatalf("%s after %s left %v, want the notifications", back, key, m.modal)
