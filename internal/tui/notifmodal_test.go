@@ -30,6 +30,40 @@ func TestNotificationsOpenAsAModal(t *testing.T) {
 	})
 }
 
+func TestThreadOpensStackOverTheNotifications(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"esc", "backspace"} {
+		synctest.Test(t, func(t *testing.T) {
+			m := keysAfter(t, true, "global.notifications")
+			host := m.modal
+			tap(t, m, "enter")
+			if m.modal == host || m.modal == nil {
+				t.Fatalf("enter left %v, want a thread modal over the notifications", m.modal)
+			}
+			tap(t, m, key)
+			if m.modal != host {
+				t.Errorf("%s left %v, want the notifications", key, m.modalName(m.modal))
+			}
+		})
+	}
+}
+
+func TestReadAllInTheNotificationsModalAsks(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.notifications")
+		host := m.modal
+		runCommand(t, m, "read all")
+		if m.modal == nil || m.modal == host {
+			t.Fatalf("read all left %v, want a confirm over the notifications", m.modal)
+		}
+		tap(t, m, "esc")
+		if m.modal != host {
+			t.Errorf("esc left %v, want the notifications", m.modal)
+		}
+	})
+}
+
 func TestNotificationsOverAModalReturnToIt(t *testing.T) {
 	t.Parallel()
 	for _, mod := range modalsOver {
