@@ -27,6 +27,8 @@ type fakeAPI struct {
 	code   func(query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
 	users  func(query, cursor string, perPage int) (core.SearchPage[core.SearchUser], error)
 
+	commits func(query, cursor string, perPage int) (core.SearchPage[core.SearchCommit], error)
+
 	mu    sync.Mutex
 	calls []string
 }
