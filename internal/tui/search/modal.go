@@ -117,6 +117,18 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 		return m.leave(), true
 	case ui.ActQuit, ui.ActBack:
 		return m.leave(), true
+	case "repo", "owner":
+		// The hit under the cursor, if there is one: the modal closes, then
+		// the app shows the repository or its owner, as the dashboard does.
+		repo, ok := m.s.hitRepo()
+		if !ok {
+			return nil, true
+		}
+		var show tea.Msg = ui.RepoMsg{Repo: repo}
+		if action == "owner" {
+			show = ui.OwnerMsg{Login: repo.Owner}
+		}
+		return tea.Sequence(m.leave(), func() tea.Msg { return show }), true
 	}
 	return nil, false
 }

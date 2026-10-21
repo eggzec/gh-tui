@@ -102,9 +102,9 @@ func TestRepoKeyFollowsTheConfig(t *testing.T) {
 	}
 }
 
-// TestRepoKeyOnASearchResult checks that the repo key opens the repository
-// of the result the cursor is on.
-func TestRepoKeyOnASearchResult(t *testing.T) {
+// TestRepoKeyOverSearchClosesFirst checks that the repo key in the results
+// of the search closes it, then shows the repository of the hit.
+func TestRepoKeyOverSearchClosesFirst(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
@@ -112,10 +112,35 @@ func TestRepoKeyOnASearchResult(t *testing.T) {
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
-		was := m.screen
 		pressKeys(t, m, ".")
-		if m.searchHost() == nil || m.screen != was {
-			t.Errorf("the repo key over the search modal moved to screen %d, want it to do nothing", m.screen)
+		if m.searchHost() != nil || m.modal != nil {
+			t.Errorf(". left the search open: top modal %v", m.topModal())
+		}
+		if m.screen != repoScreen {
+			t.Errorf(". left screen %d, want the repository's", m.screen)
+		}
+		if hasToast(m, "Close") {
+			t.Errorf("toasts %s, want no refusal", toasted(m))
+		}
+	})
+}
+
+// TestOwnerKeyOverSearchClosesFirst checks the same for the owner key, which
+// shows the owner page of the hit.
+func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, false)
+		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
+		pressKeys(t, m, "@")
+		if m.searchHost() != nil || m.modal != nil {
+			t.Errorf("@ left the search open: top modal %v", m.topModal())
+		}
+		if m.screen != ownerScreen || m.ownerLogin == "" {
+			t.Errorf("@ left screen %d on owner %q, want an owner page", m.screen, m.ownerLogin)
+		}
+		if hasToast(m, "Close") {
+			t.Errorf("toasts %s, want no refusal", toasted(m))
 		}
 	})
 }
@@ -172,24 +197,6 @@ func TestCompleteHere(t *testing.T) {
 	if got := m.completeTarget(".", 1, 1, true); len(got) != 0 {
 		t.Errorf("completions of . are %v without a repository here, want none", got)
 	}
-}
-
-// TestRepoKeyOnASearchResultKeepsTheQuery checks that opening the
-// repository of a result keeps the query that found it, which enter
-// submitted.
-func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
-	t.Parallel()
-	synctest.Test(t, func(t *testing.T) {
-		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "q", "z", "x", "enter")
-		if got := focusOf(m); got != `search: results "qzx"` {
-			t.Fatalf("the keys reach %s, want the results", got)
-		}
-		pressKeys(t, m, ".")
-		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Query() != "qzx" {
-			t.Errorf("the repo key over the search modal changed it: screen %d", m.screen)
-		}
-	})
 }
 
 // TestBackspaceOnTheSearchPage checks that backspace goes back from the

@@ -57,6 +57,25 @@ func (s *Section) readAhead() tea.Cmd {
 	}, l.feed.Index())
 }
 
+// hitRepo returns the repository of the hit under the cursor.
+func (s *Section) hitRepo() (core.RepoRef, bool) {
+	if s.text == "" {
+		return core.RepoRef{}, false
+	}
+	l, ok := s.visibleHits()
+	if !ok {
+		return core.RepoRef{}, false
+	}
+	hit, ok := l.feed.Selected()
+	if !ok {
+		return core.RepoRef{}, false
+	}
+	if hit.Kind == core.SearchRepos {
+		return hit.Repo.Ref, true
+	}
+	return hit.Issue.Repo, true
+}
+
 // openHit returns the command that opens hit: a repository on its screen,
 // and a pull request or issue in its modal, on its checks if checks is set,
 // which holds the reads ahead of the results while it loads.
