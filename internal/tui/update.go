@@ -236,6 +236,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case ui.OpenActionsMsg:
+		// What the notifications modal opens goes over it, so that going
+		// back returns to the notifications.
+		if msg.Back == nil {
+			msg.Back = m.notifHost()
+		}
 		cmd := m.openActionsOn(msg)
 		return m, cmd
 	case ui.OpenCommitMsg:
@@ -248,10 +253,16 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Away from the repository screen, a number alone doesn't say
 		// which repository it is of.
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
+		if msg.Back == nil {
+			msg.Back = m.notifHost()
+		}
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenIssueMsg:
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
+		if msg.Back == nil {
+			msg.Back = m.notifHost()
+		}
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenModalMsg:
@@ -507,7 +518,13 @@ func (m *Model) openRepo(msg ui.RepoMsg, focus int) tea.Cmd {
 func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	panes := m.all
 	cmds := make([]tea.Cmd, 0, len(panes)+2)
+	hosted := m.notifHost() != nil
 	for _, p := range panes {
+		// The modal shows the notifications' section, so it gets the
+		// message once, through the modal.
+		if hosted && p == m.notif {
+			continue
+		}
 		cmds = append(cmds, p.section.Update(msg))
 	}
 	if m.modal != nil {

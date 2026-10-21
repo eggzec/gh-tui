@@ -115,6 +115,11 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 		return m.toast.Push(toast.Warning, "There is nothing to do for "+name+" here.")
 	}
 	if readAll {
+		if m.notifHost() != nil {
+			if cmd := m.modal.Update(ui.MarkAllReadMsg{}); cmd != nil {
+				return cmd
+			}
+		}
 		if p := m.focused(); m.topModal() == nil && p != nil {
 			if cmd := p.section.Update(ui.MarkAllReadMsg{}); cmd != nil {
 				return cmd
