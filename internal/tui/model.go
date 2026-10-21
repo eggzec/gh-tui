@@ -474,8 +474,6 @@ func (m *Model) startScreen() tea.Cmd {
 	switch m.screen {
 	case dashScreen:
 		return m.dash.start()
-	case searchScreen:
-		return m.srch.start()
 	case ownerScreen:
 		return m.own.start()
 	case repoScreen:

@@ -18,7 +18,13 @@ var (
 	_ ui.Hider     = (*Modal)(nil)
 	_ ui.Discarder = (*Modal)(nil)
 	_ ui.Hosted    = (*Modal)(nil)
+
+	_ ui.ReturnsOnClose = (*Modal)(nil)
 )
+
+// ReturnsOnClose marks the modal as one that what it opens returns to on
+// close.
+func (m *Modal) ReturnsOnClose() {}
 
 // NewModal returns a modal that shows s, which it focuses.
 func NewModal(s *Section) *Modal {
@@ -99,11 +105,17 @@ func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
 	}
 }
 
-// Act takes the intents of the global keys: each closes the modal, returning
-// to what was under it. The section keeps no state that dismiss clears first.
+// Act takes the intents of the global keys: the section clears what the user
+// asked to see first, and then the modal closes, returning to what was under
+// it.
 func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	switch action {
-	case ui.ActDismiss, ui.ActQuit, ui.ActBack:
+	case ui.ActDismiss:
+		if cmd, ok := m.s.ClearTransient(); ok {
+			return cmd, true
+		}
+		return m.leave(), true
+	case ui.ActQuit, ui.ActBack:
 		return m.leave(), true
 	}
 	return nil, false

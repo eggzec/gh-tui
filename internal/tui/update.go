@@ -195,6 +195,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.chordTimeout(msg)
 		return m, cmd
 	case ui.RepoMsg:
+		// A repository chosen in the search replaces what the search was
+		// shown over.
+		m.leaveSearch()
 		cmd := m.selectRepo(msg)
 		return m, cmd
 	case ui.BaseMsg:
@@ -222,24 +225,24 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case ui.OpenFilterMsg:
 		// The focused list asked, with its own filter or sort key.
-		if m.notifHost() != nil {
-			m.openFilter(m.notifSection())
+		if s, host := m.hosted(); host != nil {
+			m.openFilter(s, host)
 		} else if p := m.focused(); p != nil {
-			m.openFilter(p.section)
+			m.openFilter(p.section, nil)
 		}
 		return m, nil
 	case ui.OpenSortMsg:
-		if m.notifHost() != nil {
-			m.openSort(m.notifSection())
+		if s, host := m.hosted(); host != nil {
+			m.openSort(s, host)
 		} else if p := m.focused(); p != nil {
-			m.openSort(p.section)
+			m.openSort(p.section, nil)
 		}
 		return m, nil
 	case ui.OpenActionsMsg:
 		// What the notifications modal opens goes over it, so that going
 		// back returns to the notifications.
 		if msg.Back == nil {
-			msg.Back = m.notifHost()
+			msg.Back = m.hostModal()
 		}
 		cmd := m.openActionsOn(msg)
 		return m, cmd
@@ -254,14 +257,14 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// which repository it is of.
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
 		if msg.Back == nil {
-			msg.Back = m.notifHost()
+			msg.Back = m.hostModal()
 		}
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenIssueMsg:
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
 		if msg.Back == nil {
-			msg.Back = m.notifHost()
+			msg.Back = m.hostModal()
 		}
 		cmd := m.broadcast(msg)
 		return m, cmd
@@ -271,12 +274,17 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, ok := msg.Modal.(*ui.GroupModal); ok && msg.Back == nil {
 			msg.Back = m.notifHost()
 		}
+		// What a hit of the search opens, such as a file, goes over the search
+		// even when its section doesn't know it is shown there.
+		if msg.Back == nil {
+			msg.Back = m.searchHost()
+		}
 		m.openModalOver(msg.Modal, msg.Back)
 		return m, nil
 	case ui.CloseModalMsg:
 		// The notifications modal is where its threads were picked from, so
 		// closing one returns there rather than ending the chain.
-		if m.isOpen(msg.Modal) && m.overNotifications() {
+		if m.isOpen(msg.Modal) && m.overReturning() {
 			cmd := m.goModalBack(msg.Modal)
 			return m, cmd
 		}
@@ -375,7 +383,7 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keys.Quit):
 		return m.quitNow()
 	case keymap.Matches(msg, m.keys.Search):
-		return m.showSearch()
+		return m.openSearch()
 	case m.canOpenHistory() && keymap.Matches(msg, m.keys.History):
 		return m.openHistory()
 	case m.canOpenActions() && keymap.Matches(msg, m.keys.Actions):
@@ -443,22 +451,22 @@ func (m *Model) takes(s ui.Section) bool {
 }
 
 // openFilter opens the filter modal of s, if s has one to open.
-func (m *Model) openFilter(s ui.Section) {
+func (m *Model) openFilter(s ui.Section, back ui.Modal) {
 	fl, f, ok := filterOf(s, filterform.FiltersTab)
 	if !ok {
 		return
 	}
 	m.openModalOver(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
-		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))), m.notifHost())
+		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))), back)
 }
 
 // openSort opens the sort modal of s, if s has a sort to change.
-func (m *Model) openSort(s ui.Section) {
+func (m *Model) openSort(s ui.Section, back ui.Modal) {
 	fl, f, ok := filterOf(s, filterform.SortTab)
 	if !ok {
 		return
 	}
-	m.openModalOver(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), m.notifHost())
+	m.openModalOver(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), back)
 }
 
 // filterOf returns what the filter modal edits for s on tab, if s has one
@@ -473,23 +481,6 @@ func filterOf(s ui.Section, tab filterform.Tab) (ui.Filterable, ui.Filter, bool)
 		return nil, ui.Filter{}, false
 	}
 	return fl, f, true
-}
-
-// showSearch shows the search page, with the focus in an empty query, if
-// the app has one. The page keeps its recent searches, but not the last
-// query, so typing starts a new one.
-func (m *Model) showSearch() tea.Cmd {
-	if m.srch == nil {
-		return nil
-	}
-	if f, ok := m.srch.section.(Fresher); ok {
-		f.Fresh()
-	}
-	if m.screen == searchScreen {
-		m.srch.setFocus(true)
-		return nil
-	}
-	return m.showScreen(searchScreen, m.focus)
 }
 
 // selectRepo shows the repository screen for the repository of msg, with
@@ -525,10 +516,11 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 	panes := m.all
 	cmds := make([]tea.Cmd, 0, len(panes)+2)
 	hosted := m.notifHost() != nil
+	searching := m.searchHost() != nil
 	for _, p := range panes {
-		// The modal shows the notifications' section, so it gets the
-		// message once, through the modal.
-		if hosted && p == m.notif {
+		// The modal shows the section of the notifications or the search,
+		// so it gets the message once, through the modal.
+		if (hosted && p == m.notif) || (searching && p == m.srch) {
 			continue
 		}
 		cmds = append(cmds, p.section.Update(msg))
@@ -547,7 +539,7 @@ func (m *Model) show(title string) tea.Cmd {
 			return m.showScreen(repoScreen, i)
 		}
 	}
-	for s, p := range map[screen]*pane{dashScreen: m.dash, searchScreen: m.srch, ownerScreen: m.own} {
+	for s, p := range map[screen]*pane{dashScreen: m.dash, ownerScreen: m.own} {
 		if p != nil && p.section.Title() == title {
 			return m.showScreen(s, m.focus)
 		}

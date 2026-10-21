@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -183,9 +184,6 @@ func (m *Model) overModals() []overModal {
 	if m.notif != nil {
 		out = append(out, overModal{k.Notifications, "notifications", "notifications"})
 	}
-	if m.srch != nil {
-		out = append(out, overModal{k.Search, "search", "search"})
-	}
 	return append(out, overModal{k.Repo, "repo", "the repository"}, overModal{k.Owner, "owner", "the owner page"})
 }
 
@@ -217,6 +215,12 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		return nil, false
 	case keymap.Matches(msg, m.keys.Dismiss):
 		return act(ui.ActDismiss)
+	}
+	if m.srch != nil && keymap.Matches(msg, m.keys.Search) {
+		if cmd, ok := act("search"); ok {
+			return cmd, true
+		}
+		return m.openSearch(), true
 	}
 	for _, o := range m.overModals() {
 		if !keymap.Matches(msg, o.binding) {
@@ -342,9 +346,74 @@ func (m *Model) notifHost() ui.Modal {
 	return nil
 }
 
-// overNotifications reports whether the open modal was opened from a modal
-// that it returns to on close, the notifications.
-func (m *Model) overNotifications() bool {
+// openSearch shows the search in a modal, with the focus in an empty query,
+// if the app has one. The search keeps its recent searches, but not the last
+// query, so typing starts a new one.
+func (m *Model) openSearch() tea.Cmd {
+	if m.srch == nil {
+		return nil
+	}
+	sec, ok := m.srch.section.(*search.Section)
+	if !ok {
+		return nil
+	}
+	if f, ok := m.srch.section.(Fresher); ok {
+		f.Fresh()
+	}
+	if h := m.searchHost(); h != nil {
+		sec.Focus()
+		return nil
+	}
+	// The search closes the open modal rather than stack over it.
+	if mod := m.modal; mod != nil {
+		m.discardModal(mod)
+		m.closeModal(mod)
+	}
+	m.openModalOver(search.NewModal(sec), nil)
+	return m.srch.start()
+}
+
+// leaveSearch closes the search modal if it is the open one, and stops what
+// it reads ahead.
+func (m *Model) leaveSearch() {
+	if h := m.searchHost(); h != nil {
+		m.discardModal(h)
+		m.closeModal(h)
+	}
+}
+
+// hostModal returns the modal that shows a section of the screens, the
+// notifications or the search, if it is the open one.
+func (m *Model) hostModal() ui.Modal {
+	if h := m.notifHost(); h != nil {
+		return h
+	}
+	return m.searchHost()
+}
+
+// hosted returns the section the open host modal shows, with the modal, or
+// nil if there is none.
+func (m *Model) hosted() (ui.Section, ui.Modal) {
+	switch {
+	case m.notifHost() != nil:
+		return m.notifSection(), m.notifHost()
+	case m.searchHost() != nil && m.srch != nil:
+		return m.srch.section, m.searchHost()
+	}
+	return nil, nil
+}
+
+// searchHost returns the search modal if it is the open one.
+func (m *Model) searchHost() ui.Modal {
+	if h, ok := m.modal.(*search.Modal); ok {
+		return h
+	}
+	return nil
+}
+
+// overReturning reports whether the open modal was opened from a modal
+// that it returns to on close, such as the notifications or the search.
+func (m *Model) overReturning() bool {
 	if !m.modalBack() {
 		return false
 	}

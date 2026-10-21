@@ -535,8 +535,9 @@ keys:
     # the screens shown, as a browser does. It does nothing where there
     # is nothing to go back to. Inputs that type still delete with it.
     back: [backspace]
-    # Open the search page, with the focus in an empty query, even when
-    # the page is on view already.
+    # Open the search in a modal, with the focus in an empty query, over
+    # any other modal, which it closes, and even when the search is open
+    # already.
     search: [S]
     # Choose or open what is under the cursor.
     select: [enter]

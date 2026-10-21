@@ -201,7 +201,7 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 	if m.cfg.Files.Markdown != "raw" {
 		t.Errorf("set over the preview didn't run: %q", m.cfg.Files.Markdown)
 	}
-	for _, name := range []string{"goto", "search", "auth"} {
+	for _, name := range []string{"goto", "auth"} {
 		line := name
 		if name == "goto" {
 			line += " x"
@@ -216,6 +216,10 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 	}
 	if got := texts(m.complete("r", 1)); !slices.Equal(got, []string{"raw ", "refresh"}) {
 		t.Errorf("over the preview r completes %q, want raw and refresh", got)
+	}
+	run("search")
+	if m.topModal() == mod || m.searchHost() == nil {
+		t.Errorf("search left %v over the preview, want the preview closed and the search shown", m.topModal())
 	}
 }
 

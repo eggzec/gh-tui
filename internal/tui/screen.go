@@ -23,8 +23,6 @@ const (
 	repoScreen screen = iota
 	// dashScreen shows the dashboard.
 	dashScreen
-	// searchScreen shows the search page.
-	searchScreen
 	// ownerScreen shows the page of a user or an organization.
 	ownerScreen
 )
@@ -231,8 +229,6 @@ func (m *Model) drawHeader() {
 	switch {
 	case m.screen == dashScreen:
 		name = ui.DashboardTitle
-	case m.screen == searchScreen:
-		name = ui.SearchTitle
 	case m.screen == ownerScreen:
 		// The page names its account once it has one.
 		name = cmp.Or(m.ownerLogin, ui.OwnerTitle)
@@ -324,7 +320,7 @@ func (m *Model) arrange(height int) {
 		m.notif.resize(m.width, height)
 	}
 	narrow := m.narrow()
-	for _, p := range []*pane{m.dash, m.srch, m.own} {
+	for _, p := range []*pane{m.dash, m.own} {
 		if p == nil {
 			continue
 		}
@@ -371,8 +367,6 @@ func (m *Model) body() []string {
 	switch m.screen {
 	case dashScreen:
 		return m.dash.appendLines(nil)
-	case searchScreen:
-		return m.srch.appendLines(nil)
 	case ownerScreen:
 		return m.own.appendLines(nil)
 	case repoScreen:
@@ -406,8 +400,6 @@ func (m *Model) focused() *pane {
 	switch m.screen {
 	case dashScreen:
 		return m.dash
-	case searchScreen:
-		return m.srch
 	case ownerScreen:
 		return m.own
 	case repoScreen:
@@ -520,8 +512,6 @@ func (m *Model) hasScreen(s screen) bool {
 		return len(m.panes) > 0
 	case dashScreen:
 		return m.dash != nil
-	case searchScreen:
-		return m.srch != nil
 	case ownerScreen:
 		return m.own != nil
 	}

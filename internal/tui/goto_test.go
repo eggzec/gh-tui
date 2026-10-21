@@ -16,6 +16,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -229,13 +230,12 @@ func TestGotoAndOtherCommands(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
 			repos := newGotoRepos()
-			page := &fakeSearch{title: ui.SearchTitle}
+			page := searchpage.New(t.Context(), keySearch{}, config.Default().Keys)
 			layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Search: page}
 			m := New(t.Context(), config.Default(), layout, WithRepos(repos))
 			m.toast.SetDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
-			drive(m, m.key(press("S")))
 			cmd := submitLine(t, m, "goto charmbracelet/bubbletea")
 			if m.going == nil {
 				t.Fatal("the goto doesn't wait for GitHub")
@@ -246,7 +246,7 @@ func TestGotoAndOtherCommands(t *testing.T) {
 			}
 			drive(m, cmd)
 			if tt.cancels {
-				if m.repo == bubbletea || m.screen != searchScreen {
+				if m.repo == bubbletea {
 					t.Errorf("the canceled goto went on to screen %d with %v", m.screen, m.repo)
 				}
 				return

@@ -71,7 +71,7 @@ var commands = []command{
 	{name: ui.CommandPrevFile, detail: "go to the previous file of the diff", over: overNamed, run: pressCommand("pull_diff.prev_file")},
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
-	{name: "search", detail: "search GitHub, for what follows if anything", args: true, run: (*Model).searchCommand},
+	{name: "search", detail: "search GitHub, for what follows if anything", args: true, over: overAny, run: (*Model).searchCommand},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
 }
 
@@ -105,16 +105,16 @@ type Fresher interface {
 	Fresh()
 }
 
-// searchCommand shows the search page, as the search key does, and
-// searches for query there, unless it is empty.
+// searchCommand shows the search in a modal, as the search key does, over
+// any open modal, and searches for query there, unless it is empty.
 func (m *Model) searchCommand(query string) tea.Cmd {
 	if m.srch == nil {
-		return m.toast.Push(toast.Warning, "There is no search page.")
+		return m.toast.Push(toast.Warning, "There is no search.")
 	}
 	// It goes somewhere, so a goto still waiting mustn't take the user
-	// elsewhere after it, even when the search page is already on view.
+	// elsewhere after it, even when the search is already on view.
 	m.cancelGoto()
-	show := m.showSearch()
+	show := m.openSearch()
 	s, ok := m.srch.section.(Searcher)
 	if query == "" || !ok {
 		return show

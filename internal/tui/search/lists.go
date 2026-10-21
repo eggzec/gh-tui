@@ -461,6 +461,23 @@ func (s *Section) pressFeed(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+// ClearTransient peels one layer of what the user asked to see in the results
+// on view, the find, the filter or the marks, and reports whether there was
+// one, as the key that dismisses clears these before it closes the search.
+func (s *Section) ClearTransient() (tea.Cmd, bool) {
+	if l, ok := s.visibleHits(); ok {
+		cmd, cleared := l.feed.ClearTransient()
+		s.render()
+		return cmd, cleared
+	}
+	if l, ok := s.visibleCode(); ok {
+		cmd, cleared := l.feed.ClearTransient()
+		s.render()
+		return cmd, cleared
+	}
+	return nil, false
+}
+
 // feedCapturing reports whether the results on view take every key, while
 // the prompt of their find or filter is open.
 func (s *Section) feedCapturing() bool {

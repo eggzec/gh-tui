@@ -81,7 +81,7 @@ func TestScreenKeysAreDisabledInModalHelp(t *testing.T) {
 					}
 				}
 			}
-			for _, k := range []string{"0 dashboard", "S search", ". this repo"} {
+			for _, k := range []string{"0 dashboard", ". this repo"} {
 				if enabled, ok := on[k]; !ok || enabled {
 					t.Errorf("%v: help row %q listed %v, enabled %v; want it listed disabled", tt.modal, k, ok, enabled)
 				}
@@ -310,7 +310,7 @@ func TestGuidanceIsAWarning(t *testing.T) {
 	}
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "global.select")
-		tap(t, m, "S")
+		tap(t, m, "0")
 		if !m.toast.Has(toast.Warning) || m.toast.Has(toast.Error) {
 			t.Errorf("the refusal over a modal is not a warning alone: %s", toasted(m))
 		}

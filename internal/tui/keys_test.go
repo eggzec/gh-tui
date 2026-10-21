@@ -117,13 +117,14 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 // (the query typing, the query in normal mode, or the results), by its
 // last layer of keys, and the query it searches for.
 func focusOf(m *Model) string {
-	switch m.screen {
-	case repoScreen:
-		return "repo: " + m.focused().section.Title()
-	case searchScreen:
+	if m.searchHost() != nil {
 		layers := m.keyLayers()
 		part := map[string]string{"Query": "typing", "Search": "query", "Results": "results"}[layers[len(layers)-1].Source]
 		return fmt.Sprintf("search: %s %q", part, m.srch.section.(*searchpage.Section).Query())
+	}
+	switch m.screen {
+	case repoScreen:
+		return "repo: " + m.focused().section.Title()
 	case dashScreen, ownerScreen:
 	}
 	return fmt.Sprintf("screen %d", m.screen)
@@ -153,8 +154,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
 		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
 
-		{"search query: tab", false, []string{"S"}, `search: query ""`, "tab", "global: next", `search: results ""`},
-		{"search query: shift+tab", false, []string{"S"}, `search: query ""`, "shift+tab", "global: previous", `search: results ""`},
+		{"search query: tab", false, []string{"S"}, `search: query ""`, "tab", "Search: next", `search: results ""`},
+		{"search query: shift+tab", false, []string{"S"}, `search: query ""`, "shift+tab", "Search: previous", `search: results ""`},
 		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "Search: next kind", `search: query ""`},
 		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "Search: previous kind", `search: query ""`},
 
@@ -164,8 +165,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search typing: [", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
 		{"search typing: esc", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},
 
-		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "global: next", `search: query "key"`},
-		{"search results: shift+tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "global: previous", `search: query "key"`},
+		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: query "key"`},
+		{"search results: shift+tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: query "key"`},
 		{"search results: ]", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
 		{"search results: [", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
 	} {
