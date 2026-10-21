@@ -40,6 +40,7 @@ type API interface {
 	SearchCode(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
 	SearchUsers(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchUser], error)
 	SearchCommits(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchCommit], error)
+	SearchTopics(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchTopic], error)
 }
 
 // Query selects a page of search results.
@@ -96,6 +97,7 @@ type Service struct {
 	code    *cache.Cache[core.SearchPage[core.CodeHit]]
 	users   *cache.Cache[core.SearchPage[core.SearchUser]]
 	commits *cache.Cache[core.SearchPage[core.SearchCommit]]
+	topics  *cache.Cache[core.SearchPage[core.SearchTopic]]
 	counts  *cache.Cache[map[core.SearchKind]int]
 	// pageSize is the size of a page whose query sets none.
 	pageSize int
@@ -119,6 +121,7 @@ func New(api API, opts ...Option) *Service {
 		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(cmp.Or(o.codeTTL, d.Cache.TTL.CodeSearch)), capacity),
 		users:    cache.New[core.SearchPage[core.SearchUser]](ttl, capacity),
 		commits:  cache.New[core.SearchPage[core.SearchCommit]](ttl, capacity),
+		topics:   cache.New[core.SearchPage[core.SearchTopic]](ttl, capacity),
 		counts:   cache.New[map[core.SearchKind]int](ttl, capacity),
 		pageSize: cmp.Or(o.pageSize, d.PageSize.Search),
 	}
@@ -296,6 +299,7 @@ func (s *Service) Invalidate() {
 	s.code.InvalidateTag(allTag)
 	s.users.InvalidateTag(allTag)
 	s.commits.InvalidateTag(allTag)
+	s.topics.InvalidateTag(allTag)
 	s.counts.InvalidateTag(allTag)
 }
 
