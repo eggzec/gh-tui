@@ -25,6 +25,7 @@ type fakeAPI struct {
 
 	search func(q github.SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error)
 	code   func(query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
+	users  func(query, cursor string, perPage int) (core.SearchPage[core.SearchUser], error)
 
 	mu    sync.Mutex
 	calls []string
