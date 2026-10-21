@@ -236,7 +236,7 @@ files:
   # file open between them.
   markdown: rendered
 
-# The notifications list and the dashboard's inbox.
+# The notifications modal and the dashboard's inbox.
 notifications:
   # Mark a thread read when the select key opens what it is about, in the
   # app or in the browser. The open key, which opens the thread on GitHub,
@@ -521,9 +521,9 @@ keys:
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.
     dashboard: ["0"]
-    # Open the notifications. The dashboard has them as a pane instead:
-    # its digit shows it, and on a wide screen zoom enlarges it, so this
-    # does nothing there.
+    # Open the notifications over what is open. The dashboard has them as a
+    # pane instead: its digit shows it, and on a wide screen zoom enlarges
+    # it, so this does nothing there.
     notifications: [I]
     # Go back through the pages of users and organizations, then through
     # the screens shown, as a browser does. It does nothing where there
@@ -766,7 +766,7 @@ keys:
     close: [X]
     reopen: [O]
 
-  # The notifications list.
+  # The notifications modal.
   notifications:
     # Open, close and toggle the groups of a grouped list.
     expand: [right, l]
