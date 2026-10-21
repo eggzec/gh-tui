@@ -49,10 +49,10 @@ func (f *fakePulls) CurrentComments(q pulls.CommentsQuery) bool {
 }
 
 // prefetchOf returns the settings that read the row under the cursor and
-// the after rows below it, once the cursor rests for rest.
-func prefetchOf(after int, rest time.Duration) config.PrefetchLayers {
+// two rows below it, once the cursor rests for rest.
+func prefetchOf(rest time.Duration) config.PrefetchLayers {
 	p := config.Default().Prefetch
-	p.Window, p.Rest = config.Window{After: after}, rest
+	p.Window, p.Rest = config.Window{After: 2}, rest
 	return p
 }
 
@@ -102,7 +102,7 @@ func TestPrefetchFirstThreadsAndHover(t *testing.T) {
 			thread("3", "charmbracelet/bubbletea", core.SubjectPullRequest, "c", "mention", true, time.Minute),
 			thread("4", "charmbracelet/bubbletea", core.SubjectPullRequest, "d", "mention", true, time.Minute),
 		}
-		s := newSectionWith(t, newFake(ts...), threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, 150*time.Millisecond))))
+		s := newSectionWith(t, newFake(ts...), threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(150*time.Millisecond))))
 		// The window around the first row: the discussion has nothing to
 		// read.
 		if got := slices.Sorted(slices.Values(ps.got())); !slices.Equal(got, []int{1, 3}) {
@@ -144,7 +144,7 @@ func TestBlurCancelsReadsAhead(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &heldPulls{ctxs: make(chan context.Context, 4)}
 		svc := newFake()
-		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Millisecond))))
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(time.Millisecond))))
 		svc.mu.Lock()
 		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
 		svc.mu.Unlock()
@@ -174,40 +174,38 @@ func TestBlurCancelsReadsAhead(t *testing.T) {
 // A modal opened over the notifications keeps their reads ahead going; the
 // modal's discard stops them.
 func TestModalHideKeepsReadsAheadDiscardStopsThem(t *testing.T) {
-	{
-		synctest.Test(t, func(t *testing.T) {
-			ps := &heldPulls{ctxs: make(chan context.Context, 4)}
-			svc := newFake()
-			s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Millisecond))))
-			mod := NewModal(s)
-			svc.mu.Lock()
-			svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
-			svc.mu.Unlock()
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
-			}()
-			time.Sleep(time.Millisecond)
-			synctest.Wait()
-			var ctx context.Context
-			select {
-			case ctx = <-ps.ctxs:
-			default:
-				t.Fatal("nothing was read ahead")
-			}
-			mod.Hide()
-			synctest.Wait()
-			if ctx.Err() != nil {
-				t.Error("Hide cancelled the read ahead")
-			}
-			mod.Discard()
-			<-done
-			if ctx.Err() == nil {
-				t.Error("Discard left the read ahead running")
-			}
-		})
-	}
+	synctest.Test(t, func(t *testing.T) {
+		ps := &heldPulls{ctxs: make(chan context.Context, 4)}
+		svc := newFake()
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(time.Millisecond))))
+		mod := NewModal(s)
+		svc.mu.Lock()
+		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}
+		svc.mu.Unlock()
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			run(t, s, s.Update(ui.SyncMsg{Key: SyncKey}))
+		}()
+		time.Sleep(time.Millisecond)
+		synctest.Wait()
+		var ctx context.Context
+		select {
+		case ctx = <-ps.ctxs:
+		default:
+			t.Fatal("nothing was read ahead")
+		}
+		mod.Hide()
+		synctest.Wait()
+		if ctx.Err() != nil {
+			t.Error("Hide cancelled the read ahead")
+		}
+		mod.Discard()
+		<-done
+		if ctx.Err() == nil {
+			t.Error("Discard left the read ahead running")
+		}
+	})
 }
 
 // A change to the inbox while another screen is on view reads nothing
@@ -216,7 +214,7 @@ func TestNoReadsAheadOffScreen(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ps := &fakePulls{}
 		svc := newFake()
-		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(2, time.Hour))))
+		s := newSectionWith(t, svc, threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(prefetchOf(time.Hour))))
 		s.Blur()
 		svc.mu.Lock()
 		svc.threads = []core.Notification{thread("1", "charmbracelet/bubbletea", core.SubjectPullRequest, "a", "mention", true, time.Minute)}

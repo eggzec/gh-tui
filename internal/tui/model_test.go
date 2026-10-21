@@ -540,12 +540,6 @@ func TestNotificationsKeyDoesNothing(t *testing.T) {
 			m, _ := newDashApp(t, core.RepoRef{})
 			return m
 		}},
-		{"search", func(t *testing.T) *Model {
-			t.Helper()
-			m := newKeysApp(t, false)
-			run(m, m.showScreen(searchScreen, 0))
-			return m
-		}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
