@@ -122,6 +122,8 @@ type Section struct {
 
 	input textinput.Model
 	area  area
+	// preview is whether the preview has the focus, in the results' area.
+	preview bool
 	// typing is whether the query takes the keys, which it does from the
 	// key that starts typing until the one that stops it.
 	typing  bool
