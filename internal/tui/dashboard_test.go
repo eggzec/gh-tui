@@ -74,6 +74,25 @@ func TestDashboardFillsTheScreen(t *testing.T) {
 	}
 }
 
+// The dashboard shows the notifications as a pane, so the key that opens
+// them is unmapped there and works on the other screens.
+func TestNotificationsKeyOnTheDashboard(t *testing.T) {
+	t.Parallel()
+	m, _ := newDashApp(t, core.RepoRef{})
+	if m.keys.state(m).Notifications.Enabled() {
+		t.Error("the notifications key is enabled on the dashboard")
+	}
+	run(m, m.key(press("I")))
+	if m.screen != dashScreen || m.modal != nil {
+		t.Errorf("I on the dashboard left screen %d with modal %v", m.screen, m.modal)
+	}
+
+	m, _ = newDashApp(t, testRepo)
+	if !m.keys.state(m).Notifications.Enabled() {
+		t.Error("the notifications key is disabled on the repository screen")
+	}
+}
+
 func TestDashboardKey(t *testing.T) {
 	t.Parallel()
 	m, fakes := newDashApp(t, testRepo)
