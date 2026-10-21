@@ -521,7 +521,8 @@ keys:
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.
     dashboard: ["0"]
-    # Reserved for the notifications list; does nothing yet.
+    # Open the notifications. The dashboard has them as a pane instead:
+    # its digit focuses it and zoom enlarges it, so this does nothing there.
     notifications: [I]
     # Go back through the pages of users and organizations, then through
     # the screens shown, as a browser does. It does nothing where there

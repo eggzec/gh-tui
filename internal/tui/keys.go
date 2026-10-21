@@ -197,6 +197,10 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
+	// The dashboard shows the notifications as a pane, which its digit
+	// focuses and zoom enlarges, so the key that opens them is left to the
+	// other screens.
+	k.Notifications.SetEnabled(k.Notifications.Enabled() && m.screen != dashScreen)
 	// Showing what is on view does nothing, so help doesn't offer it.
 	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil && m.screen != dashScreen)
 	// Every other screen and modal focuses its own panes, and lists the
