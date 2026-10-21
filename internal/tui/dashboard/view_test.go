@@ -99,6 +99,53 @@ func TestViewStates(t *testing.T) {
 	}
 }
 
+// The inbox says which keys show every notification, and never names one
+// that is unbound.
+func TestInboxHint(t *testing.T) {
+	const hint = "shows them all"
+	tests := []struct {
+		name          string
+		width, height int
+		unbind        string
+		keys          []string
+		want          string
+	}{
+		{"wide", 140, 38, "", nil, "5 then z " + hint},
+		{"narrow", 80, 22, "", []string{"5"}, "5 " + hint},
+		{"zoomed", 140, 38, "", []string{"5", "z"}, ""},
+		{"zoom unbound", 140, 38, "global.zoom", nil, ""},
+		{"pane unbound", 140, 38, "global.pane_5", nil, ""},
+		{"zoom unbound narrow", 80, 22, "global.zoom", []string{"5"}, "5 " + hint},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.Default()
+			if tt.unbind != "" {
+				cfg.Keys.Set(tt.unbind, []string{})
+			}
+			s := New(t.Context(), newFake(), cfg.Keys, WithNow(func() time.Time { return now }),
+				WithHere(here, nil), WithInbox(&fakeInbox{threads: inboxThreads()}))
+			p, err := cfg.Palette(true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.SetTheme(ui.NewTheme(p, true))
+			s.SetSize(tt.width, tt.height)
+			s.Focus()
+			run(t, s, s.Init())
+			press(t, s, tt.keys...)
+			got := ansi.Strip(s.View())
+			if tt.want == "" {
+				if strings.Contains(got, hint) {
+					t.Errorf("the hint shows:\n%s", got)
+				}
+			} else if !strings.Contains(got, tt.want) {
+				t.Errorf("the hint %q is missing:\n%s", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestLayout(t *testing.T) {
 	tests := []struct {
 		name          string

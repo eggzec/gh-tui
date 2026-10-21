@@ -142,7 +142,7 @@ func (o *Opener) SetIcons(ic ui.Icons) {
 
 // FollowInbox makes the reads ahead follow the settings of the dashboard's
 // inbox, prefetch.dashboard.inbox, while on is set, and else those of the
-// notifications screen, prefetch.notifications. The views share the
+// notifications modal, prefetch.notifications. The views share the
 // opener one at a time, so the dashboard follows its inbox's while it is
 // on view, and gives them back as it leaves.
 func (o *Opener) FollowInbox(on bool) {
