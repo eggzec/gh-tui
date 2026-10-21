@@ -466,6 +466,40 @@ func TestZoomView(t *testing.T) {
 	golden.RequireEqual(t, m.View().Content)
 }
 
+// TestZoomMovesDigitsToBottomEdge checks that a pane has its key before its
+// name in the top edge, and that a zoomed pane has the name alone there and
+// the keys of the panes in the bottom edge, its own in brackets.
+func TestZoomMovesDigitsToBottomEdge(t *testing.T) {
+	t.Parallel()
+	m, _ := newTestApp(t)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 14})
+	run(m, m.key(press("2")))
+	if s := onScreen(m); !strings.Contains(s, "[2] Pull requests") {
+		t.Errorf("a pane should show its key before its name:\n%s", s)
+	}
+	run(m, m.key(press("z")))
+	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+	var top, bottom string
+	for _, l := range lines {
+		switch {
+		case strings.HasPrefix(l, "╭"):
+			top = l
+		case strings.HasPrefix(l, "╰"):
+			bottom = l
+		}
+	}
+	if !strings.Contains(top, "Pull requests") || strings.Contains(top, "[2]") {
+		t.Errorf("a zoomed pane should show its name alone in the top edge: %q", top)
+	}
+	if !strings.Contains(bottom, "1 [2] 3") {
+		t.Errorf("a zoomed pane should show the keys of the panes in the bottom edge: %q", bottom)
+	}
+	run(m, m.key(press("z")))
+	if s := onScreen(m); !strings.Contains(s, "[2] Pull requests") {
+		t.Errorf("a pane unzoomed should show its key before its name again:\n%s", s)
+	}
+}
+
 func TestProgramZooms(t *testing.T) {
 	t.Parallel()
 	_, fakes := newTestApp(t)

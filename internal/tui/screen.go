@@ -3,7 +3,6 @@ package tui
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -43,19 +43,17 @@ const (
 // bare one, which fills its place and draws its own frames.
 type pane struct {
 	section ui.Section
-	// label is shown in the top edge, such as "[1] Files".
-	label   string
-	bare    bool
-	started bool
-	focused bool
+	// label is the name shown in the top edge, such as "Files", with the
+	// pane's key before it, "[1] Files", unless the pane is zoomed: then
+	// its key is in the bottom edge, among those of the other panes.
+	label, key string
+	bare       bool
+	started    bool
+	focused    bool
 	// width and height are the outer size, frame included.
 	width, height int
 	// The edges of the frame, drawn for the size, focus and theme.
 	top, bottom, side string
-}
-
-func paneLabel(i int, title string) string {
-	return "[" + strconv.Itoa(i+1) + "] " + title
 }
 
 // start initializes the section the first time it is shown.
@@ -173,7 +171,12 @@ func (m *Model) drawFrame(p *pane) {
 		edge, title = m.st.focusEdge, m.st.focusTitle
 	}
 	b := m.icons.Border
-	label := termtext.Truncate(p.label, max(w-4, 0), m.icons.Ellipsis)
+	zoomed := m.zoomed() && p.key != ""
+	text := p.label
+	if p.key != "" && !zoomed {
+		text = "[" + p.key + "] " + text
+	}
+	label := termtext.Truncate(text, max(w-4, 0), m.icons.Ellipsis)
 	if label == "" {
 		p.top = edge.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
 	} else {
@@ -182,7 +185,27 @@ func (m *Model) drawFrame(p *pane) {
 			edge.Render(" "+strings.Repeat(b.Top, rest)+b.TopRight)
 	}
 	p.bottom = edge.Render(b.BottomLeft + strings.Repeat(b.Bottom, w-2) + b.BottomRight)
+	if foot, footW := m.foot(p); zoomed && footW > 0 && footW <= w-5 {
+		rest := w - 5 - footW
+		p.bottom = edge.Render(b.BottomLeft+b.Bottom+" ") + foot +
+			edge.Render(" "+strings.Repeat(b.Bottom, rest)+b.BottomRight)
+	}
 	p.side = edge.Render(b.Left)
+}
+
+// foot is the strip of the keys of the panes of the repository screen, with
+// the one of p in brackets, for the bottom edge of the zoomed pane, and its
+// width.
+func (m *Model) foot(p *pane) (strip string, width int) {
+	keys := make([]string, len(m.panes))
+	cur := -1
+	for i, q := range m.panes {
+		keys[i] = q.key
+		if q == p {
+			cur = i
+		}
+	}
+	return ownerui.Digits(keys, cur, ownerui.NewPaint(m.st.focusTitle), ownerui.NewPaint(m.theme.Subtle))
 }
 
 func (m *Model) drawFrames() {
