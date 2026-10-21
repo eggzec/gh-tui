@@ -116,7 +116,7 @@ type IssuesKinds struct {
 	OtherTabs Layer          `yaml:"other_tabs,omitempty"`
 }
 
-// NotificationsKinds is the notifications screen's: what a thread is
+// NotificationsKinds is the notifications list's: what a thread is
 // about, and its first comments.
 type NotificationsKinds struct {
 	Enabled  *bool          `yaml:"enabled,omitempty" inherit:"prefetch"`

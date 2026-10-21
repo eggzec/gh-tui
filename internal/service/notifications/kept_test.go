@@ -60,7 +60,7 @@ func TestKeptInboxIsServedStaleThenRevalidated(t *testing.T) {
 	}
 }
 
-// The dashboard's inbox and the notifications screen read the first page
+// The dashboard's inbox and the notifications list read the first page
 // at once when the app starts: both show the kept page at once, and their
 // reads again share one request.
 func TestKeptInboxServedToConcurrentReaders(t *testing.T) {

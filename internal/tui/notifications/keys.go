@@ -48,7 +48,7 @@ type KeyMap struct {
 	search cmdline.KeyMap
 }
 
-// ctxScreen is the context of the keys of the notifications screen.
+// ctxScreen is the context of the keys of the notifications list.
 const ctxScreen = "notifications"
 
 func newKeyMap(keys config.Keymap) KeyMap {

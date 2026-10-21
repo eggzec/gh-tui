@@ -36,7 +36,7 @@ type Config struct {
 	Cache Cache  `yaml:"cache" when:"startup" why:"the cache is opened at startup"`
 	Sync  Sync   `yaml:"sync"`
 	Files Files  `yaml:"files"`
-	// Notifications configures the notifications screen and the
+	// Notifications configures the notifications list and the
 	// dashboard's inbox.
 	Notifications Notifications `yaml:"notifications"`
 	// History configures the History modal of the repository screen.

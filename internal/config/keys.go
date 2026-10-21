@@ -58,7 +58,7 @@ const (
 	// ActionBack goes back through the owner pages and the screens shown,
 	// as a browser does.
 	ActionBack = "global.back"
-	// ActionNotifications shows the notifications, from any screen.
+	// ActionNotifications is reserved for the notifications list, which has no key yet.
 	ActionNotifications = "global.notifications"
 	// ActionDashboard shows the dashboard, from any screen.
 	ActionDashboard = "global.dashboard"
