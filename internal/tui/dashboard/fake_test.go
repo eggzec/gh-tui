@@ -44,6 +44,9 @@ type fakeService struct {
 	size    int
 	// pages are the pages of work after the first, by cursor.
 	pages map[string]core.WorkList
+	// stalePages are the cursors whose page comes back kept by an earlier
+	// session, until a read sets Again.
+	stalePages map[string]bool
 
 	// cached makes the Cached reads of the header, work and contributions
 	// hit before any read.
@@ -147,6 +150,7 @@ func (f *fakeService) Work(_ context.Context, q dashboard.WorkQuery) (core.Work,
 		case core.WorkAssigned:
 			w.Assigned = f.pages[q.Cursor]
 		}
+		w.Stale = f.stalePages[q.Cursor] && !q.Again
 		return w, nil
 	}
 	if err := f.call("work"); err != nil {

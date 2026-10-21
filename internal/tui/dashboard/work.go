@@ -41,6 +41,12 @@ type workTab struct {
 	sel     int
 	// top is the first row on view.
 	top int
+	// first is how many items the first page listed, and last where the
+	// items of the last page start, which a page read again replaces.
+	first, last int
+	// epoch counts the times the first page was listed again, so a page
+	// read before that is dropped when it arrives.
+	epoch int
 }
 
 // workList is the work pane: a tab for each list of work waiting on the
@@ -83,8 +89,9 @@ var workLists = [...]struct {
 }
 
 // set lists w, and keeps the cursor of each tab on the item it was on if
-// it is still listed. Until the viewer picks a tab, the first that has
-// items is on view.
+// it is still listed. The items of the pages after the first that a tab
+// had read stay, unless the first page lists them now. Until the viewer
+// picks a tab, the first that has items is on view.
 func (l *workList) set(w core.Work) {
 	for i, wl := range workLists {
 		t := &l.tabs[i]
@@ -94,13 +101,27 @@ func (l *workList) set(w core.Work) {
 		}
 		list := wl.list(&w)
 		rows := make([]workRow, 0, len(list.Items)+1)
+		seen := make(map[string]bool, len(list.Items))
 		for j := range list.Items {
 			rows = append(rows, workRow{hit: &list.Items[j]})
+			seen[list.Items[j].Issue.URL] = true
 		}
-		if !list.Refused && len(list.Items) == 0 {
+		next := list.Next
+		last := len(rows)
+		if !list.Refused && t.items > t.first {
+			// The viewer had paged on: keep the place.
+			for _, r := range t.rows[t.first:t.items] {
+				if !seen[r.hit.Issue.URL] {
+					rows = append(rows, workRow{hit: r.hit})
+				}
+			}
+			next = t.next
+		}
+		items := len(rows)
+		if !list.Refused && items == 0 {
 			rows = append(rows, workRow{note: wl.empty})
 		}
-		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: len(list.Items), next: list.Next, top: t.top}
+		*t = workTab{count: list.Count, refused: list.Refused, rows: rows, items: items, next: next, top: t.top, first: len(list.Items), last: last, epoch: t.epoch + 1}
 		for j := range t.items {
 			if prev != "" && rows[j].hit.Issue.URL == prev {
 				t.sel = j
@@ -128,17 +149,23 @@ func (t *workTab) wantMore(height int) bool {
 	return t.next != "" && !t.loading && t.err == nil && t.sel >= t.items-max(height, 1)
 }
 
-// appendPage lists the items of the page that followed those of tab i.
-func (l *workList) appendPage(i int, list core.WorkList) {
+// appendPage lists the items of the page that followed those of tab i, or
+// with replace, in place of those of its last page, which was read again.
+func (l *workList) appendPage(i int, list core.WorkList, replace bool) {
 	t := &l.tabs[i]
 	t.loading, t.err = false, nil
+	if replace {
+		t.items = min(t.last, t.items)
+	} else {
+		t.last = t.items
+	}
 	rows := make([]workRow, 0, len(t.rows)+len(list.Items))
 	rows = append(rows, t.rows[:t.items]...)
 	for j := range list.Items {
 		rows = append(rows, workRow{hit: &list.Items[j]})
 	}
-	rows = append(rows, t.rows[t.items:]...)
 	t.rows, t.items, t.next = rows, t.items+len(list.Items), list.Next
+	t.sel = min(t.sel, max(t.items-1, 0))
 	if list.Count > 0 {
 		t.count = list.Count
 	}
@@ -252,13 +279,23 @@ func (l *workList) header() string {
 // scroll shows the item under the cursor, and fills the window from the
 // bottom.
 func (t *workTab) scroll(height int) {
+	// A line that says a page is read, or failed, takes a row of the window.
+	if t.loading || t.err != nil {
+		height--
+	}
+	t.top = t.fit(t.top, height)
+}
+
+// fit is the first row on view, for a window of height rows that has been
+// scrolled to top: the one that shows the item under the cursor.
+func (t *workTab) fit(top, height int) int {
 	if height <= 0 || len(t.rows) == 0 {
-		return
+		return top
 	}
 	if t.sel < t.items {
-		t.top = min(max(t.top, t.sel-height+1), t.sel)
+		top = min(max(top, t.sel-height+1), t.sel)
 	}
 	// The last rows fill the window rather than leave it half empty.
 	last := len(t.rows) - 1
-	t.top = min(max(t.top, 0), last, max(len(t.rows)-height, 0))
+	return min(max(top, 0), last, max(len(t.rows)-height, 0))
 }

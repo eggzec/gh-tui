@@ -571,6 +571,135 @@ func TestWorkPageFails(t *testing.T) {
 	}
 }
 
+// manyPulls gives svc a first page of 20 review requests, more than the pane
+// has rows, and a second page behind it.
+func manyPulls(svc *fakeService) {
+	items := make([]core.SearchHit, 0, 20)
+	for i := range 20 {
+		items = append(items, hit(core.SearchPulls, "octocat/hello-world", 100+i, "First page pull request "+strconv.Itoa(i), false, time.Hour))
+	}
+	svc.work.ReviewRequested = core.WorkList{Count: 21, Items: items, Next: "c1"}
+	svc.pages = map[string]core.WorkList{"c1": {Count: 21, Items: []core.SearchHit{
+		hit(core.SearchPulls, "octocat/hello-world", 901, "Second page pull request", false, time.Hour),
+	}}}
+}
+
+// downUntilPage presses down, without running what the keys start, until a
+// page is read, and returns what reads it.
+func downUntilPage(t *testing.T, s *Section) tea.Cmd {
+	t.Helper()
+	for range 40 {
+		if cmd := s.Update(keyPress("down")); s.tasks.tabs[0].loading {
+			return cmd
+		}
+	}
+	t.Fatal("no page was read")
+	return nil
+}
+
+func TestWorkPageStatusLine(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	manyPulls(svc)
+	svc.fail["work page c1"] = errors.New("boom")
+	s := newSection(t, svc, nil, 140, 24)
+	press(t, s, "3")
+	cmd := downUntilPage(t, s)
+	if view := screen(s); !strings.Contains(view, "Loading more") {
+		t.Errorf("a page in flight isn't shown while the list fills the pane:\n%s", view)
+	}
+	run(t, s, cmd)
+	if view := screen(s); !strings.Contains(view, "Something went wrong") {
+		t.Errorf("a failed page isn't shown while the list fills the pane:\n%s", view)
+	}
+}
+
+func TestWorkPageRetry(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	manyPulls(svc)
+	svc.fail["work page c1"] = errors.New("boom")
+	s := newSection(t, svc, nil, 140, 24)
+	press(t, s, "3")
+	run(t, s, downUntilPage(t, s))
+	tab := &s.tasks.tabs[0]
+	if tab.err == nil {
+		t.Fatal("the page didn't fail")
+	}
+	for tab.sel < tab.items-1 {
+		press(t, s, "down")
+	}
+	delete(svc.fail, "work page c1")
+	press(t, s, "down")
+	if tab.err != nil || tab.items != 21 {
+		t.Errorf("err = %v, items = %d, want the page read again and listed", tab.err, tab.items)
+	}
+}
+
+func TestWorkReloadWhilePaging(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	manyPulls(svc)
+	s := newSection(t, svc, nil, 140, 24)
+	press(t, s, "3")
+	cmd := downUntilPage(t, s)
+	// The list is read again while the page is in flight.
+	s.tasks.set(svc.work)
+	run(t, s, cmd)
+	tab := &s.tasks.tabs[0]
+	if tab.items != 20 {
+		t.Errorf("items = %d, want the page that was read before the list dropped", tab.items)
+	}
+	seen := map[string]bool{}
+	for _, r := range tab.rows[:tab.items] {
+		if seen[r.hit.Issue.URL] {
+			t.Errorf("%s is listed twice", r.hit.Issue.URL)
+		}
+		seen[r.hit.Issue.URL] = true
+	}
+}
+
+func TestWorkReloadKeepsPages(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	manyPulls(svc)
+	s := newSection(t, svc, nil, 140, 24)
+	press(t, s, "3")
+	run(t, s, downUntilPage(t, s))
+	tab := &s.tasks.tabs[0]
+	for tab.sel < tab.items-1 {
+		press(t, s, "down")
+	}
+	if tab.items != 21 {
+		t.Fatalf("items = %d, want the second page listed", tab.items)
+	}
+	s.tasks.set(svc.work)
+	if tab.items != 21 || tab.sel != 20 || tab.next != "" {
+		t.Errorf("items = %d, sel = %d, next = %q, want the pages and the cursor kept", tab.items, tab.sel, tab.next)
+	}
+}
+
+func TestWorkStalePageRead(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	pagedWork(svc)
+	svc.stalePages = map[string]bool{"c1": true}
+	s := newSection(t, svc, nil, 140, 50)
+	press(t, s, "3")
+	reads := 0
+	for _, c := range svc.calls {
+		if c == "work page c1" {
+			reads++
+		}
+	}
+	if reads != 2 {
+		t.Errorf("the kept page was read %d times, want 2: %v", reads, svc.calls)
+	}
+	if view := screen(s); strings.Count(view, "Second page pull request") != 1 {
+		t.Errorf("the page isn't listed once:\n%s", view)
+	}
+}
+
 func TestInbox(t *testing.T) {
 	in := &fakeInbox{threads: inboxThreads()}
 	s := newSection(t, newFake(), in, 140, 38)

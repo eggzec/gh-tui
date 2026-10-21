@@ -65,6 +65,12 @@ func (s *Section) readWork(again bool) tea.Cmd {
 type workPage struct {
 	list int
 	work core.Work
+	// cursor is the page, epoch the listing of the first page it was read
+	// after, and again is set for a page read again after a kept one, which
+	// replaces it.
+	cursor string
+	epoch  int
+	again  bool
 }
 
 // readWorkPage reads the page after the items of list i, if it is due.
@@ -73,27 +79,43 @@ func (s *Section) readWorkPage(i int) tea.Cmd {
 	if t.next == "" || t.loading {
 		return nil
 	}
+	return s.readPage(i, t.next, false)
+}
+
+// readPage reads the page at cursor of list i. A page read again after a
+// kept one sets again.
+func (s *Section) readPage(i int, cursor string, again bool) tea.Cmd {
+	t := &s.tasks.tabs[i]
 	t.loading, t.err = true, nil
-	q := dashboard.WorkQuery{List: core.WorkKind(i), Cursor: t.next}
+	q := dashboard.WorkQuery{List: core.WorkKind(i), Cursor: cursor, Again: again}
+	epoch := t.epoch
 	return readCmd(s, kindWorkPage, "dashboard.work.page", func(ctx context.Context) (workPage, served, error) {
 		w, err := s.svc.Work(ctx, q)
-		return workPage{list: i, work: w}, served{w.Stale, w.Offline, w.Limited}, err
+		return workPage{list: i, work: w, cursor: cursor, epoch: epoch, again: again}, served{w.Stale, w.Offline, w.Limited}, err
 	})
 }
 
 // workPaged takes the page of a list of work, or the reason it failed, and
-// goes on to the page after it while the cursor is still near the end.
+// goes on to the page after it while the cursor is still near the end. A
+// page that was kept is read again first. One read before the first page was
+// listed again is dropped.
 func (s *Section) workPaged(msg loadedMsg) tea.Cmd {
 	p, _ := msg.value.(workPage)
 	if p.list < 0 || p.list >= len(s.tasks.tabs) {
 		return nil
 	}
+	t := &s.tasks.tabs[p.list]
+	if p.epoch != t.epoch {
+		return nil
+	}
 	if msg.err != nil {
-		t := &s.tasks.tabs[p.list]
 		t.loading, t.err = false, msg.err
 		return nil
 	}
-	s.tasks.appendPage(p.list, workLists[p.list].list(&p.work))
+	s.tasks.appendPage(p.list, workLists[p.list].list(&p.work), p.again)
+	if p.work.Stale && !p.again {
+		return s.readPage(p.list, p.cursor, true)
+	}
 	return s.moreWork()
 }
 
