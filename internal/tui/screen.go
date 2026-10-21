@@ -198,14 +198,15 @@ func (m *Model) drawFrame(p *pane) {
 // width.
 func (m *Model) foot(p *pane) (strip string, width int) {
 	keys := make([]string, len(m.panes))
+	titles := make([]string, len(m.panes))
 	cur := -1
 	for i, q := range m.panes {
-		keys[i] = q.key
+		keys[i], titles[i] = q.key, q.label
 		if q == p {
 			cur = i
 		}
 	}
-	return ownerui.Digits(keys, cur, ownerui.NewPaint(m.st.focusTitle), ownerui.NewPaint(m.theme.Subtle))
+	return ownerui.Foot(keys, [][]string{titles}, cur, ownerui.NewPaint(m.st.focusTitle), ownerui.NewPaint(m.theme.Subtle), p.width-5)
 }
 
 func (m *Model) drawFrames() {

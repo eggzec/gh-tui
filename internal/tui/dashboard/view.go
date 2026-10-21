@@ -205,7 +205,7 @@ func (s *Section) foot() (label string, width int) {
 	for i := range numPanes {
 		keys[i] = s.keyLabel(i)
 	}
-	return ownerui.Digits(keys[:], int(s.focus), s.st.focusTitle, s.st.shared.Subtle)
+	return ownerui.Foot(keys[:], [][]string{paneTitles[:], shortTitles[:]}, int(s.focus), s.st.focusTitle, s.st.shared.Subtle, s.width-5)
 }
 
 // paneLabel is the label of pane p, with its key before it, such as
