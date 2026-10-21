@@ -24,6 +24,9 @@ type Icons struct {
 	Fork, Private, Archived, Template, Mirror, Here string
 	// Star marks a count of stars.
 	Star string
+	// Repo, Person and Org lead a repository, a user and an organization
+	// where they are listed together, such as in search results.
+	Repo, Person, Org string
 	// Error marks what went wrong, as ErrorLine shows it.
 	Error string
 	// Separator goes between the text of an error and its hint, and
@@ -155,7 +158,7 @@ func newIcons(set string) Icons {
 	case config.IconsUnicode:
 		return Icons{
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
-			Star: "★", Error: "✗", Separator: " · ", Ellipsis: "…",
+			Star: "★", Repo: "◫", Person: "☺", Org: "▦", Error: "✗", Separator: " · ", Ellipsis: "…",
 			Yes: "✓", No: "✗", Info: "•",
 			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Changed: "↻",
 			ChangesRequested: "±", ReviewRequired: "•",
@@ -168,7 +171,7 @@ func newIcons(set string) Icons {
 	case config.IconsASCII:
 		return Icons{
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
-			Star: "*", Error: "x", Separator: " - ", Ellipsis: "...",
+			Star: "*", Repo: "R", Person: "@", Org: "#", Error: "x", Separator: " - ", Ellipsis: "...",
 			Yes: "+", No: "x", Info: "i",
 			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Changed: "~",
 			ChangesRequested: "~", ReviewRequired: "?",
@@ -184,7 +187,8 @@ func newIcons(set string) Icons {
 		// of Devicons and Seti.
 		return Icons{
 			Fork: "\uf402", Private: "\uf456", Archived: "\uf411", Template: "\uf509", Mirror: "\uf41a", Here: "\uf46d",
-			Star:  "\uf41e",
+			Star: "\uf41e",
+			Repo: "\uf401", Person: "\uf415", Org: "\uf47a", // oct-repo, oct-person, oct-organization
 			Error: "\uf530", Separator: " · ", Ellipsis: "…",
 			Yes: "\uf42e", No: "\uf467", Info: "\uf449", // oct-check, oct-x, oct-info
 			// oct-triangle_right and oct-triangle_down, as the fold marks

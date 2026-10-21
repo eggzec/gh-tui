@@ -20,7 +20,7 @@ var iconSets = []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII
 // marks returns the glyphs of ic that mark something, each one cell wide.
 func marks(ic Icons) []string {
 	return slices.Concat([]string{
-		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Error, ic.Language(""),
+		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Repo, ic.Person, ic.Org, ic.Error, ic.Language(""),
 		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded, ic.Marked,
 		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent,
 	}, ic.states[:], ic.runs[:], ic.glyphs[:], slices.Collect(maps.Values(ic.langs)))
@@ -31,6 +31,21 @@ func TestIconsAreOneCellWide(t *testing.T) {
 		for _, g := range marks(NewIcons(set)) {
 			if w := ansi.StringWidth(g); w != 1 || len([]rune(g)) != 1 {
 				t.Errorf("%s: glyph %q is %d cells wide, want 1", set, g, w)
+			}
+		}
+	}
+}
+
+func TestRepoPersonOrgGlyphsAreDistinct(t *testing.T) {
+	for _, set := range iconSets {
+		ic := NewIcons(set)
+		got := []string{ic.Repo, ic.Person, ic.Org}
+		for i, g := range got {
+			if g == "" {
+				t.Errorf("%s: glyph %d is empty", set, i)
+			}
+			if slices.Index(got, g) != i {
+				t.Errorf("%s: glyph %q is used twice", set, g)
 			}
 		}
 	}
