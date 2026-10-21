@@ -39,7 +39,7 @@ func TestOverEveryModal(t *testing.T) {
 				// A key that shows another screen is refused, naming the
 				// modal and what the key does.
 				for _, tt := range []struct{ key, use string }{
-					{"0", "the dashboard"}, {"S", "search"}, {".", "the repository"},
+					{"0", "the dashboard"}, {".", "the repository"},
 				} {
 					m.toast.Clear()
 					screen := m.screen
@@ -79,7 +79,7 @@ func TestOverEveryModal(t *testing.T) {
 					t.Errorf("commands: set over %s didn't run: files.markdown is %q", mod.title, m.cfg.Files.Markdown)
 				}
 				same("set")
-				for _, line := range []string{"goto cli/cli", "search", "find_file", "auth", "history"} {
+				for _, line := range []string{"goto cli/cli", "find_file", "auth", "history"} {
 					m.toast.Clear()
 					runCommand(t, m, line)
 					name, _, _ := strings.Cut(line, " ")
@@ -107,6 +107,14 @@ func TestOverEveryModal(t *testing.T) {
 				driveKeys(t, m, m.key(press("q")))
 				if m.modal != nil {
 					t.Errorf("quit: q left the modal open")
+				}
+
+				// The search runs over every modal and closes it.
+				m = keysAfter(t, true, mod.steps...)
+				open = m.modal
+				runCommand(t, m, "search")
+				if m.modal == open || m.searchHost() == nil {
+					t.Errorf("search: over %s left %v, want the modal closed and the search shown", mod.title, m.modal)
 				}
 			})
 		})

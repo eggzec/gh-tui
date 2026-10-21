@@ -12,8 +12,8 @@ func TestDigitsNeverSwitchScreens(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "tab", "1")
-		if m.screen != searchScreen {
-			t.Errorf("1 on the search page opened screen %d", m.screen)
+		if m.searchHost() == nil {
+			t.Errorf("1 on the search page left it for screen %d", m.screen)
 		}
 		if got := focusOf(m); got != `search: query ""` {
 			t.Errorf("1 on the kinds reached %s, want the query", got)

@@ -2,7 +2,6 @@ package tui
 
 import (
 	"slices"
-	"strings"
 	"testing"
 	"testing/synctest"
 
@@ -113,9 +112,10 @@ func TestRepoKeyOnASearchResult(t *testing.T) {
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
+		was := m.screen
 		pressKeys(t, m, ".")
-		if m.screen != repoScreen || m.repo != testRepo {
-			t.Errorf("screen %d with %v, want the repository screen of %v", m.screen, m.repo, testRepo)
+		if m.searchHost() == nil || m.screen != was {
+			t.Errorf("the repo key over the search modal moved to screen %d, want it to do nothing", m.screen)
 		}
 	})
 }
@@ -185,12 +185,9 @@ func TestRepoKeyOnASearchResultKeepsTheQuery(t *testing.T) {
 		if got := focusOf(m); got != `search: results "qzx"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
-		pressKeys(t, m, ".", "S")
-		if got := focusOf(m); got != `search: query ""` {
-			t.Fatalf("after the search key the page is at %s, want an empty query", got)
-		}
-		if s := onScreen(m); !strings.Contains(s, "qzx") {
-			t.Errorf("the recent searches lack the query:\n%s", s)
+		pressKeys(t, m, ".")
+		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Query() != "qzx" {
+			t.Errorf("the repo key over the search modal changed it: screen %d", m.screen)
 		}
 	})
 }
@@ -202,15 +199,15 @@ func TestBackspaceOnTheSearchPage(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "backspace")
-		if m.screen != searchScreen || m.srch.section.(*searchpage.Section).Query() != "ke" {
+		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Query() != "ke" {
 			t.Fatalf("backspace while typing: screen %d, query %q, want the page with ke", m.screen, m.srch.section.(*searchpage.Section).Query())
 		}
 		pressKeys(t, m, "esc", "backspace")
-		if m.screen == searchScreen {
+		if m.searchHost() != nil {
 			t.Error("backspace in the results didn't go back")
 		}
 		pressKeys(t, m, "S", "backspace")
-		if m.screen == searchScreen {
+		if m.searchHost() != nil {
 			t.Error("backspace on the query in normal mode didn't go back")
 		}
 	})
@@ -227,11 +224,10 @@ func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 		if got := focusOf(m); got != `search: query "key"` {
 			t.Fatalf("the keys reach %s, want the query in normal mode", got)
 		}
-		if m.keys.state(m).Repo.Enabled() {
-			t.Error("the repo key is on with the query focused")
-		}
+		// The repo key is enabled in the search modal; what matters is that
+		// it does nothing with no result selected, checked below.
 		pressKeys(t, m, ".")
-		if m.screen != searchScreen {
+		if m.searchHost() == nil {
 			t.Errorf("screen = %d, want the search page still", m.screen)
 		}
 	})

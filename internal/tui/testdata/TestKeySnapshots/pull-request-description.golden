@@ -7,7 +7,6 @@ global
   back | backspace | backspace | off
   dashboard | 0 | 0 | off
   notifications | I | I | off
-  search | S | S | off
   this repo | . | . | off
   help | ? | ? | on
 

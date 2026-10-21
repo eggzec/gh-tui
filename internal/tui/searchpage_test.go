@@ -2,7 +2,6 @@ package tui
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -12,75 +11,74 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
-// newSearchApp returns an app of fake sections with a dashboard and a
-// search page, on an 80x24 terminal, opened on repo if it isn't zero. The
-// search page is the last fake.
+// newSearchApp returns an app of fake sections with a dashboard and a real
+// search section, on an 80x24 terminal, opened on repo if it isn't zero. The
+// search shows in a modal, so it needs the section itself.
 func newSearchApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 	t.Helper()
+	cfg := config.Default()
 	fakes := []*fakeSection{
 		{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"},
-		{title: ui.DashboardTitle}, {title: ui.SearchTitle},
+		{title: ui.DashboardTitle},
 	}
-	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4], Search: fakes[5]}
+	layout := Layout{
+		Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4],
+		Search: searchpage.New(t.Context(), keySearch{}, cfg.Keys),
+	}
 	var opts []Option
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, WithRepo(repo))
 	}
-	m := New(t.Context(), config.Default(), layout, opts...)
+	m := New(t.Context(), cfg, layout, opts...)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m, fakes
 }
 
-func TestSearchKeyShowsThePage(t *testing.T) {
+func TestSearchKeyShowsTheModal(t *testing.T) {
 	t.Parallel()
 	for _, start := range []core.RepoRef{testRepo, {}} {
-		m, fakes := newSearchApp(t, start)
+		m, _ := newSearchApp(t, start)
 		was := m.screen
 		run(m, m.key(press("S")))
-		if m.screen != searchScreen || !fakes[5].focused || fakes[5].inits != 1 {
-			t.Fatalf("/ didn't show the search page: screen %d, focused %v", m.screen, focusedTitles(fakes))
-		}
-		if d := fakes[5]; d.width != 80 || d.height != 22 {
-			t.Errorf("the page is %dx%d, want the whole screen of 80x22", d.width, d.height)
-		}
-		if s := onScreen(m); !strings.Contains(s, "─ Search ─") {
-			t.Errorf("the header should name the page:\n%s", s)
+		if m.searchHost() == nil || m.screen != was {
+			t.Fatalf("S didn't show the search in a modal: modal %v, screen %d, want %d", m.modal, m.screen, was)
 		}
 		// The query types backspace, so leave it first.
 		run(m, m.key(press("esc")))
 		run(m, m.key(press("backspace")))
-		if m.screen != was {
-			t.Errorf("backspace went to screen %d, want %d", m.screen, was)
+		if m.searchHost() != nil || m.screen != was {
+			t.Errorf("backspace left modal %v on screen %d, want the search closed on %d", m.modal, m.screen, was)
 		}
 	}
 }
 
-func TestSearchKeyOnThePageFocusesTheQuery(t *testing.T) {
+func TestSearchKeyInTheModalFocusesTheQuery(t *testing.T) {
 	t.Parallel()
-	m, fakes := newSearchApp(t, testRepo)
+	m, _ := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
-	fakes[5].focused = false
-	run(m, m.key(press("S")))
-	if m.screen != searchScreen || !fakes[5].focused {
-		t.Error("/ on the page should focus it again")
+	run(m, m.key(press("i")))
+	if got := focusOf(m); got != `search: typing ""` {
+		t.Errorf("S in the modal left the focus at %s, want the query typing", got)
 	}
 }
 
-func TestSearchPageCapturesKeys(t *testing.T) {
+func TestSearchModalCapturesKeys(t *testing.T) {
 	t.Parallel()
-	m, fakes := newSearchApp(t, testRepo)
+	m, _ := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
-	fakes[5].capturing = true
-	for _, k := range []string{"q", "n", "0", "tab"} {
-		if cmd := m.key(press(k)); cmd != nil {
-			t.Errorf("%s returned a command of the app", k)
+	run(m, m.key(press("i")))
+	for _, k := range []string{"q", "n", "0"} {
+		drive(m, m.key(press(k)))
+		if m.searchHost() == nil {
+			t.Fatalf("%s closed the search while the query types", k)
 		}
-		if m.screen != searchScreen || !fakes[5].got(isKey(k)) {
-			t.Errorf("%s should reach the page while it captures", k)
-		}
+	}
+	if got := m.srch.section.(*searchpage.Section).Query(); got != "qn0" {
+		t.Errorf("the query is %q, want the typed keys", got)
 	}
 }
 
@@ -92,20 +90,18 @@ func TestRepoFromSearch(t *testing.T) {
 	if m.screen != repoScreen || !fakes[0].focused {
 		t.Fatalf("a repository chosen in the search should show its files: screen %d", m.screen)
 	}
-	run(m, m.key(press("S")))
-	if m.screen != searchScreen {
-		t.Error("/ should bring the search back")
+	if m.modal != nil {
+		t.Errorf("the search stays open over the repository: %v", m.modal)
 	}
-	m.Update(ui.ShowMsg{Title: ui.DashboardTitle})
-	m.Update(ui.ShowMsg{Title: ui.SearchTitle})
-	if m.screen != searchScreen {
-		t.Error("ShowMsg didn't show the search page")
+	run(m, m.key(press("S")))
+	if m.searchHost() == nil {
+		t.Error("S should bring the search back")
 	}
 }
 
 // TestPreviewFromSearch opens what the search found in the modals of the
-// sections that own them: over the page, which stays on view with the
-// focus, and comes back once the modal closes.
+// sections that own them: over the search, which comes back once the modal
+// closes.
 func TestPreviewFromSearch(t *testing.T) {
 	t.Parallel()
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
@@ -122,113 +118,127 @@ func TestPreviewFromSearch(t *testing.T) {
 			m, fakes := newSearchApp(t, testRepo)
 			mod := &fakeModal{title: tt.name}
 			fakes[tt.owner].reply = func(msg tea.Msg) tea.Cmd {
+				// The root sets the modal that the new one replaces before
+				// the section sees the message.
+				switch o := msg.(type) {
+				case ui.OpenPullMsg:
+					o.Back = nil
+					msg = o
+				case ui.OpenIssueMsg:
+					o.Back = nil
+					msg = o
+				}
 				if msg == tt.open {
 					return ui.OpenModal(mod)
 				}
 				return nil
 			}
 			run(m, m.key(press("S")))
+			search := m.modal
 			run(m, func() tea.Msg { return tt.open })
-			if m.topModal() != mod || m.screen != searchScreen || m.repo != testRepo {
+			if m.topModal() != mod || m.screen != repoScreen || m.repo != testRepo {
 				t.Fatalf("modal %v on screen %d for %v, want the %s over the search, with the repository kept",
 					m.topModal(), m.screen, m.repo, tt.name)
 			}
-			if !fakes[5].focused {
-				t.Error("the search page should keep the focus under the modal")
-			}
-			fakes[5].msgs = nil
 			run(m, m.key(press("j")))
-			if fakes[5].got(isKey("j")) || !slices.Contains(mod.keys(), "j") {
+			if !slices.Contains(mod.keys(), "j") {
 				t.Error("the modal should take the keys while it is open")
 			}
 			m.refreshBar()
-			if len(m.hints) != 2 || ansi.Strip(m.hints[0].Forms[0]) != "? help" || !strings.HasSuffix(ansi.Strip(m.hints[1].Forms[0]), "close") {
+			if len(m.hints) != 2 || ansi.Strip(m.hints[0].Forms[0]) != "? help" {
 				t.Errorf("the status bar offers %d keys, want the help and the modal's alone", len(m.hints))
 			}
 			run(m, ui.CloseModal(mod))
-			if m.topModal() != nil || m.screen != searchScreen || !fakes[5].focused {
-				t.Errorf("after the modal closed: modal %v on screen %d, want the search page", m.topModal(), m.screen)
+			if m.topModal() != search || m.searchHost() == nil {
+				t.Fatalf("modal %v after the %s closed, want the search back", m.topModal(), tt.name)
 			}
-			run(m, m.key(press("j")))
-			if !fakes[5].got(isKey("j")) {
-				t.Error("the page should take the keys again once the modal closed")
+			run(m, m.key(press("i")))
+			if got := focusOf(m); got != `search: typing ""` {
+				t.Errorf("the search came back with the focus at %s, want the query typing", got)
 			}
 		})
 	}
 }
 
-// fakeSearch is a search page that records what it was asked to search
-// for.
 var (
 	_ Searcher = (*searchpage.Section)(nil)
 	_ Fresher  = (*searchpage.Section)(nil)
 )
 
-type fakeSearch struct {
-	fakeSection
-	queries []string
-	fresh   int
-	log     []string
-}
+// screenModal is a fake modal in a registered, non-capturing context, so
+// that the command line opens over it as it does over a real modal.
+type screenModal struct{ *fakeModal }
 
-func (f *fakeSearch) Fresh() { f.fresh++; f.log = append(f.log, "fresh") }
-
-func (f *fakeSearch) Search(query string) tea.Cmd {
-	f.queries = append(f.queries, query)
-	f.log = append(f.log, "search")
-	return nil
+func (s *screenModal) KeyLayers() []keyhelp.Layer {
+	l := s.fakeModal.KeyLayers()
+	l[0].Context = "history"
+	return l
 }
 
 func TestSearchCommand(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		line string
-		want []string
+		want string
 	}{
-		{line: "search", want: nil},
-		{line: "search bubble tea", want: []string{"bubble tea"}},
-		{line: "search   is:open   label:bug ", want: []string{"is:open   label:bug"}},
+		{line: "search", want: ""},
+		{line: "search bubble tea", want: "bubble tea"},
+		{line: "search   is:open   label:bug ", want: "is:open label:bug"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.line, func(t *testing.T) {
-			page := &fakeSearch{title: ui.SearchTitle}
-			fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
-			m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Search: page}, WithRepo(testRepo))
-			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+			m, _ := newSearchApp(t, testRepo)
 			runCommand(t, m, tt.line)
-			if m.screen != searchScreen || !page.focused || page.inits != 1 {
-				t.Fatalf("search didn't show the page as / does: screen %d, focused %v", m.screen, page.focused)
+			if m.searchHost() == nil {
+				t.Fatalf("search didn't show the modal as S does: modal %v", m.modal)
 			}
-			if !slices.Equal(page.queries, tt.want) {
-				t.Errorf("searched for %q, want %q", page.queries, tt.want)
-			}
-			wantLog := []string{"fresh"}
-			if len(tt.want) > 0 {
-				wantLog = append(wantLog, "search")
-			}
-			if !slices.Equal(page.log, wantLog) {
-				t.Errorf("the page was asked %q, want %q: reset first, then search", page.log, wantLog)
+			if got := m.srch.section.(*searchpage.Section).Query(); got != tt.want {
+				t.Errorf("searched for %q, want %q", got, tt.want)
 			}
 		})
 	}
-	t.Run("no search page", func(t *testing.T) {
+	t.Run("no search", func(t *testing.T) {
 		m, _ := newTestApp(t)
 		runCommand(t, m, "search tea")
-		if m.screen != repoScreen || !hasToast(m, "There is no search page.") {
+		if m.screen != repoScreen || !hasToast(m, "There is no search.") {
 			t.Errorf("screen %d, toasts %q", m.screen, toasted(m))
+		}
+	})
+	t.Run("over a modal", func(t *testing.T) {
+		m, _ := newSearchApp(t, testRepo)
+		mod := &screenModal{&fakeModal{title: "other"}}
+		m.openModal(mod)
+		runCommand(t, m, "search foo")
+		if m.isOpen(mod) || m.searchHost() == nil {
+			t.Fatalf("search left modal %v open, want the modal closed and the search shown", m.modal)
+		}
+		if got := m.srch.section.(*searchpage.Section).Query(); got != "foo" {
+			t.Errorf("searched for %q, want foo", got)
+		}
+	})
+	t.Run("inside the search", func(t *testing.T) {
+		m, _ := newSearchApp(t, testRepo)
+		run(m, m.key(press("S")))
+		runCommand(t, m, "search bar")
+		if m.searchHost() == nil {
+			t.Fatalf("search closed the search: modal %v", m.modal)
+		}
+		if got := m.srch.section.(*searchpage.Section).Query(); got != "bar" {
+			t.Errorf("searched for %q, want bar", got)
 		}
 	})
 }
 
 func TestSearchKeyStartsFresh(t *testing.T) {
 	t.Parallel()
-	page := &fakeSearch{title: ui.SearchTitle}
-	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}, Search: page})
-	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	run(m, m.Init())
+	m, _ := newSearchApp(t, testRepo)
 	drive(m, m.key(press("S")))
+	for _, k := range []string{"a", "b"} {
+		drive(m, m.key(press(k)))
+	}
+	drive(m, m.key(press("esc")))
 	drive(m, m.key(press("S")))
-	if page.fresh != 2 {
-		t.Errorf("the search key made the page start fresh %d times in 2 presses, want 2", page.fresh)
+	if got := m.srch.section.(*searchpage.Section).Query(); got != "" {
+		t.Errorf("the search key left the query %q, want it empty", got)
 	}
 }

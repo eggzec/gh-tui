@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 
 	"charm.land/bubbles/v2/spinner"
@@ -143,12 +144,12 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 		{name: "repo screen from the dashboard", app: dashApp, prep: func(m *Model, _ []*fakeSection) {
 			m.showScreen(repoScreen, 0)
 		}, open: true},
-		{name: "search page", app: searchApp, prep: func(m *Model, _ []*fakeSection) {
-			m.showScreen(searchScreen, 0)
+		{name: "search modal", app: searchApp, prep: func(m *Model, _ []*fakeSection) {
+			drive(m, m.key(press("S")))
 		}, open: true},
-		{name: "search box focused", app: searchApp, prep: func(m *Model, fakes []*fakeSection) {
-			m.showScreen(searchScreen, 0)
-			fakes[5].capturing = true
+		{name: "search box focused", app: searchApp, prep: func(m *Model, _ []*fakeSection) {
+			drive(m, m.key(press("S")))
+			drive(m, m.key(press("i")))
 		}},
 		{name: "section capturing", prep: func(_ *Model, fakes []*fakeSection) {
 			fakes[0].capturing = true
@@ -176,7 +177,9 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 			}
 			// The key goes where it went before, and types a colon there.
 			got := false
-			if f, ok := mod.(*fakeModal); ok {
+			if m.searchHost() != nil {
+				got = strings.Contains(m.srch.section.(*searchpage.Section).Query(), ":")
+			} else if f, ok := mod.(*fakeModal); ok {
 				got = strings.Contains(strings.Join(f.keys(), ""), ":")
 			} else if f, ok := p.section.(*fakeSection); ok {
 				got = f.got(isKey(":"))

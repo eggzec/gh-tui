@@ -51,9 +51,9 @@ func unbindPlaces() []unbindPlace {
 		{name: "dashboard zoomed", steps: []string{config.ActionZoom}, want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard filter", steps: []string{"dashboard_repos.filter"}, want: "global, filter"},
 		{name: "search", steps: []string{config.ActionSearch}, want: "global, search"},
-		{name: "search query", steps: []string{config.ActionSearch, "search.insert"}, want: "always, global, search_query (types)"},
+		{name: "search query", steps: []string{config.ActionSearch, "search.insert"}, want: "always, search_query (types)"},
 		// Showing the code kind asks for a code search.
-		{name: "search code", steps: []string{config.ActionSearch, "search.insert", "k", "e", "y", "search_query.cancel", config.ActionNextTab, config.ActionNextTab, config.ActionNextTab, config.ActionPane1, "search.insert", "s"}, want: "always, global, search_query (types)"},
+		{name: "search code", steps: []string{config.ActionSearch, "search.insert", "k", "e", "y", "search_query.cancel", config.ActionNextTab, config.ActionNextTab, config.ActionNextTab, config.ActionPane1, "search.insert", "s"}, want: "always, search_query (types)"},
 		{name: "search results", steps: []string{config.ActionSearch, "search.insert", "k", "e", "y", "search_query.submit"}, want: "global, search, search_results"},
 		{name: "owner", msg: octocat, want: "global, owner, owner_list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "global, owner, owner_list"},
