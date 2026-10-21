@@ -8,12 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// changedMsg tells the section that a modal changed a pull request of repo
-// in the cache, so that the list behind it shows the change at once.
-type changedMsg struct {
-	repo core.RepoRef
-}
-
 // openDetail opens the modal of pull request number of repo, on its Merge
 // pane if onChecks is set. pr is the list item, shown until the detail
 // arrives, or nil when there is none. The title names repo if showRepo is set
