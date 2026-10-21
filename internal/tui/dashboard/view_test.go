@@ -146,6 +146,36 @@ func TestInboxHint(t *testing.T) {
 	}
 }
 
+// A zoomed section leaves an unbound pane key out of its bottom edge.
+func TestZoomedDigitsUnbound(t *testing.T) {
+	cfg := config.Default()
+	cfg.Keys.Set("global.pane_5", []string{})
+	s := New(t.Context(), newFake(), cfg.Keys, WithNow(func() time.Time { return now }),
+		WithHere(here, nil), WithInbox(&fakeInbox{threads: inboxThreads()}))
+	p, err := cfg.Palette(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.SetTheme(ui.NewTheme(p, true))
+	s.SetSize(140, 38)
+	s.Focus()
+	run(t, s, s.Init())
+	press(t, s, "z")
+	lines := strings.Split(ansi.Strip(s.View()), "\n")
+	var edge string
+	for _, l := range lines {
+		if strings.Contains(l, "3 4") && strings.Contains(l, "╰") {
+			edge = l
+		}
+	}
+	if edge == "" {
+		t.Fatalf("no bottom edge lists the bound pane keys:\n%s", strings.Join(lines, "\n"))
+	}
+	if strings.Contains(edge, "5") {
+		t.Errorf("the bottom edge names the unbound pane 5: %q", edge)
+	}
+}
+
 func TestLayout(t *testing.T) {
 	tests := []struct {
 		name          string

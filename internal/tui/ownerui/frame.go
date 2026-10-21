@@ -12,7 +12,7 @@ import (
 // Digits is the strip of pane keys for the bottom edge of a frame, like the
 // pane strip of the pull request modal: the keys in order, the one of pane
 // cur in brackets and painted on, the others off. A pane with no key ("")
-// is left out. It returns the strip and its width, or "" when no pane has a
+// is left out, and when pane cur has no key, no key is in brackets. It returns the strip and its width, or "" when no pane has a
 // key.
 func Digits(keys []string, cur int, on, off Paint) (strip string, width int) {
 	var b strings.Builder
