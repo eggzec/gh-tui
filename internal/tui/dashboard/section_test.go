@@ -96,7 +96,7 @@ func TestCachedPaintsAtOnce(t *testing.T) {
 	svc := newFake()
 	svc.cached = true
 	s := New(t.Context(), svc, nil)
-	s.SetSize(140, 38)
+	setSize(s, 140, 38)
 	if view := screen(s); !strings.Contains(view, "Mona Lisa Octocat") || !strings.Contains(view, "Review requests 3") {
 		t.Errorf("before any read the dashboard should show the cache:\n%s", view)
 	}
@@ -141,7 +141,7 @@ func testServedEarlier(t *testing.T, limited bool, status string) {
 	svc := newFake()
 	svc.offline, svc.limited = !limited, limited
 	s := New(t.Context(), svc, nil)
-	s.SetSize(140, 38)
+	setSize(s, 140, 38)
 	s.Focus()
 	queue := []tea.Cmd{s.Init()}
 	for len(queue) > 0 {
@@ -306,7 +306,7 @@ func TestNarrowShowsTheFocusedPane(t *testing.T) {
 
 // The zoom engages at the terminal size the dashboard turns wide at, not
 // at the smaller height the app leaves it under its header and footer.
-func TestZoomEngagesAtThreshold(t *testing.T) {
+func TestNarrowBoundaryDashboard(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		width, height int // of the terminal
@@ -318,8 +318,8 @@ func TestZoomEngagesAtThreshold(t *testing.T) {
 	} {
 		s := newSection(t, newFake(), nil, tt.width, tt.height-chromeRows)
 		press(t, s, "z")
-		if s.wide != tt.wide || s.zoomed() != tt.wide {
-			t.Errorf("%dx%d: wide %v, zoomed %v, want %v", tt.width, tt.height, s.wide, s.zoomed(), tt.wide)
+		if s.zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
+			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.zoom.CanZoom(), s.zoomed(), tt.wide)
 		}
 	}
 }
@@ -354,7 +354,7 @@ func TestZoom(t *testing.T) {
 	}
 	for i, tt := range tests {
 		if tt.width > 0 {
-			s.SetSize(tt.width, tt.height)
+			setSize(s, tt.width, tt.height)
 		}
 		press(t, s, tt.keys...)
 		if s.zoom.User() != tt.zoom || s.focus != tt.focus {
@@ -394,13 +394,13 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
 			press(t, s, "z", "z")
-			s.SetSize(140, 38)
+			setSize(s, 140, 38)
 			if s.zoom.User() || !strings.Contains(screen(s), "Review requests") {
 				t.Errorf("zoom %v after z twice; want every pane", s.zoom.User())
 			}
-			s.SetSize(140, tt.height)
+			setSize(s, 140, tt.height)
 			press(t, s, "z")
-			s.SetSize(140, 38)
+			setSize(s, 140, 38)
 			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
 				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom.User(), tt.zoom, screen(s))
 			}
@@ -422,7 +422,7 @@ func TestZoomHelp(t *testing.T) {
 	if has("zoom") || !has("unzoom") {
 		t.Error("the zoomed help should name the zoom key for what it does, unzoom")
 	}
-	s.SetSize(80, 22)
+	setSize(s, 80, 22)
 	if has("zoom") || has("unzoom") {
 		t.Error("the help of a dashboard that shows one pane anyway should leave out the zoom")
 	}

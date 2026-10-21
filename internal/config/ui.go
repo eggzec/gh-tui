@@ -32,7 +32,23 @@ type UI struct {
 	Maximized []string `yaml:"maximized"`
 	// Conversation is how the conversation of a pull request opens.
 	Conversation Conversation `yaml:"conversation"`
+	// Wide is the size from which the screens show their panes side by
+	// side. A terminal narrower or lower shows one pane at a time.
+	Wide Wide `yaml:"wide"`
 }
+
+// Wide is the size of a terminal that is wide enough for the panes of a
+// screen to show side by side, in cells.
+type Wide struct {
+	Width  int `yaml:"width"`
+	Height int `yaml:"height"`
+}
+
+// The smallest size that [Wide] may name, so that a pane stays usable.
+const (
+	minWideWidth  = 40
+	minWideHeight = 10
+)
 
 // Toast is how long a toast stays before it goes on its own. An error
 // toast has no time: it stays until it is dismissed.
@@ -67,6 +83,12 @@ func (u UI) validate() error {
 	}
 	if u.ChordWait <= 0 {
 		errs = append(errs, fmt.Errorf("ui.chord_wait: must be longer than 0, got %v", u.ChordWait))
+	}
+	if u.Wide.Width < minWideWidth {
+		errs = append(errs, fmt.Errorf("ui.wide.width: must be at least %d, got %d", minWideWidth, u.Wide.Width))
+	}
+	if u.Wide.Height < minWideHeight {
+		errs = append(errs, fmt.Errorf("ui.wide.height: must be at least %d, got %d", minWideHeight, u.Wide.Height))
 	}
 	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate())
 	return errors.Join(errs...)

@@ -16,17 +16,11 @@ import (
 
 // Sizes of the page. From wideWidth by wideHeight cells it shows every
 // pane at once: the profile on top, the pinned cards below it, and below
-// them the list beside the README, over a user's calendar. Below that, or
-// zoomed, it shows the profile and the focused pane, whose frame names the
-// others. They are the dashboard's, so the two pages change layout at the
-// same size.
+// them the list beside the README, over a user's calendar. On a narrow
+// terminal, or zoomed, it shows the profile and the focused pane, whose
+// frame names the others. The root decides narrow (ui.wide), so the two
+// pages change layout at the same size.
 const (
-	wideWidth  = 100
-	wideHeight = 30
-	// chromeRows is what the app draws around the page, the header and the
-	// footer. The page is wide at a terminal of wideHeight rows, so it
-	// compares its own height with what is left of them.
-	chromeRows   = 2
 	pinnedHeight = ownerui.CardHeight + 2
 )
 
@@ -35,8 +29,6 @@ type box struct{ w, h int }
 
 // layout sizes the panes for the page's size.
 func (s *Section) layout() {
-	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
-	s.zoom.SetNarrow(!s.wide)
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
@@ -85,7 +77,7 @@ func (s *Section) onePane() bool { return s.zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A page too small for every pane
 // shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom.Zoomed() && s.wide }
+func (s *Section) zoomed() bool { return s.zoom.User() && s.zoom.CanZoom() }
 
 // render renders the profile and every pane, and the page from them.
 func (s *Section) render() {

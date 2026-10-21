@@ -61,7 +61,7 @@ func TestView(t *testing.T) {
 func TestViewStates(t *testing.T) {
 	t.Run("loading", func(t *testing.T) {
 		s := New(t.Context(), newFake(), config.Default().Keys, WithNow(func() time.Time { return now }))
-		s.SetSize(140, 38)
+		setSize(s, 140, 38)
 		s.Focus()
 		golden.RequireEqual(t, s.View())
 	})
@@ -130,7 +130,7 @@ func TestInboxHint(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.SetTheme(ui.NewTheme(p, true))
-			s.SetSize(tt.width, tt.height)
+			setSize(s, tt.width, tt.height)
 			s.Focus()
 			run(t, s, s.Init())
 			press(t, s, tt.keys...)
@@ -157,7 +157,7 @@ func TestZoomedDigitsUnbound(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.SetTheme(ui.NewTheme(p, true))
-	s.SetSize(140, 38)
+	setSize(s, 140, 38)
 	s.Focus()
 	run(t, s, s.Init())
 	press(t, s, "z")

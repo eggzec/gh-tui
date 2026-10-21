@@ -84,7 +84,7 @@ func TestBackIsBounded(t *testing.T) {
 
 // The zoom engages at the terminal size the page turns wide at, not at the
 // smaller height the app leaves it under its header and footer.
-func TestZoomEngagesAtThreshold(t *testing.T) {
+func TestNarrowBoundaryOwner(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
 		width, height int // of the terminal
@@ -96,8 +96,8 @@ func TestZoomEngagesAtThreshold(t *testing.T) {
 	} {
 		s := newSection(t, newFake(), "octocat", tt.width, tt.height-chromeRows)
 		press(t, s, "z")
-		if s.wide != tt.wide || s.zoomed() != tt.wide {
-			t.Errorf("%dx%d: wide %v, zoomed %v, want %v", tt.width, tt.height, s.wide, s.zoomed(), tt.wide)
+		if s.zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
+			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.zoom.CanZoom(), s.zoomed(), tt.wide)
 		}
 	}
 }

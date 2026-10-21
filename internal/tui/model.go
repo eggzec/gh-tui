@@ -136,6 +136,9 @@ type Model struct {
 	chord chordState
 	// chordWait is how long that key waits, as the settings last said.
 	chordWait time.Duration
+	// wide is the size from which the screens show their panes side by
+	// side, as the settings last said.
+	wide config.Wide
 
 	toast toast.Model
 	// toastTimes is what the toasts were last given, to give them only a change.
@@ -375,6 +378,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		toast:      toast.New(cfg.UI.Toast.Info, 0),
 		toastTimes: cfg.UI.Toast,
 		chordWait:  cfg.UI.ChordWait,
+		wide:       cfg.UI.Wide,
 		keyhelp:    newHelp(cfg.Keys),
 		status:     statusbar.New(),
 		line:       newLine(cfg.Keys, cfg.Commands.History),

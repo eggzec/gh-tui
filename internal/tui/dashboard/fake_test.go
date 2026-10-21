@@ -490,10 +490,22 @@ func newSection(tb testing.TB, svc Service, in Inbox, width, height int, opts ..
 		tb.Fatal(err)
 	}
 	s.SetTheme(ui.NewTheme(p, true))
-	s.SetSize(width, height)
+	setSize(s, width, height)
 	s.Focus()
 	run(tb, s, s.Init())
 	return s
+}
+
+// chromeRows is what the app draws around the dashboard, the header and the
+// footer.
+const chromeRows = 2
+
+// setSize sizes s to width by height as the app does: it is narrow where the
+// terminal, chromeRows taller, is under the default wide size.
+func setSize(s *Section, width, height int) {
+	wide := config.Default().UI.Wide
+	s.SetNarrow(width < wide.Width || height+chromeRows < wide.Height)
+	s.SetSize(width, height)
 }
 
 // run executes cmd and gives every resulting message to s, the way the app

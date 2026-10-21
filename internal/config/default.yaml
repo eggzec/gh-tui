@@ -59,6 +59,12 @@ ui:
     # changes, deleted head), references and milestones. For now it draws only
     # comments and reviews, so the other kinds change nothing yet.
     filter: [comments, reviews, pushes, labels, people, state, branch, references, milestones]
+  # The size of a terminal, in cells, from which the screens show their panes
+  # side by side. A terminal narrower than width or lower than height shows
+  # one pane at a time, and the zoom key is off. At least 40 wide and 10 high.
+  wide:
+    width: 100
+    height: 30
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
