@@ -24,7 +24,7 @@ func TestOpenJobMsgOpensTheActionsOnTheJob(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
 	for _, focus := range []bool{false, true} {
-		m.zoom = focus // the pane that sent it doesn't matter
+		m.zoom.SetZoom(focus) // the pane that sent it doesn't matter
 		cmd := m.Update(checktree.OpenJobMsg{SHA: checkSHA, RunID: 7, JobID: 9})
 		if cmd == nil {
 			t.Fatal("OpenJobMsg returned no command")

@@ -60,8 +60,12 @@ type panesModal struct {
 	// focus is the focused pane, zoom whether it fills the area, and sub
 	// which of its list and preview has the focus, per pane.
 	focus panes.Pane
-	zoom  bool
+	zoom  panes.Zoom
 	sub   [panes.Count]panes.Role
+	// narrow is whether the terminal is narrow, which the app says. The
+	// zoom is forced then, and while the modal's own area is under
+	// panes.WideMin.
+	narrow bool
 
 	// slots are what the panes are made of. hover is the row each pane's
 	// preview shows, and previews how far each row's preview is scrolled,
@@ -268,8 +272,12 @@ func (m *panesModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.zoom.SetNarrow(m.narrow || m.width < panes.WideMin)
 	m.resizeFilesDiff()
 }
+
+// SetNarrow implements ui.Narrower: it takes effect at the next SetSize.
+func (m *panesModal) SetNarrow(narrow bool) { m.narrow = narrow }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
@@ -496,9 +504,13 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.resetSub()
 	case keymap.Matches(msg, k.zoom):
 		if m.canZoom() {
-			m.zoom = !m.zoom
+			m.zoom.Toggle()
 			m.resetSub()
 		}
+	case m.zoom.User() && m.zoom.CanZoom() && keymap.Matches(msg, k.cancel):
+		// Backspace undoes the user's zoom; a forced one stays.
+		m.zoom.SetZoom(false)
+		m.resetSub()
 	case keymap.Matches(msg, k.back):
 		return m.close()
 	case keymap.Matches(msg, k.review):
@@ -569,12 +581,12 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
-	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom, DevelopmentRows: m.devRows()})
+	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom.Zoomed(), DevelopmentRows: m.devRows()})
 }
 
-// canZoom reports whether the panes are wide enough to zoom: below that
-// they are zoomed anyway.
-func (m *panesModal) canZoom() bool { return m.width >= panes.WideMin }
+// canZoom reports whether the zoom key does something: not while a narrow
+// terminal or a small modal forces the zoom.
+func (m *panesModal) canZoom() bool { return m.zoom.CanZoom() }
 
 // inPreview reports whether the preview of the focused pane is shown in l
 // and has the focus.

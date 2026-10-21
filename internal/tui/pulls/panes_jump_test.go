@@ -209,10 +209,10 @@ func TestMergeFocusReviewLandsOnReview(t *testing.T) {
 func TestJumpKeepsZoom(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
-	m.zoom = true
+	m.zoom.SetZoom(true)
 	run(m, m.jumpConv(convWant{login: "ann"}))
-	if !m.zoom || m.focus != panes.Conversation {
-		t.Errorf("zoom %v, focus %v; want the Conversation, zoomed", m.zoom, m.focus)
+	if !m.zoom.Zoomed() || m.focus != panes.Conversation {
+		t.Errorf("zoom %v, focus %v; want the Conversation, zoomed", m.zoom.Zoomed(), m.focus)
 	}
 }
 

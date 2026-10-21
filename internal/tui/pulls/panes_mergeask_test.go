@@ -61,7 +61,8 @@ func TestModalMergeKeyOpensTheListsDialogFromAnyPane(t *testing.T) {
 func TestModalMergeKeyWorksInAPreview(t *testing.T) {
 	t.Parallel()
 	h, m := modalToMerge(t, newFakeService())
-	m.focus, m.zoom = panes.Files, true
+	m.focus = panes.Files
+	m.zoom.SetZoom(true)
 	m.sub[panes.Files-1] = panes.Preview
 	if !m.inPreview(m.layout()) {
 		t.Fatal("the modal isn't in a preview")

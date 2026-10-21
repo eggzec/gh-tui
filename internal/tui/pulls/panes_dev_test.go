@@ -103,7 +103,7 @@ func TestDevelopmentShowsRowsUnzoomed(t *testing.T) {
 	h := started(t, newFakeService(), 160, 50, WithDevelopment(&fakeDev{links: devLinks()}))
 	press(t, h, "enter")
 	press(t, h, "5")
-	if m := h.modal(); m == nil || m.zoom {
+	if m := h.modal(); m == nil || m.zoom.Zoomed() {
 		t.Fatalf("the modal is zoomed: %+v", m)
 	}
 	s := modalScreen(t, h)
@@ -149,7 +149,7 @@ func TestDevelopmentBackKeepsState(t *testing.T) {
 	press(t, h, "z")
 	press(t, h, "down")
 	press(t, h, "down")
-	zoom, focus := m.zoom, m.focus
+	zoom, focus := m.zoom.Zoomed(), m.focus
 	it, _ := m.dev.model.Selected()
 	at := it.Ref.Target
 	got := opened[ui.OpenIssueMsg](press(t, h, "enter"))
@@ -157,8 +157,8 @@ func TestDevelopmentBackKeepsState(t *testing.T) {
 		t.Fatalf("the issue didn't open over the modal: %+v", got)
 	}
 	// The modal is kept as it was, for the back key to return to.
-	if m.zoom != zoom || m.focus != focus {
-		t.Fatalf("zoom, focus = %v, %v; want %v, %v", m.zoom, m.focus, zoom, focus)
+	if m.zoom.Zoomed() != zoom || m.focus != focus {
+		t.Fatalf("zoom, focus = %v, %v; want %v, %v", m.zoom.Zoomed(), m.focus, zoom, focus)
 	}
 	if now, _ := m.dev.model.Selected(); now.Ref.Target != at {
 		t.Fatalf("cursor moved from %+v to %+v", at, now.Ref.Target)
@@ -175,7 +175,7 @@ func TestDevelopmentKeysFallThrough(t *testing.T) {
 	}
 	press(t, h, "5")
 	press(t, h, "z")
-	if !m.zoom {
+	if !m.zoom.Zoomed() {
 		t.Fatal("z didn't zoom")
 	}
 	press(t, h, "2")

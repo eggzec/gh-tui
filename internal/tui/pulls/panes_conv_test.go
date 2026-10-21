@@ -172,7 +172,7 @@ func TestConvPaneModalKeysWin(t *testing.T) {
 	}
 	m.focus = panes.Conversation
 	m.press(keyMsg("z"))
-	if !m.zoom {
+	if !m.zoom.Zoomed() {
 		t.Error("z didn't zoom the conversation")
 	}
 }
