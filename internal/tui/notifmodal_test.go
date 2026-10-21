@@ -65,12 +65,16 @@ func TestNotificationsModalKeepsItsOverlays(t *testing.T) {
 				t.Fatalf("%s opened nothing over the notifications", key)
 			}
 			if key != "f" {
-				// The sort and group modals take backspace and esc
-				// themselves; how they return is still to be pinned.
+				for _, back := range []string{"backspace", "esc"} {
+					tap(t, m, back)
+					if m.modal != host {
+						t.Fatalf("%s after %s left %v, want the notifications", back, key, m.modal)
+					}
+					tap(t, m, key)
+				}
 				tap(t, m, "esc")
-				if m.modal == nil {
-					m = keysAfter(t, true, "global.notifications")
-					host = m.modal
+				if m.modal != host {
+					t.Fatalf("esc after %s left %v, want the notifications", key, m.modal)
 				}
 				continue
 			}

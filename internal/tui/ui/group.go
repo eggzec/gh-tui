@@ -75,12 +75,12 @@ func (m *GroupModal) Update(msg tea.Msg) tea.Cmd {
 		if msg.ID != m.pick.ID() {
 			return nil
 		}
-		return tea.Batch(CloseModal(m), m.apply(msg.Choices))
+		return tea.Batch(LeaveModal(m), m.apply(msg.Choices))
 	case orderpick.CancelMsg:
 		if msg.ID != m.pick.ID() {
 			return nil
 		}
-		return CloseModal(m)
+		return LeaveModal(m)
 	}
 	var cmd tea.Cmd
 	m.pick, cmd = m.pick.Update(msg)

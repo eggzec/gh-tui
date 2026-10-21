@@ -255,6 +255,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenModalMsg:
+		// The group picker's section doesn't know it is shown in the
+		// notifications modal, which the picker returns to.
+		if _, ok := msg.Modal.(*ui.GroupModal); ok && msg.Back == nil {
+			msg.Back = m.notifHost()
+		}
 		m.openModalOver(msg.Modal, msg.Back)
 		return m, nil
 	case ui.CloseModalMsg:

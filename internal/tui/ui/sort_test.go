@@ -136,7 +136,7 @@ func TestSortModalEscapeApplies(t *testing.T) {
 	if len(cmds) != 1 {
 		t.Fatalf("esc sent %v, want the modal closed", cmds)
 	}
-	if c, ok := cmds[0].(CloseModalMsg); !ok || c.Modal != m {
-		t.Errorf("esc sent %#v, want the modal closed", cmds[0])
+	if c, ok := cmds[0].(LeaveModalMsg); !ok || c.Modal != m {
+		t.Errorf("esc sent %#v, want the modal left", cmds[0])
 	}
 }

@@ -106,12 +106,12 @@ func (m *SortModal) Update(msg tea.Msg) tea.Cmd {
 			so = filterform.Sort{By: by, Desc: msg.Choices[0].Desc}
 		}
 		applied := filterform.AppliedMsg{Query: m.spec.WithSort(m.query, so), Sort: so}
-		return tea.Batch(CloseModal(m), m.target.ApplyFilter(applied))
+		return tea.Batch(LeaveModal(m), m.target.ApplyFilter(applied))
 	case orderpick.CancelMsg:
 		if msg.ID != m.pick.ID() {
 			return nil
 		}
-		return CloseModal(m)
+		return LeaveModal(m)
 	}
 	var cmd tea.Cmd
 	m.pick, cmd = m.pick.Update(msg)
