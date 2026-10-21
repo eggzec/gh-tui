@@ -1,6 +1,9 @@
 package core
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 // SearchKind is what a search looks for, or what a search hit is.
 type SearchKind string
@@ -18,7 +21,22 @@ const (
 	// SearchUser values.
 	SearchUsers SearchKind = "users"
 	SearchOrgs  SearchKind = "orgs"
+	// SearchCommits looks for commits, whose hits are SearchCommits.
+	SearchCommits SearchKind = "commits"
 )
+
+// SearchCommit is a commit that matches a commit search, with what a row
+// and opening the commit need.
+type SearchCommit struct {
+	Repo RepoRef
+	SHA  string
+	// Subject is the first line of the commit message.
+	Subject string
+	// Author is the login of the author's account, or the name on the commit
+	// when the author has no account.
+	Author string
+	Date   time.Time
+}
 
 // SearchUser is an account that matches a user or organization search.
 type SearchUser struct {

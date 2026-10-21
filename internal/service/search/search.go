@@ -39,6 +39,7 @@ type API interface {
 	Search(ctx context.Context, q github.SearchQuery) (map[core.SearchKind]core.SearchPage[core.SearchHit], error)
 	SearchCode(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.CodeHit], error)
 	SearchUsers(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchUser], error)
+	SearchCommits(ctx context.Context, query, cursor string, perPage int) (core.SearchPage[core.SearchCommit], error)
 }
 
 // Query selects a page of search results.
@@ -90,11 +91,12 @@ type Result struct {
 
 // Service searches GitHub through a cache. It is safe for concurrent use.
 type Service struct {
-	api    API
-	pages  *cache.Cache[core.SearchPage[core.SearchHit]]
-	code   *cache.Cache[core.SearchPage[core.CodeHit]]
-	users  *cache.Cache[core.SearchPage[core.SearchUser]]
-	counts *cache.Cache[map[core.SearchKind]int]
+	api     API
+	pages   *cache.Cache[core.SearchPage[core.SearchHit]]
+	code    *cache.Cache[core.SearchPage[core.CodeHit]]
+	users   *cache.Cache[core.SearchPage[core.SearchUser]]
+	commits *cache.Cache[core.SearchPage[core.SearchCommit]]
+	counts  *cache.Cache[map[core.SearchKind]int]
 	// pageSize is the size of a page whose query sets none.
 	pageSize int
 
@@ -116,6 +118,7 @@ func New(api API, opts ...Option) *Service {
 		pages:    cache.New[core.SearchPage[core.SearchHit]](ttl, capacity),
 		code:     cache.New[core.SearchPage[core.CodeHit]](cache.WithTTL(cmp.Or(o.codeTTL, d.Cache.TTL.CodeSearch)), capacity),
 		users:    cache.New[core.SearchPage[core.SearchUser]](ttl, capacity),
+		commits:  cache.New[core.SearchPage[core.SearchCommit]](ttl, capacity),
 		counts:   cache.New[map[core.SearchKind]int](ttl, capacity),
 		pageSize: cmp.Or(o.pageSize, d.PageSize.Search),
 	}
@@ -292,6 +295,7 @@ func (s *Service) Invalidate() {
 	s.pages.InvalidateTag(allTag)
 	s.code.InvalidateTag(allTag)
 	s.users.InvalidateTag(allTag)
+	s.commits.InvalidateTag(allTag)
 	s.counts.InvalidateTag(allTag)
 }
 
