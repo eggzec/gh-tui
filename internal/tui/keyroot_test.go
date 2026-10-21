@@ -345,7 +345,7 @@ func TestDismissOrder(t *testing.T) {
 	}
 
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, false, "global.search", "search.insert")
+		m := keysAfter(t, false, "global.search", "search_modal.insert")
 		driveKeys(t, m, func() tea.Msg { return ui.NotifyMsg{Level: toast.Error, Text: "Could not merge."} })
 		tap(t, m, "esc")
 		if m.toast.Has(toast.Error) {

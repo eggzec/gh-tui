@@ -2,6 +2,7 @@ package search
 
 import (
 	"slices"
+	"strconv"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -19,12 +20,12 @@ import (
 // KeyMap holds the keys of the search page. While the query types, only
 // the keys that type nothing act; the rest edit the query.
 type KeyMap struct {
-	// Next and Prev move the focus between the query and the results, and
-	// Panes focus the one with that number.
+	// Next and Prev move the focus between the query, the results and the
+	// preview, and Kinds show the kind with that number, in the results.
 	Next  key.Binding
 	Prev  key.Binding
-	Panes [numAreas]key.Binding
-	// Jump holds the keys of Panes, which it stands for in help.
+	Kinds [maxKinds]key.Binding
+	// Jump holds the keys of Kinds, which it stands for in help.
 	Jump key.Binding
 	// Insert starts typing in the query.
 	Insert key.Binding
@@ -67,21 +68,22 @@ type queryKeys struct {
 	Cancel key.Binding `keymap:"cancel" help:"results"`
 }
 
-// areaTitles names the parts of the page in help.
-var areaTitles = [numAreas]string{"query", "results"}
+// maxKinds is how many kinds the digits reach: pane_1 to pane_6 of the
+// global keys, and kind_7 of the search modal.
+const maxKinds = 7
 
-// focusOf returns the part of the page that msg focuses, or -1.
-func (k KeyMap) focusOf(msg tea.KeyPressMsg) area {
-	for i, b := range k.Panes {
+// kindOf returns the position of the kind that msg shows, or -1.
+func (k KeyMap) kindOf(msg tea.KeyPressMsg) int {
+	for i, b := range k.Kinds {
 		if keymap.Matches(msg, b) {
-			return area(i)
+			return i
 		}
 	}
 	return -1
 }
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	page, results := ui.In(keys, "search"), ui.In(keys, "search_results")
+	page, results := ui.In(keys, "search_modal"), ui.In(keys, "search_results")
 	k := KeyMap{
 		Next:    page.Binding("global.next_pane", "next"),
 		Prev:    page.Binding("global.prev_pane", "previous"),
@@ -104,10 +106,17 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		feed:   feed.NewKeyMap(results),
 		search: ui.SearchPromptKeys(keys),
 	}
-	for i, a := range [numAreas]string{"global.pane_1", "global.pane_2"} {
-		k.Panes[i] = page.Binding(a, areaTitles[i])
+	for i := range k.Kinds {
+		a := "global.pane_" + strconv.Itoa(i+1)
+		if i == maxKinds-1 {
+			a = "kind_7"
+		}
+		k.Kinds[i] = page.Binding(a, "kind")
+		// A digit with no kind does nothing, and is not in help.
+		k.Kinds[i].SetEnabled(k.Kinds[i].Enabled() && i < len(kinds))
 	}
-	k.Jump = ui.Jump(k.Panes[:]...)
+	k.Jump = ui.Jump(k.Kinds[:]...)
+	k.Jump.SetHelp(k.Jump.Help().Key, "show kind")
 	keymap.Fill(&k.query, ui.Lookup(keys, "search_query"))
 	return k
 }
@@ -151,7 +160,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query has no pane keys of its own: what acts on a result or
 		// the list waits for the results.
 		screen = append(screen, k.Select, k.Refresh)
-		return []keyhelp.Layer{ui.ContextLayer("search", screen, []key.Binding{k.Insert, k.Select, k.NextTab, k.Next})}
+		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.Select, k.NextTab, k.Next})}
 	}
 	// Without a query the results are the page's own suggestions, which
 	// move with the keys of the list; with one, the list's layer has them.
@@ -163,7 +172,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}),
 		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Open, k.Filter, k.Sort}),
 	}
-	page := ui.ContextLayer("search", screen, []key.Binding{k.Insert, k.NextTab, k.Next})
+	page := ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next})
 	if s.text == "" {
 		return []keyhelp.Layer{page, ui.MergeLayers("search_results", own)}
 	}

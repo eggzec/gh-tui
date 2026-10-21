@@ -19,7 +19,7 @@ var navigation = []string{
 	"select", "back", "dismiss", "mark",
 	// Moving between panes and tabs.
 	"next_pane", "prev_pane", "next_tab", "prev_tab",
-	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5", "pane_6",
+	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5", "pane_6", "kind_7",
 	// Moving between matches, and the choices of a search page, which has
 	// no such actions yet.
 	"next_match", "prev_match", "results", "kinds",

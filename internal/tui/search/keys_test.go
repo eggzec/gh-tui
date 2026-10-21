@@ -35,7 +35,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues }},
 		{nil, "[", "Search: previous kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchCode }},
 		{nil, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
-		{nil, "2", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea }},
+		{nil, "2", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchIssues }},
 		{nil, "enter", "Search: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea }},
 		// While it types, the query takes printable keys, and tab stays in
 		// it: esc is the way out.
@@ -49,7 +49,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		}},
 		// In the results, the page's keys come first and the list's after.
 		{results, "i", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.input.Value() == "tea" }},
-		{results, "1", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && !s.typing }},
+		{results, "1", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchRepos }},
 		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.preview && !s.typing }},
 		{results, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues && s.area == resultsArea }},
 		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool {

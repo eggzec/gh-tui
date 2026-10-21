@@ -590,8 +590,8 @@ keys:
     # pull requests and issues on the repository screen; pinned,
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
-    # a user or an organization; the query and the results on the search
-    # page; branches, graph and commit in History; the panes of the modal of
+    # a user or an organization; the kinds of results on the search page,
+    # which show the kind and focus the results; branches, graph and commit in History; the panes of the modal of
     # a pull request; and runs, jobs and log in Actions. A digit with no such
     # pane there does nothing, and never switches screens.
     pane_1: ["1"]
@@ -815,10 +815,14 @@ keys:
     done: [D]
 
   # The search page, on any of its panes. It opens on the query in normal
-  # mode, where these keys and the global ones work.
-  search:
+  # mode, where these keys and the global ones work. The digits 1 to 6 show
+  # the kind of results with that number (global pane_1 to pane_6), and
+  # the digit of the kind on view focuses the results.
+  search_modal:
     # Start typing in the query.
     insert: [i]
+    # Show the seventh kind of results, once there is one.
+    kind_7: ["7"]
 
   # Search: the results.
   search_results:

@@ -221,8 +221,8 @@ func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "esc", "1")
-		if got := focusOf(m); got != `search: query "key"` {
-			t.Fatalf("the keys reach %s, want the query in normal mode", got)
+		if got := focusOf(m); got != `search: results "key"` {
+			t.Fatalf("the keys reach %s, want the results (a digit picks the kind)", got)
 		}
 		// The repo key is enabled in the search modal; what matters is that
 		// it does nothing with no result selected, checked below.

@@ -126,7 +126,9 @@ func aheadSection(t *testing.T, f *detailFake) *Section {
 	s := newSection(t, newFake(), 120, 30, WithDetails(fakePulls{f}, fakeIssues{f}), WithPrefetch(p))
 	typeText(t, s, "tea")
 	// The query has the focus, in normal mode, on the pull requests.
-	press(t, s, "esc", "1", "]", "]")
+	press(t, s, "esc")
+	s.focusArea(inputArea)
+	press(t, s, "]", "]")
 	return s
 }
 
@@ -138,7 +140,7 @@ func TestResultsReadAheadOnHover(t *testing.T) {
 			t.Fatalf("read %v ahead before the cursor rested on a result, want nothing", got)
 		}
 		// The result under the cursor, once the results have the focus.
-		press(t, s, "2")
+		press(t, s, "3")
 		if got := f.numbers(); !slices.Equal(got, []int{1402}) || f.comments != 1 {
 			t.Fatalf("read %v and %d comments ahead, want #1402 and its comments", got, f.comments)
 		}
@@ -147,8 +149,7 @@ func TestResultsReadAheadOnHover(t *testing.T) {
 			t.Errorf("read %v ahead, want #1388 once", got)
 		}
 		// An issue, from its own service, and never a repository.
-		press(t, s, "1", "[", "2")
-		press(t, s, "1", "[", "2", "down")
+		press(t, s, "2")
 		if got := f.numbers(); !slices.Equal(got, []int{1402, 1388, 1203}) {
 			t.Errorf("read %v ahead, want the issue and no repository", got)
 		}
@@ -160,12 +161,12 @@ func TestResultsReadNothingAheadUnfocused(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &detailFake{}
 		s := aheadSection(t, f)
-		press(t, s, "2")
+		press(t, s, "3")
 		before := len(f.numbers())
 		rest := s.Update(keyPress("down"))
-		press(t, s, "1")
+		s.focusArea(inputArea)
 		run(t, s, rest)
-		rest = s.Update(keyPress("2"))
+		rest = s.Update(keyPress("3"))
 		s.Blur()
 		run(t, s, rest)
 		if got := f.numbers(); len(got) != before {
@@ -179,7 +180,7 @@ func TestResultsStopReadingAheadOnBlur(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := &detailFake{hold: make(chan struct{})}
 		s := aheadSection(t, f)
-		reads := s.Update(keyPress("2"))
+		reads := s.Update(keyPress("3"))
 		done := make(chan struct{})
 		go func() {
 			run(t, s, reads)
@@ -209,7 +210,7 @@ func TestResultsOpenPausesAndCounts(t *testing.T) {
 		stats := countStats(t)
 		f := &detailFake{}
 		s := aheadSection(t, f)
-		press(t, s, "2")
+		press(t, s, "3")
 		app := press(t, s, "enter")
 		open, ok := app[0].(ui.OpenPullMsg)
 		if len(app) != 1 || !ok || open.Number != 1402 || open.Pause == nil {
