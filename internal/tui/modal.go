@@ -180,6 +180,9 @@ func (m *Model) overModals() []overModal {
 	if m.dash != nil {
 		out = append(out, overModal{k.Dashboard, "dashboard", "the dashboard"})
 	}
+	if m.notif != nil {
+		out = append(out, overModal{k.Notifications, "notifications", "notifications"})
+	}
 	if m.srch != nil {
 		out = append(out, overModal{k.Search, "search", "search"})
 	}

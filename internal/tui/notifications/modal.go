@@ -13,10 +13,11 @@ type Modal struct {
 }
 
 var (
-	_ ui.Modal  = (*Modal)(nil)
-	_ ui.Actor  = (*Modal)(nil)
-	_ ui.Hider  = (*Modal)(nil)
-	_ ui.Hosted = (*Modal)(nil)
+	_ ui.Modal     = (*Modal)(nil)
+	_ ui.Actor     = (*Modal)(nil)
+	_ ui.Hider     = (*Modal)(nil)
+	_ ui.Discarder = (*Modal)(nil)
+	_ ui.Hosted    = (*Modal)(nil)
 )
 
 // NewModal returns a modal that shows s, which it focuses.
@@ -52,8 +53,19 @@ func (m *Modal) KeyLayers() []keyhelp.Layer { return m.s.KeyLayers() }
 // Capturing reports whether the section takes every key.
 func (m *Modal) Capturing() bool { return m.s.Capturing() }
 
-// Hide stops what the section reads ahead, as when it is blurred.
-func (m *Modal) Hide() { m.s.Blur() }
+// Hide does nothing: the filter, sort and group modals open over this one, and
+// what the section reads ahead goes on under them. It stops when the modal
+// closes or is discarded.
+func (m *Modal) Hide() {}
+
+// Discard stops what the section reads ahead, as the app drops the modal.
+func (m *Modal) Discard() { m.s.Blur() }
+
+// leave closes the modal, and stops what the section reads ahead.
+func (m *Modal) leave() tea.Cmd {
+	m.s.Blur()
+	return ui.LeaveModal(m)
+}
 
 // Update passes msg to the section. The modals it opens go over this one, so
 // that closing them returns here.
@@ -96,9 +108,9 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 		if cmd, ok := m.s.feed.ClearTransient(); ok {
 			return cmd, true
 		}
-		return ui.LeaveModal(m), true
+		return m.leave(), true
 	case ui.ActQuit, ui.ActBack, "notifications":
-		return ui.LeaveModal(m), true
+		return m.leave(), true
 	}
 	return nil, false
 }
