@@ -24,6 +24,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/statusbar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -100,9 +101,10 @@ type Model struct {
 	back      []place
 	backOwner ui.Modal
 	focus     int
-	// zoom shows the focused pane of the repository screen alone, as a
-	// narrow terminal does. The dashboard keeps its own.
-	zoom bool
+	// zoom shows the focused pane of the repository screen alone, by the
+	// user's choice or because the terminal is narrow. The dashboard and the
+	// owner page keep their own.
+	zoom panes.Zoom
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd

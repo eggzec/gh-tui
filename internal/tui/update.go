@@ -394,8 +394,9 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.forkSwitch()
 	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
-	case m.canZoom() && m.width >= narrowWidth && keymap.Matches(msg, m.keys.Zoom):
-		m.setZoom(!m.zoom)
+	case m.canZoom() && keymap.Matches(msg, m.keys.Zoom):
+		m.zoom.Toggle()
+		m.layout()
 		return nil
 	case keymap.Matches(msg, m.keys.Back):
 		return m.goBack()

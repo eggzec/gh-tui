@@ -32,7 +32,6 @@ const (
 // full size, and the pane keys switch between them. Above it, the files
 // take two fifths of the width, within the bounds.
 const (
-	narrowWidth   = 70
 	minFilesWidth = 24
 	maxFilesWidth = 60
 )
@@ -169,7 +168,7 @@ func (m *Model) drawFrame(p *pane) {
 		edge, title = m.st.focusEdge, m.st.focusTitle
 	}
 	b := m.icons.Border
-	zoomed := m.zoomed() && p.key != ""
+	zoomed := m.zoom.Zoomed() && p.key != ""
 	text := p.label
 	if p.key != "" && !zoomed {
 		text = "[" + p.key + "] " + text
@@ -284,7 +283,7 @@ func (m *Model) drawHeader() {
 
 // onePane reports whether the repository screen shows the focused pane
 // alone: when the panes don't fit side by side, or while it is zoomed.
-func (m *Model) onePane() bool { return m.width < narrowWidth || m.zoom }
+func (m *Model) onePane() bool { return m.zoom.Zoomed() }
 
 // narrow reports whether the terminal is too small for the panes of the
 // dashboard and the owner page to show side by side, by ui.wide. It is
@@ -294,21 +293,15 @@ func (m *Model) narrow() bool {
 }
 
 // canZoom reports whether the zoom key does something: on the repository
-// screen, with more than one pane.
+// screen, with more than one pane, unless a narrow terminal forces the zoom.
 func (m *Model) canZoom() bool {
-	return m.screen == repoScreen && len(m.panes) > 1
+	return m.screen == repoScreen && len(m.panes) > 1 && m.zoom.CanZoom()
 }
 
-// zoomed reports whether the zoom shows. A narrow terminal shows one pane
-// anyway, so there the back key keeps its other uses.
-func (m *Model) zoomed() bool { return m.zoom && m.width >= narrowWidth }
-
-// setZoom shows the focused pane of the repository screen alone, or every
-// pane again.
-func (m *Model) setZoom(zoom bool) {
-	m.zoom = zoom
-	m.layout()
-}
+// zoomed reports whether the user zoomed the repository screen, which the
+// zoom key undoes. A narrow terminal shows one pane anyway, so there the keys
+// keep their other uses.
+func (m *Model) zoomed() bool { return m.zoom.User() && m.zoom.CanZoom() }
 
 func filesWidth(width int) int {
 	return min(max(width*2/5, minFilesWidth), maxFilesWidth)
@@ -320,6 +313,7 @@ func (m *Model) arrange(height int) {
 		m.notif.resize(m.width, height)
 	}
 	narrow := m.narrow()
+	m.zoom.SetNarrow(narrow)
 	for _, p := range []*pane{m.dash, m.own} {
 		if p == nil {
 			continue
