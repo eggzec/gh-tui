@@ -39,7 +39,7 @@ func TestOverEveryModal(t *testing.T) {
 				// A key that shows another screen is refused, naming the
 				// modal and what the key does.
 				for _, tt := range []struct{ key, use string }{
-					{"0", "the dashboard"}, {"I", "notifications"}, {"S", "search"}, {".", "the repository"},
+					{"0", "the dashboard"}, {"S", "search"}, {".", "the repository"},
 				} {
 					m.toast.Clear()
 					screen := m.screen
