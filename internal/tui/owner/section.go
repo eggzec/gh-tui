@@ -170,7 +170,6 @@ type Section struct {
 	back []*page
 
 	width, height int
-	wide          bool
 	// zoom shows the focused pane alone, as a narrow page does.
 	zoom panes.Zoom
 	// head is the profile above the panes, boxes are the sizes of the
@@ -291,6 +290,10 @@ func (s *Section) SetSize(width, height int) {
 	s.layout()
 	s.render()
 }
+
+// SetNarrow tells the page that the terminal is too small for every pane at
+// once. It takes effect at the next SetSize.
+func (s *Section) SetNarrow(narrow bool) { s.zoom.SetNarrow(narrow) }
 
 // SetTheme builds the styles of the page and restyles its lists.
 func (s *Section) SetTheme(t ui.Theme) {

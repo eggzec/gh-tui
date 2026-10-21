@@ -46,7 +46,7 @@ func TestView(t *testing.T) {
 func TestViewStates(t *testing.T) {
 	t.Run("loading", func(t *testing.T) {
 		s := New(t.Context(), newFake(), config.Default().Keys, WithNow(func() time.Time { return now }))
-		s.SetSize(80, 24)
+		setSize(s, 80, 24)
 		s.Update(ui.OwnerMsg{Login: "octocat"})
 		s.Focus()
 		golden.RequireEqual(t, s.View())

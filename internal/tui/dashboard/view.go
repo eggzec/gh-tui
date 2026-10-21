@@ -12,18 +12,12 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Sizes of the dashboard. From wideWidth by wideHeight cells it shows
-// every pane at once: the profile on top, the pinned cards below it, the
-// repositories beside the work, and the calendar beside the notifications
-// at the bottom. Below that, or zoomed, it shows the profile and the
-// focused pane, whose frame names the others.
+// Sizes of the dashboard. On a wide terminal (ui.wide) it shows every pane
+// at once: the profile on top, the pinned cards below it, the repositories
+// beside the work, and the calendar beside the notifications at the
+// bottom. On a narrow one, or zoomed, it shows the profile and the focused
+// pane, whose frame names the others.
 const (
-	wideWidth  = 100
-	wideHeight = 30
-	// chromeRows is what the app draws around the dashboard, the header and
-	// the footer. The dashboard is wide at a terminal of wideHeight rows, so
-	// it compares its own height with what is left of them.
-	chromeRows   = 2
 	pinnedHeight = ownerui.CardHeight + 2
 	// calendarLines is what the calendar draws: the total, the months,
 	// seven days and the legend.
@@ -43,8 +37,6 @@ type box struct{ w, h int }
 
 // layout sizes the panes for the dashboard's size.
 func (s *Section) layout() {
-	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
-	s.zoom.SetNarrow(!s.wide)
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if !s.onePane() {
@@ -76,7 +68,7 @@ func (s *Section) onePane() bool { return s.zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A dashboard too small for every
 // pane shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom.Zoomed() && s.wide }
+func (s *Section) zoomed() bool { return s.zoom.User() && s.zoom.CanZoom() }
 
 // calendarWidth is the outer width of the calendar in the bottom row: what
 // its range needs, less recent weeks when the notifications would get
@@ -623,7 +615,7 @@ func (s *Section) inboxHint() string {
 		return ""
 	}
 	keys := s.icons.Key(pane)
-	if s.wide {
+	if s.zoom.CanZoom() {
 		zoom := s.keys.Zoom.Help().Key
 		if !s.keys.Zoom.Enabled() || zoom == "" {
 			return ""

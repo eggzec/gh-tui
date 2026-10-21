@@ -113,6 +113,10 @@ func (m *Model) applySettings() tea.Cmd {
 	m.maximizedModals = m.cfg.UI.Maximized
 	// The next key that starts a sequence waits as long as it says.
 	m.chordWait = m.cfg.UI.ChordWait
+	// The screens are laid out again now: the line that set it has been
+	// laid out before it ran, so no resize would follow.
+	m.wide = m.cfg.UI.Wide
+	defer m.layout()
 	if m.settings != nil {
 		m.settings(m.cfg)
 	}

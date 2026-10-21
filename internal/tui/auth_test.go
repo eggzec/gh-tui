@@ -331,6 +331,7 @@ func TestAuthModalView(t *testing.T) {
 func TestSetIconsInOpenAuthModal(t *testing.T) {
 	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	m.applyTheme(true)
 	_ = m.authCommand("")
 	mod, ok := m.modal.(*authModal)

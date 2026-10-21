@@ -27,6 +27,36 @@ func TestUIChordWait(t *testing.T) {
 	}
 }
 
+func TestUIWideDefaults(t *testing.T) {
+	if got := Default().UI.Wide; got != (Wide{Width: 100, Height: 30}) {
+		t.Errorf("default wide = %+v, want 100x30", got)
+	}
+}
+
+func TestUIWideFloors(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		set  func(*Config)
+		want string
+		ok   bool
+	}{
+		{"width below", func(c *Config) { c.UI.Wide.Width = 39 }, "ui.wide.width", false},
+		{"height below", func(c *Config) { c.UI.Wide.Height = 9 }, "ui.wide.height", false},
+		{"width at floor", func(c *Config) { c.UI.Wide.Width = 40 }, "", true},
+		{"height at floor", func(c *Config) { c.UI.Wide.Height = 10 }, "", true},
+	} {
+		cfg := Default()
+		tc.set(&cfg)
+		err := cfg.Validate()
+		if tc.ok && err != nil {
+			t.Errorf("%s: Validate() = %v, want none", tc.name, err)
+		}
+		if !tc.ok && (err == nil || !strings.Contains(err.Error(), tc.want)) {
+			t.Errorf("%s: Validate() = %v, want an error naming %s", tc.name, err, tc.want)
+		}
+	}
+}
+
 func TestUIIcons(t *testing.T) {
 	if got := Default().UI.Icons; got != IconsNerd {
 		t.Errorf("default icons = %q, want %q", got, IconsNerd)

@@ -290,6 +290,13 @@ func (m *Model) drawHeader() {
 // alone: when the panes don't fit side by side, or while it is zoomed.
 func (m *Model) onePane() bool { return m.width < narrowWidth || m.zoom }
 
+// narrow reports whether the terminal is too small for the panes of the
+// dashboard and the owner page to show side by side, by ui.wide. It is
+// decided here, from the whole terminal, once for every screen.
+func (m *Model) narrow() bool {
+	return m.width < m.wide.Width || m.height < m.wide.Height
+}
+
 // canZoom reports whether the zoom key does something: on the repository
 // screen, with more than one pane.
 func (m *Model) canZoom() bool {
@@ -316,10 +323,15 @@ func (m *Model) arrange(height int) {
 	if m.notif != nil {
 		m.notif.resize(m.width, height)
 	}
+	narrow := m.narrow()
 	for _, p := range []*pane{m.dash, m.srch, m.own} {
-		if p != nil {
-			p.resize(m.width, height)
+		if p == nil {
+			continue
 		}
+		if s, ok := p.section.(interface{ SetNarrow(bool) }); ok {
+			s.SetNarrow(narrow)
+		}
+		p.resize(m.width, height)
 	}
 	if len(m.panes) == 0 {
 		return
