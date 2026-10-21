@@ -11,6 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -221,6 +222,11 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		if cmd, ok := act(o.action); ok {
 			return cmd, true
 		}
+		if o.action == "notifications" {
+			if _, auth := mod.(*authModal); !auth {
+				return m.openNotifications(), true
+			}
+		}
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+o.use+"."), true
 	}
 	return nil, false
@@ -244,6 +250,8 @@ func (m *Model) modalName(mod ui.Modal) string {
 		return "the filter"
 	case "preview":
 		return "the file"
+	case "notifications":
+		return "the notifications"
 	default:
 		c, ok := config.LookupContext(name)
 		if !ok {
@@ -300,6 +308,35 @@ func (m *Model) openHistory() tea.Cmd {
 	}
 	m.openModal(mod)
 	return load
+}
+
+// openNotifications shows the notifications in a modal, over what is open.
+func (m *Model) openNotifications() tea.Cmd {
+	if m.notif == nil || m.notifHost() != nil {
+		return nil
+	}
+	sec, ok := m.notif.section.(*notifications.Section)
+	if !ok {
+		return nil
+	}
+	m.openModalOver(notifications.NewModal(sec), m.modal)
+	return nil
+}
+
+// notifSection returns the notifications section.
+func (m *Model) notifSection() ui.Section {
+	if m.notif == nil {
+		return nil
+	}
+	return m.notif.section
+}
+
+// notifHost returns the notifications modal if it is the open one.
+func (m *Model) notifHost() ui.Modal {
+	if h, ok := m.modal.(*notifications.Modal); ok {
+		return h
+	}
+	return nil
 }
 
 // canOpenHistory reports whether the history key does something.
