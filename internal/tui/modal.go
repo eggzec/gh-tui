@@ -342,6 +342,16 @@ func (m *Model) notifHost() ui.Modal {
 	return nil
 }
 
+// overNotifications reports whether the open modal was opened from the
+// notifications modal, which the back key returns to.
+func (m *Model) overNotifications() bool {
+	if !m.modalBack() {
+		return false
+	}
+	_, ok := m.back[len(m.back)-1].modal.(*notifications.Modal)
+	return ok
+}
+
 // canOpenHistory reports whether the history key does something.
 func (m *Model) canOpenHistory() bool {
 	return m.history != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})

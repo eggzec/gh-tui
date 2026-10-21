@@ -274,6 +274,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.openModalOver(msg.Modal, msg.Back)
 		return m, nil
 	case ui.CloseModalMsg:
+		// The notifications modal is where its threads were picked from, so
+		// closing one returns there rather than ending the chain.
+		if m.isOpen(msg.Modal) && m.overNotifications() {
+			cmd := m.goModalBack(msg.Modal)
+			return m, cmd
+		}
 		m.closeModal(msg.Modal)
 		return m, nil
 	case ui.LeaveModalMsg:
