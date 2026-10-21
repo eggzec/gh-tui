@@ -429,9 +429,9 @@ reacts to messages. Concretely:
   actions of a context, an action outside its context (a global one in
   another context, or a typo) and `ctrl+c`, which always quits and is
   not in default.yaml. A clash is reported at the setting the user's file
-  has, with its line. A modal that replaces another, such as the
-  filter of the runs, is a screen-layer context of its own, so the keys of
-  the modal under it don't work in it. A step that shows inside a modal
+  has, with its line. A content modal that replaces another,
+  such as the filter of the runs, is a screen-layer context of its own, and
+  so is an overlay modal: the keys of what is under it don't work in it. A step that shows inside a modal
   and takes keys only now and then, such as the checks of a pull request,
   has panes of that modal instead: its keys work there, unless the step
   types or asks.
@@ -487,10 +487,16 @@ reacts to messages. Concretely:
   sparingly. Keep spacing and alignment consistent across views.
 - Loading uses spinners or skeletons, empty states tell the user what to do,
   and errors are inline and recoverable.
-- One modal at a time. Opening a modal replaces the open one; a modal that
-  needs several views, such as a list and its detail, shows them as panes or
-  steps inside its own frame. Backspace steps back one step; esc clears
-  what is transient, then closes.
+- Two kinds of modal. Overlay modals (filter, sort, group, comment and
+  notifications) open over any modal, as many as needed, and replace none:
+  closing one returns to what is under it. A modal opened from the
+  notifications, such as a thread, returns to them on close (esc, backspace
+  or q). Content modals (a pull request,
+  an issue, history, actions, the pager, a file) show one at a time:
+  opening one replaces the open one. A modal that needs several views, such
+  as a list and its detail, shows them as panes or steps inside its own
+  frame. Backspace steps back one step; esc clears what is transient, then
+  closes.
 - Everything must stay legible in both light and dark terminals and at 80
   columns.
 

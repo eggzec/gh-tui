@@ -42,8 +42,8 @@ type KeyMap struct {
 	form filterform.KeyMap
 	// order holds the keys of the sort modal's ordered picker.
 	order orderpick.KeyMap
-	// Notifications is reserved for the notifications list, and Dashboard
-	// switches between the screen on view and the dashboard.
+	// Notifications opens the notifications modal over what is open, and
+	// Dashboard switches between the screen on view and the dashboard.
 	Notifications key.Binding
 	Dashboard     key.Binding
 	// Next and Prev cycle the focus through the panes.
