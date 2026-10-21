@@ -18,7 +18,12 @@ var (
 	_ ui.Hider     = (*Modal)(nil)
 	_ ui.Discarder = (*Modal)(nil)
 	_ ui.Hosted    = (*Modal)(nil)
+
+	_ ui.ReturnsOnClose = (*Modal)(nil)
 )
+
+// ReturnsOnClose marks the modal as the one a modal opened from it returns to.
+func (m *Modal) ReturnsOnClose() {}
 
 // NewModal returns a modal that shows s, which it focuses.
 func NewModal(s *Section) *Modal {
