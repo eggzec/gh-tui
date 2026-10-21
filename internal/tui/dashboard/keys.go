@@ -231,7 +231,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		}
 	default:
 	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.zoom.CanZoom())
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}

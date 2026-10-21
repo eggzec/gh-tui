@@ -36,6 +36,7 @@ type box struct{ w, h int }
 // layout sizes the panes for the page's size.
 func (s *Section) layout() {
 	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
+	s.zoom.SetNarrow(!s.wide)
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
@@ -80,17 +81,11 @@ func (s *Section) layoutList(l lister) {
 
 // onePane reports whether the page shows the focused pane alone: when the
 // panes don't fit, or while it is zoomed.
-func (s *Section) onePane() bool { return !s.wide || s.zoom }
+func (s *Section) onePane() bool { return s.zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A page too small for every pane
 // shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom && s.wide }
-
-// setZoom shows the focused pane alone, or every pane again.
-func (s *Section) setZoom(zoom bool) {
-	s.zoom = zoom
-	s.layout()
-}
+func (s *Section) zoomed() bool { return s.zoom.Zoomed() && s.wide }
 
 // render renders the profile and every pane, and the page from them.
 func (s *Section) render() {

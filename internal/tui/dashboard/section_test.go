@@ -357,8 +357,8 @@ func TestZoom(t *testing.T) {
 			s.SetSize(tt.width, tt.height)
 		}
 		press(t, s, tt.keys...)
-		if s.zoom != tt.zoom || s.focus != tt.focus {
-			t.Errorf("step %d: zoom %v on pane %d, want %v on %d", i, s.zoom, s.focus, tt.zoom, tt.focus)
+		if s.zoom.User() != tt.zoom || s.focus != tt.focus {
+			t.Errorf("step %d: zoom %v on pane %d, want %v on %d", i, s.zoom.User(), s.focus, tt.zoom, tt.focus)
 		}
 		view := screen(s)
 		if w := s.boxes[s.focus].w; tt.zoom && w != s.width {
@@ -395,14 +395,14 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
 			press(t, s, "z", "z")
 			s.SetSize(140, 38)
-			if s.zoom || !strings.Contains(screen(s), "Review requests") {
-				t.Errorf("zoom %v after z twice; want every pane", s.zoom)
+			if s.zoom.User() || !strings.Contains(screen(s), "Review requests") {
+				t.Errorf("zoom %v after z twice; want every pane", s.zoom.User())
 			}
 			s.SetSize(140, tt.height)
 			press(t, s, "z")
 			s.SetSize(140, 38)
-			if s.zoom != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
-				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom, tt.zoom, screen(s))
+			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
+				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom.User(), tt.zoom, screen(s))
 			}
 		})
 	}

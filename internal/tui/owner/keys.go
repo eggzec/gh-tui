@@ -242,7 +242,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.Panes[calendarPane].SetEnabled(false)
 		k.Jump = ui.Jump(k.Panes[:]...)
 	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.wide)
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.zoom.CanZoom())
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
