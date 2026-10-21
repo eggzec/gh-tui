@@ -88,6 +88,9 @@ func TestNotificationsKeyOnTheDashboard(t *testing.T) {
 	}
 
 	m, _ = newDashApp(t, testRepo)
+	if m.screen != repoScreen {
+		t.Fatalf("the app started on screen %d, not the repository", m.screen)
+	}
 	if !m.keys.state(m).Notifications.Enabled() {
 		t.Error("the notifications key is disabled on the repository screen")
 	}

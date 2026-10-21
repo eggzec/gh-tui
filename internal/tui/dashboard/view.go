@@ -566,6 +566,9 @@ func (s *Section) inboxBody(w, h int) []string {
 	}
 	lines := make([]string, 0, h)
 	head := " " + st.shared.Text.Render(n) + st.shared.Muted.Render(" unread")
+	if hint := s.inboxHint(); hint != "" && ansi.StringWidth(n)+len(" unread")+1+ansi.StringWidth(hint) < w {
+		head += st.shared.Subtle.Render(s.icons.Separator + hint)
+	}
 	lines = append(lines, head)
 	l := &s.threads
 	l.scroll(h - 1)
@@ -591,6 +594,26 @@ func (s *Section) inboxBody(w, h int) []string {
 			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+rp.Subtle.Render(age))
 	}
 	return lines
+}
+
+// inboxHint says which keys show every notification: the pane's key, then
+// zoom on a wide dashboard, and the pane's key alone on a narrow one, which
+// shows the pane in full. It is "" when a key it needs is unbound, or while
+// the pane is zoomed.
+func (s *Section) inboxHint() string {
+	pane := s.keyLabel(inboxPane)
+	if pane == "" || s.zoomed() {
+		return ""
+	}
+	keys := s.icons.Key(pane)
+	if s.wide {
+		zoom := s.keys.Zoom.Help().Key
+		if !s.keys.Zoom.Enabled() || zoom == "" {
+			return ""
+		}
+		keys += " then " + s.icons.Key(zoom)
+	}
+	return keys + " shows them all"
 }
 
 // failure renders err, which stopped action, in lines of w cells. Every
