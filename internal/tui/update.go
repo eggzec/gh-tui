@@ -425,28 +425,23 @@ func (m *Model) takes(s ui.Section) bool {
 	return ok && c.Capturing()
 }
 
-// openFilter opens the filter modal of s, and reports whether s has one to
-// open. The key goes on to a section that has none, which may use it
-// otherwise.
-func (m *Model) openFilter(s ui.Section) bool {
+// openFilter opens the filter modal of s, if s has one to open.
+func (m *Model) openFilter(s ui.Section) {
 	fl, f, ok := filterOf(s, filterform.FiltersTab)
 	if !ok {
-		return false
+		return
 	}
 	m.openModalOver(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
 		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))), m.notifHost())
-	return true
 }
 
-// openSort opens the sort modal of s, and reports whether s has a sort to
-// change.
-func (m *Model) openSort(s ui.Section) bool {
+// openSort opens the sort modal of s, if s has a sort to change.
+func (m *Model) openSort(s ui.Section) {
 	fl, f, ok := filterOf(s, filterform.SortTab)
 	if !ok {
-		return false
+		return
 	}
 	m.openModalOver(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), m.notifHost())
-	return true
 }
 
 // filterOf returns what the filter modal edits for s on tab, if s has one
