@@ -5,6 +5,8 @@ import (
 	"testing"
 	"testing/synctest"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -71,20 +73,48 @@ func TestSyncReachesTheNotificationsOnce(t *testing.T) {
 
 func TestThreadOpensStackOverTheNotifications(t *testing.T) {
 	t.Parallel()
-	for _, key := range []string{"esc", "backspace"} {
-		synctest.Test(t, func(t *testing.T) {
-			m := keysAfter(t, true, "global.notifications")
-			host := m.modal
-			tap(t, m, "enter")
-			if m.modal == host || m.modal == nil {
-				t.Fatalf("enter left %v, want a thread modal over the notifications", m.modal)
-			}
-			tap(t, m, key)
-			if m.modal != host {
-				t.Errorf("%s left %v, want the notifications", key, m.modalName(m.modal))
-			}
+	for _, key := range []string{"esc", "backspace", "q"} {
+		t.Run(key, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m := keysAfter(t, true, "global.notifications")
+				host := m.modal
+				tap(t, m, "enter")
+				if m.modal == host || m.modal == nil {
+					t.Fatalf("enter left %T, want a thread modal over the notifications", m.modal)
+				}
+				tap(t, m, key)
+				if m.modal != host {
+					t.Errorf("%s left %T, want the notifications", key, m.modal)
+				}
+			})
 		})
 	}
+}
+
+// TestNotificationsDroppedWithTheirChain checks that a thread opened from the
+// notifications, which another modal then replaces, takes the notifications
+// with it when that one closes, so they are discarded and stop what they
+// read ahead.
+func TestNotificationsDroppedWithTheirChain(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.notifications")
+		tap(t, m, "enter")
+		thread := m.modal
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 2} })
+		if m.modal == nil || m.modal == thread {
+			t.Fatalf("the second issue left %T, want it in place of the thread", m.modal)
+		}
+		tap(t, m, "esc")
+		if m.modal != nil {
+			t.Fatalf("esc left %T, want no modal", m.modal)
+		}
+		for _, p := range m.back {
+			if p.modal != nil {
+				t.Errorf("the closed chain kept %T for the back key", p.modal)
+			}
+		}
+	})
 }
 
 func TestReadAllInTheNotificationsModalAsks(t *testing.T) {
