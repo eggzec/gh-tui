@@ -113,7 +113,7 @@ func TestNoLoadBeforeSubmit(t *testing.T) {
 
 func TestCounts(t *testing.T) {
 	svc := newFake()
-	s := newSection(t, svc, 120, 30)
+	s := newSection(t, svc, 80, 30)
 	typeText(t, s, "tea")
 	for _, want := range []string{"Repositories 43", "Issues 2", "Pull requests 3", "Code ↵ search", "Repositories · 43 results"} {
 		if !strings.Contains(flat(s), want) {
@@ -181,7 +181,7 @@ func TestCodeCountdown(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFake()
 		svc.limited = time.Now().Add(42 * time.Second)
-		s := newSection(t, svc, 120, 30, WithNow(time.Now))
+		s := newSection(t, svc, 80, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
 		press(t, s, "esc", "]", "]", "]")
 		if _, code := svc.stats(); code != 0 {
@@ -236,7 +236,7 @@ func TestCodeErrorWords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newFake()
 			svc.codeErr = tt.err
-			s := newSection(t, svc, 120, 30)
+			s := newSection(t, svc, 80, 30)
 			typeText(t, s, "tea")
 			press(t, s, "esc", "]", "]", "]")
 			if v := screen(s); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") {
@@ -247,7 +247,7 @@ func TestCodeErrorWords(t *testing.T) {
 }
 
 func TestInvalidQuery(t *testing.T) {
-	s := newSection(t, newFake(), 120, 30)
+	s := newSection(t, newFake(), 80, 30)
 	typeText(t, s, "tea is:bogus")
 	if view := screen(s); !strings.Contains(view, "GitHub can't run this query: is:bogus is not a valid qualifier") {
 		t.Errorf("an invalid query should say why, inline:\n%s", view)
@@ -546,7 +546,7 @@ func TestHitFeedLeavesALineForTheTitles(t *testing.T) {
 // The titles stay in front of the dimmed rows, so the rows don't move when
 // the new results arrive.
 func TestKeepsTitlesWhileLoading(t *testing.T) {
-	s := newSection(t, newFake(), 120, 30)
+	s := newSection(t, newFake(), 80, 30)
 	typeText(t, s, "tea")
 	rowAt := func(view string) int {
 		for i, line := range strings.Split(view, "\n") {

@@ -52,7 +52,9 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "1", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && !s.typing }},
 		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.preview && !s.typing }},
 		{results, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues && s.area == resultsArea }},
-		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
+		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool {
+			return selectedHit(s) != selectedHit(b) || s.starts.sel != b.starts.sel
+		}},
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},
 		// The results ask the app to open the filter.
 		{results, "f", "Results: filter", func(s, b *Section, msgs []tea.Msg) bool {
