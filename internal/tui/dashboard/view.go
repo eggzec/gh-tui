@@ -149,7 +149,7 @@ func (s *Section) label(p paneID) (label string, width int) {
 	if s.focused && p == s.focus {
 		title = st.focusTitle
 	}
-	if !s.onePane() {
+	if !s.onePane() || s.zoomed() {
 		text := s.paneLabel(p)
 		return title.Render(text), ansi.StringWidth(text)
 	}
@@ -193,10 +193,27 @@ func (s *Section) keyLabel(p paneID) string {
 	return b.Help().Key
 }
 
-// paneLabel is the label of pane p, such as "[3] Waiting on you · 4".
+// foot is the strip of pane keys in the bottom edge of the zoomed pane, as
+// in the pull request modal, and its width. The focused pane's key is in
+// brackets. Other layouts have none: the panes show their names alone, or
+// the narrow layout names every pane in the top edge.
+func (s *Section) foot() (label string, width int) {
+	if !s.zoomed() {
+		return "", 0
+	}
+	var keys [numPanes]string
+	for i := range numPanes {
+		keys[i] = s.keyLabel(i)
+	}
+	return ownerui.Digits(keys[:], int(s.focus), s.st.focusTitle, s.st.shared.Subtle)
+}
+
+// paneLabel is the label of pane p, with its key before it, such as
+// "[3] Waiting on you · 4". The zoomed pane has its keys in its bottom edge
+// instead, so its label is the name alone.
 func (s *Section) paneLabel(p paneID) string {
 	text := paneTitles[p]
-	if k := s.keyLabel(p); k != "" {
+	if k := s.keyLabel(p); k != "" && !s.zoomed() {
 		text = "[" + k + "] " + text
 	}
 	switch p {
@@ -235,7 +252,8 @@ func (s *Section) frame(label string, labelW int, b box, focused bool, body []st
 	if focused {
 		edge = s.st.focusEdge
 	}
-	return ownerui.Frame(label, labelW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
+	foot, footW := s.foot()
+	return ownerui.Frame(label, labelW, foot, footW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
 }
 
 // profileHeight is how many lines the profile takes.
