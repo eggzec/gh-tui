@@ -347,6 +347,8 @@ func narrower(a, b int) bool {
 func TestStatusBarHintsCached(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
+	// The zoom shows only from the wide size up.
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	m.View()
 	first := &m.hints[0]
 	m.View()

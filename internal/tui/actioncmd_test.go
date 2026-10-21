@@ -106,7 +106,7 @@ func stateOf(m *Model) appState {
 	return appState{
 		view: ansi.Strip(m.View().Content), layers: layerNames(m.keyLayers()),
 		modal: fmt.Sprintf("%T", m.modal), toasts: toasted(m), screen: m.screen,
-		focus: m.focus, places: len(m.back), zoom: m.zoom, maximized: m.maximized,
+		focus: m.focus, places: len(m.back), zoom: m.zoom.User(), maximized: m.maximized,
 	}
 }
 

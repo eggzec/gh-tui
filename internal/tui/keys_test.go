@@ -57,7 +57,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Errorf("esc reaches %q while zoomed, want the section's back", got)
 	}
 	run(m, m.key(press("esc")))
-	if !m.zoom || !fakes[0].got(isKey("esc")) {
+	if !m.zoom.User() || !fakes[0].got(isKey("esc")) {
 		t.Error("esc while zoomed unzoomed, or didn't reach the section")
 	}
 

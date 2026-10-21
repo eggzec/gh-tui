@@ -178,7 +178,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom() && m.width >= narrowWidth)
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
 	if m.canZoom() && m.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}

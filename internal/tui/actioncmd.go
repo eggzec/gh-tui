@@ -173,7 +173,7 @@ func (m *Model) actionOpen(action string) bool {
 		return m.fileFinder() != nil
 	case config.ActionZoom:
 		// The other screens zoom their own panes.
-		return m.screen != repoScreen || m.canZoom() && m.width >= narrowWidth
+		return m.screen != repoScreen || m.canZoom()
 	}
 	return true
 }

@@ -1,24 +1,24 @@
 ─ eggzec/gh-tui ───────────────────────────────────────────── ● 1 notification ─
-╭─[1] Files ───────────────────╮╭─[2] Pull requests ───────────────────────────╮
-│▌ ▸ cmd╭─ #2 ─────────────────────────────────────────────────────────╮d · All│
-│    REA│ ↣ #2 Match keys by order                                     │Updated│
-│       │ ╭─ 2 Conversation ──────────── 2 of 2 shown · filter: all ─╮ │now    │
+╭─Pull requests ───────────────────────────────────────────────────────────────╮
+│   eggz╭─ #2 ─────────────────────────────────────────────────────────╮d · All│
+│     # │ ↣ #2 Match keys by order                                     │Updated│
+│▌  ↣ #2│ ╭─ 2 Conversation ──────────── 2 of 2 shown · filter: all ─╮ │now    │
 │       │ │ ▌○ bob                                               now │ │       │
 │       │ │  ╰─ ● dee · b.go:7  Why?                             now │ │       │
 │       │ │     ╰─ bob  Because.                                 now │ │       │
 │       │ │                                                          │ │       │
 │       │ │  ann  Looks good.                                    now │ │       │
 │       │ │                                                          │ │       │
-│       │ │                                                          │ │───────╯
-│       │ │                                                          │ │───────╮
-│       │ │                                                          │ │d · All│
-│       │ │                                                          │ │Updated│
-│       │ │                                                          │ │now    │
+│       │ │                                                          │ │       │
+│       │ │                                                          │ │       │
+│       │ │                                                          │ │       │
+│       │ │                                                          │ │       │
+│       │ │                                                          │ │       │
 │       │ │                                                          │ │       │
 │       │ │                                                          │ │       │
 │       │ │                                                          │ │       │
 │       │ ╰─ 1 Desc · 2 Conv · 3 Merge · 4 Inv · 5 Dev · 6 Files ────╯ │       │
 │       │ 1-6 other pane · ? help                                      │       │
 │       ╰──────────────────────────────────────────────────────────────╯       │
-╰──────────────────────────────╯╰──────────────────────────────────────────────╯
+╰─ 1 Files  [2] Pull requests  3 Issues ───────────────────────────────────────╯
  ? help  ↑/k up  ↓/j down  →/l expand  ←/h collapse  ↵ open          github.com 
