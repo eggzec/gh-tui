@@ -22,7 +22,7 @@ const inputHeight = 3
 // resultsSize is the room inside the frame of the results, below the line
 // of kinds.
 func (s *Section) resultsSize() (width, height int) {
-	return max(s.width-2, 0), max(s.height-inputHeight-3, 0)
+	return max(s.listOuter()-2, 0), max(s.height-inputHeight-3, 0)
 }
 
 func (s *Section) layout() {
@@ -58,9 +58,7 @@ func (s *Section) render() {
 	}
 	lines := make([]string, 0, s.height)
 	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight)...)
-	rw, rh := s.resultsSize()
-	body := append([]string{s.kindsLine(rw)}, s.results(rw, rh)...)
-	lines = append(lines, s.frame(strings.Join(body, "\n"), s.resultsLabel(), s.area == resultsArea, rw+2, rh+3)...)
+	lines = append(lines, s.panes()...)
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)

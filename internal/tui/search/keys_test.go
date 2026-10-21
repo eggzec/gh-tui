@@ -50,7 +50,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		// In the results, the page's keys come first and the list's after.
 		{results, "i", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.input.Value() == "tea" }},
 		{results, "1", "Search: focus pane", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && !s.typing }},
-		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea && !s.typing }},
+		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.preview && !s.typing }},
 		{results, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues && s.area == resultsArea }},
 		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool { return selectedHit(s) != selectedHit(b) }},
 		{results, "enter", "Results: open", func(_, _ *Section, msgs []tea.Msg) bool { return len(msgs) > 0 }},

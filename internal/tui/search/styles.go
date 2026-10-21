@@ -5,6 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -12,6 +13,10 @@ import (
 type styles struct {
 	edge, focusEdge   paint
 	title, focusTitle paint
+
+	// frameEdge, frameFocus and the paints of the keys in the bottom edge
+	// are those of ownerui.Frame and ownerui.Foot.
+	frameEdge, frameFocus, footOn, footOff ownerui.Paint
 
 	name, login, text, muted, subtle paint
 	accent, success, warning, fail   paint
@@ -64,6 +69,10 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 	return styles{
 		look:       look,
 		states:     states,
+		frameEdge:  ownerui.NewPaint(border),
+		frameFocus: ownerui.NewPaint(t.Accent),
+		footOn:     ownerui.NewPaint(t.Accent.Bold(true)),
+		footOff:    ownerui.NewPaint(t.Subtle),
 		edge:       newPaint(border),
 		focusEdge:  newPaint(t.Accent),
 		title:      newPaint(t.Muted),

@@ -106,8 +106,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.PrevTab):
 		return s.moveKind(-1)
 	case keymap.Matches(msg, k.Next), keymap.Matches(msg, k.Prev):
-		// There are two panes, so either direction goes to the other.
-		s.focusArea(numAreas - 1 - s.area)
+		s.cyclePane(keymap.Matches(msg, k.Next))
 		return nil
 	}
 	if s.area == inputArea {
@@ -279,11 +278,16 @@ func firstMatch(hit core.CodeHit) string {
 
 // focusArea moves the focus to a, in normal mode, and focuses the bubble
 // in it. Typing starts with startTyping.
-func (s *Section) focusArea(a area) {
+func (s *Section) focusArea(a area) { s.focusPane(a, false) }
+
+// focusPane is focusArea, with the focus on the preview of the results'
+// area when preview is set.
+func (s *Section) focusPane(a area, preview bool) {
 	s.area = a
+	s.preview = preview
 	s.typing = false
 	s.input.Blur()
-	results := s.focused && a == resultsArea
+	results := s.focused && a == resultsArea && !preview
 	for kind, l := range s.hits {
 		if results && kind == s.kind {
 			l.feed.Focus()
