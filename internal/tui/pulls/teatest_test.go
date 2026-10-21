@@ -70,7 +70,7 @@ func (a app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, ui.OpenModal(ui.NewFilterModal(context.Background(), a.h.Title(), a.h.Section, f))
 			}
 		}
-	case ui.OpenModalMsg, ui.CloseModalMsg:
+	case ui.OpenModalMsg, ui.CloseModalMsg, ui.LeaveModalMsg:
 		cmd := a.h.Update(msg)
 		// The tui sizes a modal as it opens it; the picker draws nothing before.
 		for _, m := range a.h.modals {

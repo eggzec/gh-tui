@@ -609,6 +609,12 @@ func (h *host) Update(msg tea.Msg) tea.Cmd {
 			h.modals = h.modals[:i]
 		}
 		return nil
+	case ui.LeaveModalMsg:
+		// With no modal to return to, leaving closes.
+		if i := slices.Index(h.modals, msg.Modal); i >= 0 {
+			h.modals = h.modals[:i]
+		}
+		return nil
 	case tea.KeyPressMsg:
 		if len(h.modals) > 0 {
 			return h.modals[len(h.modals)-1].Update(msg)
