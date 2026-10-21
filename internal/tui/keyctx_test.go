@@ -387,6 +387,13 @@ func (keyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notifi
 }
 func (keyInbox) FreshList(notifsvc.ListQuery) bool { return true }
 func (keyInbox) Invalidate()                       {}
+func (keyInbox) MarkRead(string) *optimistic.Op    { return keyOp() }
+func (keyInbox) MarkDone(string) *optimistic.Op    { return keyOp() }
+func (keyInbox) MarkAllRead(time.Time) *optimistic.Op {
+	return keyOp()
+}
+
+func keyOp() *optimistic.Op { return optimistic.New(func(context.Context) error { return nil }) }
 
 // keyDash serves a profile with a pinned repository, a repository, and
 // work waiting on the viewer.

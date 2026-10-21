@@ -79,7 +79,7 @@ var contexts = []Context{
 	{Name: "pulls", Title: "Pull requests", Reach: ReachPane, Parent: "repo"},
 	{Name: "issues", Title: "Issues", Reach: ReachPane, Parent: "repo"},
 
-	{Name: "notifications", Title: "Notifications", Reach: ReachScreen},
+	{Name: "notifications", Title: "Notifications", Reach: ReachScreen, Modal: true},
 
 	{Name: "search", Title: "Search", Reach: ReachScreen},
 	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search", Typing: true},

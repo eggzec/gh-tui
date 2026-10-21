@@ -246,7 +246,8 @@ func (m *ConfirmModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	m.answered = true
-	return tea.Batch(CloseModal(m), cmd)
+	// Leaving returns to the modal that asked, if there is one.
+	return tea.Batch(LeaveModal(m), cmd)
 }
 
 // View implements Modal.
