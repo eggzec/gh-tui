@@ -30,8 +30,8 @@ func TestFootShowsFocusedPaneKeys(t *testing.T) {
 		lines := strings.Split(s.View(), "\n")
 		return lines[len(lines)-1]
 	}
-	if got := bottom(); !strings.Contains(got, "[2] Results") {
-		t.Errorf("results focused, bottom edge %q lacks [2] Results", got)
+	if got := bottom(); !strings.Contains(got, "[tab] Preview") && !strings.Contains(got, "tab Preview") {
+		t.Errorf("results focused, bottom edge %q lacks the tab to the preview", got)
 	}
 	press(t, s, "tab")
 	if got := bottom(); !strings.Contains(got, "[tab] Preview") {

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -112,69 +113,69 @@ func (s *Section) typeAsk(what string) string {
 	return "Bind a key to insert in the config to " + what
 }
 
-// countText is what the kinds show next to kind k: its count, or how to
-// search code.
-func (s *Section) countText(k core.SearchKind) string {
-	if s.text == "" {
-		return ""
-	}
-	if n, ok := s.counts[k]; ok {
-		return count(n)
-	}
-	if k != core.SearchCode {
-		// A search that failed counts nothing.
-		if l := s.hits[s.kind]; l != nil && l.text == s.text && l.feed.Err() != nil {
-			return ""
-		}
-		return s.icons.Ellipsis
-	}
-	if s.limited() {
-		return "in " + s.wait()
-	}
-	if k := s.keys.Select.Help().Key; k != "" {
-		return s.icons.Key(k) + " search"
-	}
-	return ""
+// kindStrip is the strip of kinds on the first line of the results: the
+// digit that shows each kind and its title, the kind on view in brackets.
+// It lists the kinds it is made with, one digit each.
+type kindStrip struct {
+	kinds []core.SearchKind
+	// keys are the keys of the kinds, by position; a kind with none shows
+	// no key.
+	keys []string
 }
 
-// kindsLine renders the kinds as tabs on one line, with their counts, the
-// one on view in the accent. A narrow page abbreviates pull requests.
-func (s *Section) kindsLine(w int) string {
-	line := s.kindTabs(false)
-	if ansi.StringWidth(line) > w {
-		line = s.kindTabs(true)
+// view renders the strip for the kind cur in w cells, with its titles
+// as long as they fit, else with "PRs" for pull requests, else as the keys
+// alone.
+func (t kindStrip) view(cur core.SearchKind, on, off ownerui.Paint, w int) string {
+	full := make([]string, len(t.kinds))
+	short := make([]string, len(t.kinds))
+	pos := -1
+	for i, k := range t.kinds {
+		full[i], short[i] = kindTitles[k], kindTitles[k]
+		if k == core.SearchPulls {
+			short[i] = "PRs"
+		}
+		if k == cur {
+			pos = i
+		}
 	}
+	strip, _ := ownerui.Foot(t.keys, [][]string{full, short}, pos, on, off, max(w-1, 0))
+	return " " + strip
+}
+
+// kindsLine renders the strip of the kinds in w cells.
+func (s *Section) kindsLine(w int) string {
+	keys := make([]string, len(kinds))
+	for i := range keys {
+		if b := s.keys.Kinds[i]; b.Enabled() {
+			keys[i] = b.Help().Key
+		}
+	}
+	line := kindStrip{kinds: kinds, keys: keys}.view(s.kind, s.st.footOn, s.st.footOff, w)
 	return fit(termtext.Truncate(line, w, s.icons.Ellipsis), w)
 }
 
-// kindTabs renders the tabs of the kinds, with "PRs" for pull requests
-// if short is set.
-func (s *Section) kindTabs(short bool) string {
-	st := &s.st
-	var b strings.Builder
-	b.WriteByte(' ')
-	for i, k := range kinds {
-		if i > 0 {
-			st.subtle.write(&b, s.icons.Separator)
-		}
-		title := kindTitles[k]
-		if short && k == core.SearchPulls {
-			title = "PRs"
-		}
-		name := st.muted
-		if k == s.kind {
-			name = st.focusTitle
-		}
-		name.write(&b, title)
-		if c := s.countText(k); c != "" {
-			b.WriteByte(' ')
-			st.subtle.write(&b, c)
-		}
+// countLabel is the count of the results on view for the right of the
+// top edge of the results, such as "1,234 results": only the kinds the
+// search API counts have one.
+func (s *Section) countLabel() string {
+	if s.text == "" || s.kind == core.SearchCode {
+		return ""
 	}
-	return b.String()
+	if _, ok := s.staleView(); ok {
+		return ""
+	}
+	n, ok := s.counts[s.kind]
+	if !ok {
+		return ""
+	}
+	if n == 1 {
+		return commas(n) + " result"
+	}
+	return commas(n) + " results"
 }
 
-// resultsLabel names the results on view, and counts them.
+// resultsLabel names the results on view.
 func (s *Section) resultsLabel() string {
 	if s.text == "" {
 		return "Start"
@@ -182,13 +183,6 @@ func (s *Section) resultsLabel() string {
 	label := kindTitles[s.kind]
 	if _, ok := s.staleView(); ok {
 		return label + " " + s.spin.View()
-	}
-	if n, ok := s.counts[s.kind]; ok {
-		noun := " results"
-		if n == 1 {
-			noun = " result"
-		}
-		label += s.icons.Separator + commas(n) + noun
 	}
 	if chip := s.grouping.Chip(s.icons.Separator); s.kind == core.SearchRepos && chip != "" {
 		label += s.icons.Separator + chip

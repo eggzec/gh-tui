@@ -92,10 +92,9 @@ const (
 	resultsArea
 )
 
-// numAreas is how many parts the page has.
-const numAreas = 2
-
-// kinds are the kinds of results, in the order the page lists them.
+// kinds are the kinds of results, in the order the page lists them: the
+// digits 1 to maxKinds show them, and a kind added here, with its title
+// below, joins the strip.
 var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls, core.SearchCode}
 
 var kindTitles = map[core.SearchKind]string{

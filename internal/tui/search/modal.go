@@ -39,7 +39,7 @@ func (m *Modal) Section() *Section { return m.s }
 func (m *Modal) Title() string { return m.s.Title() }
 
 // KeyContext returns the key context of the search.
-func (m *Modal) KeyContext() string { return "search" }
+func (m *Modal) KeyContext() string { return "search_modal" }
 
 // SetSize sizes the section to the modal.
 func (m *Modal) SetSize(width, height int) { m.s.SetSize(width, height) }

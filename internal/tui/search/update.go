@@ -95,9 +95,8 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	k := &s.keys
 	switch {
-	case k.focusOf(msg) >= 0:
-		s.focusArea(k.focusOf(msg))
-		return nil
+	case k.kindOf(msg) >= 0:
+		return s.pickKind(k.kindOf(msg))
 	case keymap.Matches(msg, k.Insert):
 		s.startTyping()
 		return nil
@@ -144,6 +143,20 @@ func (s *Section) startTyping() {
 	s.focusArea(inputArea)
 	s.typing = true
 	s.input.Focus()
+}
+
+// pickKind shows the kind at position i and focuses the results on it. The
+// digit of the kind on view only focuses the results.
+func (s *Section) pickKind(i int) tea.Cmd {
+	if i >= len(kinds) {
+		return nil
+	}
+	var cmd tea.Cmd
+	if kinds[i] != s.kind {
+		cmd = s.showKind(kinds[i])
+	}
+	s.focusArea(resultsArea)
+	return cmd
 }
 
 // moveKind shows the kind delta kinds away, going round at either end.

@@ -165,11 +165,10 @@ func TestLeavingCancelsOthers(t *testing.T) {
 			t.Error("leaving canceled the search of the kind on view")
 		}
 		svc.mu.Unlock()
-		// Back on the page, on the results, enter in the query reads them
-		// again.
+		// Back on the page, enter in the query reads them again.
 		s.Focus()
 		close(svc.hold)
-		p.key(t, "1")
+		s.focusArea(inputArea)
 		p.key(t, "enter")
 		if n := len(svc.prefetched()); n != 4 {
 			t.Errorf("%d reads of the other kinds, want 2 more on enter", n)

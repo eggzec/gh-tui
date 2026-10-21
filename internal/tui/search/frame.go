@@ -1,7 +1,8 @@
 package search
 
 import (
-	"charm.land/bubbles/v2/key"
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -39,7 +40,8 @@ func (s *Section) panes() []string {
 	rw, rh := s.resultsSize()
 	results := func() []string {
 		body := append([]string{s.kindsLine(rw)}, s.results(rw, rh)...)
-		return s.box(s.resultsLabel(), 0, s.area == resultsArea && !s.preview, rw+2, rh+3, body)
+		focused := s.area == resultsArea && !s.preview
+		return s.countEdge(s.box(s.resultsLabel(), 0, focused, rw+2, rh+3, body), s.resultsLabel(), s.countLabel(), focused, rw+2)
 	}
 	preview := func(w int) []string {
 		return s.box(paneNames[1], 1, s.area == resultsArea && s.preview, w, rh+3, []string{" " + s.previewTitle()})
@@ -104,15 +106,33 @@ func (s *Section) box(label string, pane int, focused bool, w, h int, body []str
 	return ownerui.Frame(title.render(label), ansi.StringWidth(label), foot, footW, w, h, edge, s.icons.Border, s.icons.Ellipsis, body)
 }
 
+// countEdge redraws the top edge of the frame lines, w cells wide, with
+// count at its right end, after label. It leaves the edge as it is when
+// there is no count or no room for it.
+func (s *Section) countEdge(lines []string, label, count string, focused bool, w int) []string {
+	lw, cw := ansi.StringWidth(label), ansi.StringWidth(count)
+	fill := w - 7 - lw - cw
+	if len(lines) == 0 || cw == 0 || lw == 0 || fill < 1 {
+		return lines
+	}
+	edge, title := s.st.frameEdge, s.st.title
+	if focused && s.focused {
+		edge, title = s.st.frameFocus, s.st.focusTitle
+	}
+	b := s.icons.Border
+	lines[0] = edge.Render(b.TopLeft+b.Top) + title.render(label) +
+		edge.Render(" "+strings.Repeat(b.Top, fill)+" ") + s.st.subtle.render(count) +
+		edge.Render(" "+b.Top+b.TopRight)
+	return lines
+}
+
 // foot is the strip of keys that reach the results and the preview, for the
 // bottom edge of a frame w cells wide, and its width. The key of pane cur is
 // in brackets.
 func (s *Section) foot(cur, w int) (strip string, width int) {
 	var keys [2]string
-	for i, b := range []key.Binding{s.keys.Panes[resultsArea], s.keys.Next} {
-		if b.Enabled() {
-			keys[i] = b.Help().Key
-		}
+	if b := s.keys.Next; b.Enabled() {
+		keys[1] = b.Help().Key
 	}
 	return ownerui.Foot(keys[:], [][]string{paneNames[:]}, cur, s.st.footOn, s.st.footOff, w-5)
 }

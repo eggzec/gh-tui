@@ -17,6 +17,16 @@ Search
   previous kind | [ | [ | on
   next | tab | tab | on
   previous | shift+tab | shift+tab | on
-  focus pane | 1 2 | 1/2 | on
-  search | enter | ↵ | on
+  show kind | 1 2 3 4 | 1-4 | on
+
+Results
+  open | enter | ↵ | on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  browser | o | o | on
+  checks | C | C | off
   refresh | r | r | on
+  filter | f | f | on
+  sort | s | s | on
+  group by | g | g | on
+  group on/off | alt+g | alt+g | off

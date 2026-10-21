@@ -115,7 +115,7 @@ func TestCounts(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 80, 30)
 	typeText(t, s, "tea")
-	for _, want := range []string{"Repositories 43", "Issues 2", "Pull requests 3", "Code ↵ search", "Repositories · 43 results"} {
+	for _, want := range []string{"[1] Repositories", "2 Issues", "3 Pull requests", "4 Code", "43 results"} {
 		if !strings.Contains(flat(s), want) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}
@@ -161,7 +161,7 @@ func TestCodeOnDemand(t *testing.T) {
 		t.Errorf("the code results are missing:\n%s", screen(s))
 	}
 	// A new query waits for enter, and typing it searches nothing.
-	press(t, s, "1")
+	s.focusArea(inputArea)
 	typeOnly(t, s, "s")
 	if _, code := svc.stats(); code != 1 {
 		t.Error("typing on the code searched it")
@@ -170,7 +170,7 @@ func TestCodeOnDemand(t *testing.T) {
 	if _, code := svc.stats(); code != 1 {
 		t.Error("enter on a query already searched should use the cache")
 	}
-	press(t, s, "1")
+	s.focusArea(inputArea)
 	typeText(t, s, "x")
 	if _, code := svc.stats(); code != 2 {
 		t.Error("enter should search code for the new query")
@@ -187,7 +187,7 @@ func TestCodeCountdown(t *testing.T) {
 		if _, code := svc.stats(); code != 0 {
 			t.Error("code search ran while GitHub is out of them")
 		}
-		if !strings.Contains(screen(s), "Code search resumes in 42s.") || !strings.Contains(flat(s), "Code in 42s") {
+		if !strings.Contains(screen(s), "Code search resumes in 42s.") || !strings.Contains(flat(s), "[4] Code") {
 			t.Fatalf("the page should count down:\n%s", screen(s))
 		}
 		// The tick the page asked for has slept a second, in the bubble.
@@ -359,21 +359,18 @@ func TestEscLeavesTypingForTheResults(t *testing.T) {
 	}
 }
 
-// The digits move between the query and the results while the query isn't
+// The digits show a kind and focus the results while the query isn't
 // typing, and are typed while it is.
 func TestDigitsMovePanes(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
 	press(t, s, "2")
-	if s.area != resultsArea {
-		t.Errorf("2 focused area %d, want the results", s.area)
+	if s.area != resultsArea || s.kind != core.SearchIssues {
+		t.Errorf("2 focused area %d on %v, want the issues in the results", s.area, s.kind)
 	}
-	press(t, s, "1")
-	if s.area != inputArea || s.Capturing() {
-		t.Errorf("1 focused area %d, capturing %v, want the query in normal mode", s.area, s.Capturing())
-	}
-	press(t, s, "3")
-	if s.area != inputArea {
-		t.Error("3 names no pane and should do nothing")
+	s.focusArea(inputArea)
+	press(t, s, "9")
+	if s.area != inputArea || s.kind != core.SearchIssues {
+		t.Error("9 names no kind and should do nothing")
 	}
 	press(t, s, "i", "2")
 	if s.input.Value() != "2" || s.area != inputArea {
@@ -394,7 +391,8 @@ func TestBracketsSwitchKinds(t *testing.T) {
 			t.Fatalf("] showed %v in area %d, want %v in the results", s.Kind(), s.area, want)
 		}
 	}
-	press(t, s, "1", "[")
+	s.focusArea(inputArea)
+	press(t, s, "[")
 	if s.Kind() != core.SearchIssues || s.area != inputArea {
 		t.Errorf("[ from the query showed %v in area %d, want issues in the query", s.Kind(), s.area)
 	}
