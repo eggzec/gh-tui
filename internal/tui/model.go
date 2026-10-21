@@ -1,6 +1,6 @@
 // Package tui is the root of the program. It lays the sections out on
-// five screens, the dashboard, the repository screen with its panes, the
-// notifications screen, the search page and the page of a user or an
+// four screens, the dashboard, the repository screen with its panes, the
+// search page and the page of a user or an
 // organization, draws the header, the status
 // bar and toasts, opens modals such as the history over them, runs the
 // commands of the command line, and routes messages between them all.
@@ -34,7 +34,7 @@ type Layout struct {
 	// Files fills the left of the repository screen, and Pulls and Issues
 	// share its right, one above the other. They are panes 1, 2 and 3.
 	Files, Pulls, Issues ui.Section
-	// Notifications fills the notifications screen.
+	// Notifications feeds the badge and the notifications modal.
 	Notifications ui.Section
 	// Dashboard fills the dashboard, which the app opens on unless it is
 	// given a repository. It draws its own panes, and handles the keys
@@ -255,9 +255,8 @@ type Model struct {
 type Option func(*Model)
 
 // WithRepo sets the repository the app opens with, on the repository
-// screen. Without it the app opens on the dashboard, or on the
-// notifications screen when it has none, until the user picks a
-// repository.
+// screen. Without it the app opens on the dashboard until the user picks
+// a repository.
 func WithRepo(repo core.RepoRef) Option {
 	return func(m *Model) { m.repo = repo }
 }
@@ -424,8 +423,6 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		m.screen = repoScreen
 	case m.dash != nil:
 		m.screen = dashScreen
-	case m.notif != nil:
-		m.screen = notifScreen
 	default:
 		m.screen = repoScreen
 	}
@@ -470,8 +467,6 @@ func (m *Model) Init() tea.Cmd {
 // started yet.
 func (m *Model) startScreen() tea.Cmd {
 	switch m.screen {
-	case notifScreen:
-		return m.notif.start()
 	case dashScreen:
 		return m.dash.start()
 	case searchScreen:

@@ -59,8 +59,11 @@ func TestHistoryKeyNeedsARepoAndItsScreen(t *testing.T) {
 	if s := onScreen(m); strings.Contains(s, "B history") {
 		t.Errorf("help offers the history without a repository:\n%s", s)
 	}
-	m, _ = newTestApp(t, WithHistory(h.open))
-	run(m, m.key(press("I")))
+	m, _ = newDashApp(t, testRepo, WithHistory(h.open))
+	run(m, m.showScreen(dashScreen, 0))
+	if m.screen != dashScreen {
+		t.Fatalf("on screen %d, want the dashboard", m.screen)
+	}
 	run(m, m.key(press("B")))
 	if len(h.opened) != 0 || m.topModal() != nil {
 		t.Errorf("B opened the history %d times, want none", len(h.opened))

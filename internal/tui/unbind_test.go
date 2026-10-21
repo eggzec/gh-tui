@@ -50,9 +50,6 @@ func unbindPlaces() []unbindPlace {
 		{name: "dashboard inbox", steps: []string{config.ActionPane5}, want: "global, dashboard, dashboard_inbox"},
 		{name: "dashboard zoomed", steps: []string{config.ActionZoom}, want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard filter", steps: []string{"dashboard_repos.filter"}, want: "global, filter"},
-		{name: "notifications", steps: []string{config.ActionNotifications}, want: "global, notifications"},
-		{name: "notifications filter", steps: []string{config.ActionNotifications, "notifications.filter"}, want: "global, filter"},
-		{name: "notifications mark read", steps: []string{config.ActionNotifications, "notifications.read"}, want: "always, confirm"},
 		{name: "search", steps: []string{config.ActionSearch}, want: "global, search"},
 		{name: "search query", steps: []string{config.ActionSearch, "search.insert"}, want: "always, global, search_query (types)"},
 		// Showing the code kind asks for a code search.

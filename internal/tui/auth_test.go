@@ -491,16 +491,13 @@ func TestChecksOff(t *testing.T) {
 	acc := newFakeAccess(uitest.Classic("gist"))
 	// The access service checks nothing while checks are off.
 	acc.off = true
-	m, notes, in := newTokenApp(t, cfg, acc)
+	m, in := newTokenApp(t, cfg, acc)
 	run(m, m.updateAccess(accessChangedMsg{access: acc.A}))
 	if got := toasted(m); got != "" {
 		t.Errorf("toasts %q with checks off, want none", got)
 	}
-	if in.lists == 0 || !strings.Contains(onScreen(m), "Badge is off by one") {
-		t.Errorf("after %d reads the screen shows %q, want the notifications", in.lists, onScreen(m))
-	}
-	if got := uitest.Enabled(notes.KeyLayers()); !slices.Contains(got, "read") {
-		t.Errorf("the notifications offer %v, want the mark", got)
+	if in.lists == 0 {
+		t.Errorf("the notifications were not read with checks off")
 	}
 	runCommand(t, m, "auth")
 	if got := onScreen(m); !strings.Contains(got, "auth.check is off") {
@@ -510,7 +507,7 @@ func TestChecksOff(t *testing.T) {
 
 // newTokenApp returns an app with the notifications section, whose token
 // acc knows of, started on the notifications, and what the section reads.
-func newTokenApp(t *testing.T, cfg config.Config, acc Access) (*Model, *notifications.Section, *fakeInbox) {
+func newTokenApp(t *testing.T, cfg config.Config, acc Access) (*Model, *fakeInbox) {
 	t.Helper()
 	v := ui.NewVoice(cfg.Keys, "")
 	v.Token = ui.NewToken(acc, cfg.Keys)
@@ -524,7 +521,7 @@ func newTokenApp(t *testing.T, cfg config.Config, acc Access) (*Model, *notifica
 	m.accessChanges = nil
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
 	run(m, m.Init())
-	return m, notes, in
+	return m, in
 }
 
 // helpStatus returns how the open help lists the binding described as
@@ -544,17 +541,10 @@ func TestHelpShowsWhatTheTokenRefuses(t *testing.T) {
 	t.Parallel()
 	acc := newFakeAccess(uitest.Classic("gist"))
 	acc.plan = refreshPlan
-	m, _, in := newTokenApp(t, config.Default(), acc)
+	m, in := newTokenApp(t, config.Default(), acc)
 	if in.lists != 0 {
 		t.Errorf("the notifications were read %d times", in.lists)
 	}
-	run(m, m.key(press("?")))
-	for _, desc := range []string{"read", "done"} {
-		if got := helpStatus(m, desc); got != keyhelp.Disabled {
-			t.Errorf("the help lists %q as %v, want disabled", desc, got)
-		}
-	}
-	run(m, m.key(press("?")))
 	runCommand(t, m, "auth")
 	run(m, m.key(press("?")))
 	if !m.helpOpen() || !strings.HasSuffix(m.keyhelp.Title(), "Token") {
@@ -582,7 +572,7 @@ func (boundClient) ProbeAccess(context.Context) error { return nil }
 func TestTokenFoundWhileRunning(t *testing.T) {
 	t.Parallel()
 	svc := access.New("github.com", access.Token{Source: "gh", Login: "octocat"})
-	m, _, _ := newTokenApp(t, config.Default(), svc)
+	m, _ := newTokenApp(t, config.Default(), svc)
 	if got := toasted(m); got != "" {
 		t.Fatalf("toasts %q before the token came", got)
 	}
@@ -600,8 +590,5 @@ func TestTokenFoundWhileRunning(t *testing.T) {
 	}
 	if got := toasted(m); !strings.Contains(got, "Notifications need a classic token") {
 		t.Errorf("toasts %q, want the notice of a fine-grained token", got)
-	}
-	if got := onScreen(m); !strings.Contains(got, "needs a classic token") {
-		t.Errorf("the notifications show %q, want that they need a classic token", got)
 	}
 }

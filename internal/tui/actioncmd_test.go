@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -12,9 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
-	"github.com/eggzec/gh-tui/internal/core"
-	notifsvc "github.com/eggzec/gh-tui/internal/service/notifications"
-	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -271,9 +267,6 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 	}{
 		{"merge a pull request", "pulls.merge", []string{"global.pane_2"}, "Merge #2"},
 		{"close a pull request", "pulls.close", []string{"global.pane_2"}, "Close PR #2?"},
-		{"mark read", "notifications.read", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as read?"},
-		{"mark done", "notifications.done", []string{"global.notifications"}, "Mark eggzec/gh-tui#1 as done?"},
-		{"mark all read", "notifications.read", []string{"global.notifications"}, "Mark all notifications as read?"},
 		{"star the repository", "repo.star", nil, "Star eggzec/gh-tui?"},
 		{"close an issue", "issues.close", []string{"global.pane_3"}, "Close issue #1?"},
 		{"close the issue", "issue_modal.close", []string{"global.pane_3", "global.select"}, "Close issue #1?"},
@@ -284,10 +277,6 @@ func TestActionCommandsAskLikeKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				_, name, _ := strings.Cut(tt.action, ".")
-				if tt.name == "mark all read" {
-					// Marking all read is an argument of read.
-					name = "read all"
-				}
 				m := keysAfter(t, true, tt.steps...)
 				if got := layerNames(m.keyLayers()); got == "always, confirm" {
 					t.Fatalf("the app asks before the command: %s", got)
@@ -353,7 +342,6 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		{"read all on the dashboard", false, nil, "read all", "read all works in Notifications screen."},
 		{"read all over the pull request", true, []string{"global.pane_2", "global.select"}, "read all", "Close the pull request first to use read all."},
 		{"read on the files", true, nil, "read", "read works in Notifications screen."},
-		{"read with another word", false, []string{"global.notifications"}, "read some", "The read command takes no argument but all."},
 		{"rerun on the files", true, nil, "rerun", "rerun works in Actions modal."},
 		{"rerun over the pull request", true, []string{"global.pane_2", "global.select"}, "rerun", "Close the pull request first to use rerun."},
 		{"star on the dashboard", false, nil, "star", "star works in Repository screen."},
@@ -596,86 +584,6 @@ func TestActionCommandsWaitForACapturingSection(t *testing.T) {
 	})
 }
 
-// TestReadAllIsTheReadCommandWithAll checks that read all, and not a key,
-// marks every notification read, and asks first, and that read alone is
-// the action of the key.
-func TestReadAllIsTheReadCommandWithAll(t *testing.T) {
-	if _, ok := config.Default().Keys["notifications"]["read_all"]; ok {
-		t.Fatal("default.yaml still has notifications.read_all")
-	}
-	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "global.notifications")
-		runCommand(t, m, "read all")
-		if got := layerNames(m.keyLayers()); got != "always, confirm" {
-			t.Fatalf(":read all reached %q, want the question: toasts %s", got, toasted(m))
-		}
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Mark all notifications as read?") {
-			t.Errorf(":read all asks something else:\n%s", view)
-		}
-		// A key that was M asks nothing now.
-		m = keysAfter(t, true, "global.notifications")
-		tap(t, m, "M")
-		if got := layerNames(m.keyLayers()); got == "always, confirm" {
-			t.Error("M still asks to mark all read")
-		}
-		// Read alone marks the selected one.
-		m = keysAfter(t, true, "global.notifications")
-		runCommand(t, m, "read")
-		if view := ansi.Strip(m.View().Content); strings.Contains(view, "all notifications") || layerNames(m.keyLayers()) != "always, confirm" {
-			t.Errorf(":read asks about all, or nothing:\n%s", view)
-		}
-	})
-}
-
-// keyEmptyInbox has no notifications.
-type keyEmptyInbox struct{ keyInbox }
-
-func (keyEmptyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bool) {
-	return core.Page[core.Notification]{}, true
-}
-func (keyEmptyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
-	return core.Page[core.Notification]{}, nil
-}
-
-// TestReadAllOnAnEmptyInbox checks that read all says there is nothing to
-// read, and asks nothing.
-func TestReadAllOnAnEmptyInbox(t *testing.T) {
-	t.Parallel()
-	synctest.Test(t, func(t *testing.T) {
-		m := newKeysApp(t, true)
-		m.notif.section = notifications.New(t.Context(), keyEmptyInbox{}, m.cfg.Keys, notifications.WithVoice(m.voice), notifications.WithIcons(m.icons))
-		driveKeys(t, m, m.showScreen(notifScreen, m.focus))
-		runCommand(t, m, "read all")
-		if want := "There is nothing to read here."; !hasToast(m, want) {
-			t.Errorf(":read all toasts %s, want %q", toasted(m), want)
-		}
-		if got := layerNames(m.keyLayers()); got == "always, confirm" {
-			t.Error(":read all asks on an empty inbox")
-		}
-	})
-}
-
-// TestReadAllCompletes checks that the line completes read where the
-// notifications are, and all after it.
-func TestReadAllCompletes(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "global.notifications")
-		if got := texts(m.complete("rea", 3)); !slices.Equal(got, []string{"read"}) {
-			t.Errorf("rea completes %q, want read", got)
-		}
-		if got := texts(m.complete("read a", 6)); !slices.Equal(got, []string{"all"}) {
-			t.Errorf("read a completes %q, want all", got)
-		}
-		if got := texts(m.complete("read x", 6)); len(got) != 0 {
-			t.Errorf("read x completes %q", got)
-		}
-		m = keysAfter(t, true)
-		if got := texts(m.complete("read a", 6)); len(got) != 0 {
-			t.Errorf("read a completes %q on the files", got)
-		}
-	})
-}
-
 // TestMutationCommandsCompleteWhereTheyWork checks that rerun, star and
 // labels are completed in the chain where they work, and only there.
 func TestMutationCommandsCompleteWhereTheyWork(t *testing.T) {
@@ -691,7 +599,6 @@ func TestMutationCommandsCompleteWhereTheyWork(t *testing.T) {
 		{"rerun on the files", nil, "rerun", false},
 		{"labels in the issue", []string{"global.pane_3", "global.select"}, "labels", true},
 		{"labels on the pull requests", []string{"global.pane_2"}, "labels", false},
-		{"read in the notifications", []string{"global.notifications"}, "read", true},
 		{"read on the files", nil, "read", false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

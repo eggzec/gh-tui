@@ -21,8 +21,6 @@ type screen int
 const (
 	// repoScreen shows the panes of the selected repository.
 	repoScreen screen = iota
-	// notifScreen shows the notifications.
-	notifScreen
 	// dashScreen shows the dashboard.
 	dashScreen
 	// searchScreen shows the search page.
@@ -211,8 +209,6 @@ func (m *Model) drawHeader() {
 		name = ui.DashboardTitle
 	case m.screen == searchScreen:
 		name = ui.SearchTitle
-	case m.screen == notifScreen:
-		name = ui.NotificationsTitle
 	case m.screen == ownerScreen:
 		// The page names its account once it has one.
 		name = cmp.Or(m.ownerLogin, ui.OwnerTitle)
@@ -337,8 +333,6 @@ func stack(ps []*pane, width, height int) {
 // body returns the lines of the screen on view.
 func (m *Model) body() []string {
 	switch m.screen {
-	case notifScreen:
-		return m.notif.appendLines(nil)
 	case dashScreen:
 		return m.dash.appendLines(nil)
 	case searchScreen:
@@ -374,8 +368,6 @@ func (m *Model) body() []string {
 // focused returns the focused pane of the screen on view, or nil.
 func (m *Model) focused() *pane {
 	switch m.screen {
-	case notifScreen:
-		return m.notif
 	case dashScreen:
 		return m.dash
 	case searchScreen:
@@ -488,8 +480,6 @@ func (m *Model) showScreen(s screen, i int) tea.Cmd {
 // hasScreen reports whether the app has screen s to show.
 func (m *Model) hasScreen(s screen) bool {
 	switch s {
-	case notifScreen:
-		return m.notif != nil
 	case repoScreen:
 		return len(m.panes) > 0
 	case dashScreen:

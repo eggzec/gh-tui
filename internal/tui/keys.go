@@ -199,7 +199,6 @@ func (k KeyMap) state(m *Model) KeyMap {
 	}
 	// Showing what is on view does nothing, so help doesn't offer it.
 	k.Dashboard.SetEnabled(k.Dashboard.Enabled() && m.dash != nil && m.screen != dashScreen)
-	k.Notifications.SetEnabled(k.Notifications.Enabled() && m.screen != notifScreen)
 	// Every other screen and modal focuses its own panes, and lists the
 	// keys for them.
 	k.Jump.SetEnabled(k.Jump.Enabled() && m.screen == repoScreen && len(m.panes) > 0)

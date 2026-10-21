@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -137,9 +139,6 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 		open bool
 	}{
 		{name: "repo screen", open: true},
-		{name: "notifications", prep: func(m *Model, _ []*fakeSection) {
-			m.showScreen(notifScreen, 0)
-		}, open: true},
 		{name: "dashboard", app: dashApp, open: true},
 		{name: "repo screen from the dashboard", app: dashApp, prep: func(m *Model, _ []*fakeSection) {
 			m.showScreen(repoScreen, 0)
@@ -542,12 +541,12 @@ func TestActionCommandsPress(t *testing.T) {
 func TestBackspaceKeepsAnEmptyCommandLineOpen(t *testing.T) {
 	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
-	run(m, m.key(press("I")))
+	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	run(m, m.key(press(":")))
 	run(m, m.key(press("backspace")))
 	run(m, m.key(press("backspace")))
-	if !m.line.Focused() || m.screen != notifScreen {
-		t.Fatalf("line open = %v on screen %d, want it open on the notifications", m.line.Focused(), m.screen)
+	if !m.line.Focused() || m.screen != repoScreen {
+		t.Fatalf("line open = %v on screen %d, want it open on the repository", m.line.Focused(), m.screen)
 	}
 	run(m, m.key(press("ctrl+h")))
 	if m.line.Focused() {

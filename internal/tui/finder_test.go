@@ -36,7 +36,7 @@ func newFindingApp(t *testing.T, repo core.RepoRef) (*Model, *findingSection, []
 	t.Helper()
 	files := &findingSection{fakeSection: &fakeSection{title: "Files"}}
 	fakes := []*fakeSection{files.fakeSection, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
-	layout := Layout{Files: files, Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
+	layout := Layout{Files: files, Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: &fakeSection{title: ui.DashboardTitle}}
 	var opts []Option
 	if repo != (core.RepoRef{}) {
 		opts = append(opts, WithRepo(repo))
@@ -88,10 +88,13 @@ func TestFindFileKeyOpensTheFinder(t *testing.T) {
 func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
 	t.Parallel()
 	m, files, _ := newFindingApp(t, testRepo)
-	run(m, m.key(press("I")))
+	run(m, m.showScreen(dashScreen, 0))
+	if m.screen != dashScreen {
+		t.Fatalf("on screen %d, want the dashboard", m.screen)
+	}
 	run(m, m.key(ctrlP))
 	if files.finds != 0 || m.topModal() != nil {
-		t.Errorf("^p found files %d times on the notifications", files.finds)
+		t.Errorf("^p found files %d times off the repository screen", files.finds)
 	}
 
 	m, files, _ = newFindingApp(t, core.RepoRef{})

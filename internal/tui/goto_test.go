@@ -184,7 +184,6 @@ func TestGotoIsCanceled(t *testing.T) {
 		then func(m *Model)
 	}{
 		{name: "another command", then: func(m *Model) { m.runLine("goto cli/cli", nil) }},
-		{name: "another screen", then: func(m *Model) { drive(m, m.key(press("I"))) }},
 		{name: "another repository", then: func(m *Model) { drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} }) }},
 		{name: "a modal", then: func(m *Model) { m.openModal(&fakeModal{title: "Preview"}) }},
 		{name: "the dismiss key", then: func(m *Model) { drive(m, m.key(press("esc"))) }},
@@ -457,12 +456,12 @@ func TestGotoNumber(t *testing.T) {
 	cli := core.RepoRef{Owner: "cli", Name: "cli"}
 	tests := []struct {
 		name string
-		// repo is the repository selected, if any, and notif shows the
-		// notifications over it.
-		repo  core.RepoRef
-		notif bool
-		line  string
-		err   error
+		// repo is the repository selected, if any, and dash shows the
+		// dashboard over it.
+		repo core.RepoRef
+		dash bool
+		line string
+		err  error
 		// want is the message that opens the number, or nil, and toast
 		// the text of the toast.
 		want  tea.Msg
@@ -475,7 +474,7 @@ func TestGotoNumber(t *testing.T) {
 		{name: "known", line: "goto eggzec/gh-tui#7", want: ui.OpenPullMsg{Repo: testRepo, Number: 7, ShowRepo: true}},
 		{name: "number of the repository", repo: testRepo, line: "goto #12", want: ui.OpenIssueMsg{Repo: testRepo, Number: 12}, asks: true},
 		{name: "number without a repository", line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
-		{name: "number off the repository screen", repo: testRepo, notif: true, line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
+		{name: "number off the repository screen", repo: testRepo, dash: true, line: "goto #12", toast: "Open a repository first, or use goto owner/name#12."},
 		{name: "link to a pull request", line: "goto https://github.com/cli/cli/pull/1", want: ui.OpenPullMsg{Repo: cli, Number: 1, ShowRepo: true}},
 		{name: "link to an issue", line: "goto github.com/cli/cli/issues/5#issuecomment-1", want: ui.OpenIssueMsg{Repo: cli, Number: 5, ShowRepo: true}},
 		{name: "neither", line: "goto charmbracelet/bubbletea#99999999", toast: "charmbracelet/bubbletea#99999999 doesn't exist or is private.", asks: true},
@@ -492,8 +491,8 @@ func TestGotoNumber(t *testing.T) {
 				opts = append(opts, WithRepo(tt.repo))
 			}
 			m, fakes := newGotoApp(t, newGotoRepos(), opts...)
-			if tt.notif {
-				m.showScreen(notifScreen, 0)
+			if tt.dash {
+				m.showScreen(dashScreen, 0)
 			}
 			screen := m.screen
 			runCommand(t, m, tt.line)
@@ -573,8 +572,8 @@ func TestGotoNumberIsCanceled(t *testing.T) {
 	if s := onScreen(m); !strings.Contains(s, "Opening charmbracelet/bubbletea#1813…") {
 		t.Errorf("the footer doesn't say what it opens:\n%s", s)
 	}
-	// Going to the notifications drops it.
-	drive(m, m.key(press("I")))
+	// Going to a repository drops it.
+	drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	drive(m, cmd)
 	if got := opened(fakes); got != nil {
 		t.Errorf("the canceled goto opened %#v", got)

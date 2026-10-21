@@ -1,13 +1,11 @@
 package tui
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -30,24 +28,9 @@ func newHeaderApp(t *testing.T, opts ...Option) *Model {
 	return m
 }
 
-func TestNotificationsHeader(t *testing.T) {
-	t.Parallel()
-	for _, width := range []int{40, 80, 120} {
-		t.Run(strconv.Itoa(width), func(t *testing.T) {
-			m := newHeaderApp(t)
-			run(m, m.key(press("I")))
-			m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
-			if got := ansi.StringWidth(m.header); got != width {
-				t.Errorf("header is %d wide, want %d", got, width)
-			}
-			golden.RequireEqual(t, m.header)
-		})
-	}
-}
-
-// TestHeaderFollowsTheScreen goes from the repository to the notifications,
-// the dashboard and the notifications again, and checks that each shows its
-// own title, and that only the repository screen names the repository.
+// TestHeaderFollowsTheScreen goes from the repository to the dashboard and
+// back, and checks that each shows its own title, and that only the
+// repository screen names the repository.
 func TestHeaderFollowsTheScreen(t *testing.T) {
 	t.Parallel()
 	m := newHeaderApp(t)
@@ -56,9 +39,8 @@ func TestHeaderFollowsTheScreen(t *testing.T) {
 		repo      bool
 	}{
 		{"", testRepo.String() + " ─ main", true},
-		{"I", ui.NotificationsTitle, false},
 		{"0", ui.DashboardTitle, false},
-		{"I", ui.NotificationsTitle, false},
+		{"backspace", testRepo.String() + " ─ main", true},
 	}
 	for _, s := range steps {
 		if s.key != "" {

@@ -16,7 +16,6 @@ import (
 var markCases = []listFindCase{
 	{name: "pull requests", text: "e"},
 	{name: "issues", text: "e"},
-	{name: "notifications", text: "e"},
 }
 
 // Space marks the row under the cursor, in the lists of pull requests,

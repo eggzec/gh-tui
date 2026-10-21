@@ -553,11 +553,11 @@ func onOwnerScreen(m *Model) string {
 func TestBackspaceOverModalDoesNothing(t *testing.T) {
 	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
-	run(m, m.key(press("I")))
+	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 	m.openModal(&fakeModal{title: "Preview"})
 	run(m, m.key(press("backspace")))
-	if m.screen != notifScreen || len(m.back) != 1 {
-		t.Errorf("screen %d with %d places to go back to, want the notifications and 1", m.screen, len(m.back))
+	if m.screen != repoScreen || len(m.back) != 1 {
+		t.Errorf("screen %d with %d places to go back to, want the repository and 1", m.screen, len(m.back))
 	}
 	if m.canGoBack() {
 		t.Error("canGoBack = true over a modal")
@@ -607,7 +607,7 @@ func TestBackStackIsCapped(t *testing.T) {
 	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
 	for range 2 * maxBack {
-		run(m, m.key(press("I")))
+		run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
 		run(m, m.key(press("0")))
 	}
 	if len(m.back) != maxBack {

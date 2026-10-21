@@ -66,8 +66,11 @@ func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
 	if s := onScreen(m); strings.Contains(s, "A actions") {
 		t.Errorf("help offers the actions without a repository:\n%s", s)
 	}
-	m, _ = newTestApp(t, WithActions(a.open))
-	run(m, m.key(press("I")))
+	m, _ = newDashApp(t, testRepo, WithActions(a.open))
+	run(m, m.showScreen(dashScreen, 0))
+	if m.screen != dashScreen {
+		t.Fatalf("on screen %d, want the dashboard", m.screen)
+	}
 	run(m, m.key(press("A")))
 	if len(a.opened) != 0 || m.topModal() != nil {
 		t.Errorf("A opened the actions %d times off the repository screen", len(a.opened))

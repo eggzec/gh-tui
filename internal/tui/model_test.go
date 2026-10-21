@@ -85,8 +85,7 @@ func (k sectionKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.Short
 var testRepo = core.RepoRef{Owner: "eggzec", Name: "gh-tui"}
 
 // newApp returns an app of fake sections, files, pull requests, issues and
-// notifications in that order, on an 80x24 terminal. A zero repo starts
-// it on the notifications.
+// notifications in that order, on an 80x24 terminal.
 func newApp(t *testing.T, repo core.RepoRef, opts ...Option) (*Model, []*fakeSection) {
 	t.Helper()
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
@@ -193,24 +192,6 @@ func TestOpensOnRepoWithFilesFocused(t *testing.T) {
 	}
 	if s := onScreen(m); !strings.Contains(s, "eggzec/gh-tui") {
 		t.Errorf("header lacks the repository:\n%s", s)
-	}
-}
-
-func TestOpensOnNotificationsWithoutRepo(t *testing.T) {
-	t.Parallel()
-	m, fakes := newApp(t, core.RepoRef{})
-	if m.screen != notifScreen {
-		t.Fatal("the app didn't open on the notifications")
-	}
-	if got := focusedTitles(fakes); !slices.Equal(got, []string{"Notifications"}) {
-		t.Errorf("focused = %v, want only Notifications", got)
-	}
-	s := onScreen(m)
-	if !strings.Contains(s, "Notifications content") || strings.Contains(s, "Files content") {
-		t.Errorf("screen isn't the notifications:\n%s", s)
-	}
-	if !strings.Contains(s, "─ Notifications ─") || strings.Contains(s, "to search") {
-		t.Errorf("header doesn't name the notifications:\n%s", s)
 	}
 }
 
@@ -366,12 +347,6 @@ func TestZoom(t *testing.T) {
 
 func TestZoomNeedsTheRepoScreen(t *testing.T) {
 	t.Parallel()
-	m, fakes := newTestApp(t)
-	run(m, m.key(press("I")))
-	run(m, m.key(press("z")))
-	if m.zoom || !fakes[3].got(isKey("z")) {
-		t.Error("z on the notifications should go to them, not zoom the repository screen")
-	}
 	pulls := &fakeSection{title: "Pull requests"}
 	lone := New(t.Context(), config.Default(), Layout{Pulls: pulls}, WithRepo(testRepo))
 	lone.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -546,40 +521,44 @@ func TestFocusMovesBetweenPanes(t *testing.T) {
 	}
 }
 
-// I shows the notifications, and pressing it again stays there; backspace
-// goes back to the pane that had the focus.
-func TestNotificationsKeyShowsTheNotifications(t *testing.T) {
+// I does nothing while no modal shows the notifications: the screen, the
+// focus and the back history stay as they are, and nothing is toasted.
+func TestNotificationsKeyDoesNothing(t *testing.T) {
 	t.Parallel()
-	m, fakes := newTestApp(t)
-	run(m, m.key(press("2")))
-	run(m, m.key(press("I")))
-	if m.screen != notifScreen || !slices.Equal(focusedTitles(fakes), []string{"Notifications"}) {
-		t.Fatalf("I didn't show the notifications: focused %v", focusedTitles(fakes))
-	}
-	if s := onScreen(m); !strings.Contains(s, "Notifications content") || !strings.Contains(s, "backspace back") {
-		t.Errorf("notifications screen or its help is missing:\n%s", s)
-	}
-	// Tab has no panes to move between here.
-	run(m, m.key(press("tab")))
-	if m.screen != notifScreen {
-		t.Error("tab left the notifications")
-	}
-	run(m, m.key(press("I")))
-	if m.screen != notifScreen || len(m.back) != 1 {
-		t.Errorf("I again left the notifications: screen %d, %d places to go back to, want 1", m.screen, len(m.back))
-	}
-	run(m, m.key(press("backspace")))
-	if m.screen != repoScreen || !slices.Equal(focusedTitles(fakes), []string{"Pull requests"}) {
-		t.Errorf("backspace didn't go back to the pane that had focus: %v", focusedTitles(fakes))
-	}
-	run(m, m.key(press("backspace")))
-	if m.screen != repoScreen {
-		t.Error("backspace at the bottom left the screen")
-	}
-	run(m, m.key(press("I")))
-	run(m, m.key(press("3")))
-	if m.screen != notifScreen || fakes[2].focused {
-		t.Error("a pane key on the notifications switched screens")
+	for _, tt := range []struct {
+		name string
+		app  func(t *testing.T) *Model
+	}{
+		{"repository", func(t *testing.T) *Model {
+			t.Helper()
+			m, _ := newTestApp(t)
+			run(m, m.key(press("2")))
+			return m
+		}},
+		{"dashboard", func(t *testing.T) *Model {
+			t.Helper()
+			m, _ := newDashApp(t, core.RepoRef{})
+			return m
+		}},
+		{"search", func(t *testing.T) *Model {
+			t.Helper()
+			m := newKeysApp(t, false)
+			run(m, m.showScreen(searchScreen, 0))
+			return m
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := tt.app(t)
+			screen, back, before := m.screen, len(m.back), onScreen(m)
+			run(m, m.key(press("I")))
+			if m.screen != screen || len(m.back) != back {
+				t.Errorf("I moved the app: screen %d, %d back, want %d, %d", m.screen, len(m.back), screen, back)
+			}
+			if got := onScreen(m); got != before {
+				t.Errorf("I changed the screen:\n%s\nwas:\n%s", got, before)
+			}
+		})
 	}
 }
 
@@ -589,16 +568,15 @@ func TestSectionsStartWhenShown(t *testing.T) {
 	run(m, m.Init())
 	for _, f := range fakes {
 		want := 0
-		if f.title == "Notifications" {
+		if f.title == "Notifications" || f.title == "Files" {
 			want = 1
 		}
-		if f.inits != want {
+		if f.title == "Notifications" && f.inits != want {
 			t.Errorf("%s started %d times, want %d", f.title, f.inits, want)
 		}
 	}
-	run(m, m.show("Files"))
-	run(m, m.key(press("I")))
-	run(m, m.key(press("backspace")))
+	run(m, m.show("Pull requests"))
+	run(m, m.show("Issues"))
 	for _, f := range fakes {
 		if f.inits != 1 {
 			t.Errorf("%s started %d times, want once", f.title, f.inits)
@@ -920,10 +898,6 @@ func TestWarningAtStart(t *testing.T) {
 func TestShowFocusesTheSection(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
-	run(m, func() tea.Msg { return ui.ShowMsg{Title: "Notifications"} })
-	if m.screen != notifScreen || !fakes[3].focused {
-		t.Error("ShowMsg didn't show the notifications")
-	}
 	run(m, func() tea.Msg { return ui.ShowMsg{Title: "Issues"} })
 	if m.screen != repoScreen || !slices.Equal(focusedTitles(fakes), []string{"Issues"}) {
 		t.Errorf("ShowMsg didn't focus the issues: %v", focusedTitles(fakes))
@@ -1085,14 +1059,10 @@ func TestProgramRendersAndQuits(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Files content")) && bytes.Contains(out, []byte("Issues content"))
 	}, teatest.WithDuration(5*time.Second))
-	tm.Send(press("I"))
-	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
-		return bytes.Contains(out, []byte("Notifications content"))
-	}, teatest.WithDuration(5*time.Second))
 	tm.Send(press("q"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
-	if !ok || final.screen != notifScreen {
-		t.Error("the final model isn't on the notifications")
+	if !ok || final.screen != repoScreen {
+		t.Error("the final model isn't on the repository")
 	}
 }
 
