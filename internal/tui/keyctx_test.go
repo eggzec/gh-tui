@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -372,18 +373,29 @@ func (keyFiles) Blob(context.Context, filesvc.BlobQuery) (core.Blob, error) {
 func (keyFiles) Invalidate(core.RepoRef) {}
 
 // keyInbox serves one unread notification.
-type keyInbox struct{ notifications.Service }
+type keyInbox struct {
+	notifications.Service
+	// reads, when set, counts the lists read.
+	reads *atomic.Int32
+}
 
 var keyThread = core.Notification{
 	ID: "1", Repo: testRepo, Reason: "mention", Unread: true, UpdatedAt: keyTime,
 	Subject: core.Subject{Title: "Keys collide", Type: core.SubjectIssue, Number: 1, WebURL: keyIssue.URL},
 }
 
-func (keyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bool) {
+func (k keyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bool) {
+	k.count()
 	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}, true
 }
-func (keyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
+func (k keyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
+	k.count()
 	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}, nil
+}
+func (k keyInbox) count() {
+	if k.reads != nil {
+		k.reads.Add(1)
+	}
 }
 func (keyInbox) FreshList(notifsvc.ListQuery) bool { return true }
 func (keyInbox) Invalidate()                       {}
@@ -1058,6 +1070,12 @@ func newKeysAppWith(t *testing.T, repo bool, edit func(*config.Config)) *Model {
 // so replace the app's own.
 func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ...Option) *Model {
 	t.Helper()
+	return newKeysAppInbox(t, repo, edit, keyInbox{}, extra...)
+}
+
+// newKeysAppInbox is newKeysAppOpts with the notifications served by inbox.
+func newKeysAppInbox(t *testing.T, repo bool, edit func(*config.Config), inbox keyInbox, extra ...Option) *Model {
+	t.Helper()
 	ctx, cfg := t.Context(), config.Default()
 	edit(&cfg)
 	acc := newFakeAccess(uitest.Classic("repo", "workflow", "notifications", "read:org", "gist"))
@@ -1072,7 +1090,7 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}),
 			pulls.WithReviewDrafts(keyReviewDrafts())),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
-		Notifications: notifications.New(ctx, keyInbox{}, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
+		Notifications: notifications.New(ctx, inbox, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
 			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),

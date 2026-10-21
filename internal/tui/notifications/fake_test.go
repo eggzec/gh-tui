@@ -319,6 +319,8 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			app = append(app, msg)
 		case ui.CloseModalMsg:
 			closeQuestion(s, msg.Modal)
+		case ui.LeaveModalMsg:
+			closeQuestion(s, msg.Modal)
 		case ui.DoneMsg:
 			app = append(app, msg)
 			queue = append(queue, s.Update(msg))

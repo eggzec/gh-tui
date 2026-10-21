@@ -105,7 +105,7 @@ func TestUIMaximized(t *testing.T) {
 		t.Errorf("default maximized = %v, want none", got)
 	}
 	// The modals the default file lists are all key contexts that are modals.
-	for _, name := range []string{"pull_modal", "issue_modal", "release_modal", "history", "actions", "preview", "text", "filter"} {
+	for _, name := range []string{"notifications", "pull_modal", "issue_modal", "release_modal", "history", "actions", "preview", "text", "filter"} {
 		cfg := Default()
 		cfg.UI.Maximized = []string{name}
 		if err := cfg.Validate(); err != nil {
@@ -121,9 +121,9 @@ func TestUIMaximized(t *testing.T) {
 			t.Errorf("maximized %q: Validate() = %v, want an unknown modal", name, err)
 			continue
 		}
-		const want = "must be one of pull_modal, issue_modal, release_modal, history, actions, preview, text, filter"
+		const want = "must be one of notifications, pull_modal, issue_modal, release_modal, history, actions, preview, text, filter"
 		if !strings.Contains(err.Error(), want) {
-			t.Errorf("maximized %q: Validate() = %v, want it to list exactly the eight modals", name, err)
+			t.Errorf("maximized %q: Validate() = %v, want it to list exactly the nine modals", name, err)
 		}
 	}
 

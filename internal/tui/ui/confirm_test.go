@@ -228,7 +228,7 @@ func TestConfirmModal(t *testing.T) {
 			for _, k := range tt.keys {
 				msgs = append(msgs, runAll(m.Update(press(k)))...)
 			}
-			closed := slices.Contains(msgs, tea.Msg(CloseModalMsg{Modal: m}))
+			closed := slices.Contains(msgs, tea.Msg(LeaveModalMsg{Modal: m}))
 			if closed != tt.closed || (r.n == 1) != tt.run || r.n > 1 {
 				t.Errorf("%v: closed %v and ran %d times, want closed %v and run %v", tt.keys, closed, r.n, tt.closed, tt.run)
 			}
