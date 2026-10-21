@@ -12,6 +12,7 @@ import (
 	"context"
 	"os/exec"
 	"slices"
+	"strconv"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -391,7 +392,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		}
 	}
 	for i, p := range m.panes {
-		p.label = paneLabel(i, p.section.Title())
+		p.label, p.key = p.section.Title(), strconv.Itoa(i+1)
 	}
 	m.all = slices.Clip(m.panes)
 	if layout.Notifications != nil {
@@ -604,12 +605,12 @@ func (m *Model) updateOwner() {
 // its title, such as the filters of its list, and redraws the frames whose
 // titles changed.
 func (m *Model) updateChips() {
-	for i, p := range m.panes {
+	for _, p := range m.panes {
 		c, ok := p.section.(ui.Chipper)
 		if !ok {
 			continue
 		}
-		label := paneLabel(i, p.section.Title())
+		label := p.section.Title()
 		if chips := c.Chips(); chips != "" {
 			label += m.icons.Separator + chips
 		}

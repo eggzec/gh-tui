@@ -146,7 +146,7 @@ func TestFilterModalApplies(t *testing.T) {
 	if len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" || pulls.applied[0].Values["state"].Text() != "open" {
 		t.Fatalf("applied = %+v, want the state chosen", pulls.applied)
 	}
-	if got := m.panes[1].label; got != "[2] Pull requests · is:open" {
+	if got := m.panes[1].label; got != "Pull requests · is:open" {
 		t.Errorf("pane label = %q, want the chips after the title", got)
 	}
 	if !strings.Contains(m.panes[1].top, "Pull requests · is:open") {
