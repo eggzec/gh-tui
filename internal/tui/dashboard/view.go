@@ -18,8 +18,12 @@ import (
 // at the bottom. Below that, or zoomed, it shows the profile and the
 // focused pane, whose frame names the others.
 const (
-	wideWidth    = 100
-	wideHeight   = 30
+	wideWidth  = 100
+	wideHeight = 30
+	// chromeRows is what the app draws around the dashboard, the header and
+	// the footer. The dashboard is wide at a terminal of wideHeight rows, so
+	// it compares its own height with what is left of them.
+	chromeRows   = 2
 	pinnedHeight = ownerui.CardHeight + 2
 	// calendarLines is what the calendar draws: the total, the months,
 	// seven days and the legend.
@@ -39,7 +43,7 @@ type box struct{ w, h int }
 
 // layout sizes the panes for the dashboard's size.
 func (s *Section) layout() {
-	s.wide = s.width >= wideWidth && s.height >= wideHeight
+	s.wide = s.width >= wideWidth && s.height >= wideHeight-chromeRows
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if !s.onePane() {
