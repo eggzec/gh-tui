@@ -49,11 +49,6 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case ui.OpenPullMsg:
 		return s.openDetail(msg.Repo, msg.Number, nil, msg.Checks, msg.ShowRepo, msg.Pause, msg.Back)
-	case changedMsg:
-		if !s.hasRepo || !msg.repo.Same(s.repo) {
-			return nil
-		}
-		return s.reload()
 	case ui.DoneMsg:
 		// The change was confirmed or rolled back; either way the cache
 		// has the outcome.
