@@ -112,6 +112,12 @@ type Fitter interface {
 	Fit(maxWidth, maxHeight int) (width, height int)
 }
 
+// Narrower is a Modal that follows the app's narrow rule (ui.wide): the app
+// tells it before each SetSize whether the terminal is narrow.
+type Narrower interface {
+	SetNarrow(narrow bool)
+}
+
 // FilterModal is the filter form of a Filterable as a modal. A list that
 // can be sorted shows its sort on a tab after the filters, in the top edge
 // of the frame. Enter applies the form from any row, on either tab, and

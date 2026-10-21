@@ -128,6 +128,9 @@ func (m *Model) discardModal(mod ui.Modal) {
 // sizeModal gives the open modal its size.
 func (m *Model) sizeModal(width, height int) {
 	m.modalWidth, m.modalHeight = width, height
+	if n, ok := m.modal.(ui.Narrower); ok {
+		n.SetNarrow(m.narrow())
+	}
 	m.modal.SetSize(width, height)
 }
 

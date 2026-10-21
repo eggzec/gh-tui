@@ -57,15 +57,16 @@ func sizedPanes(t *testing.T, w, h int) *panesModal {
 func TestConfirmOverlayKeepsThePanes(t *testing.T) {
 	t.Parallel()
 	m := sizedPanes(t, 160, 40)
-	m.focus, m.zoom = panes.Merge, true
+	m.focus = panes.Merge
+	m.zoom.SetZoom(true)
 	m.sub[panes.Merge-1] = panes.Preview
 	yes := 0
 	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
 
 	for _, k := range []string{"tab", "shift+tab", "3", "z", "enter", "j"} {
 		m.Update(keyMsg(k))
-		if m.focus != panes.Merge || !m.zoom || m.sub[panes.Merge-1] != panes.Preview || m.top() == nil {
-			t.Fatalf("%s under a question changed the modal: focus %v zoom %v sub %v open %v", k, m.focus, m.zoom, m.sub, m.top() != nil)
+		if m.focus != panes.Merge || !m.zoom.Zoomed() || m.sub[panes.Merge-1] != panes.Preview || m.top() == nil {
+			t.Fatalf("%s under a question changed the modal: focus %v zoom %v sub %v open %v", k, m.focus, m.zoom.Zoomed(), m.sub, m.top() != nil)
 		}
 	}
 	if yes != 0 {
@@ -75,8 +76,8 @@ func TestConfirmOverlayKeepsThePanes(t *testing.T) {
 	if m.top() != nil {
 		t.Fatal("n left the question open")
 	}
-	if m.focus != panes.Merge || !m.zoom || m.sub[panes.Merge-1] != panes.Preview {
-		t.Errorf("after the question: focus %v zoom %v sub %v", m.focus, m.zoom, m.sub)
+	if m.focus != panes.Merge || !m.zoom.Zoomed() || m.sub[panes.Merge-1] != panes.Preview {
+		t.Errorf("after the question: focus %v zoom %v sub %v", m.focus, m.zoom.Zoomed(), m.sub)
 	}
 	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
 	m.Update(keyMsg("y"))

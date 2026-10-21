@@ -15,7 +15,8 @@ import (
 func previewPanes(t *testing.T, row *string) *panesModal {
 	t.Helper()
 	m := sizedPanes(t, 160, 30)
-	m.focus, m.zoom = panes.Merge, true
+	m.focus = panes.Merge
+	m.zoom.SetZoom(true)
 	m.slots[panes.Merge-1].hovered = func(*panesModal) (string, string, bool) {
 		return *row, "row " + *row, *row != ""
 	}
@@ -35,7 +36,8 @@ func previewPanes(t *testing.T, row *string) *panesModal {
 func TestPreviewSubFocus(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
-	m.focus, m.zoom = panes.Merge, true
+	m.focus = panes.Merge
+	m.zoom.SetZoom(true)
 	for i, want := range []panes.Role{panes.Preview, panes.List, panes.Preview, panes.List} {
 		key := "tab"
 		if i >= 2 {

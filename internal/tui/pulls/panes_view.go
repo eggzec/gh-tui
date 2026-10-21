@@ -107,7 +107,12 @@ func (m *panesModal) panes(l panes.Layout) string {
 		if b.Role == panes.Preview {
 			return m.previewContent(b)
 		}
-		return m.slots[b.Pane-1].content(m, b)
+		c := m.slots[b.Pane-1].content(m, b)
+		if l.Zoomed && c.Title == "" {
+			// The digits are in the strip of the bottom edge.
+			c.Title = b.Pane.Name()
+		}
+		return c
 	})
 	m.drawn = drawnPanes{key: k, out: out}
 	return out

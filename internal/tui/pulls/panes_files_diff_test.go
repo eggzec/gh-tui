@@ -25,7 +25,7 @@ func zoomedFiles(t *testing.T, fs []core.CommitFile, setup func(*fakeService), o
 		}
 	}, opts...)
 	press(t, h, "z")
-	if !m.zoom {
+	if !m.zoom.Zoomed() {
 		t.Fatal("z didn't zoom the pane")
 	}
 	return h, m, svc
@@ -193,7 +193,7 @@ func TestFilesDiffView(t *testing.T) {
 				var m *panesModal
 				if loading {
 					_, m, _ = rangePanes(t, sampleCommits(nil), func(svc *fakeService) { svc.changed = patched() })
-					m.zoom = true
+					m.zoom.SetZoom(true)
 					m.syncFilesDiff()
 				} else {
 					_, m, _ = zoomedFiles(t, patched(), nil)
