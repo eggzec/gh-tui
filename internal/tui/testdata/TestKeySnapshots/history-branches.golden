@@ -5,7 +5,6 @@ global
   command | : | : | on
   maximize | Z | Z | on
   dashboard | 0 | 0 | off
-  notifications | I | I | off
   search | S | S | off
   this repo | . | . | off
   owner page | @ | @ | off

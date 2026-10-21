@@ -6,7 +6,6 @@ global
   maximize | Z | Z | off
   back | backspace | backspace | off
   dashboard | 0 | 0 | off
-  notifications | I | I | off
   search | S | S | off
   this repo | . | . | off
   owner page | @ | @ | off
