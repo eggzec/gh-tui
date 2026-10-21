@@ -39,6 +39,12 @@ type Settler interface {
 	Settle() tea.Cmd
 }
 
+// ReturnsOnClose marks a Modal that other modals opened over return to when
+// they close.
+type ReturnsOnClose interface {
+	ReturnsOnClose()
+}
+
 // Tabbed is a Modal with tabs, such as the filters of a list, which the
 // app shows at the right end of the top edge of the frame.
 type Tabbed interface {
