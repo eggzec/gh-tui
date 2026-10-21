@@ -52,9 +52,6 @@ type KeyMap struct {
 	// Checks opens the pull request of the work under the cursor on its
 	// checks.
 	Checks key.Binding
-	// Notifications names the key that shows every notification, which
-	// the app handles.
-	Notifications key.Binding
 	// Up, Down, Left and Right move through the cards, WorkUp and WorkDown
 	// through the work, and InboxUp and InboxDown through the
 	// notifications, each with the keys of its pane.
@@ -108,7 +105,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		NextList:      work.Binding("global.next_tab", "next list"),
 		PrevList:      work.Binding("global.prev_tab", "previous list"),
 		Checks:        work.Binding("checks", "checks"),
-		Notifications: screen.Binding("global.notifications", "all notifications"),
 	}
 	keymap.Fill(&k, screen)
 	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5"}
@@ -148,7 +144,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // dashboard matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups, k.Notifications},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
 		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}

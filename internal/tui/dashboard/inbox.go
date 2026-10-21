@@ -11,7 +11,7 @@ import (
 
 // inboxList is the notifications pane: the unread threads of the first
 // page of the inbox, with a cursor, which opens what a thread is about as
-// the notifications screen does.
+// the notifications list does.
 type inboxList struct {
 	rows []core.Notification
 	sel  int
