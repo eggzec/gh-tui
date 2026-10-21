@@ -566,9 +566,6 @@ func (s *Section) inboxBody(w, h int) []string {
 	}
 	lines := make([]string, 0, h)
 	head := " " + st.shared.Text.Render(n) + st.shared.Muted.Render(" unread")
-	if k := s.keys.Notifications.Help().Key; k != "" {
-		head += st.shared.Subtle.Render(s.icons.Separator + s.icons.Key(k) + " shows them all")
-	}
 	lines = append(lines, head)
 	l := &s.threads
 	l.scroll(h - 1)

@@ -14,7 +14,7 @@ import (
 // ignore the messages of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	if msg, ok := msg.(ui.AheadMsg); ok {
-		// The opener may be the notifications screen's too, which reads
+		// The opener may be the notifications list's too, which reads
 		// ahead while it is on view instead.
 		if !s.focused {
 			return nil

@@ -165,7 +165,7 @@ type overModal struct {
 	// binding is the key of the intent.
 	binding key.Binding
 	// action is the name the modal knows the intent by, and what the
-	// refusal names, such as "notifications".
+	// refusal names, such as "search".
 	action, use string
 }
 
@@ -178,9 +178,6 @@ func (m *Model) overModals() []overModal {
 	var out []overModal
 	if m.dash != nil {
 		out = append(out, overModal{k.Dashboard, "dashboard", "the dashboard"})
-	}
-	if m.notif != nil {
-		out = append(out, overModal{k.Notifications, "notifications", "notifications"})
 	}
 	if m.srch != nil {
 		out = append(out, overModal{k.Search, "search", "search"})

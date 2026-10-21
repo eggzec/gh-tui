@@ -810,7 +810,7 @@ func TestInboxOpensAsTheNotificationsDo(t *testing.T) {
 			keys = []string{"down", "enter"}
 		}
 		got := press(t, s, keys...)
-		// The same thread opens the same way from the notifications screen.
+		// The same thread opens the same way from the notifications list.
 		want := run(t, s, threads.New(t.Context()).Open(n))
 		if !slices.Equal(got, want) {
 			t.Errorf("enter on %s sent %v, want %v", n.Subject.Type, got, want)

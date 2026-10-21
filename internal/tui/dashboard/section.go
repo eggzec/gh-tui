@@ -90,7 +90,7 @@ type Marker interface {
 }
 
 // WithInbox shows the unread notifications of in. If in is a Marker too,
-// opening a thread marks it read, as the notifications screen does. Without
+// opening a thread marks it read, as the notifications list does. Without
 // it the notifications pane says there are none to show.
 func WithInbox(in Inbox) Option {
 	return func(s *Section) {
@@ -397,7 +397,7 @@ func (s *Section) Focus() {
 func (s *Section) Blur() {
 	s.focused = false
 	s.opener.Stop()
-	// The notifications screen reads ahead as its own settings say.
+	// The notifications list reads ahead as its own settings say.
 	s.opener.FollowInbox(false)
 	s.ahead.Reset(s.ctx)
 	s.aheadRepos.Reset(s.ctx)
