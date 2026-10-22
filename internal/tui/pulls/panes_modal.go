@@ -592,7 +592,7 @@ func (m *panesModal) layout() panes.Layout {
 // boxes: while the panes are zoomed, and the modal is tall enough to give
 // the boxes a row as well.
 func (m *panesModal) hasStrip() bool {
-	return (m.zoom.Zoomed() || m.width < wideMin) && m.height >= 4
+	return showsOne(m.width, m.zoom.Zoomed()) && m.height >= 4
 }
 
 // canZoom reports whether the zoom key does something: not while a narrow

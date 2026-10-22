@@ -19,27 +19,27 @@ func TestFrame(t *testing.T) {
 		c    Content
 		w, h int
 	}{
-		{"title and info", Content{Title: "6 Files", TopRight: files, Body: "src/calc.go\nsrc/calc_test.go"}, 40, 5},
-		{"top right form 2", Content{Title: "6 Files", TopRight: files}, 29, 3},
-		{"top right form 3", Content{Title: "6 Files", TopRight: files}, 26, 3},
-		{"top right form 4", Content{Title: "6 Files", TopRight: files}, 22, 3},
-		{"top right dropped whole", Content{Title: "6 Files", TopRight: files}, 18, 3},
-		{"top right needs a dash", Content{Title: "6 Files", TopRight: []string{"abcd"}}, 19, 3},
-		{"top right with a dash", Content{Title: "6 Files", TopRight: []string{"abcd"}}, 20, 3},
-		{"title cut", Content{Title: "2 Conversation", TopRight: []string{"26 of 26 shown"}}, 14, 3},
-		{"title cut leaves no info", Content{Title: "2 Conversation", TopRight: []string{"x"}}, 16, 3},
-		{"title gone in a tiny box", Content{Title: "2 Conversation"}, 5, 3},
+		{"title and info", Content{TopLeft: []string{"6 Files"}, TopRight: files, Body: "src/calc.go\nsrc/calc_test.go"}, 40, 5},
+		{"top right form 2", Content{TopLeft: []string{"6 Files"}, TopRight: files}, 29, 3},
+		{"top right form 3", Content{TopLeft: []string{"6 Files"}, TopRight: files}, 26, 3},
+		{"top right form 4", Content{TopLeft: []string{"6 Files"}, TopRight: files}, 22, 3},
+		{"top right dropped whole", Content{TopLeft: []string{"6 Files"}, TopRight: files}, 18, 3},
+		{"top right needs a dash", Content{TopLeft: []string{"6 Files"}, TopRight: []string{"abcd"}}, 19, 3},
+		{"top right with a dash", Content{TopLeft: []string{"6 Files"}, TopRight: []string{"abcd"}}, 20, 3},
+		{"title cut", Content{TopLeft: []string{"2 Conversation", "2 Conver…"}, TopRight: []string{"26 of 26 shown"}}, 14, 3},
+		{"title cut leaves no info", Content{TopLeft: []string{"2 Conversation", "2 Conversa…"}, TopRight: []string{"x"}}, 16, 3},
+		{"title gone in a tiny box", Content{TopLeft: []string{"2 Conversation"}}, 5, 3},
 		{"no title", Content{TopRight: []string{"info"}}, 20, 3},
-		{"body cut and padded", Content{Title: "1 Description", Body: "short\na line that is far too wide for this box\n\ttabbed"}, 24, 5},
-		{"body rows dropped", Content{Title: "x", Body: "1\n2\n3\n4"}, 12, 4},
-		{"wide characters", Content{Title: "3 漢字のタイトル", TopRight: []string{"日本語"}, Body: "漢字漢字漢字漢字漢字漢字\n🙂🙂🙂"}, 24, 5},
-		{"wide info fits", Content{Title: "3 漢字", TopRight: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 34, 3},
-		{"wide info second form fits", Content{Title: "3 漢字", TopRight: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 22, 3},
+		{"body cut and padded", Content{TopLeft: []string{"1 Description"}, Body: "short\na line that is far too wide for this box\n\ttabbed"}, 24, 5},
+		{"body rows dropped", Content{TopLeft: []string{"x"}, Body: "1\n2\n3\n4"}, 12, 4},
+		{"wide characters", Content{TopLeft: []string{"3 漢字のタイトル"}, TopRight: []string{"日本語"}, Body: "漢字漢字漢字漢字漢字漢字\n🙂🙂🙂"}, 24, 5},
+		{"wide info fits", Content{TopLeft: []string{"3 漢字"}, TopRight: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 34, 3},
+		{"wide info second form fits", Content{TopLeft: []string{"3 漢字"}, TopRight: []string{"日本語日本語日本語", "日本語"}, Body: "漢字"}, 22, 3},
 		{
 			"hyperlinks",
 			Content{
-				Title: "\x1b]8;;https://example.com\x1b\\4 Linked title\x1b]8;;\x1b\\",
-				Body:  "see \x1b]8;;https://example.com/a-long-url\x1b\\a link that is cut off here\x1b]8;;\x1b\\ end",
+				TopLeft: []string{"\x1b]8;;https://example.com\x1b\\4 Linked title\x1b]8;;\x1b\\"},
+				Body:    "see \x1b]8;;https://example.com/a-long-url\x1b\\a link that is cut off here\x1b]8;;\x1b\\ end",
 			},
 			24, 4,
 		},
@@ -66,7 +66,7 @@ func TestFrame(t *testing.T) {
 
 func TestFrameFocus(t *testing.T) {
 	st := DefaultStyles(true)
-	c := Content{Title: "3 Merge", TopRight: []string{"5 blockers"}, Body: "feat/calc → main"}
+	c := Content{TopLeft: []string{"3 Merge"}, TopRight: []string{"5 blockers"}, Body: "feat/calc → main"}
 	focused, blurred := c, c
 	focused.Focus = true
 	f, b := st.Frame(focused, 30, 4), st.Frame(blurred, 30, 4)
@@ -82,7 +82,7 @@ func TestFrameFocus(t *testing.T) {
 func TestFrameNoRoom(t *testing.T) {
 	st := DefaultStyles(true)
 	for _, sz := range [][2]int{{0, 0}, {1, 5}, {5, 1}, {1, 1}, {2, 2}, {3, 3}} {
-		out := st.Frame(Content{Title: "x", TopRight: []string{"y"}, Body: "z"}, sz[0], sz[1])
+		out := st.Frame(Content{TopLeft: []string{"x"}, TopRight: []string{"y"}, Body: "z"}, sz[0], sz[1])
 		lines := strings.Split(out, "\n")
 		if sz[1] > 0 && len(lines) != sz[1] {
 			t.Errorf("%v: %d lines", sz, len(lines))
@@ -144,12 +144,12 @@ func TestSgrOpen(t *testing.T) {
 func TestFrameVisible(t *testing.T) {
 	st := DefaultStyles(true)
 	link := Content{
-		Title: "\x1b]8;;https://example.com\x1b\\4 Linked title\x1b]8;;\x1b\\",
-		Body:  "see \x1b]8;;https://example.com/a-long-url\x1b\\a link that is cut off here\x1b]8;;\x1b\\ end",
+		TopLeft: []string{"\x1b]8;;https://example.com\x1b\\4 Linked title\x1b]8;;\x1b\\"},
+		Body:    "see \x1b]8;;https://example.com/a-long-url\x1b\\a link that is cut off here\x1b]8;;\x1b\\ end",
 	}
 	styled := Content{
-		Title: "1 Description",
-		Body:  "\x1b[1;4mbold and underlined text cut in the middle of its style\x1b[m\n\x1b[3mitalic and never reset",
+		TopLeft: []string{"1 Description"},
+		Body:    "\x1b[1;4mbold and underlined text cut in the middle of its style\x1b[m\n\x1b[3mitalic and never reset",
 	}
 	golden.RequireEqual(t, visible(st.Frame(link, 24, 4)+"\n\n"+st.Frame(styled, 24, 4)))
 }

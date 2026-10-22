@@ -18,10 +18,6 @@ const (
 const (
 	pickerWidth  = DefaultListWidth
 	pickerHeight = 14
-	// wideMin is the area width from which overlays are inset. It is the
-	// PR modal's two-column width and moves to the caller with the rest of
-	// that geometry.
-	wideMin = 120
 )
 
 // minViewerHeight is the fewest lines an inset viewer may have: its border
@@ -37,17 +33,22 @@ type Overlay struct {
 	Text int
 	// Maximized makes a Viewer fill the area even when it is wide.
 	Maximized bool
+	// InsetMin is the area width from which a Viewer or Picker is inset or
+	// centred instead of filling the area. The caller sets it, since it is
+	// the width at which its own layout turns wide; zero or less insets at
+	// any width.
+	InsetMin int
 }
 
 // OverlayRect places an overlay in an area of w by h cells, the panes' area
 // without the footer. Viewers and pickers fill the area when it is narrower
-// than 120 columns, and viewers also when maximized or when the inset would leave
+// than o.InsetMin columns, and viewers also when maximized or when the inset would leave
 // them under minViewerHeight lines. The rectangle always lies inside the
 // area.
 func OverlayRect(o Overlay, w, h int) Rect {
 	w, h = max(0, w), max(0, h)
 	full := Rect{0, 0, w, h}
-	wide := w >= wideMin
+	wide := w >= o.InsetMin
 	var r Rect
 	switch o.Kind {
 	case Viewer:

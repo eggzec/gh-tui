@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -9,19 +10,17 @@ import (
 
 // Content is what the caller puts in one box.
 type Content struct {
-	// Title is the top-left slot of the border. It is the one slot that is
-	// cut, with an ellipsis, since a title that does not fit is still better
-	// shown in part; an empty Title shows none.
-	Title string
-	// TopRight, BottomLeft and BottomRight are the other three corner slots
-	// of the border. Each is a list of forms of the same text, written by
-	// the caller, the longest first. The bubble draws the first form that
-	// fits and never edits, cuts or pads it; a slot with no fitting form is
-	// left out whole. On one edge the left slot wins and takes its longest
-	// form that fits, and the right slot appears only if one of its forms
-	// fits beside it with at least one dash between them. Colours inside a
-	// form are the caller's; the Info style wraps the form.
-	TopRight, BottomLeft, BottomRight []string
+	// TopLeft, TopRight, BottomLeft and BottomRight are the four corner
+	// slots of the border; TopLeft is the title. Each is a list of forms of
+	// the same text, written by the caller, the longest first. The bubble
+	// draws the first form that fits and never edits, cuts or pads it; a slot
+	// with no fitting form is left out whole, so a caller that prefers a cut
+	// title to none ends its list with a form it cut itself. On one edge the
+	// left slot wins and takes its longest form that fits, and the right slot
+	// appears only if one of its forms fits beside it with at least one dash
+	// between them. Colours inside a form are the caller's; the Title (or
+	// TitleFocus) style wraps TopLeft forms and the Info style the others.
+	TopLeft, TopRight, BottomLeft, BottomRight []string
 	// Body is the content, lines joined by "\n". Lines beyond the inner
 	// height are dropped, and lines wider than the inner width are cut with
 	// an ellipsis. Tabs are expanded to stops of 4. Other control characters,
@@ -110,26 +109,22 @@ func (s Styles) pad(line string, inner int) string {
 	return strings.Repeat(" ", margin) + line + strings.Repeat(" ", gap+margin)
 }
 
-// top is the top border: corner, "─ ", title, " ", dashes, " ", info, " ─",
-// corner. The info goes only if at least one dash is left between it and
-// the title.
+// top is the top border: corner, "─ ", left slot, " ", dashes, " ", right
+// slot, " ─", corner. The right slot goes only if at least one dash is left
+// between it and the left slot.
 func (s Styles) top(c Content, w int) string {
 	b, e := s.Border, s.edge(c.Focus)
 	inner := w - 2
-	title := c.Title
 	left := ""
 	leftW := 0
-	if title != "" {
-		room := inner - 3
-		if room > 0 {
-			title = s.cut(title, room)
-			ts := s.Title
-			if c.Focus {
-				ts = s.TitleFocus
-			}
-			left = e.Render(b.Top+" ") + ts.Render(title) + e.Render(" ")
-			leftW = 3 + ansi.StringWidth(title)
-		}
+	ts := s.Title
+	if c.Focus {
+		ts = s.TitleFocus
+	}
+	if i := slices.IndexFunc(c.TopLeft, func(f string) bool { return f != "" && 3+ansi.StringWidth(f) <= inner }); i >= 0 {
+		f := c.TopLeft[i]
+		left = e.Render(b.Top+" ") + ts.Render(f) + e.Render(" ")
+		leftW = 3 + ansi.StringWidth(f)
 	}
 	info, infoW := s.rightSlot(c.TopRight, b.Top, e, inner-leftW)
 	dashes := e.Render(strings.Repeat(b.Top, inner-leftW-infoW))

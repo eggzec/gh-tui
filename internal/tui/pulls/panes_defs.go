@@ -35,6 +35,10 @@ const (
 	sideWidth = 36
 )
 
+// showsOne reports whether an area w cells wide shows the focused pane alone:
+// when zoom asks for it, and always under wideMin.
+func showsOne(w int, zoom bool) bool { return zoom || w < wideMin }
+
 // paneName is the pane's full name, such as "Conversation".
 func paneName(p panes.Pane) string {
 	if p < 1 || int(p) > len(paneDefs) {
@@ -53,7 +57,7 @@ func paneTitle(p panes.Pane) string {
 // layout of the bubble. devRows is the rows the Development pane has with
 // every fold in its default state, not its current one.
 func prLayout(w, h int, focus panes.Pane, zoom bool, devRows int) panes.Layout {
-	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: zoom || w < wideMin}
+	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom)}
 	if spec.Zoom {
 		return panes.Compute(spec)
 	}

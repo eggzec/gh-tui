@@ -48,7 +48,7 @@ func TestCornerSlots(t *testing.T) {
 func TestCornerSlotsTop(t *testing.T) {
 	t.Parallel()
 	st := DefaultStyles(true)
-	c := Content{Title: "Title", TopRight: []string{"a long right form", "short"}}
+	c := Content{TopLeft: []string{"Title"}, TopRight: []string{"a long right form", "short"}}
 	for _, want := range []string{
 		"╭─ Title ── a long right form ─╮",
 		"╭─ Title ── short ─╮",

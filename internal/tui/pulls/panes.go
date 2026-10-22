@@ -104,14 +104,15 @@ func (m *panesModal) previewContent(b panes.Box) panes.Content {
 	h := m.hover[b.Pane-1]
 	s := m.slots[b.Pane-1]
 	if s.preview == nil {
-		return panes.Content{Title: h.title}
+		return panes.Content{TopLeft: m.titleForms(h.title, b)}
 	}
 	lines := strings.Split(s.preview(m, b), "\n")
 	off := min(m.previews[previewKey{b.Pane, h.id}], max(0, len(lines)-b.Rect.Inner().H))
-	c := panes.Content{Title: h.title, Body: strings.Join(lines[off:], "\n")}
+	title := h.title
 	if s.title != nil {
-		c.Title = s.title(m, b)
+		title = s.title(m, b)
 	}
+	c := panes.Content{TopLeft: m.titleForms(title, b), Body: strings.Join(lines[off:], "\n")}
 	if s.info != nil {
 		c.TopRight = s.info(m, b)
 	}
