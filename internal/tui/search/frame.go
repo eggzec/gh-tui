@@ -38,12 +38,12 @@ func (s *Section) listOuter() int {
 func (s *Section) panes() []string {
 	rw, rh := s.resultsSize()
 	results := func() []string {
-		body := append([]string{s.kindsLine(rw)}, s.results(rw, rh)...)
+		body := s.results(rw, rh)
 		focused := s.area == resultsArea && !s.preview
-		return s.countEdge(s.box(s.resultsLabel(), 0, focused, rw+2, rh+3, body), s.resultsLabel(), s.countLabel(), focused, rw+2)
+		return s.countEdge(s.box(s.resultsLabel(), 0, focused, rw+2, rh+2, body), s.resultsLabel(), s.countLabel(), focused, rw+2)
 	}
 	preview := func(w int) []string {
-		return s.box(paneNames[1], 1, s.area == resultsArea && s.preview, w, rh+3, strings.Split(s.pv.View(), "\n"))
+		return s.box(paneNames[1], 1, s.area == resultsArea && s.preview, w, rh+2, strings.Split(s.pv.View(), "\n"))
 	}
 	switch {
 	case s.split():
@@ -55,23 +55,15 @@ func (s *Section) panes() []string {
 	}
 }
 
-// cyclePane moves the focus to the next pane, or the previous one: the
-// query, the results, the preview.
-func (s *Section) cyclePane(next bool) {
-	switch {
-	case s.area == inputArea:
-		s.focusPane(resultsArea, !next)
-	case s.preview:
-		if next {
-			s.focusArea(inputArea)
-		} else {
-			s.focusArea(resultsArea)
-		}
-	case next:
+// cyclePane moves the focus between the results and the preview, either
+// way; the query is not part of the cycle, and a press from it goes to the
+// results.
+func (s *Section) cyclePane() {
+	if s.area == resultsArea && !s.preview {
 		s.focusPane(resultsArea, true)
-	default:
-		s.focusArea(inputArea)
+		return
 	}
+	s.focusPane(resultsArea, false)
 }
 
 // box draws body in a frame w by h cells with label in its top edge. The

@@ -58,8 +58,23 @@ func TestTabSwitchesPane(t *testing.T) {
 	if !s.preview || !strings.Contains(s.View(), "Preview") {
 		t.Errorf("tab from the results left preview %v, view:\n%s", s.preview, s.View())
 	}
+	for _, k := range []string{"tab", "shift+tab", "shift+tab", "tab", "tab", "shift+tab"} {
+		press(t, s, k)
+		if s.area != resultsArea || s.typing {
+			t.Fatalf("%s: area %d, typing %v, want the results or the preview", k, s.area, s.typing)
+		}
+	}
 	press(t, s, "tab")
-	if s.preview || s.area != inputArea {
-		t.Errorf("tab from the preview: preview %v, area %d, want the query", s.preview, s.area)
+	if s.preview {
+		t.Errorf("tab from the preview left preview %v, want the results", s.preview)
+	}
+}
+
+// A fresh page has a kind to show, so its results are titled by it.
+func TestResultsTitledByKindBeforeSearch(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	if got := s.resultsLabel(); got == "Start" || got != kindTitles[s.kind] {
+		t.Errorf("label %q, want %q", got, kindTitles[s.kind])
 	}
 }
