@@ -177,6 +177,14 @@ var (
 	paneTitles = [numPanes]string{"Pinned", "Repositories", "Waiting on you", "Contributions", "Notifications"}
 	// shortTitles name the panes that aren't on view in a narrow frame.
 	shortTitles = [numPanes]string{"Pinned", "Repos", "Work", "Calendar", "Inbox"}
+	// paneDefs name the panes to the strip, in digit order.
+	paneDefs = [numPanes]panes.Def{
+		{Name: paneTitles[pinnedPane], Short: shortTitles[pinnedPane]},
+		{Name: paneTitles[reposPane], Short: shortTitles[reposPane]},
+		{Name: paneTitles[workPane], Short: shortTitles[workPane]},
+		{Name: paneTitles[calendarPane], Short: shortTitles[calendarPane]},
+		{Name: paneTitles[inboxPane], Short: shortTitles[inboxPane]},
+	}
 )
 
 var lastID atomic.Int64
