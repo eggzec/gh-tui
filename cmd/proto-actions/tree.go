@@ -103,24 +103,6 @@ func (m *model) nodes() []node {
 		if !m.openRun[r.id] {
 			continue
 		}
-		if m.deps {
-			st := r.stages()
-			order := make([]int, len(r.jobs))
-			for i := range order {
-				order[i] = i
-			}
-			slices.SortStableFunc(order, func(a, b int) int { return st[a] - st[b] })
-			prev := -1
-			for _, ji := range order {
-				var pre []string
-				if st[ji] != prev {
-					prev = st[ji]
-					pre = []string{"    " + m.th.Subtle.Render(fmt.Sprintf("%s stage %d", m.ic.Separator, prev+1))}
-				}
-				out = append(out, node{kind: kJob, run: ri, job: ji, pre: pre})
-			}
-			continue
-		}
 		seen := map[string]bool{}
 		for ji, j := range r.jobs {
 			if j.group == "" {
@@ -276,16 +258,24 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		if len(ns) > 0 {
 			c.BottomRight = []string{fmt.Sprintf("%d/%d", m.sel+1, len(ns))}
 		}
-		c.BottomLeft = []string{"enter fold  g deps", "g deps"}
-		if m.deps {
-			c.BottomLeft = []string{"enter fold  g matrix", "g matrix"}
-		}
+		c.BottomLeft = []string{"enter fold  g graph", "g graph"}
 		c.Body = m.treeBody(ns, in.W, in.H, c.Focus)
 		return c
 	}
 	r, ji, ok := m.selJob()
 	if !ok {
 		c.Body = m.th.Subtle.Render("No run selected")
+		return c
+	}
+	if m.graph {
+		c.TopLeft = []string{"graph"}
+		c.TopRight = []string{r.workflow + " #" + fmt.Sprint(r.id)}
+		c.BottomLeft = []string{"hjkl scroll  m mermaid  o LR/TD  g back", "m o g", ""}
+		if m.gsrc {
+			c.BottomLeft = []string{"hjkl scroll  m drawing  g back", "m g", ""}
+			c.TopLeft = []string{"graph mermaid"}
+		}
+		c.Body = m.graphBody(r, in.W, in.H)
 		return c
 	}
 	j := r.jobs[ji]
@@ -354,15 +344,7 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 			}
 			label := j.name
 			left := cur + ind + "  " + m.glyph(j.status) + " " + name(label, m.th.Text.Render(label))
-			if m.deps && len(j.needs) > 0 {
-				left += " " + m.th.Subtle.Render("<- "+strings.Join(j.needs, ", "))
-			}
 			lines = append(lines, m.row(left, m.th.Subtle.Render(j.dur), w))
-			if sel {
-				for _, s := range j.steps {
-					lines = append(lines, m.row(ind+"      "+m.glyph(s.status)+" "+m.th.Muted.Render(s.name), m.th.Subtle.Render(s.dur), w))
-				}
-			}
 		}
 	}
 	return strings.Join(window(lines, selLine, h), "\n")

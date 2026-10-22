@@ -30,7 +30,11 @@ type model struct {
 	zoom     panes.Zoom
 	tab      int
 	sel      int // index in nodes()
-	deps     bool
+	graph    bool // right pane shows the dependency graph
+	gsrc     bool // ... as mermaid source
+	gdir     string
+	gx, gy   int
+	gcache   map[string][]string
 	openRun  map[int]bool
 	openGrp  map[string]bool
 	sect     int // 0 log, 1 problems, 2 artifacts
@@ -50,7 +54,7 @@ type model struct {
 }
 
 func newModel() *model {
-	m := &model{w: 120, h: 40, dark: true, focus: 1, cfg: config.Default(),
+	m := &model{w: 120, h: 40, dark: true, focus: 1, gdir: "LR", cfg: config.Default(),
 		openRun: map[int]bool{allRuns[0].id: true}, openGrp: map[string]bool{fmt.Sprint(allRuns[0].id, "/test"): true}, stepOpen: map[string]bool{}}
 	switch {
 	case os.Getenv("PROTO_LIGHT") != "":
@@ -124,6 +128,31 @@ func (m *model) download(what string) tea.Cmd {
 func (m *model) key(k string) (tea.Model, tea.Cmd) {
 	n := len(m.defs())
 	ns := m.nodes()
+	if m.graph && m.focus == 2 {
+		switch k {
+		case "left", "h":
+			m.gx -= 4
+			return m, nil
+		case "right", "l":
+			m.gx += 4
+			return m, nil
+		case "up", "k":
+			m.gy--
+			return m, nil
+		case "down", "j":
+			m.gy++
+			return m, nil
+		case "m":
+			m.gsrc, m.gx, m.gy = !m.gsrc, 0, 0
+			return m, nil
+		case "o":
+			m.gdir = map[string]string{"LR": "TD", "TD": "LR"}[m.gdir]
+			m.gx, m.gy = 0, 0
+			return m, nil
+		case "p", "a", "t", "d", "D":
+			return m, nil
+		}
+	}
 	switch k {
 	case "ctrl+c", "q", "esc":
 		return m, tea.Quit
@@ -142,9 +171,10 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 		}
 		return m, m.download(r.artifacts()[m.lsel[2]].name)
 	case "g":
-		m.deps = !m.deps
-		m.sel = 0
-		m.selectFailing()
+		m.graph, m.gsrc, m.gx, m.gy = !m.graph, false, 0, 0
+		if m.graph {
+			m.focus = 2
+		}
 	case "right", "enter", "left":
 		if m.focus == 2 {
 			m.enterRight()
@@ -335,7 +365,7 @@ func (m *model) footer(l panes.Layout) string {
 		}
 		parts = append(parts, hint("z", what))
 	}
-	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"), hint("l p a", "section"))
+	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"), hint("l p a", "section"), hint("g", "graph"))
 	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })
 	if m.dl != "" {
 		const n = 8

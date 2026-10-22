@@ -102,10 +102,19 @@ func buildRuns() []run {
 }
 
 func mkJobs(i int, status string) []job {
-	names := []string{"lint", "build", "test (go 1.23, ubuntu)", "test (go 1.24, ubuntu)", "test (go 1.23, macos)", "test (go 1.24, macos)", "e2e", "deploy"}
-	needs := [][]string{nil, {"lint"}, {"build"}, {"build"}, {"build"}, {"build"}, {"test"}, {"e2e", "lint"}}
+	// three shapes: a chain, a fan-out/fan-in with a matrix, and an 11-job pipeline
+	t := []string{"test (go 1.23, ubuntu)", "test (go 1.24, ubuntu)", "test (go 1.23, macos)", "test (go 1.24, macos)"}
+	names := append(append([]string{"lint", "build"}, t...), "package", "release")
+	needs := [][]string{nil, nil, {"build", "lint"}, {"build", "lint"}, {"build", "lint"}, {"build", "lint"}, {"test"}, {"package"}}
+	switch {
+	case i == 3 || i == 7 || i == 12:
+		names, needs = []string{"build", "test", "deploy"}, [][]string{nil, {"build"}, {"test"}}
+	case i == 6 || i == 10:
+		names = append(append([]string{"setup", "lint", "vet", "build"}, t...), "e2e", "package", "release")
+		needs = [][]string{nil, {"setup"}, {"setup"}, {"lint", "vet"}, {"build"}, {"build"}, {"build"}, {"build"}, {"test"}, {"e2e"}, {"package"}}
+	}
 	base := []string{"Set up job", "Checkout", "Setup Go", "Restore cache", "Run tests", "Build", "Upload artifacts", "Post cleanup"}
-	n := 6 + i%3
+	n := len(names)
 	var jobs []job
 	for ji := 0; ji < n; ji++ {
 		k := 4 + (i+ji)%5
