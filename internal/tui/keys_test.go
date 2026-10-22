@@ -134,7 +134,8 @@ func focusOf(m *Model) string {
 // app does, and reach the section on the search modal, which does what it
 // defines for them: the search modal moves between its results and preview,
 // and its ] and [ show the next and the previous kind without moving the
-// focus; the query types them, and keeps tab. The help credits each key to
+// focus; the query types them, and once text is typed it keeps tab and
+// shift+tab to complete the word at the cursor. The help credits each key to
 // what it reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 	t.Parallel()
@@ -159,8 +160,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "Search: next kind", `search: query ""`},
 		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "Search: previous kind", `search: query ""`},
 
-		{"search typing: tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "tab", "nothing", `search: typing "key"`},
-		{"search typing: shift+tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "nothing", `search: typing "key"`},
+		{"search typing: tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "tab", "Query: complete", `search: typing "key"`},
+		{"search typing: shift+tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "Query: previous completion", `search: typing "key"`},
 		{"search typing: ]", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "]", "nothing", `search: typing "key]"`},
 		{"search typing: [", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
 		{"search typing: esc", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},

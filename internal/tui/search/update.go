@@ -150,9 +150,16 @@ func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case keymap.Matches(msg, k.query.Submit):
 		return s.submit()
+	case keymap.Matches(msg, k.query.Complete):
+		s.cycleComplete(1)
+		return nil
+	case keymap.Matches(msg, k.query.CompletePrev):
+		s.cycleComplete(-1)
+		return nil
 	}
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)
+	s.refreshComplete()
 	return cmd
 }
 
@@ -161,6 +168,7 @@ func (s *Section) startTyping() {
 	s.focusArea(inputArea)
 	s.typing = true
 	s.input.Focus()
+	s.refreshComplete()
 }
 
 // pickKind shows the kind at position i and focuses the results on it. The

@@ -7,3 +7,5 @@ always
 Query (types)
   search | enter | ↵ | on
   results | esc | esc | on
+  complete | tab | tab | on
+  previous completion | shift+tab | shift+tab | on

@@ -1541,6 +1541,10 @@ keys:
   search_query:
     submit: [enter]
     cancel: [esc]
+    # Complete the qualifier under the cursor, such as is: or is:open, and
+    # cycle through the candidates forward and back.
+    complete: [tab]
+    complete_prev: [shift+tab]
   # The query line of the filter form, and the editor of a text field,
   # which type.
   filter_query:
