@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -351,7 +350,7 @@ func (s *Section) setHeader() {
 }
 
 func (s *Section) setContributions() {
-	ownerui.SetContributions(&s.cal, s.contribs.value, s.calDays)
+	ui.SetContributions(&s.cal, s.contribs.value, s.calDays)
 	// The calendar is as wide as its range and total need.
 	s.layout()
 }

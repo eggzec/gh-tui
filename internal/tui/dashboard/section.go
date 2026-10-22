@@ -382,7 +382,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar(s.icons))
-	s.cal.SetGlyph(ownerui.CalendarGlyph(s.glyph, s.icons))
+	s.cal.SetGlyph(ui.CalendarGlyph(s.glyph, s.icons))
 	if !s.contribs.ok {
 		s.cal.SetEmptyText("Loading contributions" + s.icons.Ellipsis)
 	}
