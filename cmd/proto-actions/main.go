@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -268,6 +267,8 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, m.download(what)
 		}
 		return m, nil
+	case m.ov == 4:
+		return m, m.pickerKey(msg)
 	case m.ov != 0:
 		m.overlayKey(k)
 		return m, nil
@@ -584,80 +585,18 @@ func (m *model) layout() (panes.Layout, bool) {
 	if m.preview {
 		w1 = max(panes.DefaultListWidth, m.w*9/20)
 	}
-	ws := []int{w1, m.w - w1}
-	x := 0
-	for i, w := range ws {
-		l.Boxes = append(l.Boxes, panes.Box{Pane: panes.Pane(i + 1), Rect: panes.Rect{X: x, W: w, H: h}})
-		x += w
+	// The right column stacks annotations over downloads; boxes are drawn
+	// in order, so each row of the screen is written left to right.
+	h2 := max(3, (h+1)/2)
+	if h-h2 < 3 {
+		h2 = max(0, h-3)
+	}
+	l.Boxes = []panes.Box{
+		{Pane: 1, Rect: panes.Rect{W: w1, H: h}},
+		{Pane: 2, Rect: panes.Rect{X: w1, W: m.w - w1, H: h2}},
+		{Pane: 3, Rect: panes.Rect{X: w1, Y: h2, W: m.w - w1, H: h - h2}},
 	}
 	return l, false
-}
-
-// overlay draws the group, filter or sort picker over the screen.
-func (m *model) overlay(base string) string {
-	var title string
-	var rows []string
-	hint := "j k move  enter pick  esc close"
-	switch m.ov {
-	case 1:
-		title = "Group by"
-		for i, g := range groups {
-			mark := " "
-			if g == m.groupBy {
-				mark = m.ic.Cursor
-			}
-			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Accent.Render(mark)+" "+m.th.Text.Render(g))
-		}
-	case 2:
-		title = "Filter"
-		hint = "j k row  h l value  esc close"
-		for i, f := range facets {
-			v := m.flt[f]
-			vs := m.th.Subtle.Render("any")
-			if v != "" {
-				vs = m.th.Accent.Render(v)
-			}
-			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Text.Render(fmt.Sprintf("%-9s", f))+vs)
-		}
-	case 4:
-		title = "Download " + m.dwhat + " to"
-		hint = "j k move  enter open  backspace up  c choose  esc cancel"
-		rows = append(rows, m.th.Accent.Render(m.dpath))
-		for i, d := range subdirs(m.dpath) {
-			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Text.Render(d+"/"))
-		}
-	default:
-		title = "Sort"
-		for i, s := range sorts {
-			mark := " "
-			if s == m.sortBy {
-				mark = m.ic.Cursor
-			}
-			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Accent.Render(mark)+" "+m.th.Text.Render(s))
-		}
-	}
-	ow := min(m.w, 38)
-	if m.ov == 4 {
-		ow = min(m.w, 64)
-	}
-	oh := len(rows) + 2
-	l := panes.Layout{Width: ow, Height: oh, Focus: 1, Panes: []panes.Def{{Name: title, Short: title}},
-		Boxes: []panes.Box{{Pane: 1, Rect: panes.Rect{W: ow, H: oh}}}}
-	box := m.frames.Draw(l, func(b panes.Box) panes.Content {
-		return panes.Content{TopLeft: []string{title}, BottomLeft: []string{hint, "esc close", ""}, Focus: true, Body: strings.Join(rows, "\n")}
-	})
-	bl := strings.Split(box, "\n")
-	lines := strings.Split(base, "\n")
-	x := (m.w - ow) / 2
-	y := max(0, (len(lines)-len(bl))/2)
-	for i, b := range bl {
-		if y+i >= len(lines) {
-			break
-		}
-		old := lines[y+i]
-		lines[y+i] = sealed(ansi.Truncate(old, x, ""), x) + b + ansi.Cut(old, x+ow, m.w)
-	}
-	return strings.Join(lines, "\n")
 }
 
 func sealed(line string, width int) string {
@@ -706,7 +645,27 @@ func (m *model) footer(l panes.Layout) string {
 		return sealed(m.th.Warning.Render(m.toast), m.w)
 	}
 	if m.ov == 4 {
-		return sealed(hint("j k", "move")+"  "+hint("enter", "open dir")+"  "+hint("backspace", "up")+"  "+hint("c", "choose this directory")+"  "+hint("esc", "cancel"), m.w)
+		return sealed(hint("j k", "move")+"  "+hint("enter l", "open")+"  "+hint("h backspace", "up")+"  "+hint("c", "choose this directory")+"  "+hint("esc", "cancel"), m.w)
+	}
+	if m.ov != 0 {
+		var hs []string
+		for _, h := range m.overlayHint() {
+			k, w, _ := strings.Cut(h, " ")
+			if strings.HasPrefix(h, "type") {
+				k, w = "type", "to search"
+			}
+			if h == "j k move" || strings.Contains(h, "space") || strings.Contains(h, "tab") || strings.Contains(h, "backspace") || strings.Contains(h, "esc") {
+				k, w = strings.Fields(h)[0], strings.Join(strings.Fields(h)[1:], " ")
+			}
+			if h == "j k move" {
+				k, w = "j k", "move"
+			}
+			if h == "esc clear/close" {
+				k, w = "esc", "clear/close"
+			}
+			hs = append(hs, hint(k, w))
+		}
+		return sealed(strings.Join(hs, m.th.Subtle.Render(m.ic.Separator)), m.w)
 	}
 	if m.dl != "" {
 		const n = 8
@@ -729,8 +688,8 @@ func (m *model) footer(l panes.Layout) string {
 		if m.w >= wideMin {
 			parts = append(parts, hint("z", "preview"))
 		}
-		if m.focus == 2 {
-			parts = append(parts, hint("< >", "list"), hint("d D", "download"))
+		if m.focus == 3 {
+			parts = append(parts, hint("d D", "download"))
 		}
 	}
 	return sealed(strings.Join(parts, m.th.Subtle.Render(m.ic.Separator)), m.w)

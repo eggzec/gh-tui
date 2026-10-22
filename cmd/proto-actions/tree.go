@@ -19,7 +19,7 @@ var (
 )
 
 func (m *model) defs() []panes.Def {
-	return []panes.Def{{Name: "Runs", Short: "Runs"}, {Name: "Annotations and downloads", Short: "Annotations"}}
+	return []panes.Def{{Name: "Runs", Short: "Runs"}, {Name: "Annotations", Short: "Annot."}, {Name: "Downloads", Short: "Dl"}}
 }
 
 func (r run) facet(f string) string {
@@ -53,7 +53,7 @@ func (m *model) passes(r run) bool {
 		return true
 	}
 	for f, v := range m.flt {
-		if v != "" && r.facet(f) != v {
+		if len(v) > 0 && !slices.Contains(v, r.facet(f)) {
 			return false
 		}
 	}
@@ -403,8 +403,17 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		c.Body = m.treeBody(ns, in.W, in.H, c.Focus)
 		return c
 	}
+	if b.Pane == 3 {
+		ar := m.arts()
+		c.TopRight = []string{fmt.Sprintf("%d", len(ar)), ""}
+		c.BottomLeft = []string{"enter/d download  D all  G graph", "d D", ""}
+		c.Body = m.dlBody(ar, in.W, in.H, c.Focus)
+		return c
+	}
+	as := m.annos()
+	c.TopRight = []string{fmt.Sprintf("%d", len(as)), ""}
 	if m.graph {
-		c.TopLeft = []string{"graph"}
+		c.TopLeft = []string{l.Title(2) + " (graph)", "graph"}
 		if ri, _, ok := m.ctx(); ok {
 			r := allRuns[ri]
 			c.TopRight = []string{r.workflow + " #" + fmt.Sprint(r.id)}
@@ -433,15 +442,17 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		c.Body = m.logBody(rows, sel, in.W, in.H, false)
 		return c
 	}
-	as := m.annos()
-	nd := 0
-	if ri, _, ok := m.ctx(); ok {
-		nd = len(allRuns[ri].artifacts())
-	}
-	c.TopLeft = []string{fmt.Sprintf("Annotations %d  Downloads %d", len(as), nd), fmt.Sprintf("Annot. %d  Dl %d", len(as), nd), "Annotations"}
-	c.BottomLeft = []string{"< > list  enter open/download  d download  D all  G graph", "< > d D G", ""}
-	c.Body = m.rightBody(as, in.W, in.H, c.Focus)
+	c.BottomLeft = []string{"enter open log  v preview  G graph", "enter v G", ""}
+	c.Body = m.annoBody(as, in.W, in.H, c.Focus)
 	return c
+}
+
+// arts is the downloads of the run in view.
+func (m *model) arts() []artifact {
+	if ri, _, ok := m.ctx(); ok {
+		return allRuns[ri].artifacts()
+	}
+	return nil
 }
 
 func (m *model) treeBody(ns []node, w, h int, focus bool) string {
@@ -449,9 +460,55 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 		return m.th.Subtle.Render("No runs match. F clears the filter.")
 	}
 	g := m.grouped()
-	pad := ""
+	base := 0
 	if g != "" {
-		pad = "  "
+		base = 1
+	}
+	depth := func(n node) int {
+		switch n.kind {
+		case kHead:
+			return 0
+		case kRun:
+			return base
+		case kGroup:
+			return base + 1
+		}
+		if n.group != "" {
+			return base + 2
+		}
+		return base + 1
+	}
+	// guide is the outline of row i: a dim line per ancestor that has more
+	// rows below it, then a branch, or a corner for the last child.
+	guide := func(i int) string {
+		d := depth(ns[i])
+		if d == 0 {
+			return ""
+		}
+		last := func(lv int) bool {
+			for _, n := range ns[i+1:] {
+				if dd := depth(n); dd < lv {
+					return true
+				} else if dd == lv {
+					return false
+				}
+			}
+			return true
+		}
+		var sb strings.Builder
+		for lv := 1; lv < d; lv++ {
+			if last(lv) {
+				sb.WriteString("   ")
+			} else {
+				sb.WriteString("│  ")
+			}
+		}
+		if last(d) {
+			sb.WriteString("╰─ ")
+		} else {
+			sb.WriteString("├─ ")
+		}
+		return m.th.Subtle.Render(sb.String())
 	}
 	var lines []string
 	selLine := 0
@@ -484,7 +541,7 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 			if m.openRun[r.id] {
 				mark = m.ic.Unfolded
 			}
-			left := cur + pad + m.th.Subtle.Render(mark) + " " + m.glyph(r.status) + " " + name(r.title, m.th.Text.Render(r.title))
+			left := cur + guide(i) + m.th.Subtle.Render(mark) + " " + m.glyph(r.status) + " " + name(r.title, m.th.Text.Render(r.title))
 			if g != "workflow" && w >= 70 {
 				left += " " + m.th.Subtle.Render(r.workflow)
 			}
@@ -510,14 +567,10 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 			if m.openGrp[fmt.Sprint(r.id, "/", n.group)] {
 				mark = m.ic.Unfolded
 			}
-			lines = append(lines, m.row(cur+pad+"  "+m.th.Subtle.Render(mark)+" "+m.glyph(st)+" "+name(n.group, m.th.Text.Render(n.group)), m.th.Subtle.Render(fmt.Sprintf("%d/%d passed", pass, total)), w))
+			lines = append(lines, m.row(cur+guide(i)+m.th.Subtle.Render(mark)+" "+m.glyph(st)+" "+name(n.group, m.th.Text.Render(n.group)), m.th.Subtle.Render(fmt.Sprintf("%d/%d passed", pass, total)), w))
 		default:
 			j := r.jobs[n.job]
-			ind := pad + "  "
-			if n.group != "" {
-				ind += "  "
-			}
-			lines = append(lines, m.row(cur+ind+"  "+m.glyph(j.status)+" "+name(j.name, m.th.Text.Render(j.name)), m.th.Subtle.Render(j.dur), w))
+			lines = append(lines, m.row(cur+guide(i)+m.glyph(j.status)+" "+name(j.name, m.th.Text.Render(j.name)), m.th.Subtle.Render(j.dur), w))
 		}
 	}
 	return strings.Join(window(lines, selLine, h), "\n")
@@ -558,78 +611,52 @@ func (m *model) logBody(rows []logRow, sel, w, h int, focus bool) string {
 	return strings.Join(window(lines, sel, h), "\n")
 }
 
-// rightBody stacks the annotations and the downloads of the run.
-func (m *model) rightBody(as []annoRow, w, h int, focus bool) string {
+// annoBody lists the annotations of the run in view.
+func (m *model) annoBody(as []annoRow, w, h int, focus bool) string {
 	ri, _, ok := m.ctx()
 	if !ok {
-		return m.th.Subtle.Render("Select a run to see its annotations and downloads")
+		return m.th.Subtle.Render("Select a run to see its annotations")
+	}
+	if len(as) == 0 {
+		return m.th.Subtle.Render("No annotations. Failing jobs list theirs here.")
 	}
 	r := allRuns[ri]
-	ar := r.artifacts()
-	head := func(label string, n, sec int) string {
-		s := fmt.Sprintf("%s %d", label, n)
-		if sec == m.rsec {
-			return m.th.Accent.Bold(true).Underline(true).Render(s)
+	var out []string
+	for i, a := range as {
+		g := m.th.Accent.Render("i")
+		switch a.level {
+		case "error":
+			g = m.glyph("failure")
+		case "warning":
+			g = m.th.Warning.Render("!")
 		}
-		return m.th.Subtle.Render(s)
+		sel := i == m.asel
+		loc := m.th.Muted.Render(fmt.Sprintf("%s:%d", a.file, a.line))
+		msg := m.th.Text.Render(a.msg)
+		if sel && focus {
+			msg = m.th.Title.Render(a.msg)
+		}
+		out = append(out, m.row(m.cursor(sel, focus)+g+" "+loc+"  "+msg, m.th.Subtle.Render(r.jobs[a.job].name), w))
 	}
-	annoLines := func() ([]string, int) {
-		if len(as) == 0 {
-			return []string{m.th.Subtle.Render("No annotations. Failing jobs list theirs here.")}, 0
-		}
-		var out []string
-		for i, a := range as {
-			g := m.th.Accent.Render("i")
-			switch a.level {
-			case "error":
-				g = m.glyph("failure")
-			case "warning":
-				g = m.th.Warning.Render("!")
-			}
-			sel := i == m.asel && m.rsec == 0
-			loc := m.th.Muted.Render(fmt.Sprintf("%s:%d", a.file, a.line))
-			msg := m.th.Text.Render(a.msg)
-			if sel && focus {
-				msg = m.th.Title.Render(a.msg)
-			}
-			out = append(out, m.row(m.cursor(sel, focus)+g+" "+loc+"  "+msg, m.th.Subtle.Render(r.jobs[a.job].name), w))
-		}
-		return out, min(m.asel, len(as)-1)
+	return strings.Join(window(out, min(m.asel, len(as)-1), h), "\n")
+}
+
+// dlBody lists the downloads of the run in view.
+func (m *model) dlBody(ar []artifact, w, h int, focus bool) string {
+	if _, _, ok := m.ctx(); !ok {
+		return m.th.Subtle.Render("Select a run to see its downloads")
 	}
-	dlLines := func() ([]string, int) {
-		if len(ar) == 0 {
-			return []string{m.th.Subtle.Render("No downloads. Finished runs list their artifacts here.")}, 0
-		}
-		var out []string
-		for i, a := range ar {
-			sel := i == m.dsel && m.rsec == 1
-			nm := m.th.Text.Render(a.name)
-			if sel && focus {
-				nm = m.th.Title.Render(a.name)
-			}
-			out = append(out, m.row(m.cursor(sel, focus)+nm, m.th.Muted.Render(a.size)+"  "+m.th.Subtle.Render("expires "+a.expiry), w))
-		}
-		return out, min(m.dsel, len(ar)-1)
+	if len(ar) == 0 {
+		return m.th.Subtle.Render("No downloads. Finished runs list their artifacts here.")
 	}
-	al, asl := annoLines()
-	dl, dsl := dlLines()
-	if h < 9 {
-		// too short for both: the active list with both counts above
-		strip := head("Annotations", len(as), 0) + "  " + head("Downloads", len(ar), 1)
-		body, sel := al, asl
-		if m.rsec == 1 {
-			body, sel = dl, dsl
+	var out []string
+	for i, a := range ar {
+		sel := i == m.dsel
+		nm := m.th.Text.Render(a.name)
+		if sel && focus {
+			nm = m.th.Title.Render(a.name)
 		}
-		return strings.Join(append([]string{strip}, window(body, sel, max(0, h-1))...), "\n")
+		out = append(out, m.row(m.cursor(sel, focus)+nm, m.th.Muted.Render(a.size)+"  "+m.th.Subtle.Render("expires "+a.expiry), w))
 	}
-	dh := min(len(dl), 4)
-	ah := h - dh - 3
-	out := []string{head("Annotations", len(as), 0)}
-	out = append(out, window(al, asl, ah)...)
-	for len(out) < ah+1 {
-		out = append(out, "")
-	}
-	out = append(out, "", head("Downloads", len(ar), 1))
-	out = append(out, window(dl, dsl, dh)...)
-	return strings.Join(out, "\n")
+	return strings.Join(window(out, min(m.dsel, len(ar)-1), h), "\n")
 }
