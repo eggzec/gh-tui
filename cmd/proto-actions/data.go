@@ -69,6 +69,7 @@ func (r run) stepLines(j job, si int) []string {
 
 type run struct {
 	id                                        int
+	event, actor                              string
 	workflow, title, branch, status, dur, age string
 	jobs                                      []job
 }
@@ -96,7 +97,7 @@ func buildRuns() []run {
 	}
 	var out []run
 	for i, s := range spec {
-		out = append(out, run{id: 9100 + 7*i, workflow: s[0], title: s[1], branch: s[2], status: s[3], dur: s[4], age: s[5], jobs: mkJobs(i, s[3])})
+		out = append(out, run{id: 9100 + 7*i, event: events[i], actor: actors[i], workflow: s[0], title: s[1], branch: s[2], status: s[3], dur: s[4], age: s[5], jobs: mkJobs(i, s[3])})
 	}
 	return out
 }
