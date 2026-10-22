@@ -77,11 +77,20 @@ func TestCommitsFilterSpec(t *testing.T) {
 	for _, f := range sp.Fields {
 		keys = append(keys, f.Key)
 	}
-	if !slices.Contains(keys, "author") || !slices.Contains(keys, "repo") {
-		t.Errorf("fields %v lack author or repo", keys)
+	for _, want := range []string{"author", "repo", "org", "user"} {
+		if !slices.Contains(keys, want) {
+			t.Errorf("fields %v lack %s", keys, want)
+		}
 	}
 	if sp.Sort == nil || len(sp.Sort.Options) != 3 {
 		t.Fatalf("sort = %+v, want best match, authored and committed", sp.Sort)
+	}
+	values := make([]string, 0, len(sp.Sort.Options))
+	for _, o := range sp.Sort.Options {
+		values = append(values, o.Value)
+	}
+	if want := []string{"", "author-date", "committer-date"}; !slices.Equal(values, want) {
+		t.Errorf("sort values = %q, want %q", values, want)
 	}
 }
 
@@ -89,7 +98,13 @@ func TestCommitsNoCount(t *testing.T) {
 	t.Parallel()
 	s, _ := commitsSection(t)
 	typeText(t, s, "tea")
-	if m := regexp.MustCompile(`Commits\W*\d`).FindString(s.View()); m != "" {
-		t.Errorf("view shows a count for the commits: %q", m)
+	view := s.View()
+	if !strings.Contains(view, "tea brewing fix") {
+		t.Fatalf("the commits are missing:\n%s", view)
+	}
+	for _, re := range []string{`Commits\W*\d`, `\d+ results?\b`} {
+		if m := regexp.MustCompile(re).FindString(view); m != "" {
+			t.Errorf("view shows a count for the commits: %q", m)
+		}
 	}
 }

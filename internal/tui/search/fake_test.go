@@ -45,6 +45,8 @@ type fakeService struct {
 	// commits is the catalog of commits, commitQueries what was asked of it.
 	commits       []core.SearchCommit
 	commitQueries []search.CommitsQuery
+	// cachedCommits, when set, is what CachedCommits answers for every query.
+	cachedCommits []core.SearchCommit
 	// topics is the catalog of topics, topicQueries what was asked of it.
 	topics       []core.SearchTopic
 	topicQueries []search.TopicsQuery
@@ -158,9 +160,14 @@ func (f *fakeService) Users(_ context.Context, q search.UsersQuery) (core.Search
 	return page, nil
 }
 
-// CachedCommits reads nothing: commits are always asked for.
+// CachedCommits misses unless cachedCommits is set, then it hits with them.
 func (f *fakeService) CachedCommits(search.CommitsQuery) (core.SearchPage[core.SearchCommit], bool) {
-	return core.SearchPage[core.SearchCommit]{}, false
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.cachedCommits == nil {
+		return core.SearchPage[core.SearchCommit]{}, false
+	}
+	return core.SearchPage[core.SearchCommit]{Items: f.cachedCommits, Total: len(f.cachedCommits)}, true
 }
 
 // Commits returns the commits whose subject contains the query.
