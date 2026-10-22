@@ -63,7 +63,7 @@ func mergePanes(t *testing.T, edit func(*core.PullRequestDetail)) (*panesModal, 
 	if edit != nil {
 		edit(&m.detail)
 	}
-	m.focus = panes.Merge
+	m.focus = paneMerge
 	m.merge.restyle(m)
 	m.merge.refresh(m)
 	m.View()
@@ -180,7 +180,7 @@ func results(cmd tea.Cmd) []tea.Msg {
 // readyShows reports whether the title of the Merge pane has the ready mark.
 func readyShows(m *panesModal) bool {
 	c := m.mergeContent(panes.Box{Rect: panes.Rect{W: 60, H: 12}})
-	return slices.Contains(c.Info, m.merge.styles.Ready)
+	return slices.Contains(c.TopRight, m.merge.styles.Ready)
 }
 
 func TestMergePaneReadyWaitsForTheChecks(t *testing.T) {
@@ -336,7 +336,7 @@ func TestMergePaneEnterOnChangesRequestedFocusesTheConversation(t *testing.T) {
 		t.Fatal("the fixture's verdict doesn't block")
 	}
 	enter(t, m)
-	if m.focus != panes.Conversation {
+	if m.focus != paneConversation {
 		t.Errorf("focus %v, want the conversation", m.focus)
 	}
 }
@@ -369,7 +369,7 @@ func TestMergePaneModalKeysWin(t *testing.T) {
 	t.Parallel()
 	m, _ := mergePanes(t, behindEdit)
 	m.Update(keyMsg("tab"))
-	if m.focus == panes.Merge {
+	if m.focus == paneMerge {
 		t.Error("tab didn't leave the Merge pane")
 	}
 }

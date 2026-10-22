@@ -200,7 +200,7 @@ func TestFilesDiffIgnoresZ(t *testing.T) {
 	if o.d.Cursor() != at || o.mode != mode || m.zoom.Zoomed() != zoom || m.closed || m.top() != nil {
 		t.Error("Z acted in the diff beside the tree")
 	}
-	if m.sub[panes.Files-1] != panes.Preview {
+	if m.sub[paneFiles-1] != panes.Preview {
 		t.Error("Z moved the focus")
 	}
 }

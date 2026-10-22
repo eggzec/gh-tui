@@ -45,19 +45,19 @@ type slot struct {
 }
 
 // slots has one entry per pane, in the order of the panes.
-var slots = [panes.Count]slot{
-	panes.Description - 1:  {context: ctxDescription, content: (*panesModal).description, press: (*panesModal).pressDescription},
-	panes.Conversation - 1: {context: ctxConversation, content: (*panesModal).convContent, press: (*panesModal).convPress},
-	panes.Merge - 1: {
+var slots = [paneCount]slot{
+	paneDescription - 1:  {context: ctxDescription, content: (*panesModal).description, press: (*panesModal).pressDescription},
+	paneConversation - 1: {context: ctxConversation, content: (*panesModal).convContent, press: (*panesModal).convPress},
+	paneMerge - 1: {
 		context: ctxMerge, content: (*panesModal).mergeContent, press: (*panesModal).pressMerge,
 		hovered: (*panesModal).hoveredMerge, preview: (*panesModal).mergePreview, info: (*panesModal).mergeInfo,
 	},
-	panes.Involved - 1: {
+	paneInvolved - 1: {
 		context: ctxInvolved, content: (*panesModal).involvedContent, press: (*panesModal).involvedPress,
 		hovered: (*panesModal).hoveredInvolved, preview: (*panesModal).involvedPreview, info: (*panesModal).involvedInfo,
 	},
-	panes.Development - 1: devSlot(),
-	panes.Files - 1:       filesSlot(),
+	paneDevelopment - 1: devSlot(),
+	paneFiles - 1:       filesSlot(),
 }
 
 // placeholder is what a pane shows until it has content of its own. Its
@@ -113,7 +113,7 @@ func (m *panesModal) previewContent(b panes.Box) panes.Content {
 		c.Title = s.title(m, b)
 	}
 	if s.info != nil {
-		c.Info = s.info(m, b)
+		c.TopRight = s.info(m, b)
 	}
 	return c
 }

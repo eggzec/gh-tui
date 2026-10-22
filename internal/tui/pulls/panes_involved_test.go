@@ -7,7 +7,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 func involvedFake() *involvedService {
@@ -38,7 +37,7 @@ func TestInvolvedEnter(t *testing.T) {
 		if !moveTo(m, "dina") {
 			t.Fatal("no row for dina")
 		}
-		if toasts := run(m, m.Update(keyMsg("enter"))); len(toasts) != 0 || m.focus != panes.Conversation {
+		if toasts := run(m, m.Update(keyMsg("enter"))); len(toasts) != 0 || m.focus != paneConversation {
 			t.Errorf("focus %v, toasts %q: want the conversation and none", m.focus, toasts)
 		}
 	})
@@ -49,7 +48,7 @@ func TestInvolvedEnter(t *testing.T) {
 			t.Fatal("no row for rita")
 		}
 		toasts := run(m, m.Update(keyMsg("enter")))
-		if !slices.Equal(toasts, []string{"no comments from Rita"}) || m.focus != panes.Involved {
+		if !slices.Equal(toasts, []string{"no comments from Rita"}) || m.focus != paneInvolved {
 			t.Errorf("focus %v, toasts %q", m.focus, toasts)
 		}
 	})
@@ -171,7 +170,7 @@ func TestInvolvedKeys(t *testing.T) {
 		t.Errorf("last layer is %q with %d bindings", got.Context, len(got.Bindings))
 	}
 	m.Update(keyMsg("2"))
-	if m.focus != panes.Conversation {
+	if m.focus != paneConversation {
 		t.Errorf("2 focused %v, want the conversation", m.focus)
 	}
 }

@@ -77,7 +77,7 @@ func reviewRequired(t *testing.T, fake *ownersFake) (*panesModal, tea.Cmd) {
 // ownersPreview is the text of the preview of the hovered row.
 func ownersPreview(t *testing.T, m *panesModal) (title, body string) {
 	t.Helper()
-	p, ok := m.mergePreviewOf(panes.Box{Pane: panes.Merge, Rect: panes.Rect{W: 82, H: 30}})
+	p, ok := m.mergePreviewOf(panes.Box{Pane: paneMerge, Rect: panes.Rect{W: 82, H: 30}})
 	if !ok {
 		t.Fatal("the hovered row has no preview")
 	}

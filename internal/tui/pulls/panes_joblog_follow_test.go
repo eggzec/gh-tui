@@ -13,7 +13,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // runFollows counts the follows of runs that were started and ended.
@@ -178,7 +177,7 @@ func TestLongLogJumpsToItsFirstError(t *testing.T) {
 	if want := "500 more lines not shown"; rows[len(rows)-1] != want {
 		t.Errorf("last row %q, want %q", rows[len(rows)-1], want)
 	}
-	off := m.previews[previewKey{panes.Merge, jobRow(5)}]
+	off := m.previews[previewKey{paneMerge, jobRow(5)}]
 	if got := strings.TrimSpace(strings.TrimLeft(rows[off+errSeen], " ")); !strings.HasSuffix(got, fmt.Sprintf("line %d", errAt)) {
 		t.Errorf("the row %d rows below the top is %q, want the first error", errSeen, got)
 	}
@@ -200,7 +199,7 @@ func TestScrollingWhileLoadingKeepsTheJump(t *testing.T) {
 		t.Fatal("hovering the job started no read of its log")
 	}
 	// Scrolling the note that the log is loading writes a zero offset.
-	key := previewKey{panes.Merge, jobRow(5)}
+	key := previewKey{paneMerge, jobRow(5)}
 	m.previews[key] = 0
 	m.Update(read)
 	if got := m.previews[key]; got == 0 {

@@ -13,7 +13,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 const convHead = "abc123"
@@ -139,7 +138,7 @@ func TestConvPaneCachedFirst(t *testing.T) {
 func TestConvPaneKeysMoveCursor(t *testing.T) {
 	t.Parallel()
 	_, m := convModal(t, convService())
-	if m.focus != panes.Conversation {
+	if m.focus != paneConversation {
 		t.Fatalf("the modal focuses %v, want Conversation", m.focus)
 	}
 	before, v := ansi.Strip(m.View()), m.conv.version
@@ -148,7 +147,7 @@ func TestConvPaneKeysMoveCursor(t *testing.T) {
 		t.Errorf("down didn't change the frame (version %d, was %d)", m.conv.version, v)
 	}
 
-	m.focus = panes.Description
+	m.focus = paneDescription
 	m.syncConvFocus()
 	v = m.conv.version
 	m.Update(keyMsg("down"))
@@ -162,15 +161,15 @@ func TestConvPaneModalKeysWin(t *testing.T) {
 	_, m := convModal(t, convService())
 
 	m.press(keyMsg("3"))
-	if m.focus != panes.Merge {
+	if m.focus != paneMerge {
 		t.Errorf("3 focused %v, want Merge", m.focus)
 	}
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	m.press(keyMsg("tab"))
-	if m.focus == panes.Conversation {
+	if m.focus == paneConversation {
 		t.Error("tab stayed on the conversation")
 	}
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	m.press(keyMsg("z"))
 	if !m.zoom.Zoomed() {
 		t.Error("z didn't zoom the conversation")

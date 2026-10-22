@@ -61,17 +61,17 @@ type panesModal struct {
 	// which of its list and preview has the focus, per pane.
 	focus panes.Pane
 	zoom  panes.Zoom
-	sub   [panes.Count]panes.Role
+	sub   [paneCount]panes.Role
 	// narrow is whether the terminal is narrow, which the app says. The
 	// zoom is forced then, and while the modal's own area is under
-	// panes.WideMin.
+	// wideMin.
 	narrow bool
 
 	// slots are what the panes are made of. hover is the row each pane's
 	// preview shows, and previews how far each row's preview is scrolled,
 	// kept while the modal lives.
-	slots    [panes.Count]slot
-	hover    [panes.Count]hovered
+	slots    [paneCount]slot
+	hover    [paneCount]hovered
 	previews map[previewKey]int
 	// inv is the involved pane's state.
 	inv *involvedPane
@@ -165,7 +165,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		repo:   repo,
 		number: number,
 		other:  showRepo || !s.hasRepo || !repo.Same(s.repo),
-		focus:  panes.Conversation,
+		focus:  paneConversation,
 		slots:  slots,
 		id:     panesIDs.Add(1),
 
@@ -190,7 +190,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		m.files.loader = checktree.NewLoader(checkReader{s.checks}, repo)
 	}
 	if onChecks {
-		m.focus = panes.Merge
+		m.focus = paneMerge
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -272,7 +272,7 @@ func (m *panesModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.zoom.SetNarrow(m.narrow || m.width < panes.WideMin)
+	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
 	m.resizeFilesDiff()
 }
 
@@ -363,7 +363,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			m.syncConvFocus()
 			m.follow()
 		case conv.KindCI:
-			m.focus = panes.Merge
+			m.focus = paneMerge
 			m.resetSub()
 			m.syncConvFocus()
 		}
@@ -581,7 +581,18 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
-	return panes.Compute(panes.Spec{Width: m.width, Height: max(m.height-2, 0), Focus: m.focus, Zoom: m.zoom.Zoomed(), DevelopmentRows: m.devRows()})
+	h := max(m.height-2, 0)
+	if m.hasStrip() {
+		h--
+	}
+	return prLayout(m.width, h, m.focus, m.zoom.Zoomed(), m.devRows())
+}
+
+// hasStrip reports whether the pane strip has a row of its own under the
+// boxes: while the panes are zoomed, and the modal is tall enough to give
+// the boxes a row as well.
+func (m *panesModal) hasStrip() bool {
+	return (m.zoom.Zoomed() || m.width < wideMin) && m.height >= 4
 }
 
 // canZoom reports whether the zoom key does something: not while a narrow
@@ -614,7 +625,7 @@ func (m *panesModal) canStep(l panes.Layout) bool {
 func (m *panesModal) step(l panes.Layout, delta int) {
 	switch {
 	case !l.Zoomed:
-		m.focus = panes.Pane((int(m.focus)-1+delta+panes.Count)%panes.Count + 1)
+		m.focus = panes.Pane((int(m.focus)-1+delta+paneCount)%paneCount + 1)
 		m.resetSub()
 	case m.canStep(l):
 		i := m.focus - 1

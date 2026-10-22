@@ -6,7 +6,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // descPanes returns a modal that the viewer may change, with the Description
@@ -15,7 +14,7 @@ func descPanes(t *testing.T, title, body string) (*panesModal, *fakeService) {
 	t.Helper()
 	m, svc := reviewPanes(t)
 	m.detail.Title, m.detail.Body = title, body
-	m.focus = panes.Description
+	m.focus = paneDescription
 	m.View()
 	return m, svc
 }

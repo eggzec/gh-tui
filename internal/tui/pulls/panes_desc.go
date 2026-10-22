@@ -78,7 +78,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 	}
 	d := &m.desc
 	d.sync(m, body, in.W, in.H)
-	if m.focus == panes.Description {
+	if m.focus == paneDescription {
 		d.tree.Focus()
 	} else {
 		d.tree.Blur()
@@ -92,7 +92,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 		info = append(info, fmt.Sprintf("%d%%", min(at*100/total, 100)))
 	}
 	if len(info) > 0 {
-		c.Info = []string{strings.Join(info, " · ")}
+		c.TopRight = []string{strings.Join(info, " · ")}
 	}
 	return c
 }

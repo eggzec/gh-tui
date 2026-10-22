@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 func TestDevelopmentPreviewReadOnce(t *testing.T) {
@@ -60,7 +59,7 @@ func TestDevelopmentPreviewScrollKept(t *testing.T) {
 	m := h.modal()
 	press(t, h, "z")
 	press(t, h, "down")
-	key := previewKey{panes.Development, "issue:" + core.RefKey(devRef(core.KindIssue, 12, "").Target)}
+	key := previewKey{paneDevelopment, "issue:" + core.RefKey(devRef(core.KindIssue, 12, "").Target)}
 	// Into the preview, scrolled, and back to the list.
 	press(t, h, "tab")
 	for range 5 {

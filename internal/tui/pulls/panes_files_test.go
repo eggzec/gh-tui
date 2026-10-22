@@ -11,7 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 func sampleCommits(review *core.ViewerReview) core.PullCommits {
@@ -58,7 +57,7 @@ func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)
 	if !m.files.loaded {
 		tb.Fatalf("the commits were not read: %+v", m.files)
 	}
-	m.focus = panes.Files
+	m.focus = paneFiles
 	modalScreen(tb, h)
 	return h, m, svc
 }
@@ -242,9 +241,9 @@ func TestFilesPaneChecksWithoutService(t *testing.T) {
 func TestShowCommit(t *testing.T) {
 	t.Parallel()
 	h, m, _ := commitPanes(t, sampleCommits(nil))
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	m.showCommit("ccc3333")
-	if m.focus != panes.Files {
+	if m.focus != paneFiles {
 		t.Errorf("focus = %v, want the Files pane", m.focus)
 	}
 	if m.files.rng != (files.Range{First: 2, Last: 2}) {

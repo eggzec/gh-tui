@@ -23,7 +23,7 @@ func openedPanes(t *testing.T, width int) *panesModal {
 }
 
 // TestPullModalZoomBoundary checks when the zoom is forced: by a narrow
-// terminal, or by an area under panes.WideMin, whatever the terminal is.
+// terminal, or by an area under wideMin, whatever the terminal is.
 func TestPullModalZoomBoundary(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -32,8 +32,8 @@ func TestPullModalZoomBoundary(t *testing.T) {
 		width  int
 		forced bool
 	}{
-		{"wide terminal, wide area", false, panes.WideMin, false},
-		{"wide terminal, area one under", false, panes.WideMin - 1, true},
+		{"wide terminal, wide area", false, wideMin, false},
+		{"wide terminal, area one under", false, wideMin - 1, true},
 		{"narrow terminal, wide area", true, 160, true},
 		{"narrow terminal, narrow area", true, 80, true},
 	} {
@@ -105,8 +105,8 @@ func TestPullModalNameAloneOnTopEdge(t *testing.T) {
 		t.Fatal("a 100 column area isn't zoomed")
 	}
 	top, _, _ := strings.Cut(ansi.Strip(m.panes(l)), "\n")
-	name := m.focus.Name()
-	if !strings.Contains(top, name) || strings.Contains(top, m.focus.Title()) {
+	name := paneName(m.focus)
+	if !strings.Contains(top, name) || strings.Contains(top, paneTitle(m.focus)) {
 		t.Errorf("top edge %q should name %q without its digit", top, name)
 	}
 }
@@ -117,35 +117,35 @@ func TestPullModalNameAloneOnTopEdge(t *testing.T) {
 // zoomed anyway.
 func TestPanesPress(t *testing.T) {
 	t.Parallel()
-	if panes.WideMin <= 80 || panes.WideMin > 160 {
-		t.Fatalf("WideMin is %d: the widths below no longer fall either side of it", panes.WideMin)
+	if wideMin <= 80 || wideMin > 160 {
+		t.Fatalf("WideMin is %d: the widths below no longer fall either side of it", wideMin)
 	}
 
 	t.Run("tab wraps", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
 		start := m.focus
-		m.focus = panes.Files
+		m.focus = paneFiles
 		m.press(keyMsg("tab"))
-		if m.focus != panes.Description {
+		if m.focus != paneDescription {
 			t.Errorf("tab from Files focused %v, want Description", m.focus)
 		}
 		m.focus = start
-		for range panes.Count {
+		for range paneCount {
 			m.press(keyMsg("tab"))
 		}
 		if m.focus != start {
-			t.Errorf("%d tabs focused %v, want %v again", panes.Count, m.focus, start)
+			t.Errorf("%d tabs focused %v, want %v again", paneCount, m.focus, start)
 		}
 	})
 
 	t.Run("digit resets the box", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
-		m.sub[panes.Merge-1] = panes.Preview
+		m.sub[paneMerge-1] = panes.Preview
 		m.press(keyMsg("3"))
-		if m.focus != panes.Merge || m.sub[panes.Merge-1] != panes.List {
-			t.Errorf("3 left focus %v and box %v, want Merge and List", m.focus, m.sub[panes.Merge-1])
+		if m.focus != paneMerge || m.sub[paneMerge-1] != panes.List {
+			t.Errorf("3 left focus %v and box %v, want Merge and List", m.focus, m.sub[paneMerge-1])
 		}
 	})
 

@@ -26,7 +26,7 @@ type panesKeys struct {
 	// and the preview of a zoomed pane. pane focuses one pane by its digit,
 	// and jump stands for them in the hints.
 	next, prev key.Binding
-	pane       [panes.Count]key.Binding
+	pane       [paneCount]key.Binding
 	jump       key.Binding
 	// zoom shows the focused pane alone, back closes the modal, and help
 	// is the key the footer names for the help.
@@ -128,8 +128,8 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		quoteDesc: ui.In(keys, ctxDescription).Binding("comment", "quote"),
 		descEdit:  newDescEditKeys(keys),
 	}
-	for i, a := range [panes.Count]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
-		k.pane[i] = modal.Binding(a, panes.Pane(i+1).Name())
+	for i, a := range [paneCount]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
+		k.pane[i] = modal.Binding(a, paneName(panes.Pane(i+1)))
 	}
 	k.jump = ui.Jump(k.pane[:]...)
 	if fk := (convLookup{Context: ui.In(keys, ctxConversation), keys: keys}).Of("filter"); len(fk) > 0 {

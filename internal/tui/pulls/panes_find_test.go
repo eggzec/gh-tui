@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // changedPanes returns the modal of the first pull request, opened over a
@@ -49,7 +48,7 @@ func changedSample() []core.CommitFile {
 func TestFindChoosesAChangedFile(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	press(t, h, "ctrl+p")
 	o := finderTop(m)
 	if o == nil {
@@ -66,7 +65,7 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 	if finderTop(m) != nil || len(m.overlays) != 1 {
 		t.Error("choosing a file left the finder open")
 	}
-	if m.focus != panes.Files || m.found != "internal/config/default.yaml" {
+	if m.focus != paneFiles || m.found != "internal/config/default.yaml" {
 		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.focus, m.found)
 	}
 }
@@ -74,7 +73,7 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	press(t, h, "ctrl+p")
 	if finderTop(m) == nil {
 		t.Fatal("the find key opened no finder")
@@ -83,7 +82,7 @@ func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	if m.top() != nil || m.closed || h.modal() != m {
 		t.Errorf("esc left open %v, modal closed %v, want only the finder closed", m.top() != nil, m.closed)
 	}
-	if m.focus != panes.Conversation || m.found != "" {
+	if m.focus != paneConversation || m.found != "" {
 		t.Errorf("focus %v and found %q after esc, want them as before", m.focus, m.found)
 	}
 }

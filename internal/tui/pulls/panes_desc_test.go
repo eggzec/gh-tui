@@ -20,7 +20,7 @@ func described(t *testing.T, body string) *panesModal {
 	t.Helper()
 	m := openedPanes(t, 160)
 	m.detail.Body = body
-	m.focus = panes.Description
+	m.focus = paneDescription
 	m.View()
 	return m
 }
@@ -36,7 +36,7 @@ const goldenBody = "## Summary\n\nThe pane shows the body as the page does.\n\n-
 // another pane focused.
 func TestDescriptionView(t *testing.T) {
 	t.Parallel()
-	for name, focus := range map[string]panes.Pane{"focused": panes.Description, "blurred": panes.Conversation} {
+	for name, focus := range map[string]panes.Pane{"focused": paneDescription, "blurred": paneConversation} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			m := described(t, goldenBody)
@@ -187,7 +187,7 @@ func TestDescriptionImages(t *testing.T) {
 			m := openedPanes(t, 160)
 			m.pics = uitest.Avatars(src, on)
 			m.detail.Body = withImage
-			m.focus = panes.Description
+			m.focus = paneDescription
 			m.View()
 			uitest.LoadAvatars(t, m.pics)
 			m.Update(ui.ImagesMsg{})

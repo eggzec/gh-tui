@@ -11,7 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // RequestReviews sends nothing.
@@ -71,7 +70,7 @@ func openedInvolved(t *testing.T, svc *involvedService) *panesModal {
 		t.Fatal("enter didn't open the modal")
 	}
 	m.SetSize(160, 30)
-	m.focus = panes.Involved
+	m.focus = paneInvolved
 	m.Update(panesDetailMsg{id: m.id, detail: involvedDetail(m.detail)})
 	return m
 }

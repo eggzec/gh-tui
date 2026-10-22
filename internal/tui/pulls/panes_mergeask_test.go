@@ -41,8 +41,8 @@ func pressMergeOn(t *testing.T, h *host, p panes.Pane) {
 func TestModalMergeKeyOpensTheListsDialogFromAnyPane(t *testing.T) {
 	t.Parallel()
 	_, listDialog := merging(t, newFakeService(), &memDrafts{})
-	for _, p := range []panes.Pane{panes.Description, panes.Files, panes.Conversation, panes.Merge} {
-		t.Run(p.Name(), func(t *testing.T) {
+	for _, p := range []panes.Pane{paneDescription, paneFiles, paneConversation, paneMerge} {
+		t.Run(paneName(p), func(t *testing.T) {
 			t.Parallel()
 			h, _ := modalToMerge(t, newFakeService())
 			pressMergeOn(t, h, p)
@@ -61,9 +61,9 @@ func TestModalMergeKeyOpensTheListsDialogFromAnyPane(t *testing.T) {
 func TestModalMergeKeyWorksInAPreview(t *testing.T) {
 	t.Parallel()
 	h, m := modalToMerge(t, newFakeService())
-	m.focus = panes.Files
+	m.focus = paneFiles
 	m.zoom.SetZoom(true)
-	m.sub[panes.Files-1] = panes.Preview
+	m.sub[paneFiles-1] = panes.Preview
 	if !m.inPreview(m.layout()) {
 		t.Fatal("the modal isn't in a preview")
 	}
@@ -77,7 +77,7 @@ func TestModalMergeDialogSendsOneMergeWithWhatItShows(t *testing.T) {
 	t.Parallel()
 	svc := newFakeService()
 	h, _ := modalToMerge(t, svc)
-	pressMergeOn(t, h, panes.Files)
+	pressMergeOn(t, h, paneFiles)
 	dlg := dialogOf(h)
 	if dlg == nil || !dlg.loaded {
 		t.Fatal("M opened no loaded merge dialog")
@@ -94,7 +94,7 @@ func TestModalMergeDialogDeclinedSendsNothing(t *testing.T) {
 	t.Parallel()
 	svc := newFakeService()
 	h, _ := modalToMerge(t, svc)
-	pressMergeOn(t, h, panes.Merge)
+	pressMergeOn(t, h, paneMerge)
 	press(t, h, "n")
 	if got := svc.changes(); len(got) != 0 {
 		t.Errorf("changes = %q after a no, want none", got)
@@ -114,7 +114,7 @@ func TestModalMergeQuestionIsAskedInTheModal(t *testing.T) {
 		t.Parallel()
 		svc := queue()
 		h, m := modalToMerge(t, svc)
-		pressMergeOn(t, h, panes.Description)
+		pressMergeOn(t, h, paneDescription)
 		o, ok := m.top().(*confirmOverlay)
 		if !ok {
 			t.Fatalf("M left %T on top, want the question", m.top())
@@ -134,7 +134,7 @@ func TestModalMergeQuestionIsAskedInTheModal(t *testing.T) {
 		t.Parallel()
 		svc := queue()
 		h, _ := modalToMerge(t, svc)
-		pressMergeOn(t, h, panes.Description)
+		pressMergeOn(t, h, paneDescription)
 		press(t, h, "n")
 		if got := svc.changes(); len(got) != 0 {
 			t.Errorf("changes = %q after a no, want none", got)
@@ -169,14 +169,14 @@ func TestModalMergeConfirmedSurvivesClosingTheModal(t *testing.T) {
 		t.Parallel()
 		svc := queue()
 		h, _ := modalToMerge(t, svc)
-		pressMergeOn(t, h, panes.Description)
+		pressMergeOn(t, h, paneDescription)
 		finish(t, h, svc, h.Update(keyMsg("y")))
 	})
 	t.Run("dialog", func(t *testing.T) {
 		t.Parallel()
 		svc := newFakeService()
 		h, _ := modalToMerge(t, svc)
-		pressMergeOn(t, h, panes.Description)
+		pressMergeOn(t, h, paneDescription)
 		if dlg := dialogOf(h); dlg == nil || !dlg.loaded {
 			t.Fatal("M opened no loaded merge dialog")
 		}
