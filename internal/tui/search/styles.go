@@ -21,8 +21,6 @@ type styles struct {
 	name, login, text, muted, subtle paint
 	accent, success, warning, fail   paint
 	selected                         paint
-	// match marks what a code search matched.
-	match paint
 	// states color the glyphs of the states of issues and pull requests.
 	states [ui.NumStates]paint
 
@@ -87,7 +85,6 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		warning:    newPaint(t.Warning),
 		fail:       newPaint(t.Error),
 		selected:   newPaint(t.Title),
-		match:      newPaint(t.Accent.Bold(true)),
 		cursor:     t.Accent.Render(ic.Cursor) + " ",
 		blurred:    t.Subtle.Render(ic.Cursor) + " ",
 	}

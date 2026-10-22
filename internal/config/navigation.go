@@ -20,8 +20,8 @@ var navigation = []string{
 	// Moving between panes and tabs.
 	"next_pane", "prev_pane", "next_tab", "prev_tab",
 	"pane_1", "pane_2", "pane_3", "pane_4", "pane_5", "pane_6", "kind_7",
-	// Moving between matches, and the choices of a search page, which has
-	// no such actions yet.
+	// Moving between matches, and the choices of a search page, such as its
+	// kinds.
 	"next_match", "prev_match", "results", "kinds",
 	// quit is the q command, and command opens the line that commands
 	// are typed in.
