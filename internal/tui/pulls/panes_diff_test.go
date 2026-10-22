@@ -8,7 +8,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/diffview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // diffPanes opens the diff of path over the panes of a pull request whose
@@ -46,7 +45,7 @@ func TestDiffOpensOnEnterOnAFile(t *testing.T) {
 	if got := modalScreen(t, h); !strings.Contains(got, "new "+path) {
 		t.Errorf("screen doesn't show the diff of %s:\n%s", path, got)
 	}
-	if m.focus != panes.Files {
+	if m.focus != paneFiles {
 		t.Errorf("focus %v, want the Files pane to keep it", m.focus)
 	}
 }
@@ -54,7 +53,7 @@ func TestDiffOpensOnEnterOnAFile(t *testing.T) {
 func TestDiffOpensFromTheFinder(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", patchedSample()...)
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	press(t, h, "ctrl+p")
 	typeQuery(t, h, "yaml")
 	press(t, h, "enter")

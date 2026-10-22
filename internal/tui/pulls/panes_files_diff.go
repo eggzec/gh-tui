@@ -42,7 +42,7 @@ func (pv *filesDiff) drop() {
 // filesDiffFocused reports that the diff beside the tree has the keys.
 func (m *panesModal) filesDiffFocused() bool {
 	pv := &m.files.pv
-	return pv.on && m.focus == panes.Files && m.sub[panes.Files-1] == panes.Preview && m.top() == nil
+	return pv.on && m.focus == paneFiles && m.sub[paneFiles-1] == panes.Preview && m.top() == nil
 }
 
 // syncFilesDiff makes the diff beside the tree the diff of the file the tree
@@ -52,7 +52,7 @@ func (m *panesModal) filesDiffFocused() bool {
 func (m *panesModal) syncFilesDiff() tea.Cmd {
 	f := &m.files
 	pv := &f.pv
-	b, ok := m.layout().Box(panes.Files, panes.Preview)
+	b, ok := m.layout().Box(paneFiles, panes.Preview)
 	if !ok || !f.loaded || !f.read.done || f.read.err != "" {
 		if pv.on {
 			pv.drop()
@@ -152,7 +152,7 @@ func (m *panesModal) resizeFilesDiff() {
 	if !pv.on {
 		return
 	}
-	b, ok := m.layout().Box(panes.Files, panes.Preview)
+	b, ok := m.layout().Box(paneFiles, panes.Preview)
 	if !ok {
 		return
 	}

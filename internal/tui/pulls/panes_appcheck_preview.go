@@ -50,13 +50,13 @@ func (p *mergePane) checkOf(id string) (core.CommitCheck, bool) {
 // shows, when it is shown and the modal can read annotations.
 func (m *panesModal) hoveredCheck() (core.CommitCheck, bool) {
 	p := m.merge
-	if p == nil || m.checks == nil || m.focus != panes.Merge || m.closed {
+	if p == nil || m.checks == nil || m.focus != paneMerge || m.closed {
 		return core.CommitCheck{}, false
 	}
-	if _, ok := m.layout().Box(panes.Merge, panes.Preview); !ok {
+	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {
 		return core.CommitCheck{}, false
 	}
-	return p.checkOf(m.hover[panes.Merge-1].id)
+	return p.checkOf(m.hover[paneMerge-1].id)
 }
 
 // loadNotes reads the annotations of the check run that the preview shows,

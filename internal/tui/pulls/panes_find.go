@@ -139,7 +139,7 @@ func (m *panesModal) chooseFile(path string) {
 	m.found = path
 	// The pane is drawn again to select it, even when it had the focus.
 	m.files.seq++
-	m.focus = panes.Files
+	m.focus = paneFiles
 	m.resetSub()
 }
 

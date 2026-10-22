@@ -12,7 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -51,7 +50,7 @@ func enterPanes(t *testing.T, threads []core.Thread) (*host, *panesModal, *fakeS
 // the diff it opened and the messages that came.
 func enterThread(t *testing.T, h *host, m *panesModal, th core.Thread, kind string) (o *diffOverlay, msgs []tea.Msg) {
 	t.Helper()
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	seq, found := m.files.seq, m.found
 	cmd := m.Update(conv.EnterMsg{ID: "x", Kind: kind, Thread: &th, Comment: &th.Comments[0]})
 	// The reads that the cmd brings sync the viewed marks, which bumps the draw

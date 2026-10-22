@@ -110,13 +110,13 @@ func (p *mergePane) jobOf(id string) (core.CommitCheck, bool) {
 // shown and the modal can read logs.
 func (m *panesModal) hoveredJob() (core.CommitCheck, bool) {
 	p := m.merge
-	if p == nil || m.checks == nil || m.focus != panes.Merge || m.closed {
+	if p == nil || m.checks == nil || m.focus != paneMerge || m.closed {
 		return core.CommitCheck{}, false
 	}
-	if _, ok := m.layout().Box(panes.Merge, panes.Preview); !ok {
+	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {
 		return core.CommitCheck{}, false
 	}
-	return p.jobOf(m.hover[panes.Merge-1].id)
+	return p.jobOf(m.hover[paneMerge-1].id)
 }
 
 // unwatchLog ends the follow of the log of a running job.
@@ -268,7 +268,7 @@ func (m *panesModal) storeLog(cc core.CommitCheck, lg core.Log, final bool, step
 	// Scrolling the note that the log is loading moves nothing, so it doesn't
 	// count as the user's choice.
 	scrolled := shown != nil && shown.state == jobLogReady
-	if key := (previewKey{panes.Merge, jobRow(cc.JobID)}); l.found {
+	if key := (previewKey{paneMerge, jobRow(cc.JobID)}); l.found {
 		if _, set := m.previews[key]; !set || !scrolled {
 			m.previews[key] = max(0, l.hidden()+l.first-l.from-errSeen)
 		}

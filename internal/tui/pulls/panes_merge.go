@@ -307,10 +307,10 @@ func (m *panesModal) mergeContent(b panes.Box) panes.Content {
 		if n := merge.Count(p.data); n == 0 {
 			// Until the checks are known, they may block.
 			if !p.has || p.data.Detail.HeadSHA == "" || p.data.ChecksLoaded {
-				c.Info = []string{p.styles.Ready}
+				c.TopRight = []string{p.styles.Ready}
 			}
 		} else {
-			c.Info = blockers(n)
+			c.TopRight = blockers(n)
 		}
 	}
 	lines := []string{merge.Branch(p.data, o)}

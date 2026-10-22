@@ -35,7 +35,7 @@ type drawKey struct {
 	width, height int
 	focus         panes.Pane
 	zoom          bool
-	sub           [panes.Count]panes.Role
+	sub           [paneCount]panes.Role
 	gen           int
 	files         int
 	updated       int64
@@ -85,6 +85,9 @@ func (m *panesModal) View() string {
 			out = m.covered(out)
 		}
 		lines = append(lines, out)
+		if m.hasStrip() {
+			lines = append(lines, m.strip())
+		}
 	}
 	if m.height >= 2 {
 		if m.top() != nil {
@@ -108,14 +111,29 @@ func (m *panesModal) panes(l panes.Layout) string {
 			return m.previewContent(b)
 		}
 		c := m.slots[b.Pane-1].content(m, b)
-		if l.Zoomed && c.Title == "" {
-			// The digits are in the strip of the bottom edge.
-			c.Title = b.Pane.Name()
+		c.Focus = b.Pane == l.Focus
+		if c.Title == "" {
+			c.Title = l.Title(b.Pane)
+			if l.Zoomed {
+				// The digits are in the strip under the boxes.
+				c.Title = paneName(b.Pane)
+			}
 		}
 		return c
 	})
 	m.drawn = drawnPanes{key: k, out: out}
 	return out
+}
+
+// strip is the row of pane names under the zoomed boxes, in the longest form
+// that fits the width, and blank when none does.
+func (m *panesModal) strip() string {
+	for _, f := range m.frames.StripForms(paneDefs, m.focus) {
+		if ansi.StringWidth(f) <= m.width {
+			return sealed(f, m.width)
+		}
+	}
+	return sealed("", m.width)
 }
 
 // sealed cuts or pads line to width cells, and ends its styles, so that

@@ -184,13 +184,13 @@ func (m *panesModal) hoveredDev() (id, title string, ok bool) {
 // A preview the service has cached needs no read.
 func (m *panesModal) loadPreview() tea.Cmd {
 	p := m.dev
-	if p == nil || m.focus != panes.Development {
+	if p == nil || m.focus != paneDevelopment {
 		return nil
 	}
-	if _, ok := m.layout().Box(panes.Development, panes.Preview); !ok {
+	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
 		return nil
 	}
-	key := m.hover[panes.Development-1].id
+	key := m.hover[paneDevelopment-1].id
 	t := p.hov.Ref.Target
 	if p.hov.Ref.Problem != "" || p.loading[key] || p.failed[key] {
 		return nil
@@ -326,7 +326,7 @@ func (m *panesModal) devContent(b panes.Box) panes.Content {
 	}
 	c := panes.Content{Body: m.dev.model.View()}
 	if n := m.dev.model.Closes(); n > 0 {
-		c.Info = []string{fmt.Sprintf("%d closes", n)}
+		c.TopRight = []string{fmt.Sprintf("%d closes", n)}
 	}
 	return c
 }

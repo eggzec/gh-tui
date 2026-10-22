@@ -276,7 +276,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 	}
 	m.revealFound()
 	f.tree.SetSize(in.W, in.H)
-	if focused := m.focus == panes.Files && m.sub[panes.Files-1] == panes.List && m.top() == nil; focused != f.tree.Focused() {
+	if focused := m.focus == paneFiles && m.sub[paneFiles-1] == panes.List && m.top() == nil; focused != f.tree.Focused() {
 		if focused {
 			f.tree.Focus()
 		} else {
@@ -286,7 +286,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 	c := panes.Content{Body: f.tree.View()}
 	if f.read.done && f.read.err == "" {
 		n, add, del := files.Totals(f.read.files)
-		c.Info = files.Info(n, add, del, f.styles)
+		c.TopRight = files.Info(n, add, del, f.styles)
 	}
 	return c
 }
@@ -403,7 +403,7 @@ func (m *panesModal) showCommit(oid string) {
 	if i < 0 {
 		return
 	}
-	m.focus = panes.Files
+	m.focus = paneFiles
 	m.resetSub()
 	f.rng = files.Range{First: i, Last: i}
 	f.tree.SetFolded(files.IDCommits, false)

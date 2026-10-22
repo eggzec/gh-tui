@@ -203,7 +203,7 @@ func BenchmarkFilesContent(b *testing.B) {
 			svc.changed = append(svc.changed, core.CommitFile{Path: "pkg/dir" + string(rune('a'+i%20)) + "/file" + string(rune('a'+i/20)) + ".go", Additions: i, Deletions: i / 2})
 		}
 	})
-	box, _ := m.layout().Box(panes.Files, panes.List)
+	box, _ := m.layout().Box(paneFiles, panes.List)
 	b.ReportAllocs()
 	for b.Loop() {
 		m.filesContent(box)

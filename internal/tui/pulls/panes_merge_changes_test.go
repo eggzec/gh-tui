@@ -57,7 +57,7 @@ func changesModal(t *testing.T, svc *fakeService, dark bool) *panesModal {
 		{Author: core.User{Login: "bob"}, State: core.ReviewStateChangesRequested, SubmittedAt: convAt},
 		{Author: core.User{Login: "carl"}, State: core.ReviewStateChangesRequested, SubmittedAt: convAt},
 	}
-	m.focus = panes.Merge
+	m.focus = paneMerge
 	m.merge.restyle(m)
 	m.merge.refresh(m)
 	m.View()
@@ -69,8 +69,8 @@ func changesModal(t *testing.T, svc *fakeService, dark bool) *panesModal {
 func changesPreview(t *testing.T, m *panesModal, login string) merge.Preview {
 	t.Helper()
 	for range 12 {
-		if got := m.hover[panes.Merge-1]; strings.Contains(strings.ToLower(got.title), login) && strings.HasSuffix(got.title, "changes requested") {
-			p, ok := m.mergePreviewOf(panes.Box{Pane: panes.Merge, Rect: panes.Rect{W: 82, H: 30}})
+		if got := m.hover[paneMerge-1]; strings.Contains(strings.ToLower(got.title), login) && strings.HasSuffix(got.title, "changes requested") {
+			p, ok := m.mergePreviewOf(panes.Box{Pane: paneMerge, Rect: panes.Rect{W: 82, H: 30}})
 			if !ok {
 				t.Fatal("the row has no preview")
 			}
@@ -78,7 +78,7 @@ func changesPreview(t *testing.T, m *panesModal, login string) merge.Preview {
 		}
 		m.Update(keyMsg("j"))
 	}
-	t.Fatalf("no Changes requested row of %s; hovered %+v", login, m.hover[panes.Merge-1])
+	t.Fatalf("no Changes requested row of %s; hovered %+v", login, m.hover[paneMerge-1])
 	return merge.Preview{}
 }
 
@@ -147,7 +147,7 @@ func TestChangesPreviewEnterOpensTheConversation(t *testing.T) {
 	m := changesModal(t, changesService(), true)
 	changesPreview(t, m, "bob")
 	run(m, m.mergeUpdate(merge.FocusReviewMsg{Login: "bob"}))
-	if m.focus != panes.Conversation || convCursor(t, m) != "r:R1" {
+	if m.focus != paneConversation || convCursor(t, m) != "r:R1" {
 		t.Errorf("focus %v, cursor %q; want the Conversation on bob's latest review r:R1", m.focus, convCursor(t, m))
 	}
 }

@@ -92,8 +92,8 @@ func selectedLabel(t *testing.T, o *labelsOverlay) string {
 
 func TestLabelsOpenFromPanes(t *testing.T) {
 	t.Parallel()
-	for _, focus := range []panes.Pane{panes.Conversation, panes.Files} {
-		t.Run(focus.Name(), func(t *testing.T) {
+	for _, focus := range []panes.Pane{paneConversation, paneFiles} {
+		t.Run(paneName(focus), func(t *testing.T) {
 			t.Parallel()
 			h, m := labeling(t, newFakeService())
 			m.focus = focus

@@ -11,7 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // jumpModal is the modal of convModal with its conversation read, and another
@@ -20,7 +19,7 @@ func jumpModal(t *testing.T) *panesModal {
 	t.Helper()
 	h, m := convModal(t, convService())
 	modalScreen(t, h)
-	m.focus = panes.Description
+	m.focus = paneDescription
 	m.syncConvFocus()
 	return m
 }
@@ -38,7 +37,7 @@ func TestJumpPersonLatest(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	run(m, m.jumpConv(convWant{login: "bob"}))
-	if m.focus != panes.Conversation || convCursor(t, m) != "r:R1" {
+	if m.focus != paneConversation || convCursor(t, m) != "r:R1" {
 		t.Errorf("focus %v, cursor %q; want the Conversation on bob's review r:R1", m.focus, convCursor(t, m))
 	}
 	run(m, m.jumpConv(convWant{login: "dee"}))
@@ -132,7 +131,7 @@ func TestJumpBeforeLoad(t *testing.T) {
 	r := lateModal(t, convService())
 	m := r.m
 	r.queue = append(r.queue, m.jumpConv(convWant{login: "ann"}))
-	if m.conv.want == nil || m.focus != panes.Conversation {
+	if m.conv.want == nil || m.focus != paneConversation {
 		t.Fatalf("want %v, focus %v; want the jump kept until the timeline loads, with the Conversation focused", m.conv.want, m.focus)
 	}
 	for r.step() {
@@ -199,9 +198,9 @@ func TestMergeFocusReviewLandsOnReview(t *testing.T) {
 	}}}
 	h, m := convModal(t, svc)
 	modalScreen(t, h)
-	m.focus = panes.Merge
+	m.focus = paneMerge
 	run(m, m.mergeUpdate(merge.FocusReviewMsg{Login: "bob"}))
-	if m.focus != panes.Conversation || convCursor(t, m) != "r:R1" {
+	if m.focus != paneConversation || convCursor(t, m) != "r:R1" {
 		t.Errorf("focus %v, cursor %q; want the Conversation on the review r:R1, not bob's later comment", m.focus, convCursor(t, m))
 	}
 }
@@ -211,7 +210,7 @@ func TestJumpKeepsZoom(t *testing.T) {
 	m := jumpModal(t)
 	m.zoom.SetZoom(true)
 	run(m, m.jumpConv(convWant{login: "ann"}))
-	if !m.zoom.Zoomed() || m.focus != panes.Conversation {
+	if !m.zoom.Zoomed() || m.focus != paneConversation {
 		t.Errorf("zoom %v, focus %v; want the Conversation, zoomed", m.zoom.Zoomed(), m.focus)
 	}
 }
@@ -220,7 +219,7 @@ func TestShowReview(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	run(m, m.showReview("R1"))
-	if m.focus != panes.Conversation || convCursor(t, m) != "r:R1" {
+	if m.focus != paneConversation || convCursor(t, m) != "r:R1" {
 		t.Errorf("focus %v, cursor %q; want the Conversation on r:R1", m.focus, convCursor(t, m))
 	}
 }
@@ -228,9 +227,9 @@ func TestShowReview(t *testing.T) {
 func TestEnterCommitShowsFiles(t *testing.T) {
 	t.Parallel()
 	_, m, _ := commitPanes(t, sampleCommits(nil))
-	m.focus = panes.Conversation
+	m.focus = paneConversation
 	m.Update(conv.EnterMsg{Kind: conv.KindCommit, SHA: "ccc3333"})
-	if m.focus != panes.Files || m.files.rng.First != 2 || m.files.rng.Last != 2 {
+	if m.focus != paneFiles || m.files.rng.First != 2 || m.files.rng.Last != 2 {
 		t.Errorf("focus %v, range %+v; want Files with only the third commit", m.focus, m.files.rng)
 	}
 }
@@ -239,7 +238,7 @@ func TestEnterCIFocusesMerge(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	m.Update(conv.EnterMsg{Kind: conv.KindCI, SHA: "ccc3333"})
-	if m.focus != panes.Merge {
+	if m.focus != paneMerge {
 		t.Errorf("focus %v, want Merge", m.focus)
 	}
 }

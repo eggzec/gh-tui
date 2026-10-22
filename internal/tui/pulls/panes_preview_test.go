@@ -15,12 +15,12 @@ import (
 func previewPanes(t *testing.T, row *string) *panesModal {
 	t.Helper()
 	m := sizedPanes(t, 160, 30)
-	m.focus = panes.Merge
+	m.focus = paneMerge
 	m.zoom.SetZoom(true)
-	m.slots[panes.Merge-1].hovered = func(*panesModal) (string, string, bool) {
+	m.slots[paneMerge-1].hovered = func(*panesModal) (string, string, bool) {
 		return *row, "row " + *row, *row != ""
 	}
-	m.slots[panes.Merge-1].preview = func(_ *panesModal, _ panes.Box) string {
+	m.slots[paneMerge-1].preview = func(_ *panesModal, _ panes.Box) string {
 		lines := make([]string, 40)
 		for i := range lines {
 			lines[i] = fmt.Sprintf("line %d", i)
@@ -36,7 +36,7 @@ func previewPanes(t *testing.T, row *string) *panesModal {
 func TestPreviewSubFocus(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
-	m.focus = panes.Merge
+	m.focus = paneMerge
 	m.zoom.SetZoom(true)
 	for i, want := range []panes.Role{panes.Preview, panes.List, panes.Preview, panes.List} {
 		key := "tab"
@@ -44,23 +44,23 @@ func TestPreviewSubFocus(t *testing.T) {
 			key = "shift+tab"
 		}
 		m.press(keyMsg(key))
-		if m.focus != panes.Merge || m.sub[panes.Merge-1] != want {
-			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.focus, m.sub[panes.Merge-1], want)
+		if m.focus != paneMerge || m.sub[paneMerge-1] != want {
+			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.focus, m.sub[paneMerge-1], want)
 		}
 	}
 	m.press(keyMsg("tab"))
 	m.press(keyMsg("4"))
-	if m.focus != panes.Involved || m.sub[panes.Merge-1] != panes.List || m.sub[panes.Involved-1] != panes.List {
+	if m.focus != paneInvolved || m.sub[paneMerge-1] != panes.List || m.sub[paneInvolved-1] != panes.List {
 		t.Errorf("4 left focus %v, boxes %v", m.focus, m.sub)
 	}
 	m.press(keyMsg("tab"))
-	if m.sub[panes.Involved-1] != panes.Preview {
-		t.Fatalf("tab left box %v, want Preview", m.sub[panes.Involved-1])
+	if m.sub[paneInvolved-1] != panes.Preview {
+		t.Fatalf("tab left box %v, want Preview", m.sub[paneInvolved-1])
 	}
 	m.press(keyMsg("z"))
 	m.press(keyMsg("z"))
-	if m.sub[panes.Involved-1] != panes.List {
-		t.Errorf("unzooming left box %v, want List", m.sub[panes.Involved-1])
+	if m.sub[paneInvolved-1] != panes.List {
+		t.Errorf("unzooming left box %v, want List", m.sub[paneInvolved-1])
 	}
 }
 
@@ -156,8 +156,8 @@ func TestPreviewScroll(t *testing.T) {
 
 	row = ""
 	m.follow()
-	if m.hover[panes.Merge-1].title != "row b" {
-		t.Errorf("a row with nothing to preview left the title %q, want the last one", m.hover[panes.Merge-1].title)
+	if m.hover[paneMerge-1].title != "row b" {
+		t.Errorf("a row with nothing to preview left the title %q, want the last one", m.hover[paneMerge-1].title)
 	}
 	if !strings.Contains(m.View(), "row b") {
 		t.Error("the preview doesn't carry the hovered row's text as its title")

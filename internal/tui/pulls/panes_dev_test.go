@@ -8,7 +8,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 func devRef(kind core.NumberKind, n int, title string) core.Reference {
@@ -34,7 +33,7 @@ func openedDev(t *testing.T, f *fakeDev) *host {
 	h := started(t, newFakeService(), 120, 30, WithDevelopment(f))
 	press(t, h, "enter")
 	press(t, h, "5")
-	if m := h.modal(); m == nil || m.focus != panes.Development {
+	if m := h.modal(); m == nil || m.focus != paneDevelopment {
 		t.Fatalf("Development pane not focused: %+v", m)
 	}
 	return h
@@ -170,7 +169,7 @@ func TestDevelopmentKeysFallThrough(t *testing.T) {
 	h := openedDev(t, &fakeDev{links: devLinks()})
 	m := h.modal()
 	press(t, h, "tab")
-	if m.focus == panes.Development {
+	if m.focus == paneDevelopment {
 		t.Fatal("tab didn't leave the pane")
 	}
 	press(t, h, "5")
@@ -179,7 +178,7 @@ func TestDevelopmentKeysFallThrough(t *testing.T) {
 		t.Fatal("z didn't zoom")
 	}
 	press(t, h, "2")
-	if m.focus != panes.Conversation {
+	if m.focus != paneConversation {
 		t.Fatalf("2 focused %v", m.focus)
 	}
 }
