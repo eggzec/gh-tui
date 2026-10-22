@@ -19,7 +19,7 @@ var (
 )
 
 func (m *model) defs() []panes.Def {
-	return []panes.Def{{Name: "Runs", Short: "Runs"}, {Name: "Annotations", Short: "Annot."}, {Name: "Downloads", Short: "Dl"}}
+	return []panes.Def{{Name: "Runs", Short: "Runs"}, {Name: "Annotations", Short: "Annot."}}
 }
 
 func (r run) facet(f string) string {
@@ -379,9 +379,9 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		id := r.title + " #" + fmt.Sprint(r.id)
 		c.TopRight = []string{id + "  " + r.event + "  " + r.branch + "  " + r.actor + "  " + r.sha() + "  " + r.dur,
 			id + "  " + r.branch + "  " + r.sha(), id, ""}
-		c.BottomLeft = []string{"j k scroll  / search  ] [ step  :n :p attempt  backspace back", "] [ :n :p", ""}
-		m.pg.SetSize(in.W, in.H)
-		c.Body = m.pg.View()
+		c.BottomLeft = []string{"enter fold  x raw  ] [ step  :n :p attempt  backspace back", "x ] [ :n :p", ""}
+		m.lv.SetSize(in.W, in.H)
+		c.Body = m.lv.View()
 		return c
 	}
 	if b.Pane == 1 {
@@ -414,13 +414,6 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		c.Body = m.treeBody(ns, in.W, in.H, c.Focus)
 		return c
 	}
-	if b.Pane == 3 {
-		ar := m.arts()
-		c.TopRight = []string{fmt.Sprintf("%d", len(ar)), ""}
-		c.BottomLeft = []string{"enter/d download  D all  G graph", "d D", ""}
-		c.Body = m.dlBody(ar, in.W, in.H, c.Focus)
-		return c
-	}
 	as := m.annos()
 	c.TopRight = []string{fmt.Sprintf("%d", len(as)), ""}
 	if m.graph {
@@ -435,27 +428,7 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		c.BottomLeft = []string{"arrows scroll  l LR/TD  G close", "arrows l G", ""}
 		return c
 	}
-	if m.zoom.Zoomed() && m.focus == 1 {
-		c.TopLeft = []string{"Run details"}
-		ri, _, ok := m.ctx()
-		if !ok {
-			c.Body = m.th.Subtle.Render("Select a run to see its details")
-			return c
-		}
-		head := m.attrLines(ri, in.W)
-		r, ji, _ := m.selJob()
-		c.TopRight = []string{r.workflow + " #" + fmt.Sprint(r.id), ""}
-		c.BottomLeft = []string{"v workflow file  z unzoom", "v z", ""}
-		rows := r.logRows(r.jobs[ji])
-		_, fs := r.failing()
-		if r.jobs[ji].status != "failure" {
-			fs = 0
-		}
-		head = append(head, m.th.Subtle.Render("Log preview: "+r.jobs[ji].name))
-		c.Body = strings.Join(append(head, m.logBody(rows, markerRow(rows, fs), in.W, max(in.H-len(head), 1), false)), "\n")
-		return c
-	}
-	if m.preview && m.w >= wideMin {
+	if m.preview && m.w >= wideMin && !m.zoom.Zoomed() {
 		c.TopLeft = []string{"Log preview"}
 		r, ji, ok := m.selJob()
 		if !ok {
@@ -725,22 +698,19 @@ func (m *model) attrLines(ri, w int) []string {
 	}
 }
 
-// dlBody lists the downloads of the run in view.
-func (m *model) dlBody(ar []artifact, w, h int, focus bool) string {
-	if _, _, ok := m.ctx(); !ok {
-		return m.th.Subtle.Render("Select a run to see its downloads")
-	}
-	if len(ar) == 0 {
-		return m.th.Subtle.Render("No downloads. Finished runs list their artifacts here.")
-	}
+// dlBody lists the artifacts in the downloads popup, with a mark column.
+func (m *model) dlBody(ar []artifact, w, h int) string {
 	var out []string
 	for i, a := range ar {
-		sel := i == m.dsel
-		nm := m.th.Text.Render(a.name)
-		if sel && focus {
-			nm = m.th.Title.Render(a.name)
+		mark := "[ ] "
+		if m.dpick[i] {
+			mark = "[x] "
 		}
-		out = append(out, m.row(m.cursor(sel, focus)+nm, m.th.Muted.Render(a.size)+"  "+m.th.Subtle.Render("expires "+a.expiry), w))
+		nm := m.th.Text.Render(mark + a.name)
+		if i == m.dsel {
+			nm = m.th.Title.Render(mark + a.name)
+		}
+		out = append(out, m.row(m.cursor(i == m.dsel, true)+nm, m.th.Muted.Render(a.size)+"  "+m.th.Subtle.Render("expires "+a.expiry), w))
 	}
-	return strings.Join(window(out, min(m.dsel, len(ar)-1), h), "\n")
+	return strings.Join(window(out, m.dsel, h), "\n")
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -159,8 +160,14 @@ func (m *model) frame() (string, int) {
 
 // overlay draws the open overlay over base.
 func (m *model) overlay(base string) string {
+	if m.ov == 5 || m.ov == 4 {
+		base = m.dlFrame(base)
+	}
 	if m.ov == 4 {
 		return m.pickerFrame(base)
+	}
+	if m.ov == 5 {
+		return base
 	}
 	box, w := m.frame()
 	if box == "" {
@@ -202,10 +209,10 @@ func (m *model) openPicker() {
 func (m *model) pickerKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch msg.String() {
 	case "esc", "q":
-		m.ov = 0
+		m.ov = 5
 		return nil
 	case "c":
-		m.ov = 0
+		m.ov, m.dpick = 0, nil
 		m.dldir = strings.Replace(m.fp.CurrentDirectory, homeDir(), "~", 1)
 		m.confirm = m.dwhat
 		return nil
@@ -213,6 +220,74 @@ func (m *model) pickerKey(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.fp, cmd = m.fp.Update(msg)
 	return cmd
+}
+
+// openDownloads opens the popup listing the selected run's artifacts.
+func (m *model) openDownloads() {
+	ar := m.arts()
+	if len(ar) == 0 {
+		m.toast = "no downloads for this run"
+		return
+	}
+	m.ov, m.dsel, m.dpick = 5, 0, map[int]bool{}
+}
+
+// dlKey handles a key in the downloads popup.
+func (m *model) dlKey(k string) {
+	ar := m.arts()
+	switch k {
+	case "esc", "q":
+		m.ov, m.dpick = 0, nil
+	case "j", "down":
+		m.dsel = min(len(ar)-1, m.dsel+1)
+	case "k", "up":
+		m.dsel = max(0, m.dsel-1)
+	case "space", " ":
+		m.dpick[m.dsel] = !m.dpick[m.dsel]
+	case "a":
+		all := len(m.dpick) < len(ar)
+		for i := range ar {
+			m.dpick[i] = all
+		}
+		for i, v := range m.dpick {
+			if !v {
+				delete(m.dpick, i)
+			}
+		}
+	case "enter":
+		var names []string
+		for i, a := range ar {
+			if m.dpick[i] {
+				names = append(names, a.name)
+			}
+		}
+		switch len(names) {
+		case 0:
+			names = []string{ar[m.dsel].name}
+			m.dwhat = names[0]
+		case 1:
+			m.dwhat = names[0]
+		default:
+			m.dwhat = fmt.Sprintf("%d downloads", len(names))
+		}
+		m.confirmCount = len(names)
+		m.openPicker()
+	}
+}
+
+// dlFrame draws the downloads popup over base.
+func (m *model) dlFrame(base string) string {
+	ar := m.arts()
+	ow := min(m.w, 64)
+	oh := min(len(ar)+2, max(m.h-4, 3))
+	l := panes.Layout{Width: ow, Height: oh, Focus: 1, Panes: []panes.Def{{Name: "Downloads"}},
+		Boxes: []panes.Box{{Pane: 1, Rect: panes.Rect{W: ow, H: oh}}}}
+	box := m.frames.Draw(l, func(b panes.Box) panes.Content {
+		in := b.Rect.Inner()
+		return panes.Content{TopLeft: []string{"Downloads"}, TopRight: []string{fmt.Sprintf("%d marked", len(m.dpick)), ""},
+			Focus: true, Body: m.dlBody(ar, in.W, in.H)}
+	})
+	return m.place(base, box, ow)
 }
 
 func homeDir() string {

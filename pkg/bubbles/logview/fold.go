@@ -136,6 +136,23 @@ func (m *Model) reveal(r int) {
 	m.jumpTo(m.locate(r))
 }
 
+// FocusSection collapses every section but sec and moves the cursor to its
+// first row. It reports whether there is such a section.
+func (m *Model) FocusSection(sec int) bool {
+	if sec < 0 || sec >= len(m.secs) {
+		return false
+	}
+	m.refold(func(folds []fold) {
+		for i := range folds {
+			if folds[i].sec >= 0 {
+				folds[i].open = folds[i].sec == sec
+			}
+		}
+	})
+	m.reveal(m.folds[m.secs[sec].fold].head)
+	return true
+}
+
 // FocusFailed collapses every section but the first that failed, and moves
 // the cursor to its first error, expanding the group it is in. Without
 // failed sections, it moves to the first error of the log. It reports

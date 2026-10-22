@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -36,32 +37,37 @@ type model struct {
 	collapsed map[string]bool
 	flt       map[string][]string // facet -> the values it may have
 	sortBy    string
-	ov        int // 0 none, 1 group, 2 filter, 3 sort, 4 download directory
+	ov        int      // 0 none, 1 group, 2 filter, 3 sort, 4 download directory
 	modal     ui.Modal // the group, filter or sort overlay
-	fp       filepicker.Model
+	fp        filepicker.Model
 
 	openRun map[int]bool
 	openGrp map[string]bool
 	preview bool // the annotations pane previews the selected job's log
 
-	asel, dsel int
-	selKey     string
+	asel   int
+	selKey string
 
-	view         int // 0 runs, 1 a job's log in the pager
-	logRun       int
-	logJob       int
-	pg           pager.Model
-	marks        []int // line of each step marker in the pager
-	mk           int
-	needJump     bool
-	curStep      int
+	view    int // 0 runs, 1 a job's log, 2 the workflow file
+	logRun  int
+	logJob  int
+	pg      pager.Model // the workflow file
+	lv      logview.Model
+	llines  []logview.Line // the job's log lines, without step markers
+	lraw    []logview.Line // the same with a marker line per step
+	lsecs   []logview.Section
+	raw     bool // the flat timestamped log, no folds
+	mk      int  // the step [ ] is on
+	curStep int
+
+	dsel         int          // the downloads popup's cursor
+	dpick        map[int]bool // artifacts marked in the popup
 	sortRev      bool
 	dwhat        string
 	pend         []tea.Cmd
 	confirm      string
 	confirmCount int
-
-	fltOff bool // the filter's criteria are kept but not applied
+	fltOff       bool // the filter's criteria are kept but not applied
 
 	att map[int]int // run id -> the re-run attempt shown, 1..attempts
 
@@ -153,7 +159,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pend = nil
 		}
 		return mm, cmd
-	case pager.CloseMsg:
+	case pager.CloseMsg, logview.CloseMsg:
 		return m, tea.Quit
 	}
 	if m.modal != nil {
@@ -164,13 +170,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fp, cmd = m.fp.Update(msg)
 		return m, cmd
 	}
-	if m.view != 0 {
+	switch m.view {
+	case 1:
+		var cmd tea.Cmd
+		m.lv, cmd = m.lv.Update(msg)
+		return m, cmd
+	case 2:
 		var cmd tea.Cmd
 		m.pg, cmd = m.pg.Update(msg)
-		if m.needJump && m.pg.Lines() > 0 && len(m.marks) > 0 {
-			m.needJump = false
-			m.jump(m.marks[m.mk])
-		}
 		return m, cmd
 	}
 	return m, nil
@@ -270,6 +277,9 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case m.ov == 4:
 		return m, m.pickerKey(msg)
+	case m.ov == 5:
+		m.dlKey(k)
+		return m, nil
 	case m.modal != nil:
 		return m, m.modalUpdate(msg)
 	case m.view != 0:
@@ -331,24 +341,8 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.graph {
 			m.focus = 2
 		}
-	case "d", "D":
-		ri, _, ok := m.ctx()
-		if !ok {
-			break
-		}
-		ar := allRuns[ri].artifacts()
-		if len(ar) == 0 {
-			break
-		}
-		m.focus = 3
-		m.confirmCount = len(ar)
-		if k == "D" {
-			m.dwhat = fmt.Sprintf("all %d downloads", len(ar))
-		} else {
-			m.dwhat = ar[min(m.dsel, len(ar)-1)].name
-			m.confirmCount = 1
-		}
-		m.openPicker()
+	case "d":
+		m.openDownloads()
 	case "z":
 		m.zoom.Toggle()
 	case "v":
@@ -357,12 +351,10 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		m.preview = !m.preview
-	case "1", "2", "3":
+	case "1", "2":
 		m.focus = panes.Pane(k[0] - '0')
-	case "tab":
-		m.focus = m.focus%3 + 1
-	case "shift+tab":
-		m.focus = (m.focus+1)%3 + 1
+	case "tab", "shift+tab":
+		m.focus = m.focus%2 + 1
 	case "]", "[":
 		t := len(tabNames)
 		d := 1
@@ -427,7 +419,7 @@ func (m *model) treeKey(k string) {
 	}
 }
 
-// rightKey: enter acts on the selected row of the annotations or downloads.
+// rightKey: enter on an annotation opens its job's log.
 func (m *model) rightKey(k string) {
 	if k != "enter" {
 		return
@@ -436,18 +428,10 @@ func (m *model) rightKey(k string) {
 	if !ok {
 		return
 	}
-	if m.focus == 2 {
-		as := m.annos()
-		if len(as) > 0 {
-			a := as[min(m.asel, len(as)-1)]
-			m.openLog(ri, a.job, a.step)
-		}
-		return
-	}
-	if ar := allRuns[ri].artifacts(); len(ar) > 0 {
-		m.dwhat = ar[min(m.dsel, len(ar)-1)].name
-		m.confirmCount = 1
-		m.openPicker()
+	as := m.annos()
+	if len(as) > 0 {
+		a := as[min(m.asel, len(as)-1)]
+		m.openLog(ri, a.job, a.step)
 	}
 }
 
@@ -456,24 +440,54 @@ func (m *model) move(d int) {
 		m.sel = max(0, min(len(m.nodes())-1, m.sel+d))
 		return
 	}
-	if m.focus == 2 {
-		m.asel = max(0, min(len(m.annos())-1, m.asel+d))
-		return
-	}
-	if ri, _, ok := m.ctx(); ok {
-		m.dsel = max(0, min(len(allRuns[ri].artifacts())-1, m.dsel+d))
-	}
+	m.asel = max(0, min(len(m.annos())-1, m.asel+d))
 }
 
-// logKey is the job's log: the pager, plus step markers and the ':' line.
+// logKey is the job's log: the real log view with step folds, plus the ':'
+// line, the raw toggle and the step jumps.
 func (m *model) logKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	k := msg.String()
+	if m.view == 2 {
+		return m.workflowKey(msg)
+	}
+	if !m.lv.Capturing() {
+		switch k {
+		case "backspace":
+			m.view = 0
+			return m, nil
+		case ":":
+			m.cmdOn, m.cmd = true, ""
+			return m, nil
+		case "x":
+			m.toggleRaw()
+			return m, nil
+		case "]", "[":
+			if len(m.lsecs) == 0 || m.raw {
+				return m, nil
+			}
+			d := 1
+			if k == "[" {
+				d = -1
+			}
+			m.mk = max(0, min(len(m.lsecs)-1, m.mk+d))
+			m.curStep = m.mk
+			m.lv.FocusSection(m.mk)
+			return m, nil
+		}
+	}
+	var cmd tea.Cmd
+	m.lv, cmd = m.lv.Update(msg)
+	return m, cmd
+}
+
+// workflowKey is the workflow file in the pager.
+func (m *model) workflowKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.pg.Capturing() {
 		var cmd tea.Cmd
 		m.pg, cmd = m.pg.Update(msg)
 		return m, cmd
 	}
-	switch k {
+	switch msg.String() {
 	case "backspace":
 		m.view = 0
 		return m, nil
@@ -483,40 +497,46 @@ func (m *model) logKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		cmd, ok := m.pg.ClearTransient()
 		if !ok {
-			if m.view == 2 {
-				m.view = 0
-				return m, nil
-			}
-			return m, tea.Quit
-		}
-		return m, cmd
-	case "]", "[":
-		if len(m.marks) == 0 {
+			m.view = 0
 			return m, nil
 		}
-		d := 1
-		if k == "[" {
-			d = -1
-		}
-		m.mk = max(0, min(len(m.marks)-1, m.mk+d))
-		m.jump(m.marks[m.mk])
-		return m, nil
+		return m, cmd
 	}
 	var cmd tea.Cmd
 	m.pg, cmd = m.pg.Update(msg)
 	return m, cmd
 }
 
-// jump scrolls the pager to a line by keys: top, then down.
-func (m *model) jump(line int) {
-	m.pg, _ = m.pg.Update(tea.KeyPressMsg{Code: tea.KeyHome})
-	for range line {
-		m.pg, _ = m.pg.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+// toggleRaw flips between the steps as folds and the flat timestamped log.
+func (m *model) toggleRaw() {
+	m.raw = !m.raw
+	if m.raw {
+		m.lv.SetLines(m.lraw, nil)
+		m.lv.SetTimeMode(logview.TimeAbsolute)
+		return
 	}
+	m.lv.SetLines(m.llines, m.lsecs)
+	m.lv.SetTimeMode(logview.TimeHidden)
+	m.focusStep()
+}
+
+// focusStep opens the current step alone, or the failing one first.
+func (m *model) focusStep() {
+	r := allRuns[m.logRun]
+	if r.jobs[m.logJob].status == "failure" && m.curStep == m.failStep() {
+		m.lv.FocusFailed()
+		return
+	}
+	m.lv.FocusSection(m.curStep)
+}
+
+func (m *model) failStep() int {
+	_, s := allRuns[m.logRun].failing()
+	return s
 }
 
 func (m *model) openLog(ri, ji, step int) {
-	m.view, m.logRun, m.logJob = 1, ri, ji
+	m.view, m.logRun, m.logJob, m.raw = 1, ri, ji, false
 	r := allRuns[ri]
 	if step < 0 {
 		_, step = r.failing()
@@ -524,33 +544,52 @@ func (m *model) openLog(ri, ji, step int) {
 			step = 0
 		}
 	}
-	m.curStep = step
+	m.curStep, m.mk = step, step
+	m.llines, m.lraw, m.lsecs = nil, nil, nil
 	a := m.attempt(ri)
-	lines := []string{fmt.Sprintf("##[attempt %d/%d] %s", a, attempts(r), r.jobs[ji].name)}
-	m.marks = nil
-	m.mk = 0
+	m.lraw = append(m.lraw, logview.Line{Text: fmt.Sprintf("attempt %d/%d  %s", a, attempts(r), r.jobs[ji].name)})
 	for _, row := range r.logRows(r.jobs[ji]) {
 		if row.marker {
-			if row.step == step {
-				m.mk = len(m.marks)
-			}
-			m.marks = append(m.marks, len(lines))
-			lines = append(lines, "##[group]"+row.text)
+			m.lsecs = append(m.lsecs, logview.Section{Title: row.text, Start: len(m.llines),
+				Failed: row.status == "failure"})
+			m.lraw = append(m.lraw, logview.Line{Text: row.text, Kind: logview.Group})
 			continue
 		}
-		lines = append(lines, row.ts+" "+row.text)
+		ln := logview.Line{Text: row.text}
+		if t, err := time.Parse("15:04:05.000Z", row.ts); err == nil {
+			ln.Time = t
+		}
+		if after, ok := strings.CutPrefix(row.text, "##[error]"); ok {
+			ln.Text, ln.Kind = after, logview.Error
+		}
+		m.llines = append(m.llines, ln)
+		m.lraw = append(m.lraw, ln)
 	}
-	m.pg = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor))
-	m.pg.SetLineNumbers(true)
-	m.pg.Focus()
-	m.pend = append(m.pend, m.pg.SetContent("job.log", strings.Join(lines, "\n")))
-	m.needJump = true
+	for i := range m.lsecs {
+		end := len(m.llines)
+		if i+1 < len(m.lsecs) {
+			end = m.lsecs[i+1].Start
+		}
+		m.lsecs[i].End = end
+	}
+	m.lv = logview.New(logview.WithKeyMap(m.logKeys()), logview.WithLineNumbers(true),
+		logview.WithTimeMode(logview.TimeHidden))
+	m.lv.SetLines(m.llines, m.lsecs)
+	m.lv.Focus()
+	m.focusStep()
+}
+
+// logKeys is the real log pane's keys, minus the ones that close the view.
+func (m *model) logKeys() logview.KeyMap {
+	k := logview.NewKeyMap(ui.In(m.cfg.Keys, "actions_log"))
+	k.Quit.SetEnabled(false)
+	k.Dismiss.SetEnabled(false)
+	return k
 }
 
 // openWorkflow shows the workflow file of run ri in the pager, read-only.
 func (m *model) openWorkflow(ri int) {
 	m.view, m.logRun = 2, ri
-	m.marks, m.mk, m.needJump = nil, 0, false
 	m.pg = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor))
 	m.pg.SetLineNumbers(true)
 	m.pg.Focus()
@@ -597,28 +636,12 @@ func (m *model) layout() (panes.Layout, bool) {
 	}
 	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
 	w1 := m.runsWidth()
-	if m.zoom.Zoomed() && m.focus == 1 {
-		// Zoomed Runs keeps the run's details and log preview on the right.
-		l.Boxes = []panes.Box{
-			{Pane: 1, Rect: panes.Rect{W: w1, H: h}},
-			{Pane: 2, Rect: panes.Rect{X: w1, W: m.w - w1, H: h}},
-		}
-		return l, strip
-	}
 	if m.zoom.Zoomed() {
 		return panes.Compute(panes.Spec{Width: m.w, Height: h, Panes: defs, Focus: m.focus, Zoom: true}), strip
 	}
-	// The right column stacks annotations over downloads; boxes are drawn
-	// in order, so each row of the screen is written left to right.
-	// Downloads has 5 content rows, and annotations the rest.
-	h2 := h - 7
-	if h2 < 3 {
-		h2 = max(0, h-3)
-	}
 	l.Boxes = []panes.Box{
 		{Pane: 1, Rect: panes.Rect{W: w1, H: h}},
-		{Pane: 2, Rect: panes.Rect{X: w1, W: m.w - w1, H: h2}},
-		{Pane: 3, Rect: panes.Rect{X: w1, Y: h2, W: m.w - w1, H: h - h2}},
+		{Pane: 2, Rect: panes.Rect{X: w1, W: m.w - w1, H: h}},
 	}
 	return l, false
 }
@@ -671,6 +694,9 @@ func (m *model) footer(l panes.Layout) string {
 	if m.ov == 4 {
 		return sealed(hint("j k", "move")+"  "+hint("enter l", "open")+"  "+hint("h backspace", "up")+"  "+hint("c", "choose this directory")+"  "+hint("esc", "cancel"), m.w)
 	}
+	if m.ov == 5 {
+		return sealed(hint("j k", "move")+"  "+hint("space", "mark")+"  "+hint("a", "all")+"  "+hint("enter", "choose directory")+"  "+hint("esc", "close"), m.w)
+	}
 	if m.ov != 0 {
 		var hs []string
 		for _, b := range m.overlayHints() {
@@ -695,19 +721,13 @@ func (m *model) footer(l panes.Layout) string {
 	case m.view == 2:
 		parts = []string{hint("j k", "scroll"), hint("/ n N", "search"), hint("backspace", "back"), hint("esc", "clear/close")}
 	case m.view == 1:
-		parts = []string{hint("j k", "scroll"), hint("/ n N", "search"), hint("] [", "step"), hint(": n :p", "attempt"), hint("backspace", "back"), hint("esc", "clear/close")}
+		parts = []string{hint("enter", "fold step"), hint("*", "fold all"), hint("x", "raw/steps"), hint("] [", "step"), hint("/", "search"), hint(":n :p", "attempt"), hint("- S N T", "options"), hint("backspace", "back")}
 	case m.graph && m.focus == 2:
 		parts = []string{hint("arrows", "scroll"), hint("l", "LR/TD"), hint("G", "close"), hint("tab", "pane")}
 	default:
-		parts = []string{hint("tab", "pane"), hint("enter", "open"), hint("g", "group"), hint("alt+g", "ungroup"), hint("f", "filter"), hint("alt+f", "filter on/off"), hint("s", "sort"), hint("alt+s", "reverse"), hint("G", "graph"), hint(":n :p", "attempt")}
+		parts = []string{hint("tab", "pane"), hint("enter", "open"), hint("d", "downloads"), hint("z", "zoom"), hint("g", "group"), hint("alt+g", "ungroup"), hint("f", "filter"), hint("alt+f", "filter on/off"), hint("s", "sort"), hint("alt+s", "reverse"), hint("G", "graph"), hint(":n :p", "attempt")}
 		if m.focus == 1 {
 			parts = append(parts, hint("v", "workflow file"))
-		}
-		if m.w >= wideMin {
-			parts = append(parts, hint("z", "preview"))
-		}
-		if m.focus == 3 {
-			parts = append(parts, hint("d D", "download"))
 		}
 	}
 	return sealed(strings.Join(parts, m.th.Subtle.Render(m.ic.Separator)), m.w)
