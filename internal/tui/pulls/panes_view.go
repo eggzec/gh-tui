@@ -253,7 +253,7 @@ func (m *panesModal) footer(l panes.Layout) string {
 		}
 		parts = append(parts, hint(hintKeys(k.jump), "other pane"))
 	}
-	if m.canZoom() {
+	if m.zoom.CanZoom() {
 		what := "zoom"
 		if l.Zoomed {
 			what = "unzoom"

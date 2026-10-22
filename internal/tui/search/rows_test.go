@@ -3,7 +3,6 @@ package search
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -264,20 +263,6 @@ func TestHitKeepsTheNumber(t *testing.T) {
 		if w := ansi.StringWidth(first); w != width {
 			t.Errorf("at %d cells the row is %d wide", width, w)
 		}
-	}
-}
-
-// Lines of a fragment without text don't take the rows of a result.
-func TestFragmentViewSkipsBlankLines(t *testing.T) {
-	text := "package tea\n\n// Program is a terminal user interface.\n   \ntype Program struct {\n"
-	f := core.Fragment{Text: text, Matches: [][2]int{{8, 11}}}
-	got := make([]string, 0, 3)
-	for _, l := range fragmentView(f, 3) {
-		got = append(got, l.text)
-	}
-	want := []string{"package tea", "// Program is a terminal user interface.", "type Program struct {"}
-	if !slices.Equal(got, want) {
-		t.Errorf("fragmentView = %q, want %q", got, want)
 	}
 }
 

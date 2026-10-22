@@ -559,9 +559,10 @@ keys:
     # Show the repository of what is selected: of a result of the search
     # (which closes the modal first), a pinned card, a row of the
     # dashboard's Repositories, a task of its Work or a notification of
-    # its inbox or of the notifications list, a row of the page of a user or an organization, or the repository
-    # its README comes from. It does nothing where nothing is selected,
-    # the selection has no repository, or it is the repository on view.
+    # its inbox or of the notifications list, a row of the page of a user
+    # or an organization, or the repository its README comes from. It does
+    # nothing where nothing is selected, the selection has no repository,
+    # or it is the repository on view.
     repo: ["."]
     # Open the file finder of the repository screen, which finds a file by
     # some letters of its path, or in the modal of a pull request, the
@@ -591,10 +592,10 @@ keys:
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
     # a user or an organization; the kinds of results in the search modal,
-    # which show the kind and focus the results; branches, graph and commit in
-    # History; the panes of the modal of a pull request; and runs, jobs and log
-    # in Actions. A digit with no such pane there does nothing, and never
-    # switches screens.
+    # which show the kind and focus the results; branches, graph and commit
+    # in History; the panes of the modal of a pull request; and runs, jobs
+    # and log in Actions. A digit with no such pane there does nothing, and
+    # never switches screens.
     pane_1: ["1"]
     pane_2: ["2"]
     pane_3: ["3"]

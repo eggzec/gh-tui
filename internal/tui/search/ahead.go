@@ -103,6 +103,11 @@ func (s *Section) openHit(hit core.SearchHit, checks bool) tea.Cmd {
 		// The modal closes first, as it does for the owner key.
 		msg = ui.OwnerMsg{Login: hit.User.Login}
 	case core.SearchCommits:
+		if hit.Commit.Repo.Owner == "" || hit.Commit.Repo.Name == "" {
+			// A commit the search could not place in a repository has
+			// nothing to open.
+			return nil
+		}
 		msg = ui.OpenCommitMsg{Repo: hit.Commit.Repo, SHA: hit.Commit.SHA}
 	case core.SearchRepos:
 		msg = ui.RepoMsg{Repo: hit.Repo.Ref}

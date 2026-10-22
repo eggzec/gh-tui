@@ -118,7 +118,8 @@ results, the results from the preview. `.` and
 Enter acts on the result by kind: a commit opens the commit view, a user or
 an organization opens the owner, and a topic runs a `topic:<name>`
 repositories search. The search's own key contexts are `search_modal`,
-`search_query`, `search_results` and `search_preview`.
+`search_query`, `search_results` and `search_preview`; `search_prompt` is
+the line that takes a search typed over the text of a pager or a log.
 
 ## Bubbles (`pkg/bubbles`)
 
