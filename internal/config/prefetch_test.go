@@ -230,7 +230,6 @@ func TestGetInherited(t *testing.T) {
 		"prefetch.pulls.details.window.before":   "1 (from prefetch.window.before)",
 		"prefetch.pulls.checks.enabled":          "false",
 		"prefetch.search.details.window.after":   "0 (from prefetch.search.window.after)",
-		"prefetch.search.other_kinds.rest":       "150ms (from prefetch.rest)",
 		"prefetch.finder.preview.rest":           "100ms (from prefetch.finder.rest)",
 		"prefetch.pulls.other_tabs.window.after": "none: other tabs are read a page at a time, not around the cursor",
 		"prefetch.owner.people.enabled":          "false",

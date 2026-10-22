@@ -25,7 +25,7 @@ func TestView(t *testing.T) {
 		{"140 columns issues", 140, 38, "tea", []string{"esc", "]"}},
 		{"140 columns pull requests", 140, 38, "tea", []string{"esc", "]", "]"}},
 		{"140 columns code", 140, 38, "tea", []string{"esc", "]", "]", "]"}},
-		{"140 columns code on enter", 140, 38, "tea", []string{"esc", "]", "]", "]", "1", "i", "s", "enter"}},
+		{"140 columns code query edited", 140, 38, "tea", []string{"esc", "]", "]", "]", "i", "s"}},
 		{"140 columns invalid query", 140, 38, "tea is:bogus", nil},
 		{"80 columns start", 80, 22, "", []string{"2"}},
 		{"80 columns repositories", 80, 22, "tea", nil},
