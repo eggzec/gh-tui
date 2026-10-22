@@ -540,6 +540,12 @@ func (keySearch) CachedCommits(searchsvc.CommitsQuery) (core.SearchPage[core.Sea
 func (keySearch) Commits(context.Context, searchsvc.CommitsQuery) (core.SearchPage[core.SearchCommit], error) {
 	return core.SearchPage[core.SearchCommit]{}, nil
 }
+func (keySearch) CachedTopics(searchsvc.TopicsQuery) (core.SearchPage[core.SearchTopic], bool) {
+	return core.SearchPage[core.SearchTopic]{}, true
+}
+func (keySearch) Topics(context.Context, searchsvc.TopicsQuery) (core.SearchPage[core.SearchTopic], error) {
+	return core.SearchPage[core.SearchTopic]{}, nil
+}
 func (keySearch) Invalidate() {}
 
 // keyActions serves the failed run, its job and the job's log, to the

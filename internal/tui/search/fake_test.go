@@ -45,11 +45,14 @@ type fakeService struct {
 	// commits is the catalog of commits, commitQueries what was asked of it.
 	commits       []core.SearchCommit
 	commitQueries []search.CommitsQuery
-	size          int
-	pages         map[string]search.Result
-	code          map[string]core.SearchPage[core.CodeHit]
-	counts        map[string]map[core.SearchKind]int
-	limited       time.Time
+	// topics is the catalog of topics, topicQueries what was asked of it.
+	topics       []core.SearchTopic
+	topicQueries []search.TopicsQuery
+	size         int
+	pages        map[string]search.Result
+	code         map[string]core.SearchPage[core.CodeHit]
+	counts       map[string]map[core.SearchKind]int
+	limited      time.Time
 	// codeErr fails the next code search.
 	codeErr error
 
@@ -169,6 +172,26 @@ func (f *fakeService) Commits(_ context.Context, q search.CommitsQuery) (core.Se
 	for _, c := range f.commits {
 		if matches(q.Text, c.Subject) {
 			page.Items = append(page.Items, c)
+		}
+	}
+	page.Total = len(page.Items)
+	return page, nil
+}
+
+// CachedTopics reads nothing: topics are always asked for.
+func (f *fakeService) CachedTopics(search.TopicsQuery) (core.SearchPage[core.SearchTopic], bool) {
+	return core.SearchPage[core.SearchTopic]{}, false
+}
+
+// Topics returns the topics whose name contains the query.
+func (f *fakeService) Topics(_ context.Context, q search.TopicsQuery) (core.SearchPage[core.SearchTopic], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.topicQueries = append(f.topicQueries, q)
+	var page core.SearchPage[core.SearchTopic]
+	for _, t := range f.topics {
+		if matches(q.Text, t.Name) {
+			page.Items = append(page.Items, t)
 		}
 	}
 	page.Total = len(page.Items)

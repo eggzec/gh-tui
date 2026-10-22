@@ -197,7 +197,9 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 // state returns k as the query or the results take it, named for what the
 // keys do there.
 func (k KeyMap) state(s *Section) KeyMap {
-	k.Sort.SetEnabled(k.Sort.Enabled() && s.kind != core.SearchCode)
+	topics := s.kind == core.SearchTopics
+	k.Filter.SetEnabled(k.Filter.Enabled() && !topics)
+	k.Sort.SetEnabled(k.Sort.Enabled() && s.kind != core.SearchCode && !topics)
 	if s.area == inputArea {
 		k.Select.SetHelp(k.Select.Help().Key, "search")
 		return k

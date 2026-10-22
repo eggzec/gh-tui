@@ -68,6 +68,8 @@ type SearchHit struct {
 	User SearchUser
 	// Commit is set for SearchCommits hits.
 	Commit SearchCommit
+	// Topic is set for SearchTopics hits.
+	Topic SearchTopic
 	// Draft reports a draft pull request.
 	Draft bool
 }

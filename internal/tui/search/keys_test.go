@@ -33,7 +33,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "" && !s.typing }},
 		{nil, "i", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
 		{nil, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues }},
-		{nil, "[", "Search: previous kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchCommits }},
+		{nil, "[", "Search: previous kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchTopics }},
 		{nil, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
 		{nil, "2", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchIssues }},
 		{nil, "enter", "Search: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea }},
