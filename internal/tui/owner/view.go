@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -32,6 +33,9 @@ func (s *Section) layout() {
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
+		if s.zoomed() {
+			rest = max(rest-1, 0) // the strip of panes
+		}
 		for i := range b {
 			b[i] = box{s.width, rest}
 		}
@@ -60,9 +64,13 @@ func (s *Section) layout() {
 	s.resizeSide()
 }
 
+// framePad is what a frame takes of its width: two borders and a column of
+// padding on each side.
+const framePad = 4
+
 // inside is the room inside the frame of pane p.
 func (s *Section) inside(p paneID) (width, height int) {
-	return max(s.boxes[p].w-2, 0), max(s.boxes[p].h-2, 0)
+	return max(s.boxes[p].w-framePad, 0), max(s.boxes[p].h-2, 0)
 }
 
 // layoutList sizes l, and lays its columns out, to fit its pane.
@@ -105,14 +113,13 @@ func (s *Section) renderPane(p paneID) {
 	default:
 		body = s.listBody(w, h)
 	}
-	label, lw := s.label(p)
-	edge := s.st.edge
-	if s.focused && p == s.page.focus {
-		edge = s.st.focusEdge
-	}
 	b := s.boxes[p]
-	foot, footW := s.foot()
-	s.frames[p] = ownerui.Frame(label, lw, foot, footW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
+	c := panes.Content{
+		TopLeft: s.labelForms(p, b.w),
+		Body:    strings.Join(body, "\n"),
+		Focus:   s.focused && p == s.page.focus,
+	}
+	s.frames[p] = strings.Split(s.st.frames.Frame(c, b.w, b.h), "\n")
 }
 
 // compose joins the profile and the framed panes into the view.
@@ -127,6 +134,9 @@ func (s *Section) compose() {
 	case s.page == nil:
 	case s.onePane():
 		lines = append(lines, s.frames[s.page.focus]...)
+		if s.zoomed() {
+			lines = append(lines, ownerui.Fit(s.strip(), s.width))
+		}
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
 		right := s.frames[readmePane]
@@ -184,23 +194,27 @@ func (s *Section) tabWord() string {
 	return strings.ToLower(tabTitles[s.page.tab])
 }
 
-// label is the text in the top edge of pane p, and its width. In the
-// narrow layout the one frame names every pane, the focused one in full.
-func (s *Section) label(p paneID) (label string, width int) {
-	st := &s.st
-	title := st.title
-	if s.focused && p == s.page.focus {
-		title = st.focusTitle
-	}
+// labelForms are the forms of the top edge of pane p, a box w cells wide,
+// from the longest. In the narrow layout the one frame names every pane,
+// the focused one in full.
+func (s *Section) labelForms(p paneID, w int) []string {
 	if !s.onePane() || s.zoomed() {
 		text := s.paneLabel(p)
-		return title.Render(text), ansi.StringWidth(text)
+		if text == "" {
+			return nil
+		}
+		forms := []string{text}
+		if room := w - 5; room > 0 && ansi.StringWidth(text) > room {
+			forms = append(forms, termtext.Truncate(text, room, s.icons.Ellipsis))
+		}
+		return forms
 	}
 	// The other panes go by their titles, then by shorter ones, then by
-	// their keys alone, whichever fits.
+	// their keys alone.
+	forms := make([]string, 0, 3)
 	for tier := range 3 {
-		var b strings.Builder
-		n := 0
+		parts := make([]string, 0, numPanes)
+		cur := -1
 		for i := range numPanes {
 			if !s.hasPane(i) {
 				continue
@@ -212,26 +226,30 @@ func (s *Section) label(p paneID) (label string, width int) {
 					name = s.title(i, tier == 1)
 				}
 				part = strings.TrimSpace(s.keyLabel(i) + " " + name)
-			}
-			if part == "" {
-				continue
-			}
-			if n > 0 {
-				b.WriteString("  ")
-				n += 2
-			}
-			if i == p {
-				title.Write(&b, part)
 			} else {
-				st.shared.Subtle.Write(&b, part)
+				cur = len(parts)
 			}
-			n += ansi.StringWidth(part)
+			if part != "" {
+				parts = append(parts, part)
+			}
 		}
-		if n <= s.width-4 || tier == 2 {
-			return b.String(), n
+		forms = append(forms, s.strung(parts, cur))
+	}
+	return forms
+}
+
+// strung joins parts as a strip, the one at cur accented and the others dim.
+func (s *Section) strung(parts []string, cur int) string {
+	f := &s.st.frames
+	styled := make([]string, len(parts))
+	for i, part := range parts {
+		if i == cur {
+			styled[i] = f.StripCurrent.Render(part)
+		} else {
+			styled[i] = f.StripOther.Render(part)
 		}
 	}
-	return "", 0
+	return strings.Join(styled, f.StripSep.Render(" · "))
 }
 
 // keyLabel is the key that focuses pane p, or "" when it has none.
@@ -243,21 +261,38 @@ func (s *Section) keyLabel(p paneID) string {
 	return b.Help().Key
 }
 
-// foot is the strip of pane keys in the bottom edge of the zoomed pane, as
-// in the pull request modal, and its width. The focused pane's key is in
-// brackets. Other layouts have none: the panes show their names alone, or
-// the narrow layout names every pane in the top edge.
-func (s *Section) foot() (label string, width int) {
-	if !s.zoomed() {
-		return "", 0
-	}
-	var keys, long, short [numPanes]string
-	for i := range numPanes {
-		if s.hasPane(i) {
-			keys[i], long[i], short[i] = s.keyLabel(i), s.title(i, false), s.title(i, true)
+// strip is the row of pane keys under the zoomed pane, as in the pull
+// request modal. The focused pane's key is in brackets. Other layouts have
+// none: the panes show their names alone, or the narrow layout names every
+// pane in the top edge.
+func (s *Section) strip() string {
+	var row string
+	for tier := range 3 {
+		parts := make([]string, 0, numPanes)
+		cur := -1
+		for i := range numPanes {
+			if !s.hasPane(i) {
+				continue
+			}
+			key := s.keyLabel(i)
+			if i == s.page.focus && key != "" {
+				key = "[" + key + "]"
+			}
+			name := ""
+			if tier < 2 {
+				name = s.title(i, tier == 1)
+			}
+			if i == s.page.focus {
+				cur = len(parts)
+			}
+			parts = append(parts, strings.TrimSpace(key+" "+name))
+		}
+		row = s.strung(parts, cur)
+		if ansi.StringWidth(row) <= s.width {
+			return row
 		}
 	}
-	return ownerui.Foot(keys[:], [][]string{long[:], short[:]}, int(s.page.focus), s.st.focusTitle, s.st.shared.Subtle, s.width-5)
+	return ansi.Truncate(row, s.width, "")
 }
 
 // paneLabel is the label of pane p, with its key before it, such as
@@ -540,7 +575,7 @@ func (s *Section) tabs(tabs []tab, titles [numTabs]string) string {
 			label += " " + count
 		}
 		if t == p.tab {
-			s.st.focusTitle.Write(&b, label)
+			s.st.tab.Write(&b, label)
 		} else {
 			st.Muted.Write(&b, label)
 		}
