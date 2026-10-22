@@ -22,6 +22,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -123,6 +125,13 @@ type Section struct {
 	area  area
 	// preview is whether the preview has the focus, in the results' area.
 	preview bool
+	// pv shows the result under the cursor, and pvKey is what it was last
+	// filled with.
+	pv    pager.Model
+	pvKey string
+	// md renders the bodies of issues for the preview, and is nil until the
+	// first one is.
+	md *markdown.Renderer
 	// typing is whether the query takes the keys, which it does from the
 	// key that starts typing until the one that stops it.
 	typing  bool
@@ -227,6 +236,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	if p := s.prefetch; p != nil {
 		s.setPrefetch(*p)
 	}
+	s.pv = newPager(s.keys)
 	s.input = textinput.New()
 	s.input.Prompt = ""
 	s.input.Placeholder = "Search repositories, issues, pull requests and code"
@@ -244,7 +254,9 @@ func (s *Section) Init() tea.Cmd {
 
 // Capturing reports whether the page takes every key, which it does while
 // the query types, or the prompt of the results' find or filter is open.
-func (s *Section) Capturing() bool { return s.focused && (s.typing || s.feedCapturing()) }
+func (s *Section) Capturing() bool {
+	return s.focused && (s.typing || s.feedCapturing() || s.preview && s.pv.Capturing())
+}
 
 // Query returns the query the results are for.
 func (s *Section) Query() string { return s.text }
@@ -271,6 +283,12 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.errs = t.Errors(s.icons)
 	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
+	s.pv.SetStyles(t.Pager(s.icons))
+	if s.md != nil {
+		s.md.SetStyle(t.Thread(s.icons).Markdown)
+		s.md.SetGlyphs(s.icons.Markdown)
+	}
+	s.pv.Rerender()
 	s.spin.Style = t.Accent
 	s.spin.Spinner = s.icons.SpinnerOr(spinner.MiniDot)
 	for _, l := range s.hits {

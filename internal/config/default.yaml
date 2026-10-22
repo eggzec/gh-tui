@@ -855,6 +855,27 @@ keys:
     group_by: [g]
     group_toggle: [alt+g]
 
+  # Search: the preview of the result, read like a file.
+  search_preview:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: ["g g", home]
+    bottom: [G, end]
+    option: ["-"]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
+    # The pager reads this action, but a result has no file to open in an
+    # editor.
+    edit: []
+
   # The page of a user or an organization: its pinned repositories, as
   # cards.
   owner_pinned:
