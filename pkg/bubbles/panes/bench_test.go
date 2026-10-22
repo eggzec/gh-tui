@@ -3,23 +3,29 @@ package panes
 import "testing"
 
 func benchContent(Box) Content {
-	return Content{Info: []string{"some info"}, Body: "a line of content that is shown\nanother line of content"}
+	return Content{
+		TopRight: []string{"some info"},
+		Body:     "a line of content that is shown\nanother line of content",
+	}
+}
+
+func benchSpec(w int) Spec {
+	return Spec{Width: w, Height: 50, Panes: testPanes, Focus: 2, Zoom: true}
 }
 
 func BenchmarkView(b *testing.B) {
 	st := DefaultStyles(true)
-	l := Compute(Spec{Width: 160, Height: 50, Focus: Files, InvolvedRows: 6, DevelopmentRows: 5})
+	l := Compute(benchSpec(160))
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = st.Draw(l, benchContent)
 	}
 }
 
-// BenchmarkViewZoomed draws a zoomed pane beside its preview, which carries
-// the pane strip on the bottom border.
-func BenchmarkViewZoomed(b *testing.B) {
+// BenchmarkViewSplit draws a zoomed pane beside its preview.
+func BenchmarkViewSplit(b *testing.B) {
 	st := DefaultStyles(true)
-	l := Compute(Spec{Width: 110, Height: 40, Focus: Files, InvolvedRows: 6, DevelopmentRows: 5})
+	l := Compute(benchSpec(110))
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = st.Draw(l, benchContent)
@@ -29,6 +35,6 @@ func BenchmarkViewZoomed(b *testing.B) {
 func BenchmarkCompute(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = Compute(Spec{Width: 160, Height: 50, Focus: Files, InvolvedRows: 6, DevelopmentRows: 5})
+		_ = Compute(benchSpec(160))
 	}
 }

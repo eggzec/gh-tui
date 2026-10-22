@@ -6,20 +6,10 @@ import "strings"
 // into the area: exactly Height lines of Width cells. It asks content for
 // each box that has cells, so the caller picks by the box's Pane and Role and
 // cannot misalign the content with the layout; a nil content draws empty
-// boxes. Focus comes from the layout: Content.Focus is overridden, and only
-// the focused pane's list or whole box is focused, not its preview.
-//
-// A zoomed layout carries the pane strip on its bottom border, the longest
-// form that fits, run as one line across both boxes when the view is split.
-// Both boxes together are never narrower than one of them, so a strip that
-// does not fit across them fits on neither alone, and is left out.
+// boxes. Draw adds nothing of its own: the caller decides in Content which
+// box is focused and what each is titled.
 func (s Styles) Draw(l Layout, content func(Box) Content) string {
-	type drawn struct {
-		box   Box
-		focus bool
-		lines []string
-	}
-	var boxes []drawn
+	rows := make([]strings.Builder, l.Height)
 	for _, b := range l.Boxes {
 		if b.Rect.W <= 0 || b.Rect.H <= 0 {
 			continue
@@ -28,35 +18,8 @@ func (s Styles) Draw(l Layout, content func(Box) Content) string {
 		if content != nil {
 			c = content(b)
 		}
-		c.Focus = b.Pane == l.Focus && b.Role != Preview
-		if c.Title == "" && b.Role != Preview {
-			c.Title = b.Pane.Title()
-		}
-		boxes = append(boxes, drawn{b, c.Focus, s.frame(c, b.Rect.W, b.Rect.H)})
-	}
-	if l.Zoomed && len(boxes) > 0 && boxes[0].box.Rect.H >= 2 {
-		widths, focus := make([]int, len(boxes)), make([]bool, len(boxes))
-		for i, d := range boxes {
-			widths[i], focus[i] = d.box.Rect.W, d.focus
-		}
-		cur := boxes[0].box.Pane
-		for f := range s.stripForms(cur) {
-			line, ok := s.stripLine(widths, focus, f)
-			if !ok {
-				continue
-			}
-			last := len(boxes[0].lines) - 1
-			boxes[0].lines[last] = line
-			for _, d := range boxes[1:] {
-				d.lines[last] = ""
-			}
-			break
-		}
-	}
-	rows := make([]strings.Builder, l.Height)
-	for _, d := range boxes {
-		for r, line := range d.lines {
-			rows[d.box.Rect.Y+r].WriteString(line)
+		for r, line := range s.frame(c, b.Rect.W, b.Rect.H) {
+			rows[b.Rect.Y+r].WriteString(line)
 		}
 	}
 	out := make([]string, len(rows))

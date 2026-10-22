@@ -3,27 +3,33 @@ package panes
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
 // Content is what the caller puts in one box.
 type Content struct {
-	// Title is the left part of the top border. When empty, Draw gives a box
-	// that is not a Preview its pane's Title, so a caller cannot ask for none.
+	// Title is the top-left slot of the border. It is the one slot that is
+	// cut, with an ellipsis, since a title that does not fit is still better
+	// shown in part; an empty Title shows none.
 	Title string
-	// Info are the forms of the right-hand info of the top border, the
-	// longest first. The first that fits is drawn, and none when none
-	// does; a form is never cut. Colours inside a form are the caller's;
-	// the Info style wraps the form.
-	Info []string
+	// TopRight, BottomLeft and BottomRight are the other three corner slots
+	// of the border. Each is a list of forms of the same text, written by
+	// the caller, the longest first. The bubble draws the first form that
+	// fits and never edits, cuts or pads it; a slot with no fitting form is
+	// left out whole. On one edge the left slot wins and takes its longest
+	// form that fits, and the right slot appears only if one of its forms
+	// fits beside it with at least one dash between them. Colours inside a
+	// form are the caller's; the Info style wraps the form.
+	TopRight, BottomLeft, BottomRight []string
 	// Body is the content, lines joined by "\n". Lines beyond the inner
 	// height are dropped, and lines wider than the inner width are cut with
 	// an ellipsis. Tabs are expanded to stops of 4. Other control characters,
 	// such as "\r", are not removed and break the widths: the caller strips
 	// them.
 	Body string
-	// Focus draws the border in the focus colour. Frame reads it; Draw sets
-	// it from the layout and ignores what the caller gave.
+	// Focus draws the border in the focus colour. The caller decides which
+	// box is focused.
 	Focus bool
 }
 
@@ -56,7 +62,39 @@ func (s Styles) frame(c Content, w, h int) []string {
 		}
 		lines = append(lines, side+s.pad(line, inner)+right)
 	}
-	return append(lines, e.Render(b.BottomLeft+strings.Repeat(b.Bottom, inner)+b.BottomRight))
+	return append(lines, s.bottom(c, w))
+}
+
+// bottom is the bottom border: corner, "─ ", left slot, " ", dashes, " ",
+// right slot, " ─", corner. The right slot goes only if at least one dash is
+// left between it and the left slot.
+func (s Styles) bottom(c Content, w int) string {
+	b, e := s.Border, s.edge(c.Focus)
+	inner := w - 2
+	left, leftW := "", 0
+	for _, f := range c.BottomLeft {
+		if fw := ansi.StringWidth(f); f != "" && 3+fw <= inner {
+			left, leftW = e.Render(b.Bottom+" ")+s.Info.Render(f)+e.Render(" "), 3+fw
+			break
+		}
+	}
+	right, rightW := s.rightSlot(c.BottomRight, b.Bottom, e, inner-leftW)
+	if leftW+rightW == 0 {
+		return e.Render(b.BottomLeft + strings.Repeat(b.Bottom, inner) + b.BottomRight)
+	}
+	dashes := e.Render(strings.Repeat(b.Bottom, inner-leftW-rightW))
+	return e.Render(b.BottomLeft) + left + dashes + right + e.Render(b.BottomRight)
+}
+
+// rightSlot is the first of forms that fits in room cells with a dash before
+// it, drawn as " form ─" with the dash glyph of the edge, and its width.
+func (s Styles) rightSlot(forms []string, dash string, e lipgloss.Style, room int) (string, int) {
+	for _, f := range forms {
+		if fw := ansi.StringWidth(f); f != "" && fw+3+1 <= room {
+			return e.Render(" ") + s.Info.Render(f) + e.Render(" "+dash), fw + 3
+		}
+	}
+	return "", 0
 }
 
 // pad fits a line into the cells between the side borders: one column of
@@ -93,14 +131,7 @@ func (s Styles) top(c Content, w int) string {
 			leftW = 3 + ansi.StringWidth(title)
 		}
 	}
-	info, infoW := "", 0
-	for _, f := range c.Info {
-		fw := ansi.StringWidth(f)
-		if f != "" && leftW+fw+3+1 <= inner {
-			info, infoW = e.Render(" ")+s.Info.Render(f)+e.Render(" "+b.Top), fw+3
-			break
-		}
-	}
+	info, infoW := s.rightSlot(c.TopRight, b.Top, e, inner-leftW)
 	dashes := e.Render(strings.Repeat(b.Top, inner-leftW-infoW))
 	return e.Render(b.TopLeft) + left + dashes + info + e.Render(b.TopRight)
 }
