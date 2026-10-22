@@ -174,13 +174,13 @@ func TestMaximizeViewer(t *testing.T) {
 	}
 	m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"})
 	inset := m.placed()
-	if want := panes.OverlayRect(panes.Overlay{Kind: panes.Viewer}, 160, 38); inset != want {
+	if want := panes.OverlayRect(panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}, 160, 38); inset != want {
 		t.Fatalf("viewer at %v, want %v", inset, want)
 	}
 	if _, ok := m.Act(ui.ActMaximize); !ok {
 		t.Fatal("maximize not taken by a viewer")
 	}
-	if got, want := m.placed(), panes.OverlayRect(panes.Overlay{Kind: panes.Viewer, Maximized: true}, 160, 38); got != want {
+	if got, want := m.placed(), panes.OverlayRect(panes.Overlay{Kind: panes.Viewer, Maximized: true, InsetMin: wideMin}, 160, 38); got != want {
 		t.Errorf("maximized viewer at %v, want %v", got, want)
 	}
 	m.Act(ui.ActMaximize)
@@ -200,9 +200,9 @@ func TestOverlayPlacement(t *testing.T) {
 			open func(m *panesModal)
 			want panes.Overlay
 		}{
-			{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer}},
-			{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5}},
-			{"Confirm", func(m *panesModal) { m.ask(ui.Confirm{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?")}},
+			{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}},
+			{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5, InsetMin: wideMin}},
+			{"Confirm", func(m *panesModal) { m.ask(ui.Confirm{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
 		} {
 			w, h := size[0], size[1]
 			m := sizedPanes(t, w, h)
