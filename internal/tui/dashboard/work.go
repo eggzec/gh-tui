@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // workRow is a row of a list of the work pane: one of its items, or what
@@ -262,9 +262,9 @@ func cell(ref string, width int, tail string) string {
 	i := strings.LastIndexByte(ref, '#')
 	num := ref[i:]
 	if room := width - ansi.StringWidth(num); room > 0 {
-		return ownerui.Truncate(ref[:i], room, tail) + num
+		return termtext.Truncate(ref[:i], room, tail) + num
 	}
-	return ownerui.Truncate(num, width, tail)
+	return termtext.Truncate(num, width, tail)
 }
 
 // header names the columns of the items.

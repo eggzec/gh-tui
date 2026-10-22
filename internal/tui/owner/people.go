@@ -256,7 +256,7 @@ func (r *row) cell(text string, w int, right bool, paint ownerui.Paint, link str
 		r.b.WriteString(strings.Repeat(" ", colGap))
 	}
 	r.cells++
-	text = ownerui.Truncate(text, w, r.tail)
+	text = termtext.Truncate(text, w, r.tail)
 	pad := strings.Repeat(" ", w-ansi.StringWidth(text))
 	if right {
 		r.b.WriteString(pad)
