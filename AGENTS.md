@@ -111,7 +111,8 @@ Preview. A type strip above the results picks the kind with the digits 1
 to 7: repositories, issues, pull requests, code, users and organizations,
 commits and topics. Repositories, issues and pull requests show their
 counts at the right of Results; user rows are a glyph and the login only.
-`J` and `K` step through the hits and show each in the preview. `.` and
+`J` and `K` scroll the pane that has not the focus: the preview from the
+results, the results from the preview. `.` and
 `@` close the modal first, then show the repository or the owner.
 
 Enter acts on the result by kind: a commit opens the commit view, a user or

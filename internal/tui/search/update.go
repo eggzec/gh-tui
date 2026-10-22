@@ -118,6 +118,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Next), keymap.Matches(msg, k.Prev):
 		s.cyclePane()
 		return nil
+	case keymap.Matches(msg, k.ScrollOtherDown):
+		return s.scrollOther(true)
+	case keymap.Matches(msg, k.ScrollOtherUp):
+		return s.scrollOther(false)
 	}
 	if s.area == inputArea {
 		switch {
@@ -181,13 +185,6 @@ func (s *Section) moveKind(delta int) tea.Cmd {
 
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
-	// A step to a hit is a move of one row, as the arrow keys make it.
-	switch {
-	case keymap.Matches(msg, k.NextHit):
-		msg = keymap.ActionPress("search_results.down")
-	case keymap.Matches(msg, k.PrevHit):
-		msg = keymap.ActionPress("search_results.up")
-	}
 	switch {
 	case keymap.Matches(msg, k.Select):
 		return s.open(false)
@@ -209,6 +206,12 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return s.regroup()
 	}
+	return s.moveResults(msg)
+}
+
+// moveResults gives msg to the list of the results on view.
+func (s *Section) moveResults(msg tea.KeyPressMsg) tea.Cmd {
+	k := &s.keys
 	if s.text == "" {
 		switch {
 		case keymap.Matches(msg, k.feed.Up):
@@ -229,6 +232,39 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 	return nil
+}
+
+// scrollOther moves the pane that has not the focus by a row: the preview
+// scrolls while the results have the focus, and the results move while the
+// preview has it. With no preview on view there is nothing to scroll.
+func (s *Section) scrollOther(down bool) tea.Cmd {
+	if s.area != resultsArea {
+		return nil
+	}
+	action := "up"
+	if down {
+		action = "down"
+	}
+	if !s.preview {
+		if !s.split() {
+			return nil
+		}
+		// The pager reads keys only while it has the focus.
+		s.pv.Focus()
+		var cmd tea.Cmd
+		s.pv, cmd = s.pv.Update(keymap.ActionPress("search_preview." + action))
+		s.pv.Blur()
+		return cmd
+	}
+	// The lists read keys only while they have the focus.
+	if l, ok := s.visibleHits(); ok {
+		l.feed.Focus()
+		defer l.feed.Blur()
+	} else if l, ok := s.visibleCode(); ok {
+		l.feed.Focus()
+		defer l.feed.Blur()
+	}
+	return s.moveResults(keymap.ActionPress("search_results." + action))
 }
 
 // refresh searches again for the query, from GitHub.

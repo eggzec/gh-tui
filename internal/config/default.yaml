@@ -822,6 +822,10 @@ keys:
   search_modal:
     # Start typing in the query.
     insert: [i]
+    # Scroll the pane that has not the focus: the preview from the results,
+    # and the results from the preview.
+    scroll_other_down: [J]
+    scroll_other_up: [K]
     # Show the seventh kind of results, topics.
     kind_7: ["7"]
 
@@ -844,9 +848,6 @@ keys:
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
-    # Move to the next or the previous hit, and show it in the preview.
-    next_hit: [J]
-    prev_hit: [K]
     filter: [f]
     sort: [s]
     # Show the checks of the pull request under the cursor.

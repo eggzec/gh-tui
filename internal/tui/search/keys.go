@@ -49,9 +49,10 @@ type KeyMap struct {
 	// by, and ToggleGroups switches the grouping off, and back on.
 	GroupBy      key.Binding
 	ToggleGroups key.Binding
-	// NextHit and PrevHit move the cursor of the results by one hit.
-	NextHit key.Binding
-	PrevHit key.Binding
+	// ScrollOtherDown and ScrollOtherUp move the pane that has not the focus
+	// by a row: the preview from the results, the results from the preview.
+	ScrollOtherDown key.Binding
+	ScrollOtherUp   key.Binding
 
 	// order are the keys of the picker of the levels to group by.
 	order orderpick.KeyMap
@@ -103,10 +104,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Sort:    results.Binding("sort", "sort"),
 		Refresh: page.Binding("global.refresh", "refresh"),
 
+		ScrollOtherDown: page.Binding("scroll_other_down", "scroll preview down"),
+		ScrollOtherUp:   page.Binding("scroll_other_up", "scroll preview up"),
+
 		GroupBy:      results.Binding("group_by", "group by"),
 		ToggleGroups: results.Binding("group_toggle", "group on/off"),
-		NextHit:      results.Binding("next_hit", "next hit"),
-		PrevHit:      results.Binding("prev_hit", "previous hit"),
 
 		order: ui.OrderPickKeys(keys),
 		// The page matches these keys first, so the results get only the keys
@@ -135,7 +137,7 @@ func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
 		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
-		k.NextHit, k.PrevHit,
+		k.ScrollOtherDown, k.ScrollOtherUp,
 	}
 }
 
@@ -166,10 +168,13 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	k := s.keys.state(s)
 	if s.preview && s.area == resultsArea {
-		screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
+		screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.ScrollOtherDown, k.ScrollOtherUp}
 		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next}), s.previewLayer()}
 	}
 	screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
+	if s.area != inputArea {
+		screen = append(screen, k.ScrollOtherDown, k.ScrollOtherUp)
+	}
 	if s.area == inputArea {
 		// The query has no pane keys of its own: what acts on a result or
 		// the list waits for the results.
@@ -203,6 +208,10 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.area == inputArea {
 		k.Select.SetHelp(k.Select.Help().Key, "search")
 		return k
+	}
+	if s.preview {
+		k.ScrollOtherDown.SetHelp(k.ScrollOtherDown.Help().Key, "results down")
+		k.ScrollOtherUp.SetHelp(k.ScrollOtherUp.Help().Key, "results up")
 	}
 	_, codeShown := s.visibleCode()
 	switch {

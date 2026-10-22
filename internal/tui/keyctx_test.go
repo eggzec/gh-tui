@@ -961,17 +961,21 @@ var idleRows = map[string]string{
 
 	// The fixture pull request has no checks, which are the only rows of the
 	// Merge pane that fold, so there is nothing to open, close or open all.
-	"pull_merge expand":             "no row of the pane folds where the pull request has no checks",
-	"pull_merge collapse":           "no row of the pane folds where the pull request has no checks",
-	"pull_merge all":                "no row of the pane folds where the pull request has no checks",
-	"actions_filter previous field": "the form opens on its first row",
-	"actions_filter first field":    "the form opens on its first row",
-	"filter up":                     "the dropdown lists no options where the services serve none",
-	"filter down":                   "the dropdown lists no options where the services serve none",
-	"filter top":                    "the dropdown lists no options where the services serve none",
-	"filter bottom":                 "the dropdown lists no options where the services serve none",
-	"pull_files collapse":           "the commits start folded and the cursor starts on them",
-	"pull_files all commits":        "every commit starts selected",
+	"pull_merge expand":                "no row of the pane folds where the pull request has no checks",
+	"pull_merge collapse":              "no row of the pane folds where the pull request has no checks",
+	"pull_merge all":                   "no row of the pane folds where the pull request has no checks",
+	"actions_filter previous field":    "the form opens on its first row",
+	"actions_filter first field":       "the form opens on its first row",
+	"filter up":                        "the dropdown lists no options where the services serve none",
+	"filter down":                      "the dropdown lists no options where the services serve none",
+	"filter top":                       "the dropdown lists no options where the services serve none",
+	"filter bottom":                    "the dropdown lists no options where the services serve none",
+	"search_modal scroll preview down": "the preview's text fits its pane, so it has nowhere to scroll",
+	"search_modal scroll preview up":   "the preview's text fits its pane, so it has nowhere to scroll",
+	"search_modal results down":        "the results are one hit, so the cursor has nowhere to go",
+	"search_modal results up":          "the results are one hit, so the cursor has nowhere to go",
+	"pull_files collapse":              "the commits start folded and the cursor starts on them",
+	"pull_files all commits":           "every commit starts selected",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does

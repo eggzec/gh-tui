@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,8 +95,8 @@ func selectedHit(s *Section) string {
 	return fmt.Sprint(h)
 }
 
-// J and K step to the next and the previous hit, as j and k do.
-func TestNextPrevHit(t *testing.T) {
+// From the results, J and K leave the cursor alone and scroll the preview.
+func TestScrollOtherFromResults(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
@@ -103,23 +104,52 @@ func TestNextPrevHit(t *testing.T) {
 	if first == "" {
 		t.Fatal("the search found no hit")
 	}
+	// A text longer than the pane, so that it scrolls.
+	run(t, s, s.pv.SetContent("long.txt", strings.Repeat("a line\n", 200)))
+	before := s.pv.View()
+	press(t, s, "J")
+	if got := selectedHit(s); got != first {
+		t.Errorf("J moved the cursor to %s, want it on %s", got, first)
+	}
+	down := s.pv.View()
+	if down == before {
+		t.Error("J left the preview where it was, want it scrolled down")
+	}
+	press(t, s, "K")
+	if got := s.pv.View(); got != before {
+		t.Error("K didn't scroll the preview back up")
+	}
+	if s.preview {
+		t.Error("J and K moved the focus to the preview")
+	}
+}
+
+// From the preview, J and K move the cursor of the results, as j and k do.
+func TestScrollOtherFromPreview(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	first := selectedHit(s)
+	press(t, s, "tab")
+	if !s.preview {
+		t.Fatal("tab didn't focus the preview")
+	}
 	press(t, s, "J")
 	second := selectedHit(s)
 	if second == first {
 		t.Fatalf("J left the cursor on %s, want the next hit", first)
 	}
-	press(t, s, "j", "K")
-	if got := selectedHit(s); got != second {
-		t.Errorf("j then K left the cursor on %s, want %s", got, second)
-	}
 	press(t, s, "K")
 	if got := selectedHit(s); got != first {
 		t.Errorf("K moved to %s, want the first hit %s", got, first)
 	}
+	if !s.preview {
+		t.Error("J and K moved the focus off the preview")
+	}
 }
 
-// J types in the query, where it is no step to a hit.
-func TestNextHitNeedsResultsFocus(t *testing.T) {
+// J types in the query, where it scrolls nothing.
+func TestScrollOtherNeedsResultsFocus(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
