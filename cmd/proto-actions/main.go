@@ -1,244 +1,105 @@
 // proto-actions: throwaway prototype of a redesigned Actions modal over
-// hardcoded data. Variants live in v1.go, v2.go and v3.go; keys 1, 2, 3 switch.
+// hardcoded data, drawn with pkg/bubbles/panes and the app's own theme.
+// Keys 1, 2 and 3 pick the pane structure (see variants.go).
 package main
 
 import (
 	"fmt"
-	"image/color"
 	"os"
-	"sort"
+	"slices"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
-type theme struct {
-	green, red, yellow, blue, dim, accent, selBg, selFg color.Color
-}
-
-func newTheme(dark bool) theme {
-	ld := lipgloss.LightDark(dark)
-	c := lipgloss.Color
-	return theme{
-		green:  ld(c("#1a7f37"), c("#3fb950")),
-		red:    ld(c("#cf222e"), c("#ff7b72")),
-		yellow: ld(c("#9a6700"), c("#e3b341")),
-		blue:   ld(c("#0969da"), c("#79c0ff")),
-		dim:    ld(c("#6e7781"), c("#8b949e")),
-		accent: ld(c("#8250df"), c("#d2a8ff")),
-		selBg:  ld(c("#ddf4ff"), c("#1f3a5f")),
-		selFg:  ld(c("#0a3069"), c("#ffffff")),
-	}
-}
-
-func (t theme) col(c color.Color, s string) string {
-	return lipgloss.NewStyle().Foreground(c).Render(s)
-}
-
-func (t theme) statusCol(s string) color.Color {
-	switch s {
-	case "success":
-		return t.green
-	case "failure":
-		return t.red
-	case "running":
-		return t.yellow
-	case "queued":
-		return t.blue
-	}
-	return t.dim
-}
-
-func glyph(s string) string {
-	switch s {
-	case "success":
-		return "✓"
-	case "failure":
-		return "✗"
-	case "running":
-		return "●"
-	case "queued":
-		return "○"
-	case "cancelled":
-		return "⊘"
-	}
-	return "–"
-}
-
-// paint colours s unless the row is selected (selected rows are one plain style).
-func (m *model) paint(sel bool, c color.Color, s string) string {
-	if sel {
-		return s
-	}
-	return m.th.col(c, s)
-}
-
-func (m *model) dim(s string) string { return m.th.col(m.th.dim, s) }
-
-func (m *model) glyph(sel bool, status string) string {
-	return m.paint(sel, m.th.statusCol(status), glyph(status))
-}
-
-func (m *model) bar(r run, sel bool) string {
-	if r.status != "running" {
-		return ""
-	}
-	n := len(r.jobs)
-	d := r.doneJobs()
-	return m.paint(sel, m.th.yellow, strings.Repeat("▰", d)+strings.Repeat("▱", n-d))
-}
-
-func (m *model) selStyle(s string, w int) string {
-	return lipgloss.NewStyle().Bold(true).Foreground(m.th.selFg).Background(m.th.selBg).Render(fit(s, w))
-}
-
-func trunc(s string, w int) string {
-	if w <= 0 {
-		return ""
-	}
-	return lipgloss.NewStyle().MaxWidth(w).Render(s)
-}
-
-func fit(s string, w int) string {
-	s = trunc(s, w)
-	if n := w - lipgloss.Width(s); n > 0 {
-		s += strings.Repeat(" ", n)
-	}
-	return s
-}
-
-func block(lines []string, w, h int) string {
-	out := make([]string, h)
-	for i := range out {
-		if i < len(lines) {
-			out[i] = fit(lines[i], w)
-		} else {
-			out[i] = strings.Repeat(" ", w)
-		}
-	}
-	return strings.Join(out, "\n")
-}
-
-func rightAlign(l, r string, w int) string {
-	wr := lipgloss.Width(r)
-	if lipgloss.Width(l)+wr+1 > w {
-		l = trunc(l, w-wr-1)
-	}
-	gap := max(1, w-lipgloss.Width(l)-wr)
-	return l + strings.Repeat(" ", gap) + r
-}
-
-func window(sel, n, h int) int {
-	if h <= 0 {
-		return 0
-	}
-	return max(0, min(sel-h/2, n-h))
-}
-
-func (m *model) title(name, count string, focus bool) string {
-	s := name + " " + count
-	if focus {
-		return lipgloss.NewStyle().Bold(true).Foreground(m.th.accent).Render(s)
-	}
-	return m.dim(s)
-}
-
-type clearToast int
+// wideMin is the width from which the panes show side by side; under it one
+// pane shows, zoomed, with the pane strip under it (as the pull request modal).
+const wideMin = 120
 
 type model struct {
-	w, h      int
-	dark      bool
-	th        theme
-	variant   int
-	help      bool
-	toast     string
-	toastSeq  int
-	filtering bool
-	filter    string
-	sel       int
-	logJob    int
-	logScroll int
-	v1focus   int
-	v1job     int
-	exp       map[int]bool
-	chip      int
+	w, h    int
+	dark    bool
+	fixed   bool // dark/light forced by PROTO_LIGHT or PROTO_DARK
+	variant int  // 1..3
+	focus   panes.Pane
+	zoom    panes.Zoom
+	tab     int
+	sel     int // index in vis()
+	job     int // job index of the selected run
+	logOff  int // lines from the bottom of the log
+	prevOff int // lines from the top of the preview
+
+	cfg    config.Config
+	th     ui.Theme
+	ic     ui.Icons
+	rs     ui.RunStyles
+	frames panes.Styles
 }
 
-var chips = []string{"all", "failure", "running", "queued", "success"}
-
-func rank(s string) int {
-	for i, x := range []string{"failure", "running", "queued", "cancelled", "success", "skipped"} {
-		if x == s {
-			return i
-		}
+func newModel() *model {
+	m := &model{w: 120, h: 40, dark: true, variant: 1, focus: 1, cfg: config.Default()}
+	switch {
+	case os.Getenv("PROTO_LIGHT") != "":
+		m.dark, m.fixed = false, true
+	case os.Getenv("PROTO_DARK") != "":
+		m.fixed = true
 	}
-	return 9
+	m.restyle()
+	m.reset()
+	return m
 }
 
-func wfIndex(w string) int {
-	for i, x := range workflows {
-		if x == w {
-			return i
-		}
+func (m *model) restyle() {
+	p, err := m.cfg.Palette(m.dark)
+	if err != nil {
+		p, _ = config.Default().Palette(m.dark)
 	}
-	return 9
-}
-
-func (m *model) vis() []run {
-	var out []run
-	q := strings.ToLower(m.filter)
-	for _, r := range allRuns {
-		if q != "" && !strings.Contains(strings.ToLower(r.title+" "+r.branch+" "+r.workflow), q) {
-			continue
-		}
-		if m.variant == 3 && m.chip > 0 && r.status != chips[m.chip] {
-			continue
-		}
-		out = append(out, r)
+	m.th = ui.NewTheme(p, m.dark)
+	set := m.cfg.UI.Icons
+	if s := os.Getenv("PROTO_ICONS"); s != "" {
+		set = s
 	}
-	switch m.variant {
-	case 2:
-		sort.SliceStable(out, func(a, b int) bool { return wfIndex(out[a].workflow) < wfIndex(out[b].workflow) })
-	case 3:
-		sort.SliceStable(out, func(a, b int) bool { return rank(out[a].status) < rank(out[b].status) })
-	}
-	return out
-}
-
-func (m *model) selRun() (run, bool) {
-	v := m.vis()
-	if len(v) == 0 {
-		return run{}, false
-	}
-	m.sel = max(0, min(m.sel, len(v)-1))
-	return v[m.sel], true
-}
-
-func (m *model) move(d int) {
-	n := len(m.vis())
-	m.sel = max(0, min(m.sel+d, n-1))
-	m.v1job = 0
-}
-
-func (m *model) openLog(ji int) {
-	m.logJob = ji
-	m.logScroll = 1 << 30
+	m.ic = ui.NewIcons(set)
+	m.rs = ui.NewRunStyles(m.th, m.ic)
+	m.frames = panes.DefaultStyles(m.dark)
+	m.frames.Border = m.ic.Border
+	m.frames.Ellipsis = m.ic.Ellipsis
 }
 
 func (m *model) Init() tea.Cmd { return tea.RequestBackgroundColor }
+
+// reset points the job and the scrolls at the selected run's failing job.
+func (m *model) reset() {
+	m.logOff, m.prevOff = 0, 0
+	m.job = 0
+	if r, ok := m.cur(); ok {
+		if ji, _ := r.failing(); ji >= 0 {
+			m.job = ji
+		}
+	}
+}
+
+func (m *model) cur() (run, bool) {
+	v := m.vis()
+	if m.sel < 0 || m.sel >= len(v) {
+		return run{}, false
+	}
+	return v[m.sel], true
+}
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 	case tea.BackgroundColorMsg:
-		m.dark = msg.IsDark()
-		m.th = newTheme(m.dark)
-	case clearToast:
-		if int(msg) == m.toastSeq {
-			m.toast = ""
+		if !m.fixed {
+			m.dark = msg.IsDark()
+			m.restyle()
 		}
 	case tea.KeyPressMsg:
 		return m.key(msg.String())
@@ -247,154 +108,214 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) key(k string) (tea.Model, tea.Cmd) {
-	if k == "ctrl+c" {
-		return m, tea.Quit
-	}
-	if m.filtering {
-		switch k {
-		case "enter":
-			m.filtering = false
-		case "esc":
-			m.filtering, m.filter = false, ""
-		case "backspace":
-			if m.filter == "" {
-				m.filtering = false
-			} else {
-				r := []rune(m.filter)
-				m.filter = string(r[:len(r)-1])
-			}
-		case "space":
-			m.filter += " "
-		default:
-			if len([]rune(k)) == 1 {
-				m.filter += k
-			}
-		}
-		m.sel = 0
-		return m, nil
-	}
+	n := len(m.defs())
 	switch k {
-	case "q":
+	case "ctrl+c", "q", "esc":
 		return m, tea.Quit
 	case "1", "2", "3":
 		m.variant = int(k[0] - '0')
-		m.logJob = -1
-		m.v1focus = 0
-		return m, nil
-	case "?":
-		m.help = !m.help
-		return m, nil
-	case "/":
-		m.filtering = true
-		return m, nil
-	case "r":
-		if r, ok := m.selRun(); ok {
-			m.toastSeq++
-			m.toast = fmt.Sprintf("↻ rerun of #%d queued (fake)", r.id)
-			seq := m.toastSeq
-			return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg { return clearToast(seq) })
+		m.focus, m.tab, m.sel = 1, 0, 0
+		m.reset()
+	case "tab":
+		m.focus = m.focus%panes.Pane(n) + 1
+	case "shift+tab":
+		m.focus = (m.focus+panes.Pane(n)-2)%panes.Pane(n) + 1
+	case "z":
+		if m.zoom.CanZoom() {
+			m.zoom.Toggle()
 		}
-		return m, nil
-	}
-	if m.logJob >= 0 {
-		switch k {
-		case "j", "down":
-			m.logScroll++
-		case "k", "up":
-			m.logScroll = max(0, m.logScroll-1)
-		case "pgdown", "space":
-			m.logScroll += 10
-		case "pgup", "b":
-			m.logScroll = max(0, m.logScroll-10)
-		case "g", "home":
-			m.logScroll = 0
-		case "G", "end":
-			m.logScroll = 1 << 30
-		case "backspace", "esc", "h", "left":
-			m.logJob = -1
+	case "]", "[":
+		t := len(m.tabs())
+		d := 1
+		if k == "[" {
+			d = t - 1
 		}
-		return m, nil
-	}
-	switch m.variant {
-	case 1:
-		m.v1key(k)
-	case 2:
-		m.v2key(k)
-	case 3:
-		m.v3key(k)
+		m.tab, m.sel = (m.tab+d)%t, 0
+		m.reset()
+	case "j", "down", "k", "up":
+		d := 1
+		if k == "k" || k == "up" {
+			d = -1
+		}
+		m.move(d)
+	case "g":
+		m.move(-1000)
+	case "G":
+		m.move(1000)
 	}
 	return m, nil
 }
 
-func (m *model) logView(r run, j job, w, h int) string {
-	lines := logFor(r, j)
-	body := h - 1
-	m.logScroll = max(0, min(m.logScroll, len(lines)-body))
-	out := []string{lipgloss.NewStyle().Bold(true).Foreground(m.th.accent).Render("◂ "+r.title+" › "+j.name) +
-		m.dim(fmt.Sprintf("  %d-%d/%d  j/k scroll, g/G ends, backspace back", m.logScroll+1, min(len(lines), m.logScroll+body), len(lines)))}
-	for i := m.logScroll; i < len(lines) && i < m.logScroll+body; i++ {
-		l := lines[i]
-		ts, rest, _ := strings.Cut(l, " ")
-		n := m.dim(fmt.Sprintf("%2d %s ", i+1, ts))
-		switch {
-		case strings.Contains(rest, "##[error]"):
-			rest = lipgloss.NewStyle().Bold(true).Foreground(m.th.red).Render(rest)
-		case strings.Contains(rest, "##[warning]"):
-			rest = m.th.col(m.th.yellow, rest)
-		case strings.Contains(rest, "##[group]"):
-			rest = m.th.col(m.th.accent, rest)
-		}
-		out = append(out, n+rest)
+// move steps the list or scrolls the pane that has the focus.
+func (m *model) move(d int) {
+	r, ok := m.cur()
+	if !ok {
+		return
 	}
-	return block(out, w, h)
+	switch {
+	case m.focus == 1:
+		m.sel = max(0, min(len(m.vis())-1, m.sel+d))
+		m.reset()
+	case m.variant == 1 && m.focus == 2:
+		m.job = max(0, min(len(r.jobs)-1, m.job+d))
+		m.logOff = 0
+	case m.variant == 1:
+		m.logOff = max(0, m.logOff-d)
+	default:
+		m.prevOff = max(0, m.prevOff+d)
+	}
 }
 
 func (m *model) View() tea.View {
-	if m.w == 0 {
-		return tea.NewView("loading")
-	}
-	h := m.h - 2
-	var body string
-	switch m.variant {
-	case 1:
-		body = m.v1View(m.w, h)
-	case 2:
-		body = m.v2View(m.w, h)
-	default:
-		body = m.v3View(m.w, h)
-	}
-	hint := ""
-	switch {
-	case m.filtering:
-		hint = "/" + m.filter + "▏"
-	case m.toast != "":
-		hint = m.th.col(m.th.green, m.toast)
-	case m.help:
-		hint = m.dim([]string{"", "j/k move  tab/enter into jobs  enter on job: log  backspace back",
-			"j/k move  enter: log of failing job  g/G first/last", "j/k move  space expand  tab status chip  l log of failing job"}[m.variant])
-	case m.filter != "":
-		hint = m.dim("filter: " + m.filter + "  (/ edit, esc in filter clears)")
-	}
-	labels := []string{"1 master-detail", "2 grouped", "3 triage"}
-	var f []string
-	for i, l := range labels {
-		if i+1 == m.variant {
-			l = lipgloss.NewStyle().Bold(true).Reverse(true).Render(" " + l + " ")
-		} else {
-			l = " " + l + " "
-		}
-		f = append(f, l)
-	}
-	foot := strings.Join(f, "") + m.dim(" │ / filter  r rerun  ? help  q quit")
-	v := tea.NewView(body + "\n" + fit(hint, m.w) + "\n" + fit(foot, m.w))
+	v := tea.NewView(m.render())
 	v.AltScreen = true
 	return v
 }
 
+// render is the modal: a header, the panes and a footer, as the pull request
+// modal composes its frame.
+func (m *model) render() string {
+	m.zoom.SetNarrow(m.w < wideMin)
+	l, strip := m.layout()
+	lines := []string{m.header()}
+	out := m.frames.Draw(l, func(b panes.Box) panes.Content { return m.content(b, l) })
+	if strip {
+		out += "\n" + m.strip()
+	}
+	lines = append(lines, out, m.footer(l))
+	return strings.Join(lines, "\n")
+}
+
+func (m *model) layout() (panes.Layout, bool) {
+	defs := m.defs()
+	if m.focus < 1 || int(m.focus) > len(defs) {
+		m.focus = 1
+	}
+	h := max(m.h-2, 0)
+	strip := m.zoom.Zoomed() && m.h >= 4
+	if strip {
+		h--
+	}
+	if m.zoom.Zoomed() {
+		return panes.Compute(panes.Spec{Width: m.w, Height: h, Panes: defs, Focus: m.focus, Zoom: true}), strip
+	}
+	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
+	var ws []int
+	if m.variant == 1 {
+		w1, w2 := m.w/3, m.w/4
+		ws = []int{w1, w2, m.w - w1 - w2}
+	} else {
+		ws = []int{panes.DefaultListWidth, m.w - panes.DefaultListWidth}
+	}
+	x := 0
+	for i, w := range ws {
+		l.Boxes = append(l.Boxes, panes.Box{Pane: panes.Pane(i + 1), Rect: panes.Rect{X: x, W: w, H: h}})
+		x += w
+	}
+	return l, false
+}
+
+func sealed(line string, width int) string {
+	line = ansi.Truncate(line, width, "")
+	if pad := width - ansi.StringWidth(line); pad > 0 {
+		line += strings.Repeat(" ", pad)
+	}
+	return line + "\x1b[m"
+}
+
+func (m *model) header() string {
+	s := m.th.Text.Bold(true).Render("Actions") + m.th.Subtle.Render(m.ic.Separator) + m.th.Muted.Render("eggzec/gh-tui") + "  "
+	counts := m.tabCounts()
+	for i, t := range m.tabs() {
+		label := fmt.Sprintf("%s %d", t, counts[i])
+		if i == m.tab {
+			s += m.th.Accent.Bold(true).Underline(true).Render(label)
+		} else {
+			s += m.th.Subtle.Render(label)
+		}
+		s += "  "
+	}
+	return sealed(s, m.w)
+}
+
+func (m *model) strip() string {
+	for _, f := range m.frames.StripForms(m.defs(), m.focus) {
+		if ansi.StringWidth(f) <= m.w {
+			return sealed(f, m.w)
+		}
+	}
+	return sealed("", m.w)
+}
+
+func (m *model) footer(l panes.Layout) string {
+	hint := func(keys, what string) string {
+		return m.th.Muted.Render(keys) + " " + m.th.Subtle.Render(what)
+	}
+	var parts []string
+	if l.Zoomed {
+		parts = append(parts, hint("tab", "other pane"))
+	} else {
+		parts = append(parts, hint("tab", "focus"))
+	}
+	if m.zoom.CanZoom() {
+		what := "zoom"
+		if l.Zoomed {
+			what = "unzoom"
+		}
+		parts = append(parts, hint("z", what))
+	}
+	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"))
+	parts = append(parts, hint("1 2 3", fmt.Sprintf("variant %d: %s", m.variant, variantNames[m.variant-1])))
+	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })
+	return sealed(strings.Join(parts, m.th.Subtle.Render(m.ic.Separator)), m.w)
+}
+
+// titleForms is the title, then the title cut to the room the border leaves.
+func (m *model) titleForms(title string, b panes.Box) []string {
+	room := b.Rect.W - 5
+	if room <= 0 || ansi.StringWidth(title) <= room {
+		return []string{title}
+	}
+	return []string{title, ansi.Truncate(title, room, m.ic.Ellipsis)}
+}
+
+// row is left and right-aligned right in w cells.
+func (m *model) row(left, right string, w int) string {
+	rw := ansi.StringWidth(right)
+	if rw > 0 {
+		rw++
+	}
+	left = ansi.Truncate(left, max(0, w-rw), m.ic.Ellipsis)
+	gap := w - ansi.StringWidth(left) - ansi.StringWidth(right)
+	if gap < 1 {
+		return left
+	}
+	return left + strings.Repeat(" ", gap) + right
+}
+
+// cursor is the row's gutter: accent when the pane has the focus.
+func (m *model) cursor(selected, focus bool) string {
+	switch {
+	case selected && focus:
+		return m.th.Accent.Render(m.ic.Cursor) + " "
+	case selected:
+		return m.th.Subtle.Render(m.ic.Cursor) + " "
+	}
+	return "  "
+}
+
+// window shows h of lines with line sel in view.
+func window(lines []string, sel, h int) []string {
+	if len(lines) <= h {
+		return lines
+	}
+	start := max(0, min(len(lines)-h, sel-h/2))
+	return lines[start : start+h]
+}
+
 func main() {
-	m := &model{dark: true, variant: 1, logJob: -1, exp: map[int]bool{}, th: newTheme(true)}
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		fmt.Println(err)
+	if _, err := tea.NewProgram(newModel()).Run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
