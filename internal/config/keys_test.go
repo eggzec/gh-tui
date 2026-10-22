@@ -202,7 +202,7 @@ func TestTypingContextsRefusePrintableKeys(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
 		{"letter in the finder", "keys:\n  finder:\n    reveal: [o]\n", "line 3: keys.finder.reveal: o would be typed into the finder; use a key that types nothing, such as one with ctrl or alt"},
 		{"capital in the command line", "keys:\n  command_line:\n    complete: [T]\n", "line 3: keys.command_line.complete: T would be typed into the command line; use a key that types nothing, such as one with ctrl or alt"},
-		{"symbol in the query of the search page", "keys:\n  search_query:\n    submit: [\"?\"]\n", "line 3: keys.search_query.submit: ? would be typed into the query; use a key that types nothing, such as one with ctrl or alt"},
+		{"symbol in the query of the search modal", "keys:\n  search_query:\n    submit: [\"?\"]\n", "line 3: keys.search_query.submit: ? would be typed into the query; use a key that types nothing, such as one with ctrl or alt"},
 		{"space in the picker", "keys:\n  picker:\n    choose: [space]\n", "line 3: keys.picker.choose: space would be typed into the picker; use a key that types nothing, such as one with ctrl or alt"},
 		{"one of several keys", "keys:\n  prompt:\n    cancel: [esc, q]\n", "line 3: keys.prompt.cancel: q would be typed into the prompt; use a key that types nothing, such as one with ctrl or alt"},
 		{"help's close, which may", "keys:\n  help:\n    close: [\"?\"]\n", ""},

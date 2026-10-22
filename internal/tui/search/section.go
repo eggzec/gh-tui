@@ -1,6 +1,7 @@
-// Package search is the search page, laid out like github.com's: the query
-// on top, the kinds of results on the left with their counts, and the
-// results of the chosen kind on the right. The kind on view, and the other
+// Package search is the search modal: the query on top, a type strip above
+// the Results pane that picks the kind, the counts of repositories, issues
+// and pull requests at the right of Results, and a Preview pane that shows
+// the selected hit. The kind on view, and the other
 // kinds but code, are searched when the query is submitted; code is searched
 // only when its kind is chosen or on enter, since GitHub allows few code
 // searches a minute.
@@ -67,7 +68,7 @@ func WithStart(start Start) Option {
 }
 
 // WithHost sets the web host of the user's GitHub, with its port if it has
-// one, whose pages the search page opens. It defaults to github.com.
+// one, whose pages the search modal opens. It defaults to github.com.
 func WithHost(host string) Option {
 	return func(s *Section) { s.host = host }
 }
@@ -117,7 +118,7 @@ var kindTitles = map[core.SearchKind]string{
 
 var lastID atomic.Int64
 
-// Section is the search page. Create one with New.
+// Section is the search modal. Create one with New.
 type Section struct {
 	id    int64
 	ctx   context.Context
@@ -210,7 +211,7 @@ var (
 	_ ui.Capturer = (*Section)(nil)
 )
 
-// New returns the search page, which searches through svc and binds the
+// New returns the search modal, which searches through svc and binds the
 // actions in keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
 	// The other kinds are read as the defaults say until the settings say

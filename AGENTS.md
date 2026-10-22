@@ -102,6 +102,23 @@ Rules:
   of contents, split it up. Typical bubble files are `model.go`, `update.go`,
   `view.go`, `keys.go`, `styles.go` and `options.go`.
 
+### The search modal
+
+Search is an overlay modal, opened with `S` from anywhere. From inside
+another modal, `S` closes it and opens the search. A query runs only on
+submit (enter), never while typing. The frame has two panes, Results and
+Preview. A type strip above the results picks the kind with the digits 1
+to 7: repositories, issues, pull requests, code, users and organizations,
+commits and topics. Repositories, issues and pull requests show their
+counts at the right of Results; user rows are a glyph and the login only.
+`J` and `K` step through the hits and show each in the preview. `.` and
+`@` close the modal first, then show the repository or the owner.
+
+Enter acts on the result by kind: a commit opens the commit view, a user or
+an organization opens the owner, and a topic runs a `topic:<name>`
+repositories search. The search's own key contexts are `search_modal`,
+`search_query`, `search_results` and `search_preview`.
+
 ## Bubbles (`pkg/bubbles`)
 
 Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `View`.

@@ -52,7 +52,7 @@ func TestNavigationNamesAreActions(t *testing.T) {
 		have[name] = true
 	}
 	for _, name := range Navigation() {
-		// The search page will have these two.
+		// The search modal will have these two.
 		if !have[name] && name != "results" && name != "kinds" {
 			t.Errorf("Navigation has %q, which no context has an action of", name)
 		}

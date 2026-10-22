@@ -20,10 +20,10 @@ type repoLister interface {
 	CachedGet(ref core.RepoRef) (core.Repo, bool)
 }
 
-// searchStart lists the repositories the search page offers before the
+// searchStart lists the repositories the search modal offers before the
 // user types: those pinned in the config, then the viewer's own, each once
 // and spelled as GitHub spells it where that is known. The first list may
-// be the one an earlier session kept, which the search page shows as it
+// be the one an earlier session kept, which the search modal shows as it
 // is, so every later one reads past it.
 func searchStart(repos repoLister, pinned []core.RepoRef) searchpage.Start {
 	var listed atomic.Bool

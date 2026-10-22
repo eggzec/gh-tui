@@ -1,6 +1,6 @@
 // Package tui is the root of the program. It lays the sections out on
 // four screens, the dashboard, the repository screen with its panes, the
-// search page and the page of a user or an
+// search modal and the page of a user or an
 // organization, draws the header, the status
 // bar and toasts, opens modals such as the history over them, runs the
 // commands of the command line, and routes messages between them all.
@@ -42,7 +42,7 @@ type Layout struct {
 	// given a repository. It draws its own panes, and handles the keys
 	// that move between them.
 	Dashboard ui.Section
-	// Search fills the search page, which the search key shows from any
+	// Search fills the search modal, which the search key shows from any
 	// screen. It draws its own frames too.
 	Search ui.Section
 	// Owner fills the page of a user or an organization, which goto

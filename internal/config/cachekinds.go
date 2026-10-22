@@ -20,7 +20,7 @@ type TTL struct {
 	// Issues covers the lists and details of issues, and their comments.
 	Issues        time.Duration `yaml:"issues"`
 	Notifications time.Duration `yaml:"notifications"`
-	// Repos covers the lists of repositories: the search screen's start,
+	// Repos covers the lists of repositories: the search modal's start,
 	// an owner's repositories and the completion of :goto.
 	Repos time.Duration `yaml:"repos"`
 	// DashboardRepos covers the dashboard's Repositories pane, which lists
