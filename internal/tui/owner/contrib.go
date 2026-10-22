@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
@@ -64,7 +65,7 @@ func WithCalendar(glyph string, days int) Option {
 func (s *Section) calendar(p *page) *calendar.Model {
 	if p.side.cal == nil {
 		c := calendar.New(
-			calendar.WithGlyph(ownerui.CalendarGlyph(s.sc.glyph, s.icons)),
+			calendar.WithGlyph(ui.CalendarGlyph(s.sc.glyph, s.icons)),
 			calendar.WithRange(s.sc.days),
 			calendar.WithKeyMap(s.keys.cal),
 			calendar.WithStyles(s.theme.Calendar(s.icons)),
@@ -84,7 +85,7 @@ func (s *Section) setCalendar(p *page) {
 	if !p.side.contribs.ok {
 		return
 	}
-	ownerui.SetContributions(s.calendar(p), p.side.contribs.value, s.sc.days)
+	ui.SetContributions(s.calendar(p), p.side.contribs.value, s.sc.days)
 	if p == s.page {
 		s.resizeSide()
 	}
@@ -138,7 +139,7 @@ func (s *Section) themeSide() {
 		}
 		if c := p.side.cal; c != nil {
 			c.SetStyles(s.theme.Calendar(s.icons))
-			c.SetGlyph(ownerui.CalendarGlyph(s.sc.glyph, s.icons))
+			c.SetGlyph(ui.CalendarGlyph(s.sc.glyph, s.icons))
 		}
 	}
 }
@@ -155,7 +156,7 @@ func (s *Section) configureSide(c config.Config) {
 		if cal == nil {
 			continue
 		}
-		cal.SetGlyph(ownerui.CalendarGlyph(s.sc.glyph, s.icons))
+		cal.SetGlyph(ui.CalendarGlyph(s.sc.glyph, s.icons))
 		if changed {
 			cal.SetRange(days)
 			// What the calendar says of a range without contributions
