@@ -396,14 +396,19 @@ func TestBracketsSwitchKinds(t *testing.T) {
 	if s.Kind() != core.SearchIssues || s.area != inputArea {
 		t.Errorf("[ from the query showed %v in area %d, want issues in the query", s.Kind(), s.area)
 	}
+	// Users is the last kind, so the cycle goes round through it.
 	press(t, s, "[", "[")
+	if s.Kind() != core.SearchUsers {
+		t.Errorf("[ before the first kind showed %v, want users", s.Kind())
+	}
+	press(t, s, "[")
 	if s.Kind() != core.SearchCode {
-		t.Errorf("[ before the first kind showed %v, want code", s.Kind())
+		t.Errorf("[ before users showed %v, want code", s.Kind())
 	}
 	if _, code := svc.stats(); code != 1 {
 		t.Errorf("showing the code kind made %d code searches, want one", code)
 	}
-	press(t, s, "]")
+	press(t, s, "]", "]")
 	if s.Kind() != core.SearchRepos {
 		t.Errorf("] after the last kind showed %v, want repositories", s.Kind())
 	}

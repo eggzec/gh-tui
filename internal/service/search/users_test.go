@@ -71,6 +71,26 @@ func TestUsersError(t *testing.T) {
 	})
 }
 
+func TestUsersAllSendsBareText(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api := usersAPI(t)
+		s := New(api)
+		all := UsersQuery{Text: "muesli", Kind: core.SearchAll}
+		if _, err := s.Users(t.Context(), all); err != nil {
+			t.Fatal(err)
+		}
+		for _, k := range []core.SearchKind{core.SearchUsers, core.SearchOrgs} {
+			if _, ok := s.CachedUsers(UsersQuery{Text: "muesli", Kind: k}); ok {
+				t.Errorf("kind %v shares the cache of all", k)
+			}
+		}
+		if _, ok := s.CachedUsers(all); !ok {
+			t.Error("CachedUsers of all missed after a search")
+		}
+		api.wantCalls(t, `users "muesli" 20 `)
+	})
+}
+
 func TestUsersEmptyText(t *testing.T) {
 	api := &fakeAPI{t: t}
 	s := New(api)

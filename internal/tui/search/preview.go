@@ -73,6 +73,9 @@ func (s *Section) previewed() previewBody {
 	if h.Kind == core.SearchRepos {
 		return previewBody{key: "repo " + hitKey(h), name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) }}
 	}
+	if h.Kind == core.SearchUsers {
+		return previewBody{key: "user " + h.User.Login, name: h.User.Login, text: func() string { return userText(h.User) }}
+	}
 	return previewBody{
 		key:   "issue " + hitKey(h) + " " + s.text,
 		name:  hitKey(h),
@@ -120,6 +123,15 @@ func repoText(r core.Repo) string {
 		}
 	}
 	return b.String()
+}
+
+// userText describes a user or an organization from what its hit holds.
+func userText(u core.SearchUser) string {
+	kind := "User"
+	if u.Kind == core.OwnerOrg {
+		kind = "Organization"
+	}
+	return fmt.Sprintf("%s\n\nType: %s\n", u.Login, kind)
 }
 
 // issueText describes an issue or a pull request: its title, who opened it

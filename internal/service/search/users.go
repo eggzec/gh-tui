@@ -16,8 +16,8 @@ type UsersQuery struct {
 	// Text is the query in GitHub's user search syntax. A type: qualifier
 	// the user typed is kept as it is.
 	Text string
-	// Kind is core.SearchUsers or core.SearchOrgs. Any other kind means
-	// users.
+	// Kind is core.SearchUsers or core.SearchOrgs, or core.SearchAll for
+	// both. Any other kind means users.
 	Kind core.SearchKind
 	// Cursor is the Next of the previous page, or empty for the first page.
 	Cursor string
@@ -40,6 +40,11 @@ func (q UsersQuery) request() string {
 		if strings.HasPrefix(strings.ToLower(f), "type:") {
 			return q.Text
 		}
+	}
+	if q.Kind == core.SearchAll {
+		// GitHub's user search returns users and organizations alike when
+		// the query has no type: qualifier.
+		return q.Text
 	}
 	if q.Kind == core.SearchOrgs {
 		return q.Text + " type:org"

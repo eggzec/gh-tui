@@ -46,6 +46,9 @@ func hitKey(h core.SearchHit) string {
 	if h.Kind == core.SearchRepos {
 		return h.Repo.Ref.String()
 	}
+	if h.Kind == core.SearchUsers {
+		return h.User.Login
+	}
 	return h.Issue.Repo.String() + "#" + strconv.Itoa(h.Issue.Number)
 }
 
@@ -73,6 +76,18 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 	svc, text := s.svc, s.text
 	fetch := func(ctx context.Context, cursor string) ([]core.SearchHit, string, error) {
 		ctx, end := obs.Begin(ctx, "search."+string(k))
+		if k == core.SearchUsers {
+			p, err := svc.Users(ctx, search.UsersQuery{Text: text, Kind: core.SearchAll, Cursor: cursor})
+			end(err, "span", "tui", "first", cursor == "", "items", len(p.Items))
+			if err != nil {
+				return nil, "", err
+			}
+			hits := make([]core.SearchHit, len(p.Items))
+			for i, u := range p.Items {
+				hits[i] = core.SearchHit{Kind: core.SearchUsers, User: u}
+			}
+			return hits, p.Next, nil
+		}
 		r, err := svc.Search(ctx, search.Query{Text: text, Kind: k, Cursor: cursor})
 		end(err, "span", "tui", "first", cursor == "", "items", len(r.Items))
 		if err != nil {
@@ -329,6 +344,8 @@ func (s *Section) spinTitle() tea.Cmd {
 
 func emptyText(k core.SearchKind) string {
 	switch k {
+	case core.SearchUsers:
+		return "No users or organizations match. Try other words, or qualifiers such as type:org or location:berlin."
 	case core.SearchCode:
 		return "No files match. Try other words, or qualifiers such as language:go or repo:owner/name."
 	case core.SearchIssues:

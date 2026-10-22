@@ -365,6 +365,9 @@ func (s *Section) hitURL(hit core.SearchHit) string {
 	if hit.Kind == core.SearchRepos {
 		return s.repoURL(hit.Repo)
 	}
+	if hit.Kind == core.SearchUsers {
+		return ui.WebURL(s.host, hit.User.Login)
+	}
 	return hit.Issue.URL
 }
 

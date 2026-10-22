@@ -34,16 +34,19 @@ var now = time.Date(2026, 9, 23, 12, 0, 0, 0, time.UTC)
 // for one kind. A result matches when its name or title contains the
 // query.
 type fakeService struct {
-	mu      sync.Mutex
-	repos   []core.SearchHit
-	issues  []core.SearchHit
-	pulls   []core.SearchHit
-	files   []core.CodeHit
-	size    int
-	pages   map[string]search.Result
-	code    map[string]core.SearchPage[core.CodeHit]
-	counts  map[string]map[core.SearchKind]int
-	limited time.Time
+	mu     sync.Mutex
+	repos  []core.SearchHit
+	issues []core.SearchHit
+	pulls  []core.SearchHit
+	files  []core.CodeHit
+	// users is the catalog of accounts, userQueries what was asked of it.
+	users       []core.SearchUser
+	userQueries []search.UsersQuery
+	size        int
+	pages       map[string]search.Result
+	code        map[string]core.SearchPage[core.CodeHit]
+	counts      map[string]map[core.SearchKind]int
+	limited     time.Time
 	// codeErr fails the next code search.
 	codeErr error
 
@@ -127,6 +130,26 @@ func (f *fakeService) page(q search.Query) search.Result {
 		r.Next = strconv.Itoa(end)
 	}
 	return r
+}
+
+// CachedUsers reads nothing: accounts are always asked for.
+func (f *fakeService) CachedUsers(search.UsersQuery) (core.SearchPage[core.SearchUser], bool) {
+	return core.SearchPage[core.SearchUser]{}, false
+}
+
+// Users returns the accounts whose login contains the query.
+func (f *fakeService) Users(_ context.Context, q search.UsersQuery) (core.SearchPage[core.SearchUser], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.userQueries = append(f.userQueries, q)
+	var page core.SearchPage[core.SearchUser]
+	for _, u := range f.users {
+		if matches(q.Text, u.Login) {
+			page.Items = append(page.Items, u)
+		}
+	}
+	page.Total = len(page.Items)
+	return page, nil
 }
 
 func (f *fakeService) CachedSearch(q search.Query) (search.Result, bool) {
@@ -375,7 +398,7 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool, held
 		case nil, spinner.TickMsg, codeTickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenFilterMsg, ui.OpenSortMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OwnerMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenFilterMsg, ui.OpenSortMsg:
 			app = append(app, msg)
 		default:
 			if hold != nil && hold(msg) {

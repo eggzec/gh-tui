@@ -528,6 +528,12 @@ func (keySearch) CachedCode(searchsvc.CodeQuery) (core.SearchPage[core.CodeHit],
 func (keySearch) Code(context.Context, searchsvc.CodeQuery) (core.SearchPage[core.CodeHit], error) {
 	return core.SearchPage[core.CodeHit]{Items: []core.CodeHit{{Repo: testRepo, Path: "README.md", SHA: "b1"}}}, nil
 }
+func (keySearch) CachedUsers(searchsvc.UsersQuery) (core.SearchPage[core.SearchUser], bool) {
+	return core.SearchPage[core.SearchUser]{}, true
+}
+func (keySearch) Users(context.Context, searchsvc.UsersQuery) (core.SearchPage[core.SearchUser], error) {
+	return core.SearchPage[core.SearchUser]{}, nil
+}
 func (keySearch) Invalidate() {}
 
 // keyActions serves the failed run, its job and the job's log, to the
