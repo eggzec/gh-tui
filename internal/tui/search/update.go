@@ -116,7 +116,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.PrevTab):
 		return s.moveKind(-1)
 	case keymap.Matches(msg, k.Next), keymap.Matches(msg, k.Prev):
-		s.cyclePane(keymap.Matches(msg, k.Next))
+		s.cyclePane()
 		return nil
 	}
 	if s.area == inputArea {

@@ -60,8 +60,9 @@ func TestKindStripDataDriven(t *testing.T) {
 	var plain ownerui.Paint
 	two := kindStrip{kinds: []core.SearchKind{core.SearchRepos, core.SearchIssues}, keys: []string{"1", "2"}}
 	three := kindStrip{kinds: []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls}, keys: []string{"1", "2", "3"}}
-	a := ansi.Strip(two.view(core.SearchRepos, plain, plain, 120))
-	b := ansi.Strip(three.view(core.SearchRepos, plain, plain, 120))
+	as, _ := two.view(core.SearchRepos, plain, plain, 120)
+	bs, _ := three.view(core.SearchRepos, plain, plain, 120)
+	a, b := ansi.Strip(as), ansi.Strip(bs)
 	if strings.Contains(a, "3") || !strings.Contains(b, "3") || !strings.Contains(b, "Pull") {
 		t.Errorf("strips %q and %q: the extra kind should show only in the second", a, b)
 	}

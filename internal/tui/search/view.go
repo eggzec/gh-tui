@@ -16,13 +16,13 @@ import (
 )
 
 // Sizes of the page. The query takes a framed line on top, and the
-// results a frame below it, whose first line holds the kinds as tabs.
+// results a frame below it. The kinds are tabs in the top edge of the query's
+// frame.
 const inputHeight = 3
 
-// resultsSize is the room inside the frame of the results, below the line
-// of kinds.
+// resultsSize is the room inside the frame of the results.
 func (s *Section) resultsSize() (width, height int) {
-	return max(s.listOuter()-2, 0), max(s.height-inputHeight-3, 0)
+	return max(s.listOuter()-2, 0), max(s.height-inputHeight-2, 0)
 }
 
 func (s *Section) layout() {
@@ -41,7 +41,7 @@ func (s *Section) layout() {
 	if s.split() {
 		w -= listWidth
 	}
-	s.pv.SetSize(max(w, 0), max(h+1, 0))
+	s.pv.SetSize(max(w, 0), h)
 }
 
 // sizeHits sizes the feed of l, a line shorter than the room of the results,
@@ -62,7 +62,7 @@ func (s *Section) render() {
 		return
 	}
 	lines := make([]string, 0, s.height)
-	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight)...)
+	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight, s.kindsTail)...)
 	lines = append(lines, s.panes()...)
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
@@ -72,8 +72,10 @@ func (s *Section) render() {
 }
 
 // frame draws body in a frame w by h cells, with label in its top edge,
-// in the accent while the part it holds has the focus.
-func (s *Section) frame(body, label string, focused bool, w, h int) []string {
+// in the accent while the part it holds has the focus. tail, if given,
+// renders what goes at the right end of the top edge in the room it is given,
+// and its width; it draws nothing when it has no room.
+func (s *Section) frame(body, label string, focused bool, w, h int, tail func(room int) (string, int)) []string {
 	if w < 2 || h < 2 {
 		return nil
 	}
@@ -85,7 +87,16 @@ func (s *Section) frame(body, label string, focused bool, w, h int) []string {
 	lines := make([]string, 0, h)
 	label = s.truncate(label, max(w-5, 0))
 	lw := ansi.StringWidth(label)
-	lines = append(lines, edge.render(b.TopLeft+b.Top)+title.render(label)+edge.render(" "+strings.Repeat(b.Top, max(w-4-lw, 0))+b.TopRight))
+	top := edge.render(b.TopLeft+b.Top) + title.render(label) + edge.render(" "+strings.Repeat(b.Top, max(w-4-lw, 0))+b.TopRight)
+	if tail != nil {
+		// The edge besides the tail: two corners and dashes, the label, and
+		// a space and at least one dash on each side of the tail.
+		if strip, sw := tail(w - 8 - lw); sw > 0 {
+			fill := w - 7 - lw - sw
+			top = edge.render(b.TopLeft+b.Top) + title.render(label) + edge.render(" "+strings.Repeat(b.Top, fill)+" ") + strip + edge.render(" "+b.Top+b.TopRight)
+		}
+	}
+	lines = append(lines, top)
 	side, inner := edge.render(b.Left), w-2
 	for range h - 2 {
 		var l string
@@ -118,7 +129,7 @@ func (s *Section) typeAsk(what string) string {
 	return "Bind a key to insert in the config to " + what
 }
 
-// kindStrip is the strip of kinds on the first line of the results: the
+// kindStrip is the strip of kinds in the top edge of the query's frame: the
 // digit that shows each kind and its title, the kind on view in brackets.
 // It lists the kinds it is made with, one digit each.
 type kindStrip struct {
@@ -130,8 +141,8 @@ type kindStrip struct {
 
 // view renders the strip for the kind cur in w cells, with its titles
 // as long as they fit, else with "PRs" for pull requests, else as the keys
-// alone.
-func (t kindStrip) view(cur core.SearchKind, on, off ownerui.Paint, w int) string {
+// alone. It returns the strip and its width, 0 when not even the keys fit.
+func (t kindStrip) view(cur core.SearchKind, on, off ownerui.Paint, w int) (strip string, width int) {
 	full := make([]string, len(t.kinds))
 	short := make([]string, len(t.kinds))
 	pos := -1
@@ -144,20 +155,22 @@ func (t kindStrip) view(cur core.SearchKind, on, off ownerui.Paint, w int) strin
 			pos = i
 		}
 	}
-	strip, _ := ownerui.Foot(t.keys, [][]string{full, short}, pos, on, off, max(w-1, 0))
-	return " " + strip
+	strip, sw := ownerui.Foot(t.keys, [][]string{full, short}, pos, on, off, w)
+	if sw > w {
+		return "", 0
+	}
+	return strip, sw
 }
 
-// kindsLine renders the strip of the kinds in w cells.
-func (s *Section) kindsLine(w int) string {
+// kindsTail renders the strip of the kinds in w cells.
+func (s *Section) kindsTail(w int) (strip string, width int) {
 	keys := make([]string, len(kinds))
 	for i := range keys {
 		if b := s.keys.Kinds[i]; b.Enabled() {
 			keys[i] = b.Help().Key
 		}
 	}
-	line := kindStrip{kinds: kinds, keys: keys}.view(s.kind, s.st.footOn, s.st.footOff, w)
-	return fit(termtext.Truncate(line, w, s.icons.Ellipsis), w)
+	return kindStrip{kinds: kinds, keys: keys}.view(s.kind, s.st.footOn, s.st.footOff, w)
 }
 
 // countLabel is the count of the results on view for the right of the
@@ -182,10 +195,10 @@ func (s *Section) countLabel() string {
 
 // resultsLabel names the results on view.
 func (s *Section) resultsLabel() string {
-	if s.text == "" {
-		return "Start"
-	}
 	label := kindTitles[s.kind]
+	if s.text == "" {
+		return label
+	}
 	if _, ok := s.staleView(); ok {
 		return label + " " + s.spin.View()
 	}

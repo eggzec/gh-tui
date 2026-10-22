@@ -113,9 +113,9 @@ func TestNoLoadBeforeSubmit(t *testing.T) {
 
 func TestCounts(t *testing.T) {
 	svc := newFake()
-	s := newSection(t, svc, 80, 30)
+	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	for _, want := range []string{"[1] Repositories", "2 Issues", "3 PRs", "4 Code", "43 results"} {
+	for _, want := range []string{"[1] Repositories", "2 Issues", "3 Pull requests", "4 Code", "43 results"} {
 		if !strings.Contains(flat(s), want) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}
@@ -181,7 +181,7 @@ func TestCodeCountdown(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		svc := newFake()
 		svc.limited = time.Now().Add(42 * time.Second)
-		s := newSection(t, svc, 80, 30, WithNow(time.Now))
+		s := newSection(t, svc, 120, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
 		press(t, s, "esc", "]", "]", "]")
 		if _, code := svc.stats(); code != 0 {
