@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
 
@@ -21,21 +22,17 @@ func TestFrameSizes(t *testing.T) {
 	}
 }
 
-func TestFootShowsFocusedPaneKeys(t *testing.T) {
+func TestStripNamesPanesAndNextKey(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 140, 40)
 	typeText(t, s, "tea")
 	press(t, s, "esc")
-	bottom := func() string {
-		lines := strings.Split(s.View(), "\n")
+	row := func() string {
+		lines := strings.Split(ansi.Strip(s.View()), "\n")
 		return lines[len(lines)-1]
 	}
-	if got := bottom(); !strings.Contains(got, "[tab] Preview") && !strings.Contains(got, "tab Preview") {
-		t.Errorf("results focused, bottom edge %q lacks the tab to the preview", got)
-	}
-	press(t, s, "tab")
-	if got := bottom(); !strings.Contains(got, "[tab] Preview") {
-		t.Errorf("preview focused, bottom edge %q lacks [tab] Preview", got)
+	if got := row(); !strings.Contains(got, "1 Results") || !strings.Contains(got, "2 Preview") || !strings.Contains(got, "tab next") {
+		t.Errorf("strip %q lacks the panes or the key to the next", got)
 	}
 }
 

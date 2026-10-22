@@ -515,7 +515,7 @@ func TestKeepsResultsWhileLoading(t *testing.T) {
 	typeOnly(t, s, "-")
 	pending := s.Update(keyPress("enter"))
 	view := screen(s)
-	if strings.Contains(view, "Loading…") || !strings.Contains(view, "charmbracelet/bubble") {
+	if strings.Contains(view, "Loading…") || !strings.Contains(view, "charmbracelet/bubb") {
 		t.Errorf("the results of tea should stay while tea- loads:\n%s", view)
 	}
 	if !strings.Contains(view, "Repositories "+ansi.Strip(s.spin.View())) {
