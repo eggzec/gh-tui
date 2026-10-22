@@ -2,75 +2,41 @@
 // frames. It is pure: it takes sizes and caller-rendered content and returns
 // rectangles and strings, and it handles no keys and holds no data.
 //
-// The layout is two columns at 120 columns or more (Description above
-// Conversation on the left, Merge, Involved, Development and Files on the
-// right), or one zoomed pane, or a zoomed list beside its preview, with a
-// pane strip on the bottom border. Pane sizes are fixed: content scrolls
-// inside a pane, so the layout depends only on the area, the zoom state and
-// the number of rows the Involved and Development panes have by default.
+// The caller supplies the panes (Spec.Panes) and decides what is focused and
+// titled. The package knows one rule of its own: a zoomed layout shows the
+// focused pane alone, or its list beside its preview. Any other arrangement
+// is built by the caller out of the same Box and Layout types, so that the
+// frames and overlays stay shared. Pane sizes are fixed: content scrolls
+// inside a pane.
 package panes
 
-// Pane is one of the six panes. Its value is its digit, so the zero Pane is
-// no pane.
+// maxPanes is how many panes a layout holds: a pane's digit is its position,
+// and a digit is one key.
+const maxPanes = 9
+
+// Def describes one pane of a layout.
+type Def struct {
+	// Name is the pane's full name, such as "Conversation", and Short a
+	// shorter one, such as "Conv", for a strip that has little room. Both are
+	// the caller's words, so the bubble never has to know what the panes are.
+	Name, Short string
+	// Split is set for a pane that shows its list beside a preview when it is
+	// zoomed and the area is wide enough. A pane with no sub-panes has
+	// nothing to preview and stays whole.
+	Split bool
+}
+
+// Pane is a pane's digit: its 1-based position in Spec.Panes. The zero Pane
+// is no pane.
 type Pane int
 
-// The panes, in digit order.
 const (
-	Description Pane = iota + 1
-	Conversation
-	Merge
-	Involved
-	Development
-	Files
-)
-
-// Count is the number of panes.
-const Count = int(Files)
-
-var (
-	names  = [...]string{"Description", "Conversation", "Merge", "Involved", "Development", "Files"}
-	shorts = [...]string{"Desc", "Conv", "Merge", "Inv", "Dev", "Files"}
-)
-
-// Valid reports whether p is one of the six panes.
-func (p Pane) Valid() bool { return p >= Description && p <= Files }
-
-// Name is the pane's full name, such as "Conversation".
-func (p Pane) Name() string {
-	if !p.Valid() {
-		return ""
-	}
-	return names[p-1]
-}
-
-// Short is the pane's short name, such as "Conv".
-func (p Pane) Short() string {
-	if !p.Valid() {
-		return ""
-	}
-	return shorts[p-1]
-}
-
-// Title is the digit and the name, such as "2 Conversation": the left part
-// of the pane's top border.
-func (p Pane) Title() string {
-	if !p.Valid() {
-		return ""
-	}
-	return string(rune('0'+p)) + " " + p.Name()
-}
-
-// Sizes the layout is built on.
-const (
-	// WideMin is the area width from which the panes show in two columns.
-	WideMin = 120
-	// SplitMin is the area width from which a zoomed list pane has a
-	// preview beside it.
-	SplitMin = 100
-	// SideWidth is the width of the right column of the wide layout.
-	SideWidth = 36
-	// ListWidth is the width of the list beside a preview.
-	ListWidth = 46
+	// DefaultSplitMin is the area width from which a zoomed list pane has a
+	// preview beside it, when Spec.SplitMin is not set.
+	DefaultSplitMin = 100
+	// DefaultListWidth is the width of the list beside a preview, when
+	// Spec.ListWidth is not set.
+	DefaultListWidth = 46
 )
 
 // Rect is a rectangle of cells in the area, from its top left cell.
@@ -108,31 +74,35 @@ type Box struct {
 	Rect Rect
 }
 
-// Spec is what a layout depends on.
+// Spec is what a zoomed layout depends on.
 type Spec struct {
-	// Width and Height are the area of the panes: the modal body without its
-	// header and footer.
+	// Width and Height are the area of the panes.
 	Width, Height int
-	// Focus is the focused pane. Below WideMin it is the pane that fills the
-	// area; a Focus that is no pane counts as Description.
+	// Panes are the panes, in digit order: at most 9, and the rest are
+	// ignored.
+	Panes []Def
+	// Focus is the focused pane; a Focus that is no pane counts as the first.
 	Focus Pane
-	// Zoom zooms Focus at any width. Below WideMin the layout is zoomed
-	// whatever Zoom says.
+	// Zoom lays the focus out alone, or beside its preview. Without it
+	// Compute has no boxes to give, since arranging several panes is the
+	// caller's: it builds a Layout from the same fields.
 	Zoom bool
-	// InvolvedRows and DevelopmentRows are the rows those panes have with
-	// every fold in its default state, not its current state.
-	InvolvedRows, DevelopmentRows int
+	// SplitMin is the area width from which a Split pane has a preview, and
+	// ListWidth the width of its list; 0 is DefaultSplitMin and
+	// DefaultListWidth.
+	SplitMin, ListWidth int
 }
 
 // Layout is the boxes of an area, in the order they are drawn.
 type Layout struct {
 	Width, Height int
-	// Zoomed is set when one pane fills the area (and carries the pane
-	// strip), either because of Spec.Zoom or because the area is narrow.
+	// Zoomed is set when one pane fills the area, as Spec.Zoom asked.
 	Zoomed bool
-	// Focus is the focused pane, as Compute settled it. Draw draws the boxes
-	// of this pane as focused; a Layout built by hand with no Focus has none.
+	// Focus is the focused pane, as Compute settled it, for the caller to
+	// decide which box is drawn as focused.
 	Focus Pane
+	// Panes are the panes the layout was made for.
+	Panes []Def
 	Boxes []Box
 }
 
@@ -140,14 +110,28 @@ type Layout struct {
 // that does not fit has no cells.
 func Compute(s Spec) Layout {
 	w, h := max(0, s.Width), max(0, s.Height)
-	if !s.Focus.Valid() {
-		s.Focus = Description
+	defs := s.Panes[:min(len(s.Panes), maxPanes)]
+	if s.Focus < 1 || int(s.Focus) > len(defs) {
+		s.Focus = min(1, Pane(len(defs)))
 	}
-	l := Layout{Width: w, Height: h, Zoomed: s.Zoom || w < WideMin, Focus: s.Focus}
-	if l.Zoomed {
-		l.Boxes = zoomed(s.Focus, w, h)
+	l := Layout{Width: w, Height: h, Zoomed: s.Zoom, Focus: s.Focus, Panes: defs}
+	if !s.Zoom || len(defs) == 0 {
+		return l
+	}
+	splitMin, listW := s.SplitMin, s.ListWidth
+	if splitMin <= 0 {
+		splitMin = DefaultSplitMin
+	}
+	if listW <= 0 {
+		listW = DefaultListWidth
+	}
+	if w < splitMin || !defs[s.Focus-1].Split {
+		l.Boxes = []Box{{Pane: s.Focus, Rect: Rect{0, 0, w, h}}}
 	} else {
-		l.Boxes = wide(s, w, h)
+		l.Boxes = []Box{
+			{Pane: s.Focus, Role: List, Rect: Rect{0, 0, listW, h}},
+			{Pane: s.Focus, Role: Preview, Rect: Rect{listW, 0, w - listW, h}},
+		}
 	}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clamp(l.Boxes[i].Rect, w, h)
@@ -165,64 +149,14 @@ func (l Layout) Box(p Pane, r Role) (Box, bool) {
 	return Box{}, false
 }
 
-// zoomed is one pane over the whole area, or a list beside its preview for
-// the panes below Merge's number. Description and Conversation never split,
-// deliberately: they have no sub-panes, so there is nothing to preview.
-func zoomed(p Pane, w, h int) []Box {
-	if w < SplitMin || p < Merge {
-		return []Box{{Pane: p, Rect: Rect{0, 0, w, h}}}
+// Title is the digit and the name of a pane, such as "2 Conversation": the
+// usual left part of the pane's top border. It is empty for a Pane that is
+// none of the layout's.
+func (l Layout) Title(p Pane) string {
+	if p < 1 || int(p) > len(l.Panes) {
+		return ""
 	}
-	return []Box{
-		{Pane: p, Role: List, Rect: Rect{0, 0, ListWidth, h}},
-		{Pane: p, Role: Preview, Rect: Rect{ListWidth, 0, w - ListWidth, h}},
-	}
-}
-
-func wide(s Spec, w, h int) []Box {
-	left := w - SideWidth
-	desc := descriptionHeight(h)
-	merge, inv, dev, files := rightHeights(h, s.InvolvedRows, s.DevelopmentRows)
-	boxes := make([]Box, 0, 6)
-	boxes = append(boxes,
-		Box{Pane: Description, Rect: Rect{0, 0, left, desc}},
-		Box{Pane: Conversation, Rect: Rect{0, desc, left, h - desc}},
-	)
-	y := 0
-	for _, c := range []struct {
-		p Pane
-		h int
-	}{{Merge, merge}, {Involved, inv}, {Development, dev}, {Files, files}} {
-		boxes = append(boxes, Box{Pane: c.p, Rect: Rect{left, y, SideWidth, c.h}})
-		y += c.h
-	}
-	return boxes
-}
-
-func descriptionHeight(h int) int {
-	return max(0, min(max(5, h/3), max(3, h-4)))
-}
-
-// rightHeights are the heights of the right column. Merge, Involved and
-// Development shrink one line at a time, tallest first (Merge winning ties),
-// while their sum is more than h-5, and never below 3 lines each. Files gets
-// what is left, but at least 3 lines: so at least 5 whenever the three above
-// can shrink that far, and fewer only when h is under 14.
-func rightHeights(h, invRows, devRows int) (merge, inv, dev, files int) {
-	hs := [3]int{11, max(4, invRows+2), max(3, devRows+2)}
-	for hs[0]+hs[1]+hs[2] > h-5 {
-		t := -1
-		for i, v := range hs {
-			if v > 3 && (t < 0 || v > hs[t]) {
-				t = i
-			}
-		}
-		if t < 0 {
-			break
-		}
-		hs[t]--
-	}
-	files = max(3, h-(hs[0]+hs[1]+hs[2]))
-	return hs[0], hs[1], hs[2], files
+	return string(rune('0'+p)) + " " + l.Panes[p-1].Name
 }
 
 // clamp cuts r to the area.

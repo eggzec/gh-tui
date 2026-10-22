@@ -1,12 +1,6 @@
 package panes
 
-import (
-	"strings"
-	"testing"
-
-	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/golden"
-)
+import "testing"
 
 func TestOverlayRect(t *testing.T) {
 	tests := []struct {
@@ -51,25 +45,4 @@ func TestOverlayInside(t *testing.T) {
 			}
 		}
 	}
-}
-
-// TestWideLayout draws the two columns: the seam between them, the titles
-// with their info, and the fixed pane heights.
-func TestWideLayout(t *testing.T) {
-	st := DefaultStyles(true)
-	l := Compute(Spec{Width: 120, Height: 20, Focus: Conversation, InvolvedRows: 5, DevelopmentRows: 4})
-	c := map[Pane]Content{
-		Description:  {Info: []string{"34%"}, Body: "▌Summary\nAdds a small calc package"},
-		Conversation: {Info: []string{"26 of 26 shown · filter: all", "26 of 26 shown"}, Body: "▌alice  commented"},
-		Merge:        {Info: []string{"5 blockers"}, Body: "feat/calc → main"},
-		Files:        {Info: []string{"8 files · +67 −9 · 2 viewed", "8 · +67 −9"}, Body: "src/calc.go"},
-	}
-	out := st.Draw(l, func(b Box) Content { return c[b.Pane] })
-	plain := ansi.Strip(out)
-	for i, ln := range strings.Split(plain, "\n") {
-		if i == 0 && !strings.Contains(ln, "╮╭─ 3 Merge") {
-			t.Errorf("no seam on the top line: %q", ln)
-		}
-	}
-	golden.RequireEqual(t, plain)
 }

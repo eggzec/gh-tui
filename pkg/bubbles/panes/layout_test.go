@@ -7,134 +7,100 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func rects(l Layout) map[Pane]Rect {
-	m := map[Pane]Rect{}
-	for _, b := range l.Boxes {
-		if b.Role == Preview {
-			continue
-		}
-		m[b.Pane] = b.Rect
-	}
-	return m
+// testPanes is a pane set that is nothing like a pull request's: three
+// panes, of which only the second shows a list beside a preview.
+var testPanes = []Def{
+	{Name: "Inbox", Short: "In"},
+	{Name: "Threads", Short: "Thr", Split: true},
+	{Name: "Details", Short: "Det"},
 }
 
-func TestComputeHeights(t *testing.T) {
+func TestComputeZoom(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		spec Spec
-		want map[Pane]Rect
+		want []Box
 	}{
 		{
-			"80x24 is zoomed on the focus",
-			Spec{Width: 80, Height: 24, Focus: Conversation},
-			map[Pane]Rect{Conversation: {0, 0, 80, 24}},
+			"a whole pane fills the area",
+			Spec{Width: 80, Height: 24, Panes: testPanes, Focus: 3, Zoom: true},
+			[]Box{{Pane: 3, Rect: Rect{0, 0, 80, 24}}},
 		},
 		{
-			"80x24 ignores the zoom flag, there is nothing else to show",
-			Spec{Width: 80, Height: 24, Focus: Files, Zoom: true},
-			map[Pane]Rect{Files: {0, 0, 80, 24}},
+			"a Split pane below the split width is whole",
+			Spec{Width: 99, Height: 30, Panes: testPanes, Focus: 2, Zoom: true},
+			[]Box{{Pane: 2, Rect: Rect{0, 0, 99, 30}}},
 		},
 		{
-			"100x30 zoomed Merge is a list beside a preview",
-			Spec{Width: 100, Height: 30, Focus: Merge},
-			map[Pane]Rect{Merge: {0, 0, 46, 30}},
-		},
-		{
-			"119 columns is still zoomed",
-			Spec{Width: 119, Height: 30, Focus: Description},
-			map[Pane]Rect{Description: {0, 0, 119, 30}},
-		},
-		{
-			"120x40 wide",
-			Spec{Width: 120, Height: 40, Focus: Description, InvolvedRows: 5, DevelopmentRows: 4},
-			map[Pane]Rect{
-				Description: {0, 0, 84, 13}, Conversation: {0, 13, 84, 27},
-				Merge: {84, 0, 36, 11}, Involved: {84, 11, 36, 7},
-				Development: {84, 18, 36, 6}, Files: {84, 24, 36, 16},
+			"a Split pane at the split width has a list and a preview",
+			Spec{Width: 100, Height: 30, Panes: testPanes, Focus: 2, Zoom: true},
+			[]Box{
+				{Pane: 2, Role: List, Rect: Rect{0, 0, 46, 30}},
+				{Pane: 2, Role: Preview, Rect: Rect{46, 0, 54, 30}},
 			},
 		},
 		{
-			"160x50 wide",
-			Spec{Width: 160, Height: 50, Focus: Files, InvolvedRows: 5, DevelopmentRows: 4},
-			map[Pane]Rect{
-				Description: {0, 0, 124, 16}, Conversation: {0, 16, 124, 34},
-				Merge: {124, 0, 36, 11}, Involved: {124, 11, 36, 7},
-				Development: {124, 18, 36, 6}, Files: {124, 24, 36, 26},
+			"a pane that is not Split never splits",
+			Spec{Width: 200, Height: 30, Panes: testPanes, Focus: 1, Zoom: true},
+			[]Box{{Pane: 1, Rect: Rect{0, 0, 200, 30}}},
+		},
+		{
+			"the split width and the list width can be set",
+			Spec{Width: 70, Height: 10, Panes: testPanes, Focus: 2, Zoom: true, SplitMin: 60, ListWidth: 20},
+			[]Box{
+				{Pane: 2, Role: List, Rect: Rect{0, 0, 20, 10}},
+				{Pane: 2, Role: Preview, Rect: Rect{20, 0, 50, 10}},
 			},
 		},
 		{
-			"120x20 shrinks the tallest first, Merge winning ties",
-			Spec{Width: 120, Height: 20, Focus: Description, InvolvedRows: 5, DevelopmentRows: 4},
-			map[Pane]Rect{
-				Description: {0, 0, 84, 6}, Conversation: {0, 6, 84, 14},
-				Merge: {84, 0, 36, 5}, Involved: {84, 5, 36, 5},
-				Development: {84, 10, 36, 5}, Files: {84, 15, 36, 5},
-			},
+			"a focus that is no pane counts as the first",
+			Spec{Width: 80, Height: 24, Panes: testPanes, Focus: 7, Zoom: true},
+			[]Box{{Pane: 1, Rect: Rect{0, 0, 80, 24}}},
 		},
 		{
-			"no default rows for Involved and Development keep their minimum heights",
-			Spec{Width: 120, Height: 40, Focus: Description},
-			map[Pane]Rect{
-				Merge: {84, 0, 36, 11}, Involved: {84, 11, 36, 4},
-				Development: {84, 15, 36, 3}, Files: {84, 18, 36, 22},
-			},
-		},
-		{
-			"unzoomed wide with a zoom flag fills with the focus",
-			Spec{Width: 160, Height: 50, Focus: Development, Zoom: true},
-			map[Pane]Rect{Development: {0, 0, 46, 50}},
-		},
-		{
-			"a focus that is no pane counts as Description",
-			Spec{Width: 80, Height: 24},
-			map[Pane]Rect{Description: {0, 0, 80, 24}},
+			"without Zoom the caller arranges the boxes",
+			Spec{Width: 160, Height: 24, Panes: testPanes, Focus: 2},
+			nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := rects(Compute(tt.spec))
-			for p, want := range tt.want {
-				if got[p] != want {
-					t.Errorf("%s = %+v, want %+v", p.Title(), got[p], want)
+			t.Parallel()
+			l := Compute(tt.spec)
+			if len(l.Boxes) != len(tt.want) {
+				t.Fatalf("boxes = %+v, want %+v", l.Boxes, tt.want)
+			}
+			for i, b := range l.Boxes {
+				if b != tt.want[i] {
+					t.Errorf("box %d = %+v, want %+v", i, b, tt.want[i])
 				}
 			}
 		})
 	}
 }
 
-func TestComputeSplit(t *testing.T) {
-	for _, tt := range []struct {
-		name  string
-		w     int
-		focus Pane
-		boxes int
-	}{
-		{"99 columns has no preview", 99, Merge, 1},
-		{"100 columns splits Merge", 100, Merge, 2},
-		{"Involved splits", 110, Involved, 2},
-		{"Development splits", 119, Development, 2},
-		{"Files splits", 100, Files, 2},
-		{"Description never splits", 119, Description, 1},
-		{"Conversation never splits", 119, Conversation, 1},
-		{"Files at 99 is the tree alone", 99, Files, 1},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			l := Compute(Spec{Width: tt.w, Height: 20, Focus: tt.focus})
-			if len(l.Boxes) != tt.boxes {
-				t.Fatalf("%d boxes, want %d", len(l.Boxes), tt.boxes)
-			}
-			if tt.boxes == 2 {
-				list, _ := l.Box(tt.focus, List)
-				prev, _ := l.Box(tt.focus, Preview)
-				if list.Rect.W != ListWidth || prev.Rect.X != ListWidth || prev.Rect.W != tt.w-ListWidth {
-					t.Errorf("list %+v, preview %+v", list.Rect, prev.Rect)
-				}
-			}
-		})
+func TestComputeKeepsNineDefs(t *testing.T) {
+	t.Parallel()
+	l := Compute(Spec{Width: 10, Height: 5, Panes: make([]Def, 12), Focus: 12, Zoom: true})
+	if len(l.Panes) != 9 || l.Focus != 1 {
+		t.Errorf("%d panes, focus %d; want 9 and 1", len(l.Panes), l.Focus)
+	}
+}
+
+func TestTitle(t *testing.T) {
+	t.Parallel()
+	l := Compute(Spec{Panes: testPanes})
+	if got := l.Title(2); got != "2 Threads" {
+		t.Errorf("Title(2) = %q", got)
+	}
+	if l.Title(0) != "" || l.Title(4) != "" {
+		t.Error("a pane outside the layout has no title")
 	}
 }
 
 func TestInner(t *testing.T) {
+	t.Parallel()
 	if got := (Rect{3, 4, 10, 6}).Inner(); got != (Rect{5, 5, 6, 4}) {
 		t.Errorf("Inner = %+v", got)
 	}
@@ -146,28 +112,27 @@ func TestInner(t *testing.T) {
 // TestFits checks, at awkward sizes, that every box lies in the area and
 // that the drawing is exactly the size of the area.
 func TestFits(t *testing.T) {
+	t.Parallel()
 	st := DefaultStyles(true)
 	for _, w := range []int{0, 1, 2, 5, 40, 80, 99, 100, 119, 120, 121, 160} {
 		for _, h := range []int{0, 1, 2, 3, 4, 10, 24, 40} {
-			for _, zoom := range []bool{false, true} {
-				for p := Description; p <= Files; p++ {
-					spec := Spec{Width: w, Height: h, Focus: p, Zoom: zoom, InvolvedRows: 6, DevelopmentRows: 9}
-					l := Compute(spec)
-					for _, b := range l.Boxes {
-						r := b.Rect
-						if r.X < 0 || r.Y < 0 || r.W < 0 || r.H < 0 || r.X+r.W > w || r.Y+r.H > h {
-							t.Fatalf("%dx%d %v: %s box %+v leaves the area", w, h, spec, b.Pane.Title(), r)
-						}
+			for p := Pane(1); p <= 3; p++ {
+				spec := Spec{Width: w, Height: h, Panes: testPanes, Focus: p, Zoom: true}
+				l := Compute(spec)
+				for _, b := range l.Boxes {
+					r := b.Rect
+					if r.X < 0 || r.Y < 0 || r.W < 0 || r.H < 0 || r.X+r.W > w || r.Y+r.H > h {
+						t.Fatalf("%dx%d: %s box %+v leaves the area", w, h, l.Title(b.Pane), r)
 					}
-					out := st.Draw(l, nil)
-					lines := strings.Split(out, "\n")
-					if len(lines) != h && (h != 0 || out != "") {
-						t.Fatalf("%dx%d zoom=%v focus=%v: %d lines", w, h, zoom, p, len(lines))
-					}
-					for i, ln := range lines {
-						if got := ansi.StringWidth(ln); got != w && h > 0 {
-							t.Fatalf("%dx%d zoom=%v focus=%v: line %d is %d cells: %q", w, h, zoom, p, i, got, ansi.Strip(ln))
-						}
+				}
+				out := st.Draw(l, nil)
+				lines := strings.Split(out, "\n")
+				if len(lines) != h && (h != 0 || out != "") {
+					t.Fatalf("%dx%d focus=%v: %d lines", w, h, p, len(lines))
+				}
+				for i, ln := range lines {
+					if got := ansi.StringWidth(ln); got != w && h > 0 {
+						t.Fatalf("%dx%d focus=%v: line %d is %d cells: %q", w, h, p, i, got, ansi.Strip(ln))
 					}
 				}
 			}
@@ -175,14 +140,27 @@ func TestFits(t *testing.T) {
 	}
 }
 
-func TestPane(t *testing.T) {
-	if got := Conversation.Title(); got != "2 Conversation" {
-		t.Errorf("Title = %q", got)
+func TestStripForms(t *testing.T) {
+	t.Parallel()
+	st := DefaultStyles(true)
+	forms := st.StripForms(testPanes, 2)
+	want := []string{
+		"1 Inbox · 2 Threads · 3 Details",
+		"1 In · 2 Thr · 3 Det",
+		"1 In 2 Thr 3 Det",
+		"1 [2] 3",
 	}
-	if got := Development.Short(); got != "Dev" {
-		t.Errorf("Short = %q", got)
+	if len(forms) != len(want) {
+		t.Fatalf("%d forms, want %d", len(forms), len(want))
 	}
-	if Pane(0).Valid() || Pane(7).Valid() || Pane(0).Title() != "" || Pane(9).Name() != "" || Pane(0).Short() != "" {
-		t.Error("an out-of-range pane must be invalid and nameless")
+	for i, f := range forms {
+		if got := ansi.Strip(f); got != want[i] {
+			t.Errorf("form %d = %q, want %q", i, got, want[i])
+		}
+	}
+	for i := 1; i < len(forms); i++ {
+		if ansi.StringWidth(forms[i]) >= ansi.StringWidth(forms[i-1]) {
+			t.Errorf("form %d is not shorter than form %d", i, i-1)
+		}
 	}
 }

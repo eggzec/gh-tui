@@ -17,27 +17,25 @@ func TestCoverage(t *testing.T) {
 	cover := make([]int, 200*60)
 	for w := range 201 {
 		for h := range 61 {
-			for focus := Pane(0); focus <= Files; focus++ {
-				for _, zoom := range []bool{false, true} {
-					spec := Spec{Width: w, Height: h, Focus: focus, Zoom: zoom, InvolvedRows: 6, DevelopmentRows: 9}
-					l := Compute(spec)
-					cover = cover[:w*h]
-					clear(cover)
-					for _, b := range l.Boxes {
-						r := b.Rect
-						if r.X < 0 || r.Y < 0 || r.W < 0 || r.H < 0 || r.X+r.W > w || r.Y+r.H > h {
-							t.Fatalf("%+v: %s %v box %+v leaves the area", spec, b.Pane.Title(), b.Role, r)
-						}
-						for y := r.Y; y < r.Y+r.H; y++ {
-							for x := r.X; x < r.X+r.W; x++ {
-								cover[y*w+x]++
-							}
+			for focus := Pane(0); focus <= Pane(len(testPanes)); focus++ {
+				spec := Spec{Width: w, Height: h, Panes: testPanes, Focus: focus, Zoom: true}
+				l := Compute(spec)
+				cover = cover[:w*h]
+				clear(cover)
+				for _, b := range l.Boxes {
+					r := b.Rect
+					if r.X < 0 || r.Y < 0 || r.W < 0 || r.H < 0 || r.X+r.W > w || r.Y+r.H > h {
+						t.Fatalf("%+v: %s %v box %+v leaves the area", spec, l.Title(b.Pane), b.Role, r)
+					}
+					for y := r.Y; y < r.Y+r.H; y++ {
+						for x := r.X; x < r.X+r.W; x++ {
+							cover[y*w+x]++
 						}
 					}
-					for i, n := range cover {
-						if n != 1 {
-							t.Fatalf("%+v: cell %d,%d covered %d times, boxes %+v", spec, i%w, i/w, n, l.Boxes)
-						}
+				}
+				for i, n := range cover {
+					if n != 1 {
+						t.Fatalf("%+v: cell %d,%d covered %d times, boxes %+v", spec, i%w, i/w, n, l.Boxes)
 					}
 				}
 			}
@@ -57,8 +55,10 @@ const sweepBody = "\x1b[1;31m漢字 bold red text that runs on and on\x1b[m\n" +
 func sweepContent() Content {
 	return Content{
 		Title: "漢字のタイトル日本語",
-		Info:  []string{"日本語日本語日本語日本語", "日本語日本語", "漢", "ab"},
-		Body:  sweepBody,
+		TopRight:    []string{"日本語日本語日本語日本語", "日本語日本語", "漢", "ab"},
+		BottomLeft:  []string{"日本語日本語日本語", "漢字", "a"},
+		BottomRight: []string{"日本語日本語", "漢"},
+		Body:        sweepBody,
 	}
 }
 
@@ -127,14 +127,9 @@ func TestDrawSweep(t *testing.T) {
 	widths = append(widths, 99, 100, 101, 119, 120, 121, 140, 160, 200)
 	for _, w := range widths {
 		for h := range 41 {
-			for focus := Description; focus <= Files; focus++ {
-				for _, zoom := range []bool{false, true} {
-					if zoom && w < WideMin {
-						continue // below WideMin the layout is zoomed anyway
-					}
-					l := Compute(Spec{Width: w, Height: h, Focus: focus, Zoom: zoom, InvolvedRows: 6, DevelopmentRows: 9})
-					checkLines(t, "Draw", st.Draw(l, content), w, h)
-				}
+			for focus := Pane(1); focus <= Pane(len(testPanes)); focus++ {
+				l := Compute(Spec{Width: w, Height: h, Panes: testPanes, Focus: focus, Zoom: true})
+				checkLines(t, "Draw", st.Draw(l, content), w, h)
 			}
 		}
 	}
