@@ -81,13 +81,15 @@ func (m *panesModal) View() string {
 	lines = append(lines, m.header())
 	if m.height >= 3 {
 		out := m.panes(l)
+		if m.hasStrip() {
+			out += "\n" + m.strip()
+		}
 		if m.top() != nil {
+			// The strip row is part of the area an overlay covers, so a
+			// full-area overlay keeps its bottom border.
 			out = m.covered(out)
 		}
 		lines = append(lines, out)
-		if m.hasStrip() {
-			lines = append(lines, m.strip())
-		}
 	}
 	if m.height >= 2 {
 		if m.top() != nil {
@@ -112,17 +114,32 @@ func (m *panesModal) panes(l panes.Layout) string {
 		}
 		c := m.slots[b.Pane-1].content(m, b)
 		c.Focus = b.Pane == l.Focus
-		if c.Title == "" {
-			c.Title = l.Title(b.Pane)
+		if len(c.TopLeft) == 0 {
+			title := l.Title(b.Pane)
 			if l.Zoomed {
 				// The digits are in the strip under the boxes.
-				c.Title = paneName(b.Pane)
+				title = paneName(b.Pane)
 			}
+			c.TopLeft = m.titleForms(title, b)
 		}
 		return c
 	})
 	m.drawn = drawnPanes{key: k, out: out}
 	return out
+}
+
+// titleForms are the forms of a title for box b: the whole title, then the
+// title cut to the room the border leaves it, so that one that does not fit
+// still shows in part. The bubble never cuts a form itself.
+func (m *panesModal) titleForms(title string, b panes.Box) []string {
+	if title == "" {
+		return nil
+	}
+	room := b.Rect.W - 5
+	if room <= 0 || ansi.StringWidth(title) <= room {
+		return []string{title}
+	}
+	return []string{title, ansi.Truncate(title, room, m.icons.Ellipsis)}
 }
 
 // strip is the row of pane names under the zoomed boxes, in the longest form

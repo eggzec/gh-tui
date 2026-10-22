@@ -91,7 +91,7 @@ func (m *panesModal) ask(c ui.Confirm) {
 // placed returns where the overlay on top lies in the panes' area.
 func (m *panesModal) placed() panes.Rect {
 	o := m.overlays[len(m.overlays)-1]
-	return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: o.maximized}, m.width, m.areaHeight())
+	return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: o.maximized, InsetMin: wideMin}, m.width, m.areaHeight())
 }
 
 // CanMaximize implements ui.Maximizer: the key flips a viewer between its
@@ -103,7 +103,7 @@ func (m *panesModal) CanMaximize() bool {
 	}
 	o := m.overlays[len(m.overlays)-1]
 	rect := func(maximized bool) panes.Rect {
-		return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: maximized}, m.width, m.areaHeight())
+		return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: maximized, InsetMin: wideMin}, m.width, m.areaHeight())
 	}
 	return rect(o.maximized) != rect(!o.maximized)
 }
@@ -134,7 +134,7 @@ func (m *panesModal) covered(out string) string {
 		return strings.Join(lines, "\n")
 	}
 	o := m.top()
-	box := strings.Split(m.frames.Frame(panes.Content{Title: o.title(), Body: o.view(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.title(), panes.Box{Rect: r}), Body: o.view(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
 	for i, row := range box {
 		y := r.Y + i
 		if y >= len(lines) {
