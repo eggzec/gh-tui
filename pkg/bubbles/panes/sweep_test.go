@@ -54,7 +54,7 @@ const sweepBody = "\x1b[1;31m漢字 bold red text that runs on and on\x1b[m\n" +
 
 func sweepContent() Content {
 	return Content{
-		Title: "漢字のタイトル日本語",
+		Title:       "漢字のタイトル日本語",
 		TopRight:    []string{"日本語日本語日本語日本語", "日本語日本語", "漢", "ab"},
 		BottomLeft:  []string{"日本語日本語日本語", "漢字", "a"},
 		BottomRight: []string{"日本語日本語", "漢"},

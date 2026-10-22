@@ -88,7 +88,7 @@ func (s Styles) bottom(c Content, w int) string {
 
 // rightSlot is the first of forms that fits in room cells with a dash before
 // it, drawn as " form ─" with the dash glyph of the edge, and its width.
-func (s Styles) rightSlot(forms []string, dash string, e lipgloss.Style, room int) (string, int) {
+func (s Styles) rightSlot(forms []string, dash string, e lipgloss.Style, room int) (slot string, width int) {
 	for _, f := range forms {
 		if fw := ansi.StringWidth(f); f != "" && fw+3+1 <= room {
 			return e.Render(" ") + s.Info.Render(f) + e.Render(" "+dash), fw + 3

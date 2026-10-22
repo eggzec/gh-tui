@@ -56,7 +56,8 @@ func TestCornerSlotsTop(t *testing.T) {
 	} {
 		w := ansi.StringWidth(want)
 		out := ansi.Strip(st.Frame(c, w, 2))
-		if got := out[:strings.Index(out, "\n")]; got != want {
+		got, _, _ := strings.Cut(out, "\n")
+		if got != want {
 			t.Errorf("w=%d: %q, want %q", w, got, want)
 		}
 	}
