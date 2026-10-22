@@ -456,6 +456,11 @@ func (s *Section) pressFeed(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // on view, the find, the filter or the marks, and reports whether there was
 // one, as the key that dismisses clears these before it closes the search.
 func (s *Section) ClearTransient() (tea.Cmd, bool) {
+	if s.preview {
+		cmd, cleared := s.pv.ClearTransient()
+		s.render()
+		return cmd, cleared
+	}
 	if l, ok := s.visibleHits(); ok {
 		cmd, cleared := l.feed.ClearTransient()
 		s.render()

@@ -1,0 +1,50 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  command | : | : | on
+  maximize | Z | Z | on
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  this repo | . | . | off
+  owner page | @ | @ | off
+  help | ? | ? | on
+
+Search
+  type | i | i | on
+  next kind | ] | ] | on
+  previous kind | [ | [ | on
+  next | tab | tab | on
+  previous | shift+tab | shift+tab | on
+  show kind | 1 2 3 4 | 1-4 | on
+
+Preview
+  open | enter | ↵ | on
+  browser | o | o | on
+  refresh | r | r | on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | space ctrl+f pgdown | space/^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  top | g g home | gg/home | on
+  bottom | G end | G/end | on
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  option: S N s i I | - | - | on
+  chop or wrap long lines | S | S | off
+  line numbers | N | N | off
+  squeeze blank lines | s | s | off
+  smart case | i | i | off
+  ignore case | I | I | off
+  cancel | esc | esc | off
+  search | / | / | on
+  filter | & | & | on
+  search | enter | ↵ | off
+  cancel | esc | esc | on
+  cancel | backspace ctrl+h | backspace/^h | off
+  next match | n | n | on
+  prev match | N | N | on
+  edit |  |  | off
+  close | q esc | q/esc | on

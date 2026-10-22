@@ -5,7 +5,6 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 )
 
@@ -44,7 +43,7 @@ func (s *Section) panes() []string {
 		return s.countEdge(s.box(s.resultsLabel(), 0, focused, rw+2, rh+3, body), s.resultsLabel(), s.countLabel(), focused, rw+2)
 	}
 	preview := func(w int) []string {
-		return s.box(paneNames[1], 1, s.area == resultsArea && s.preview, w, rh+3, []string{" " + s.previewTitle()})
+		return s.box(paneNames[1], 1, s.area == resultsArea && s.preview, w, rh+3, strings.Split(s.pv.View(), "\n"))
 	}
 	switch {
 	case s.split():
@@ -72,24 +71,6 @@ func (s *Section) cyclePane(next bool) {
 		s.focusPane(resultsArea, true)
 	default:
 		s.focusArea(inputArea)
-	}
-}
-
-// previewTitle is the title of the hit under the cursor, which the preview
-// shows until it renders the hit itself.
-func (s *Section) previewTitle() string {
-	l, ok := s.visibleHits()
-	if !ok {
-		return ""
-	}
-	h, ok := l.feed.Selected()
-	switch {
-	case !ok:
-		return ""
-	case h.Kind == core.SearchRepos:
-		return h.Repo.Ref.String()
-	default:
-		return h.Issue.Title
 	}
 }
 

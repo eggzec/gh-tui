@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // KeyMap holds the keys of the search page. While the query types, only
@@ -61,6 +62,8 @@ type KeyMap struct {
 	feed feed.KeyMap
 	// search are the keys of the prompt of the results' find and filter.
 	search cmdline.KeyMap
+	// pager are the keys of the preview, which reads the result's text.
+	pager pager.KeyMap
 }
 
 // queryKeys are the keys of the query while it types: those that type
@@ -110,6 +113,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		// it leaves them.
 		feed:   feed.NewKeyMap(results),
 		search: ui.SearchPromptKeys(keys),
+		pager:  pager.NewKeyMap(ui.In(keys, "search_preview")),
 	}
 	for i := range k.Kinds {
 		a := "global.pane_" + strconv.Itoa(i+1)
@@ -161,6 +165,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{l}
 	}
 	k := s.keys.state(s)
+	if s.preview && s.area == resultsArea {
+		screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
+		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next}), s.previewLayer()}
+	}
 	screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
 	if s.area == inputArea {
 		// The query has no pane keys of its own: what acts on a result or

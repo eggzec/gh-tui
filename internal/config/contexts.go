@@ -84,6 +84,7 @@ var contexts = []Context{
 	{Name: "search_modal", Title: "Search", Reach: ReachScreen, Modal: true},
 	{Name: "search_query", Title: "Query", Reach: ReachCapture, Parent: "search_modal", Typing: true},
 	{Name: "search_results", Title: "Results", Reach: ReachPane, Parent: "search_modal"},
+	{Name: "search_preview", Title: "Preview", Reach: ReachPane, Parent: "search_modal"},
 
 	{Name: "owner", Title: "Profile", Reach: ReachScreen},
 	{Name: "owner_pinned", Title: "Pinned", Reach: ReachPane, Parent: "owner"},

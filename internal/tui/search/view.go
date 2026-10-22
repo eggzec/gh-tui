@@ -37,6 +37,11 @@ func (s *Section) layout() {
 		s.sizeList(&s.code.feed)
 	}
 	s.starts.resize(h)
+	w := s.width - 2
+	if s.split() {
+		w -= listWidth
+	}
+	s.pv.SetSize(max(w, 0), max(h+1, 0))
 }
 
 // sizeHits sizes the feed of l, a line shorter than the room of the results,

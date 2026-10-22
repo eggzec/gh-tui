@@ -1,0 +1,2 @@
+# context | key | loser | winner | reason
+search: preview | esc | Preview: close | Preview: cancel | While the preview's search prompt is open esc cancels it, and otherwise esc closes the preview; the pager takes the key only when it captures.

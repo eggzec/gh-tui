@@ -1194,6 +1194,7 @@ func keyContexts() []keyContext {
 		{name: "search: normal mode", steps: []string{"global.search", "search_modal.insert", typed("key"), "search_query.cancel"}, context: "search_results", want: "global, search_modal, search_results"},
 		{name: "search: query", steps: []string{"global.search", "search_modal.insert"}, context: "search_query", want: "always, search_query (types)"},
 		{name: "search: results", steps: []string{"global.search", "search_modal.insert", typed("key"), "search_query.submit"}, context: "search_results", want: "global, search_modal, search_results"},
+		{name: "search: preview", steps: []string{"global.search", "search_modal.insert", typed("key"), "search_query.submit", "global.next_pane"}, context: "search_preview", want: "global, search_modal, search_preview"},
 		{name: "search: filter", steps: []string{"global.search", "search_modal.insert", typed("key"), "search_query.submit", "search_results.filter"}, context: "filter", want: "global, filter"},
 		{name: "search: sort", steps: []string{"global.search", "search_modal.insert", typed("key"), "search_query.submit", "search_results.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "files", repo: true, steps: []string{"files.expand", "files.down"}, context: "files", want: "global, repo, files"},

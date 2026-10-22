@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // Update handles the page's keys and the countdown of code search, and
@@ -18,7 +19,7 @@ import (
 // of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
-	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead())
+	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead(), s.syncPreview())
 	s.render()
 	return cmd
 }
@@ -67,7 +68,12 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return cmd
 		}
 	}
-	cmds := make([]tea.Cmd, 0, len(s.hits)+2)
+	cmds := make([]tea.Cmd, 0, len(s.hits)+3)
+	if _, ok := msg.(pager.CloseMsg); !ok {
+		var cmd tea.Cmd
+		s.pv, cmd = s.pv.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 	for _, l := range s.hits {
 		var cmd tea.Cmd
 		l.feed, cmd = l.feed.Update(msg)
@@ -94,6 +100,11 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	}
 	k := &s.keys
+	if s.preview && s.pv.Capturing() {
+		var cmd tea.Cmd
+		s.pv, cmd = s.pv.Update(msg)
+		return cmd
+	}
 	switch {
 	case k.kindOf(msg) >= 0:
 		return s.pickKind(k.kindOf(msg))
@@ -116,6 +127,9 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 			return s.refresh()
 		}
 		return nil
+	}
+	if s.preview {
+		return s.pressPreview(msg)
 	}
 	return s.pressResults(msg)
 }
@@ -308,6 +322,11 @@ func (s *Section) focusPane(a area, preview bool) {
 	s.typing = false
 	s.input.Blur()
 	results := s.focused && a == resultsArea && !preview
+	if s.focused && a == resultsArea && preview {
+		s.pv.Focus()
+	} else {
+		s.pv.Blur()
+	}
 	for kind, l := range s.hits {
 		if results && kind == s.kind {
 			l.feed.Focus()
