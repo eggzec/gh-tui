@@ -5,18 +5,14 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // styles are the page's own, built once per theme.
 type styles struct {
-	edge, focusEdge   paint
-	title, focusTitle paint
-
-	// frameEdge, frameFocus and the paints of the keys in the bottom edge
-	// are those of ownerui.Frame and ownerui.Foot.
-	frameEdge, frameFocus, footOn, footOff ownerui.Paint
+	// frames draws the boxes and names the strips.
+	frames panes.Styles
 
 	name, login, text, muted, subtle paint
 	accent, success, warning, fail   paint
@@ -55,7 +51,6 @@ func newCells(t ui.Theme, look int) cells {
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
-	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
 	var states [ui.NumStates]paint
 	for i := range states {
 		states[i] = newPaint(t.State(ui.State(i)))
@@ -64,29 +59,25 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 	for i := range look {
 		look[i] = newCells(t, i)
 	}
+	frames := panes.DefaultStyles(t.Dark)
+	frames.Border = ic.Border
+	frames.Ellipsis = ic.Ellipsis
 	return styles{
-		look:       look,
-		states:     states,
-		frameEdge:  ownerui.NewPaint(border),
-		frameFocus: ownerui.NewPaint(t.Accent),
-		footOn:     ownerui.NewPaint(t.Accent.Bold(true)),
-		footOff:    ownerui.NewPaint(t.Subtle),
-		edge:       newPaint(border),
-		focusEdge:  newPaint(t.Accent),
-		title:      newPaint(t.Muted),
-		focusTitle: newPaint(t.Accent.Bold(true)),
-		name:       newPaint(t.Title),
-		login:      newPaint(t.Muted),
-		text:       newPaint(t.Text),
-		muted:      newPaint(t.Muted),
-		subtle:     newPaint(t.Subtle),
-		accent:     newPaint(t.Accent),
-		success:    newPaint(t.Success),
-		warning:    newPaint(t.Warning),
-		fail:       newPaint(t.Error),
-		selected:   newPaint(t.Title),
-		cursor:     t.Accent.Render(ic.Cursor) + " ",
-		blurred:    t.Subtle.Render(ic.Cursor) + " ",
+		look:     look,
+		states:   states,
+		frames:   frames,
+		name:     newPaint(t.Title),
+		login:    newPaint(t.Muted),
+		text:     newPaint(t.Text),
+		muted:    newPaint(t.Muted),
+		subtle:   newPaint(t.Subtle),
+		accent:   newPaint(t.Accent),
+		success:  newPaint(t.Success),
+		warning:  newPaint(t.Warning),
+		fail:     newPaint(t.Error),
+		selected: newPaint(t.Title),
+		cursor:   t.Accent.Render(ic.Cursor) + " ",
+		blurred:  t.Subtle.Render(ic.Cursor) + " ",
 	}
 }
 

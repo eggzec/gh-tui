@@ -3,31 +3,43 @@ package search
 import (
 	"errors"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Sizes of the page. The query takes a framed line on top, and the
 // results a frame below it. The kinds are tabs in the top edge of the query's
 // frame.
-const inputHeight = 3
+const (
+	inputHeight = 3
+	// stripHeight is the row of pane names under the boxes.
+	stripHeight = 1
+	// framePad is what a frame takes of its width: two borders and a column
+	// of padding on each side.
+	framePad = 4
+)
+
+// paneDefs are the panes the strip names.
+var paneDefs = []panes.Def{{Name: "Results", Short: "Res", Split: true}, {Name: "Preview", Short: "Prev"}}
 
 // resultsSize is the room inside the frame of the results.
 func (s *Section) resultsSize() (width, height int) {
-	return max(s.listOuter()-2, 0), max(s.height-inputHeight-2, 0)
+	return max(s.listOuter()-framePad, 0), max(s.height-inputHeight-stripHeight-2, 0)
 }
 
 func (s *Section) layout() {
-	// The input draws one cell more than its width, for the cursor.
-	s.input.SetWidth(max(s.width-2-2-1-1, 1))
+	// The input draws one cell more than its width, for the cursor, and
+	// follows the crumb and a space.
+	s.input.SetWidth(max(s.width-framePad-2-1, 1))
 	// The hits take a line of titles above them.
 	_, h := s.resultsSize()
 	for _, l := range s.hits {
@@ -37,7 +49,7 @@ func (s *Section) layout() {
 		s.sizeList(&s.code.feed)
 	}
 	s.starts.resize(h)
-	w := s.width - 2
+	w := s.width - framePad
 	if s.split() {
 		w -= listWidth
 	}
@@ -62,8 +74,15 @@ func (s *Section) render() {
 		return
 	}
 	lines := make([]string, 0, s.height)
-	lines = append(lines, s.frame(" "+s.st.accent.render(s.icons.Crumb)+" "+s.input.View(), "Search GitHub", s.area == inputArea, s.width, inputHeight, s.kindsTail)...)
+	query := panes.Content{
+		TopLeft:  s.titleForms("Search GitHub", s.width),
+		TopRight: s.kindForms(),
+		Body:     s.st.accent.render(s.icons.Crumb) + " " + s.input.View(),
+		Focus:    s.area == inputArea && s.focused,
+	}
+	lines = append(lines, strings.Split(s.st.frames.Frame(query, s.width, inputHeight), "\n")...)
 	lines = append(lines, s.panes()...)
+	lines = append(lines, s.strip())
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)
@@ -71,39 +90,42 @@ func (s *Section) render() {
 	s.view = strings.Join(lines[:s.height], "\n")
 }
 
-// frame draws body in a frame w by h cells, with label in its top edge,
-// in the accent while the part it holds has the focus. tail, if given,
-// renders what goes at the right end of the top edge in the room it is given,
-// and its width; it draws nothing when it has no room.
-func (s *Section) frame(body, label string, focused bool, w, h int, tail func(room int) (string, int)) []string {
-	if w < 2 || h < 2 {
+// titleForms are the forms of a title for a box w cells wide: the whole
+// title, then the title cut to the room the border leaves it, since the
+// bubble never cuts a form itself.
+func (s *Section) titleForms(title string, w int) []string {
+	if title == "" {
 		return nil
 	}
-	edge, title := s.st.edge, s.st.title
-	if focused && s.focused {
-		edge, title = s.st.focusEdge, s.st.focusTitle
+	room := w - 5
+	if room <= 0 || ansi.StringWidth(title) <= room {
+		return []string{title}
 	}
-	b := s.icons.Border
-	lines := make([]string, 0, h)
-	label = s.truncate(label, max(w-5, 0))
-	lw := ansi.StringWidth(label)
-	top := edge.render(b.TopLeft+b.Top) + title.render(label) + edge.render(" "+strings.Repeat(b.Top, max(w-4-lw, 0))+b.TopRight)
-	if tail != nil {
-		// The edge besides the tail: two corners and dashes, the label, and
-		// a space and at least one dash on each side of the tail.
-		if strip, sw := tail(w - 8 - lw); sw > 0 {
-			fill := w - 7 - lw - sw
-			top = edge.render(b.TopLeft+b.Top) + title.render(label) + edge.render(" "+strings.Repeat(b.Top, fill)+" ") + strip + edge.render(" "+b.Top+b.TopRight)
+	return []string{title, s.truncate(title, room)}
+}
+
+// strip is the row under the boxes with the names of the panes, the one on
+// view accented, and the key that moves between them beside it.
+func (s *Section) strip() string {
+	cur := panes.Pane(1)
+	if s.preview {
+		cur = 2
+	}
+	next := ""
+	if b := s.keys.Next; b.Enabled() {
+		next = s.st.frames.StripOther.Render(b.Help().Key + " next")
+	}
+	row := ""
+	for _, f := range s.st.frames.StripForms(paneDefs, cur) {
+		row = f
+		if next != "" {
+			row += "  " + next
+		}
+		if ansi.StringWidth(row) <= s.width {
+			return fit(row, s.width)
 		}
 	}
-	lines = append(lines, top)
-	side, inner := edge.render(b.Left), w-2
-	for range h - 2 {
-		var l string
-		l, body, _ = strings.Cut(body, "\n")
-		lines = append(lines, side+fit(l, inner)+side)
-	}
-	return append(lines, edge.render(b.BottomLeft+strings.Repeat(b.Bottom, w-2)+b.BottomRight))
+	return fit(ansi.Truncate(row, s.width, ""), s.width)
 }
 
 // codeAsk asks the user to search code for the text with the key that
@@ -129,48 +151,50 @@ func (s *Section) typeAsk(what string) string {
 	return "Bind a key to insert in the config to " + what
 }
 
-// kindStrip is the strip of kinds in the top edge of the query's frame: the
-// digit that shows each kind and its title, the kind on view in brackets.
-// It lists the kinds it is made with, one digit each.
-type kindStrip struct {
-	kinds []core.SearchKind
-	// keys are the keys of the kinds, by position; a kind with none shows
-	// no key.
-	keys []string
-}
-
-// view renders the strip for the kind cur in w cells, with its titles
-// as long as they fit, else with "PRs" for pull requests, else as the keys
-// alone. It returns the strip and its width, 0 when not even the keys fit.
-func (t kindStrip) view(cur core.SearchKind, on, off ownerui.Paint, w int) (strip string, width int) {
-	full := make([]string, len(t.kinds))
-	short := make([]string, len(t.kinds))
-	pos := -1
-	for i, k := range t.kinds {
-		full[i], short[i] = kindTitles[k], kindTitles[k]
-		if k == core.SearchPulls {
-			short[i] = "PRs"
-		}
-		if k == cur {
-			pos = i
-		}
-	}
-	strip, sw := ownerui.Foot(t.keys, [][]string{full, short}, pos, on, off, w)
-	if sw > w {
-		return "", 0
-	}
-	return strip, sw
-}
-
-// kindsTail renders the strip of the kinds in w cells.
-func (s *Section) kindsTail(w int) (strip string, width int) {
+// kindForms are the forms of the strip of kinds in the top edge of the
+// query's frame, longest first: the key of each kind and its title, then with
+// "PRs" for pull requests, then the keys alone. The kind on view is accented.
+func (s *Section) kindForms() []string {
 	keys := make([]string, len(kinds))
 	for i := range keys {
 		if b := s.keys.Kinds[i]; b.Enabled() {
 			keys[i] = b.Help().Key
 		}
 	}
-	return kindStrip{kinds: kinds, keys: keys}.view(s.kind, s.st.footOn, s.st.footOff, w)
+	return kindStripForms(s.st.frames, kinds, keys, s.kind)
+}
+
+// kindStripForms builds the forms of a strip over kinds, one key each by
+// position (a kind with none shows no key), with cur accented.
+func kindStripForms(st panes.Styles, kinds []core.SearchKind, keys []string, cur core.SearchKind) []string {
+	build := func(title func(core.SearchKind) string) string {
+		parts := make([]string, len(kinds))
+		for i, k := range kinds {
+			key := keys[i]
+			if k == cur && key != "" {
+				key = "[" + key + "]"
+			}
+			t := strings.TrimSpace(key + " " + title(k))
+			if k == cur {
+				parts[i] = st.StripCurrent.Render(t)
+			} else {
+				parts[i] = st.StripOther.Render(t)
+			}
+		}
+		return strings.Join(parts, st.StripSep.Render(" · "))
+	}
+	full := func(k core.SearchKind) string { return kindTitles[k] }
+	short := func(k core.SearchKind) string {
+		if k == core.SearchPulls {
+			return "PRs"
+		}
+		return kindTitles[k]
+	}
+	forms := []string{build(full), build(short)}
+	if slices.ContainsFunc(keys, func(k string) bool { return k != "" }) {
+		forms = append(forms, build(func(core.SearchKind) string { return "" }))
+	}
+	return forms
 }
 
 // countLabel is the count of the results on view for the right of the

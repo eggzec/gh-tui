@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // A digit shows its kind and focuses the results; the digit of the kind in
@@ -57,12 +57,10 @@ func TestCountOnlyForCountedKinds(t *testing.T) {
 // shows up in it.
 func TestKindStripDataDriven(t *testing.T) {
 	t.Parallel()
-	var plain ownerui.Paint
-	two := kindStrip{kinds: []core.SearchKind{core.SearchRepos, core.SearchIssues}, keys: []string{"1", "2"}}
-	three := kindStrip{kinds: []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls}, keys: []string{"1", "2", "3"}}
-	as, _ := two.view(core.SearchRepos, plain, plain, 120)
-	bs, _ := three.view(core.SearchRepos, plain, plain, 120)
-	a, b := ansi.Strip(as), ansi.Strip(bs)
+	var plain panes.Styles
+	as := kindStripForms(plain, []core.SearchKind{core.SearchRepos, core.SearchIssues}, []string{"1", "2"}, core.SearchRepos)
+	bs := kindStripForms(plain, []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls}, []string{"1", "2", "3"}, core.SearchRepos)
+	a, b := ansi.Strip(as[0]), ansi.Strip(bs[0])
 	if strings.Contains(a, "3") || !strings.Contains(b, "3") || !strings.Contains(b, "Pull") {
 		t.Errorf("strips %q and %q: the extra kind should show only in the second", a, b)
 	}
