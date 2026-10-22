@@ -146,7 +146,9 @@ func TestInboxHint(t *testing.T) {
 	}
 }
 
-// A zoomed section leaves an unbound pane key out of its bottom edge.
+// A zoomed section leaves a trailing unbound pane key out of its strip. An
+// unbound pane in the middle would still show, since the strip numbers its
+// panes by place.
 func TestZoomedDigitsUnbound(t *testing.T) {
 	cfg := config.Default()
 	cfg.Keys.Set("global.pane_5", []string{})
@@ -164,7 +166,7 @@ func TestZoomedDigitsUnbound(t *testing.T) {
 	lines := strings.Split(ansi.Strip(s.View()), "\n")
 	var edge string
 	for _, l := range lines {
-		if strings.Contains(l, "3 Waiting on you  4 Contributions") && strings.Contains(l, "╰") {
+		if strings.Contains(l, "3 Waiting on you") && strings.Contains(l, "4 Contributions") {
 			edge = l
 		}
 	}

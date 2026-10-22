@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -50,16 +52,20 @@ func (s *Section) layout() {
 		b[inboxPane] = box{s.width - cw, calendarHeight}
 	} else {
 		for i := range b {
-			b[i] = box{s.width, rest}
+			// The last row is the strip of pane names.
+			b[i] = box{s.width, max(rest-1, 0)}
 		}
 	}
 	s.boxes = b
-	in := func(p paneID) (int, int) { return max(b[p].w-2, 0), max(b[p].h-2, 0) }
+	in := func(p paneID) (int, int) {
+		r := panes.Rect{W: b[p].w, H: b[p].h}.Inner()
+		return r.W, r.H
+	}
 	s.pinned.Resize(in(pinnedPane))
 	s.repos.resize(in(reposPane))
 	s.tasks.resize(in(workPane))
 	cw, ch := in(calendarPane)
-	s.cal.SetSize(min(cw-2, s.cal.FitWidth()), min(ch, calendarLines))
+	s.cal.SetSize(min(cw, s.cal.FitWidth()), min(ch, calendarLines))
 }
 
 // onePane reports whether the dashboard shows the focused pane alone:
@@ -92,7 +98,8 @@ func (s *Section) renderPane(p paneID) {
 		return
 	}
 	b := s.boxes[p]
-	w, h := max(b.w-2, 0), max(b.h-2, 0)
+	in := panes.Rect{W: b.w, H: b.h}.Inner()
+	w, h := in.W, in.H
 	var body []string
 	switch p {
 	case pinnedPane:
@@ -106,8 +113,12 @@ func (s *Section) renderPane(p paneID) {
 	default:
 		body = s.calendarBody(w)
 	}
-	label, lw := s.label(p)
-	s.frames[p] = s.frame(label, lw, b, s.focused && p == s.focus, body)
+	if b.h <= 0 {
+		s.frames[p] = nil
+		return
+	}
+	c := panes.Content{TopLeft: s.titleForms(p), Body: strings.Join(body, "\n"), Focus: s.focused && p == s.focus}
+	s.frames[p] = strings.Split(s.st.frames.Frame(c, b.w, b.h), "\n")
 }
 
 // compose joins the profile and the framed panes into the view.
@@ -120,6 +131,7 @@ func (s *Section) compose() {
 	lines = append(lines, s.head...)
 	if s.onePane() {
 		lines = append(lines, s.frames[s.focus]...)
+		lines = append(lines, s.strip())
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
 		lines = ownerui.Beside(lines, s.frames[reposPane], s.frames[workPane])
@@ -132,47 +144,49 @@ func (s *Section) compose() {
 	s.view = strings.Join(lines[:s.height], "\n")
 }
 
-// label is the text in the top edge of pane p, and its width. In the
-// narrow layout the one frame names every pane, the focused one in full.
-func (s *Section) label(p paneID) (label string, width int) {
-	st := &s.st
-	title := st.shared.Muted
-	if s.focused && p == s.focus {
-		title = st.focusTitle
+// titleForms are the forms of the title of pane p, longest first: the name
+// with its counts, the name, and the short name, so the last always fits.
+// The keys are in the strip of a dashboard that shows one pane.
+func (s *Section) titleForms(p paneID) []string {
+	prefix := ""
+	if k := s.keyLabel(p); k != "" && !s.onePane() {
+		prefix = "[" + k + "] "
 	}
-	if !s.onePane() || s.zoomed() {
-		text := s.paneLabel(p)
-		return title.Render(text), ansi.StringWidth(text)
+	forms := []string{
+		prefix + paneTitles[p] + s.paneExtras(p),
+		prefix + paneTitles[p],
+		prefix + shortTitles[p],
 	}
-	// The other panes go by their titles, then by shorter ones, then by
-	// their keys alone, whichever fits.
-	for tier, titles := range [][numPanes]string{paneTitles, shortTitles, {}} {
-		var b strings.Builder
-		n := 0
-		for i := range numPanes {
-			part := s.paneLabel(i)
-			if i != p {
-				part = strings.TrimSpace(s.keyLabel(i) + " " + titles[i])
-			}
-			if part == "" {
-				continue
-			}
-			if n > 0 {
-				b.WriteString("  ")
-				n += 2
-			}
-			if i == p {
-				title.Write(&b, part)
-			} else {
-				st.shared.Subtle.Write(&b, part)
-			}
-			n += ansi.StringWidth(part)
-		}
-		if n <= s.width-4 || tier == 2 {
-			return b.String(), n
+	return slices.Compact(forms)
+}
+
+// strip is the row of pane names under the one pane that shows, in the
+// longest form that fits the width. Trailing panes with no key are left
+// out; one in the middle of the others still shows, since the strip numbers
+// its panes by place.
+func (s *Section) strip() string {
+	n := int(s.focus) + 1
+	for p := range paneDefs {
+		if s.keyLabel(paneID(p)) != "" {
+			n = max(n, p+1)
 		}
 	}
-	return "", 0
+	for _, f := range s.st.frames.StripForms(paneDefs[:n], panes.Pane(s.focus+1)) {
+		if ansi.StringWidth(f) <= s.width {
+			return sealed(f, s.width)
+		}
+	}
+	return sealed("", s.width)
+}
+
+// sealed cuts or pads line to width cells and ends its styles, so that the
+// next line starts plain.
+func sealed(line string, width int) string {
+	line = ansi.Truncate(line, width, "")
+	if pad := width - ansi.StringWidth(line); pad > 0 {
+		line += strings.Repeat(" ", pad)
+	}
+	return line + "\x1b[m"
 }
 
 // keyLabel is the key that focuses pane p, or "" when it has none.
@@ -184,29 +198,10 @@ func (s *Section) keyLabel(p paneID) string {
 	return b.Help().Key
 }
 
-// foot is the strip of pane keys in the bottom edge of the zoomed pane, as
-// in the pull request modal, and its width. The focused pane's key is in
-// brackets. Other layouts have none: the panes show their names alone, or
-// the narrow layout names every pane in the top edge.
-func (s *Section) foot() (label string, width int) {
-	if !s.zoomed() {
-		return "", 0
-	}
-	var keys [numPanes]string
-	for i := range numPanes {
-		keys[i] = s.keyLabel(i)
-	}
-	return ownerui.Foot(keys[:], [][]string{paneTitles[:], shortTitles[:]}, int(s.focus), s.st.focusTitle, s.st.shared.Subtle, s.width-5)
-}
-
-// paneLabel is the label of pane p, with its key before it, such as
-// "[3] Waiting on you · 4". The zoomed pane has its keys in its bottom edge
-// instead, so its label is the name alone.
-func (s *Section) paneLabel(p paneID) string {
-	text := paneTitles[p]
-	if k := s.keyLabel(p); k != "" && !s.zoomed() {
-		text = "[" + k + "] " + text
-	}
+// paneExtras is what follows the name of pane p in its title, such as the
+// " · 4" of "[3] Waiting on you · 4".
+func (s *Section) paneExtras(p paneID) string {
+	var text string
 	switch p {
 	case pinnedPane:
 		if at, of := s.pinned.Pages(); of > 1 {
@@ -235,16 +230,6 @@ func (s *Section) paneLabel(p paneID) string {
 	default:
 	}
 	return text
-}
-
-// frame draws body in a frame of size b, with label in its top edge.
-func (s *Section) frame(label string, labelW int, b box, focused bool, body []string) []string {
-	edge := s.st.edge
-	if focused {
-		edge = s.st.focusEdge
-	}
-	foot, footW := s.foot()
-	return ownerui.Frame(label, labelW, foot, footW, b.w, b.h, edge, s.icons.Border, s.icons.Ellipsis, body)
 }
 
 // profileHeight is how many lines the profile takes.

@@ -5,13 +5,14 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // styles are the dashboard's own, built once per theme.
 type styles struct {
-	edge, focusEdge ownerui.Paint
-	// focusTitle is the title of the focused pane. The others take the
-	// muted paint of shared.
+	// frames draw the panes: the border, the titles and the strip.
+	frames panes.Styles
+	// focusTitle is the current tab of a pane.
 	focusTitle ownerui.Paint
 
 	success, warning ownerui.Paint
@@ -33,11 +34,20 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 	for i := range states {
 		states[i] = ownerui.NewPaint(t.State(ui.State(i)))
 	}
+	frames := panes.DefaultStyles(t.Dark)
+	frames.Border = ic.Border
+	frames.Ellipsis = ic.Ellipsis
+	frames.Edge = border
+	frames.EdgeFocus = t.Accent
+	frames.Title = t.Muted
+	frames.TitleFocus = t.Accent.Bold(true)
+	frames.StripCurrent = t.Accent.Bold(true)
+	frames.StripOther = t.Subtle
+	frames.StripSep = t.Subtle
 	st := styles{
 		states:     states,
 		langs:      map[string]ownerui.Paint{},
-		edge:       ownerui.NewPaint(border),
-		focusEdge:  ownerui.NewPaint(t.Accent),
+		frames:     frames,
 		focusTitle: ownerui.NewPaint(t.Accent.Bold(true)),
 		success:    ownerui.NewPaint(t.Success),
 		warning:    ownerui.NewPaint(t.Warning),

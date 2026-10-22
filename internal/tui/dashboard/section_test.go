@@ -295,7 +295,7 @@ func TestPaneFocus(t *testing.T) {
 
 func TestNarrowShowsTheFocusedPane(t *testing.T) {
 	s := newSection(t, newFake(), nil, 80, 22)
-	if view := screen(s); !strings.Contains(view, "[2] Repositories") || !strings.Contains(view, "3 Work") || strings.Contains(view, "Review requests") {
+	if view := screen(s); !strings.Contains(view, "Repositories") || !strings.Contains(view, "3 Waiting on you") || strings.Contains(view, "Review requests") {
 		t.Errorf("the narrow dashboard should show the repositories and name the other panes:\n%s", view)
 	}
 	press(t, s, "3")
@@ -335,8 +335,8 @@ func TestZoom(t *testing.T) {
 		focus         paneID
 		shows, hides  []string
 	}{
-		{keys: []string{"z"}, zoom: true, focus: reposPane, shows: []string{"Repositories", "╰─ 1 Pinned  [2] Repositories  3 Waiting on you  4 Contributions  5 Notifications ", "repo-000"}, hides: []string{"Review requests"}},
-		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Waiting on you", "╰─ 1 Pinned  2 Repositories  [3] Waiting on you  4 Contributions  5 Notifications ", "Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"z"}, zoom: true, focus: reposPane, shows: []string{"Repositories", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "repo-000"}, hides: []string{"Review requests"}},
+		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Waiting on you", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "Review requests 3"}, hides: []string{"repo-000"}},
 		{keys: []string{"tab"}, zoom: true, focus: calendarPane, shows: []string{"contributions in the last 90 days"}, hides: []string{"Review requests"}},
 		{keys: []string{"shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"contributions"}},
 		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
@@ -539,7 +539,7 @@ func TestWorkTotal(t *testing.T) {
 	view := screen(s)
 	press(t, s, "3", "[")
 	view += screen(s)
-	for _, want := range []string{"No open issues assigned to you.", "Waiting on you · 16", "Assigned issues 0"} {
+	for _, want := range []string{"No open issues assigned to you.", "Waiting on you · 16", "Assigned 0"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work doesn't show %q:\n%s", want, view)
 		}
