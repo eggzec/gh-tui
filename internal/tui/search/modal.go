@@ -99,6 +99,10 @@ func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
 				msg[i] = m.over(c)
 			}
 			return msg
+		case ui.OwnerMsg:
+			// An account opened from a hit: the modal closes, then its page
+			// shows.
+			return tea.Sequence(m.leave(), func() tea.Msg { return msg })()
 		default:
 			return msg
 		}

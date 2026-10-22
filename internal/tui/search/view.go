@@ -377,6 +377,14 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 		return s.renderRepo(hit.Repo, selected, width)
 	}
 	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
+	if hit.Kind == core.SearchUsers {
+		glyph := s.icons.Person
+		if hit.User.Kind == core.OwnerOrg {
+			glyph = s.icons.Org
+		}
+		return s.spread(st.muted.render(termtext.Cells(glyph, 1))+" "+
+			st.title.render(s.truncate(hit.User.Login, max(width-2, 0))), "", width)
+	}
 	is := &hit.Issue
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""

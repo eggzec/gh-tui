@@ -73,6 +73,9 @@ func (s *Section) hitRepo() (core.RepoRef, bool) {
 	if hit.Kind == core.SearchRepos {
 		return hit.Repo.Ref, true
 	}
+	if hit.Kind == core.SearchUsers {
+		return core.RepoRef{}, false
+	}
 	return hit.Issue.Repo, true
 }
 
@@ -89,6 +92,9 @@ func (s *Section) openHit(hit core.SearchHit, checks bool) tea.Cmd {
 	}
 	var msg tea.Msg
 	switch hit.Kind {
+	case core.SearchUsers:
+		// The modal closes first, as it does for the owner key.
+		msg = ui.OwnerMsg{Login: hit.User.Login}
 	case core.SearchRepos:
 		msg = ui.RepoMsg{Repo: hit.Repo.Ref}
 	case core.SearchPulls:

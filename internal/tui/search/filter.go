@@ -88,6 +88,25 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 				Default: filterform.Sort{Desc: true},
 			},
 		}
+	case core.SearchUsers:
+		return filterform.Spec{
+			Fields: []filterform.Field{
+				ui.SearchField,
+				{
+					Key: "type", Label: "Type", Kind: filterform.Choice, Qualifier: "type",
+					Options: []filterform.Item{{Label: "Both"}, {Label: "Users", Value: "user"}, {Label: "Organizations", Value: "org"}},
+				},
+			},
+			Sort: &filterform.SortField{
+				Options: []filterform.SortOption{
+					ui.BestMatch,
+					ui.SortByCount("Followers", "followers"),
+					ui.SortByCount("Repositories", "repositories"),
+					ui.SortByTime("Joined", "joined"),
+				},
+				Default: filterform.Sort{Desc: true},
+			},
+		}
 	case core.SearchIssues, core.SearchPulls:
 		pulls := kind == core.SearchPulls
 		states := []filterform.Item{{Label: "All"}, {Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}}
