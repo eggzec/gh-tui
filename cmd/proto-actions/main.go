@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -22,17 +23,24 @@ import (
 const wideMin = 120
 
 type model struct {
-	w, h    int
-	dark    bool
-	fixed   bool // dark/light forced by PROTO_LIGHT or PROTO_DARK
-	variant int  // 1..3
-	focus   panes.Pane
-	zoom    panes.Zoom
-	tab     int
-	sel     int // index in vis()
-	job     int // job index of the selected run
-	logOff  int // lines from the bottom of the log
-	prevOff int // lines from the top of the preview
+	w, h     int
+	dark     bool
+	fixed    bool // dark/light forced by PROTO_LIGHT or PROTO_DARK
+	focus    panes.Pane
+	zoom     panes.Zoom
+	tab      int
+	sel      int // index in nodes()
+	deps     bool
+	openRun  map[int]bool
+	openGrp  map[string]bool
+	sect     int // 0 log, 1 problems, 2 artifacts
+	raw      bool
+	lsel     [3]int // selected row per section
+	rawSel   int
+	jobKey   string
+	stepOpen map[string]bool
+	dl       string // download in progress or just done
+	prog     int
 
 	cfg    config.Config
 	th     ui.Theme
@@ -42,7 +50,8 @@ type model struct {
 }
 
 func newModel() *model {
-	m := &model{w: 120, h: 40, dark: true, variant: 1, focus: 1, cfg: config.Default()}
+	m := &model{w: 120, h: 40, dark: true, focus: 1, cfg: config.Default(),
+		openRun: map[int]bool{allRuns[0].id: true}, openGrp: map[string]bool{fmt.Sprint(allRuns[0].id, "/test"): true}, stepOpen: map[string]bool{}}
 	switch {
 	case os.Getenv("PROTO_LIGHT") != "":
 		m.dark, m.fixed = false, true
@@ -50,8 +59,15 @@ func newModel() *model {
 		m.fixed = true
 	}
 	m.restyle()
-	m.reset()
+	m.selectFailing()
+	m.sync()
 	return m
+}
+
+type tickMsg struct{}
+
+func tick() tea.Cmd {
+	return tea.Tick(150*time.Millisecond, func(time.Time) tea.Msg { return tickMsg{} })
 }
 
 func (m *model) restyle() {
@@ -73,25 +89,6 @@ func (m *model) restyle() {
 
 func (m *model) Init() tea.Cmd { return tea.RequestBackgroundColor }
 
-// reset points the job and the scrolls at the selected run's failing job.
-func (m *model) reset() {
-	m.logOff, m.prevOff = 0, 0
-	m.job = 0
-	if r, ok := m.cur(); ok {
-		if ji, _ := r.failing(); ji >= 0 {
-			m.job = ji
-		}
-	}
-}
-
-func (m *model) cur() (run, bool) {
-	v := m.vis()
-	if m.sel < 0 || m.sel >= len(v) {
-		return run{}, false
-	}
-	return v[m.sel], true
-}
-
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -101,21 +98,85 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dark = msg.IsDark()
 			m.restyle()
 		}
+	case tickMsg:
+		if m.dl == "" {
+			return m, nil
+		}
+		m.prog += 20
+		if m.prog > 160 {
+			m.dl, m.prog = "", 0
+			return m, nil
+		}
+		return m, tick()
 	case tea.KeyPressMsg:
-		return m.key(msg.String())
+		mm, cmd := m.key(msg.String())
+		m.sync()
+		return mm, cmd
 	}
 	return m, nil
 }
 
+func (m *model) download(what string) tea.Cmd {
+	m.dl, m.prog = what, 0
+	return tick()
+}
+
 func (m *model) key(k string) (tea.Model, tea.Cmd) {
 	n := len(m.defs())
+	ns := m.nodes()
 	switch k {
 	case "ctrl+c", "q", "esc":
 		return m, tea.Quit
-	case "1", "2", "3":
-		m.variant = int(k[0] - '0')
-		m.focus, m.tab, m.sel = 1, 0, 0
-		m.reset()
+	case "l", "p", "a":
+		m.sect = strings.Index("lpa", k)
+	case "t":
+		m.sect, m.raw = 0, !m.raw
+	case "d", "D":
+		r, _, ok := m.selJob()
+		if !ok || len(r.artifacts()) == 0 {
+			break
+		}
+		m.sect = 2
+		if k == "D" {
+			return m, m.download(fmt.Sprintf("all %d artifacts", len(r.artifacts())))
+		}
+		return m, m.download(r.artifacts()[m.lsel[2]].name)
+	case "g":
+		m.deps = !m.deps
+		m.sel = 0
+		m.selectFailing()
+	case "right", "enter", "left":
+		if m.focus == 2 {
+			m.enterRight()
+			break
+		}
+		if m.sel >= len(ns) {
+			break
+		}
+		nd := ns[m.sel]
+		r := allRuns[nd.run]
+		key := fmt.Sprint(r.id, "/", nd.group)
+		switch {
+		case nd.kind == kRun && k == "left":
+			delete(m.openRun, r.id)
+		case nd.kind == kRun && k == "enter" && m.openRun[r.id]:
+			delete(m.openRun, r.id)
+		case nd.kind == kRun:
+			m.openRun[r.id] = true
+		case nd.kind == kGroup && k == "left", nd.kind == kGroup && k == "enter" && m.openGrp[key]:
+			delete(m.openGrp, key)
+		case nd.kind == kGroup:
+			m.openGrp[key] = true
+		case nd.kind == kJob && k == "left" && nd.group != "":
+			delete(m.openGrp, key)
+			for i, x := range m.nodes() {
+				if x.kind == kGroup && x.run == nd.run && x.group == nd.group {
+					m.sel = i
+				}
+			}
+		case nd.kind == kJob && k == "enter":
+			m.focus = 2
+		}
 	case "tab":
 		m.focus = m.focus%panes.Pane(n) + 1
 	case "shift+tab":
@@ -125,45 +186,60 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 			m.zoom.Toggle()
 		}
 	case "]", "[":
-		t := len(m.tabs())
+		t := len(tabNames)
 		d := 1
 		if k == "[" {
 			d = t - 1
 		}
 		m.tab, m.sel = (m.tab+d)%t, 0
-		m.reset()
 	case "j", "down", "k", "up":
 		d := 1
 		if k == "k" || k == "up" {
 			d = -1
 		}
-		m.move(d)
-	case "g":
-		m.move(-1000)
-	case "G":
-		m.move(1000)
+		m.move(d, len(ns))
 	}
 	return m, nil
 }
 
-// move steps the list or scrolls the pane that has the focus.
-func (m *model) move(d int) {
-	r, ok := m.cur()
+// enterRight acts on the selected row of the right pane.
+func (m *model) enterRight() {
+	r, ji, ok := m.selJob()
 	if !ok {
 		return
 	}
-	switch {
-	case m.focus == 1:
-		m.sel = max(0, min(len(m.vis())-1, m.sel+d))
-		m.reset()
-	case m.variant == 1 && m.focus == 2:
-		m.job = max(0, min(len(r.jobs)-1, m.job+d))
-		m.logOff = 0
-	case m.variant == 1:
-		m.logOff = max(0, m.logOff-d)
-	default:
-		m.prevOff = max(0, m.prevOff+d)
+	switch m.sect {
+	case 0:
+		if !m.raw {
+			k := fmt.Sprint(r.id, "/", ji, "/", m.lsel[0])
+			m.stepOpen[k] = !m.stepOpened(r, ji, m.lsel[0])
+		}
+	case 1:
+		if as := r.annotations(r.jobs[ji]); len(as) > 0 {
+			a := as[m.lsel[1]]
+			m.sect, m.raw, m.lsel[0] = 0, false, a.step
+			m.stepOpen[fmt.Sprint(r.id, "/", ji, "/", a.step)] = true
+		}
 	}
+}
+
+// move steps the tree, or the selected row of the right pane's section.
+func (m *model) move(d, nodes int) {
+	if m.focus == 1 {
+		m.sel = max(0, min(nodes-1, m.sel+d))
+		return
+	}
+	r, ji, ok := m.selJob()
+	if !ok {
+		return
+	}
+	j := r.jobs[ji]
+	size := []int{len(j.steps), len(r.annotations(j)), len(r.artifacts())}[m.sect]
+	if m.sect == 0 && m.raw {
+		m.rawSel = max(0, min(59, m.rawSel+d))
+		return
+	}
+	m.lsel[m.sect] = max(0, min(size-1, m.lsel[m.sect]+d))
 }
 
 func (m *model) View() tea.View {
@@ -200,13 +276,8 @@ func (m *model) layout() (panes.Layout, bool) {
 		return panes.Compute(panes.Spec{Width: m.w, Height: h, Panes: defs, Focus: m.focus, Zoom: true}), strip
 	}
 	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
-	var ws []int
-	if m.variant == 1 {
-		w1, w2 := m.w/3, m.w/4
-		ws = []int{w1, w2, m.w - w1 - w2}
-	} else {
-		ws = []int{panes.DefaultListWidth, m.w - panes.DefaultListWidth}
-	}
+	w1 := max(panes.DefaultListWidth, m.w*2/5)
+	ws := []int{w1, m.w - w1}
 	x := 0
 	for i, w := range ws {
 		l.Boxes = append(l.Boxes, panes.Box{Pane: panes.Pane(i + 1), Rect: panes.Rect{X: x, W: w, H: h}})
@@ -226,7 +297,7 @@ func sealed(line string, width int) string {
 func (m *model) header() string {
 	s := m.th.Text.Bold(true).Render("Actions") + m.th.Subtle.Render(m.ic.Separator) + m.th.Muted.Render("eggzec/gh-tui") + "  "
 	counts := m.tabCounts()
-	for i, t := range m.tabs() {
+	for i, t := range tabNames {
 		label := fmt.Sprintf("%s %d", t, counts[i])
 		if i == m.tab {
 			s += m.th.Accent.Bold(true).Underline(true).Render(label)
@@ -264,9 +335,18 @@ func (m *model) footer(l panes.Layout) string {
 		}
 		parts = append(parts, hint("z", what))
 	}
-	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"))
-	parts = append(parts, hint("1 2 3", fmt.Sprintf("variant %d: %s", m.variant, variantNames[m.variant-1])))
+	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"), hint("l p a", "section"))
 	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })
+	if m.dl != "" {
+		const n = 8
+		done := min(n, m.prog*n/100)
+		bar := strings.Repeat("#", done) + strings.Repeat("-", n-done)
+		msg := fmt.Sprintf("Downloading %s [%s] %d%%", m.dl, bar, min(100, m.prog))
+		if m.prog >= 100 {
+			msg = "Downloaded " + m.dl
+		}
+		return sealed(m.th.Accent.Render(msg), m.w)
+	}
 	return sealed(strings.Join(parts, m.th.Subtle.Render(m.ic.Separator)), m.w)
 }
 

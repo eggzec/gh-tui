@@ -1,16 +1,76 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type step struct{ name, status, dur string }
 type job struct {
 	name, status, dur string
+	group             string   // matrix parent name, "" when not a matrix job
+	needs             []string // names of the jobs (or matrix parents) it waits for
 	steps             []step
 }
+
+type annotation struct {
+	level, file, msg string
+	line, step       int // step: index of the step to jump to
+}
+
+type artifact struct{ name, size, expiry string }
+
+// annotations are hardcoded for the failing job.
+func (r run) annotations(j job) []annotation {
+	if j.status != "failure" {
+		return nil
+	}
+	_, fs := r.failing()
+	return []annotation{
+		{"error", "retry_test.go", "expected 3 attempts, got 2", 88, fs},
+		{"error", "retry_test.go", "--- FAIL: TestRetry (0.31s)", 74, fs},
+		{"error", ".github/workflows/ci.yml", "Process completed with exit code 1.", 41, fs},
+		{"warning", "internal/tui/actions/log.go", "cache miss for restore key go-mod-linux", 12, max(0, fs-1)},
+		{"warning", "go.mod", "toolchain go1.24.1 is newer than go directive", 3, 2},
+		{"notice", "Makefile", "retrying flaky target test-race", 57, fs},
+	}
+}
+
+func (r run) artifacts() []artifact {
+	switch r.status {
+	case "failure":
+		return []artifact{{"test-results.xml", "48 KB", "in 29d"}, {"coverage.out", "212 KB", "in 29d"}, {"gh-tui-linux-amd64", "14.2 MB", "in 6d"}}
+	case "success":
+		return []artifact{{"gh-tui-linux-amd64", "14.2 MB", "in 6d"}, {"coverage.out", "212 KB", "in 29d"}}
+	}
+	return nil
+}
+
+// stepLines is what one step printed, shown under its header.
+func (r run) stepLines(j job, si int) []string {
+	s := j.steps[si]
+	pool := []string{"go: downloading charm.land/lipgloss/v2 v2.0.6", "cache hit for key go-mod-linux", "Compiling package internal/tui", "Running 214 tests", "ok  internal/tui/actions 0.412s", "Linking binary", "Uploading 3 files"}
+	n := 2 + (r.id+si)%3
+	var out []string
+	if s.status == "skipped" || s.status == "queued" {
+		return nil
+	}
+	for i := range n {
+		out = append(out, pool[(r.id+si*3+i)%len(pool)])
+	}
+	if s.status == "failure" {
+		out = append(out, "##[error]--- FAIL: TestRetry (0.31s)", "##[error]    retry_test.go:88: expected 3 attempts, got 2", "##[error]Process completed with exit code 1.")
+	}
+	if si == 3 {
+		out = append(out, "##[warning]cache miss for restore key")
+	}
+	return out
+}
+
 type run struct {
-	id                                      int
+	id                                        int
 	workflow, title, branch, status, dur, age string
-	jobs                                    []job
+	jobs                                      []job
 }
 
 var workflows = []string{"CI", "Release", "Nightly"}
@@ -42,14 +102,15 @@ func buildRuns() []run {
 }
 
 func mkJobs(i int, status string) []job {
-	names := []string{"lint", "build", "test (linux)", "test (macos)", "e2e", "deploy"}
+	names := []string{"lint", "build", "test (go 1.23, ubuntu)", "test (go 1.24, ubuntu)", "test (go 1.23, macos)", "test (go 1.24, macos)", "e2e", "deploy"}
+	needs := [][]string{nil, {"lint"}, {"build"}, {"build"}, {"build"}, {"build"}, {"test"}, {"e2e", "lint"}}
 	base := []string{"Set up job", "Checkout", "Setup Go", "Restore cache", "Run tests", "Build", "Upload artifacts", "Post cleanup"}
-	n := 3 + i%4
+	n := 6 + i%3
 	var jobs []job
 	for ji := 0; ji < n; ji++ {
 		k := 4 + (i+ji)%5
 		sn := append(append([]string{}, base[:k-1]...), "Post cleanup")
-		mid := n / 2
+		mid := 3
 		js := "success"
 		ss := func(si int) string { return "success" }
 		switch status {
@@ -110,7 +171,11 @@ func mkJobs(i int, status string) []job {
 			js = status
 			ss = func(int) string { return status }
 		}
-		j := job{name: names[ji], status: js}
+		j := job{name: names[ji], status: js, needs: needs[ji]}
+		j.group, _, _ = strings.Cut(j.name, " (")
+		if j.group == j.name {
+			j.group = ""
+		}
 		if js != "queued" && js != "skipped" {
 			j.dur = fmt.Sprintf("%ds", 10+7*(i+ji)%50)
 		}
