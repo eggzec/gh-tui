@@ -56,7 +56,8 @@ type SearchUser struct {
 }
 
 // SearchHit is one search result: a repository, an issue or pull request,
-// or an account. Kind says which of Repo, Issue and User is set. For a pull
+// an account, or a commit. Kind says which of Repo, Issue, User and Commit is
+// set. For a pull
 // request, Issue is its issue part, and Issue.Repo names its repository in
 // either case.
 type SearchHit struct {
@@ -65,6 +66,8 @@ type SearchHit struct {
 	Issue Issue
 	// User is set for SearchUsers hits, users and organizations alike.
 	User SearchUser
+	// Commit is set for SearchCommits hits.
+	Commit SearchCommit
 	// Draft reports a draft pull request.
 	Draft bool
 }

@@ -534,6 +534,12 @@ func (keySearch) CachedUsers(searchsvc.UsersQuery) (core.SearchPage[core.SearchU
 func (keySearch) Users(context.Context, searchsvc.UsersQuery) (core.SearchPage[core.SearchUser], error) {
 	return core.SearchPage[core.SearchUser]{}, nil
 }
+func (keySearch) CachedCommits(searchsvc.CommitsQuery) (core.SearchPage[core.SearchCommit], bool) {
+	return core.SearchPage[core.SearchCommit]{}, true
+}
+func (keySearch) Commits(context.Context, searchsvc.CommitsQuery) (core.SearchPage[core.SearchCommit], error) {
+	return core.SearchPage[core.SearchCommit]{}, nil
+}
 func (keySearch) Invalidate() {}
 
 // keyActions serves the failed run, its job and the job's log, to the
