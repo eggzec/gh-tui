@@ -74,7 +74,10 @@ type run struct {
 	jobs                                      []job
 }
 
-var workflows = []string{"CI", "Release", "Nightly"}
+// sha is a short commit id made from the run's id.
+func (r run) sha() string { return fmt.Sprintf("%07x", r.id*2654435%0xfffffff) }
+
+var workflows =[]string{"CI", "Release", "Nightly"}
 
 var allRuns = buildRuns()
 

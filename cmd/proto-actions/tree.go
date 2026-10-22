@@ -367,7 +367,9 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 			at = fmt.Sprintf("  attempt %d/%d", m.attempt(m.logRun), n)
 		}
 		c.TopLeft = []string{"Log " + j.name + at, "Log " + j.name, "Log"}
-		c.TopRight = []string{r.title + " #" + fmt.Sprint(r.id), ""}
+		id := r.title + " #" + fmt.Sprint(r.id)
+		c.TopRight = []string{id + "  " + r.event + "  " + r.branch + "  " + r.actor + "  " + r.sha() + "  " + r.dur,
+			id + "  " + r.branch + "  " + r.sha(), id, ""}
 		c.BottomLeft = []string{"j k scroll  / search  ] [ step  :n :p attempt  backspace back", "] [ :n :p", ""}
 		m.pg.SetSize(in.W, in.H)
 		c.Body = m.pg.View()
@@ -542,25 +544,12 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 				mark = m.ic.Unfolded
 			}
 			left := cur + guide(i) + m.th.Subtle.Render(mark) + " " + m.glyph(r.status) + " " + name(r.title, m.th.Text.Render(r.title))
-			if g != "workflow" && w >= 70 {
-				left += " " + m.th.Subtle.Render(r.workflow)
-			}
-			var meta []string
+			// The rest of the run's attributes show in Annotations.
+			suffix := r.dur
 			if r.status == "running" {
-				done := r.doneJobs()
-				meta = append(meta, m.th.Accent.Render(strings.Repeat("▰", done*4/len(r.jobs))+strings.Repeat("▱", 4-done*4/len(r.jobs))+fmt.Sprintf(" %d/%d", done, len(r.jobs))))
+				suffix = fmt.Sprintf("%d/%d", r.doneJobs(), len(r.jobs))
 			}
-			if w >= 56 && g != "branch" {
-				meta = append(meta, m.th.Muted.Render(r.branch))
-			}
-			if r.dur != "" && w >= 44 {
-				meta = append(meta, m.th.Subtle.Render(r.dur))
-			}
-			if na := attempts(r); na > 1 && w >= 44 {
-				meta = append(meta, m.th.Warning.Render(fmt.Sprintf("attempt %d/%d", m.attempt(n.run), na)))
-			}
-			meta = append(meta, m.th.Subtle.Render(r.age))
-			lines = append(lines, m.row(left, strings.Join(meta, " "), w))
+			lines = append(lines, m.row(left, m.th.Subtle.Render(suffix), w))
 		case kGroup:
 			st, pass, total := r.rollup(n.group)
 			mark := m.ic.Folded
@@ -618,9 +607,12 @@ func (m *model) annoBody(as []annoRow, w, h int, focus bool) string {
 		return m.th.Subtle.Render("Select a run to see its annotations")
 	}
 	if len(as) == 0 {
-		return m.th.Subtle.Render("No annotations. Failing jobs list theirs here.")
+		head := m.attrLines(ri, w)
+		return strings.Join(append(head, m.th.Subtle.Render("No annotations.")), "\n")
 	}
 	r := allRuns[ri]
+	head := m.attrLines(ri, w)
+	h = max(h-len(head), 1)
 	var out []string
 	for i, a := range as {
 		g := m.th.Accent.Render("i")
@@ -638,7 +630,33 @@ func (m *model) annoBody(as []annoRow, w, h int, focus bool) string {
 		}
 		out = append(out, m.row(m.cursor(sel, focus)+g+" "+loc+"  "+msg, m.th.Subtle.Render(r.jobs[a.job].name), w))
 	}
-	return strings.Join(window(out, min(m.asel, len(as)-1), h), "\n")
+	return strings.Join(append(head, window(out, min(m.asel, len(as)-1), h)...), "\n")
+}
+
+// attrLines are the attributes of run ri, as dim label:value lines.
+func (m *model) attrLines(ri, w int) []string {
+	r := allRuns[ri]
+	kv := func(pairs ...string) string {
+		var parts []string
+		for i := 0; i+1 < len(pairs); i += 2 {
+			parts = append(parts, m.th.Subtle.Render(pairs[i]+":")+m.th.Muted.Render(pairs[i+1]))
+		}
+		return ansi.Truncate(strings.Join(parts, "  "), w, m.ic.Ellipsis)
+	}
+	att := "1/1"
+	if n := attempts(r); n > 0 {
+		att = fmt.Sprintf("%d/%d", m.attempt(ri), n)
+	}
+	dur := r.dur
+	if dur == "" {
+		dur = "-"
+	}
+	return []string{
+		kv("attempt", att, "event", r.event),
+		kv("branch", r.branch, "actor", r.actor),
+		kv("started", r.age+" ago", "duration", dur),
+		kv("sha", r.sha()),
+	}
 }
 
 // dlBody lists the downloads of the run in view.

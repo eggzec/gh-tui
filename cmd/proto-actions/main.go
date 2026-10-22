@@ -37,10 +37,8 @@ type model struct {
 	flt       map[string][]string // facet -> the values it may have
 	sortBy    string
 	ov        int // 0 none, 1 group, 2 filter, 3 sort, 4 download directory
-	op        [2]opane
-	ofocus    int  // overlay pane with the focus
-	osearch   bool // typing a search in the overlay pane
-	fp        filepicker.Model
+	modal     ui.Modal // the group, filter or sort overlay
+	fp       filepicker.Model
 
 	openRun map[int]bool
 	openGrp map[string]bool
@@ -158,6 +156,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case pager.CloseMsg:
 		return m, tea.Quit
 	}
+	if m.modal != nil {
+		return m, m.modalUpdate(msg)
+	}
 	if m.ov == 4 {
 		var cmd tea.Cmd
 		m.fp, cmd = m.fp.Update(msg)
@@ -269,9 +270,8 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case m.ov == 4:
 		return m, m.pickerKey(msg)
-	case m.ov != 0:
-		m.overlayKey(k)
-		return m, nil
+	case m.modal != nil:
+		return m, m.modalUpdate(msg)
 	case m.view == 1:
 		return m.logKey(msg)
 	}
@@ -581,14 +581,14 @@ func (m *model) layout() (panes.Layout, bool) {
 		return panes.Compute(panes.Spec{Width: m.w, Height: h, Panes: defs, Focus: m.focus, Zoom: true}), strip
 	}
 	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
-	w1 := max(panes.DefaultListWidth, m.w*2/5)
-	if m.preview {
-		w1 = max(panes.DefaultListWidth, m.w*9/20)
-	}
+	// Runs is a narrow list of glyph and title; the attributes of the run
+	// are in Annotations, so the right column takes the room.
+	w1 := max(30, min(34, m.w*27/100))
 	// The right column stacks annotations over downloads; boxes are drawn
 	// in order, so each row of the screen is written left to right.
-	h2 := max(3, (h+1)/2)
-	if h-h2 < 3 {
+	// Downloads has 5 content rows, and annotations the rest.
+	h2 := h - 7
+	if h2 < 3 {
 		h2 = max(0, h-3)
 	}
 	l.Boxes = []panes.Box{
@@ -649,21 +649,10 @@ func (m *model) footer(l panes.Layout) string {
 	}
 	if m.ov != 0 {
 		var hs []string
-		for _, h := range m.overlayHint() {
-			k, w, _ := strings.Cut(h, " ")
-			if strings.HasPrefix(h, "type") {
-				k, w = "type", "to search"
+		for _, b := range m.overlayHints() {
+			if b.Enabled() && b.Help().Key != "" {
+				hs = append(hs, hint(b.Help().Key, b.Help().Desc))
 			}
-			if h == "j k move" || strings.Contains(h, "space") || strings.Contains(h, "tab") || strings.Contains(h, "backspace") || strings.Contains(h, "esc") {
-				k, w = strings.Fields(h)[0], strings.Join(strings.Fields(h)[1:], " ")
-			}
-			if h == "j k move" {
-				k, w = "j k", "move"
-			}
-			if h == "esc clear/close" {
-				k, w = "esc", "clear/close"
-			}
-			hs = append(hs, hint(k, w))
 		}
 		return sealed(strings.Join(hs, m.th.Subtle.Render(m.ic.Separator)), m.w)
 	}

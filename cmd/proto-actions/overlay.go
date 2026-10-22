@@ -1,332 +1,172 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/filepicker"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// The overlays work as the notifications filter does: two panes in one
-// frame, the checked rows of the first feeding the second.
+// The group, filter and sort overlays are the app's own modals (ui.GroupModal,
+// ui.FilterModal, the sort levels modal), drawn in the frame of the root
+// model's modals.
 
-// oitem is one row of an overlay pane.
-type oitem struct {
-	label, field string
-	on           bool
-}
+// runFilter lets the filter modal apply its values to the prototype's runs.
+type runFilter struct{ m *model }
 
-// opane is one list of an overlay.
-type opane struct {
-	items []oitem
-	cur   int
-	q     string // search
-}
-
-// vis is the indexes of the rows the search keeps.
-func (p opane) vis() []int {
-	var out []int
-	for i, it := range p.items {
-		if p.q == "" || strings.Contains(strings.ToLower(it.label), strings.ToLower(p.q)) {
-			out = append(out, i)
+func (f runFilter) Filter() (ui.Filter, bool) {
+	var fields []filterform.Field
+	for _, name := range facets {
+		var opts []filterform.Item
+		for _, v := range facetValues(name)[1:] {
+			opts = append(opts, filterform.Item{Label: v, Value: v})
 		}
+		fields = append(fields, filterform.Field{Key: name, Label: strings.ToUpper(name[:1]) + name[1:],
+			Kind: filterform.Multi, Qualifier: name, Options: opts, Hint: "any " + name,
+			Default: filterform.ListValue(f.m.flt[name]...)})
+	}
+	return ui.Filter{Spec: filterform.Spec{Fields: fields}, Subject: "runs"}, true
+}
+
+func (f runFilter) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
+	f.m.flt = map[string][]string{}
+	for _, name := range facets {
+		if l := msg.Values[name].List(); len(l) > 0 {
+			f.m.flt[name] = slices.Clone(l)
+		}
+	}
+	f.m.fltOff, f.m.sel = false, 0
+	return nil
+}
+
+// levelItems are the fields a level modal offers.
+func levelItems(names []string) []orderpick.Item {
+	var items []orderpick.Item
+	for _, n := range names {
+		if n != "none" {
+			items = append(items, orderpick.Item{Value: n, Title: n, AscLabel: "ascending", DescLabel: "descending"})
+		}
+	}
+	return items
+}
+
+func (m *model) openOv(kind int) {
+	keys := ui.OrderPickKeys(m.cfg.Keys)
+	switch kind {
+	case 1:
+		var chosen []orderpick.Choice
+		if g := m.grouped(); g != "" {
+			chosen = []orderpick.Choice{{Value: g}}
+		}
+		m.modal = ui.NewGroupModal("runs", levelItems(groups), chosen, keys, m.ic, func(c []orderpick.Choice) tea.Cmd {
+			m.groupBy, m.groupOff, m.sel = "none", false, 0
+			if len(c) > 0 {
+				// The tree nests one level; the first one chosen is it.
+				m.groupBy = c[0].Value.(string)
+			}
+			return nil
+		})
+	case 2:
+		f, _ := runFilter{m}.Filter()
+		m.modal = ui.NewFilterModal(context.Background(), "runs", runFilter{m}, f,
+			ui.WithFormKeys(ui.FilterFormKeys(m.cfg.Keys, "filter")), ui.WithFormIcons(m.ic))
+	case 3:
+		chosen := []orderpick.Choice{{Value: m.sortBy, Desc: m.sortRev}}
+		m.modal = ui.NewSortLevelsModal("runs", levelItems(sorts), chosen, keys, m.ic, func(c []orderpick.Choice) tea.Cmd {
+			m.sortBy, m.sortRev, m.sel = "newest", false, 0
+			if len(c) > 0 {
+				m.sortBy, m.sortRev = c[0].Value.(string), c[0].Desc
+			}
+			return nil
+		})
+	}
+	m.ov = kind
+	m.modal.SetTheme(m.th)
+	m.sizeModal()
+}
+
+// frameSize is the size of the modal with its frame, as the root model's.
+func (m *model) frameSize() (int, int) {
+	w, h := max(m.w-2*max(m.w/10, 2), 0), max(m.h-2*max(m.h/10, 1), 0)
+	if f, ok := m.modal.(ui.Fitter); ok {
+		fw, fh := f.Fit(max(w-4, 0), max(h-2, 0))
+		w, h = min(w, fw+4), min(h, fh+2)
+	}
+	return w, h
+}
+
+func (m *model) sizeModal() {
+	w, h := m.frameSize()
+	m.modal.SetSize(max(w-4, 0), max(h-2, 0))
+}
+
+// closeOv closes the open overlay.
+func (m *model) closeOv() { m.modal, m.ov = nil, 0 }
+
+// modalUpdate gives msg to the open overlay.
+func (m *model) modalUpdate(msg tea.Msg) tea.Cmd {
+	switch msg.(type) {
+	case ui.LeaveModalMsg, ui.CloseModalMsg:
+		m.closeOv()
+		return nil
+	}
+	cmd := m.modal.Update(msg)
+	if m.modal != nil {
+		m.sizeModal()
+	}
+	return cmd
+}
+
+// overlayHints are the short help of the open overlay's key layers.
+func (m *model) overlayHints() []key.Binding {
+	k, ok := m.modal.(ui.Keyed)
+	if !ok {
+		return nil
+	}
+	var out []key.Binding
+	for _, l := range k.KeyLayers() {
+		out = append(out, l.Short...)
 	}
 	return out
 }
 
-// at is the item under the cursor, or -1.
-func (p *opane) at() int {
-	v := p.vis()
-	if len(v) == 0 {
-		return -1
+// frame draws the modal in its frame, with its title in the top edge, as the
+// root model does.
+func (m *model) frame() (string, int) {
+	w, _ := m.frameSize()
+	if w < 4 {
+		return "", 0
 	}
-	p.cur = max(0, min(p.cur, len(v)-1))
-	return v[p.cur]
+	b := m.ic.Border
+	title := termtext.Truncate(" "+ui.OneLine(m.modal.Title())+" ", max(w-4, 0), m.ic.Ellipsis+" ")
+	rest := max(w-3-lipgloss.Width(title), 0)
+	top := m.th.Accent.Render(b.TopLeft+b.Top) + m.th.Title.Render(title) +
+		m.th.Accent.Render(strings.Repeat(b.Top, rest)) + m.th.Accent.Render(b.TopRight)
+	return top + "\n" + m.th.Frame().Border(b, false, true, true).Render(m.modal.View()), w
 }
 
-func (m *model) openOv(kind int) {
-	m.ov, m.ofocus, m.osearch = kind, 0, false
-	m.op = [2]opane{}
-	switch kind {
-	case 1:
-		for i, g := range groups {
-			m.op[0].items = append(m.op[0].items, oitem{label: g})
-			if g == m.groupBy {
-				m.op[0].cur = i
-			}
-		}
-	case 2:
-		for _, f := range facets {
-			m.op[0].items = append(m.op[0].items, oitem{label: f, field: f, on: len(m.flt[f]) > 0})
-		}
-	case 3:
-		for i, s := range sorts {
-			m.op[0].items = append(m.op[0].items, oitem{label: s})
-			if s == m.sortBy {
-				m.op[0].cur = i
-			}
-		}
-	}
-	m.refeed()
-}
-
-// refeed rebuilds the second pane from the first one's selection.
-func (m *model) refeed() {
-	old := m.op[1]
-	var items []oitem
-	p0 := &m.op[0]
-	switch m.ov {
-	case 1:
-		if i := p0.at(); i >= 0 {
-			g := groups[i]
-			if g == "none" {
-				items = append(items, oitem{label: "runs are not grouped"})
-			}
-			if g != "none" {
-				for _, v := range facetValuesBy(g) {
-					items = append(items, oitem{label: v})
-				}
-			}
-		}
-	case 2:
-		var fs []string
-		for _, it := range p0.items {
-			if it.on {
-				fs = append(fs, it.field)
-			}
-		}
-		if i := p0.at(); len(fs) == 0 && i >= 0 {
-			fs = append(fs, p0.items[i].field)
-		}
-		for _, f := range fs {
-			for _, v := range facetValues(f)[1:] {
-				on := slices.Contains(m.flt[f], v)
-				if j := slices.IndexFunc(old.items, func(o oitem) bool { return o.field == f && o.label == v }); j >= 0 {
-					on = old.items[j].on
-				}
-				items = append(items, oitem{label: f + ": " + v, field: f, on: on})
-			}
-		}
-	case 3:
-		items = []oitem{{label: "as listed"}, {label: "reversed", on: m.sortRev}}
-		if len(old.items) > 0 {
-			items[1].on = old.items[1].on
-		}
-	}
-	m.op[1] = opane{items: items, cur: old.cur, q: old.q}
-	m.op[1].at()
-}
-
-// facetValuesBy is the values a grouping has, from its facet.
-func facetValuesBy(g string) []string {
-	f := g
-	switch g {
-	case "status", "branch", "event", "actor", "workflow":
-	default:
-		return nil
-	}
-	return facetValues(f)[1:]
-}
-
-// overlayKey handles a key in the group, filter or sort overlay.
-func (m *model) overlayKey(k string) {
-	p := &m.op[m.ofocus]
-	if m.osearch {
-		switch k {
-		case "esc":
-			m.osearch, p.q = false, ""
-		case "enter":
-			m.osearch = false
-		case "backspace":
-			if p.q == "" {
-				m.osearch = false
-			} else {
-				p.q = p.q[:len(p.q)-1]
-			}
-		default:
-			if len(k) == 1 {
-				p.q += k
-			}
-		}
-		p.cur = 0
-		m.refeed()
-		return
-	}
-	switch k {
-	case "j", "down":
-		p.cur++
-		p.at()
-	case "k", "up":
-		p.cur = max(0, p.cur-1)
-	case "/":
-		m.osearch = true
-	case "space", " ":
-		m.toggle()
-	case "tab", "l", "right":
-		if m.ofocus == 0 {
-			m.ofocus = 1
-		}
-	case "shift+tab", "h", "left":
-		m.ofocus = 0
-	case "backspace":
-		if m.ofocus == 1 {
-			m.ofocus = 0
-		} else {
-			m.ov = 0
-		}
-	case "esc":
-		if p.q != "" {
-			p.q = ""
-			break
-		}
-		if slices.ContainsFunc(p.items, func(o oitem) bool { return o.on }) && m.ov != 3 {
-			for i := range p.items {
-				p.items[i].on = false
-			}
-			break
-		}
-		m.ov = 0
-	case "enter":
-		if m.ov == 1 || m.ofocus == 1 {
-			m.apply()
-			return
-		}
-		m.ofocus = 1
-	}
-	if m.ofocus == 0 {
-		m.refeed()
-	}
-}
-
-// toggle checks the row under the cursor.
-func (m *model) toggle() {
-	p := &m.op[m.ofocus]
-	i := p.at()
-	if i < 0 || m.ov == 1 {
-		return
-	}
-	if m.ov == 3 && m.ofocus == 0 {
-		return
-	}
-	p.items[i].on = !p.items[i].on
-}
-
-// apply writes the overlay's choice to the model and closes it.
-func (m *model) apply() {
-	switch m.ov {
-	case 1:
-		if i := m.op[0].at(); i >= 0 {
-			m.groupBy, m.groupOff = groups[i], false
-		}
-	case 2:
-		m.flt = map[string][]string{}
-		for _, it := range m.op[1].items {
-			if it.on {
-				v := strings.TrimPrefix(it.label, it.field+": ")
-				m.flt[it.field] = append(m.flt[it.field], v)
-			}
-		}
-		m.fltOff = false
-	case 3:
-		if i := m.op[0].at(); i >= 0 {
-			m.sortBy = sorts[i]
-		}
-		m.sortRev = len(m.op[1].items) > 1 && m.op[1].items[1].on
-	}
-	m.ov, m.sel = 0, 0
-}
-
-// overlayHint is the foot while an overlay is open.
-func (m *model) overlayHint() []string {
-	if m.osearch {
-		return []string{"type to search", "enter keep", "esc clear"}
-	}
-	h := []string{"j k move", "/ search"}
-	if m.ov != 1 {
-		h = append(h, "space toggle", "tab next pane")
-	}
-	return append(h, "enter apply", "backspace back", "esc clear/close")
-}
-
-// overlay draws the group, filter or sort panes over the screen.
+// overlay draws the open overlay over base.
 func (m *model) overlay(base string) string {
 	if m.ov == 4 {
 		return m.pickerFrame(base)
 	}
-	names := [][2]string{{"Group by", "Groups"}, {"Fields", "Values"}, {"Sort by", "Direction"}}[m.ov-1]
-	if m.ov == 1 {
-		names[1] = "Preview"
+	box, w := m.frame()
+	if box == "" {
+		return base
 	}
-	ow := min(m.w, 76)
-	lw := ow / 2
-	rows := 4
-	for _, p := range m.op {
-		rows = max(rows, len(p.items))
-	}
-	oh := min(max(m.h-4, 6), rows+3)
-	l := panes.Layout{Width: ow, Height: oh, Focus: panes.Pane(m.ofocus + 1),
-		Panes: []panes.Def{{Name: names[0]}, {Name: names[1]}},
-		Boxes: []panes.Box{
-			{Pane: 1, Rect: panes.Rect{W: lw, H: oh}},
-			{Pane: 2, Rect: panes.Rect{X: lw, W: ow - lw, H: oh}},
-		}}
-	box := m.frames.Draw(l, func(b panes.Box) panes.Content {
-		i := int(b.Pane) - 1
-		p := m.op[i]
-		c := panes.Content{TopLeft: []string{l.Title(b.Pane)}, Focus: b.Pane == l.Focus}
-		in := b.Rect.Inner()
-		n := 0
-		for _, it := range p.items {
-			if it.on {
-				n++
-			}
-		}
-		if m.ov != 1 && (m.ov == 2 || i == 0) {
-			c.TopRight = []string{fmt.Sprintf("%d of %d", n, len(p.items)), ""}
-		}
-		if p.q != "" || (m.osearch && m.ofocus == i) {
-			c.BottomLeft = []string{"/" + p.q, ""}
-		}
-		var lines []string
-		sel := p.cur
-		v := p.vis()
-		for j, idx := range v {
-			it := p.items[idx]
-			mark := ""
-			switch {
-			case m.ov == 1 && i == 0, m.ov == 3 && i == 0:
-				mark = "  "
-				if it.label == m.groupBy && m.ov == 1 || it.label == m.sortBy && m.ov == 3 {
-					mark = m.th.Accent.Render(m.ic.Cursor) + " "
-				}
-			case !(m.ov == 1 && i == 1):
-				mark = m.th.Subtle.Render("[ ]") + " "
-				if it.on {
-					mark = m.th.Accent.Render("[x]") + " "
-				}
-			}
-			txt := m.th.Text.Render(it.label)
-			if j == sel && b.Pane == l.Focus {
-				txt = m.th.Title.Render(it.label)
-			}
-			lines = append(lines, m.cursor(j == sel, b.Pane == l.Focus)+mark+txt)
-		}
-		if len(lines) == 0 {
-			lines = []string{m.th.Subtle.Render("Nothing to show")}
-		}
-		for j := range lines {
-			lines[j] = ansi.Truncate(lines[j], in.W, m.ic.Ellipsis)
-		}
-		c.Body = strings.Join(window(lines, sel, in.H), "\n")
-		return c
-	})
-	return m.place(base, box, ow)
+	return m.place(base, box, w)
 }
 
 // place draws box centred over base.
