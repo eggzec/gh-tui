@@ -99,7 +99,7 @@ cache:
     # The lists and details of issues, and their comments.
     issues: 5m
     notifications: 5m
-    # The lists of repositories: the search screen's start, an owner's
+    # The lists of repositories: the search modal's start, an owner's
     # repositories and the completion of :goto.
     repos: 5m
     # The dashboard's Repositories pane, which lists every owner's
@@ -554,12 +554,12 @@ keys:
     # the author of a pull request or issue, the owner of a repository or
     # of what is in it, such as a file or a notification, or an
     # organization of the dashboard's Repositories pane. Your own login
-    # shows the dashboard.
+    # shows the dashboard. In the search modal it closes the modal first.
     owner: ["@"]
-    # Show the repository of what is selected: of a result of the search, a
-    # pinned card, a row of the dashboard's Repositories, a task of its
-    # Work or a notification of its inbox or of the notifications list,
-    # a row of the page of a user or an organization, or the repository
+    # Show the repository of what is selected: of a result of the search
+    # (which closes the modal first), a pinned card, a row of the
+    # dashboard's Repositories, a task of its Work or a notification of
+    # its inbox or of the notifications list, a row of the page of a user or an organization, or the repository
     # its README comes from. It does nothing where nothing is selected,
     # the selection has no repository, or it is the repository on view.
     repo: ["."]
@@ -580,7 +580,7 @@ keys:
     next_pane: [tab]
     prev_pane: [shift+tab]
     # Switch between the tabs of the focused pane or modal, such as the kinds
-    # of the search page, All, Failing, Running and Mine of the Actions
+    # of the search modal, All, Failing, Running and Mine of the Actions
     # modal, the states of the pull requests and the issues, the owners of
     # the dashboard's repositories, the lists of the page of a user or an
     # organization, and the Filters and Sort tabs of the filter modal.
@@ -590,7 +590,7 @@ keys:
     # pull requests and issues on the repository screen; pinned,
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
-    # a user or an organization; the kinds of results on the search page,
+    # a user or an organization; the kinds of results in the search modal,
     # which show the kind and focus the results; branches, graph and commit in
     # History; the panes of the modal of a pull request; and runs, jobs and log
     # in Actions. A digit with no such pane there does nothing, and never
@@ -815,14 +815,14 @@ keys:
     read: [U]
     done: [D]
 
-  # The search page, on any of its panes. It opens on the query in normal
-  # mode, where these keys and the global ones work. The digits 1 to 6 show
-  # the kind of results with that number (global pane_1 to pane_6), and
-  # the digit of the kind on view focuses the results.
+  # The search modal, on any of its panes. It opens on the query in normal
+  # mode, where these keys and the global ones work. The digits 1 to 7 show
+  # the kind of results with that number (global pane_1 to pane_6 and
+  # kind_7 here), and the digit of the kind on view focuses the results.
   search_modal:
     # Start typing in the query.
     insert: [i]
-    # Show the seventh kind of results, once there is one.
+    # Show the seventh kind of results, topics.
     kind_7: ["7"]
 
   # Search: the results.

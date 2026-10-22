@@ -13,7 +13,7 @@ import (
 
 // Search runs one GraphQL query with a search field per kind. It costs a
 // single point of the GraphQL quota, however many kinds it asks for, and
-// leaves the REST search limit of 30 a minute alone, so a search page can
+// leaves the REST search limit of 30 a minute alone, so a search modal can
 // count every kind as the user types.
 
 // Limits of a search result row.

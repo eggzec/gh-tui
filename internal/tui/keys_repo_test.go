@@ -146,7 +146,7 @@ func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
 }
 
 // TestSearchKeyClearsTheQueryOnThePage checks that the search key, pressed
-// with the search page on view, starts a new query.
+// with the search modal on view, starts a new query.
 func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -200,7 +200,7 @@ func TestCompleteHere(t *testing.T) {
 }
 
 // TestBackspaceOnTheSearchPage checks that backspace goes back from the
-// search page while the query isn't typing, and deletes while it is.
+// search modal while the query isn't typing, and deletes while it is.
 func TestBackspaceOnTheSearchPage(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -221,7 +221,7 @@ func TestBackspaceOnTheSearchPage(t *testing.T) {
 }
 
 // TestRepoKeyOnTheQueryDoesNothing checks that with the query of the
-// search page focused but not typing, no result is selected for the repo
+// search modal focused but not typing, no result is selected for the repo
 // key.
 func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 	t.Parallel()
@@ -235,7 +235,7 @@ func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 		// it does nothing with no result selected, checked below.
 		pressKeys(t, m, ".")
 		if m.searchHost() == nil {
-			t.Errorf("screen = %d, want the search page still", m.screen)
+			t.Errorf("screen = %d, want the search modal still", m.screen)
 		}
 	})
 }

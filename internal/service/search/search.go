@@ -4,7 +4,7 @@
 //
 // A first page of repositories, issues or pull requests comes with the
 // count of the other two kinds, in one GraphQL query of a single point, so
-// a search page can show each kind's count as the user types. GitHub runs
+// a search modal can show each kind's count when a query is submitted. GitHub runs
 // the searches of one query one after another, so the first pages of the
 // other kinds are separate queries, which Prefetch sends side by side. Code search
 // has a REST limit of 10 requests a minute, so it runs only when asked for.
@@ -30,7 +30,7 @@ import (
 // maxPageSize is the largest page GitHub returns.
 const maxPageSize = 100
 
-// kinds are the kinds Search looks for, in the order a search page lists
+// kinds are the kinds Search looks for, in the order a search modal lists
 // them.
 var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls}
 

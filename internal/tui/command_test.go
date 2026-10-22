@@ -108,7 +108,7 @@ func quit(msgs []tea.Msg) bool {
 }
 
 // appKind names the apps of the tests: one of fake sections opened on
-// testRepo, one with a dashboard opened on it, and one with a search page
+// testRepo, one with a dashboard opened on it, and one with a search modal
 // opened on testRepo.
 type appKind int
 

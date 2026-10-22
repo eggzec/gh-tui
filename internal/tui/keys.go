@@ -192,7 +192,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 		// Only the repository screen has panes to cycle through. On the
 		// other screens the app leaves these keys to the section, which
 		// does what it defines for them: the dashboard and the owner page
-		// move between their panes, the search page between its query,
+		// move between their panes, the search modal between its query,
 		// kinds and results, and the notifications have no use for them.
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)

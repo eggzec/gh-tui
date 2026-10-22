@@ -113,7 +113,7 @@ func TestKeyLayersOfTheCommandLine(t *testing.T) {
 }
 
 // focusOf names where the focus is: the focused pane of the repository
-// screen, or the part of the search page that has it
+// screen, or the part of the search modal that has it
 // (the query typing, the query in normal mode, or the results), by its
 // last layer of keys, and the query it searches for.
 func focusOf(m *Model) string {
@@ -131,8 +131,8 @@ func focusOf(m *Model) string {
 }
 
 // Tab and shift+tab cycle the panes of the repository screen, which the
-// app does, and reach the section on the search screen, which does what it
-// defines for them: the search page moves between its query and results,
+// app does, and reach the section on the search modal, which does what it
+// defines for them: the search modal moves between its query and results,
 // and its ] and [ show the next and the previous kind without moving the
 // focus; the query types them, and keeps tab. The help credits each key to
 // what it reaches.

@@ -18,7 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
-// KeyMap holds the keys of the search page. While the query types, only
+// KeyMap holds the keys of the search modal. While the query types, only
 // the keys that type nothing act; the rest edit the query.
 type KeyMap struct {
 	// Next and Prev move the focus between the query, the results and the

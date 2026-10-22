@@ -13,7 +13,7 @@ import (
 )
 
 // recall is what the command line completes from: the lists the services
-// hold in memory, which the dashboard, the search page and the panes
+// hold in memory, which the dashboard, the search modal and the panes
 // read. It never does I/O.
 type recall struct {
 	// pinned are the repositories of the config, and here that of the
@@ -38,7 +38,7 @@ type recall struct {
 var _ tui.Recall = recall{}
 
 // Repos returns the repository of the current directory and those pinned,
-// then the viewer's own on the dashboard, then those the search page
+// then the viewer's own on the dashboard, then those the search modal
 // starts with, each most recently updated first. It may repeat one.
 func (r recall) Repos() []core.RepoRef {
 	out := make([]core.RepoRef, 0, 1+len(r.pinned))

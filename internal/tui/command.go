@@ -93,13 +93,13 @@ func (m *Model) referencesCommand(string) tea.Cmd {
 	return m.toast.Push(toast.Warning, "references works in the issue modal.")
 }
 
-// Searcher is a search page that searches for a query, as if the user
+// Searcher is a search modal that searches for a query, as if the user
 // typed it and pressed enter.
 type Searcher interface {
 	Search(query string) tea.Cmd
 }
 
-// Fresher is a search page that can drop its query, and the results of
+// Fresher is a search modal that can drop its query, and the results of
 // it, so the next one starts empty.
 type Fresher interface {
 	Fresh()
