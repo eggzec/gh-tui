@@ -76,6 +76,9 @@ func (s *Section) hitRepo() (core.RepoRef, bool) {
 	if hit.Kind == core.SearchUsers {
 		return core.RepoRef{}, false
 	}
+	if hit.Kind == core.SearchCommits {
+		return hit.Commit.Repo, true
+	}
 	return hit.Issue.Repo, true
 }
 
@@ -95,6 +98,8 @@ func (s *Section) openHit(hit core.SearchHit, checks bool) tea.Cmd {
 	case core.SearchUsers:
 		// The modal closes first, as it does for the owner key.
 		msg = ui.OwnerMsg{Login: hit.User.Login}
+	case core.SearchCommits:
+		msg = ui.OpenCommitMsg{Repo: hit.Commit.Repo, SHA: hit.Commit.SHA}
 	case core.SearchRepos:
 		msg = ui.RepoMsg{Repo: hit.Repo.Ref}
 	case core.SearchPulls:

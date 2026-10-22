@@ -49,6 +49,9 @@ func hitKey(h core.SearchHit) string {
 	if h.Kind == core.SearchUsers {
 		return h.User.Login
 	}
+	if h.Kind == core.SearchCommits {
+		return h.Commit.Repo.String() + "@" + h.Commit.SHA
+	}
 	return h.Issue.Repo.String() + "#" + strconv.Itoa(h.Issue.Number)
 }
 
@@ -85,6 +88,18 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 			hits := make([]core.SearchHit, len(p.Items))
 			for i, u := range p.Items {
 				hits[i] = core.SearchHit{Kind: core.SearchUsers, User: u}
+			}
+			return hits, p.Next, nil
+		}
+		if k == core.SearchCommits {
+			p, err := svc.Commits(ctx, search.CommitsQuery{Text: text, Cursor: cursor})
+			end(err, "span", "tui", "first", cursor == "", "items", len(p.Items))
+			if err != nil {
+				return nil, "", err
+			}
+			hits := make([]core.SearchHit, len(p.Items))
+			for i, c := range p.Items {
+				hits[i] = core.SearchHit{Kind: core.SearchCommits, Commit: c}
 			}
 			return hits, p.Next, nil
 		}
@@ -344,6 +359,8 @@ func (s *Section) spinTitle() tea.Cmd {
 
 func emptyText(k core.SearchKind) string {
 	switch k {
+	case core.SearchCommits:
+		return "No commits match. Try other words, or qualifiers such as author:name or repo:owner/name."
 	case core.SearchUsers:
 		return "No users or organizations match. Try other words, or qualifiers such as type:org or location:berlin."
 	case core.SearchCode:

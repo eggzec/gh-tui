@@ -42,11 +42,14 @@ type fakeService struct {
 	// users is the catalog of accounts, userQueries what was asked of it.
 	users       []core.SearchUser
 	userQueries []search.UsersQuery
-	size        int
-	pages       map[string]search.Result
-	code        map[string]core.SearchPage[core.CodeHit]
-	counts      map[string]map[core.SearchKind]int
-	limited     time.Time
+	// commits is the catalog of commits, commitQueries what was asked of it.
+	commits       []core.SearchCommit
+	commitQueries []search.CommitsQuery
+	size          int
+	pages         map[string]search.Result
+	code          map[string]core.SearchPage[core.CodeHit]
+	counts        map[string]map[core.SearchKind]int
+	limited       time.Time
 	// codeErr fails the next code search.
 	codeErr error
 
@@ -146,6 +149,26 @@ func (f *fakeService) Users(_ context.Context, q search.UsersQuery) (core.Search
 	for _, u := range f.users {
 		if matches(q.Text, u.Login) {
 			page.Items = append(page.Items, u)
+		}
+	}
+	page.Total = len(page.Items)
+	return page, nil
+}
+
+// CachedCommits reads nothing: commits are always asked for.
+func (f *fakeService) CachedCommits(search.CommitsQuery) (core.SearchPage[core.SearchCommit], bool) {
+	return core.SearchPage[core.SearchCommit]{}, false
+}
+
+// Commits returns the commits whose subject contains the query.
+func (f *fakeService) Commits(_ context.Context, q search.CommitsQuery) (core.SearchPage[core.SearchCommit], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.commitQueries = append(f.commitQueries, q)
+	var page core.SearchPage[core.SearchCommit]
+	for _, c := range f.commits {
+		if matches(q.Text, c.Subject) {
+			page.Items = append(page.Items, c)
 		}
 	}
 	page.Total = len(page.Items)
@@ -398,7 +421,7 @@ func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool, held
 		case nil, spinner.TickMsg, codeTickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OwnerMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenFilterMsg, ui.OpenSortMsg:
+		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OwnerMsg, ui.OpenCommitMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.OpenFileMsg, ui.OpenFilterMsg, ui.OpenSortMsg:
 			app = append(app, msg)
 		default:
 			if hold != nil && hold(msg) {

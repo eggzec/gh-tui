@@ -466,7 +466,7 @@ func (m *Model) openCommit(msg ui.OpenCommitMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModalOver(mod, m.notifHost())
+	m.openModalOver(mod, m.hostModal())
 	return load
 }
 

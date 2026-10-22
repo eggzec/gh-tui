@@ -385,6 +385,9 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 		return s.spread(st.muted.render(termtext.Cells(glyph, 1))+" "+
 			st.title.render(s.truncate(hit.User.Login, max(width-2, 0))), "", width)
 	}
+	if hit.Kind == core.SearchCommits {
+		return s.commitRow(hit.Commit, st, width)
+	}
 	is := &hit.Issue
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""
@@ -404,6 +407,27 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 		st.title.render(s.truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
 	return s.spread(head, right, width)
 }
+
+// commitRow renders a commit in one line of width cells: its glyph, short
+// SHA and subject, with the name of its repository at the right, which is
+// cut first.
+func (s *Section) commitRow(c core.SearchCommit, st *cells, width int) string {
+	sha := c.SHA[:min(len(c.SHA), shortSHA)]
+	repo := ""
+	if width >= wideRow {
+		repo = st.muted.render(s.truncate(c.Repo.Name, max(width/4, 12)))
+	}
+	room := max(width-2-len(sha)-1, 0)
+	if repo != "" {
+		room = max(room-ansi.StringWidth(repo)-1, 0)
+	}
+	head := st.muted.render(termtext.Cells(s.icons.Glyph(ui.GlyphCommit), 1)+" "+sha) + " " +
+		st.title.render(s.truncate(cleanLine(c.Subject), room))
+	return s.spread(head, repo, width)
+}
+
+// shortSHA is the length of the commit hash that rows show.
+const shortSHA = 7
 
 // stateGlyph marks an issue or pull request by its state; the shapes
 // differ as well as the colors.

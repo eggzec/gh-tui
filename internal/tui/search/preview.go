@@ -73,6 +73,9 @@ func (s *Section) previewed() previewBody {
 	if h.Kind == core.SearchRepos {
 		return previewBody{key: "repo " + hitKey(h), name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) }}
 	}
+	if h.Kind == core.SearchCommits {
+		return previewBody{key: "commit " + hitKey(h), name: h.Commit.Repo.String() + "@" + h.Commit.SHA, text: func() string { return commitText(h.Commit) }}
+	}
 	if h.Kind == core.SearchUsers {
 		return previewBody{key: "user " + h.User.Login, name: h.User.Login, text: func() string { return userText(h.User) }}
 	}
@@ -98,6 +101,19 @@ func (s *Section) markdownRender(head, body string) pager.Render {
 		}
 		return out
 	}
+}
+
+// commitText describes a commit from what its hit holds: the search gives
+// its message's first line, and nothing more is read.
+func commitText(c core.SearchCommit) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n\n", c.Subject)
+	fmt.Fprintf(&b, "Author: %s\n", c.Author)
+	if !c.Date.IsZero() {
+		fmt.Fprintf(&b, "Date: %s\n", c.Date.Format("2006-01-02 15:04"))
+	}
+	fmt.Fprintf(&b, "Repository: %s\nCommit: %s\n", c.Repo, c.SHA)
+	return b.String()
 }
 
 // repoText describes a repository from what its hit holds.

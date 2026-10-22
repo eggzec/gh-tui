@@ -4,9 +4,11 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -114,6 +116,34 @@ func TestBaseIsInTheHeader(t *testing.T) {
 	if s := onScreen(m); strings.Contains(s, "a1b2c3d") || m.base.Ref != "" {
 		t.Errorf("header shows a base after the repository was selected again:\n%s", s)
 	}
+}
+
+// TestCommitReturnsToSearch checks that a commit opened from a search hit
+// shows the search again once it closes.
+func TestCommitReturnsToSearch(t *testing.T) {
+	t.Parallel()
+	mod := &fakeModal{title: "History · charmbracelet/glow"}
+	glow := core.RepoRef{Owner: "charmbracelet", Name: "glow"}
+
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysAppOpts(t, false, func(*config.Config) {}, WithCommit(
+			func(context.Context, core.RepoRef, string, string) (ui.Modal, tea.Cmd) { return mod, nil }))
+		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
+		if m.searchHost() == nil {
+			t.Fatal("the search did not open")
+		}
+		run(m, func() tea.Msg { return ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"} })
+		if m.topModal() != mod {
+			t.Fatalf("top modal %v, want the commit", m.topModal())
+		}
+		if !m.modalBack() {
+			t.Fatal("the commit has no modal to go back to")
+		}
+		m.goModalBack(mod)
+		if m.searchHost() == nil || m.topModal() == mod {
+			t.Errorf("closing the commit left top modal %v, want the search again", m.topModal())
+		}
+	})
 }
 
 func TestOpenCommitMsgOpensTheHistoryOnTheCommit(t *testing.T) {

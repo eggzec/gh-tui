@@ -107,6 +107,24 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 				Default: filterform.Sort{Desc: true},
 			},
 		}
+	case core.SearchCommits:
+		return filterform.Spec{
+			Fields: []filterform.Field{
+				ui.SearchField,
+				personField("author", "Author", "author"),
+				textField("repo", "Repository", "repo", "any, as owner/name"),
+				textField("org", "Organization", "org", "any"),
+				textField("user", "Owner", "user", "any user"),
+			},
+			Sort: &filterform.SortField{
+				Options: []filterform.SortOption{
+					ui.BestMatch,
+					ui.SortByTime("Authored", "author-date"),
+					ui.SortByTime("Committed", "committer-date"),
+				},
+				Default: filterform.Sort{Desc: true},
+			},
+		}
 	case core.SearchIssues, core.SearchPulls:
 		pulls := kind == core.SearchPulls
 		states := []filterform.Item{{Label: "All"}, {Label: "Open", Value: "open"}, {Label: "Closed", Value: "closed"}}

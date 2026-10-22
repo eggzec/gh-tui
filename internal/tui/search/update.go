@@ -368,6 +368,9 @@ func (s *Section) hitURL(hit core.SearchHit) string {
 	if hit.Kind == core.SearchUsers {
 		return ui.WebURL(s.host, hit.User.Login)
 	}
+	if hit.Kind == core.SearchCommits {
+		return ui.WebURL(s.host, hit.Commit.Repo.String()+"/commit/"+hit.Commit.SHA)
+	}
 	return hit.Issue.URL
 }
 
