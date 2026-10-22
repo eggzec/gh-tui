@@ -23,8 +23,8 @@ func TestRowsCleanHostileHits(t *testing.T) {
 	}
 	for _, w := range []int{40, 80, 200} {
 		termtexttest.AssertClean(t, s.renderHit(is, false, w), w)
-		if v := s.renderHit(is, false, w); w == 200 && !strings.Contains(v, termtexttest.CleanLogin) {
-			t.Errorf("the hit doesn't show the author cleaned: %q", v)
+		if v := s.renderHit(is, false, w); strings.Contains(v, "\n") || !strings.Contains(v, "cli/cli#1") && w >= wideRow {
+			t.Errorf("the hit at %d isn't one line with its repository: %q", w, v)
 		}
 		termtexttest.AssertClean(t, s.renderHit(r, true, w), w)
 		termtexttest.AssertClean(t, s.renderCode(code, false, w), w)

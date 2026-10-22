@@ -20,14 +20,8 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
-// Lines of a result: a repository, issue or pull request takes two, and a
-// file its path and three lines of what matched. Results need no gap
-// between them: the path of the next one stands out from the code.
-const (
-	hitHeight     = 2
-	codeHeight    = 4
-	fragmentLines = codeHeight - 1
-)
+// rowHeight is the lines of a result: one, whatever its kind.
+const rowHeight = 1
 
 // pageAt is how close to the last result loaded the cursor gets before the
 // next page of results is read. It pages the list; it isn't a read ahead.
@@ -91,7 +85,7 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 	l.feed = feed.New(fetch, s.renderHit,
 		feed.WithContext(s.textCtx),
 		feed.WithKey(hitKey),
-		feed.WithItemHeight(hitHeight),
+		feed.WithItemHeight(rowHeight),
 		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithPromptKeys(s.keys.search),
@@ -161,7 +155,7 @@ func (s *Section) searchCode() tea.Cmd {
 	l.feed = feed.New(fetch, s.renderCode,
 		feed.WithContext(s.textCtx),
 		feed.WithKey(func(h core.CodeHit) string { return h.Repo.String() + "/" + h.Path }),
-		feed.WithItemHeight(codeHeight),
+		feed.WithItemHeight(rowHeight),
 		feed.WithPrefetch(pageAt),
 		feed.WithKeyMap(s.keys.feed),
 		feed.WithPromptKeys(s.keys.search),

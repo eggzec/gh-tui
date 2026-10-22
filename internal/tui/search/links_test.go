@@ -49,8 +49,8 @@ func TestCodeLinks(t *testing.T) {
 		hit := core.CodeHit{Repo: core.RepoRef{Owner: "o", Name: "r"}, Path: uitest.HostileTitle, URL: ui.WebURL(host, "o/r/blob/abc/main.go")}
 		for _, width := range []int{140, 40, 12, 3} {
 			row := s.renderCode(hit, true, width)
-			if links := uitest.Links(t, row); len(links) != 2 || links[0] != ui.WebURL(host, "o/r") || links[1] != hit.URL {
-				t.Errorf("%s at %d: row links to %q, want the repository and the file", host, width, links)
+			if links := uitest.Links(t, row); len(links) != 2 || links[0] != hit.URL || links[1] != ui.WebURL(host, "o/r") {
+				t.Errorf("%s at %d: row links to %q, want the file and the repository", host, width, links)
 			}
 			if strings.Contains(row, "evil.test") || strings.Contains(row, "\x1b[2J") {
 				t.Errorf("%s at %d: row carries the path's escapes: %q", host, width, row)

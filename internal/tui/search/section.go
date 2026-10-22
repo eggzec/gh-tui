@@ -181,9 +181,7 @@ type Section struct {
 	icons         ui.Icons
 	// dates tell when the results were updated.
 	dates ui.Dates
-	// dots caches the rendered dot of each label color, and langs the
-	// glyph of each language, by theme.
-	dots  map[string]string
+	// langs caches the glyph of each language, by theme.
 	langs map[string]string
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
@@ -215,7 +213,6 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		hits:       make(map[core.SearchKind]*hitList),
 		grouping:   ui.Grouping[core.SearchHit]{Fields: ui.HitGroupFields()},
 		stale:      make(map[core.SearchKind][]string),
-		dots:       make(map[string]string),
 		langs:      make(map[string]string),
 		icons:      ui.NewIcons(config.Default().UI.Icons),
 		spin:       spinner.New(spinner.WithSpinner(spinner.MiniDot)),
@@ -273,7 +270,6 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.theme = t
 	s.st = newStyles(t, s.icons)
 	s.errs = t.Errors(s.icons)
-	clear(s.dots)
 	clear(s.langs)
 	s.input.SetStyles(inputStyles(t))
 	s.spin.Style = t.Accent

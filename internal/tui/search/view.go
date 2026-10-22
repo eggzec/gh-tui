@@ -2,11 +2,10 @@ package search
 
 import (
 	"errors"
+	"path"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -368,7 +367,11 @@ const (
 	commentsWidth = 5
 )
 
-// renderHit renders a repository, issue or pull request in two lines of
+// wideRow is the width from which an issue or pull request row names its
+// repository; a narrower row keeps the number alone.
+const wideRow = 80
+
+// renderHit renders a repository, issue or pull request in one line of
 // width cells.
 func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string {
 	if hit.Kind == core.SearchRepos {
@@ -382,27 +385,17 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 		right = st.muted.render(termtext.Cells(s.icons.Comment, 1) + " " + strconv.Itoa(is.Comments))
 	}
 	room := max(width-2-commentsWidth-1, 0)
-	// The title matters more than where it is, and the number more than
-	// the repository, which is cut first.
-	refWidth := min(ansi.StringWidth(repo)+len(num), max(room/3, 12))
-	ref := s.truncate(repo, max(refWidth-len(num), 1)) + num
+	ref := num
+	if width >= wideRow {
+		// The title matters more than where it is, and the number more than
+		// the repository, which is cut first.
+		refWidth := min(ansi.StringWidth(repo)+len(num), max(room/3, 12))
+		ref = s.truncate(repo, max(refWidth-len(num), 1)) + num
+	}
 	// Where it is and its title link to its page.
 	head := st.stateGlyph(s, hit) + " " + s.links.Link(is.URL, st.muted.render(ref)+" "+
 		st.title.render(s.truncate(cleanLine(is.Title), max(room-ansi.StringWidth(ref)-1, 0))))
-	first := s.spread(head, right, width)
-
-	parts := make([]string, 0, 4)
-	if labels := s.labels(is.Labels, st.muted); labels != "" {
-		parts = append(parts, labels)
-	}
-	if login := ui.OneLine(is.Author.Login); login != "" {
-		parts = append(parts, st.muted.render(login))
-	}
-	if !is.UpdatedAt.IsZero() {
-		parts = append(parts, st.subtle.render("updated "+s.dates.Prose(is.UpdatedAt, s.now())))
-	}
-	second := "  " + strings.Join(parts, st.subtle.render(s.icons.Separator))
-	return first + "\n" + fit(termtext.Truncate(second, width, s.icons.Ellipsis), width)
+	return s.spread(head, right, width)
 }
 
 // stateGlyph marks an issue or pull request by its state; the shapes
@@ -421,35 +414,6 @@ func (s *Section) langGlyph(r core.Repo) string {
 		s.langs[k] = g
 	}
 	return g
-}
-
-// labels renders the names of labels, each after a dot of its color.
-func (s *Section) labels(labels []core.Label, name paint) string {
-	parts := make([]string, 0, len(labels))
-	for _, l := range labels {
-		dot, ok := s.dots[l.Color]
-		if !ok {
-			dot = s.icons.Dot
-			if isHex(l.Color) {
-				dot = lipgloss.NewStyle().Foreground(lipgloss.Color("#" + l.Color)).Render(s.icons.Dot)
-			}
-			s.dots[l.Color] = dot
-		}
-		parts = append(parts, dot+" "+name.render(cleanLine(l.Name)))
-	}
-	return strings.Join(parts, " ")
-}
-
-func isHex(s string) bool {
-	if len(s) != 6 {
-		return false
-	}
-	for _, r := range s {
-		if !strings.ContainsRune("0123456789abcdefABCDEF", r) {
-			return false
-		}
-	}
-	return true
 }
 
 // repoCols are the widths of the columns at the right of the first line
@@ -492,9 +456,9 @@ func (c repoCols) width() int {
 	return w
 }
 
-// renderRepo renders a repository in two lines: its name and the glyphs
-// of what it is, with its language, stars and age in columns at the
-// right, then its description.
+// renderRepo renders a repository in one line: the repository glyph, the
+// glyphs of what it is and its name, with its language, stars and age in
+// columns at the right.
 func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
 	cols := repoColumns(width, s.dates.Width())
@@ -513,19 +477,16 @@ func (s *Section) renderRepo(r core.Repo, selected bool, width int) string {
 	cellsRight := strings.Join(right, "  ")
 
 	flags := s.icons.Flags(r)
-	room := width - ansi.StringWidth(cellsRight) - 1 - 2*len(flags)
+	room := width - ansi.StringWidth(cellsRight) - 1 - 2*len(flags) - 2
 	var head strings.Builder
+	st.subtle.write(&head, termtext.Cells(s.icons.Repo, 1))
+	head.WriteByte(' ')
 	for _, f := range flags {
 		st.muted.write(&head, f)
 		head.WriteByte(' ')
 	}
 	head.WriteString(s.links.Link(s.repoURL(r), st.title.render(s.truncate(r.Ref.String(), max(room, 0)))))
-	first := s.spread(head.String(), cellsRight, width)
-	second := ""
-	if d := cleanLine(r.Description); d != "" {
-		second = "  " + st.muted.render(termtext.TruncateMiddle(d, max(width-2, 0), s.icons.Ellipsis))
-	}
-	return first + "\n" + fit(second, width)
+	return s.spread(head.String(), cellsRight, width)
 }
 
 // langCell renders the language of r in width cells: its glyph and name,
@@ -540,26 +501,18 @@ func (s *Section) langCell(r core.Repo, width int, text paint) string {
 	return fit(s.langGlyph(r)+" "+text.render(s.truncate(r.Language, width-2)), width)
 }
 
-// renderCode renders a file that matches: its repository and path, then a
-// few lines of what matched, the matches in the accent.
+// renderCode renders a file that matches in one line: its icon, its path
+// and its repository.
 func (s *Section) renderCode(hit core.CodeHit, selected bool, width int) string {
 	st := &s.st.look[ui.Look(selected, s.focused && s.area == resultsArea)]
-	lines := make([]string, 0, codeHeight)
+	icon := ""
+	if fi := s.icons.Entry(core.TreeEntry{Path: hit.Path, Name: path.Base(hit.Path)}, false); fi.Glyph != "" {
+		icon = s.theme.FileIcon(fi).Render(termtext.Cells(fi.Glyph, 1)) + " "
+	}
 	// The repository and the file link to their pages.
 	repo := s.links.Link(s.repoURL(core.Repo{Ref: hit.Repo}), st.muted.render(hit.Repo.String()))
 	file := s.links.Link(hit.URL, st.title.render(ui.OneLine(hit.Path)))
-	lines = append(lines, fit(termtext.Truncate(repo+st.subtle.render(s.icons.Separator)+file, width, s.icons.Ellipsis), width))
-	var frag core.Fragment
-	if len(hit.Fragments) > 0 {
-		frag = hit.Fragments[0]
-	}
-	for _, l := range fragmentView(frag, fragmentLines) {
-		lines = append(lines, fit(termtext.Truncate("  "+s.highlight(l, st), width, s.icons.Ellipsis), width))
-	}
-	for len(lines) < codeHeight {
-		lines = append(lines, strings.Repeat(" ", width))
-	}
-	return strings.Join(lines, "\n")
+	return fit(termtext.Truncate(icon+file+st.subtle.render(s.icons.Separator)+repo, width, s.icons.Ellipsis), width)
 }
 
 // fragLine is a line of a fragment with the matches in it, as byte
@@ -608,36 +561,4 @@ func fragmentView(f core.Fragment, n int) []fragLine {
 		}
 	}
 	return shown[:min(n, len(shown))]
-}
-
-// highlight renders a line of code in the look st, its matches in the
-// accent. Tabs become spaces and other control characters are dropped, so
-// the layout holds.
-func (s *Section) highlight(l fragLine, st *cells) string {
-	var b strings.Builder
-	at := 0
-	for _, m := range l.matches {
-		if m[0] < at || m[1] > len(l.text) {
-			continue
-		}
-		b.WriteString(st.muted.render(codeText(l.text[at:m[0]])))
-		b.WriteString(s.st.match.render(codeText(l.text[m[0]:m[1]])))
-		at = m[1]
-	}
-	b.WriteString(st.muted.render(codeText(l.text[at:])))
-	return b.String()
-}
-
-func codeText(s string) string {
-	return strings.Map(func(r rune) rune {
-		switch {
-		case r == '\t':
-			return ' '
-		case termtext.Control(r), r == utf8.RuneError:
-			// Invalid UTF-8 comes as RuneError, and a lone byte of it
-			// may read as C1.
-			return -1
-		}
-		return r
-	}, s)
 }
