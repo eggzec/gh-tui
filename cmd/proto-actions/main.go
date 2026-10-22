@@ -164,7 +164,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fp, cmd = m.fp.Update(msg)
 		return m, cmd
 	}
-	if m.view == 1 {
+	if m.view != 0 {
 		var cmd tea.Cmd
 		m.pg, cmd = m.pg.Update(msg)
 		if m.needJump && m.pg.Lines() > 0 && len(m.marks) > 0 {
@@ -272,7 +272,7 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.pickerKey(msg)
 	case m.modal != nil:
 		return m, m.modalUpdate(msg)
-	case m.view == 1:
+	case m.view != 0:
 		return m.logKey(msg)
 	}
 	if k == ":" && m.focus == 1 {
@@ -352,6 +352,10 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "z":
 		m.zoom.Toggle()
 	case "v":
+		if ri, _, ok := m.ctx(); ok && m.focus == 1 {
+			m.openWorkflow(ri)
+			break
+		}
 		m.preview = !m.preview
 	case "1", "2", "3":
 		m.focus = panes.Pane(k[0] - '0')
@@ -479,6 +483,10 @@ func (m *model) logKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		cmd, ok := m.pg.ClearTransient()
 		if !ok {
+			if m.view == 2 {
+				m.view = 0
+				return m, nil
+			}
 			return m, tea.Quit
 		}
 		return m, cmd
@@ -539,6 +547,16 @@ func (m *model) openLog(ri, ji, step int) {
 	m.needJump = true
 }
 
+// openWorkflow shows the workflow file of run ri in the pager, read-only.
+func (m *model) openWorkflow(ri int) {
+	m.view, m.logRun = 2, ri
+	m.marks, m.mk, m.needJump = nil, 0, false
+	m.pg = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor))
+	m.pg.SetLineNumbers(true)
+	m.pg.Focus()
+	m.pend = append(m.pend, m.pg.SetContent(strings.ToLower(allRuns[ri].workflow)+".yml", allRuns[ri].workflowYAML()))
+}
+
 func (m *model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
@@ -565,7 +583,7 @@ func (m *model) render() string {
 
 func (m *model) layout() (panes.Layout, bool) {
 	h := max(m.h-2, 0)
-	if m.view == 1 {
+	if m.view != 0 {
 		return panes.Layout{Width: m.w, Height: h, Focus: 1, Panes: []panes.Def{{Name: "Log", Short: "Log"}},
 			Boxes: []panes.Box{{Pane: 1, Rect: panes.Rect{W: m.w, H: h}}}}, false
 	}
@@ -577,13 +595,19 @@ func (m *model) layout() (panes.Layout, bool) {
 	if strip {
 		h--
 	}
+	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
+	w1 := m.runsWidth()
+	if m.zoom.Zoomed() && m.focus == 1 {
+		// Zoomed Runs keeps the run's details and log preview on the right.
+		l.Boxes = []panes.Box{
+			{Pane: 1, Rect: panes.Rect{W: w1, H: h}},
+			{Pane: 2, Rect: panes.Rect{X: w1, W: m.w - w1, H: h}},
+		}
+		return l, strip
+	}
 	if m.zoom.Zoomed() {
 		return panes.Compute(panes.Spec{Width: m.w, Height: h, Panes: defs, Focus: m.focus, Zoom: true}), strip
 	}
-	l := panes.Layout{Width: m.w, Height: h, Focus: m.focus, Panes: defs}
-	// Runs is a narrow list of glyph and title; the attributes of the run
-	// are in Annotations, so the right column takes the room.
-	w1 := max(30, min(34, m.w*27/100))
 	// The right column stacks annotations over downloads; boxes are drawn
 	// in order, so each row of the screen is written left to right.
 	// Downloads has 5 content rows, and annotations the rest.
@@ -668,12 +692,17 @@ func (m *model) footer(l panes.Layout) string {
 	}
 	var parts []string
 	switch {
+	case m.view == 2:
+		parts = []string{hint("j k", "scroll"), hint("/ n N", "search"), hint("backspace", "back"), hint("esc", "clear/close")}
 	case m.view == 1:
 		parts = []string{hint("j k", "scroll"), hint("/ n N", "search"), hint("] [", "step"), hint(": n :p", "attempt"), hint("backspace", "back"), hint("esc", "clear/close")}
 	case m.graph && m.focus == 2:
 		parts = []string{hint("arrows", "scroll"), hint("l", "LR/TD"), hint("G", "close"), hint("tab", "pane")}
 	default:
 		parts = []string{hint("tab", "pane"), hint("enter", "open"), hint("g", "group"), hint("alt+g", "ungroup"), hint("f", "filter"), hint("alt+f", "filter on/off"), hint("s", "sort"), hint("alt+s", "reverse"), hint("G", "graph"), hint(":n :p", "attempt")}
+		if m.focus == 1 {
+			parts = append(parts, hint("v", "workflow file"))
+		}
 		if m.w >= wideMin {
 			parts = append(parts, hint("z", "preview"))
 		}

@@ -359,6 +359,15 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 	}
 	c := panes.Content{TopLeft: m.titleForms(title, b), Focus: b.Pane == l.Focus}
 	in := b.Rect.Inner()
+	if m.view == 2 {
+		r := allRuns[m.logRun]
+		c.TopLeft = []string{"Workflow " + r.workflowPath(), "Workflow " + r.workflow + ".yml", "Workflow"}
+		c.TopRight = []string{r.workflow + " #" + fmt.Sprint(r.id), ""}
+		c.BottomLeft = []string{"j k scroll  / search  read-only  backspace back", "/ backspace", ""}
+		m.pg.SetSize(in.W, in.H)
+		c.Body = m.pg.View()
+		return c
+	}
 	if m.view == 1 {
 		r := allRuns[m.logRun]
 		j := r.jobs[m.logJob]
@@ -426,6 +435,26 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		c.BottomLeft = []string{"arrows scroll  l LR/TD  G close", "arrows l G", ""}
 		return c
 	}
+	if m.zoom.Zoomed() && m.focus == 1 {
+		c.TopLeft = []string{"Run details"}
+		ri, _, ok := m.ctx()
+		if !ok {
+			c.Body = m.th.Subtle.Render("Select a run to see its details")
+			return c
+		}
+		head := m.attrLines(ri, in.W)
+		r, ji, _ := m.selJob()
+		c.TopRight = []string{r.workflow + " #" + fmt.Sprint(r.id), ""}
+		c.BottomLeft = []string{"v workflow file  z unzoom", "v z", ""}
+		rows := r.logRows(r.jobs[ji])
+		_, fs := r.failing()
+		if r.jobs[ji].status != "failure" {
+			fs = 0
+		}
+		head = append(head, m.th.Subtle.Render("Log preview: "+r.jobs[ji].name))
+		c.Body = strings.Join(append(head, m.logBody(rows, markerRow(rows, fs), in.W, max(in.H-len(head), 1), false)), "\n")
+		return c
+	}
 	if m.preview && m.w >= wideMin {
 		c.TopLeft = []string{"Log preview"}
 		r, ji, ok := m.selJob()
@@ -449,6 +478,51 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 	return c
 }
 
+// depthOf is the outline depth of a tree row; base is 1 when grouped.
+func depthOf(n node, base int) int {
+	switch n.kind {
+	case kHead:
+		return 0
+	case kRun:
+		return base
+	case kGroup:
+		return base + 1
+	}
+	if n.group != "" {
+		return base + 2
+	}
+	return base + 1
+}
+
+// runsWidth is the width of the Runs pane: wide enough for the longest job,
+// matrix parent or group name with its indent and suffix, within a cap.
+// Only run labels give way beyond that.
+func (m *model) runsWidth() int {
+	base := 0
+	if m.grouped() != "" {
+		base = 1
+	}
+	need := 0
+	for _, n := range m.nodes() {
+		r := allRuns[n.run]
+		var nm, suf string
+		switch n.kind {
+		case kHead:
+			nm, suf = n.group, fmt.Sprint(n.cnt)
+		case kGroup:
+			_, pass, total := r.rollup(n.group)
+			nm, suf = n.group, fmt.Sprintf("%d/%d passed", pass, total)
+		case kJob:
+			nm, suf = r.jobs[n.job].name, r.jobs[n.job].dur
+		default:
+			continue
+		}
+		// border and padding, cursor, guide, fold mark, glyph, gap.
+		need = max(need, 4+2+3*depthOf(n, base)+4+ansi.StringWidth(nm)+1+ansi.StringWidth(suf))
+	}
+	return max(30, min(need, max(34, m.w*45/100)))
+}
+
 // arts is the downloads of the run in view.
 func (m *model) arts() []artifact {
 	if ri, _, ok := m.ctx(); ok {
@@ -466,20 +540,7 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 	if g != "" {
 		base = 1
 	}
-	depth := func(n node) int {
-		switch n.kind {
-		case kHead:
-			return 0
-		case kRun:
-			return base
-		case kGroup:
-			return base + 1
-		}
-		if n.group != "" {
-			return base + 2
-		}
-		return base + 1
-	}
+	depth := func(n node) int { return depthOf(n, base) }
 	// guide is the outline of row i: a dim line per ancestor that has more
 	// rows below it, then a branch, or a corner for the last child.
 	guide := func(i int) string {
@@ -543,12 +604,17 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 			if m.openRun[r.id] {
 				mark = m.ic.Unfolded
 			}
-			left := cur + guide(i) + m.th.Subtle.Render(mark) + " " + m.glyph(r.status) + " " + name(r.title, m.th.Text.Render(r.title))
 			// The rest of the run's attributes show in Annotations.
 			suffix := r.dur
 			if r.status == "running" {
 				suffix = fmt.Sprintf("%d/%d", r.doneJobs(), len(r.jobs))
 			}
+			// Only the run's label gives way: it gets what the indent, glyph
+			// and suffix leave.
+			prefix := cur + guide(i) + m.th.Subtle.Render(mark) + " " + m.glyph(r.status) + " "
+			avail := w - ansi.StringWidth(prefix) - ansi.StringWidth(suffix) - 1
+			title := ansi.Truncate(r.title, max(avail, 1), m.ic.Ellipsis)
+			left := prefix + name(title, m.th.Text.Render(title))
 			lines = append(lines, m.row(left, m.th.Subtle.Render(suffix), w))
 		case kGroup:
 			st, pass, total := r.rollup(n.group)
