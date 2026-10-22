@@ -1,17 +1,18 @@
 package owner
 
 import (
-	"charm.land/lipgloss/v2"
-
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // styles are the page's own, built once per theme.
 type styles struct {
-	edge, focusEdge   ownerui.Paint
-	title, focusTitle ownerui.Paint
-	warning           ownerui.Paint
+	// frames draws the boxes and the strip of panes.
+	frames  panes.Styles
+	warning ownerui.Paint
+	// tab marks the tab on view in the list's tab line.
+	tab ownerui.Paint
 	// langs color the glyphs of languages, by name and color, as they are
 	// met.
 	langs map[string]ownerui.Paint
@@ -21,14 +22,14 @@ type styles struct {
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
-	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
+	frames := panes.DefaultStyles(t.Dark)
+	frames.Border = ic.Border
+	frames.Ellipsis = ic.Ellipsis
 	return styles{
-		langs:      map[string]ownerui.Paint{},
-		edge:       ownerui.NewPaint(border),
-		focusEdge:  ownerui.NewPaint(t.Accent),
-		title:      ownerui.NewPaint(t.Muted),
-		focusTitle: ownerui.NewPaint(t.Accent.Bold(true)),
-		warning:    ownerui.NewPaint(t.Warning),
+		langs:   map[string]ownerui.Paint{},
+		frames:  frames,
+		warning: ownerui.NewPaint(t.Warning),
+		tab:     ownerui.NewPaint(t.Accent.Bold(true)),
 		shared: ownerui.Styles{
 			Name:    ownerui.NewPaint(t.Title),
 			Login:   ownerui.NewPaint(t.Muted),
