@@ -43,18 +43,20 @@ func TestSelectedHitIsBold(t *testing.T) {
 		// matches says that the result has matches, which are bold in the
 		// accent in any look.
 		matches bool
+		// glyphs counts the glyphs that keep the color of what they show.
+		glyphs int
 	}{
 		"repository": {render: func(sel bool) string { return s.renderHit(flagged().repos[3], sel, 120) }},
 		"issue": {render: func(sel bool) string {
 			return s.renderHit(issue(core.SearchIssues, "octo/tea", 12, "Terminal tea renders twice", core.StateOpen, false), sel, 120)
 		}},
-		"code": {render: func(sel bool) string { return s.renderCode(code, sel, 120) }, title: "tea.go", matches: true},
+		"code": {render: func(sel bool) string { return s.renderCode(code, sel, 120) }, title: "tea.go", matches: true, glyphs: 1},
 	}
 	pick := newPaint(s.theme.Pick).pre
 	for name, c := range cases {
 		s.focused, s.area = true, resultsArea
 		row := c.render(true)
-		if bold, plain := boldRuns(row); bold == 0 || plain != 0 {
+		if bold, plain := boldRuns(row); bold == 0 || plain != c.glyphs {
 			t.Errorf("%s: focused selected row has %d bold and %d other styles, want every one bold: %q", name, bold, plain, row)
 		}
 		if !strings.Contains(row, pick+c.title) {
@@ -63,7 +65,7 @@ func TestSelectedHitIsBold(t *testing.T) {
 
 		s.focused = false
 		row = c.render(true)
-		if bold, plain := boldRuns(row); bold == 0 || plain != 0 {
+		if bold, plain := boldRuns(row); bold == 0 || plain != c.glyphs {
 			t.Errorf("%s: blurred selected row has %d bold and %d other styles, want every one bold: %q", name, bold, plain, row)
 		}
 		if strings.Contains(row, pick+c.title) {

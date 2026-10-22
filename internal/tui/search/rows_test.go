@@ -61,11 +61,10 @@ func TestRepoRowsAlign(t *testing.T) {
 		ends := make([]int, 0, len(repos))
 		for _, hit := range repos {
 			row := s.renderHit(hit, false, width)
-			first, second, _ := strings.Cut(row, "\n")
-			if w, w2 := ansi.StringWidth(first), ansi.StringWidth(second); w != width || w2 != width {
-				t.Fatalf("width %d: lines of %d and %d cells", width, w, w2)
+			if w := ansi.StringWidth(row); w != width || strings.Contains(row, "\n") {
+				t.Fatalf("width %d: a row of %d cells, want one line of the width", width, w)
 			}
-			plain := ansi.Strip(first)
+			plain := ansi.Strip(row)
 			loc := stars.FindAllStringIndex(plain, -1)
 			ends = append(ends, ansi.StringWidth(plain[:loc[len(loc)-1][1]]))
 		}
@@ -178,22 +177,77 @@ func TestHitHeader(t *testing.T) {
 func TestRepoRowLines(t *testing.T) {
 	s := newSection(t, flagged(), 190, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
 	archived := flagged().repos[2]
-	first, second, _ := strings.Cut(ansi.Strip(s.renderHit(archived, false, 80)), "\n")
+	row := ansi.Strip(s.renderHit(archived, false, 80))
+	if strings.Contains(row, "\n") {
+		t.Fatalf("row %q, want one line", row)
+	}
 	for _, want := range []string{"A octo/tea-archived", "o Jupyter...", "* 250k", " 1y"} {
-		if !strings.Contains(first, want) {
-			t.Errorf("first line %q, want %q in it", first, want)
+		if !strings.Contains(row, want) {
+			t.Errorf("row %q, want %q in it", row, want)
 		}
 	}
-	if !strings.HasPrefix(first, "A octo/tea-archived") {
-		t.Errorf("first line %q, want the flags before the name", first)
+	if strings.Contains(row, "Kept for history") {
+		t.Errorf("row %q, want no description", row)
 	}
-	// The description is cut in the middle, so its start and end both show.
-	if trimmed := strings.TrimRight(second, " "); !strings.HasPrefix(second, "  Kept for history") ||
-		!strings.Contains(trimmed, "...") || !strings.HasSuffix(trimmed, "needs cutting") {
-		t.Errorf("second line %q, want only the description, cut in the middle", second)
+}
+
+// A repository row leads with the glyph of a repository, then its flags and
+// name.
+func TestRepoRowGlyphFirst(t *testing.T) {
+	archived := flagged().repos[2]
+	for _, set := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
+		ic := ui.NewIcons(set)
+		s := newSection(t, flagged(), 100, 22, WithIcons(ic))
+		row := ansi.Strip(s.renderHit(archived, false, 100))
+		want := ic.Repo + " " + strings.Join(ic.Flags(archived.Repo), " ") + " octo/tea-archived"
+		if !strings.HasPrefix(row, want) {
+			t.Errorf("%s: row %q, want the prefix %q", set, row, want)
+		}
 	}
-	if strings.Contains(second, "Jupyter") || strings.Contains(second, "1y") {
-		t.Errorf("second line %q, want the language and age on the first", second)
+}
+
+// Every kind of result is one line within its width, for every icon set.
+func TestRowsOneLineAtWidths(t *testing.T) {
+	repoHit := flagged().repos[3]
+	issueHit := issue(core.SearchIssues, "charmbracelet/bubbletea", 1203, "Terminal tea renders twice after resize", core.StateOpen, false)
+	issueHit.Issue.Comments = 12
+	pullHit := issue(core.SearchPulls, "cli/cli", 77, "Draft the release notes for the next version", core.StateOpen, true)
+	codeHit := core.CodeHit{
+		Repo: core.RepoRef{Owner: "cli", Name: "cli"}, Path: "internal/tui/search/view.go",
+		Fragments: []core.Fragment{{Text: "one tea\ntwo", Matches: [][2]int{{4, 7}}}},
+	}
+	for _, set := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
+		s := newSection(t, newFake(), 80, 22, WithIcons(ui.NewIcons(set)))
+		for _, width := range []int{30, 50, 80} {
+			rows := map[string]string{
+				"repo":  s.renderHit(repoHit, false, width),
+				"issue": s.renderHit(issueHit, false, width),
+				"pull":  s.renderHit(pullHit, true, width),
+				"code":  s.renderCode(codeHit, false, width),
+			}
+			for kind, row := range rows {
+				if strings.Contains(row, "\n") || ansi.StringWidth(row) > width {
+					t.Errorf("%s, %s at %d: row %q is not one line within the width", set, kind, width, ansi.Strip(row))
+				}
+			}
+		}
+	}
+}
+
+// Every icon set gives rows of every kind whose cells are all one wide.
+func TestRowsAllIconSets(t *testing.T) {
+	codeHit := core.CodeHit{Repo: core.RepoRef{Owner: "cli", Name: "cli"}, Path: "main.go"}
+	for _, set := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
+		s := newSection(t, newFake(), 80, 22, WithIcons(ui.NewIcons(set)))
+		for _, row := range []string{
+			s.renderHit(flagged().repos[0], false, 60),
+			s.renderHit(issue(core.SearchIssues, "cli/cli", 5, "A title", core.StateClosed, false), false, 60),
+			s.renderCode(codeHit, false, 60),
+		} {
+			if w := ansi.StringWidth(row); w != 60 {
+				t.Errorf("%s: row %q is %d cells, want 60", set, ansi.Strip(row), w)
+			}
+		}
 	}
 }
 
@@ -227,22 +281,16 @@ func TestFragmentViewSkipsBlankLines(t *testing.T) {
 	}
 }
 
-// A file takes its path and the lines that matched, with no blank row
-// after them when they fill the result.
+// A file takes one line: its path, then its repository, and none of what
+// matched.
 func TestCodeHitIsCompact(t *testing.T) {
-	s := newSection(t, newFake(), 80, 22)
+	s := newSection(t, newFake(), 80, 22, WithIcons(ui.NewIcons(config.IconsASCII)))
 	hit := core.CodeHit{
 		Repo: core.RepoRef{Owner: "cli", Name: "cli"}, Path: "tea.go",
-		Fragments: []core.Fragment{{Text: "one tea\ntwo\nthree\nfour", Matches: [][2]int{{4, 7}}}},
+		Fragments: []core.Fragment{{Text: "one tea\ntwo", Matches: [][2]int{{4, 7}}}},
 	}
-	lines := strings.Split(ansi.Strip(s.renderCode(hit, false, 40)), "\n")
-	want := []string{"cli/cli · tea.go", "  one tea", "  two", "  three"}
-	if len(lines) != len(want) {
-		t.Fatalf("renderCode = %q, want %d lines", lines, len(want))
-	}
-	for i, l := range lines {
-		if strings.TrimRight(l, " ") != want[i] || ansi.StringWidth(l) != 40 {
-			t.Errorf("line %d = %q, want %q in 40 cells", i, l, want[i])
-		}
+	row := ansi.Strip(s.renderCode(hit, false, 40))
+	if strings.TrimRight(row, " ") != "tea.go - cli/cli" || ansi.StringWidth(row) != 40 {
+		t.Errorf("renderCode = %q, want the path and repository in 40 cells", row)
 	}
 }
