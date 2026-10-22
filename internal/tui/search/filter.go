@@ -183,6 +183,10 @@ func spec(kind core.SearchKind, query string) filterform.Spec {
 // query that the kind on view takes, and keeps the rest of it as free
 // text.
 func (s *Section) Filter() (ui.Filter, bool) {
+	if s.kind == core.SearchTopics {
+		// Topics take no qualifiers beyond the query.
+		return ui.Filter{}, false
+	}
 	q := strings.Join(strings.Fields(s.input.Value()), " ")
 	return ui.Filter{Spec: spec(s.kind, q), Query: q, Subject: kindTitles[s.kind]}, true
 }

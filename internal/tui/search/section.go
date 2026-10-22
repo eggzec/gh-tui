@@ -39,6 +39,8 @@ type Service interface {
 	Users(ctx context.Context, q search.UsersQuery) (core.SearchPage[core.SearchUser], error)
 	CachedCommits(q search.CommitsQuery) (core.SearchPage[core.SearchCommit], bool)
 	Commits(ctx context.Context, q search.CommitsQuery) (core.SearchPage[core.SearchCommit], error)
+	CachedTopics(q search.TopicsQuery) (core.SearchPage[core.SearchTopic], bool)
+	Topics(ctx context.Context, q search.TopicsQuery) (core.SearchPage[core.SearchTopic], error)
 	// Invalidate marks every cached page stale.
 	Invalidate()
 }
@@ -99,11 +101,12 @@ const (
 )
 
 // kinds are the kinds of results, in the order the page lists them: the
-// digits 1 to maxKinds show them, and a kind added here, with its title
+// digits 1 to len(kinds) show them, and a kind added here, with its title
 // below, joins the strip.
-var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls, core.SearchCode, core.SearchUsers, core.SearchCommits}
+var kinds = []core.SearchKind{core.SearchRepos, core.SearchIssues, core.SearchPulls, core.SearchCode, core.SearchUsers, core.SearchCommits, core.SearchTopics}
 
 var kindTitles = map[core.SearchKind]string{
+	core.SearchTopics:  "Topics",
 	core.SearchCommits: "Commits",
 	core.SearchUsers:   "Users",
 	core.SearchRepos:   "Repositories",

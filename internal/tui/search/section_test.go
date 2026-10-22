@@ -115,7 +115,7 @@ func TestCounts(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 80, 30)
 	typeText(t, s, "tea")
-	for _, want := range []string{"[1] Repositories", "2 Issues", "3 Pull requests", "4 Code", "43 results"} {
+	for _, want := range []string{"[1] Repositories", "2 Issues", "3 PRs", "4 Code", "43 results"} {
 		if !strings.Contains(flat(s), want) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}
@@ -396,19 +396,19 @@ func TestBracketsSwitchKinds(t *testing.T) {
 	if s.Kind() != core.SearchIssues || s.area != inputArea {
 		t.Errorf("[ from the query showed %v in area %d, want issues in the query", s.Kind(), s.area)
 	}
-	// Commits is the last kind, so the cycle goes round through it.
+	// Topics is the last kind, so the cycle goes round through it.
 	press(t, s, "[", "[")
-	if s.Kind() != core.SearchCommits {
-		t.Errorf("[ before the first kind showed %v, want commits", s.Kind())
+	if s.Kind() != core.SearchTopics {
+		t.Errorf("[ before the first kind showed %v, want topics", s.Kind())
 	}
-	press(t, s, "[", "[")
+	press(t, s, "[", "[", "[")
 	if s.Kind() != core.SearchCode {
 		t.Errorf("[ before users showed %v, want code", s.Kind())
 	}
 	if _, code := svc.stats(); code != 1 {
 		t.Errorf("showing the code kind made %d code searches, want one", code)
 	}
-	press(t, s, "]", "]", "]")
+	press(t, s, "]", "]", "]", "]")
 	if s.Kind() != core.SearchRepos {
 		t.Errorf("] after the last kind showed %v, want repositories", s.Kind())
 	}

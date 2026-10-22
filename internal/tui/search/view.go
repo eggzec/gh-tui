@@ -388,6 +388,10 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 	if hit.Kind == core.SearchCommits {
 		return s.commitRow(hit.Commit, st, width)
 	}
+	if hit.Kind == core.SearchTopics {
+		return s.spread(st.muted.render(termtext.Cells(s.icons.Glyph(ui.GlyphLabelEvent), 1))+" "+
+			st.title.render(s.truncate(hit.Topic.Name, max(width-2, 0))), "", width)
+	}
 	is := &hit.Issue
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
 	right := ""

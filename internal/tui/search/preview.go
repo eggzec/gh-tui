@@ -73,6 +73,9 @@ func (s *Section) previewed() previewBody {
 	if h.Kind == core.SearchRepos {
 		return previewBody{key: "repo " + hitKey(h), name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) }}
 	}
+	if h.Kind == core.SearchTopics {
+		return previewBody{key: "topic " + h.Topic.Name, name: h.Topic.Name, text: func() string { return topicText(h.Topic) }}
+	}
 	if h.Kind == core.SearchCommits {
 		return previewBody{key: "commit " + hitKey(h), name: h.Commit.Repo.String() + "@" + h.Commit.SHA, text: func() string { return commitText(h.Commit) }}
 	}
@@ -101,6 +104,14 @@ func (s *Section) markdownRender(head, body string) pager.Render {
 		}
 		return out
 	}
+}
+
+// topicText describes a topic from what its hit holds.
+func topicText(t core.SearchTopic) string {
+	if t.ShortDescription == "" {
+		return t.Name + "\n"
+	}
+	return t.Name + "\n\n" + t.ShortDescription + "\n"
 }
 
 // commitText describes a commit from what its hit holds: the search gives

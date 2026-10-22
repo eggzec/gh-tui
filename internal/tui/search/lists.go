@@ -52,6 +52,9 @@ func hitKey(h core.SearchHit) string {
 	if h.Kind == core.SearchCommits {
 		return h.Commit.Repo.String() + "@" + h.Commit.SHA
 	}
+	if h.Kind == core.SearchTopics {
+		return h.Topic.Name
+	}
 	return h.Issue.Repo.String() + "#" + strconv.Itoa(h.Issue.Number)
 }
 
@@ -100,6 +103,18 @@ func (s *Section) ensureHits(k core.SearchKind) tea.Cmd {
 			hits := make([]core.SearchHit, len(p.Items))
 			for i, c := range p.Items {
 				hits[i] = core.SearchHit{Kind: core.SearchCommits, Commit: c}
+			}
+			return hits, p.Next, nil
+		}
+		if k == core.SearchTopics {
+			p, err := svc.Topics(ctx, search.TopicsQuery{Text: text, Cursor: cursor})
+			end(err, "span", "tui", "first", cursor == "", "items", len(p.Items))
+			if err != nil {
+				return nil, "", err
+			}
+			hits := make([]core.SearchHit, len(p.Items))
+			for i, t := range p.Items {
+				hits[i] = core.SearchHit{Kind: core.SearchTopics, Topic: t}
 			}
 			return hits, p.Next, nil
 		}
@@ -359,6 +374,8 @@ func (s *Section) spinTitle() tea.Cmd {
 
 func emptyText(k core.SearchKind) string {
 	switch k {
+	case core.SearchTopics:
+		return "No topics match. Try other words."
 	case core.SearchCommits:
 		return "No commits match. Try other words, or qualifiers such as author:name or repo:owner/name."
 	case core.SearchUsers:
