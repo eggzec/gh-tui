@@ -146,6 +146,8 @@ type Section struct {
 	// key that starts typing until the one that stops it.
 	typing  bool
 	focused bool
+	// comp is the candidate row of the query while it types.
+	comp completion
 
 	// text is the query the results are for, the last one submitted, and
 	// textCtx bounds the reads for it, canceled when the text changes.

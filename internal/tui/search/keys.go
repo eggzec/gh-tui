@@ -73,6 +73,10 @@ type queryKeys struct {
 	// Submit searches, and Cancel stops typing and moves to the results.
 	Submit key.Binding `keymap:"submit" help:"search"`
 	Cancel key.Binding `keymap:"cancel" help:"results"`
+	// Complete and CompletePrev complete the qualifier under the cursor, and
+	// cycle through the candidates forward and back.
+	Complete     key.Binding `keymap:"complete" help:"complete"`
+	CompletePrev key.Binding `keymap:"complete_prev" help:"previous completion"`
 }
 
 // maxKinds is how many kinds the digits reach: pane_1 to pane_6 of the
@@ -162,7 +166,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query types first, so it has only the keys that type
 		// nothing.
 		k := s.keys.query
-		l := ui.ContextLayer("search_query", []key.Binding{k.Submit, k.Cancel}, []key.Binding{k.Submit, k.Cancel})
+		l := ui.ContextLayer("search_query", []key.Binding{k.Submit, k.Cancel, k.Complete, k.CompletePrev}, []key.Binding{k.Submit, k.Complete, k.Cancel})
 		l.Typing = true
 		return []keyhelp.Layer{l}
 	}

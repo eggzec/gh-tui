@@ -82,7 +82,12 @@ func (s *Section) render() {
 	}
 	lines = append(lines, strings.Split(s.st.frames.Frame(query, s.width, inputHeight), "\n")...)
 	lines = append(lines, s.panes()...)
-	lines = append(lines, s.strip())
+	// While the query completes, its candidates take the strip's row.
+	if row := s.completeRow(s.width); s.typing && row != "" {
+		lines = append(lines, fit(row, s.width))
+	} else {
+		lines = append(lines, s.strip())
+	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
 		lines = append(lines, blank)

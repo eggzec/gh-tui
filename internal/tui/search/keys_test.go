@@ -38,12 +38,12 @@ func TestKeyLayersOrder(t *testing.T) {
 		{nil, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
 		{nil, "2", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchIssues }},
 		{nil, "enter", "Search: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea }},
-		// While it types, the query takes printable keys, and tab stays in
-		// it: esc is the way out.
+		// While it types, the query takes printable keys, and tab completes
+		// in it: esc is the way out.
 		{typing, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "j" && s.typing }},
 		{typing, "]", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "]" && s.typing }},
 		{typing, "1", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "1" && s.typing }},
-		{typing, "tab", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
+		{typing, "tab", "Query: complete", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
 		{typing, "esc", "Query: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
 		{[]string{"i", "t"}, "enter", "Query: search", func(s, _ *Section, _ []tea.Msg) bool {
 			return s.area == resultsArea && s.text == "t" && !s.typing
