@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/filepicker"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -34,16 +35,18 @@ type model struct {
 	groupBy   string
 	groupOff  bool
 	collapsed map[string]bool
-	flt       map[string]string
+	flt       map[string][]string // facet -> the values it may have
 	sortBy    string
-	ov        int // 0 none, 1 group, 2 filter, 3 sort
-	ovSel     int
+	ov        int // 0 none, 1 group, 2 filter, 3 sort, 4 download directory
+	op        [2]opane
+	ofocus    int  // overlay pane with the focus
+	osearch   bool // typing a search in the overlay pane
+	fp        filepicker.Model
 
 	openRun map[int]bool
 	openGrp map[string]bool
-	preview bool // wide: the right pane previews the selected job's log
+	preview bool // the annotations pane previews the selected job's log
 
-	rsec       int // right pane list: 0 annotations, 1 downloads
 	asel, dsel int
 	selKey     string
 
@@ -77,8 +80,6 @@ type model struct {
 	dl    string // download in progress or just done
 	dldir string
 	prog  int
-	dpath string // directory picker: the directory shown
-	dsub  int
 
 	cfg    config.Config
 	th     ui.Theme
@@ -88,8 +89,8 @@ type model struct {
 }
 
 func newModel() *model {
-	m := &model{w: 120, h: 40, dark: true, focus: 1, gdir: "LR", cfg: config.Default(), att: map[int]int{}, dpath: "~",
-		groupBy: "workflow", sortBy: "newest", collapsed: map[string]bool{}, flt: map[string]string{},
+	m := &model{w: 120, h: 40, dark: true, focus: 1, gdir: "LR", cfg: config.Default(), att: map[int]int{},
+		groupBy: "workflow", sortBy: "newest", collapsed: map[string]bool{}, flt: map[string][]string{},
 		openRun: map[int]bool{allRuns[0].id: true}, openGrp: map[string]bool{fmt.Sprint(allRuns[0].id, "/test"): true}}
 	switch {
 	case os.Getenv("PROTO_LIGHT") != "":
@@ -157,6 +158,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return mm, cmd
 	case pager.CloseMsg:
 		return m, tea.Quit
+	}
+	if m.ov == 4 {
+		var cmd tea.Cmd
+		m.fp, cmd = m.fp.Update(msg)
+		return m, cmd
 	}
 	if m.view == 1 {
 		var cmd tea.Cmd
@@ -299,7 +305,7 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		if len(m.flt) > 0 || m.fltOff {
-			m.flt, m.fltOff, m.sel = map[string]string{}, false, 0
+			m.flt, m.fltOff, m.sel = map[string][]string{}, false, 0
 			break
 		}
 		return m, tea.Quit
@@ -308,15 +314,15 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+s":
 		m.sortRev, m.sel = !m.sortRev, 0
 	case "g":
-		m.ov, m.ovSel = 1, max(0, slices.Index(groups, m.groupBy))
+		m.openOv(1)
 	case "alt+g":
 		m.groupOff, m.sel = !m.groupOff, 0
 	case "f":
-		m.ov, m.ovSel = 2, 0
+		m.openOv(2)
 	case "s":
-		m.ov, m.ovSel = 3, max(0, slices.Index(sorts, m.sortBy))
+		m.openOv(3)
 	case "F":
-		m.flt, m.fltOff, m.sel = map[string]string{}, false, 0
+		m.flt, m.fltOff, m.sel = map[string][]string{}, false, 0
 	case "*":
 		m.toggleAll()
 	case "G":
@@ -333,7 +339,7 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if len(ar) == 0 {
 			break
 		}
-		m.rsec = 1
+		m.focus = 3
 		m.confirmCount = len(ar)
 		if k == "D" {
 			m.dwhat = fmt.Sprintf("all %d downloads", len(ar))
@@ -341,15 +347,17 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.dwhat = ar[min(m.dsel, len(ar)-1)].name
 			m.confirmCount = 1
 		}
-		m.ov, m.ovSel = 4, 0
+		m.openPicker()
 	case "z":
-		if m.w >= wideMin {
-			m.preview = !m.preview
-		}
+		m.zoom.Toggle()
+	case "v":
+		m.preview = !m.preview
+	case "1", "2", "3":
+		m.focus = panes.Pane(k[0] - '0')
 	case "tab":
-		m.focus = m.focus%2 + 1
+		m.focus = m.focus%3 + 1
 	case "shift+tab":
-		m.focus = m.focus%2 + 1
+		m.focus = (m.focus+1)%3 + 1
 	case "]", "[":
 		t := len(tabNames)
 		d := 1
@@ -364,8 +372,8 @@ func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.move(d)
 	case "left", "right", "enter":
-		if m.focus == 2 {
-			if m.graph {
+		if m.focus != 1 {
+			if m.graph && m.focus == 2 {
 				break
 			}
 			m.rightKey(k)
@@ -414,31 +422,27 @@ func (m *model) treeKey(k string) {
 	}
 }
 
-// rightKey: left/right switch lists, enter acts on the selected row.
+// rightKey: enter acts on the selected row of the annotations or downloads.
 func (m *model) rightKey(k string) {
-	switch k {
-	case "left":
-		m.rsec = 0
-	case "right":
-		m.rsec = 1
-	case "enter":
-		ri, _, ok := m.ctx()
-		if !ok {
-			return
+	if k != "enter" {
+		return
+	}
+	ri, _, ok := m.ctx()
+	if !ok {
+		return
+	}
+	if m.focus == 2 {
+		as := m.annos()
+		if len(as) > 0 {
+			a := as[min(m.asel, len(as)-1)]
+			m.openLog(ri, a.job, a.step)
 		}
-		if m.rsec == 0 {
-			as := m.annos()
-			if len(as) > 0 {
-				a := as[min(m.asel, len(as)-1)]
-				m.openLog(ri, a.job, a.step)
-			}
-			return
-		}
-		if ar := allRuns[ri].artifacts(); len(ar) > 0 {
-			m.dwhat = ar[min(m.dsel, len(ar)-1)].name
-			m.confirmCount = 1
-			m.ov, m.ovSel = 4, 0
-		}
+		return
+	}
+	if ar := allRuns[ri].artifacts(); len(ar) > 0 {
+		m.dwhat = ar[min(m.dsel, len(ar)-1)].name
+		m.confirmCount = 1
+		m.openPicker()
 	}
 }
 
@@ -447,95 +451,13 @@ func (m *model) move(d int) {
 		m.sel = max(0, min(len(m.nodes())-1, m.sel+d))
 		return
 	}
-	if m.rsec == 0 {
+	if m.focus == 2 {
 		m.asel = max(0, min(len(m.annos())-1, m.asel+d))
 		return
 	}
 	if ri, _, ok := m.ctx(); ok {
 		m.dsel = max(0, min(len(allRuns[ri].artifacts())-1, m.dsel+d))
 	}
-}
-
-func (m *model) overlayKey(k string) {
-	n := []int{0, len(groups), len(facets), len(sorts), len(subdirs(m.dpath))}[m.ov]
-	if m.ov == 4 {
-		switch k {
-		case "esc", "q":
-			m.ov = 0
-		case "backspace", "left", "h":
-			if i := strings.LastIndex(m.dpath, "/"); i >= 0 {
-				m.dpath = m.dpath[:i]
-				m.ovSel = 0
-			}
-		case "j", "down":
-			m.ovSel = min(n-1, m.ovSel+1)
-		case "k", "up":
-			m.ovSel = max(0, m.ovSel-1)
-		case "enter", "right", "l":
-			if d := subdirs(m.dpath); m.ovSel < len(d) {
-				m.dpath += "/" + d[m.ovSel]
-				m.ovSel = 0
-			}
-		case "c":
-			m.ov = 0
-			m.dldir = m.dpath
-			m.confirm = m.dwhat
-		}
-		return
-	}
-	switch k {
-	case "esc", "q", "backspace":
-		m.ov = 0
-	case "j", "down":
-		m.ovSel = min(n-1, m.ovSel+1)
-	case "k", "up":
-		m.ovSel = max(0, m.ovSel-1)
-	case "right", "l":
-		if m.ov == 2 {
-			m.cycle(1)
-		}
-	case "left", "h":
-		if m.ov == 2 {
-			m.cycle(-1)
-		}
-	case "enter":
-		switch m.ov {
-		case 1:
-			m.groupBy, m.groupOff, m.ov, m.sel = groups[m.ovSel], false, 0, 0
-		case 2:
-			m.cycle(1)
-		case 3:
-			m.sortBy, m.ov, m.sel = sorts[m.ovSel], 0, 0
-		}
-	}
-}
-
-func (m *model) cycle(d int) {
-	f := facets[m.ovSel]
-	vals := facetValues(f)
-	i := max(0, slices.Index(vals, m.flt[f]))
-	v := vals[(i+d+len(vals))%len(vals)]
-	if v == "any" {
-		delete(m.flt, f)
-	} else {
-		m.flt[f] = v
-	}
-	m.sel = 0
-	m.fltOff = false
-}
-
-// subdirs is the fake directory tree of the picker.
-func subdirs(p string) []string {
-	if strings.Count(p, "/") >= 3 {
-		return nil
-	}
-	switch {
-	case p == "~":
-		return []string{"Documents", "Downloads", "gh-tui", "tmp"}
-	case strings.HasSuffix(p, "/gh-tui"):
-		return []string{"main", "proto-actions", "artifacts"}
-	}
-	return []string{"archive", "builds", "new"}
 }
 
 // logKey is the job's log: the pager, plus step markers and the ':' line.
