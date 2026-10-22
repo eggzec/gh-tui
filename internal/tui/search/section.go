@@ -251,7 +251,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	s.pv = newPager(s.keys)
 	s.input = textinput.New()
 	s.input.Prompt = ""
-	s.input.Placeholder = "Search repositories, issues, pull requests and code"
+	s.input.Placeholder = "Search repos, issues, pull requests, code, users, commits, topics"
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
 	return s
 }

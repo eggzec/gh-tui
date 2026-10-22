@@ -198,7 +198,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	steps := m.canStep(l)
 	k.next.SetEnabled(k.next.Enabled() && steps)
 	k.prev.SetEnabled(k.prev.Enabled() && steps)
-	k.zoom.SetEnabled(k.zoom.Enabled() && m.canZoom())
+	k.zoom.SetEnabled(k.zoom.Enabled() && m.zoom.CanZoom())
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
 	k.find.SetEnabled(k.find.Enabled() && m.canFind())
 	k.merge.SetEnabled(k.merge.Enabled() && m.loaded && m.detail.State == core.StateOpen)

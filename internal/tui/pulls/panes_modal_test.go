@@ -45,8 +45,8 @@ func TestPullModalZoomBoundary(t *testing.T) {
 			if got := m.layout().Zoomed; got != tt.forced {
 				t.Errorf("zoomed = %v, want %v", got, tt.forced)
 			}
-			if m.canZoom() == tt.forced {
-				t.Errorf("canZoom = %v with a forced zoom of %v", m.canZoom(), tt.forced)
+			if m.zoom.CanZoom() == tt.forced {
+				t.Errorf("canZoom = %v with a forced zoom of %v", m.zoom.CanZoom(), tt.forced)
 			}
 		})
 	}
@@ -170,7 +170,7 @@ func TestPanesPress(t *testing.T) {
 	t.Run("zoom is a no-op when narrow", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 80)
-		if m.canZoom() {
+		if m.zoom.CanZoom() {
 			t.Fatal("canZoom is true at 80 columns")
 		}
 		m.press(keyMsg("z"))

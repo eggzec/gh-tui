@@ -21,9 +21,9 @@ const (
 	// SearchUser values.
 	SearchUsers SearchKind = "users"
 	SearchOrgs  SearchKind = "orgs"
-	// SearchCommits looks for commits, whose hits are SearchCommits.
+	// SearchCommits looks for commits, whose hits are SearchCommit values.
 	SearchCommits SearchKind = "commits"
-	// SearchTopics looks for topics, whose hits are SearchTopics.
+	// SearchTopics looks for topics, whose hits are SearchTopic values.
 	SearchTopics SearchKind = "topics"
 )
 
@@ -56,10 +56,9 @@ type SearchUser struct {
 }
 
 // SearchHit is one search result: a repository, an issue or pull request,
-// an account, or a commit. Kind says which of Repo, Issue, User and Commit is
-// set. For a pull
-// request, Issue is its issue part, and Issue.Repo names its repository in
-// either case.
+// an account, a commit or a topic. Kind says which of Repo, Issue, User,
+// Commit and Topic is set. For a pull request, Issue is its issue part, and
+// Issue.Repo names its repository in either case.
 type SearchHit struct {
 	Kind  SearchKind
 	Repo  Repo

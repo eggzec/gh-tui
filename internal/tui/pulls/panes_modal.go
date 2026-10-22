@@ -503,7 +503,7 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.focus = p
 		m.resetSub()
 	case keymap.Matches(msg, k.zoom):
-		if m.canZoom() {
+		if m.zoom.CanZoom() {
 			m.zoom.Toggle()
 			m.resetSub()
 		}
@@ -594,10 +594,6 @@ func (m *panesModal) layout() panes.Layout {
 func (m *panesModal) hasStrip() bool {
 	return showsOne(m.width, m.zoom.Zoomed()) && m.height >= 4
 }
-
-// canZoom reports whether the zoom key does something: not while a narrow
-// terminal or a small modal forces the zoom.
-func (m *panesModal) canZoom() bool { return m.zoom.CanZoom() }
 
 // inPreview reports whether the preview of the focused pane is shown in l
 // and has the focus.
