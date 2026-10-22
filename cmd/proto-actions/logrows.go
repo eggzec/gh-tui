@@ -23,6 +23,15 @@ func (r run) secs() int {
 	return m*60 + s
 }
 
+func markerRow(rows []logRow, step int) int {
+	for i, r := range rows {
+		if r.marker && r.step == step {
+			return i
+		}
+	}
+	return 0
+}
+
 // logRows is the job's log: a marker row per step, then its lines.
 func (r run) logRows(j job) []logRow {
 	var out []logRow

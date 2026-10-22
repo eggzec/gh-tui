@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -46,22 +47,38 @@ type model struct {
 	asel, dsel int
 	selKey     string
 
-	view         int // 0 runs, 1 a job's log
+	view         int // 0 runs, 1 a job's log in the pager
 	logRun       int
 	logJob       int
-	rows         []logRow
-	logSel       int
+	pg           pager.Model
+	marks        []int // line of each step marker in the pager
+	mk           int
+	needJump     bool
+	curStep      int
+	sortRev      bool
+	dwhat        string
+	pend         []tea.Cmd
 	confirm      string
 	confirmCount int
 
+	fltOff bool // the filter's criteria are kept but not applied
+
+	att map[int]int // run id -> the re-run attempt shown, 1..attempts
+
+	cmdOn bool // the ':' prompt in the foot is open
+	cmd   string
+	toast string
+
 	graph  bool // right pane shows the dependency graph
-	gsrc   bool // ... as mermaid source
 	gdir   string
 	gx, gy int
 	gcache map[string][]string
 
-	dl   string // download in progress or just done
-	prog int
+	dl    string // download in progress or just done
+	dldir string
+	prog  int
+	dpath string // directory picker: the directory shown
+	dsub  int
 
 	cfg    config.Config
 	th     ui.Theme
@@ -71,7 +88,7 @@ type model struct {
 }
 
 func newModel() *model {
-	m := &model{w: 120, h: 40, dark: true, focus: 1, gdir: "LR", cfg: config.Default(),
+	m := &model{w: 120, h: 40, dark: true, focus: 1, gdir: "LR", cfg: config.Default(), att: map[int]int{}, dpath: "~",
 		groupBy: "workflow", sortBy: "newest", collapsed: map[string]bool{}, flt: map[string]string{},
 		openRun: map[int]bool{allRuns[0].id: true}, openGrp: map[string]bool{fmt.Sprint(allRuns[0].id, "/test"): true}}
 	switch {
@@ -131,9 +148,24 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tick()
 	case tea.KeyPressMsg:
-		mm, cmd := m.key(msg.String())
+		mm, cmd := m.key(msg)
 		m.sync()
+		if len(m.pend) > 0 {
+			cmd = tea.Batch(append(m.pend, cmd)...)
+			m.pend = nil
+		}
 		return mm, cmd
+	case pager.CloseMsg:
+		return m, tea.Quit
+	}
+	if m.view == 1 {
+		var cmd tea.Cmd
+		m.pg, cmd = m.pg.Update(msg)
+		if m.needJump && m.pg.Lines() > 0 && len(m.marks) > 0 {
+			m.needJump = false
+			m.jump(m.marks[m.mk])
+		}
+		return m, cmd
 	}
 	return m, nil
 }
@@ -143,11 +175,86 @@ func (m *model) download(what string) tea.Cmd {
 	return tick()
 }
 
-func (m *model) key(k string) (tea.Model, tea.Cmd) {
+// attempts is how many times the run was run: a failing run was re-run twice.
+func attempts(r run) int {
+	if r.status == "failure" {
+		return 3
+	}
+	return 1
+}
+
+// attempt is the re-run shown for the run.
+func (m *model) attempt(ri int) int {
+	n := attempts(allRuns[ri])
+	if a, ok := m.att[allRuns[ri].id]; ok {
+		return min(a, n)
+	}
+	return n
+}
+
+// runCmd runs a ':' line.
+func (m *model) runCmd(c string) {
+	d := 0
+	switch strings.TrimSpace(c) {
+	case "n":
+		d = 1
+	case "p":
+		d = -1
+	case "":
+		return
+	default:
+		m.toast = "not a command: " + c
+		return
+	}
+	ri := -1
+	if m.view == 1 {
+		ri = m.logRun
+	} else if r, _, ok := m.ctx(); ok {
+		ri = r
+	}
+	if ri < 0 {
+		return
+	}
+	n, a := attempts(allRuns[ri]), m.attempt(ri)
+	switch {
+	case a+d > n:
+		m.toast = fmt.Sprintf("no next attempt (%d/%d)", a, n)
+	case a+d < 1:
+		m.toast = fmt.Sprintf("no previous attempt (%d/%d)", a, n)
+	default:
+		m.att[allRuns[ri].id] = a + d
+		if m.view == 1 {
+			m.openLog(m.logRun, m.logJob, m.curStep)
+		}
+	}
+}
+
+func (m *model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	k := msg.String()
 	if k == "ctrl+c" {
 		return m, tea.Quit
 	}
+	m.toast = ""
 	switch {
+	case m.cmdOn:
+		switch k {
+		case "esc":
+			m.cmdOn = false
+		case "enter":
+			m.cmdOn = false
+			m.runCmd(m.cmd)
+		case "backspace":
+			if m.cmd == "" {
+				m.cmdOn = false
+			} else {
+				m.cmd = m.cmd[:len(m.cmd)-1]
+			}
+		default:
+			if len(k) == 1 {
+				m.cmd += k
+			}
+		}
+		return m, nil
 	case m.confirm != "":
 		what := m.confirm
 		m.confirm = ""
@@ -159,21 +266,31 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 		m.overlayKey(k)
 		return m, nil
 	case m.view == 1:
-		return m.logKey(k)
+		return m.logKey(msg)
+	}
+	if k == ":" && m.focus == 1 {
+		m.cmdOn, m.cmd = true, ""
+		return m, nil
 	}
 	if m.graph && m.focus == 2 {
 		switch k {
-		case "left", "h":
+		case "left":
 			m.gx -= 4
 			return m, nil
-		case "right", "l":
+		case "right":
 			m.gx += 4
 			return m, nil
-		case "up", "k":
+		case "up":
 			m.gy--
 			return m, nil
-		case "down", "j":
+		case "down":
 			m.gy++
+			return m, nil
+		case "l":
+			m.gdir = map[string]string{"LR": "TD", "TD": "LR"}[m.gdir]
+			m.gx, m.gy = 0, 0
+			return m, nil
+		case "h", "j", "k":
 			return m, nil
 		}
 	}
@@ -181,11 +298,15 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, tea.Quit
 	case "esc":
-		if len(m.flt) > 0 {
-			m.flt, m.sel = map[string]string{}, 0
+		if len(m.flt) > 0 || m.fltOff {
+			m.flt, m.fltOff, m.sel = map[string]string{}, false, 0
 			break
 		}
 		return m, tea.Quit
+	case "alt+f":
+		m.fltOff, m.sel = !m.fltOff, 0
+	case "alt+s":
+		m.sortRev, m.sel = !m.sortRev, 0
 	case "g":
 		m.ov, m.ovSel = 1, max(0, slices.Index(groups, m.groupBy))
 	case "alt+g":
@@ -195,21 +316,13 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 	case "s":
 		m.ov, m.ovSel = 3, max(0, slices.Index(sorts, m.sortBy))
 	case "F":
-		m.flt, m.sel = map[string]string{}, 0
+		m.flt, m.fltOff, m.sel = map[string]string{}, false, 0
 	case "*":
 		m.toggleAll()
-	case "m":
-		m.graph, m.gsrc, m.gx, m.gy = !m.graph, false, 0, 0
+	case "G":
+		m.graph, m.gx, m.gy = !m.graph, 0, 0
 		if m.graph {
 			m.focus = 2
-		}
-	case "M":
-		m.graph, m.gsrc, m.gx, m.gy = true, !(m.graph && m.gsrc), 0, 0
-		m.focus = 2
-	case "o":
-		if m.graph {
-			m.gdir = map[string]string{"LR": "TD", "TD": "LR"}[m.gdir]
-			m.gx, m.gy = 0, 0
 		}
 	case "d", "D":
 		ri, _, ok := m.ctx()
@@ -223,11 +336,12 @@ func (m *model) key(k string) (tea.Model, tea.Cmd) {
 		m.rsec = 1
 		m.confirmCount = len(ar)
 		if k == "D" {
-			m.confirm = fmt.Sprintf("all %d downloads", len(ar))
+			m.dwhat = fmt.Sprintf("all %d downloads", len(ar))
 		} else {
-			m.confirm = ar[min(m.dsel, len(ar)-1)].name
+			m.dwhat = ar[min(m.dsel, len(ar)-1)].name
 			m.confirmCount = 1
 		}
+		m.ov, m.ovSel = 4, 0
 	case "z":
 		if m.w >= wideMin {
 			m.preview = !m.preview
@@ -321,8 +435,9 @@ func (m *model) rightKey(k string) {
 			return
 		}
 		if ar := allRuns[ri].artifacts(); len(ar) > 0 {
-			m.confirm = ar[min(m.dsel, len(ar)-1)].name
+			m.dwhat = ar[min(m.dsel, len(ar)-1)].name
 			m.confirmCount = 1
+			m.ov, m.ovSel = 4, 0
 		}
 	}
 }
@@ -342,7 +457,32 @@ func (m *model) move(d int) {
 }
 
 func (m *model) overlayKey(k string) {
-	n := []int{0, len(groups), len(facets), len(sorts)}[m.ov]
+	n := []int{0, len(groups), len(facets), len(sorts), len(subdirs(m.dpath))}[m.ov]
+	if m.ov == 4 {
+		switch k {
+		case "esc", "q":
+			m.ov = 0
+		case "backspace", "left", "h":
+			if i := strings.LastIndex(m.dpath, "/"); i >= 0 {
+				m.dpath = m.dpath[:i]
+				m.ovSel = 0
+			}
+		case "j", "down":
+			m.ovSel = min(n-1, m.ovSel+1)
+		case "k", "up":
+			m.ovSel = max(0, m.ovSel-1)
+		case "enter", "right", "l":
+			if d := subdirs(m.dpath); m.ovSel < len(d) {
+				m.dpath += "/" + d[m.ovSel]
+				m.ovSel = 0
+			}
+		case "c":
+			m.ov = 0
+			m.dldir = m.dpath
+			m.confirm = m.dwhat
+		}
+		return
+	}
 	switch k {
 	case "esc", "q", "backspace":
 		m.ov = 0
@@ -381,71 +521,99 @@ func (m *model) cycle(d int) {
 		m.flt[f] = v
 	}
 	m.sel = 0
+	m.fltOff = false
 }
 
-// logKey handles the job's log step of the modal.
-func (m *model) logKey(k string) (tea.Model, tea.Cmd) {
-	last := len(m.rows) - 1
+// subdirs is the fake directory tree of the picker.
+func subdirs(p string) []string {
+	if strings.Count(p, "/") >= 3 {
+		return nil
+	}
+	switch {
+	case p == "~":
+		return []string{"Documents", "Downloads", "gh-tui", "tmp"}
+	case strings.HasSuffix(p, "/gh-tui"):
+		return []string{"main", "proto-actions", "artifacts"}
+	}
+	return []string{"archive", "builds", "new"}
+}
+
+// logKey is the job's log: the pager, plus step markers and the ':' line.
+func (m *model) logKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	k := msg.String()
+	if m.pg.Capturing() {
+		var cmd tea.Cmd
+		m.pg, cmd = m.pg.Update(msg)
+		return m, cmd
+	}
 	switch k {
-	case "q", "esc":
-		return m, tea.Quit
 	case "backspace":
 		m.view = 0
-	case "j", "down":
-		m.logSel = min(last, m.logSel+1)
-	case "k", "up":
-		m.logSel = max(0, m.logSel-1)
-	case "pgdown", "ctrl+d":
-		m.logSel = min(last, m.logSel+10)
-	case "pgup", "ctrl+u":
-		m.logSel = max(0, m.logSel-10)
-	case "g":
-		m.logSel = 0
-	case "G":
-		m.logSel = last
+		return m, nil
+	case ":":
+		m.cmdOn, m.cmd = true, ""
+		return m, nil
+	case "esc":
+		cmd, ok := m.pg.ClearTransient()
+		if !ok {
+			return m, tea.Quit
+		}
+		return m, cmd
 	case "]", "[":
+		if len(m.marks) == 0 {
+			return m, nil
+		}
 		d := 1
 		if k == "[" {
 			d = -1
 		}
-		for i := m.logSel + d; i >= 0 && i <= last; i += d {
-			if m.rows[i].marker {
-				m.logSel = i
-				break
-			}
-		}
-	case "e":
-		for o := 1; o <= len(m.rows); o++ {
-			i := (m.logSel + o) % len(m.rows)
-			if m.rows[i].err {
-				m.logSel = i
-				break
-			}
-		}
+		m.mk = max(0, min(len(m.marks)-1, m.mk+d))
+		m.jump(m.marks[m.mk])
+		return m, nil
 	}
-	return m, nil
+	var cmd tea.Cmd
+	m.pg, cmd = m.pg.Update(msg)
+	return m, cmd
+}
+
+// jump scrolls the pager to a line by keys: top, then down.
+func (m *model) jump(line int) {
+	m.pg, _ = m.pg.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+	for range line {
+		m.pg, _ = m.pg.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	}
 }
 
 func (m *model) openLog(ri, ji, step int) {
 	m.view, m.logRun, m.logJob = 1, ri, ji
 	r := allRuns[ri]
-	m.rows = r.logRows(r.jobs[ji])
 	if step < 0 {
 		_, step = r.failing()
 		if r.jobs[ji].status != "failure" {
 			step = 0
 		}
 	}
-	m.logSel = markerRow(m.rows, step)
-}
-
-func markerRow(rows []logRow, step int) int {
-	for i, r := range rows {
-		if r.marker && r.step == step {
-			return i
+	m.curStep = step
+	a := m.attempt(ri)
+	lines := []string{fmt.Sprintf("##[attempt %d/%d] %s", a, attempts(r), r.jobs[ji].name)}
+	m.marks = nil
+	m.mk = 0
+	for _, row := range r.logRows(r.jobs[ji]) {
+		if row.marker {
+			if row.step == step {
+				m.mk = len(m.marks)
+			}
+			m.marks = append(m.marks, len(lines))
+			lines = append(lines, "##[group]"+row.text)
+			continue
 		}
+		lines = append(lines, row.ts+" "+row.text)
 	}
-	return 0
+	m.pg = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor))
+	m.pg.SetLineNumbers(true)
+	m.pg.Focus()
+	m.pend = append(m.pend, m.pg.SetContent("job.log", strings.Join(lines, "\n")))
+	m.needJump = true
 }
 
 func (m *model) View() tea.View {
@@ -529,6 +697,13 @@ func (m *model) overlay(base string) string {
 			}
 			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Text.Render(fmt.Sprintf("%-9s", f))+vs)
 		}
+	case 4:
+		title = "Download " + m.dwhat + " to"
+		hint = "j k move  enter open  backspace up  c choose  esc cancel"
+		rows = append(rows, m.th.Accent.Render(m.dpath))
+		for i, d := range subdirs(m.dpath) {
+			rows = append(rows, m.cursor(i == m.ovSel, true)+m.th.Text.Render(d+"/"))
+		}
 	default:
 		title = "Sort"
 		for i, s := range sorts {
@@ -540,6 +715,9 @@ func (m *model) overlay(base string) string {
 		}
 	}
 	ow := min(m.w, 38)
+	if m.ov == 4 {
+		ow = min(m.w, 64)
+	}
 	oh := len(rows) + 2
 	l := panes.Layout{Width: ow, Height: oh, Focus: 1, Panes: []panes.Def{{Name: title, Short: title}},
 		Boxes: []panes.Box{{Pane: 1, Rect: panes.Rect{W: ow, H: oh}}}}
@@ -597,7 +775,16 @@ func (m *model) footer(l panes.Layout) string {
 		return m.th.Muted.Render(keys) + " " + m.th.Subtle.Render(what)
 	}
 	if m.confirm != "" {
-		return sealed(m.th.Warning.Render("Download "+m.confirm+"?")+" "+hint("y", "yes")+"  "+hint("any other key", "cancel"), m.w)
+		return sealed(m.th.Warning.Render("Download "+m.confirm+" to "+m.dldir+"?")+" "+hint("y", "yes")+"  "+hint("any other key", "cancel"), m.w)
+	}
+	if m.cmdOn {
+		return sealed(m.th.Accent.Render(":"+m.cmd+"_")+"  "+hint("enter", "run")+"  "+hint("esc", "cancel"), m.w)
+	}
+	if m.toast != "" {
+		return sealed(m.th.Warning.Render(m.toast), m.w)
+	}
+	if m.ov == 4 {
+		return sealed(hint("j k", "move")+"  "+hint("enter", "open dir")+"  "+hint("backspace", "up")+"  "+hint("c", "choose this directory")+"  "+hint("esc", "cancel"), m.w)
 	}
 	if m.dl != "" {
 		const n = 8
@@ -612,11 +799,11 @@ func (m *model) footer(l panes.Layout) string {
 	var parts []string
 	switch {
 	case m.view == 1:
-		parts = []string{hint("j k", "move"), hint("] [", "step"), hint("e", "error"), hint("backspace", "back"), hint("esc", "close")}
+		parts = []string{hint("j k", "scroll"), hint("/ n N", "search"), hint("] [", "step"), hint(": n :p", "attempt"), hint("backspace", "back"), hint("esc", "clear/close")}
 	case m.graph && m.focus == 2:
-		parts = []string{hint("hjkl", "scroll"), hint("M", "mermaid"), hint("o", "LR/TD"), hint("m", "back"), hint("tab", "pane")}
+		parts = []string{hint("arrows", "scroll"), hint("l", "LR/TD"), hint("G", "close"), hint("tab", "pane")}
 	default:
-		parts = []string{hint("tab", "pane"), hint("enter", "open"), hint("g", "group"), hint("f", "filter"), hint("s", "sort"), hint("m", "graph")}
+		parts = []string{hint("tab", "pane"), hint("enter", "open"), hint("g", "group"), hint("alt+g", "ungroup"), hint("f", "filter"), hint("alt+f", "filter on/off"), hint("s", "sort"), hint("alt+s", "reverse"), hint("G", "graph"), hint(":n :p", "attempt")}
 		if m.w >= wideMin {
 			parts = append(parts, hint("z", "preview"))
 		}

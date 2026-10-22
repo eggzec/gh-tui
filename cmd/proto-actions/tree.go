@@ -49,6 +49,9 @@ func facetValues(f string) []string {
 }
 
 func (m *model) passes(r run) bool {
+	if m.fltOff {
+		return true
+	}
 	for f, v := range m.flt {
 		if v != "" && r.facet(f) != v {
 			return false
@@ -134,6 +137,9 @@ func (m *model) sortRuns(runs []int) {
 	}
 	slices.SortStableFunc(runs, func(a, b int) int {
 		ra, rb := allRuns[a], allRuns[b]
+		if m.sortRev {
+			ra, rb = rb, ra
+		}
 		switch m.sortBy {
 		case "oldest":
 			return rb.id - ra.id
@@ -356,11 +362,15 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 	if m.view == 1 {
 		r := allRuns[m.logRun]
 		j := r.jobs[m.logJob]
-		c.TopLeft = []string{"Log " + j.name, "Log"}
+		at := ""
+		if n := attempts(r); n > 1 {
+			at = fmt.Sprintf("  attempt %d/%d", m.attempt(m.logRun), n)
+		}
+		c.TopLeft = []string{"Log " + j.name + at, "Log " + j.name, "Log"}
 		c.TopRight = []string{r.title + " #" + fmt.Sprint(r.id), ""}
-		c.BottomRight = []string{fmt.Sprintf("%d/%d", m.logSel+1, len(m.rows))}
-		c.BottomLeft = []string{"j k move  ] [ step  e error  backspace back", "] [ e", ""}
-		c.Body = m.logBody(m.rows, m.logSel, in.W, in.H, true)
+		c.BottomLeft = []string{"j k scroll  / search  ] [ step  :n :p attempt  backspace back", "] [ :n :p", ""}
+		m.pg.SetSize(in.W, in.H)
+		c.Body = m.pg.View()
 		return c
 	}
 	if b.Pane == 1 {
@@ -378,6 +388,12 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		meta := fmt.Sprintf("%d runs, %s, %s", runs, by, m.sortBy)
 		if f := len(m.flt); f > 0 {
 			meta += fmt.Sprintf(", %d filters", f)
+			if m.fltOff {
+				meta += " (off)"
+			}
+		}
+		if m.sortRev {
+			meta += " reversed"
 		}
 		c.TopRight = []string{meta, fmt.Sprintf("%d runs", runs), ""}
 		if len(ns) > 0 {
@@ -396,11 +412,7 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		} else {
 			c.Body = m.th.Subtle.Render("Select a run to draw its graph")
 		}
-		c.BottomLeft = []string{"hjkl scroll  M mermaid  o LR/TD  m back", "M o m", ""}
-		if m.gsrc {
-			c.TopLeft = []string{"graph mermaid"}
-			c.BottomLeft = []string{"hjkl scroll  M drawing  m back", "M m", ""}
-		}
+		c.BottomLeft = []string{"arrows scroll  l LR/TD  G close", "arrows l G", ""}
 		return c
 	}
 	if m.preview && m.w >= wideMin {
@@ -427,7 +439,7 @@ func (m *model) content(b panes.Box, l panes.Layout) panes.Content {
 		nd = len(allRuns[ri].artifacts())
 	}
 	c.TopLeft = []string{fmt.Sprintf("Annotations %d  Downloads %d", len(as), nd), fmt.Sprintf("Annot. %d  Dl %d", len(as), nd), "Annotations"}
-	c.BottomLeft = []string{"< > list  enter open/download  d download  D all  m graph", "< > d D", ""}
+	c.BottomLeft = []string{"< > list  enter open/download  d download  D all  G graph", "< > d D G", ""}
 	c.Body = m.rightBody(as, in.W, in.H, c.Focus)
 	return c
 }
@@ -486,6 +498,9 @@ func (m *model) treeBody(ns []node, w, h int, focus bool) string {
 			}
 			if r.dur != "" && w >= 44 {
 				meta = append(meta, m.th.Subtle.Render(r.dur))
+			}
+			if na := attempts(r); na > 1 && w >= 44 {
+				meta = append(meta, m.th.Warning.Render(fmt.Sprintf("attempt %d/%d", m.attempt(n.run), na)))
 			}
 			meta = append(meta, m.th.Subtle.Render(r.age))
 			lines = append(lines, m.row(left, strings.Join(meta, " "), w))

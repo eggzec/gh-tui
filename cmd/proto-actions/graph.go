@@ -97,14 +97,7 @@ func (m *model) graphLines(r run) []string {
 
 // graphBody shows the drawing centred when it fits, else scrolled by gx, gy.
 func (m *model) graphBody(r run, w, h int) string {
-	var lines []string
-	if m.gsrc {
-		for _, l := range strings.Split(strings.TrimRight(r.mermaid(m.gdir), "\n"), "\n") {
-			lines = append(lines, m.th.Text.Render(l))
-		}
-	} else {
-		lines = m.graphLines(r)
-	}
+	lines := m.graphLines(r)
 	gw := 0
 	for _, l := range lines {
 		gw = max(gw, ansi.StringWidth(l))
@@ -113,9 +106,6 @@ func (m *model) graphBody(r run, w, h int) string {
 	m.gy = max(0, min(max(0, len(lines)-h), m.gy))
 	padTop := max(0, (h-len(lines))/2)
 	padLeft := max(0, (w-gw)/2)
-	if m.gsrc {
-		padLeft, padTop = 0, 0
-	}
 	var out []string
 	for range padTop {
 		out = append(out, "")
