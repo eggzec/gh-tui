@@ -365,7 +365,11 @@ func (m *model) footer(l panes.Layout) string {
 		}
 		parts = append(parts, hint("z", what))
 	}
-	parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"), hint("l p a", "section"), hint("g", "graph"))
+	if m.graph {
+		parts = append(parts, hint("hjkl", "scroll"), hint("m", "mermaid"), hint("o", "LR/TD"), hint("g", "back"))
+	} else {
+		parts = append(parts, hint("[ ]", "tab"), hint("j k", "move"), hint("l p a", "section"), hint("g", "graph"))
+	}
 	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })
 	if m.dl != "" {
 		const n = 8

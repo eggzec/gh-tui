@@ -82,6 +82,7 @@ func (m *model) graphLines(r run) []string {
 		lines = []string{m.th.Error.Render("cannot draw: " + err.Error())}
 	} else {
 		for _, l := range strings.Split(strings.TrimRight(out, "\n"), "\n") {
+			l = strings.ReplaceAll(l, "\t", " ")
 			l = strings.ReplaceAll(l, marks["failure"], m.th.Error.Render(marks["failure"]))
 			l = strings.ReplaceAll(l, marks["success"], m.th.Success.Render(marks["success"]))
 			lines = append(lines, l)
