@@ -33,6 +33,10 @@ internal/config/ui.go:minToast  keep: a bound the validator enforces
 internal/watch/options.go:DefaultMaxBackoff  keep: a safety mechanism, how far polls back off after errors
 internal/watch/options.go:DefaultMinInterval  keep: a bound, the engine's own floor under sync.poll
 
+# Bubbles.
+pkg/bubbles/panes/layout.go:DefaultListWidth  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via Spec.ListWidth
+pkg/bubbles/panes/layout.go:DefaultSplitMin  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via Spec.SplitMin
+
 # Caches.
 internal/cache/disk/collect.go:tmpMaxAge  keep: a safety mechanism, when a temporary file counts as abandoned
 internal/cache/disk/store.go:touchAfter  keep: a mechanism, how seldom a read marks an object used
