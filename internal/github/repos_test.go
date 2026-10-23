@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -102,7 +103,7 @@ func TestListRepos(t *testing.T) {
 		}},
 		Next: "Y3Vyc29yOnYyOpK5MjAyNi0wOC0wMlQwODozMDowMCswMDowMM4LfWrU",
 	}
-	if !slices.Equal(got.Items, want.Items) || got.Next != want.Next {
+	if !slices.EqualFunc(got.Items, want.Items, func(a, b core.Repo) bool { return reflect.DeepEqual(a, b) }) || got.Next != want.Next {
 		t.Errorf("page = %+v\nwant %+v", got, want)
 	}
 }
@@ -141,7 +142,7 @@ func TestGetRepo(t *testing.T) {
 	want := ghTUI
 	want.Caps = core.RepoCaps{Known: true, PullRequests: true}
 	want.OwnerAvatarURL = "https://avatars.githubusercontent.com/u/170000000?v=4"
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("repo = %+v\nwant %+v", got, want)
 	}
 }

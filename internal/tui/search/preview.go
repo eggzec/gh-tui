@@ -71,7 +71,8 @@ func (s *Section) previewed() previewBody {
 		return previewBody{}
 	}
 	if h.Kind == core.SearchRepos {
-		return previewBody{key: "repo " + hitKey(h), name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) }}
+		suffix, add := s.extraText(h)
+		return previewBody{key: "repo " + hitKey(h) + suffix, name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) + add }}
 	}
 	if h.Kind == core.SearchTopics {
 		return previewBody{key: "topic " + h.Topic.Name, name: h.Topic.Name, text: func() string { return topicText(h.Topic) }}
@@ -140,6 +141,9 @@ func repoText(r core.Repo) string {
 	fmt.Fprintf(&b, "Stars: %d\n", r.Stars)
 	if !r.UpdatedAt.IsZero() {
 		fmt.Fprintf(&b, "Updated: %s\n", r.UpdatedAt.Format("2006-01-02"))
+	}
+	if len(r.Topics) > 0 {
+		fmt.Fprintf(&b, "Topics: %s\n", strings.Join(r.Topics, ", "))
 	}
 	for _, f := range []struct {
 		on   bool

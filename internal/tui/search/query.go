@@ -22,6 +22,7 @@ func (s *Section) adopt() tea.Cmd {
 	s.cancelText()
 	s.textCtx, s.cancelText = context.WithCancel(s.ctx)
 	s.ahead.Reset(s.textCtx)
+	s.forgetExtras()
 	s.text = text
 	s.refreshCounts()
 	if text == "" {

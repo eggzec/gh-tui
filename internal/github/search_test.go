@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -47,7 +48,7 @@ func TestSearchRepos(t *testing.T) {
 		t.Fatalf("got %d repos, want %d", len(page.Items), len(want))
 	}
 	for i := range want {
-		if got := page.Items[i]; got != want[i] {
+		if got := page.Items[i]; !reflect.DeepEqual(got, want[i]) {
 			t.Errorf("repo %d = %+v, want %+v", i, got, want[i])
 		}
 	}

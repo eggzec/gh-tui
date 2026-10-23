@@ -2,6 +2,7 @@ package repos
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -48,13 +49,13 @@ func toggled(r core.Repo, stars int) core.Repo {
 // wantCached checks what the list pages and the detail of ghTUI show.
 func wantCached(t *testing.T, s *Service, first []core.Repo, detail core.Repo) {
 	t.Helper()
-	if got, _ := s.CachedList(ListQuery{}); !slices.Equal(got.Items, first) || got.Next != "c1" {
+	if got, _ := s.CachedList(ListQuery{}); !equalPage(got, page(got.Next, first...)) || got.Next != "c1" {
 		t.Errorf("first page = %+v, want %+v", got, first)
 	}
 	if got, _ := s.CachedList(ListQuery{Cursor: "c1"}); !equalPage(got, page("", other)) {
 		t.Errorf("second page = %+v, want it untouched", got)
 	}
-	if got, _ := s.CachedGet(ghTUI.Ref); got != detail {
+	if got, _ := s.CachedGet(ghTUI.Ref); !reflect.DeepEqual(got, detail) {
 		t.Errorf("detail = %+v, want %+v", got, detail)
 	}
 }
@@ -68,7 +69,7 @@ func TestStarShowsBeforeDo(t *testing.T) {
 	want := toggled(ghTUI, 43)
 	wantCached(t, s, []core.Repo{want, dotfiles}, want)
 	api.wantCalls(t)
-	if items[0] != ghTUI {
+	if !reflect.DeepEqual(items[0], ghTUI) {
 		t.Error("Star changed the cached page in place")
 	}
 	op.Rollback()
@@ -111,10 +112,10 @@ func TestStarReconcilesOnSuccess(t *testing.T) {
 	server := toggled(ghTUI, 44)
 	api.listRepos = func(int, string) (core.Page[core.Repo], error) { return page("c1", server, dotfiles), nil }
 	api.getRepo = func(core.RepoRef) (core.Repo, error) { return server, nil }
-	if got, err := s.List(t.Context(), ListQuery{}); err != nil || got.Items[0] != server {
+	if got, err := s.List(t.Context(), ListQuery{}); err != nil || !reflect.DeepEqual(got.Items[0], server) {
 		t.Errorf("List = %+v, %v; want the server's count", got, err)
 	}
-	if got, err := s.Get(t.Context(), ghTUI.Ref); err != nil || got != server {
+	if got, err := s.Get(t.Context(), ghTUI.Ref); err != nil || !reflect.DeepEqual(got, server) {
 		t.Errorf("Get = %+v, %v; want the server's count", got, err)
 	}
 	// Only the entries holding the repo are revalidated.
@@ -179,11 +180,11 @@ func TestStarFailureLeavesTheKeptCopyAsItWas(t *testing.T) {
 				t.Helper()
 				api := &fakeAPI{t: t, listRepos: list, getRepo: get}
 				ns := New(api, WithStore(store))
-				if got, err := ns.Get(t.Context(), tt.repo.Ref); err != nil || got != tt.repo {
+				if got, err := ns.Get(t.Context(), tt.repo.Ref); err != nil || !reflect.DeepEqual(got, tt.repo) {
 					t.Errorf("kept repository %s = %+v, %v; want %+v", when, got, err, tt.repo)
 				}
 				got, err := ns.List(t.Context(), ListQuery{})
-				if err != nil || !slices.Contains(got.Items, tt.repo) {
+				if err != nil || !slices.ContainsFunc(got.Items, func(r core.Repo) bool { return reflect.DeepEqual(r, tt.repo) }) {
 					t.Errorf("kept list %s = %+v, %v; want it to hold %+v", when, got.Items, err, tt.repo)
 				}
 				api.wantCalls(t)
@@ -197,7 +198,7 @@ func TestStarFailureLeavesTheKeptCopyAsItWas(t *testing.T) {
 				t.Fatalf("Do error = %v, want ErrForbidden", err)
 			}
 			kept("after the failure")
-			if got, _ := s.CachedGet(tt.repo.Ref); got != tt.repo {
+			if got, _ := s.CachedGet(tt.repo.Ref); !reflect.DeepEqual(got, tt.repo) {
 				t.Errorf("cached repository = %+v, want %+v", got, tt.repo)
 			}
 		})

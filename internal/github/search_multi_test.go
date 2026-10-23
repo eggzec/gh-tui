@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func TestSearch(t *testing.T) {
 		URL:           "https://github.com/charmbracelet/lipgloss",
 		Caps:          core.RepoCaps{Permission: core.PermissionAdmin},
 	}
-	if repo != wantRepo || repo.Stars < 10000 || repo.UpdatedAt.IsZero() {
+	if !reflect.DeepEqual(repo, wantRepo) || repo.Stars < 10000 || repo.UpdatedAt.IsZero() {
 		t.Errorf("repo 0 = %+v, want %+v", repo, wantRepo)
 	}
 

@@ -35,6 +35,7 @@ type searchRepo struct {
 	MirrorURL     string    `json:"mirror_url"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	HTMLURL       string    `json:"html_url"`
+	Topics        []string  `json:"topics"`
 	// Permissions is the viewer's access, absent when GitHub doesn't say.
 	Permissions *struct {
 		Admin    bool `json:"admin"`
@@ -83,6 +84,7 @@ func (r searchRepo) core() core.Repo {
 		Mirror:        r.MirrorURL != "",
 		UpdatedAt:     r.UpdatedAt,
 		URL:           r.HTMLURL,
+		Topics:        r.Topics,
 		Caps:          core.RepoCaps{Permission: r.permission()},
 	}
 }

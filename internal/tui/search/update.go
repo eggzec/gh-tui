@@ -19,7 +19,7 @@ import (
 // of others.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
-	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead(), s.syncPreview())
+	cmd = tea.Batch(cmd, s.spinTitle(), s.readAhead(), s.readPreview(), s.syncPreview())
 	s.render()
 	return cmd
 }
@@ -33,6 +33,9 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.ahead.Rested(msg)
+	case previewReadMsg:
+		s.readPreviewDone(msg)
+		return nil
 	case codeTickMsg:
 		if msg.id != s.id {
 			return nil

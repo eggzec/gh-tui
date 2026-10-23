@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -104,6 +105,7 @@ func TestKeptRepo(t *testing.T) {
 	}
 	caps := ghTUI
 	caps.Caps = core.RepoCaps{Known: true, Permission: core.PermissionRead, Issues: true}
+	caps.Topics = []string{"cli", "tui"}
 	api := &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return caps, nil }}
 	if _, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil {
 		t.Fatal(err)
@@ -112,7 +114,7 @@ func TestKeptRepo(t *testing.T) {
 	// A new session within its TTL reads the kept repository without a
 	// request.
 	api = &fakeAPI{t: t}
-	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
+	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || !reflect.DeepEqual(got, caps) {
 		t.Errorf("Get in a new session = %+v, %v; want the kept repository", got, err)
 	}
 	api.wantCalls(t)
@@ -121,7 +123,7 @@ func TestKeptRepo(t *testing.T) {
 	// reached.
 	offline := fmt.Errorf("%w: %w", core.ErrOffline, &url.Error{Op: "Post", URL: "https://api.github.com/graphql", Err: errors.New("refused")})
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return core.Repo{}, offline }}
-	if got, err := New(api, WithStore(cachetest.Aged(store, 2*config.Default().Cache.TTL.RepoInfo))).Get(t.Context(), ghTUI.Ref); err != nil || got != caps {
+	if got, err := New(api, WithStore(cachetest.Aged(store, 2*config.Default().Cache.TTL.RepoInfo))).Get(t.Context(), ghTUI.Ref); err != nil || !reflect.DeepEqual(got, caps) {
 		t.Errorf("Get offline = %+v, %v; want the kept repository", got, err)
 	}
 	api.wantCalls(t, "get eggzec/gh-tui")
@@ -132,7 +134,7 @@ func TestKeptRepo(t *testing.T) {
 		t.Error("Get after a refusal succeeded")
 	}
 	api = &fakeAPI{t: t, getRepo: func(core.RepoRef) (core.Repo, error) { return ghTUI, nil }}
-	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || got != ghTUI {
+	if got, err := New(api, WithStore(store)).Get(t.Context(), ghTUI.Ref); err != nil || !reflect.DeepEqual(got, ghTUI) {
 		t.Errorf("Get after the refusal = %+v, %v; want it fetched", got, err)
 	}
 	api.wantCalls(t, "get eggzec/gh-tui")

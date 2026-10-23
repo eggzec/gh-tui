@@ -146,6 +146,10 @@ type SearchKinds struct {
 	Details    Layer          `yaml:"details,omitempty"`
 	Comments   Layer          `yaml:"comments,omitempty"`
 	OtherKinds Layer          `yaml:"other_kinds,omitempty"`
+	// Preview is the rows each side of the cursor whose preview is read
+	// when it needs more than the result holds, at most maxWindow. The
+	// preview of the row under the cursor is always read. 0 reads no others.
+	Preview int `yaml:"preview"`
 }
 
 // FilesKinds is the files tree's: the listings of folders, and the
@@ -348,7 +352,8 @@ func (p PrefetchLayers) validate(previewMax Size) error {
 	var errs []error
 	errs = append(errs, checkWindow("prefetch.window.before", p.Window.Before, maxWindow),
 		checkWindow("prefetch.window.after", p.Window.After, maxWindow),
-		checkRest("prefetch.rest", p.Rest))
+		checkRest("prefetch.rest", p.Rest),
+		checkWindow("prefetch.search.preview", p.Search.Preview, maxWindow))
 	if p.Parallel < 1 || p.Parallel > maxParallel {
 		errs = append(errs, fmt.Errorf("prefetch.parallel: must be between 1 and %d, got %d", maxParallel, p.Parallel))
 	}

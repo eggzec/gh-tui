@@ -71,6 +71,7 @@ fragment searchRepo on Repository {
   defaultBranchRef { name }
   updatedAt
   url
+  repositoryTopics(first: 20) { nodes { topic { name } } }
 }
 fragment searchIssue on Issue {
   __typename
@@ -195,8 +196,15 @@ type searchRepoNode struct {
 	DefaultBranchRef *struct {
 		Name string `json:"name"`
 	} `json:"defaultBranchRef"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	URL       string    `json:"url"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	URL              string    `json:"url"`
+	RepositoryTopics struct {
+		Nodes []struct {
+			Topic struct {
+				Name string `json:"name"`
+			} `json:"topic"`
+		} `json:"nodes"`
+	} `json:"repositoryTopics"`
 }
 
 // hit maps the repository. Search results don't say whether the viewer
@@ -215,6 +223,9 @@ func (r searchRepoNode) hit() core.SearchHit {
 		UpdatedAt:   r.UpdatedAt,
 		URL:         r.URL,
 		Caps:        core.RepoCaps{Permission: permission(r.ViewerPermission)},
+	}
+	for _, t := range r.RepositoryTopics.Nodes {
+		repo.Topics = append(repo.Topics, t.Topic.Name)
 	}
 	if r.PrimaryLanguage != nil {
 		repo.Language, repo.LanguageColor = r.PrimaryLanguage.Name, r.PrimaryLanguage.Color
