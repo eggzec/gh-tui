@@ -26,7 +26,7 @@ Actions
   back | backspace | backspace | off
 
 Runs
-  jobs | enter | ↵ | on
+  fold | enter | ↵ | on
   filter | f | f | on
   clear filter | F | F | off
   filter on/off | alt+f | alt+f | off
