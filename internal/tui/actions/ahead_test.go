@@ -177,11 +177,11 @@ func holdLogAhead(t *testing.T, f *fake) (m *Modal, h *host, wait func()) {
 	}))
 	// Leave the window empty, and have the macOS job's log to read again
 	// once the cursor is back.
-	// The first j enters the jobs, on the failed Ubuntu job.
-	h.keys("j")
+	// The first j enters the jobs, on the matrix parent; then down to the
+	// Ubuntu job, the macOS one, and back up to the Ubuntu job.
+	h.keys("j", "j", "j", "k")
 	f.mu.Lock()
 	f.cachedLogs[macosJob] = false
-	f.cachedLogs[ubuntuJob] = true
 	f.logReads = nil
 	f.holdLogs = map[int64]bool{macosJob: true}
 	f.mu.Unlock()
@@ -263,9 +263,7 @@ func TestLogAheadGoesOnForTheJobLanded(t *testing.T) {
 	// The log pane's own read isn't held.
 	f.holdLogs = nil
 	f.mu.Unlock()
-	// The cursor is on the matrix parent: down to the Ubuntu job, then the
-	// macOS one.
-	h.keys("j")
+	// The cursor is on the Ubuntu job: down to the macOS one.
 	h.held = nil
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
 	h.keys("j")

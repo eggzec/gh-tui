@@ -29,8 +29,7 @@ func TestViewASCII(t *testing.T) {
 	} {
 		m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
 		h.keys(tt.keys...)
-		// The guides of the outline are box drawing, whatever the icons.
-		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII && !strings.ContainsRune("│├└▌", r) }) {
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("%dx%d after %v: view isn't ASCII:\n%s", tt.width, tt.height, tt.keys, v)
 		}
 	}
@@ -105,8 +104,20 @@ func TestViewWaiting(t *testing.T) {
 			m, h := newModal(t, f, wideW, 10, WithIcons(ui.NewIcons(set)))
 			h.keys("enter", "j")
 			v := m.View()
-			if s := screen(m); !strings.Contains(s, "deploy (production)") || !strings.Contains(s, "waiting") {
-				t.Errorf("the waiting jobs:\n%s", s)
+			// The row of a narrow pane has no room for the state's words, so
+			// the glyph before the name tells a waiting job from a queued one.
+			s := screen(m)
+			glyph := func(name string) string {
+				for l := range strings.SplitSeq(s, "\n") {
+					if before, _, ok := strings.Cut(l, name); ok {
+						f := strings.Fields(before)
+						return f[len(f)-1]
+					}
+				}
+				return ""
+			}
+			if d, q := glyph("deploy (production)"), glyph("docs"); d == "" || q == "" || d == q {
+				t.Errorf("the deploy row's glyph %q and the queued one's %q:\n%s", d, q, s)
 			}
 			assertFits(t, v, wideW, 10)
 			golden.RequireEqual(t, v)

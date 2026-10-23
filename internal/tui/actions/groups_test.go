@@ -414,23 +414,44 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	}
 }
 
-// A long name gives way to the count and the state of its group.
+// A long name wraps under its guides, whole, at the width of the pane, and
+// each of its lines keeps the link.
 func TestJobGroupLongName(t *testing.T) {
 	f := newFake()
-	long := strings.Repeat("Build every extension binary ", 3)
+	long := strings.Repeat("Build every extension binary ", 5)
+	alone := strings.TrimSpace(strings.Repeat("Ship every artifact ", 5))
 	f.jobs[failedRun] = []core.Job{
 		job(1, failedRun, long+"(linux)", core.ConclusionFailure, time.Hour, time.Minute),
 		job(2, failedRun, long+"(osx)", core.ConclusionSuccess, time.Hour, time.Minute),
+		job(3, failedRun, alone, core.ConclusionSuccess, time.Hour, time.Minute),
 	}
-	m, h := newModal(t, f, wideW, wideH)
+	m, h := newModal(t, f, 120, 40)
 	h.keys("tab")
-	row := jobsPaneRows(m)[0]
-	if !strings.Contains(row, "▾ "+strings.TrimSpace(long)) {
-		t.Errorf("the long group's name was cut: %q", row)
+	w := m.paneWidth(jobsPane)
+	lines := m.jobLines(w, m.rowsOf(jobsPane))
+	words := make([]string, 0, len(lines)*4)
+	for _, l := range lines {
+		if got := ansi.StringWidth(l); got != w {
+			t.Errorf("a line is %d cells, want %d: %q", got, w, ansi.Strip(l))
+		}
+		words = append(words, strings.Fields(strings.TrimLeft(ansi.Strip(l), "▌│├└▾▸ "))...)
 	}
-	lines := m.jobLines(m.paneWidth(jobsPane), m.rowsOf(jobsPane))
-	if strings.Contains(lines[0], "\x1b]8;") || !strings.Contains(lines[1], "\x1b]8;;"+f.jobs[failedRun][0].URL) {
-		t.Errorf("the group links, or its job doesn't:\n%q\n%q", lines[0], lines[1])
+	for _, name := range []string{strings.TrimSpace(long), alone} {
+		if !strings.Contains(strings.Join(words, " "), name) {
+			t.Errorf("the long name %q was cut:\n%s", name, ansi.Strip(strings.Join(lines, "\n")))
+		}
+	}
+	if strings.Contains(lines[0], "\x1b]8;") {
+		t.Errorf("the group links: %q", lines[0])
+	}
+	links := 0
+	for _, l := range lines[1:] {
+		if strings.Contains(l, "\x1b]8;;"+f.jobs[failedRun][2].URL) {
+			links++
+		}
+	}
+	if links < 2 {
+		t.Errorf("the job's wrapped name links on %d lines:\n%q", links, lines)
 	}
 }
 

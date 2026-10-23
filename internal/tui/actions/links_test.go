@@ -25,7 +25,14 @@ func TestRowLinks(t *testing.T) {
 		uitest.CheckLinks(t, func(host, title string, width int) (string, string) {
 			j := core.Job{ID: 2, Name: title, Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
 				URL: ui.WebURL(host, "o/r/actions/runs/1/job/2")}
-			return m.jobRow(j, title, m.rowGutter(selected, true), selected, width, testNow), j.URL
+			m.jobs.items = []core.Job{j}
+			var line jobLine
+			line.job, line.label = 0, title
+			m.jobs.lines = []jobLine{line}
+			m.inner = width
+			// A name that wraps links on each of its lines; the first is
+			// the row to check here.
+			return m.lineRows(0, selected, true, width, testNow)[0], j.URL
 		}, 120, 40, 12, 3)
 	}
 }

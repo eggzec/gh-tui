@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
@@ -277,6 +278,11 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 	j, k := &m.jobs, m.keys.Jobs
 	n := len(j.lines)
 	if n == 0 {
+		if keymap.Matches(msg, k.Up) {
+			// While the jobs load there is nothing to move through but the
+			// run they belong to.
+			m.setFocus(runsPane)
+		}
 		return nil
 	}
 	page := max(m.jobRows()-1, 1)
@@ -329,10 +335,23 @@ func (m *Modal) scrollJobs() {
 	j := &m.jobs
 	h := max(m.jobRows(), 1)
 	j.top = min(j.top, j.cursor)
-	if j.cursor >= j.top+h {
-		j.top = j.cursor - h + 1
+	// The rows are counted in the lines they take, as a long name wraps.
+	for j.top < j.cursor && m.linesSpan(j.top, j.cursor+1) > h {
+		j.top++
 	}
-	j.top = max(min(j.top, len(j.lines)-h), 0)
+	for j.top > 0 && m.linesSpan(j.top-1, len(j.lines)) <= h {
+		j.top--
+	}
+	j.top = max(j.top, 0)
+}
+
+// linesSpan is how many lines the rows from to to take, to exclusive.
+func (m *Modal) linesSpan(from, to int) int {
+	n := 0
+	for i := from; i < to; i++ {
+		n += len(m.nameLines(i, m.inner))
+	}
+	return n
 }
 
 // jobRows is how many jobs the jobs section shows, less the line that says
@@ -355,8 +374,9 @@ func (m *Modal) jobLines(w, h int) []string {
 	focused := m.inJobs()
 	now := m.now()
 	for i := j.top; i < len(j.lines) && len(lines) < m.jobRows(); i++ {
-		lines = append(lines, m.lineRow(i, i == j.cursor, focused, w, now))
+		lines = append(lines, m.lineRows(i, i == j.cursor, focused, w, now)...)
 	}
+	lines = lines[:min(len(lines), m.jobRows())]
 	if j.more && len(lines) < h {
 		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
 		if k := m.keys.Open.Help().Key; k != "" {
@@ -406,20 +426,81 @@ func (m *Modal) noJobsText() string {
 	return text
 }
 
-// lineRow renders a row of the jobs, a job or a group, indented as deep
-// as it is nested.
-func (m *Modal) lineRow(i int, cursor, focused bool, w int, now time.Time) string {
+// rowMark is what stands before the name of line i: the state of a job, or
+// whether a group is open.
+func (m *Modal) rowMark(i int) string {
 	l := m.jobs.lines[i]
-	gutter := m.rowGutter(cursor, focused) + m.st.Subtle.Render(m.guides(i))
-	if l.group != nil {
-		return m.groupRow(l, gutter, cursor, w)
+	if g := l.group; g != nil {
+		if m.jobs.isOpen(g.key) {
+			return m.st.unfolded
+		}
+		return m.st.folded
 	}
-	return m.jobRow(m.jobs.items[l.job], l.label, gutter, cursor, w, now)
+	j := &m.jobs.items[l.job]
+	return m.st.Glyphs[ui.RunStateOf(j.Status, j.Conclusion)] + " "
+}
+
+// nameLines is the name of line i, in as many lines as it takes to show it
+// whole after its guides and mark, in w cells.
+func (m *Modal) nameLines(i, w int) []string {
+	l := m.jobs.lines[i]
+	// Each guide, and the branch, is two cells.
+	head := ansi.StringWidth(m.st.noGutter) + 2*(l.depth+1) + ansi.StringWidth(m.rowMark(i))
+	room := max(w-head, 1)
+	if ansi.StringWidth(l.label) <= room {
+		return []string{l.label}
+	}
+	return ui.Wrap(l.label, room)
+}
+
+// lineRows renders a row of the jobs, a job or a group, indented as deep as
+// it is nested. Its name wraps under its guides where it doesn't fit, and
+// the row then drops what it shows at the right.
+func (m *Modal) lineRows(i int, cursor, focused bool, w int, now time.Time) []string {
+	st := &m.st
+	l := m.jobs.lines[i]
+	style := st.Text
+	if cursor {
+		style = st.Strong
+	}
+	var right, url string
+	if g := l.group; g != nil {
+		// A group has no page to link.
+		right = st.Subtle.Render(strconv.Itoa(len(g.jobs))) + " " + st.Glyphs[g.state]
+	} else {
+		j := &m.jobs.items[l.job]
+		right = st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now)
+		url = j.URL
+	}
+	paint := func(s string) string {
+		s = style.Render(s)
+		if url == "" {
+			return s
+		}
+		return m.links.Link(url, s)
+	}
+	mark := m.rowMark(i)
+	names := m.nameLines(i, w)
+	head := m.rowGutter(cursor, focused) + st.Subtle.Render(m.guides(i, false)) + mark
+	if len(names) == 1 {
+		return []string{m.spreadWhole(head+paint(names[0]), right, w)}
+	}
+	rows := []string{ui.Fit(head+paint(names[0]), w)}
+	rest := st.noGutter + st.Subtle.Render(m.guides(i, true)) + strings.Repeat(" ", ansi.StringWidth(mark))
+	for _, n := range names[1:] {
+		rows = append(rows, ui.Fit(rest+paint(n), w))
+	}
+	return rows
 }
 
 // guides draws the outline in front of line i: a bar for each ancestor with
 // more rows to come, and a branch to the row, which ends on its last sibling.
-func (m *Modal) guides(i int) string {
+// For the lines a name wraps onto, the branch is a bar or a gap.
+func (m *Modal) guides(i int, wrapped bool) string {
+	bar, branch, last := "│ ", "├ ", "└ "
+	if m.st.ic.Set() == config.IconsASCII {
+		bar, branch, last = "| ", "|-", "`-"
+	}
 	lines := m.jobs.lines
 	// more reports that a row of depth d follows line i before the level
 	// closes.
@@ -439,15 +520,20 @@ func (m *Modal) guides(i int) string {
 	for k := range d {
 		// The ancestor at depth k continues while a row of its depth follows.
 		if more(k) {
-			b.WriteString("│ ")
+			b.WriteString(bar)
 		} else {
 			b.WriteString("  ")
 		}
 	}
-	if more(d) {
-		b.WriteString("├ ")
-	} else {
-		b.WriteString("└ ")
+	switch {
+	case wrapped && more(d):
+		b.WriteString(bar)
+	case wrapped:
+		b.WriteString("  ")
+	case more(d):
+		b.WriteString(branch)
+	default:
+		b.WriteString(last)
 	}
 	return b.String()
 }
@@ -470,33 +556,6 @@ func (m *Modal) rowGutter(cursor, focused bool) string {
 		return m.st.blurGutter
 	}
 	return m.st.noGutter
-}
-
-// jobRow renders a job: its state and label, and how long it ran.
-func (m *Modal) jobRow(j core.Job, label, gutter string, cursor bool, w int, now time.Time) string {
-	st := &m.st
-	name := st.Text.Render(label)
-	if cursor {
-		name = st.Strong.Render(label)
-	}
-	state := ui.RunStateOf(j.Status, j.Conclusion)
-	return m.spreadWhole(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
-}
-
-// groupRow renders a group: whether it is open, its name, how many jobs
-// it holds, and the state of the worst. A long name gives way to the
-// count and the state. A group has no page to link.
-func (m *Modal) groupRow(l jobLine, gutter string, cursor bool, w int) string {
-	st, g := &m.st, l.group
-	name := st.Text.Render(l.label)
-	if cursor {
-		name = st.Strong.Render(l.label)
-	}
-	marker := st.folded
-	if m.jobs.isOpen(g.key) {
-		marker = st.unfolded
-	}
-	return m.spreadWhole(gutter+marker+name, st.Subtle.Render(strconv.Itoa(len(g.jobs)))+" "+st.Glyphs[g.state], w)
 }
 
 // jobsTitle is the detail of the jobs pane's title: how many there are,
