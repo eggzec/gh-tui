@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -42,7 +44,6 @@ var events = []string{"push", "pull_request", "pull_request_target", "schedule",
 // statuses are what the status of the runs API takes most: a status or a
 // conclusion.
 var statuses = []filterform.Item{
-	{Label: "Any"},
 	{Label: "Failure", Value: "failure"},
 	{Label: "Success", Value: "success"},
 	{Label: "In progress", Value: "in_progress"},
@@ -160,19 +161,36 @@ func (m *Modal) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 
 // spec is the form of the filter.
 func (m *Modal) spec() filterform.Spec {
+	f := m.toggle.Edited(m.filter)
 	return filterform.Spec{Fields: []filterform.Field{
 		ui.SearchField,
-		{Key: fieldWorkflow, Label: "Workflow", Kind: filterform.Choice, Qualifier: "workflow", Options: m.workflowItems()},
-		{Key: fieldBranch, Label: "Branch", Kind: filterform.Text, Qualifier: "branch", Hint: "any branch"},
-		{Key: fieldEvent, Label: "Event", Kind: filterform.Choice, Qualifier: "event", Options: eventItems()},
-		{Key: fieldStatus, Label: "Status", Kind: filterform.Choice, Qualifier: "status", Options: statuses},
-		{Key: fieldActor, Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Hint: "anyone", Options: m.actorItems()},
+		ui.MultiField(fieldWorkflow, "Workflow", ui.WithValues(m.workflowItems(), m.namesOf(f))),
+		ui.MultiField(fieldBranch, "Branch", ui.WithValues(m.branchItems(), chosen(f.Branch, f.Branches))),
+		ui.MultiField(fieldEvent, "Event", ui.WithValues(eventItems(), chosen(f.Event, f.Events))),
+		ui.MultiField(fieldStatus, "Status", ui.WithValues(slices.Clone(statuses), chosen(f.Status, f.Statuses))),
+		ui.MultiField(fieldActor, "Actor", ui.WithValues(m.actorItems(), chosen(f.Actor, f.Actors))),
 	}}
 }
 
+// namesOf returns the names of the workflows f selects.
+func (m *Modal) namesOf(f core.RunFilter) []string {
+	ids := f.Workflows.List()
+	if f.WorkflowID != 0 {
+		ids = []string{strconv.FormatInt(f.WorkflowID, 10)}
+	}
+	var names []string
+	for _, id := range ids {
+		for _, w := range m.workflows.items {
+			if strconv.FormatInt(w.ID, 10) == id {
+				names = append(names, ui.OneLine(w.Name))
+			}
+		}
+	}
+	return names
+}
+
 func (m *Modal) workflowItems() []filterform.Item {
-	items := make([]filterform.Item, 0, len(m.workflows.items)+1)
-	items = append(items, filterform.Item{Label: "Any"})
+	items := make([]filterform.Item, 0, len(m.workflows.items))
 	for _, w := range m.workflows.items {
 		if name := ui.OneLine(w.Name); name != "" {
 			items = append(items, filterform.Item{Label: name, Value: name})
@@ -182,19 +200,44 @@ func (m *Modal) workflowItems() []filterform.Item {
 }
 
 func eventItems() []filterform.Item {
-	items := make([]filterform.Item, 0, len(events)+1)
-	items = append(items, filterform.Item{Label: "Any"})
+	items := make([]filterform.Item, 0, len(events))
 	for _, e := range events {
 		items = append(items, filterform.Item{Label: e, Value: e})
 	}
 	return items
 }
 
+// branchItems offers the branches of the runs loaded.
+func (m *Modal) branchItems() []filterform.Item {
+	return m.runItems(func(r core.Run) string { return r.Branch }, nil)
+}
+
+// actorItems offers the signed-in user, and the actors of the runs loaded.
 func (m *Modal) actorItems() []filterform.Item {
-	if m.opts.viewer == nil {
-		return nil
+	var first []filterform.Item
+	if m.opts.viewer != nil {
+		first = []filterform.Item{{Label: me, Value: me, Detail: "you"}}
 	}
-	return []filterform.Item{{Label: me, Value: me, Detail: "you"}}
+	return m.runItems(func(r core.Run) string { return r.Actor }, first)
+}
+
+// runItems lists, after first, the distinct values of the runs loaded, in
+// the order of the runs.
+func (m *Modal) runItems(of func(core.Run) string, first []filterform.Item) []filterform.Item {
+	items := first
+	seen := map[string]bool{}
+	for i := range m.runs.Len() {
+		r, ok := m.runs.Item(i)
+		if !ok {
+			continue
+		}
+		v := of(r)
+		if k := strings.ToLower(v); v != "" && !seen[k] {
+			seen[k] = true
+			items = append(items, filterform.Item{Label: v, Value: v})
+		}
+	}
+	return items
 }
 
 // filterOf returns the filter that the values of the form make. The words no
@@ -209,31 +252,60 @@ func (m *Modal) filterOf(v map[string]filterform.Value, free []string) core.RunF
 		// words would skip.
 		words = append(words, `"`+strings.ReplaceAll(tok, `"`, "")+`"`)
 	}
-	f := core.RunFilter{
-		Branch: strings.TrimSpace(v[fieldBranch].Text()),
-		Event:  v[fieldEvent].Text(),
-		Status: v[fieldStatus].Text(),
-		Actor:  strings.TrimSpace(v[fieldActor].Text()),
-		Words:  strings.TrimSpace(strings.Join(words, " ")),
-	}
-	if f.Actor != me {
-		f.Actor = strings.TrimPrefix(f.Actor, "@")
-	}
-	if name := v[fieldWorkflow].Text(); name != "" {
+	f := core.RunFilter{Words: strings.TrimSpace(strings.Join(words, " "))}
+	f.Branch, f.Branches = picked(v[fieldBranch].List(), nil)
+	f.Event, f.Events = picked(v[fieldEvent].List(), nil)
+	f.Status, f.Statuses = picked(v[fieldStatus].List(), nil)
+	f.Actor, f.Actors = picked(v[fieldActor].List(), func(a string) string {
+		if a == me {
+			return a
+		}
+		return strings.TrimPrefix(a, "@")
+	})
+	var ids []string
+	for _, name := range v[fieldWorkflow].List() {
 		for _, w := range m.workflows.items {
-			if strings.EqualFold(ui.OneLine(w.Name), name) {
-				f.WorkflowID = w.ID
+			if strings.EqualFold(ui.OneLine(w.Name), strings.TrimSpace(name)) {
+				ids = append(ids, strconv.FormatInt(w.ID, 10))
 				break
 			}
 		}
 	}
+	id, many := picked(ids, nil)
+	f.Workflows = many
+	f.WorkflowID, _ = strconv.ParseInt(id, 10, 64)
 	// The form has no field for the head SHA, so it stays.
 	f.HeadSHA = m.filter.HeadSHA
 	return f
 }
 
+// picked splits the values chosen for a field: GitHub is asked for a single
+// one, and several are matched on the runs loaded, so they are not sent.
+func picked(vs []string, clean func(string) string) (one string, many core.AnyOf) {
+	if clean != nil {
+		vs = slices.Clone(vs)
+		for i, v := range vs {
+			vs[i] = clean(strings.TrimSpace(v))
+		}
+	}
+	list := core.AnyOfValues(vs...).List()
+	if len(list) == 1 {
+		return list[0], ""
+	}
+	return "", core.AnyOfValues(list...)
+}
+
+// chosen returns the values of a field, the single one and the several.
+func chosen(one string, many core.AnyOf) []string {
+	if one != "" {
+		return []string{one}
+	}
+	return many.List()
+}
+
 // queryOf writes f as the form's query, such as
-// "workflow:CI branch:main status:failure actor:@me".
+// "workflow:CI branch:main status:failure actor:@me", with a qualifier for
+// each value of a field of several.
 func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 	var parts []string
 	add := func(q, v string) {
@@ -245,17 +317,31 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 		}
 		parts = append(parts, q+":"+v)
 	}
+	ids := f.Workflows.List()
 	if f.WorkflowID != 0 {
+		ids = []string{strconv.FormatInt(f.WorkflowID, 10)}
+	}
+	for _, id := range ids {
 		for _, w := range wfs {
-			if w.ID == f.WorkflowID {
+			if strconv.FormatInt(w.ID, 10) == id {
 				add("workflow", ui.OneLine(w.Name))
 			}
 		}
 	}
-	add("branch", f.Branch)
-	add("event", f.Event)
-	add("status", f.Status)
-	add("actor", f.Actor)
+	for _, e := range []struct {
+		q    string
+		one  string
+		many core.AnyOf
+	}{
+		{"branch", f.Branch, f.Branches},
+		{"event", f.Event, f.Events},
+		{"status", f.Status, f.Statuses},
+		{"actor", f.Actor, f.Actors},
+	} {
+		for _, v := range chosen(e.one, e.many) {
+			add(e.q, v)
+		}
+	}
 	if f.Words != "" {
 		parts = append(parts, f.Words)
 	}

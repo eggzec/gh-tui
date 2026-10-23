@@ -262,33 +262,12 @@ func (s *Section) spec() filterform.Spec {
 			Key: "since", Label: "Updated since", Kind: filterform.Choice, Qualifier: "since",
 			Options: sinceWindows,
 		},
-		multi("reason", "Reason", withValues(reasons, f.reasons)),
-		multi("owner", "Owner", withValues(owners, f.owners)),
-		multi("repo", "Repository", withValues(repos, f.repos)),
-		multi("type", "Type", withValues(typeItems, f.typs)),
-		multi("state", "State", withValues(slices.Clone(stateItems), f.states)),
+		ui.MultiField("reason", "Reason", ui.WithValues(reasons, f.reasons)),
+		ui.MultiField("owner", "Owner", ui.WithValues(owners, f.owners)),
+		ui.MultiField("repo", "Repository", ui.WithValues(repos, f.repos)),
+		ui.MultiField("type", "Type", ui.WithValues(typeItems, f.typs)),
+		ui.MultiField("state", "State", ui.WithValues(slices.Clone(stateItems), f.states)),
 	}}
-}
-
-// multi is a field that picks any number of items, one qualifier of its
-// key each.
-func multi(key, label string, items []filterform.Item) filterform.Field {
-	return filterform.Field{
-		Key: key, Label: label, Kind: filterform.Multi, Qualifier: key, Each: true,
-		Options: items, Hint: "any",
-	}
-}
-
-// withValues returns items with each of vs among them, so that the form
-// shows the values typed in the query.
-func withValues(items []filterform.Item, vs []string) []filterform.Item {
-	for _, v := range vs {
-		if slices.ContainsFunc(items, func(it filterform.Item) bool { return strings.EqualFold(it.Value, v) }) {
-			continue
-		}
-		items = append(slices.Clip(items), filterform.Item{Label: v, Value: v})
-	}
-	return items
 }
 
 // repoItems offers the owners and the repositories of the threads cached
