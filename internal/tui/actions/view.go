@@ -268,7 +268,8 @@ func (m *Modal) notesLines(w, h int) []string {
 func (m *Modal) jobsSpan(now time.Time) string {
 	var start, end time.Time
 	running := false
-	for _, j := range m.jobs.items {
+	for i := range m.jobs.items {
+		j := &m.jobs.items[i]
 		if j.StartedAt.IsZero() {
 			continue
 		}
