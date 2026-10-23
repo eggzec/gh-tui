@@ -102,6 +102,7 @@ var graphqlOperations = map[string]string{
 	"pullLinksQuery":            pullLinksQuery,
 	"issuePreviewQuery":         issuePreviewQuery,
 	"pullPreviewQuery":          pullPreviewQuery,
+	"openCountsQuery":           openCountsQuery,
 
 	"editPullMutation":            editPullMutation,
 	"replyThreadMutation":         replyThreadMutation,
@@ -190,6 +191,8 @@ var restCalls = []restCall{
 	{Func: "GetBlob", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/git/blobs/{file_sha}", Accept: rawAccept},
 	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme", Accept: rawAccept},
 	{Func: "readme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme/{dir}", Accept: rawAccept},
+	{Func: "RepoReadme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme", Accept: rawAccept},
+	{Func: "LatestRelease", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/latest", Decode: restRelease{}},
 	{Func: "OrgFollowers", Method: http.MethodGet, Path: "/users/{username}", Decode: restFollowers{}},
 	{Func: "ListTeamMembers", Method: http.MethodGet, Path: "/orgs/{org}/teams/{team_slug}/members", Query: []string{"per_page"}, Decode: []restTeamMember{}},
 }
