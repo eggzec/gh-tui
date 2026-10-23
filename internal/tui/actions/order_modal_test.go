@@ -191,26 +191,34 @@ func TestGroupedRunsView(t *testing.T) {
 // The jobs of a run nest a level under it, below the groups it is in.
 func TestGroupedJobsNestUnderRun(t *testing.T) {
 	t.Parallel()
-	m, _ := newGroupedModal(t, newFake(), wideW, wideH)
-	rows := strings.Split(ansi.Strip(m.View()), "\n")
-	run, guide := -1, -1
-	for i, row := range rows {
-		if run < 0 && strings.Contains(row, "#") {
-			run = i
-			continue
-		}
-		if run >= 0 {
-			guide = strings.IndexAny(row, "├└")
-			break
-		}
-	}
-	if run < 0 || guide < 0 {
-		t.Fatalf("no run followed by a job in:\n%s", strings.Join(rows, "\n"))
-	}
-	// Columns are counted in runes, as the markers are one cell each.
-	jobCol := len([]rune(rows[run+1][:guide]))
-	runMark := len([]rune(rows[run])) - len([]rune(strings.TrimLeft(rows[run], "│ ▸▾>v")))
-	if jobCol <= runMark {
-		t.Errorf("jobs at column %d, run starts at %d:\n%s", jobCol, runMark, strings.Join(rows[run:run+2], "\n"))
+	for _, grouped := range []bool{true, false} {
+		t.Run(map[bool]string{true: "grouped", false: "flat"}[grouped], func(t *testing.T) {
+			t.Parallel()
+			m, _ := newModalOrdered(t, testKeys(), grouped, newFake(), wideW, wideH)
+			rows := strings.Split(ansi.Strip(m.View()), "\n")
+			// Columns are counted in runes, as the markers are one cell each.
+			col := func(row, marks string) int {
+				i := strings.IndexAny(row, marks)
+				if i < 0 {
+					return -1
+				}
+				return len([]rune(row[:i]))
+			}
+			for i, row := range rows[:len(rows)-1] {
+				fold := col(row, "▸▾")
+				if fold < 0 || !strings.Contains(row, "#") {
+					continue
+				}
+				guide := col(rows[i+1], "├└")
+				if guide < 0 {
+					t.Fatalf("no job under the run in:\n%s", strings.Join(rows, "\n"))
+				}
+				if guide != fold+2 {
+					t.Errorf("job guide at column %d, run marker at %d, want 2 cells right:\n%s", guide, fold, strings.Join(rows[i:i+2], "\n"))
+				}
+				return
+			}
+			t.Fatalf("no run with a fold marker in:\n%s", strings.Join(rows, "\n"))
+		})
 	}
 }
