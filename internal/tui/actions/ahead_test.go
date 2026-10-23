@@ -177,9 +177,9 @@ func holdLogAhead(t *testing.T, f *fake) (m *Modal, h *host, wait func()) {
 	}))
 	// Leave the window empty, and have the macOS job's log to read again
 	// once the cursor is back.
-	// The first j enters the jobs, on the matrix parent; then down to the
-	// Ubuntu job, the macOS one, and back up to the Ubuntu job.
-	h.keys("j", "j", "j", "k")
+	// The first j enters the jobs, on the Ubuntu job; the second goes down
+	// to the macOS one, and the k below back up to the Ubuntu job.
+	h.keys("j", "j")
 	f.mu.Lock()
 	f.cachedLogs[macosJob] = false
 	f.logReads = nil
