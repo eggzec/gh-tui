@@ -147,7 +147,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		}
 		return p, err
 	}
-	f2 := feed.New(ui.FeedPages("list.runs", query, read), m.renderRun,
+	runs := feed.New(ui.FeedPages("list.runs", query, read), m.renderRun,
 		feed.WithContext(m.ctx),
 		feed.WithFirstItem(),
 		feed.WithKey(func(r core.Run) string { return strconv.FormatInt(r.ID, 10) }),
@@ -161,9 +161,9 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithErrorText(ui.ErrorText("load the runs", m.repo.String(), *m.opts.voice)),
 	)
 	// Nothing is loaded yet, so setting the order starts no read.
-	_ = f2.SetGroups(m.groupFuncs())
-	_ = f2.SetSort(m.sortFunc())
-	return f2
+	_ = runs.SetGroups(m.groupFuncs())
+	_ = runs.SetSort(m.sortFunc())
+	return runs
 }
 
 // emptyText tells the user what to do when no runs match.

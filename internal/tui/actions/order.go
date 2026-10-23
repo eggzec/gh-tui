@@ -130,18 +130,18 @@ func sortLess(levels []orderpick.Choice) func(a, b core.Run) int {
 
 // groupModal returns the modal that picks the levels the runs are grouped by.
 func (m *Modal) groupModal() ui.Modal {
-	return ui.NewGroupModal(m.section(), groupItems(), m.levels, m.keys.order, m.opts.icons, m.setGroups)
+	return ui.NewGroupModal(orderTitle, groupItems(), m.levels, m.keys.order, m.opts.icons, m.setGroups)
 }
 
 // sortModal returns the modal that picks the fields the runs are sorted by.
 // It says in its title that the sort covers the pages loaded: GitHub sorts
 // no further.
 func (m *Modal) sortModal() ui.Modal {
-	return ui.NewSortLevelsModal(m.section()+" (loaded)", sortItems(), m.sorts, m.keys.order, m.opts.icons, m.setSort)
+	return ui.NewSortLevelsModal(orderTitle+" (loaded)", sortItems(), m.sorts, m.keys.order, m.opts.icons, m.setSort)
 }
 
-// section names the runs in the title of the modals that order them.
-func (m *Modal) section() string { return "Workflow runs" }
+// orderTitle names the runs in the title of the modals that order them.
+const orderTitle = "Workflow runs"
 
 // groupFuncs are the groups in force, none when the grouping is off.
 func (m *Modal) groupFuncs() []feed.Group[core.Run] {
