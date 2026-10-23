@@ -187,3 +187,30 @@ func TestGroupedRunsView(t *testing.T) {
 	assertFits(t, ansi.Strip(v), wideW, wideH)
 	golden.RequireEqual(t, []byte(v))
 }
+
+// The jobs of a run nest a level under it, below the groups it is in.
+func TestGroupedJobsNestUnderRun(t *testing.T) {
+	t.Parallel()
+	m, _ := newGroupedModal(t, newFake(), wideW, wideH)
+	rows := strings.Split(ansi.Strip(m.View()), "\n")
+	run, guide := -1, -1
+	for i, row := range rows {
+		if run < 0 && strings.Contains(row, "#") {
+			run = i
+			continue
+		}
+		if run >= 0 {
+			guide = strings.IndexAny(row, "├└")
+			break
+		}
+	}
+	if run < 0 || guide < 0 {
+		t.Fatalf("no run followed by a job in:\n%s", strings.Join(rows, "\n"))
+	}
+	// Columns are counted in runes, as the markers are one cell each.
+	jobCol := len([]rune(rows[run+1][:guide]))
+	runMark := len([]rune(rows[run])) - len([]rune(strings.TrimLeft(rows[run], "│ ▸▾>v")))
+	if jobCol <= runMark {
+		t.Errorf("jobs at column %d, run starts at %d:\n%s", jobCol, runMark, strings.Join(rows[run:run+2], "\n"))
+	}
+}
