@@ -1285,6 +1285,28 @@ func TestRunsWithoutJobsSayWhy(t *testing.T) {
 	}
 }
 
+func TestJobsNoteSitsUnderTheRunName(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	f.jobs[failedRun] = nil
+	m, _ := newModal(t, f, wideW, wideH)
+	for _, w := range []int{80, 120} {
+		note, ok := m.jobsNote(w)
+		if !ok || len(note) == 0 {
+			t.Fatalf("no note at %d columns", w)
+		}
+		indent := m.st.noGutter + m.jobsIndent()
+		for _, l := range note {
+			if !strings.HasPrefix(l, indent) {
+				t.Errorf("at %d columns the note line %q doesn't start with the job indent %q", w, l, indent)
+			}
+			if got := ansi.StringWidth(l); got > w {
+				t.Errorf("at %d columns the note line is %d cells wide", w, got)
+			}
+		}
+	}
+}
+
 func TestAnnotationsOpenTheirFile(t *testing.T) {
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
