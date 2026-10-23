@@ -441,12 +441,19 @@ func (m *Modal) rowMark(i int) string {
 func (m *Modal) nameLines(i, w int) []string {
 	l := m.jobs.lines[i]
 	// Each guide, and the branch, is two cells.
-	head := ansi.StringWidth(m.st.noGutter) + 2*(l.depth+1) + ansi.StringWidth(m.rowMark(i))
+	head := ansi.StringWidth(m.st.noGutter) + len(m.jobsIndent()) + 2*(l.depth+1) + ansi.StringWidth(m.rowMark(i))
 	room := max(w-head, 1)
 	if ansi.StringWidth(l.label) <= room {
 		return []string{l.label}
 	}
 	return ui.Wrap(l.label, room)
+}
+
+// jobsIndent is the space before the outline of the jobs: the indent the runs
+// have under their groups, and one level more, so the jobs nest under the run
+// they hang from.
+func (m *Modal) jobsIndent() string {
+	return strings.Repeat(" ", 2*(len(m.groupFuncs())+1))
 }
 
 // lineRows renders a row of the jobs, a job or a group, indented as deep as
@@ -477,12 +484,13 @@ func (m *Modal) lineRows(i int, cursor, focused bool, w int, now time.Time) []st
 	}
 	mark := m.rowMark(i)
 	names := m.nameLines(i, w)
-	head := m.rowGutter(cursor, focused) + st.Subtle.Render(m.guides(i, false)) + mark
+	indent := m.jobsIndent()
+	head := m.rowGutter(cursor, focused) + indent + st.Subtle.Render(m.guides(i, false)) + mark
 	if len(names) == 1 {
 		return []string{m.spreadWhole(head+paint(names[0]), right, w)}
 	}
 	rows := []string{ui.Fit(head+paint(names[0]), w)}
-	rest := st.noGutter + st.Subtle.Render(m.guides(i, true)) + strings.Repeat(" ", ansi.StringWidth(mark))
+	rest := st.noGutter + indent + st.Subtle.Render(m.guides(i, true)) + strings.Repeat(" ", ansi.StringWidth(mark))
 	for _, n := range names[1:] {
 		rows = append(rows, ui.Fit(rest+paint(n), w))
 	}
