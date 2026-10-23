@@ -174,6 +174,22 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.NothingToSwitch()
 		}
 		return m.setFilter(next)
+	case m.inRuns() && keymap.Matches(msg, k.GroupBy):
+		return ui.OpenModal(m.groupModal())
+	case m.inRuns() && keymap.Matches(msg, k.ToggleGroups):
+		cmd, ok := m.toggleGroups()
+		if !ok {
+			return ui.NothingToSwitch()
+		}
+		return cmd
+	case m.inRuns() && keymap.Matches(msg, k.Sort):
+		return ui.OpenModal(m.sortModal())
+	case m.inRuns() && keymap.Matches(msg, k.ToggleSort):
+		cmd, ok := m.toggleSort()
+		if !ok {
+			return ui.NothingToSwitch()
+		}
+		return cmd
 	case keymap.Matches(msg, k.Open):
 		return m.open()
 	case keymap.Matches(msg, k.RerunFailed):
@@ -274,7 +290,10 @@ func (m *Modal) drill() tea.Cmd {
 	}
 	switch m.focus {
 	case runsPane:
-		if !m.hasRun {
+		if cmd, more := m.runs.Activate(); more {
+			return cmd
+		}
+		if _, ok := m.runs.Selected(); !ok || !m.hasRun {
 			return nil
 		}
 		// A run folds its jobs away, or shows them again.

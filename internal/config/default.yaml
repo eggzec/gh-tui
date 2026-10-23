@@ -1031,6 +1031,14 @@ keys:
     filter: [f]
     clear_filter: [F]
     filter_toggle: [alt+f]
+    # Group the runs by workflow, event, branch, status or actor, and switch
+    # the grouping off and on again.
+    group_by: [g]
+    group_toggle: [alt+g]
+    # Sort the runs loaded so far by one field, then the next, and switch the
+    # sort off and on again. Off is GitHub's order, newest first.
+    sort: [s]
+    sort_toggle: [alt+s]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]

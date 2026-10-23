@@ -32,6 +32,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -86,6 +87,10 @@ type Modal struct {
 	// live holds the runs as a change or a poll left them in the cache,
 	// newer than the feed's copies.
 	live map[int64]core.Run
+	// levels are the fields the runs are grouped by, off while the grouping
+	// is switched off; sorts and sortOff are the same for the sort.
+	levels, sorts []orderpick.Choice
+	off, sortOff  bool
 
 	// run is the run under the cursor of the runs, once there is one.
 	run    core.Run
@@ -178,6 +183,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap
 		keys:   keyMap,
 		opts:   o,
 		live:   map[int64]core.Run{},
+		levels: defaultGroups(),
 		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 	// Assume a dark terminal until the app sets the theme.

@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // KeyMap holds the keys of the modal and of the bubbles it shows. The
@@ -40,6 +41,12 @@ type KeyMap struct {
 	// ClearFilter clears it. ToggleFilter switches it off and on. All work
 	// with the focus on the runs.
 	Filter, ClearFilter, ToggleFilter key.Binding
+	// GroupBy and Sort open the choice of the levels the runs are grouped
+	// and sorted by, and ToggleGroups and ToggleSort switch them off and
+	// on. All work with the focus on the runs.
+	GroupBy, ToggleGroups, Sort, ToggleSort key.Binding
+	// order are the keys of the picker of the levels.
+	order orderpick.KeyMap
 	// Open opens the run or the job on GitHub.
 	Open key.Binding
 	// Refresh reads the runs again, or what failed to load.
@@ -89,6 +96,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:       runs.Binding("filter", "filter"),
 		ClearFilter:  runs.Binding("clear_filter", "clear filter"),
 		ToggleFilter: runs.Binding("filter_toggle", "filter on/off"),
+		GroupBy:      runs.Binding("group_by", "group by"),
+		ToggleGroups: runs.Binding("group_toggle", "group on/off"),
+		Sort:         runs.Binding("sort", "sort"),
+		ToggleSort:   runs.Binding("sort_toggle", "sort on/off"),
+		order:        ui.OrderPickKeys(keys),
 		Open:         modal.Binding("global.open", "browser"),
 		Refresh:      modal.Binding("global.refresh", "refresh"),
 		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
@@ -156,7 +168,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log overlay's job view: the moves of the
