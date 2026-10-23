@@ -388,17 +388,26 @@ func (m *Modal) jobLines(w, h int) []string {
 // cells. It reports false when there are jobs to list.
 func (m *Modal) jobsNote(w int) ([]string, bool) {
 	j, st := &m.jobs, &m.st
+	// Under a run, the note sits where the job rows do.
+	indent := st.noGutter + m.jobsIndent()
+	room := max(w-ansi.StringWidth(indent), 1)
+	var note []string
 	switch {
 	case !m.hasRun:
 		return []string{st.Muted.Render("Pick a run to see its jobs.")}, true
 	case !j.loaded && j.err != nil:
-		return m.errorLines("load the jobs", jobview.RunName(m.run), j.err, w), true
+		note = m.errorLines("load the jobs", jobview.RunName(m.run), j.err, room)
 	case !j.loaded:
-		return []string{m.spin.View() + st.Muted.Render("Loading the jobs"+st.ic.Ellipsis)}, true
+		note = []string{m.spin.View() + st.Muted.Render("Loading the jobs"+st.ic.Ellipsis)}
 	case len(j.items) == 0:
-		return ui.Wrap(st.Muted.Render(m.noJobsText()), w), true
+		note = ui.Wrap(st.Muted.Render(m.noJobsText()), room)
+	default:
+		return nil, false
 	}
-	return nil, false
+	for i, l := range note {
+		note[i] = indent + l
+	}
+	return note, true
 }
 
 // noJobsText tells why the run shown has no jobs, and what to do: a run
