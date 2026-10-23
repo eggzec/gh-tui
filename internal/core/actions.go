@@ -2,6 +2,9 @@ package core
 
 import (
 	"errors"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -96,6 +99,69 @@ type RunFilter struct {
 	// the title or the workflow name of a run. The app matches it on the runs
 	// it loaded; GitHub isn't asked.
 	Words string
+
+	// Workflows, Branches, Events, Statuses and Actors hold a field of two or
+	// more values, any of which a run may have. GitHub takes one value of a
+	// field, so those are matched on the runs the app loaded and GitHub isn't
+	// asked: the field's single value above is empty then, and one value of a
+	// field is always the single one. They are strings so that the filter
+	// stays comparable.
+	Workflows, Branches, Events, Statuses, Actors AnyOf
+}
+
+// Multi reports whether the filter has a field of several values, which the
+// app matches on the runs it loaded.
+func (f RunFilter) Multi() bool {
+	return f.Workflows != "" || f.Branches != "" || f.Events != "" || f.Statuses != "" || f.Actors != ""
+}
+
+// Remote returns the filter without the fields of several values, the one
+// GitHub is asked for.
+func (f RunFilter) Remote() RunFilter {
+	f.Workflows, f.Branches, f.Events, f.Statuses, f.Actors = "", "", "", "", ""
+	return f
+}
+
+// Keeps reports whether r has, for each field of several values, one of its
+// values. Actors are logins; a caller that knows who "@me" is has them
+// resolved before.
+func (f RunFilter) Keeps(r Run) bool {
+	return f.Workflows.Has(strconv.FormatInt(r.WorkflowID, 10)) &&
+		f.Branches.Has(r.Branch) &&
+		f.Events.Has(r.Event) &&
+		f.Actors.Has(r.Actor) &&
+		(f.Statuses == "" || f.Statuses.Has(string(r.Status)) || f.Statuses.Has(string(r.Conclusion)))
+}
+
+// AnyOf is a list of values, kept as one comparable string.
+type AnyOf string
+
+// anySep separates the values of an AnyOf. A value is a single line.
+const anySep = "\n"
+
+// AnyOfValues returns the list of vs, without the empty and repeated ones.
+func AnyOfValues(vs ...string) AnyOf {
+	var out []string
+	for _, v := range vs {
+		if v = strings.TrimSpace(v); v != "" && !slices.Contains(out, v) {
+			out = append(out, v)
+		}
+	}
+	return AnyOf(strings.Join(out, anySep))
+}
+
+// List returns the values.
+func (a AnyOf) List() []string {
+	if a == "" {
+		return nil
+	}
+	return strings.Split(string(a), anySep)
+}
+
+// Has reports whether v is one of the values, ignoring case, or the list is
+// empty.
+func (a AnyOf) Has(v string) bool {
+	return a == "" || slices.ContainsFunc(a.List(), func(w string) bool { return strings.EqualFold(w, v) })
 }
 
 // Workflow is a workflow file of a repository.

@@ -44,6 +44,8 @@ const (
 // tabOf returns the tab that f matches, if any.
 func tabOf(f core.RunFilter) (tab, bool) {
 	switch {
+	case f.Statuses != "" || f.Actors != "":
+		return tabAll, false
 	case f.Status == "" && f.Actor == "":
 		return tabAll, true
 	case f.Status == statusFailing && f.Actor == "":
@@ -58,7 +60,7 @@ func tabOf(f core.RunFilter) (tab, bool) {
 
 // apply returns f with the status and actor of tab t, keeping the rest.
 func (t tab) apply(f core.RunFilter) core.RunFilter {
-	f.Status, f.Actor = "", ""
+	f.Status, f.Actor, f.Statuses, f.Actors = "", "", "", ""
 	switch t {
 	case tabFailing:
 		f.Status = statusFailing
@@ -95,7 +97,8 @@ func (m *Modal) switchTab(d int) tea.Cmd {
 // formFiltered reports whether f has something the filter form set: the
 // tabs set the status and the actor, and a link to a commit the head SHA.
 func formFiltered(f core.RunFilter) bool {
-	return f.Branch != "" || f.Event != "" || f.WorkflowID != 0 || f.Words != ""
+	return f.Branch != "" || f.Event != "" || f.WorkflowID != 0 || f.Words != "" ||
+		f.Workflows != "" || f.Branches != "" || f.Events != "" || f.Statuses != "" || f.Actors != ""
 }
 
 // cleared returns f without what the filter form set, keeping the tab it
@@ -123,9 +126,10 @@ var errNoViewer = errors.New("who you are is unknown")
 func (m *Modal) newRuns() feed.Model[core.Run] {
 	svc, repo, f, viewer := m.svc, m.repo, m.filter, m.opts.viewer
 	query := func(cursor string) actionssvc.RunsQuery {
-		return actionssvc.RunsQuery{Repo: repo, Filter: f, Cursor: cursor}
+		return actionssvc.RunsQuery{Repo: repo, Filter: f.Remote(), Cursor: cursor}
 	}
 	words := ui.Words(f.Words)
+	local := f
 	read := func(ctx context.Context, q actionssvc.RunsQuery, again bool) (core.Page[core.Run], error) {
 		q.Again = again
 		if q.Filter.Actor == me {
@@ -138,7 +142,24 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 			}
 			q.Filter.Actor = login
 		}
+		keep := local
+		if actors := keep.Actors.List(); slices.Contains(actors, me) {
+			if viewer == nil {
+				return core.Page[core.Run]{}, errNoViewer
+			}
+			login, err := viewer(ctx)
+			if err != nil {
+				return core.Page[core.Run]{}, err
+			}
+			keep.Actors = core.AnyOfValues(slices.Replace(slices.Clone(actors), slices.Index(actors, me), slices.Index(actors, me)+1, login)...)
+		}
 		p, err := svc.Runs(ctx, q)
+		if keep.Multi() {
+			// GitHub takes one value of a field, so a field of several is
+			// matched here, and an emptied page leaves the feed to fetch the
+			// next one.
+			p.Items = slices.DeleteFunc(slices.Clone(p.Items), func(r core.Run) bool { return !keep.Keeps(r) })
+		}
 		if len(words) > 0 {
 			// GitHub can't search the runs, so the page is cut to the matches.
 			p.Items = slices.DeleteFunc(slices.Clone(p.Items), func(r core.Run) bool {
