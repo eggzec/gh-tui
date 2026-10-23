@@ -276,7 +276,7 @@ func TestDismissOnlyAtTopLevel(t *testing.T) {
 // their actions is checked as the keys of every other context are.
 func TestKeysOfWidgetsAreChecked(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
-		{"global key against the filter form", "keys:\n  global:\n    zoom: [delete]\n", "line 3: keys.global.zoom: delete is also keys.filter.clear, keys.actions_filter.clear: unbind or rebind them there"},
+		{"global key against the filter form", "keys:\n  global:\n    zoom: [delete]\n", "line 3: keys.global.zoom: delete is also keys.filter.clear: unbind or rebind them there"},
 		{"form key against global", "keys:\n  filter:\n    toggle: [r]\n", "line 3: keys.filter.toggle: r is already keys.global.refresh"},
 		{"one key on two actions of the form", "keys:\n  filter:\n    insert: [a]\n    append: [a]\n", "keys.filter: a is both append and insert"},
 		{"unknown action of a widget", "keys:\n  finder:\n    browse: [ctrl+o]\n", "line 3: keys.finder.browse: unknown action"},
