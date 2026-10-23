@@ -37,7 +37,7 @@ func (m *Modal) openLog(j core.Job) tea.Cmd {
 	lm.log.Focus()
 	lm.follow()
 	// The log's messages go to the open modal only, so it is shown once open.
-	return tea.Sequence(ui.OpenModalOver(lm, m), lm.show(true), m.readLogsAround())
+	return tea.Sequence(ui.OpenModalOver(lm, m), lm.show(true))
 }
 
 func (l *logModal) show(rest bool) tea.Cmd {
@@ -147,7 +147,10 @@ func (l *logModal) Act(action string) (tea.Cmd, bool) {
 	if action != ui.ActQuit || l.log.Capturing() {
 		return nil, false
 	}
-	return tea.Sequence(l.close(), l.parent.close()), true
+	// Closing the overlay drops the modals under it, which discards the
+	// parent and ends its watch; leaving to the parent first would reopen it.
+	l.Discard()
+	return ui.CloseModal(l), true
 }
 
 // close discards the log and returns to the modal under it.
