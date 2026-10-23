@@ -254,27 +254,29 @@ func (m *Modal) runFacts(w int) []string {
 	r := m.run
 	now := m.now()
 	var lines []string
-	add := func(name, value string) {
+	ic := st.ic
+	add := func(glyph, name, value string) {
 		if value = ui.OneLine(value); value != "" {
-			lines = append(lines, st.Subtle.Render(name+" ")+value)
+			lines = append(lines, glyph+" "+st.Subtle.Render(name+" ")+value)
 		}
 	}
-	add("Workflow", r.Name)
-	add("Title", r.DisplayTitle)
-	add("Status", ui.StatusText(r.Status))
+	sub := func(g string) string { return st.Subtle.Render(g) }
+	add(sub(ic.Workflow), "Workflow", r.Name)
+	add(sub(ic.Comment), "Title", r.DisplayTitle)
+	add(st.Glyphs[ui.RunStateOf(r.Status, "")], "Status", ui.StatusText(r.Status))
 	if r.Done() {
-		add("Result", string(r.Conclusion))
+		add(st.Glyphs[ui.RunStateOf(r.Status, r.Conclusion)], "Result", string(r.Conclusion))
 	}
-	add("Event", r.Event)
-	add("Branch", r.Branch)
-	add("Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
-	add("Actor", r.Actor)
+	add(sub(ic.Event), "Event", r.Event)
+	add(sub(ic.Branch), "Branch", r.Branch)
+	add(sub(ic.Commit), "Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
+	add(sub(ic.Person), "Actor", r.Actor)
 	if !r.CreatedAt.IsZero() {
-		add("Started", m.opts.dates.Short(r.CreatedAt, now))
+		add(sub(ic.Clock), "Started", m.opts.dates.Short(r.CreatedAt, now))
 	}
-	add("Duration", m.jobsSpan(now))
+	add(sub(ic.Clock), "Duration", m.jobsSpan(now))
 	if r.Attempt > 1 {
-		add("Attempt", strconv.Itoa(r.Attempt))
+		add(sub(ic.Changed), "Attempt", strconv.Itoa(r.Attempt))
 	}
 	if m.jobs.err != nil && !m.jobs.loaded {
 		// The tree has room for only a cut of the error; it reads whole here.

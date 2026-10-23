@@ -264,7 +264,7 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 	es := m.noteEntries()
 	loading, more, err := m.noteState()
 	loading = loading || !m.jobs.loaded && m.jobs.err == nil
-	title := st.Strong.Render("Annotations")
+	title := st.Subtle.Render(st.ic.Comment) + " " + st.Strong.Render("Annotations")
 	if len(es) > 0 {
 		// A job with more than a page lists its first page only.
 		n := strconv.Itoa(len(es))
@@ -306,9 +306,9 @@ func (m *Modal) noteRow(e noteEntry, cursor bool, w int) string {
 	case core.AnnotationFailure:
 		glyph = st.Glyphs[ui.RunFailure]
 	case core.AnnotationWarning:
-		glyph = st.Warning.Render("!")
+		glyph = st.Warning.Render(st.ic.Warning)
 	default:
-		glyph = st.Muted.Render("i")
+		glyph = st.Muted.Render(st.ic.Info)
 	}
 	where := ""
 	if a.Path != "" && a.Path != ".github" && a.StartLine > 0 {

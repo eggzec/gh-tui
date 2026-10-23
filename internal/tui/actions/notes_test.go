@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func notesText(m *Modal) string {
@@ -109,6 +112,27 @@ func TestNotesMorePages(t *testing.T) {
 	h.keys("tab", "tab")
 	if v := notesText(m); !strings.Contains(v, "Annotations 2+") {
 		t.Errorf("count lacks the plus:\n%s", v)
+	}
+}
+
+// With the ASCII icons the notes box, in the frame and on its own, is ASCII
+// alone.
+func TestNotesASCII(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name          string
+		width, height int
+	}{{"80 columns", narrowW, narrowH}, {"120 columns", 120, 40}} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
+			h.keys("tab", "tab")
+			for _, v := range []string{ansi.Strip(m.View()), notesText(m)} {
+				if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+					t.Errorf("notes view isn't ASCII:\n%s", v)
+				}
+			}
+		})
 	}
 }
 
