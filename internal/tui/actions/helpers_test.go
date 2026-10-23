@@ -105,17 +105,22 @@ func newGroupedModal(tb testing.TB, f Service, width, height int) (*Modal, *host
 	return newModalOrdered(tb, testKeys(), true, f, width, height)
 }
 
+// ungroup lists the runs of a modal that has not loaded yet flat.
+func ungroup(m *Modal) {
+	m.levels = nil
+	_ = m.runs.SetGroups(m.groupFuncs())
+	// Laying the rows out again ends the seek New started.
+	if m.opts.run != 0 {
+		m.runs.Seek(strconv.FormatInt(m.opts.run, 10))
+	}
+}
+
 func newModalOrdered(tb testing.TB, keys config.Keymap, grouped bool, f Service, width, height int, opts ...Option) (*Modal, *host) {
 	tb.Helper()
 	opts = append([]Option{forTests(), withIcons(), WithViewer(viewer)}, opts...)
 	m := New(tb.Context(), f, repo, keys, opts...)
 	if !grouped {
-		m.levels = nil
-		_ = m.runs.SetGroups(m.groupFuncs())
-		// Laying the rows out again ends the seek New started.
-		if m.opts.run != 0 {
-			m.runs.Seek(strconv.FormatInt(m.opts.run, 10))
-		}
+		ungroup(m)
 	}
 	m.SetTheme(testTheme())
 	m.SetSize(width, height)
@@ -283,6 +288,10 @@ func press(k string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyLeft}
 	case "alt+f":
 		return tea.KeyPressMsg{Code: 'f', Mod: tea.ModAlt}
+	case "alt+g":
+		return tea.KeyPressMsg{Code: 'g', Mod: tea.ModAlt}
+	case "alt+s":
+		return tea.KeyPressMsg{Code: 's', Mod: tea.ModAlt}
 	}
 	if c, ok := strings.CutPrefix(k, "ctrl+"); ok {
 		r, _ := utf8.DecodeRuneInString(c)
