@@ -110,7 +110,7 @@ func TestNotesMorePages(t *testing.T) {
 	f.notesNext = map[int64]string{ubuntuJob: "2"}
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("tab", "tab")
-	if v := notesText(m); !strings.Contains(v, "Annotations 2+") {
+	if v := ansi.Strip(m.View()); !strings.Contains(v, " 2+ annotations ") {
 		t.Errorf("count lacks the plus:\n%s", v)
 	}
 }

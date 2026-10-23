@@ -283,17 +283,28 @@ func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	return termtext.Truncate(head, w, m.opts.icons.Ellipsis)
 }
 
-// runsTitle is the detail of the runs pane's title: how many are loaded.
-func (m *Modal) runsTitle() string {
+// runsCount is the forms of the count at the bottom of the runs box, the
+// longest first: how many are loaded, with a "+" while there are more.
+func (m *Modal) runsCount() []string {
 	n := m.runs.Len()
+	return countForms(n, !m.runs.Done(), "run", "runs")
+}
+
+// countForms are the forms of "n things" for a bottom slot: none for 0, and
+// the bare number as the short form.
+func countForms(n int, more bool, one, many string) []string {
 	if n == 0 {
-		return ""
+		return nil
 	}
 	s := strconv.Itoa(n)
-	if !m.runs.Done() {
+	if more {
 		s += "+"
 	}
-	return s
+	word := many
+	if n == 1 && !more {
+		word = one
+	}
+	return []string{s + " " + word, s}
 }
 
 // filterText is the filter as a query, for the title of the runs when it
