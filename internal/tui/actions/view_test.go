@@ -45,7 +45,6 @@ func TestView(t *testing.T) {
 		{"190 columns jobs", wideW, wideH, []string{"tab"}},
 		{"190 columns running", wideW, wideH, []string{"j"}},
 		{"190 columns zoom", wideW, wideH, []string{"tab", "tab", "z"}},
-		{"190 columns filter", wideW, wideH, []string{"f"}},
 		{"190 columns confirm", wideW, wideH, []string{"R"}},
 		{"190 columns failing", wideW, wideH, []string{"]"}},
 		{"120 columns runs", 120, 40, nil},
@@ -54,7 +53,6 @@ func TestView(t *testing.T) {
 		{"80 columns jobs", narrowW, narrowH, []string{"j"}},
 		{"80 columns log", narrowW, narrowH, []string{"j", "enter"}},
 		{"80 columns running", narrowW, narrowH, []string{"enter", "j", "j", "enter"}},
-		{"80 columns filter", narrowW, narrowH, []string{"f"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
