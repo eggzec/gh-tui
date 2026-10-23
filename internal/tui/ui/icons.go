@@ -87,6 +87,9 @@ type Icons struct {
 	// Comment marks a count of comments, and Recent something the user
 	// did before, such as a search.
 	Comment, Recent string
+	// Workflow, Event, Branch and Commit lead what a run tells of where it
+	// came from, and Clock a time or how long it took.
+	Workflow, Event, Branch, Commit, Clock string
 	// OpenQuote and CloseQuote go around text quoted in prose, and Dash
 	// sets a clause apart in it.
 	OpenQuote, CloseQuote, Dash string
@@ -162,6 +165,7 @@ func newIcons(set string) Icons {
 			Yes: "✓", No: "✗", Info: "•",
 			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Changed: "↻",
 			ChangesRequested: "±", ReviewRequired: "•",
+			Workflow: "⚙", Event: "↯", Branch: "⎇", Commit: "⊙", Clock: "◷",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -175,6 +179,7 @@ func newIcons(set string) Icons {
 			Yes: "+", No: "x", Info: "i",
 			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Changed: "~",
 			ChangesRequested: "~", ReviewRequired: "?",
+			Workflow: "W", Event: "e", Branch: "Y", Commit: "c", Clock: "t",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -197,6 +202,8 @@ func newIcons(set string) Icons {
 			Marked:           "\uf14a",                           // fa-check_square
 			Changed:          "\uf46a",                           // oct-sync
 			ChangesRequested: "\uf4d2", ReviewRequired: "\uf444", // oct-file_diff, oct-dot_fill
+			// fa-cogs, fa-bolt, oct-git_branch, oct-git_commit, oct-clock
+			Workflow: "\uf085", Event: "\uf0e7", Branch: "\uf418", Commit: "\uf417", Clock: "\uf43a",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,
