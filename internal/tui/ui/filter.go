@@ -191,10 +191,10 @@ func WithFormBack(b key.Binding) FilterOption {
 }
 
 // FilterFormKeys returns the keys of a filter form in the modal of context
-// ctx, "filter". Its tabs switch with the keys that
-// switch the tabs of the lists and the other modals, and it closes and
-// loads again with their quit and refresh keys. ctrl+c quits the app from
-// every modal, so it doesn't close this one.
+// ctx, "filter". Its tabs switch with the keys that switch the tabs of the
+// lists and the other modals, and it closes and loads again with their quit
+// and refresh keys. ctrl+c quits the app from every modal, so it doesn't
+// close this one.
 func FilterFormKeys(keys config.Keymap, ctx string) filterform.KeyMap {
 	return filterform.NewKeyMap(Lookup(keys, ctx))
 }

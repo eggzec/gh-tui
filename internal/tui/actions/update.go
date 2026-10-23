@@ -320,10 +320,16 @@ func (m *Modal) back() tea.Cmd {
 	return nil
 }
 
-// dismiss peels one layer at a time: the find or the quick filter of the
+// dismiss peels one layer at a time: the wait for the filter, the find or the quick filter of the
 // runs, and when none is left, the modal, which returns to the modal it was
 // opened over if there is one.
 func (m *Modal) dismiss() tea.Cmd {
+	// The wait for the workflows is a layer too: workflows arriving later
+	// open no filter nobody asks for.
+	if m.workflows.wanted {
+		m.workflows.wanted = false
+		return nil
+	}
 	if m.inRuns() {
 		if cmd, ok := m.runs.ClearTransient(); ok {
 			return cmd
