@@ -23,13 +23,7 @@ func (m *Modal) View() string {
 		return ""
 	}
 	w := m.width
-	var lines []string
-	if m.filterStep != nil {
-		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter"+m.st.ic.Separator+"Runs"), w))
-		lines = append(lines, m.filterLines(w, m.bodyHeight())...)
-	} else {
-		lines = m.framed()
-	}
+	lines := m.framed()
 	if p := m.prompt(w); p != "" {
 		lines[len(lines)-1] = p
 	}
@@ -160,12 +154,6 @@ func (m *Modal) rowsOf(p pane) int { return m.rows[p] }
 // layout sizes the bubbles to their panes, and keeps the row in focus of
 // the jobs in view.
 func (m *Modal) layout() {
-	if f := m.filterStep; f != nil && f.form != nil {
-		// The form is all that shows, in less room than the panes keep
-		// their size for.
-		f.form.SetSize(m.width, m.bodyHeight())
-		return
-	}
 	aw, ah := m.area()
 	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom).Box(paneRuns, panes.Whole); ok {
 		in := b.Rect.Inner()
@@ -188,9 +176,6 @@ func (m *Modal) layout() {
 // when the jobs load, a run folds or a group opens. Other moves leave the
 // layout alone.
 func (m *Modal) fit() {
-	if f := m.filterStep; f != nil && f.form != nil {
-		return
-	}
 	if min(m.jobsWant(), max(m.rowsOf(runsPane)-1, 0)) != m.rowsOf(jobsPane) ||
 		m.rowsOf(jobsPane) > 0 && m.runs.SelectedRow() < 0 {
 		m.layout()

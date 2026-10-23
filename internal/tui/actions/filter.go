@@ -12,20 +12,14 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
-// filterStep is the filter of the runs, a step of the modal. It waits for
-// the workflows, which its first field chooses from, before it shows the
-// form.
-type filterStep struct {
-	form *filterform.Model
-	// rows is the number of rows of the form.
-	rows int
-}
-
 // workflows are the workflows of the repository, read the first time the
 // filter opens.
 type workflows struct {
 	items           []core.Workflow
 	loaded, loading bool
+	// wanted reports that the filter waits for the workflows, which its
+	// workflow field chooses from, to open.
+	wanted bool
 	// kept reports that the items were served from what an earlier read
 	// kept, because GitHub couldn't be reached or rate limited the read,
 	// so they are read again once it answers.
@@ -58,12 +52,12 @@ var statuses = []filterform.Item{
 	{Label: "Timed out", Value: "timed_out"},
 }
 
-// openFilter opens the filter step, once the workflows are read.
+// openFilter opens the filter over the modal, once the workflows are read.
 func (m *Modal) openFilter() tea.Cmd {
-	m.filterStep = &filterStep{}
 	if m.workflows.loaded {
-		return m.showForm()
+		return ui.OpenModal(m.filterModal())
 	}
+	m.workflows.wanted = true
 	if m.workflows.loading {
 		return nil
 	}
@@ -111,10 +105,14 @@ func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 	if msg.err == nil && msg.stale {
 		again = m.readWorkflows(true)
 	}
-	if m.filterStep == nil || m.filterStep.form != nil {
+	if !m.workflows.wanted {
 		return again
 	}
-	return tea.Batch(m.showForm(), again)
+	m.workflows.wanted = false
+	if msg.err != nil {
+		return again
+	}
+	return tea.Batch(ui.OpenModal(m.filterModal()), again)
 }
 
 // rereadWorkflows reads the workflows again, if they were served kept,
@@ -128,9 +126,44 @@ func (m *Modal) rereadWorkflows() tea.Cmd {
 	return m.readWorkflows(false)
 }
 
-// showForm shows the form of the filter, on the filter shown.
-func (m *Modal) showForm() tea.Cmd {
-	spec := filterform.Spec{Fields: []filterform.Field{
+// filterModal returns the filter over the modal, on the filter shown.
+func (m *Modal) filterModal() ui.Modal {
+	f, _ := m.Filter()
+	return ui.NewFilterModal(m.ctx, Title, m, f,
+		ui.WithFormKeys(m.keys.form),
+		ui.WithFormBack(m.keys.Back),
+		ui.WithFormVoice(*m.opts.voice),
+		ui.WithFormIcons(m.opts.icons),
+	)
+}
+
+// Filter implements ui.Filterable: the form opens on the filter shown.
+func (m *Modal) Filter() (ui.Filter, bool) {
+	return ui.Filter{
+		Spec:    m.spec(),
+		Query:   queryOf(m.toggle.Edited(m.filter), m.workflows.items),
+		Subject: m.repo.String(),
+	}, true
+}
+
+// ApplyFilter implements ui.Filterable. The qualifiers no field claims join
+// the words of the filter.
+func (m *Modal) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
+	var free []string
+	for _, tok := range filterform.Tokenize(msg.Query) {
+		switch tok.Qualifier {
+		case "", fieldWorkflow, fieldBranch, fieldEvent, fieldStatus, fieldActor:
+		default:
+			free = append(free, tok.Raw)
+		}
+	}
+	m.toggle.On()
+	return m.setFilter(m.filterOf(msg.Values, free))
+}
+
+// spec is the form of the filter.
+func (m *Modal) spec() filterform.Spec {
+	return filterform.Spec{Fields: []filterform.Field{
 		ui.SearchField,
 		{Key: fieldWorkflow, Label: "Workflow", Kind: filterform.Choice, Qualifier: "workflow", Options: m.workflowItems()},
 		{Key: fieldBranch, Label: "Branch", Kind: filterform.Text, Qualifier: "branch", Hint: "any branch"},
@@ -138,17 +171,6 @@ func (m *Modal) showForm() tea.Cmd {
 		{Key: fieldStatus, Label: "Status", Kind: filterform.Choice, Qualifier: "status", Options: statuses},
 		{Key: fieldActor, Label: "Actor", Kind: filterform.Person, Qualifier: "actor", Hint: "anyone", Options: m.actorItems()},
 	}}
-	f := filterform.New(spec,
-		filterform.WithQuery(queryOf(m.toggle.Edited(m.filter), m.workflows.items)),
-		filterform.WithContext(m.ctx),
-		// Read as the help line draws, so that it follows a switch of the icons.
-		filterform.WithKeyNames(func(k string) string { return m.opts.icons.Key(k) }),
-		filterform.WithKeyMap(m.keys.form),
-		filterform.WithStyles(m.theme.FilterForm(m.opts.icons)),
-		filterform.WithSize(m.width, m.bodyHeight()),
-	)
-	m.filterStep.form, m.filterStep.rows = &f, len(spec.Fields)
-	return f.Focus()
 }
 
 func (m *Modal) workflowItems() []filterform.Item {
@@ -176,52 +198,6 @@ func (m *Modal) actorItems() []filterform.Item {
 		return nil
 	}
 	return []filterform.Item{{Label: me, Value: me, Detail: "you"}}
-}
-
-// Fit implements ui.Fitter. The filter step is as large as its form needs,
-// as any filter is; the rest of the modal takes the room it is given.
-func (m *Modal) Fit(maxWidth, maxHeight int) (width, height int) {
-	if f := m.filterStep; f != nil && f.form != nil {
-		// The form takes the lines under the breadcrumb.
-		width = min(maxWidth, ui.FilterWidth)
-		return width, min(maxHeight, 1+ui.FilterHeight(f.rows, width, f.form))
-	}
-	return maxWidth, maxHeight
-}
-
-// closeFilter closes the filter step. The panes kept their size while the
-// form showed, so they take the size of the modal now. The jobs stay
-// scrolled as they were: the modal may not have its own size back yet, and
-// scrolls to it when it does.
-func (m *Modal) closeFilter() {
-	m.filterStep = nil
-	m.sizePanes()
-}
-
-// updateFilter passes msg to the form, and applies or closes it when it
-// says so.
-func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
-	f := m.filterStep.form
-	if f == nil {
-		return nil
-	}
-	switch msg := msg.(type) {
-	case filterform.AppliedMsg:
-		if msg.ID != f.ID() {
-			return nil
-		}
-		m.closeFilter()
-		m.toggle.On()
-		return m.setFilter(m.filterOf(msg.Values, f.FreeText()))
-	case filterform.CancelMsg:
-		if msg.ID == f.ID() {
-			m.closeFilter()
-		}
-		return nil
-	}
-	var cmd tea.Cmd
-	*f, cmd = f.Update(msg)
-	return cmd
 }
 
 // filterOf returns the filter that the values of the form make. The words no
@@ -287,13 +263,4 @@ func queryOf(f core.RunFilter, wfs []core.Workflow) string {
 		parts = append(parts, f.Words)
 	}
 	return strings.Join(parts, " ")
-}
-
-// filterLines renders the filter step, h lines of w cells.
-func (m *Modal) filterLines(w, h int) []string {
-	f := m.filterStep.form
-	if f == nil {
-		return ui.FitLines([]string{m.spin.View() + m.st.Muted.Render("Loading the workflows"+m.st.ic.Ellipsis)}, w, h)
-	}
-	return ui.FitLines(strings.Split(f.View(), "\n"), w, h)
 }

@@ -20,7 +20,7 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	case ui.ActDismiss:
 		return m.dismiss(), true
 	case ui.ActBack:
-		if m.focus == runsPane && m.filterStep == nil {
+		if m.focus == runsPane {
 			return nil, false
 		}
 		return m.back(), true

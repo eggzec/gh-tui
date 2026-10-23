@@ -268,22 +268,54 @@ func TestTabsWithoutAViewer(t *testing.T) {
 	}
 }
 
-func TestFilterStep(t *testing.T) {
+// opened returns the filter overlay that the modal asked the app to open.
+func opened(tb testing.TB, h *host) *ui.FilterModal {
+	tb.Helper()
+	for _, msg := range h.take() {
+		if o, ok := msg.(ui.OpenModalMsg); ok {
+			if fm, ok := o.Modal.(*ui.FilterModal); ok {
+				return fm
+			}
+		}
+	}
+	tb.Fatal("the modal didn't ask for the filter overlay")
+	return nil
+}
+
+func TestFilterKeepsWhatNoFieldClaims(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.run(m.ApplyFilter(filterform.AppliedMsg{
+		Query:  "label:bug fix",
+		Values: map[string]filterform.Value{ui.SearchField.Key: filterform.TextValue("fix")},
+	}))
+	if got := m.filter.Words; got != `fix "label:bug"` {
+		t.Errorf("words %q, want the search and the unclaimed qualifier", got)
+	}
+}
+
+func TestFilterOverlay(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("f")
-	if m.filterStep == nil || m.filterStep.form == nil || f.wfReads != 1 {
-		t.Fatalf("f didn't open the filter over the workflows (%d reads)", f.wfReads)
+	if f.wfReads != 1 {
+		t.Fatalf("f read the workflows %d times, want once", f.wfReads)
 	}
-	if s := screen(m); !strings.Contains(s, "Filter · Runs") || !strings.Contains(s, "Workflow") {
-		t.Errorf("the filter step shows:\n%s", s)
+	if fm := opened(t, h); fm.Query() != "" {
+		t.Errorf("the overlay opens on %q, want no filter", fm.Query())
 	}
-	form := m.filterStep.form
-	form.SetQuery(`workflow:CI branch:main event:push status:failure actor:@me`)
-	h.send(filterform.AppliedMsg{ID: form.ID(), Values: form.Values()})
+	h.run(m.ApplyFilter(filterform.AppliedMsg{
+		Query: `workflow:CI branch:main event:push status:failure actor:@me`,
+		Values: map[string]filterform.Value{
+			fieldWorkflow: filterform.TextValue("CI"),
+			fieldBranch:   filterform.TextValue("main"),
+			fieldEvent:    filterform.TextValue("push"),
+			fieldStatus:   filterform.TextValue("failure"),
+			fieldActor:    filterform.TextValue(me),
+		},
+	}))
 	want := core.RunFilter{WorkflowID: 1, Branch: "main", Event: "push", Status: "failure", Actor: me}
-	if m.filterStep != nil || m.filter != want {
-		t.Fatalf("applied filter %+v (step open %v), want %+v", m.filter, m.filterStep != nil, want)
+	if m.filter != want {
+		t.Fatalf("applied filter %+v, want %+v", m.filter, want)
 	}
 	if q := f.queries[len(f.queries)-1].Filter; q.Actor != "drew" || q.WorkflowID != 1 || q.Status != "failure" {
 		t.Errorf("runs read with %+v, want @me as the viewer", q)
@@ -295,19 +327,13 @@ func TestFilterStep(t *testing.T) {
 		t.Errorf("the filtered runs:\n%s", s)
 	}
 
-	// The form opens on the filter, and the workflows are read once.
+	// The overlay opens on the filter, and the workflows are read once.
 	h.keys("f")
-	if got := m.filterStep.form.Query(); got != "workflow:CI branch:main event:push status:failure actor:@me" {
-		t.Errorf("the form opens on %q", got)
+	if got := opened(t, h).Query(); got != "workflow:CI branch:main event:push status:failure actor:@me" {
+		t.Errorf("the overlay opens on %q", got)
 	}
 	if f.wfReads != 1 {
 		t.Errorf("the workflows were read %d times, want once", f.wfReads)
-	}
-	// esc closes the step and keeps the filter.
-	queries := len(f.queries)
-	h.keys("esc")
-	if m.filterStep != nil || m.filter != want || len(f.queries) != queries {
-		t.Errorf("esc: step open %v, filter %+v, %d new reads", m.filterStep != nil, m.filter, len(f.queries)-queries)
 	}
 	// A tab keeps the rest of the filter.
 	h.keys("]")
@@ -324,15 +350,14 @@ func TestFilterStep(t *testing.T) {
 func TestKeptWorkflowsAreReadAgain(t *testing.T) {
 	f := newFake()
 	f.keptWorkflows = true
-	m, h := newModal(t, f, wideW, wideH)
+	_, h := newModal(t, f, wideW, wideH)
 	h.keys("f")
-	if m.filterStep == nil || m.filterStep.form == nil {
-		t.Fatal("f didn't open the filter over the kept workflows")
-	}
+	opened(t, h)
 	if !slices.Equal(f.wfAgain, []bool{false, true}) {
 		t.Errorf("workflows read with Again %v, want the kept ones read again", f.wfAgain)
 	}
-	h.keys("esc", "f")
+	h.keys("f")
+	opened(t, h)
 	if f.wfReads != 2 {
 		t.Errorf("the workflows were read %d times, want twice", f.wfReads)
 	}
@@ -342,17 +367,14 @@ func TestFilterWaitsForTheWorkflows(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(workflowsMsg); return ok }
 	h.keys("f")
-	if m.filterStep == nil || m.filterStep.form != nil || !strings.Contains(screen(m), "Loading the workflows") {
-		t.Fatalf("the filter doesn't wait for the workflows:\n%s", screen(m))
+	if len(h.take()) != 0 || !m.workflows.wanted {
+		t.Fatal("the filter opened before the workflows came, or doesn't wait for them")
 	}
-	// esc leaves while it waits.
-	h.keys("esc")
-	if m.filterStep != nil {
-		t.Fatal("esc didn't close the waiting filter")
-	}
+	h.hold = nil
 	h.release()
-	if m.filterStep != nil || !m.workflows.loaded {
-		t.Errorf("the workflows reopened the filter, or weren't kept")
+	opened(t, h)
+	if !m.workflows.loaded || m.workflows.wanted {
+		t.Errorf("the workflows weren't kept, or the filter still waits")
 	}
 }
 
@@ -985,7 +1007,8 @@ func TestSharedKeys(t *testing.T) {
 		return func(m *Modal) bool { _, active := m.Tabs(); return active == want && m.focus == runsPane }
 	}
 	asks := func(m *Modal) bool { return m.ask != nil }
-	filters := func(m *Modal) bool { return m.filterStep != nil }
+	// The filter overlay opens once the workflows are read.
+	filters := func(m *Modal) bool { return m.workflows.loaded }
 	tests := []struct {
 		name string
 		to   []string // the keys that reach the pane
@@ -1006,7 +1029,7 @@ func TestSharedKeys(t *testing.T) {
 		{name: "R on a running run", to: []string{"]", "]"}, key: "R", ok: func(m *Modal) bool { return m.ask == nil && m.notice != "" }},
 		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
 		// The filter belongs to the runs: the jobs and the log have no f.
-		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == jobsPane }},
+		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return !m.workflows.loaded && m.focus == jobsPane }},
 		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.notes }},
 		{name: "1 on the jobs", to: []string{"tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
 	}
@@ -1023,7 +1046,7 @@ func TestSharedKeys(t *testing.T) {
 			}
 			h.keys(tt.key)
 			if !tt.ok(m) {
-				t.Errorf("%s didn't reach %q: focus %d, question %v, filter %v", tt.key, tt.desc, m.focus, m.ask != nil, m.filterStep != nil)
+				t.Errorf("%s didn't reach %q: focus %d, question %v, workflows read %v", tt.key, tt.desc, m.focus, m.ask != nil, m.workflows.loaded)
 			}
 		})
 	}
@@ -1103,13 +1126,13 @@ func TestFilterOpensOnTheKeptFilter(t *testing.T) {
 	form := core.RunFilter{Branch: "main"}
 	m, h := newModal(t, newFake(), wideW, wideH, WithFilter(form))
 	h.keys("alt+f", "f")
-	if m.filterStep == nil || m.filterStep.form == nil {
-		t.Fatal("f didn't open the filter")
+	if q := opened(t, h).Query(); !strings.Contains(q, "branch:main") {
+		t.Errorf("the overlay opened on %q, want the kept filter", q)
 	}
-	if q := m.filterStep.form.Query(); !strings.Contains(q, "branch:main") {
-		t.Errorf("the form opened on %q, want the kept filter", q)
-	}
-	h.keys("enter")
+	h.run(m.ApplyFilter(filterform.AppliedMsg{
+		Query:  "branch:main",
+		Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("main")},
+	}))
 	if m.toggle.Off() || m.filter.Branch != "main" {
 		t.Errorf("applying left the filter at %+v, off %v", m.filter, m.toggle.Off())
 	}
@@ -1244,61 +1267,6 @@ func TestHideStopsTheReads(t *testing.T) {
 	}
 }
 
-// The filter step has the help line of any filter form and is as tall as
-// its form, not the whole modal; the footer takes no keys from the form.
-func TestFilterStepFitsItsForm(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	if w, ht := m.Fit(120, 30); w != 120 || ht != 30 {
-		t.Errorf("Fit without the filter = %dx%d, want the room given", w, ht)
-	}
-	h.keys("f")
-	_, ht := m.Fit(120, 30)
-	if want := 1 + ui.FilterHeight(m.filterStep.rows, min(120, ui.FilterWidth), m.filterStep.form); ht != want || ht >= 30 {
-		t.Errorf("Fit with the filter = %d, want %d, less than the room", ht, want)
-	}
-	if s := screen(m); !strings.Contains(s, "esc close") {
-		t.Errorf("the filter step has no help line of its own:\n%s", s)
-	}
-	for _, l := range m.KeyLayers() {
-		if len(l.Short) != 0 {
-			t.Errorf("layer %s has short help %v for the footer", l.Source, l.Short)
-		}
-	}
-	h.keys("i")
-	if s := screen(m); !strings.Contains(s, "INSERT") {
-		t.Errorf("insert mode isn't labelled:\n%s", s)
-	}
-	h.keys("esc", "esc")
-	if m.filterStep != nil {
-		t.Fatal("esc didn't close the filter")
-	}
-}
-
-// The panes keep their size while the filter shows, so a resize then must
-// reach them when it closes, and the jobs stay as they were scrolled.
-func TestFilterCloseSizesThePanesAfterAResize(t *testing.T) {
-	m, h := newModal(t, newFake(), 100, 15)
-	top := m.jobs.top
-	h.keys("f")
-	m.SetSize(72, 14)
-	h.keys("esc")
-	if m.filterStep != nil {
-		t.Fatal("esc didn't close the filter")
-	}
-	lines := strings.Split(m.View(), "\n")
-	if len(lines) != 14 {
-		t.Errorf("the modal draws %d lines, want 14", len(lines))
-	}
-	for i, l := range lines {
-		if w := ansi.StringWidth(l); w > 72 {
-			t.Errorf("line %d is %d cells wide, want at most 72", i, w)
-		}
-	}
-	if m.jobs.top != top {
-		t.Errorf("the jobs scrolled from %d to %d", top, m.jobs.top)
-	}
-}
-
 // TestEscClosesFromEveryStep checks that esc closes the modal at once
 // from any pane, not a pane at a time.
 func TestEscClosesFromEveryStep(t *testing.T) {
@@ -1429,23 +1397,4 @@ func TestEscIsLabelledForTheFindAndTheFilterOfTheRuns(t *testing.T) {
 	if got := desc(); got != "clear find" {
 		t.Errorf("esc reads %q with a find shown, want clear find", got)
 	}
-}
-
-// TestFilterStepShowsTheBackKeyOff checks that the help lists backspace as
-// off while the filter of the runs is open, as it does of the other modals
-// that have no step before them.
-func TestFilterStepShowsTheBackKeyOff(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("f")
-	if m.filterStep == nil {
-		t.Fatal("the filter step isn't open")
-	}
-	for _, l := range m.KeyLayers() {
-		for _, b := range l.Bindings {
-			if b.Help().Desc == "back" && !b.Enabled() {
-				return
-			}
-		}
-	}
-	t.Error("the filter step lists no disabled back key")
 }
