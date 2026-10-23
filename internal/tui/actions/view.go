@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -168,58 +169,72 @@ func (m *Modal) layout() {
 	aw, ah := m.area()
 	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom).Box(paneRuns, panes.Whole); ok {
 		in := b.Rect.Inner()
-		m.inner, m.rows = in.W, m.split(in.H)
+		body := max(in.H-1, 0)
+		m.inner = in.W
+		m.rows[runsPane] = body
+		m.rows[jobsPane] = min(m.jobsWant(), max(body-1, 0))
 	}
 	m.sizePanes()
 	m.scrollJobs()
 }
 
-// split divides h lines between the runs and the jobs, each with a title
-// line of its own: the focused one gets the larger part. Where there is no
-// room for both, only the focused one shows.
-func (m *Modal) split(h int) [numPanes]int {
-	const both = 8
-	rows := [numPanes]int{-1, -1}
-	if h < both {
-		rows[m.focus] = max(h-1, 0)
-		return rows
+// fit sizes the tree again when the rows the jobs take changed, as they do
+// when the jobs load, a run folds or a group opens. Other moves leave the
+// layout alone.
+func (m *Modal) fit() {
+	if f := m.filterStep; f != nil && f.form != nil {
+		return
 	}
-	jobs := h / 3
-	if m.focus == jobsPane {
-		jobs = h - h/3
+	if min(m.jobsWant(), max(m.rowsOf(runsPane)-1, 0)) != m.rowsOf(jobsPane) {
+		m.layout()
 	}
-	rows[jobsPane], rows[runsPane] = jobs-1, h-jobs-1
-	return rows
+	// Jobs that have no room can't hold the focus.
+	if m.focus == jobsPane && m.hasRun && m.rowsOf(jobsPane) == 0 {
+		m.setFocus(runsPane)
+	}
 }
 
-// sizePanes sizes the runs to their pane.
+// jobsWant is how many rows the jobs of the run under the cursor would take
+// under its row: none while there is no run or its jobs are folded away.
+func (m *Modal) jobsWant() int {
+	if !m.hasRun || m.shut[m.run.ID] {
+		return 0
+	}
+	if note, ok := m.jobsNote(m.inner); ok {
+		return len(note)
+	}
+	n := len(m.jobs.lines)
+	if m.jobs.more {
+		n++
+	}
+	return n
+}
+
+// sizePanes sizes the runs to what the jobs leave of the runs box.
 func (m *Modal) sizePanes() {
-	m.runs.SetSize(m.inner, max(m.rowsOf(runsPane)-1, 0))
+	m.runs.SetSize(m.inner, max(m.rowsOf(runsPane)-m.rowsOf(jobsPane), 0))
 }
 
-// runsBox renders the inside of the runs box, h lines of w cells: the runs
-// and the jobs one above the other, each under its title.
+// runsBox renders the inside of the runs box, h lines of w cells: its title,
+// then the runs in one list, with the jobs of the run under the cursor in
+// the lines under its row.
 func (m *Modal) runsBox(w, h int) []string {
-	var lines []string
-	for _, p := range [numPanes]pane{runsPane, jobsPane} {
-		rows := m.rowsOf(p)
-		if rows < 0 {
-			continue
-		}
-		lines = append(lines, m.paneTitle(p, w))
-		lines = append(lines, m.paneLines(p, w, rows)...)
+	lines := []string{m.paneTitle(runsPane, w)}
+	var runs []string
+	if m.runs.Height() > 0 {
+		runs = strings.Split(m.runs.View(), "\n")
 	}
-	return ui.PadLines(lines, w, h)
-}
-
-// paneLines renders the body of pane p, h lines of w cells.
-func (m *Modal) paneLines(p pane, w, h int) []string {
-	if p == runsPane {
-		// The feed renders its size exactly, under the header's line.
-		lines := append([]string{m.runsHeader(w)}, strings.Split(m.runs.View(), "\n")...)
-		return ui.PadLines(lines, w, h)
+	k := m.rowsOf(jobsPane)
+	if k <= 0 {
+		return ui.PadLines(append(lines, runs...), w, h)
 	}
-	return m.jobLines(w, h)
+	at := m.runs.SelectedRow()
+	if at < 0 {
+		at = len(runs) - 1
+	}
+	lines = append(lines, runs[:at+1]...)
+	lines = append(lines, m.jobLines(w, k)...)
+	return ui.PadLines(append(lines, runs[at+1:]...), w, h)
 }
 
 // notesLines renders the annotations box: the facts of the run, and what
@@ -257,6 +272,11 @@ func (m *Modal) notesLines(w, h int) []string {
 	add("Duration", m.jobsSpan(now))
 	if r.Attempt > 1 {
 		add("Attempt", strconv.Itoa(r.Attempt))
+	}
+	if m.jobs.err != nil && !m.jobs.loaded {
+		// The tree has room for only a cut of the error; it reads whole here.
+		lines = append(lines, "")
+		lines = append(lines, m.errorLines("load the jobs", jobview.RunName(r), m.jobs.err, w)...)
 	}
 	lines = append(lines, "", st.Muted.Render("No annotations here. Those of a failed job show with its log."))
 	return ui.FitLines(lines, w, h)

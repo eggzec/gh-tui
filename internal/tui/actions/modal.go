@@ -91,6 +91,9 @@ type Modal struct {
 	run    core.Run
 	hasRun bool
 	jobs   jobs
+	// shut holds the runs whose jobs the user folded away; the run under the
+	// cursor shows its jobs under its row otherwise.
+	shut map[int64]bool
 	// wantJob is the job the first jobs shown open on, until they are.
 	wantJob int64
 	// seq counts the moves of the cursor of the runs, so that only the
@@ -314,7 +317,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) state(m *Modal) KeyMap {
 	switch m.focus {
 	case runsPane:
-		k.Select = relabel(k.Select, "jobs")
+		k.Select = relabel(k.Select, "fold")
+		if m.shut[m.run.ID] {
+			k.Select = relabel(k.Select, "unfold")
+		}
 		// A filter that is switched off is kept, so the keys have it to act on.
 		set := formFiltered(m.filter) || m.toggle.Off()
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && set)

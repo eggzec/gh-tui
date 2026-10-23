@@ -53,7 +53,7 @@ func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("j")
+	h.keys("enter", "j") // fold the failed run, then the next run
 	if m.run.ID != runningRun || len(m.jobs.items) != 1 || m.jobs.items[0].ID != runLintJob {
 		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.jobs.items, runningRun)
 	}
@@ -69,7 +69,7 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	if _, jobs, _ := f.counts(); jobs != 3 {
 		t.Errorf("reads of jobs %d, want 3", jobs)
 	}
-	h.keys("tab", "j")
+	h.keys("enter", "j", "j") // unfold, into the jobs, down one
 	if j, _ := m.jobs.selected(); j.ID != macosJob {
 		t.Errorf("after j in the jobs the job is %d, want %d", j.ID, macosJob)
 	}
@@ -90,7 +90,7 @@ func TestPanesAndBack(t *testing.T) {
 	}{
 		{"tab", jobsPane}, {"tab", notes}, {"tab", runsPane}, {"shift+tab", notes}, {"shift+tab", jobsPane},
 		{"1", runsPane}, {"2", notes}, {"1", runsPane}, {"1", runsPane}, {"2", notes}, {"2", notes},
-		{"backspace", runsPane}, {"backspace", runsPane}, {"enter", jobsPane},
+		{"backspace", runsPane}, {"backspace", runsPane}, {"j", jobsPane},
 	}
 	for _, s := range steps {
 		h.keys(s.key)
@@ -159,7 +159,7 @@ func TestLogOverlayQuitClosesBothAndStopsEveryFollow(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j", "tab", "enter")
+	h.keys("enter", "j", "j", "enter")
 	l := h.log
 	if l == nil {
 		t.Fatal("enter didn't open the log")
@@ -493,7 +493,7 @@ func TestLogTruncated(t *testing.T) {
 func TestPendingLogShowsTheSteps(t *testing.T) {
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
-	h.keys("j", "tab", "enter")
+	h.keys("enter", "j", "j", "enter")
 	if h.log == nil {
 		t.Fatal("enter on the running job didn't open its log")
 	}
@@ -631,7 +631,7 @@ func TestCancelARunningRun(t *testing.T) {
 	if got := lastLine(m); !strings.Contains(got, "has no failed jobs") && !strings.HasPrefix(got, "Re-run") {
 		t.Fatalf("R on the failed run: %q", got)
 	}
-	h.keys("n", "j", "R")
+	h.keys("n", "enter", "j", "R")
 	if got := lastLine(m); got != "lint #4810 is still running. X cancels it." {
 		t.Errorf("R on a running run tells %q", got)
 	}
@@ -686,8 +686,8 @@ var leads = []struct {
 }{
 	{"re-run failed jobs", []string{"R"}, "rerun failed"},
 	{"re-run all jobs", []string{"E"}, "rerun"},
-	{"re-run a job", []string{"tab", "j", "J"}, fmt.Sprintf("rerun job %d", macosJob)},
-	{"cancel", []string{"j", "X"}, "cancel"},
+	{"re-run a job", []string{"j", "j", "J"}, fmt.Sprintf("rerun job %d", macosJob)},
+	{"cancel", []string{"enter", "j", "X"}, "cancel"},
 }
 
 func TestASecondYesChangesOnce(t *testing.T) {
@@ -771,11 +771,11 @@ func TestFollowsTheRunShownWhileItRuns(t *testing.T) {
 	if len(fl.started) != 0 {
 		t.Fatalf("follows %v on a done run", fl.started)
 	}
-	h.keys("j")
+	h.keys("enter", "j")
 	if !slices.Equal(fl.started, []int64{runningRun}) {
 		t.Fatalf("follows %v, want the running run", fl.started)
 	}
-	h.keys("j")
+	h.keys("enter", "j")
 	if !slices.Equal(fl.stopped, []int64{runningRun}) || m.following != 0 {
 		t.Errorf("stopped %v on a done run, want the running one stopped", fl.stopped)
 	}
@@ -789,7 +789,7 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j", "tab", "enter")
+	h.keys("enter", "j", "j", "enter")
 	l := h.log
 	if l == nil {
 		t.Fatal("enter on the running job didn't open its log")
@@ -922,14 +922,14 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{nil, "↑/k up, ↓/j down, ↵ fold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, R rerun failed, E rerun all, o browser"},
 		// The log is an overlay with the keys of its own.
 		{[]string{"enter"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
 		{[]string{"A"}, "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},
 		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
 		// The steps of a job in progress don't fold, and have no keys to show.
-		{[]string{"backspace", "backspace", "j", "tab", "enter"}, ""},
+		{[]string{"backspace", "backspace", "enter", "j", "j", "enter"}, ""},
 		{[]string{"backspace", "backspace", "X"}, "y yes, n no"},
 	}
 	for _, s := range steps {
@@ -957,8 +957,8 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m.filter == before {
 		t.Error("] didn't switch the tab")
 	}
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "jobs" {
-		t.Errorf("enter reaches %q of %q on the runs, want the jobs", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "fold" {
+		t.Errorf("enter reaches %q of %q on the runs, want the fold", b.Help().Desc, src)
 	}
 	h.keys("[", "tab")
 	if m.focus != jobsPane {
@@ -1202,7 +1202,7 @@ func TestReopenedRestartsTheTimers(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH, WithFollow(new(follows).follow))
 	other, _ := newModal(t, f, wideW, wideH)
-	h.keys("j")
+	h.keys("enter", "j")
 	// While a preview hid the modal, its ticks went to the preview, so
 	// they stopped.
 	m.opts.tick = time.Second
@@ -1220,7 +1220,7 @@ func TestHideStopsTheReads(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	_, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j", "tab", "enter")
+	h.keys("enter", "j", "tab", "enter")
 	l := h.log
 	if l == nil {
 		t.Fatal("enter didn't open the log")

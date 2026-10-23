@@ -42,6 +42,20 @@ func (m Model[T]) View() string {
 	return w.b.String()
 }
 
+// SelectedRow returns the line of View where the selected row starts, or -1
+// when it is not in view, so a parent can draw lines under it.
+func (m Model[T]) SelectedRow() int {
+	body := m.height
+	if m.hasFooter() {
+		body--
+	}
+	line := (m.sel - m.top) * m.itemHeight
+	if m.sel < m.top || m.sel >= m.shown() || line >= body {
+		return -1
+	}
+	return line
+}
+
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
 	indent := ""

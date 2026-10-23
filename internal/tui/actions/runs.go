@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -154,7 +153,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithKeyMap(m.keys.Runs),
 		feed.WithPromptKeys(m.keys.search),
 		feed.WithStyles(m.theme.Feed(m.opts.icons)),
-		feed.WithItemHeight(2),
+		feed.WithItemHeight(1),
 		feed.WithSize(m.paneWidth(runsPane), max(m.bodyHeight()-1, 0)),
 		feed.WithFocused(m.focus == runsPane),
 		feed.WithEmptyText(m.emptyText()),
@@ -238,76 +237,22 @@ func (m *Modal) clearRun() {
 	m.unfollow()
 }
 
-// runGap separates the run's title from its date.
-const runGap = "  "
-
-// createdTitle heads the date column, which is never narrower than it.
-const createdTitle = "Created"
-
-// runCols splits a run row of w cells into the width of its head, which
-// takes what the date leaves, and of the date column, which goes first when
-// the head would be left too little.
-func (m *Modal) runCols(w int) (headW, dateW int) {
-	dateW = max(m.opts.dates.Width(), len(createdTitle))
-	if w-dateW-len(runGap) < 16 {
-		return w, 0
-	}
-	return w - dateW - len(runGap), dateW
-}
-
-// runsHeader is the line of titles above the runs, laid out as the rows are.
-func (m *Modal) runsHeader(w int) string {
-	inner := max(w-m.runs.Gutter(), 0)
-	headW, dateW := m.runCols(inner)
-	line := ui.Header([]ui.Column{{Title: "Run", Width: headW}, {Title: createdTitle, Width: dateW}}, len(runGap), m.opts.icons.Ellipsis)
-	return strings.Repeat(" ", m.runs.Gutter()) + m.st.row[ui.Look(false, m.inRuns())].Muted.Render(line)
-}
-
-// renderRun renders a run in two lines: its state, workflow, number,
-// title and age, and below them its branch, event, actor and how long it
-// ran.
+// renderRun renders a run in one line, the parent of its jobs in the tree:
+// whether its jobs show, its state, workflow, number and title, cut to the
+// width. What else it has shows in the details.
 func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	r = m.current(r)
-	ic, st := m.st.ic, &m.st.row[ui.Look(selected, m.inRuns())]
-	now := m.now()
+	st := &m.st.row[ui.Look(selected, m.inRuns())]
+	marker := m.st.folded
+	if selected && !m.shut[r.ID] {
+		marker = m.st.unfolded
+	}
 	state := ui.RunStateOf(r.Status, r.Conclusion)
 	name := st.Strong.Render(ui.OneLine(r.Name))
 	// The workflow, the number and the title link to the run's page.
-	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
-		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+"  "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
-	headW, dateW := m.runCols(w)
-	first := termtext.Truncate(head, headW, m.opts.icons.Ellipsis)
-	first += strings.Repeat(" ", max(headW-ansi.StringWidth(first), 0))
-	if dateW > 0 {
-		first += runGap + st.Subtle.Render(m.opts.dates.Short(r.CreatedAt, now))
-	}
-
-	parts := make([]string, 0, 3)
-	for _, p := range []string{r.Branch, r.Event, r.Actor} {
-		if p = ui.OneLine(p); p != "" {
-			parts = append(parts, p)
-		}
-	}
-	detail := "  " + st.Muted.Render(strings.Join(parts, ic.Separator))
-	var took string
-	switch d, ok := runSpan(r, now); {
-	case r.Status == core.RunCancelling:
-		took = st.Warning.Render("cancelling")
-	case !r.Done() && r.Status != core.RunInProgress:
-		took = st.Warning.Render(ui.StatusText(r.Status))
-	case r.Conclusion == core.ConclusionSkipped:
-		// As its jobs and steps say.
-		took = st.Subtle.Render("skipped")
-	case !ok:
-	case r.Done() && d < time.Second/2:
-		// A run that ended as it was created, such as one cancelled
-		// while queued, never ran, so it has no duration.
-	case r.Done():
-		took = st.Subtle.Render(ui.Duration(d))
-	default:
-		took = st.States[ui.RunInProgress].Render(ui.Duration(d))
-	}
-	return first + "\n" + ui.Spread(detail, took, w, m.opts.icons.Ellipsis)
+	head := marker + st.Glyphs[state] + " " + m.links.Link(r.URL,
+		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+" "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
+	return termtext.Truncate(head, w, m.opts.icons.Ellipsis)
 }
 
 // runsTitle is the detail of the runs pane's title: how many are loaded.
