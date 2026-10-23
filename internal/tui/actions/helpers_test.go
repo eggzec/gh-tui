@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -93,8 +94,29 @@ func newModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Mod
 // newModalKeys is newModal with the keys given.
 func newModalKeys(tb testing.TB, keys config.Keymap, f Service, width, height int, opts ...Option) (*Modal, *host) {
 	tb.Helper()
+	return newModalOrdered(tb, keys, false, f, width, height, opts...)
+}
+
+// newGroupedModal is newModal with the runs under the headers of the default
+// grouping, as the modal opens. The others list the runs flat, so the
+// position of a run does not depend on its workflow.
+func newGroupedModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Modal, *host) {
+	tb.Helper()
+	return newModalOrdered(tb, testKeys(), true, f, width, height, opts...)
+}
+
+func newModalOrdered(tb testing.TB, keys config.Keymap, grouped bool, f Service, width, height int, opts ...Option) (*Modal, *host) {
+	tb.Helper()
 	opts = append([]Option{forTests(), withIcons(), WithViewer(viewer)}, opts...)
 	m := New(tb.Context(), f, repo, keys, opts...)
+	if !grouped {
+		m.levels = nil
+		_ = m.runs.SetGroups(m.groupFuncs())
+		// Laying the rows out again ends the seek New started.
+		if m.opts.run != 0 {
+			m.runs.Seek(strconv.FormatInt(m.opts.run, 10))
+		}
+	}
 	m.SetTheme(testTheme())
 	m.SetSize(width, height)
 	h := &host{m: m}

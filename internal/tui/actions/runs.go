@@ -149,6 +149,7 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 	}
 	f2 := feed.New(ui.FeedPages("list.runs", query, read), m.renderRun,
 		feed.WithContext(m.ctx),
+		feed.WithFirstItem(),
 		feed.WithKey(func(r core.Run) string { return strconv.FormatInt(r.ID, 10) }),
 		feed.WithKeyMap(m.keys.Runs),
 		feed.WithPromptKeys(m.keys.search),
