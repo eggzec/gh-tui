@@ -122,6 +122,8 @@ func (l *logModal) Update(msg tea.Msg) tea.Cmd {
 				return l.log.Retry()
 			case keymap.Matches(msg, k.Open) && l.job.URL != "":
 				return ui.Open(l.job.URL)
+			case keymap.Matches(msg, k.ViewFile):
+				return l.parent.viewWorkflow(l)
 			}
 		}
 	case ui.SyncMsg:

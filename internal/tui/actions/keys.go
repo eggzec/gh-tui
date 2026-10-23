@@ -49,6 +49,8 @@ type KeyMap struct {
 	order orderpick.KeyMap
 	// Open opens the run or the job on GitHub.
 	Open key.Binding
+	// ViewFile previews the workflow file of the run, at the commit it ran on.
+	ViewFile key.Binding
 	// Refresh reads the runs again, or what failed to load.
 	Refresh key.Binding
 	// RerunFailed, Rerun, RerunJob and Cancel change the selected run,
@@ -101,6 +103,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ToggleSort:   runs.Binding("sort_toggle", "sort on/off"),
 		order:        ui.OrderPickKeys(keys),
 		Open:         modal.Binding("global.open", "browser"),
+		ViewFile:     modal.Binding("view_workflow", "view workflow file"),
 		Refresh:      modal.Binding("global.refresh", "refresh"),
 		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
 		Rerun:        modal.Binding("rerun", "rerun all"),
@@ -141,7 +144,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open, k.ViewFile,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }

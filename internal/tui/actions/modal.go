@@ -354,6 +354,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
 	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
+	k.ViewFile.SetEnabled(k.ViewFile.Enabled() && m.hasRun)
 	// Only a question takes the answers.
 	k.Confirm.Yes.SetEnabled(false)
 	k.Confirm.No.SetEnabled(false)

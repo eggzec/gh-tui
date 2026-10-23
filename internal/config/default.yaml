@@ -1027,6 +1027,8 @@ keys:
     rerun: []
     rerun_job: [J]
     cancel: [X]
+    # Preview the workflow file of the run, as it was at the run's commit.
+    view_workflow: [v]
   # Actions: the runs and the jobs of the run under the cursor.
   actions_runs:
     expand: [right, l]
