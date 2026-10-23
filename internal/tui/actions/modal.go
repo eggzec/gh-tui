@@ -338,7 +338,11 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	if m.notes {
 		// Back leaves the annotations for the pane under them.
 		k.Back.SetEnabled(true)
-		k.Back = relabel(k.Back, paneTitles[m.focus])
+		if m.focus == jobsPane {
+			k.Back = relabel(k.Back, "jobs")
+		} else {
+			k.Back = relabel(k.Back, paneTitles[runsPane])
+		}
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
 	g := m.gate()
