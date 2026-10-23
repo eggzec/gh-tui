@@ -378,6 +378,37 @@ func TestFilterWaitsForTheWorkflows(t *testing.T) {
 	}
 }
 
+func TestFilterShowsItWaitsForTheWorkflows(t *testing.T) {
+	t.Parallel()
+	const text = "Loading the workflows"
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.hold = func(msg tea.Msg) bool { _, ok := msg.(workflowsMsg); return ok }
+	h.keys("f")
+	if !strings.Contains(ansi.Strip(m.View()), text) {
+		t.Fatalf("no %q while the filter waits", text)
+	}
+	h.keys("esc")
+	if strings.Contains(ansi.Strip(m.View()), text) {
+		t.Errorf("%q still shows after esc", text)
+	}
+	h.keys("f")
+	h.hold = nil
+	h.release()
+	if strings.Contains(ansi.Strip(m.View()), text) {
+		t.Errorf("%q still shows once the workflows came", text)
+	}
+}
+
+func TestBackCancelsTheWaitForTheWorkflows(t *testing.T) {
+	t.Parallel()
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.hold = func(msg tea.Msg) bool { _, ok := msg.(workflowsMsg); return ok }
+	h.keys("f", "backspace")
+	if m.workflows.wanted {
+		t.Error("backspace left the filter waiting")
+	}
+}
+
 // A failed read of the workflows still opens the filter, without workflows
 // to choose from, and a later press reads them again.
 func TestFilterOpensWhenTheWorkflowsFail(t *testing.T) {
