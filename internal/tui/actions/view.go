@@ -268,8 +268,8 @@ func (m *Modal) runFacts(w int) []string {
 		add(st.Glyphs[ui.RunStateOf(r.Status, r.Conclusion)], "Result", string(r.Conclusion))
 	}
 	add(sub(ic.Event), "Event", r.Event)
-	add(sub(ic.Branch), "Branch", r.Branch)
-	add(sub(ic.Commit), "Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
+	add(sub(ic.Glyph(ui.GlyphBranchEvent)), "Branch", r.Branch)
+	add(sub(ic.Glyph(ui.GlyphCommit)), "Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
 	add(sub(ic.Person), "Actor", r.Actor)
 	if !r.CreatedAt.IsZero() {
 		add(sub(ic.Clock), "Started", m.opts.dates.Short(r.CreatedAt, now))
