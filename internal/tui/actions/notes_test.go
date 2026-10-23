@@ -62,9 +62,9 @@ func TestNotesFailed(t *testing.T) {
 	f := newFake()
 	f.notesErr = fmt.Errorf("list annotations: %w", core.ErrOffline)
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab")
+	h.keys("tab", "tab")
 	v := notesText(m)
-	if strings.Contains(v, "No annotations on this run") || !strings.Contains(v, "annotations") {
+	if strings.Contains(v, "No annotations on this run") || !strings.Contains(v, "to retry") {
 		t.Errorf("failure not shown:\n%s", v)
 	}
 }

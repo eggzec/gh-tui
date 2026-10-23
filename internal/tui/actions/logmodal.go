@@ -41,7 +41,8 @@ func (m *Modal) openLog(j core.Job) tea.Cmd {
 }
 
 func (l *logModal) show(rest bool) tea.Cmd {
-	return l.log.Show(l.job, rest, jobview.Hints{SHA: l.parent.run.HeadSHA})
+	r := l.parent.ann[l.job.ID]
+	return l.log.Show(l.job, rest, jobview.Hints{SHA: l.parent.run.HeadSHA, KeptNotes: r != nil && r.kept})
 }
 
 func (l *logModal) follow() {

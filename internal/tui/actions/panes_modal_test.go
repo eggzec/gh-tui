@@ -72,8 +72,10 @@ func TestDigitsAndTabReachAnnotations(t *testing.T) {
 
 // The annotations tell what to do when there is nothing to show.
 func TestAnnotationsEmptyState(t *testing.T) {
-	m, _ := newModal(t, newFake(), wideW, wideH)
-	if s := screen(m); !strings.Contains(s, "No annotations here.") {
+	f := newFake()
+	clear(f.notes)
+	m, _ := newModal(t, f, wideW, wideH)
+	if s := screen(m); !strings.Contains(s, "No annotations on this run.") {
 		t.Errorf("the annotations lack their empty state:\n%s", s)
 	}
 }

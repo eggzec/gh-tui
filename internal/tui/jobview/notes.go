@@ -64,6 +64,7 @@ func (m *Model) cachedNotes() bool {
 	p, ok := m.svc.CachedAnnotations(m.notesQuery())
 	if ok {
 		m.setNotes(p)
+		m.notes.kept = m.hints.KeptNotes
 	}
 	return ok
 }

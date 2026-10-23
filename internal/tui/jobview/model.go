@@ -104,6 +104,10 @@ type Hints struct {
 	// NoAnnotations reports that the job is known to have none, such as
 	// from its check run, so none are read.
 	NoAnnotations bool
+	// KeptNotes reports that the parent read the annotations from what an
+	// earlier read kept. The cache holds such a page without its marks, so
+	// the parent says it, and they are read again once GitHub answers.
+	KeptNotes bool
 }
 
 // State is what the view shows.
