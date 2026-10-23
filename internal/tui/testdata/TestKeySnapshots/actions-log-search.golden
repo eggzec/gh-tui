@@ -29,11 +29,11 @@ Search (types)
   cancel | esc | esc | on
   next match | n | n | off
   prev match | N | N | off
-  option: S N T | - | - | off
+  option: S N | - | - | off
   chop or wrap long lines | S | S | off
   line numbers | N | N | off
-  timestamps | T | T | off
   cancel | esc | esc | off
+  timestamps | x | x | off
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | off

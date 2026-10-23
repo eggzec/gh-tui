@@ -27,11 +27,9 @@ const (
 // Option key. The view enables them only while it waits for one.
 type OptionKeyMap struct {
 	// Chop chops or wraps long lines, and LineNumbers shows or hides the
-	// line numbers. Timestamps shows the times relative to their section,
-	// then the times of day, then hides them.
+	// line numbers.
 	Chop        key.Binding `keymap:"chop" help:"chop or wrap long lines"`
 	LineNumbers key.Binding `keymap:"line_numbers" help:"line numbers"`
-	Timestamps  key.Binding `keymap:"timestamps" help:"timestamps"`
 	// Cancel chooses no option.
 	Cancel key.Binding `keymap:"cancel" help:"cancel"`
 }
@@ -40,7 +38,7 @@ type OptionKeyMap struct {
 // ones that have a key.
 func (o OptionKeyMap) keysHelp() string {
 	var keys []string
-	for _, b := range []key.Binding{o.Chop, o.LineNumbers, o.Timestamps} {
+	for _, b := range []key.Binding{o.Chop, o.LineNumbers} {
 		if len(b.Keys()) > 0 {
 			keys = append(keys, b.Help().Key)
 		}
@@ -50,7 +48,7 @@ func (o OptionKeyMap) keysHelp() string {
 
 // setEnabled enables or disables every option key.
 func (o *OptionKeyMap) setEnabled(on bool) {
-	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Timestamps, &o.Cancel} {
+	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Cancel} {
 		keymap.Enable(b, on)
 	}
 }
@@ -65,8 +63,7 @@ func (m Model) Searching() bool { return m.searching }
 
 // updateOption toggles the option named by the key after the one bound to
 // Option, as less's - does: by default S chops or wraps long lines, N
-// shows or hides the line numbers, and T shows the times, then the times
-// of day, then hides them. The cancel key does nothing, and any other key
+// shows or hides the line numbers. The cancel key does nothing, and any other key
 // says there is no such option.
 func (m Model) updateOption(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	// The option keys are enabled only while one is awaited.
@@ -80,9 +77,6 @@ func (m Model) updateOption(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case key.Matches(k, o.LineNumbers):
 		m.SetLineNumbers(!m.lineNumbers)
 		m.info(either(m.lineNumbers, noteNumbers, noteNoNumbers))
-	case key.Matches(k, o.Timestamps):
-		m.SetTimeMode(m.times.next())
-		m.info(m.times.note())
 	case key.Matches(k, o.Cancel):
 	default:
 		m.flash = noteNoOption + termtext.OneLine(k.String())

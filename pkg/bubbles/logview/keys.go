@@ -37,11 +37,12 @@ type KeyMap struct {
 
 	// Option waits for the name of an option to toggle, as less's - does:
 	// S chops or wraps long lines, N shows or hides the line numbers, and
-	// T shows the times relative to their section, then the times of day,
-	// then hides them. Esc then cancels it. NewKeyMap words the help from
-	// the keys of Options; the tag has its words with the default ones.
-	Option  key.Binding  `keymap:"option" help:"option: S N T"`
+	// Esc then cancels it. NewKeyMap words the help from the keys of
+	// Options; the tag has its words with the default ones.
+	Option  key.Binding  `keymap:"option" help:"option: S N"`
 	Options OptionKeyMap `keymap:"log_option"`
+	// Timestamps shows the times relative to their section, or hides them.
+	Timestamps key.Binding `keymap:"timestamps" help:"timestamps"`
 	// Follow toggles following appended lines, and moves to the end when
 	// it turns on.
 	Follow key.Binding `keymap:"follow" help:"follow"`
@@ -91,7 +92,7 @@ func (k KeyMap) Close() key.Binding { return keymap.Join(k.Quit, k.Dismiss) }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Toggle, k.ToggleAll, k.Option, k.NextError, k.Search, k.Next, k.Close()}
+	return []key.Binding{k.Toggle, k.ToggleAll, k.Option, k.Timestamps, k.NextError, k.Search, k.Next, k.Close()}
 }
 
 // FullHelp returns the bindings for the full help view, every binding of
@@ -106,7 +107,7 @@ func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
 		{k.Toggle, k.ToggleAll},
 		{k.NextError, k.PrevError, k.NextWarning, k.PrevWarning, k.Search, k.Confirm, k.Cancel, k.Next, k.Prev},
-		{k.Option, k.Options.Chop, k.Options.LineNumbers, k.Options.Timestamps, k.Options.Cancel},
+		{k.Option, k.Options.Chop, k.Options.LineNumbers, k.Options.Cancel, k.Timestamps},
 		append([]key.Binding{k.Left, k.Right, k.Follow}, closing...),
 	}
 }

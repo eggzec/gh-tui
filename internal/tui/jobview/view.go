@@ -54,11 +54,11 @@ func (m Model) stepLines(w, h int) []string {
 	case m.state == Expired:
 		why = "GitHub no longer keeps this log."
 	case j.Status == core.RunInProgress:
-		why = "Logs appear when the job finishes."
+		why = "Logs arrive in ~2 MB blocks while the job runs."
 		// Only GitHub shows the lines of a job as it writes them.
 		if k := m.keys.Open; k.Enabled() && k.Help().Key != "" {
 			ic := m.opts.icons
-			why = "Logs appear when the job finishes" + ic.Separator + ic.Key(k.Help().Key) + " to watch live on GitHub"
+			why = "Logs arrive in ~2 MB blocks while the job runs" + ic.Separator + ic.Key(k.Help().Key) + " to watch live on GitHub"
 		}
 	default:
 		why = "The job hasn't started yet."

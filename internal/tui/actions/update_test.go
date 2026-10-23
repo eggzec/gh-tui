@@ -388,7 +388,7 @@ func TestPendingLogShowsTheSteps(t *testing.T) {
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("j")
 	s := paneText(m, logPane)
-	for _, want := range []string{"Logs appear when the job finishes · o to watch live on GitHub", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
+	for _, want := range []string{"Logs arrive in ~2 MB blocks while the job runs · o to watch live on GitHub", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the log of a running job lacks %q:\n%s", want, s)
 		}
@@ -801,9 +801,9 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	}{
 		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"tab"}, "↵ fold, * all, - option: S N T, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"A"}, "* all, - option: S N T, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"A"}, "↵ fold, * all, - option: S N T, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"tab"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"A"}, "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
+		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
 		// The steps of a job in progress don't fold.
 		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, X cancel run, o browser"},
 		{[]string{"X"}, "y yes, n no"},

@@ -24,13 +24,10 @@ func TestOptions(t *testing.T) {
 		{name: "S again chops them", keys: []string{"-", "S", "-", "S"}, wantNumbers: true, wantNote: "Chop long lines"},
 		{name: "N hides the line numbers", keys: []string{"-", "N"}, wantNote: "Hide line numbers"},
 		{name: "N again shows them", keys: []string{"-", "N", "-", "N"}, wantNumbers: true, wantNote: "Show line numbers"},
-		{name: "T turns the times on", keys: []string{"-", "T"}, wantNumbers: true, wantTimes: TimeRelative,
+		{name: "x turns the times on", keys: []string{"x"}, wantNumbers: true, wantTimes: TimeRelative,
 			wantNote: "Show times since the section started"},
-		{name: "T again shows the times of day", keys: []string{"-", "T", "-", "T"}, wantNumbers: true,
-			wantTimes: TimeAbsolute, wantNote: "Show times of day"},
-		{name: "T a third time hides them", keys: []string{"-", "T", "-", "T", "-", "T"}, wantNumbers: true,
-			wantNote: "Hide times"},
-		{name: "an unknown option says so", keys: []string{"-", "x"}, wantNumbers: true, wantNote: "No such option: -x"},
+		{name: "x again hides them", keys: []string{"x", "x"}, wantNumbers: true, wantNote: "Hide times"},
+		{name: "T is no option", keys: []string{"-", "T"}, wantNumbers: true, wantNote: "No such option: -T"},
 		{name: "s, t and # are no keys", keys: []string{"s", "t", "#"}, wantNumbers: true},
 		{name: "plus and equals are no keys", keys: []string{"+", "="}, wantNumbers: true},
 		{name: "esc cancels", keys: []string{"-", "esc"}, wantNumbers: true},
@@ -153,15 +150,12 @@ func TestNoOptionKeys(t *testing.T) {
 // The option key's help lists the keys that name an option, and option
 // mode's help lists every option action with its key.
 func TestOptionHelpFollowsKeys(t *testing.T) {
-	if got := testKeys(t).Option.Help().Desc; got != "option: S N T" {
+	if got := testKeys(t).Option.Help().Desc; got != "option: S N" {
 		t.Errorf("option help is %q, want the default keys", got)
 	}
 	rebound := func(action string) []string {
-		switch action {
-		case "log_option.chop":
+		if action == "log_option.chop" {
 			return []string{"W"}
-		case "log_option.timestamps":
-			return nil
 		}
 		return lookup.Of(action)
 	}
@@ -170,7 +164,7 @@ func TestOptionHelpFollowsKeys(t *testing.T) {
 		t.Errorf("option help is %q, want W N", got)
 	}
 	m, _ = keys(t, m, "-")
-	want := map[string]string{"chop or wrap long lines": "W", "line numbers": "N", "timestamps": "", "cancel": "esc"}
+	want := map[string]string{"chop or wrap long lines": "W", "line numbers": "N", "cancel": "esc"}
 	got := map[string]string{}
 	if first := m.ShortHelp()[0]; first.Help().Desc != "cancel" {
 		t.Errorf("option mode's help starts with %q, want cancel first", first.Help().Desc)

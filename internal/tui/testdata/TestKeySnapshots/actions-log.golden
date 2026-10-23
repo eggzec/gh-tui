@@ -52,11 +52,11 @@ Log
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
-  option: S N T | - | - | on
+  option: S N | - | - | on
   chop or wrap long lines | S | S | off
   line numbers | N | N | off
-  timestamps | T | T | off
   cancel | esc | esc | off
+  timestamps | x | x | on
   left | left h | ←/h | on
   right | right l | →/l | on
   follow | F | F | on

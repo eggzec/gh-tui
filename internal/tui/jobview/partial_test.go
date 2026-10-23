@@ -129,7 +129,7 @@ func TestPartialLogPending(t *testing.T) {
 	f := newFake()
 	m := newView(t, f, 80, 12)
 	run(m, m.Show(running(), false, Hints{}))
-	if m.State() != Pending || !strings.Contains(text(m), "Logs appear when the job finishes") {
+	if m.State() != Pending || !strings.Contains(text(m), "Logs arrive in ~2 MB blocks while the job runs") {
 		t.Fatalf("state %d, want the steps:\n%s", m.State(), text(m))
 	}
 	f.poll(partialLog(1, 5, 1))
