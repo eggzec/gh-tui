@@ -32,6 +32,7 @@ const repoFields = `fragment repoFields on Repository {
   viewerPermission
   updatedAt
   url
+  repositoryTopics(first: 20) { nodes { topic { name } } }
 }`
 
 // ownerAffiliations must list ORGANIZATION_MEMBER too: it defaults to OWNER
@@ -102,6 +103,13 @@ type repoNode struct {
 	ViewerPermission string    `json:"viewerPermission"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 	URL              string    `json:"url"`
+	RepositoryTopics struct {
+		Nodes []struct {
+			Topic struct {
+				Name string `json:"name"`
+			} `json:"topic"`
+		} `json:"nodes"`
+	} `json:"repositoryTopics"`
 }
 
 func (n repoNode) core() core.Repo {
@@ -123,6 +131,9 @@ func (n repoNode) core() core.Repo {
 		// The rest of the caps stay unknown: only the read of one repository
 		// asks for them.
 		Caps: core.RepoCaps{Permission: permission(n.ViewerPermission)},
+	}
+	for _, t := range n.RepositoryTopics.Nodes {
+		r.Topics = append(r.Topics, t.Topic.Name)
 	}
 	if n.DefaultBranchRef != nil {
 		r.DefaultBranch = n.DefaultBranchRef.Name

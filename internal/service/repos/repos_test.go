@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"sync"
@@ -100,7 +101,7 @@ func page(next string, repos ...core.Repo) core.Page[core.Repo] {
 }
 
 func equalPage(a, b core.Page[core.Repo]) bool {
-	return a.Next == b.Next && slices.Equal(a.Items, b.Items)
+	return a.Next == b.Next && slices.EqualFunc(a.Items, b.Items, func(x, y core.Repo) bool { return reflect.DeepEqual(x, y) })
 }
 
 func TestListFreshHitMakesNoCall(t *testing.T) {
@@ -142,7 +143,7 @@ func TestListPagination(t *testing.T) {
 		t.Fatalf("first page = %+v, %v; want Next c1", first, err)
 	}
 	second, err := s.List(t.Context(), ListQuery{PageSize: 1, Cursor: first.Next})
-	if err != nil || !second.Last() || !slices.Equal(second.Items, []core.Repo{dotfiles}) {
+	if err != nil || !second.Last() || !equalPage(second, page(second.Next, dotfiles)) {
 		t.Fatalf("second page = %+v, %v; want the last page with dotfiles", second, err)
 	}
 	api.wantCalls(t, "list 1 ", "list 1 c1")

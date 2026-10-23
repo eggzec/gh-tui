@@ -23,4 +23,5 @@ func (s *Section) setPrefetch(p config.PrefetchLayers) {
 	s.ahead.Configure(p)
 	others := ui.Resolve(p, "search", "other_kinds")
 	s.othersOn = others.Enabled
+	s.previewRows = p.Search.Preview
 }

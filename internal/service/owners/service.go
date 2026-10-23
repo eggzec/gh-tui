@@ -65,7 +65,8 @@ type Service struct {
 }
 
 // The kinds of entries the service keeps in its store, and the version of
-// their values. Bump schema when a core type they hold changes shape.
+// their values. Bump schema when a core type they hold changes shape: 5 keeps
+// the topics of each repository.
 const (
 	kindHeader        = "owner"
 	kindRepos         = "ownerpagerepos"
@@ -74,7 +75,7 @@ const (
 	kindTeams         = "ownerteams"
 	kindReadme        = "ownerreadme"
 	kindFollowers     = "ownerfollowers"
-	schema            = 4
+	schema            = 5
 )
 
 // missingFor is how long a login that no account has is remembered: long

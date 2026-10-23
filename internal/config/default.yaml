@@ -368,6 +368,11 @@ prefetch:
     pinned: {enabled: false, window: {before: 1, after: 1}}
   search:
     window: {before: 0, after: 0}
+    # The rows each side of the cursor whose preview is read when it needs
+    # more than the result holds, 0 to 30, such as the README or the files
+    # of a hit. The preview of the row under the cursor is read whatever this
+    # says; 0 reads no others.
+    preview: 2
   files:
     tree: {enabled: false}
     preview:

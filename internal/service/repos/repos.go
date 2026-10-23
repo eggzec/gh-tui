@@ -82,11 +82,11 @@ type Service struct {
 // kind is what the service keeps its list pages as, and kindRepo its
 // repositories; schema is the version of core.Repo they hold. Bump it when
 // the type changes shape: 4 keeps the avatar of the owner, and 5 the viewer's
-// permission in each listed repository.
+// permission in each listed repository, and 6 its topics.
 const (
 	kind     = "repolist"
 	kindRepo = "repo"
-	schema   = 5
+	schema   = 6
 )
 
 // New returns a Service that fetches from api.

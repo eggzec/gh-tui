@@ -172,6 +172,14 @@ type Section struct {
 	reader   details.Reader
 	slots    *ui.Slots
 	ahead    *ui.Aheads[details.Key]
+	// previewer reads more of a hit's preview than the hit holds, for the
+	// hit under the cursor and previewRows rows each side of it, as
+	// prefetch.search.preview says. extras keeps what was read for text, and
+	// loading the keys being read.
+	previewer   PreviewReader
+	previewRows int
+	extras      map[string]extra
+	loading     map[string]bool
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
 	hits   map[core.SearchKind]*hitList
