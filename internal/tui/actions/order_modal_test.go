@@ -155,11 +155,12 @@ func TestEnterOnHeaderFolds(t *testing.T) {
 func TestEnterOnRunFoldsJobs(t *testing.T) {
 	t.Parallel()
 	m, h := newGroupedModal(t, newFake(), wideW, wideH)
-	if !strings.Contains(screen(m), "ubuntu-latest") {
-		t.Fatal("jobs of the first run do not show")
+	// The annotations pane names a job too, so look at the runs pane only.
+	if !strings.Contains(paneText(m, runsPane), "ubuntu-latest") {
+		t.Fatalf("jobs of the first run do not show:\n%s", screen(m))
 	}
 	h.keys("enter")
-	if s := screen(m); strings.Contains(s, "ubuntu-latest") || !strings.Contains(s, "#4812") {
+	if s := paneText(m, runsPane); strings.Contains(s, "ubuntu-latest") || !strings.Contains(s, "#4812") {
 		t.Fatalf("enter on a run did not fold its jobs:\n%s", s)
 	}
 }
