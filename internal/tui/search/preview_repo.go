@@ -42,7 +42,8 @@ func repoExtra(p core.RepoPreview) string {
 		b.WriteString("\n")
 	}
 	if p.Readme != "" {
-		b.WriteString("\n---\n\n" + p.Readme)
+		b.WriteString("\n---\n\n")
+		b.WriteString(p.Readme)
 	}
 	return b.String()
 }
