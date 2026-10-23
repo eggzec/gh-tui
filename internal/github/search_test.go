@@ -11,6 +11,27 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
+func TestSearchRepoTopics(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want []string
+	}{
+		"topics": {`{"topics":["tea","timer"]}`, []string{"tea", "timer"}},
+		"none":   {`{"topics":[]}`, nil},
+		"absent": {`{}`, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var r searchRepo
+			if err := json.Unmarshal([]byte(tc.body), &r); err != nil {
+				t.Fatal(err)
+			}
+			if got := r.core().Topics; len(got) != len(tc.want) || (len(got) > 0 && !reflect.DeepEqual(got, tc.want)) {
+				t.Errorf("Topics = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestSearchRepos(t *testing.T) {
 	c := serveIssueFixture(t, "search_repos.json", func(r *http.Request) {
 		checkIssueRequest(t, r, http.MethodGet, "/search/repositories", map[string]string{"q": "tui user:eggzec", "per_page": "20"})
