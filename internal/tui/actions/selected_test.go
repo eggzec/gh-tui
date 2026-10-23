@@ -26,15 +26,16 @@ func TestSelectedRun(t *testing.T) {
 	}
 	for name, got := range map[string]string{"focused": focused, "blurred": blurred} {
 		lines := strings.Split(got, "\n")
-		if len(lines) != 2 {
-			t.Fatalf("%s run has %d lines, want 2", name, len(lines))
+		if len(lines) != 1 {
+			t.Fatalf("%s run has %d lines, want 1", name, len(lines))
 		}
 		for i, l := range lines {
 			if !strings.Contains(l, bold) {
 				t.Errorf("%s run: line %d has no bold cell: %q", name, i, l)
 			}
 		}
-		if got, want := ansi.Strip(got), ansi.Strip(plain); got != want {
+		// The selected run is unfolded, so its arrow points down.
+		if got, want := strings.Replace(ansi.Strip(got), "▾", "▸", 1), ansi.Strip(plain); got != want {
 			t.Errorf("%s run reads %q, want the text of the plain row %q", name, got, want)
 		}
 	}

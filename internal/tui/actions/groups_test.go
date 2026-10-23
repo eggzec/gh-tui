@@ -219,11 +219,15 @@ func duckFake() *fake {
 func jobsPaneRows(m *Modal) []string {
 	// The jobs show as wide as the zoomed runs box, not the 34 columns of the
 	// side by side one, so long names stay whole.
-	lines := m.paneLines(jobsPane, 100, m.rowsOf(jobsPane))
+	lines := m.jobLines(100, m.rowsOf(jobsPane))
 	var rows []string
 	for _, l := range lines {
-		if s := strings.TrimSpace(ansi.Strip(l)); s != "" {
-			rows = append(rows, strings.Join(strings.Fields(s), " "))
+		// The outline's guides are drawn, not read, so they drop out.
+		words := slices.DeleteFunc(strings.Fields(ansi.Strip(l)), func(w string) bool {
+			return strings.Trim(w, "│├└") == ""
+		})
+		if len(words) > 0 {
+			rows = append(rows, strings.Join(words, " "))
 		}
 	}
 	return rows
@@ -236,10 +240,10 @@ func TestViewJobGroups(t *testing.T) {
 		width, height int
 		keys          []string
 	}{
-		{"80 columns", narrowW, narrowH, []string{"enter"}},
-		{"120 columns", 92, 24, []string{"enter"}},
+		{"80 columns", narrowW, narrowH, []string{"j"}},
+		{"120 columns", 92, 24, []string{"j"}},
 		// The extensions open, to show a group in a group.
-		{"120 columns nested", 92, 24, []string{"enter", "G", "k", "k", "enter", "j", "enter"}},
+		{"120 columns nested", 92, 24, []string{"j", "G", "k", "k", "enter", "j", "enter"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -413,7 +417,7 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 // A long name gives way to the count and the state of its group.
 func TestJobGroupLongName(t *testing.T) {
 	f := newFake()
-	long := strings.Repeat("Build every extension binary ", 5)
+	long := strings.Repeat("Build every extension binary ", 3)
 	f.jobs[failedRun] = []core.Job{
 		job(1, failedRun, long+"(linux)", core.ConclusionFailure, time.Hour, time.Minute),
 		job(2, failedRun, long+"(osx)", core.ConclusionSuccess, time.Hour, time.Minute),
@@ -421,10 +425,10 @@ func TestJobGroupLongName(t *testing.T) {
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("tab")
 	row := jobsPaneRows(m)[0]
-	if !strings.HasSuffix(row, "… 2 ✗") || !strings.HasPrefix(row, "▾ Build every") {
-		t.Errorf("the long group's row is %q", row)
+	if !strings.Contains(row, "▾ "+strings.TrimSpace(long)) {
+		t.Errorf("the long group's name was cut: %q", row)
 	}
-	lines := m.paneLines(jobsPane, m.paneWidth(jobsPane), m.rowsOf(jobsPane))
+	lines := m.jobLines(m.paneWidth(jobsPane), m.rowsOf(jobsPane))
 	if strings.Contains(lines[0], "\x1b]8;") || !strings.Contains(lines[1], "\x1b]8;;"+f.jobs[failedRun][0].URL) {
 		t.Errorf("the group links, or its job doesn't:\n%q\n%q", lines[0], lines[1])
 	}

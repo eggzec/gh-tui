@@ -26,13 +26,13 @@ func TestTimersMoveOnWhileTheRunRuns(t *testing.T) {
 		if m.ticking {
 			t.Fatal("the timers run for a done run")
 		}
-		h.keys("j")
+		h.keys("enter", "j") // fold the first run, then the running one
 		// The host ran the tick, a second of the fake clock, and holds it.
 		if !m.ticking || len(h.held) != 1 {
 			t.Fatalf("ticking %v with %d ticks, want the timers running", m.ticking, len(h.held))
 		}
 		h.release()
-		if s := paneText(m, runsPane); !strings.Contains(s, "1m 32s") {
+		if s := screen(m); !strings.Contains(s, "Duration 1m 22s") {
 			t.Errorf("the running run's timer didn't move on:\n%s", s)
 		}
 		// Once no run shown runs, the next tick stops them.

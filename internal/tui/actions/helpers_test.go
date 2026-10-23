@@ -128,7 +128,7 @@ func (h *host) update(msg tea.Msg) tea.Cmd {
 // returns the overlay.
 func (h *host) openLog(tb testing.TB) *logModal {
 	tb.Helper()
-	h.keys("tab", "enter")
+	h.keys("j", "enter")
 	if h.log == nil {
 		tb.Fatal("enter on a job didn't open its log")
 	}
@@ -278,7 +278,13 @@ func screen(m *Modal) string {
 // paneText is the text of pane p, without styles, its spaces collapsed.
 func paneText(m *Modal, p pane) string {
 	// As wide as a zoomed box, not the 34 columns of the side by side one.
-	lines := m.paneLines(p, 100, m.rowsOf(p))
+	var lines []string
+	switch p {
+	case jobsPane:
+		lines = m.jobLines(100, m.rowsOf(p))
+	default:
+		lines = m.runsBox(100, m.rowsOf(runsPane)+1)
+	}
 	return strings.Join(strings.Fields(ansi.Strip(strings.Join(lines, "\n"))), " ")
 }
 

@@ -12,7 +12,9 @@ import (
 // to the feed, the log and the form. Messages of other modals, such as the
 // one this replaced, are ignored.
 func (m *Modal) Update(msg tea.Msg) tea.Cmd {
-	return m.update(msg)
+	cmd := m.update(msg)
+	m.fit()
+	return cmd
 }
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {
@@ -189,6 +191,12 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case m.notes:
 		return nil
 	case m.focus == runsPane:
+		if keymap.Matches(msg, m.keys.Jobs.Down) && m.rowsOf(jobsPane) > 0 && len(m.jobs.lines) > 0 {
+			// Down from a run with jobs under it goes into them.
+			m.setFocus(jobsPane)
+			m.scrollJobs()
+			return m.showJob()
+		}
 		return m.updateRuns(msg)
 	}
 	return m.pressJobs(msg)
@@ -207,6 +215,10 @@ func (m *Modal) moveFocus(d int) tea.Cmd {
 		at = numPanes
 	}
 	at = (at + d + stops) % stops
+	if pane(at) == jobsPane && m.rowsOf(jobsPane) <= 0 {
+		// The jobs have no room, or are folded: step over them.
+		at = (at + d + stops) % stops
+	}
 	if at == numPanes {
 		m.focusNotes()
 		return nil
@@ -259,7 +271,12 @@ func (m *Modal) drill() tea.Cmd {
 		if !m.hasRun {
 			return nil
 		}
-		return m.focusPane(jobsPane)
+		// A run folds its jobs away, or shows them again.
+		if m.shut == nil {
+			m.shut = map[int64]bool{}
+		}
+		m.shut[m.run.ID] = !m.shut[m.run.ID]
+		return nil
 	case jobsPane:
 		if m.jobs.onGroup() {
 			m.jobs.toggle()

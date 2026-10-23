@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -300,6 +301,16 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 	default:
 		return nil
 	}
+	if to < 0 && j.cursor == 0 && keymap.Matches(msg, k.Up) {
+		// Up from the first job is the run it belongs to.
+		m.setFocus(runsPane)
+		return nil
+	}
+	if to >= n && j.cursor == n-1 && keymap.Matches(msg, k.Down) {
+		// Down from the last job is the next run.
+		m.setFocus(runsPane)
+		return m.updateRuns(msg)
+	}
 	to = min(max(to, 0), n-1)
 	if to == j.cursor {
 		return nil
@@ -337,21 +348,14 @@ func (m *Modal) jobRows() int {
 // jobLines renders the jobs pane's body, h lines of w cells.
 func (m *Modal) jobLines(w, h int) []string {
 	j, st := &m.jobs, &m.st
-	switch {
-	case !m.hasRun:
-		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its jobs.")}, w, h)
-	case !j.loaded && j.err != nil:
-		return ui.FitLines(m.errorLines("load the jobs", jobview.RunName(m.run), j.err, w), w, h)
-	case !j.loaded:
-		return ui.FitLines([]string{m.spin.View() + st.Muted.Render("Loading the jobs"+st.ic.Ellipsis)}, w, h)
-	case len(j.items) == 0:
-		return ui.FitLines(ui.Wrap(st.Muted.Render(m.noJobsText()), w), w, h)
+	if note, ok := m.jobsNote(w); ok {
+		return ui.FitLines(note, w, h)
 	}
 	lines := make([]string, 0, h)
 	focused := m.inJobs()
 	now := m.now()
 	for i := j.top; i < len(j.lines) && len(lines) < m.jobRows(); i++ {
-		lines = append(lines, m.lineRow(j.lines[i], i == j.cursor, focused, w, now))
+		lines = append(lines, m.lineRow(i, i == j.cursor, focused, w, now))
 	}
 	if j.more && len(lines) < h {
 		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
@@ -361,6 +365,24 @@ func (m *Modal) jobLines(w, h int) []string {
 		lines = append(lines, ui.Fit(st.noGutter+st.Subtle.Render(termtext.Truncate(text, w-2, st.ic.Ellipsis)), w))
 	}
 	return ui.PadLines(lines, w, h)
+}
+
+// jobsNote returns what shows in place of the jobs while there are none to
+// list: the error, the loading, or why there are no jobs, in lines of w
+// cells. It reports false when there are jobs to list.
+func (m *Modal) jobsNote(w int) ([]string, bool) {
+	j, st := &m.jobs, &m.st
+	switch {
+	case !m.hasRun:
+		return []string{st.Muted.Render("Pick a run to see its jobs.")}, true
+	case !j.loaded && j.err != nil:
+		return m.errorLines("load the jobs", jobview.RunName(m.run), j.err, w), true
+	case !j.loaded:
+		return []string{m.spin.View() + st.Muted.Render("Loading the jobs"+st.ic.Ellipsis)}, true
+	case len(j.items) == 0:
+		return ui.Wrap(st.Muted.Render(m.noJobsText()), w), true
+	}
+	return nil, false
 }
 
 // noJobsText tells why the run shown has no jobs, and what to do: a run
@@ -386,12 +408,57 @@ func (m *Modal) noJobsText() string {
 
 // lineRow renders a row of the jobs, a job or a group, indented as deep
 // as it is nested.
-func (m *Modal) lineRow(l jobLine, cursor, focused bool, w int, now time.Time) string {
-	gutter := m.rowGutter(cursor, focused) + strings.Repeat("  ", l.depth)
+func (m *Modal) lineRow(i int, cursor, focused bool, w int, now time.Time) string {
+	l := m.jobs.lines[i]
+	gutter := m.rowGutter(cursor, focused) + m.st.Subtle.Render(m.guides(i))
 	if l.group != nil {
 		return m.groupRow(l, gutter, cursor, w)
 	}
 	return m.jobRow(m.jobs.items[l.job], l.label, gutter, cursor, w, now)
+}
+
+// guides draws the outline in front of line i: a bar for each ancestor with
+// more rows to come, and a branch to the row, which ends on its last sibling.
+func (m *Modal) guides(i int) string {
+	lines := m.jobs.lines
+	// more reports that a row of depth d follows line i before the level
+	// closes.
+	more := func(d int) bool {
+		for _, n := range lines[i+1:] {
+			if n.depth < d {
+				return false
+			}
+			if n.depth == d {
+				return true
+			}
+		}
+		return false
+	}
+	d := lines[i].depth
+	var b strings.Builder
+	for k := range d {
+		// The ancestor at depth k continues while a row of its depth follows.
+		if more(k) {
+			b.WriteString("│ ")
+		} else {
+			b.WriteString("  ")
+		}
+	}
+	if more(d) {
+		b.WriteString("├ ")
+	} else {
+		b.WriteString("└ ")
+	}
+	return b.String()
+}
+
+// spreadWhole puts right at the end of the row after left, and drops right
+// when the two don't fit, so the name on the left is never cut for it.
+func (m *Modal) spreadWhole(left, right string, w int) string {
+	if ansi.StringWidth(left)+1+ansi.StringWidth(right) > w {
+		return ui.Fit(left, w)
+	}
+	return ui.Spread(left, right, w, m.opts.icons.Ellipsis)
 }
 
 // rowGutter renders the mark of the row under the cursor, or its blank.
@@ -413,7 +480,7 @@ func (m *Modal) jobRow(j core.Job, label, gutter string, cursor bool, w int, now
 		name = st.Strong.Render(label)
 	}
 	state := ui.RunStateOf(j.Status, j.Conclusion)
-	return ui.Spread(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w, m.opts.icons.Ellipsis)
+	return m.spreadWhole(gutter+st.Glyphs[state]+" "+m.links.Link(j.URL, name), st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now), w)
 }
 
 // groupRow renders a group: whether it is open, its name, how many jobs
@@ -429,7 +496,7 @@ func (m *Modal) groupRow(l jobLine, gutter string, cursor bool, w int) string {
 	if m.jobs.isOpen(g.key) {
 		marker = st.unfolded
 	}
-	return ui.Spread(gutter+marker+name, st.Subtle.Render(strconv.Itoa(len(g.jobs)))+" "+st.Glyphs[g.state], w, m.opts.icons.Ellipsis)
+	return m.spreadWhole(gutter+marker+name, st.Subtle.Render(strconv.Itoa(len(g.jobs)))+" "+st.Glyphs[g.state], w)
 }
 
 // jobsTitle is the detail of the jobs pane's title: how many there are,

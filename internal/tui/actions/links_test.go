@@ -30,25 +30,22 @@ func TestRowLinks(t *testing.T) {
 	}
 }
 
-// A run that ended as it was created never ran, so it shows no duration,
-// and a skipped one says so, as its jobs and steps do; one that ran shows
-// how long.
-func TestRunThatNeverRanHasNoDuration(t *testing.T) {
+// The run's row keeps to its name and title; how long it took shows in its
+// details, and a run whose jobs never started has no duration.
+func TestRunDurationShowsInTheDetails(t *testing.T) {
 	m, _ := newModal(t, newFake(), 120, 30)
 	at := testNow.Add(-time.Hour)
-	cancelled := core.Run{ID: 1, Name: "CI", Number: 7, DisplayTitle: "never ran", Status: core.RunCompleted,
-		Conclusion: core.ConclusionCancelled, CreatedAt: at, UpdatedAt: at}
-	if s := ansi.Strip(m.renderRun(cancelled, false, 80)); strings.Contains(s, "0s") {
-		t.Errorf("a run that never ran reads\n%s", s)
+	r := core.Run{ID: 1, Name: "CI", Number: 7, DisplayTitle: "a run", Status: core.RunCompleted,
+		Conclusion: core.ConclusionSuccess, CreatedAt: at, UpdatedAt: at.Add(65 * time.Second)}
+	if s := ansi.Strip(m.renderRun(r, false, 80)); strings.Contains(s, "1m 5s") {
+		t.Errorf("the run's row tells its duration\n%s", s)
 	}
-	skipped := cancelled
-	skipped.Conclusion = core.ConclusionSkipped
-	if s := ansi.Strip(m.renderRun(skipped, false, 80)); strings.Contains(s, "0s") || !strings.Contains(s, "skipped") {
-		t.Errorf("a skipped run reads\n%s", s)
+	m.jobs.items = []core.Job{{StartedAt: at, CompletedAt: at.Add(65 * time.Second)}}
+	if got := m.jobsSpan(testNow); got != "1m 5s" {
+		t.Errorf("a run of 65s reads %q", got)
 	}
-	ran := skipped
-	ran.Conclusion, ran.UpdatedAt = core.ConclusionSuccess, at.Add(65*time.Second)
-	if s := ansi.Strip(m.renderRun(ran, false, 80)); !strings.Contains(s, "1m 5s") {
-		t.Errorf("a run of 65s reads\n%s", s)
+	m.jobs.items = []core.Job{{}}
+	if got := m.jobsSpan(testNow); got != "-" {
+		t.Errorf("a run that never ran reads %q, want -", got)
 	}
 }

@@ -35,7 +35,8 @@ func TestJobsAroundTheRunsAreReadAhead(t *testing.T) {
 	// The next run's jobs show before the cursor rests, and the rest reads
 	// the run the window reaches now, as well as the run itself again.
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
-	h.keys("j")
+	// The run's jobs fold away first, so that down is the next run.
+	h.keys("enter", "j")
 	if !m.jobs.loaded || m.jobs.runID != runningRun {
 		t.Fatalf("jobs pane shows run %d, loaded %v; want the next run's jobs at once", m.jobs.runID, m.jobs.loaded)
 	}
@@ -56,7 +57,7 @@ func TestJobsAheadReadAgainWhenReopened(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH, withPrefetch(nil))
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
-	h.keys("j")
+	h.keys("enter", "j")
 	h.hold, h.held = nil, nil
 	f.mu.Lock()
 	clear(f.cachedJobs)
@@ -176,9 +177,11 @@ func holdLogAhead(t *testing.T, f *fake) (m *Modal, h *host, wait func()) {
 	}))
 	// Leave the window empty, and have the macOS job's log to read again
 	// once the cursor is back.
-	h.keys("enter", "j")
+	// The first j enters the jobs, on the failed Ubuntu job.
+	h.keys("j")
 	f.mu.Lock()
 	f.cachedLogs[macosJob] = false
+	f.cachedLogs[ubuntuJob] = true
 	f.logReads = nil
 	f.holdLogs = map[int64]bool{macosJob: true}
 	f.mu.Unlock()
@@ -228,7 +231,7 @@ func TestLogsAheadStopWhenTheRunChanges(t *testing.T) {
 	f := newFake()
 	m, h, wait := holdLogAhead(t, f)
 	m.focusPane(runsPane)
-	h.keys("j")
+	h.keys("enter", "j")
 	if m.run.ID == failedRun {
 		t.Fatal("the run didn't change")
 	}
@@ -260,6 +263,10 @@ func TestLogAheadGoesOnForTheJobLanded(t *testing.T) {
 	// The log pane's own read isn't held.
 	f.holdLogs = nil
 	f.mu.Unlock()
+	// The cursor is on the matrix parent: down to the Ubuntu job, then the
+	// macOS one.
+	h.keys("j")
+	h.held = nil
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
 	h.keys("j")
 	h.hold = nil

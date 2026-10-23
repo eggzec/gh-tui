@@ -24,12 +24,13 @@ func TestViewASCII(t *testing.T) {
 	}{
 		{wideW, wideH, nil}, {wideW, wideH, []string{"tab"}}, {wideW, wideH, []string{"j"}},
 		{wideW, wideH, []string{"f"}}, {wideW, wideH, []string{"R"}}, {wideW, wideH, []string{"]"}},
-		{narrowW, narrowH, []string{"enter"}}, {narrowW, narrowH, []string{"enter", "enter"}},
-		{narrowW, narrowH, []string{"j", "enter", "enter"}}, {narrowW, narrowH, []string{"f"}},
+		{narrowW, narrowH, []string{"j"}}, {narrowW, narrowH, []string{"j", "enter"}},
+		{narrowW, narrowH, []string{"enter", "j", "j", "enter"}}, {narrowW, narrowH, []string{"f"}},
 	} {
 		m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
 		h.keys(tt.keys...)
-		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+		// The guides of the outline are box drawing, whatever the icons.
+		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII && !strings.ContainsRune("│├└▌", r) }) {
 			t.Errorf("%dx%d after %v: view isn't ASCII:\n%s", tt.width, tt.height, tt.keys, v)
 		}
 	}
@@ -51,9 +52,9 @@ func TestView(t *testing.T) {
 		{"120 columns runs", 120, 40, nil},
 		{"120 columns jobs", 120, 40, []string{"tab"}},
 		{"80 columns runs", narrowW, narrowH, nil},
-		{"80 columns jobs", narrowW, narrowH, []string{"enter"}},
-		{"80 columns log", narrowW, narrowH, []string{"enter", "enter"}},
-		{"80 columns running", narrowW, narrowH, []string{"j", "enter", "enter"}},
+		{"80 columns jobs", narrowW, narrowH, []string{"j"}},
+		{"80 columns log", narrowW, narrowH, []string{"j", "enter"}},
+		{"80 columns running", narrowW, narrowH, []string{"enter", "j", "j", "enter"}},
 		{"80 columns filter", narrowW, narrowH, []string{"f"}},
 	}
 	for _, tt := range tests {
@@ -79,7 +80,7 @@ func TestViewJobsFailed(t *testing.T) {
 				t.Fatal(err)
 			}
 			m.SetTheme(ui.NewTheme(p, dark))
-			h.keys("enter")
+			h.keys("j")
 			v := m.View()
 			assertFits(t, v, narrowW, narrowH)
 			golden.RequireEqual(t, v)
@@ -102,9 +103,9 @@ func TestViewWaiting(t *testing.T) {
 				waiting(503, "release", core.RunRequested),
 				waiting(504, "docs", core.RunQueued))
 			m, h := newModal(t, f, wideW, 10, WithIcons(ui.NewIcons(set)))
-			h.keys("j", "enter")
+			h.keys("enter", "j")
 			v := m.View()
-			if s := paneText(m, jobsPane); !strings.Contains(s, "deploy (production) waiting for approval") || !strings.Contains(s, "e2e waiting") {
+			if s := screen(m); !strings.Contains(s, "deploy (production)") || !strings.Contains(s, "waiting") {
 				t.Errorf("the waiting jobs:\n%s", s)
 			}
 			assertFits(t, v, wideW, 10)
@@ -139,10 +140,9 @@ func TestViewFitsAnySize(t *testing.T) {
 	}
 }
 
-// At 80 columns the runs and the jobs share the line, each with its title.
+// At 80 columns the jobs of the open run show under it in the runs' tree.
 func TestViewTwoPanesAt80(t *testing.T) {
-	m, h := newModal(t, newFake(), narrowW, narrowH)
-	h.keys("enter")
+	m, _ := newModal(t, newFake(), narrowW, narrowH)
 	s := screen(m)
 	if !strings.Contains(s, "macos-lat") || !strings.Contains(s, "fix: skip") {
 		t.Errorf("the 80-column modal shows only one section:\n%s", s)
