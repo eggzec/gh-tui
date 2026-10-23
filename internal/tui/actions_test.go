@@ -82,6 +82,39 @@ func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
 	}
 }
 
+// overlayingModal opens a fake overlay over itself for each key it gets, as
+// the actions modal does for the filter, sort and group.
+type overlayingModal struct {
+	fakeModal
+}
+
+func (o *overlayingModal) Update(msg tea.Msg) tea.Cmd {
+	o.fakeModal.Update(msg)
+	if _, ok := msg.(tea.KeyPressMsg); ok {
+		ov := &fakeModal{title: "Overlay"}
+		return func() tea.Msg { return ui.OpenModalMsg{Modal: ov, Back: o} }
+	}
+	return nil
+}
+
+func TestOverlaysOverTheActionsReturnToIt(t *testing.T) {
+	t.Parallel()
+	host := &overlayingModal{}
+	host.title = "Actions"
+	m, _ := newTestApp(t)
+	run(m, ui.OpenModal(host))
+	for _, key := range []string{"f", "s", "g"} {
+		run(m, m.key(press(key)))
+		if m.topModal() == ui.Modal(host) {
+			t.Fatalf("%s opened nothing over the actions", key)
+		}
+		run(m, ui.LeaveModal(m.topModal()))
+		if m.topModal() != ui.Modal(host) {
+			t.Fatalf("closing the overlay of %s left %v, want the actions", key, m.topModal())
+		}
+	}
+}
+
 func TestFrameShowsTheTabs(t *testing.T) {
 	t.Parallel()
 	a := &actionsOpener{}

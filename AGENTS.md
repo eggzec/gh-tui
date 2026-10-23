@@ -448,9 +448,9 @@ reacts to messages. Concretely:
   actions of a context, an action outside its context (a global one in
   another context, or a typo) and `ctrl+c`, which always quits and is
   not in default.yaml. A clash is reported at the setting the user's file
-  has, with its line. A content modal that replaces another,
-  such as the filter of the runs, is a screen-layer context of its own, and
-  so is an overlay modal: the keys of what is under it don't work in it. A step that shows inside a modal
+  has, with its line. A content modal that replaces another
+  is a screen-layer context of its own, and
+  so is an overlay modal, such as the filter of the runs: the keys of what is under it don't work in it. A step that shows inside a modal
   and takes keys only now and then, such as the checks of a pull request,
   has panes of that modal instead: its keys work there, unless the step
   types or asks.

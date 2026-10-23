@@ -14,7 +14,32 @@ import (
 func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	cmd := m.update(msg)
 	m.fit()
-	return cmd
+	return m.over(cmd)
+}
+
+// over makes the modals that cmd opens, the filter, sort and group, open over
+// the modal, so that closing them returns here. Hide stops only what the
+// modal follows, and reopened starts it again on the way back.
+func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		switch msg := cmd().(type) {
+		case ui.OpenModalMsg:
+			if msg.Back == nil {
+				msg.Back = m
+			}
+			return msg
+		case tea.BatchMsg:
+			for i, c := range msg {
+				msg[i] = m.over(c)
+			}
+			return msg
+		default:
+			return msg
+		}
+	}
 }
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {

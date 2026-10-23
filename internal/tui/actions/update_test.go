@@ -283,15 +283,23 @@ func TestTabsWithoutAViewer(t *testing.T) {
 // opened returns the filter overlay that the modal asked the app to open.
 func opened(tb testing.TB, h *host) *ui.FilterModal {
 	tb.Helper()
+	fm, _ := openedOver(tb, h)
+	return fm
+}
+
+// openedOver returns the filter overlay that the modal asked the app to open,
+// and the modal it asked to open it over.
+func openedOver(tb testing.TB, h *host) (*ui.FilterModal, ui.Modal) {
+	tb.Helper()
 	for _, msg := range h.take() {
 		if o, ok := msg.(ui.OpenModalMsg); ok {
 			if fm, ok := o.Modal.(*ui.FilterModal); ok {
-				return fm
+				return fm, o.Back
 			}
 		}
 	}
 	tb.Fatal("the modal didn't ask for the filter overlay")
-	return nil
+	return nil, nil
 }
 
 func TestFilterKeepsWhatNoFieldClaims(t *testing.T) {
@@ -312,8 +320,12 @@ func TestFilterOverlay(t *testing.T) {
 	if f.wfReads != 1 {
 		t.Fatalf("f read the workflows %d times, want once", f.wfReads)
 	}
-	if fm := opened(t, h); fm.Query() != "" {
+	fm, back := openedOver(t, h)
+	if fm.Query() != "" {
 		t.Errorf("the overlay opens on %q, want no filter", fm.Query())
+	}
+	if back != ui.Modal(m) {
+		t.Errorf("the overlay opens over %v, want the actions modal", back)
 	}
 	h.run(m.ApplyFilter(filterform.AppliedMsg{
 		Query: `workflow:CI branch:main event:push status:failure actor:@me`,
