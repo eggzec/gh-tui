@@ -72,7 +72,15 @@ func (s *Section) previewed() previewBody {
 	}
 	if h.Kind == core.SearchRepos {
 		suffix, add := s.extraText(h)
-		return previewBody{key: "repo " + hitKey(h) + suffix, name: h.Repo.Ref.String(), text: func() string { return repoText(h.Repo) + add }}
+		b := previewBody{key: "repo " + hitKey(h) + suffix, name: h.Repo.Ref.String()}
+		// What was read is Markdown, with the README in it, so the pager
+		// shows it rendered, as it does an issue's body.
+		if e, ok := s.extras[hitKey(h)]; ok && e.err == nil && e.text != "" {
+			b.issue = func() (string, string) { return repoText(h.Repo), e.text }
+			return b
+		}
+		b.text = func() string { return repoText(h.Repo) + add }
+		return b
 	}
 	if h.Kind == core.SearchTopics {
 		return previewBody{key: "topic " + h.Topic.Name, name: h.Topic.Name, text: func() string { return topicText(h.Topic) }}
