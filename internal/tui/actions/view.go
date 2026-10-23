@@ -255,6 +255,17 @@ func (m *Modal) notesLines(w, h int) []string {
 		}
 		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its details.")}, w, h)
 	}
+	facts := m.runFacts(w)
+	facts, rows := noteSplit(facts, len(m.noteEntries()), h)
+	if len(facts) > 0 {
+		facts = append(facts, "")
+	}
+	return ui.FitLines(append(facts, m.noteLines(w, h-len(facts), rows)...), w, h)
+}
+
+// runFacts are the lines that tell of the run shown.
+func (m *Modal) runFacts(w int) []string {
+	st := &m.st
 	r := m.run
 	now := m.now()
 	var lines []string
@@ -285,8 +296,7 @@ func (m *Modal) notesLines(w, h int) []string {
 		lines = append(lines, "")
 		lines = append(lines, m.errorLines("load the jobs", jobview.RunName(r), m.jobs.err, w)...)
 	}
-	lines = append(lines, "", st.Muted.Render("No annotations here. Those of a failed job show with its log."))
-	return ui.FitLines(lines, w, h)
+	return lines
 }
 
 // jobsSpan is how long the run took, from the earliest start of its jobs to

@@ -91,6 +91,10 @@ type Modal struct {
 	run    core.Run
 	hasRun bool
 	jobs   jobs
+	// ann holds the annotations read for the jobs of the run shown, by job,
+	// and noteCursor and noteTop the cursor and the first row of their list.
+	ann                 map[int64]*noteRes
+	noteCursor, noteTop int
 	// shut holds the runs whose jobs the user folded away; the run under the
 	// cursor shows its jobs under its row otherwise.
 	shut map[int64]bool

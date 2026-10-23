@@ -257,7 +257,7 @@ func (m *Modal) setJobs(p core.Page[core.Job]) tea.Cmd {
 	// a second read.
 	j.loaded = true
 	m.scrollJobs()
-	return m.showJob()
+	return tea.Batch(m.showJob(), m.readNotes())
 }
 
 // firstJob is the job a run opens on: the first that failed, else the first
