@@ -257,7 +257,7 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 		return ui.Selection{}, false
 	}
 	sel := ui.Selection{What: "run", URL: m.run.URL, Repo: m.repo, SHA: m.run.HeadSHA, Owner: m.repo.Owner}
-	if m.focus == jobsPane && !m.jobs.onGroup() {
+	if m.inJobs() && !m.jobs.onGroup() {
 		if j, ok := m.jobs.selected(); ok {
 			sel.What, sel.URL = "job", j.URL
 		}
@@ -335,12 +335,18 @@ func (k KeyMap) state(m *Modal) KeyMap {
 			k.Select = relabel(k.Select, "fold")
 		}
 	}
+	if m.notes {
+		// Back leaves the annotations for the pane under them.
+		k.Back.SetEnabled(true)
+		k.Back = relabel(k.Back, paneTitles[m.focus])
+	}
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
 	g := m.gate()
 	done := m.hasRun && m.run.Done()
 	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())
 	k.RerunFailed.SetEnabled(k.RerunFailed.Enabled() && done)
 	k.Rerun.SetEnabled(k.Rerun.Enabled() && done)
-	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.focus != runsPane)
+	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.inJobs())
 	k.RerunJob = g.Gated(k.RerunJob, ui.ActRerun, nil)
 	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
 	k.Rerun = g.Gated(k.Rerun, ui.ActRerun, nil)

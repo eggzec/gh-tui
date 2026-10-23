@@ -15,7 +15,7 @@ const paneCount = int(paneNotes)
 // sub-panes to preview.
 var paneDefs = []panes.Def{
 	{Name: "Runs", Short: "Runs"},
-	{Name: "Annotations", Short: "Notes"},
+	{Name: "Annotations", Short: "Annot."},
 }
 
 // Sizes the layout is built on.

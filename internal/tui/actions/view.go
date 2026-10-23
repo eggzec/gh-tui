@@ -3,6 +3,7 @@ package actions
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"github.com/charmbracelet/x/ansi"
@@ -226,9 +227,14 @@ func (m *Modal) paneLines(p pane, w, h int) []string {
 func (m *Modal) notesLines(w, h int) []string {
 	st := &m.st
 	if !m.hasRun {
+		if err := m.runs.Err(); err != nil && m.runs.Len() == 0 {
+			// The runs box has room for only a cut of the error.
+			return ui.FitLines(m.errorLines("load the runs", m.repo.String(), err, w), w, h)
+		}
 		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its details.")}, w, h)
 	}
 	r := m.run
+	now := m.now()
 	var lines []string
 	add := func(name, value string) {
 		if value = ui.OneLine(value); value != "" {
@@ -245,11 +251,44 @@ func (m *Modal) notesLines(w, h int) []string {
 	add("Branch", r.Branch)
 	add("Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
 	add("Actor", r.Actor)
+	if !r.CreatedAt.IsZero() {
+		add("Started", m.opts.dates.Short(r.CreatedAt, now))
+	}
+	add("Duration", m.jobsSpan(now))
 	if r.Attempt > 1 {
 		add("Attempt", strconv.Itoa(r.Attempt))
 	}
 	lines = append(lines, "", st.Muted.Render("No annotations here. Those of a failed job show with its log."))
 	return ui.FitLines(lines, w, h)
+}
+
+// jobsSpan is how long the run took, from the earliest start of its jobs to
+// the latest end, or to now while one still runs: "-" until the jobs are
+// loaded and have times.
+func (m *Modal) jobsSpan(now time.Time) string {
+	var start, end time.Time
+	running := false
+	for _, j := range m.jobs.items {
+		if j.StartedAt.IsZero() {
+			continue
+		}
+		if start.IsZero() || j.StartedAt.Before(start) {
+			start = j.StartedAt
+		}
+		if j.CompletedAt.IsZero() {
+			running = true
+		} else if j.CompletedAt.After(end) {
+			end = j.CompletedAt
+		}
+	}
+	if running {
+		end = time.Time{}
+	}
+	d, ok := ui.Span(start, end, now)
+	if !ok {
+		return "-"
+	}
+	return ui.Duration(d)
 }
 
 // paneTitle renders the first line of section p of the runs box: what it

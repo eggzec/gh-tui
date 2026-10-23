@@ -343,7 +343,7 @@ func (m *Modal) online() tea.Cmd {
 // open opens the run, or the job of the jobs, on GitHub. A group has no
 // page, so the run opens from it.
 func (m *Modal) open() tea.Cmd {
-	if m.focus == jobsPane && !m.jobs.onGroup() {
+	if m.inJobs() && !m.jobs.onGroup() {
 		if j, ok := m.jobs.selected(); ok && j.URL != "" {
 			return ui.Open(j.URL)
 		}

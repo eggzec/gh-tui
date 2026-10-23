@@ -278,7 +278,7 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 	if n == 0 {
 		return nil
 	}
-	page := max(m.bodyHeight()-1, 1)
+	page := max(m.jobRows()-1, 1)
 	to := j.cursor
 	switch {
 	case keymap.Matches(msg, k.Up):
@@ -324,13 +324,14 @@ func (m *Modal) scrollJobs() {
 	j.top = max(min(j.top, len(j.lines)-h), 0)
 }
 
-// jobRows is how many jobs the pane shows.
+// jobRows is how many jobs the jobs section shows, less the line that says
+// there are more.
 func (m *Modal) jobRows() int {
-	h := m.bodyHeight()
+	h := max(m.rowsOf(jobsPane), 0)
 	if m.jobs.more {
 		h--
 	}
-	return h
+	return max(h, 0)
 }
 
 // jobLines renders the jobs pane's body, h lines of w cells.
@@ -347,7 +348,7 @@ func (m *Modal) jobLines(w, h int) []string {
 		return ui.FitLines(ui.Wrap(st.Muted.Render(m.noJobsText()), w), w, h)
 	}
 	lines := make([]string, 0, h)
-	focused := m.focus == jobsPane
+	focused := m.inJobs()
 	now := m.now()
 	for i := j.top; i < len(j.lines) && len(lines) < m.jobRows(); i++ {
 		lines = append(lines, m.lineRow(j.lines[i], i == j.cursor, focused, w, now))
