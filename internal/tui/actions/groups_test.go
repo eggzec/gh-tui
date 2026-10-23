@@ -247,6 +247,8 @@ func TestViewJobGroups(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// The runs are flat: the golden is of the jobs' groups, not the
+			// runs' header.
 			m, h := newModal(t, duckFake(), tt.width, tt.height)
 			h.keys(tt.keys...)
 			v := m.View()
@@ -257,7 +259,7 @@ func TestViewJobGroups(t *testing.T) {
 }
 
 func TestJobGroupsFold(t *testing.T) {
-	m, h := newModal(t, duckFake(), wideW, wideH)
+	m, h := newGroupedModal(t, duckFake(), wideW, wideH)
 	h.keys("tab")
 	if b, _, _ := uitest.Winner(m.KeyLayers(), "enter"); b.Help().Desc != "open" {
 		t.Errorf("enter on a job reads %q, want open", b.Help().Desc)
@@ -308,7 +310,7 @@ func TestJobGroupsFold(t *testing.T) {
 
 // A group isn't re-run as the one job it shows.
 func TestJobGroupNotRerun(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
+	m, h := newGroupedModal(t, newFake(), wideW, wideH)
 	h.keys("tab", "k", "J")
 	if !m.jobs.onGroup() || m.ask != nil || lastLine(m) != "Pick a job of the group to re-run." {
 		t.Errorf("re-running a group asks %v, says %q", m.ask, lastLine(m))
@@ -323,7 +325,7 @@ func TestJobGroupNotRerun(t *testing.T) {
 // pages of them.
 func TestJobGroupsSurvivePolls(t *testing.T) {
 	f := duckFake()
-	m, h := newModal(t, f, wideW, wideH)
+	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab")
 	// Fold the failed group, open the tests, and rest on Clang-Tidy.
 	h.keys("k", "k", "k", "k", "enter", "j", "enter", "j", "j", "j", "j")
@@ -384,7 +386,7 @@ func TestJobGroupsSurvivePolls(t *testing.T) {
 // A job the cursor was on stays under it, or under its group once folded.
 func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	f := duckFake()
-	m, h := newModal(t, f, wideW, wideH)
+	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab")
 	if j, _ := m.jobs.selected(); j.Name != "Build extension binaries / windows_amd64" {
 		t.Fatalf("opens on %q, want the failed job", j.Name)
@@ -425,7 +427,7 @@ func TestJobGroupLongName(t *testing.T) {
 		job(2, failedRun, long+"(osx)", core.ConclusionSuccess, time.Hour, time.Minute),
 		job(3, failedRun, alone, core.ConclusionSuccess, time.Hour, time.Minute),
 	}
-	m, h := newModal(t, f, 120, 40)
+	m, h := newGroupedModal(t, f, 120, 40)
 	h.keys("tab")
 	w := m.paneWidth(jobsPane)
 	lines := m.jobLines(w, m.rowsOf(jobsPane))
@@ -465,7 +467,7 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 		gen,
 		job(3, failedRun, "lint", core.ConclusionFailure, time.Hour, time.Minute),
 	}
-	m, h := newModal(t, f, wideW, wideH)
+	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab", "k")
 	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.focus != jobsPane {
 		t.Fatalf("the cursor is on job %d, want %d", j.ID, gen.ID)
@@ -486,7 +488,7 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 // user folded it.
 func TestJobGroupOpensOnFailure(t *testing.T) {
 	f := duckFake()
-	m, h := newModal(t, f, wideW, wideH)
+	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab")
 	fail := func(names ...string) {
 		jobs := slices.Clone(f.jobs[duckRun])

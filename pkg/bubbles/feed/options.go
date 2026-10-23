@@ -34,6 +34,15 @@ type settings struct {
 	key any
 	// onLoad is a func([]T) tea.Cmd, checked against the item type in New.
 	onLoad any
+	// firstItem puts the cursor on the first item, not its header, when the
+	// first rows of grouped lines arrive.
+	firstItem bool
+}
+
+// WithFirstItem has a grouped feed start with the cursor on its first item
+// instead of the header above it.
+func WithFirstItem() Option {
+	return func(s *settings) { s.firstItem = true }
 }
 
 func defaultSettings() settings {

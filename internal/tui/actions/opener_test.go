@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -225,6 +226,10 @@ func TestOpensOnARunUntilTheUserMoves(t *testing.T) {
 	f := newFake()
 	f.runPage = 2
 	m := New(t.Context(), f, repo, testKeys(), forTests(), withIcons(), WithViewer(viewer), WithRun(cancelledRun))
+	// The runs are flat, so the run after the cancelled one is the running one.
+	m.levels = nil
+	_ = m.runs.SetGroups(m.groupFuncs())
+	m.runs.Seek(strconv.FormatInt(cancelledRun, 10))
 	m.SetTheme(testTheme())
 	m.SetSize(wideW, wideH)
 	h := &host{m: m}

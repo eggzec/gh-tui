@@ -219,6 +219,14 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 		m.fill = len(m.lines) > before
 	}
 	m.pruneMarks()
+	if m.firstItem && before == 0 && m.Grouped() {
+		for i, l := range m.lines {
+			if !l.head && !l.more {
+				m.sel = i
+				break
+			}
+		}
+	}
 	if m.anchored {
 		if i, ok := m.indexOf(m.anchor); ok {
 			// An item in a closed group has no line, and the cursor stays
