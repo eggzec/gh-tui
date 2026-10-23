@@ -37,7 +37,6 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 		{"finder", finder.KeyMap{}},
 		{"picker", picker.KeyMap{}},
 		{"filter", filterform.KeyMap{}},
-		{"actions_filter", filterform.KeyMap{}},
 		{"confirm", ui.ConfirmKeys{}},
 	} {
 		for _, name := range keymap.Names(tt.km) {

@@ -193,7 +193,7 @@ func TestMaximizeDefaults(t *testing.T) {
 // maximized however it was opened.
 func TestMaximizeDefaultsOfSteps(t *testing.T) {
 	t.Parallel()
-	for ctx, listed := range map[string]string{"actions_filter": "actions", "pull_modal": "pull_modal"} {
+	for ctx, listed := range map[string]string{"pull_modal": "pull_modal"} {
 		m, _ := newTestApp(t)
 		m.cfg.UI.Maximized = []string{listed}
 		m.applySettings()
