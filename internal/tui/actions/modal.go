@@ -1,21 +1,17 @@
 // Package actions is the Actions modal of the repository screen: the
-// workflow runs of the repository, newest first, the jobs of the run under
-// the cursor, and the log of the job under theirs, in three panes of one
-// frame. Tabs narrow the runs to those failing, running or started by the
+// workflow runs of the repository, newest first, and the jobs of the run
+// under the cursor, in two panes of one frame. Tabs narrow the runs to those failing, running or started by the
 // user, and a filter step narrows them further. The run shown can be
 // re-run or cancelled, once the user confirms.
 //
-// The jobs follow the cursor of the runs, and the log that of the jobs,
-// once it rests. The jobs of the runs around the cursor, and the logs of
-// the failed jobs around that of the jobs, are read ahead as
+// The jobs follow the cursor of the runs. Enter on a job opens its log in an
+// overlay over the modal (logModal). The jobs of the runs around the cursor,
+// and the logs of the failed jobs around that of the jobs, are read ahead as
 // prefetch.actions says, so that they show at once. A job's log is
-// published whole only when the job ends, so the log pane of a job in
+// published whole only when the job ends, so the overlay of a job in
 // progress shows its steps as they run instead, or the part of its log
 // that GitHub already publishes, while the sync engine follows the run;
 // the whole log loads once the job ends.
-//
-// On a narrow terminal the modal shows one pane at a time, with a
-// breadcrumb of where it is.
 package actions
 
 import (

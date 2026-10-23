@@ -99,7 +99,8 @@ func (m *Modal) reopened() tea.Cmd {
 	if m.workflows.loading {
 		lost = append(lost, m.readWorkflows(false))
 	}
-	lost = append(lost, m.readJobsAround(), m.readLogsAround(), m.fromCache())
+	// The overlay took the runs list's sync messages, so it reloads it.
+	lost = append(lost, m.runs.Reload(), m.readJobsAround(), m.readLogsAround(), m.fromCache())
 	cmd := tea.Batch(lost...)
 	if m.loading() {
 		cmd = tea.Batch(cmd, m.startSpinner())
