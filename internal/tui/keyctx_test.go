@@ -974,6 +974,7 @@ var idleRows = map[string]string{
 	"search_modal scroll preview up":   "the preview's text fits its pane, so it has nowhere to scroll",
 	"search_modal results down":        "the results are one hit, so the cursor has nowhere to go",
 	"search_modal results up":          "the results are one hit, so the cursor has nowhere to go",
+	"actions_runs expand":              "the cursor starts on a run, which has no group to open",
 	"pull_files collapse":              "the commits start folded and the cursor starts on them",
 	"pull_files all commits":           "every commit starts selected",
 }
