@@ -100,9 +100,9 @@ func newModalKeys(tb testing.TB, keys config.Keymap, f Service, width, height in
 // newGroupedModal is newModal with the runs under the headers of the default
 // grouping, as the modal opens. The others list the runs flat, so the
 // position of a run does not depend on its workflow.
-func newGroupedModal(tb testing.TB, f Service, width, height int, opts ...Option) (*Modal, *host) {
+func newGroupedModal(tb testing.TB, f Service, width, height int) (*Modal, *host) {
 	tb.Helper()
-	return newModalOrdered(tb, testKeys(), true, f, width, height, opts...)
+	return newModalOrdered(tb, testKeys(), true, f, width, height)
 }
 
 func newModalOrdered(tb testing.TB, keys config.Keymap, grouped bool, f Service, width, height int, opts ...Option) (*Modal, *host) {
