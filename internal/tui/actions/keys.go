@@ -26,6 +26,8 @@ type KeyMap struct {
 	// pane with that number.
 	Next, Prev key.Binding
 	Panes      [numPanes]key.Binding
+	// Zoom shows the focused box alone, and the boxes again.
+	Zoom key.Binding
 	// NextTab and PrevTab switch between All, Failing, Running and Mine.
 	NextTab, PrevTab key.Binding
 	// Select drills into the pane after the focused one.
@@ -69,13 +71,12 @@ type KeyMap struct {
 const (
 	ctxModal  = "actions"
 	ctxRuns   = "actions_runs"
-	ctxJobs   = "actions_jobs"
 	ctxLog    = "actions_log"
 	ctxFilter = "actions_filter"
 )
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	modal, runs, jobs, log := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxJobs), ui.In(keys, ctxLog)
+	modal, runs, log := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxLog)
 	// The annotations take their keys from the log's context: they show in
 	// the same overlay.
 	notes := log
@@ -92,7 +93,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Refresh:      modal.Binding("global.refresh", "refresh"),
 		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
 		Rerun:        modal.Binding("rerun", "rerun all"),
-		RerunJob:     jobs.Binding("rerun_job", "rerun job"),
+		RerunJob:     modal.Binding("rerun_job", "rerun job"),
+		Zoom:         modal.Binding("global.zoom", "zoom"),
 		Cancel:       modal.Binding("cancel", "cancel run"),
 		Annotations:  log.Binding("annotations", "annotations"),
 		notes:        notes.Binding("annotations", "annotations"),
@@ -107,7 +109,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
-	k.Runs, k.Jobs = feed.NewKeyMap(runs), ui.NewMoveKeys(jobs)
+	k.Runs, k.Jobs = feed.NewKeyMap(runs), ui.NewMoveKeys(runs)
 	k.search = ui.SearchPromptKeys(keys)
 
 	// The log folds with enter. The modal takes the keys that close it, so
@@ -136,7 +138,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }
@@ -174,7 +176,7 @@ func relabel(b key.Binding, desc string) key.Binding {
 }
 
 // paneTitles names the panes in help.
-var paneTitles = [numPanes]string{"runs", "jobs"}
+var paneTitles = [numPanes]string{"runs", "annotations"}
 
 // focusOf returns the pane that msg focuses, or -1.
 func (k KeyMap) focusOf(msg tea.KeyPressMsg) pane {

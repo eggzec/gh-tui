@@ -133,7 +133,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return m.updateFilter(msg)
 	}
-	if m.focus == runsPane && m.runs.Takes(msg) {
+	if m.inRuns() && m.runs.Takes(msg) {
 		// The prompt of the runs' find or filter takes the keys before
 		// the modal's own.
 		return m.updateRuns(msg)
@@ -150,13 +150,17 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Prev):
 		return m.moveFocus(-1)
 	case k.focusOf(msg) >= 0:
-		return m.focusPane(k.focusOf(msg))
-	case m.focus == runsPane && keymap.Matches(msg, k.Filter):
+		return m.focusBox(k.focusOf(msg))
+	case keymap.Matches(msg, k.Zoom):
+		m.zoom = !m.zoom && m.canZoom()
+		m.layout()
+		return nil
+	case m.inRuns() && keymap.Matches(msg, k.Filter):
 		return m.openFilter()
-	case m.focus == runsPane && keymap.Matches(msg, k.ClearFilter):
+	case m.inRuns() && keymap.Matches(msg, k.ClearFilter):
 		m.toggle.On()
 		return m.setFilter(cleared(m.filter))
-	case m.focus == runsPane && keymap.Matches(msg, k.ToggleFilter):
+	case m.inRuns() && keymap.Matches(msg, k.ToggleFilter):
 		next, ok := m.toggle.Switch(m.filter, cleared(m.filter))
 		if !ok {
 			return ui.NothingToSwitch()
@@ -168,7 +172,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.asks(m.rerunFailed)
 	case keymap.Matches(msg, k.Rerun):
 		return m.asks(m.rerunAll)
-	case m.focus != runsPane && keymap.Matches(msg, k.RerunJob):
+	case m.inJobs() && keymap.Matches(msg, k.RerunJob):
 		return m.asks(m.rerunJob)
 	case keymap.Matches(msg, k.Cancel):
 		return m.asks(m.cancelRun)
@@ -181,15 +185,50 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Select):
 		return m.drill()
 	}
-	if m.focus == runsPane {
+	switch {
+	case m.notes:
+		return nil
+	case m.focus == runsPane:
 		return m.updateRuns(msg)
 	}
 	return m.pressJobs(msg)
 }
 
-// moveFocus moves the focus d panes on, round the ends.
+// inRuns and inJobs report that the runs, or the jobs, have the focus.
+func (m *Modal) inRuns() bool { return !m.notes && m.focus == runsPane }
+func (m *Modal) inJobs() bool { return !m.notes && m.focus == jobsPane }
+
+// moveFocus moves the focus d stops on, round the ends: the runs, the jobs,
+// and the annotations.
 func (m *Modal) moveFocus(d int) tea.Cmd {
-	return m.focusPane(pane((int(m.focus) + d + numPanes) % numPanes))
+	const stops = numPanes + 1
+	at := int(m.focus)
+	if m.notes {
+		at = numPanes
+	}
+	at = (at + d + stops) % stops
+	if at == numPanes {
+		m.focusNotes()
+		return nil
+	}
+	return m.focusPane(pane(at))
+}
+
+// focusBox focuses the box with the number n of the digit keys: the runs,
+// or the annotations.
+func (m *Modal) focusBox(n pane) tea.Cmd {
+	if n == 1 {
+		m.focusNotes()
+		return nil
+	}
+	return m.focusPane(runsPane)
+}
+
+// focusNotes focuses the annotations box.
+func (m *Modal) focusNotes() {
+	m.notes = true
+	m.runs.Blur()
+	m.layout()
 }
 
 // focusPane focuses p.
@@ -200,7 +239,7 @@ func (m *Modal) focusPane(p pane) tea.Cmd {
 
 // setFocus focuses pane p, and blurs the others.
 func (m *Modal) setFocus(p pane) {
-	m.focus = p
+	m.focus, m.notes = p, false
 	if p == runsPane {
 		m.runs.Focus()
 	} else {
@@ -212,6 +251,9 @@ func (m *Modal) setFocus(p pane) {
 // drill focuses the jobs from the runs, and from the jobs folds the group
 // under the cursor, or opens the log of the job over the modal.
 func (m *Modal) drill() tea.Cmd {
+	if m.notes {
+		return nil
+	}
 	switch m.focus {
 	case runsPane:
 		if !m.hasRun {
@@ -235,6 +277,10 @@ func (m *Modal) drill() tea.Cmd {
 
 // back steps back from the jobs to the runs. It does nothing on the runs.
 func (m *Modal) back() tea.Cmd {
+	if m.notes {
+		m.setFocus(m.focus)
+		return nil
+	}
 	if m.focus == runsPane {
 		return nil
 	}
@@ -250,7 +296,7 @@ func (m *Modal) dismiss() tea.Cmd {
 		m.filterStep = nil
 		return nil
 	}
-	if m.focus == runsPane {
+	if m.inRuns() {
 		if cmd, ok := m.runs.ClearTransient(); ok {
 			return cmd
 		}

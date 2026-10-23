@@ -277,7 +277,8 @@ func screen(m *Modal) string {
 
 // paneText is the text of pane p, without styles, its spaces collapsed.
 func paneText(m *Modal, p pane) string {
-	lines := m.paneLines(p, m.paneWidth(p), m.bodyHeight())
+	// As wide as a zoomed box, not the 34 columns of the side by side one.
+	lines := m.paneLines(p, 100, m.rowsOf(p))
 	return strings.Join(strings.Fields(ansi.Strip(strings.Join(lines, "\n"))), " ")
 }
 

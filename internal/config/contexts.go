@@ -120,7 +120,6 @@ var contexts = []Context{
 
 	{Name: "actions", Title: "Actions", Reach: ReachScreen, Modal: true},
 	{Name: "actions_runs", Title: "Runs", Reach: ReachPane, Parent: "actions"},
-	{Name: "actions_jobs", Title: "Jobs", Reach: ReachPane, Parent: "actions"},
 	// The log of a job is an overlay over the Actions modal, so the keys of
 	// the runs and the jobs don't work in it.
 	{Name: "actions_log", Title: "Log", Reach: ReachScreen, Modal: true},
