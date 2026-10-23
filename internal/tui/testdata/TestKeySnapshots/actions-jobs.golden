@@ -16,6 +16,7 @@ Actions
   pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 | 1/2 | on
+  zoom | z | z | on
   browser | o | o | on
   rerun failed | R | R | on
   rerun all |  |  | off
@@ -24,7 +25,7 @@ Actions
   close | esc | esc | on
   runs | backspace | backspace | on
 
-Jobs
+Runs
   rerun job | J | J | on
   open | enter | ↵ | on
   up | up k | ↑/k | on

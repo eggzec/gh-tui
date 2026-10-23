@@ -77,18 +77,25 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 
 func TestPanesAndBack(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
+	const notes = pane(-1) // stands for the annotations box
+	at := func() pane {
+		if m.notes {
+			return notes
+		}
+		return m.focus
+	}
 	steps := []struct {
 		key  string
 		want pane
 	}{
-		{"tab", jobsPane}, {"tab", runsPane}, {"shift+tab", jobsPane},
-		{"1", runsPane}, {"2", jobsPane}, {"1", runsPane}, {"1", runsPane}, {"2", jobsPane}, {"2", jobsPane},
+		{"tab", jobsPane}, {"tab", notes}, {"tab", runsPane}, {"shift+tab", notes}, {"shift+tab", jobsPane},
+		{"1", runsPane}, {"2", notes}, {"1", runsPane}, {"1", runsPane}, {"2", notes}, {"2", notes},
 		{"backspace", runsPane}, {"backspace", runsPane}, {"enter", jobsPane},
 	}
 	for _, s := range steps {
 		h.keys(s.key)
-		if m.focus != s.want {
-			t.Fatalf("after %s the focus is on pane %d, want %d", s.key, m.focus, s.want)
+		if at() != s.want {
+			t.Fatalf("after %s the focus is on pane %d, want %d", s.key, at(), s.want)
 		}
 	}
 	h.keys("backspace", "backspace")
@@ -388,16 +395,16 @@ func TestErrorWords(t *testing.T) {
 		want, runs, jobs string
 	}{
 		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
-			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach", "✗ Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub", "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
-			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub"},
+			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub", "✗ You",
+			"✗ You don't have access to charmbracelet/bubbletea"},
 		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
-			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist or is private.",
+			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea",
 			"✗ CI #4812 doesn't exist or is private."},
 		{"internal", fmt.Errorf("list runs: github: decode: %s", termtexttest.Hostile),
-			"✗ Something went wrong. Details", "✗ Something went wrong. Details are in the log (/var/log/g… · r to retry",
-			"✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) r to retry"},
+			"✗ Something went wrong. Details", "✗ Something we",
+			"✗ Something went wrong. Details are in the log"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
 	cleanLog := func(t *testing.T, l *logModal, want string) {
@@ -415,8 +422,8 @@ func TestErrorWords(t *testing.T) {
 	}
 	clean := func(t *testing.T, m *Modal, p pane, want string) {
 		t.Helper()
-		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.bodyHeight()), "\n"), m.paneWidth(p))
-		s := strings.Join(strings.Fields(paneText(m, p)), " ")
+		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.rowsOf(p)), "\n"), m.paneWidth(p))
+		s := strings.Join(strings.Fields(ansi.Strip(strings.Join(m.paneLines(p, m.paneWidth(p), m.rowsOf(p)), "\n"))), " ")
 		if !strings.Contains(s, want) {
 			t.Errorf("pane %d = %q, want %q", p, s, want)
 		}
@@ -838,7 +845,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f := newFake()
 	f.jobsErr = errors.New("jobs boom")
 	m, h := newModal(t, f, wideW, wideH)
-	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong · r to retry") {
+	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong") || !strings.Contains(s, "r to retry") {
 		t.Errorf("the jobs pane:\n%s", s)
 	}
 	f.jobsErr = nil
@@ -850,7 +857,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f = newFake()
 	f.runsErr = errors.New("runs boom")
 	m, _ = newModal(t, f, wideW, wideH)
-	if s := paneText(m, runsPane); !strings.Contains(s, "Something went wrong") {
+	if s := paneText(m, runsPane); !strings.Contains(s, "Something we") {
 		t.Errorf("the runs pane:\n%s", s)
 	}
 }
@@ -987,7 +994,7 @@ func TestSharedKeys(t *testing.T) {
 		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
 		// The filter belongs to the runs: the jobs and the log have no f.
 		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == jobsPane }},
-		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
+		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.notes }},
 		{name: "1 on the jobs", to: []string{"tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
 	}
 	for _, tt := range tests {

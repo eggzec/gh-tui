@@ -141,11 +141,11 @@ func TestKeyValidation(t *testing.T) {
 		{"ctrl+c in a context", "keys:\n  pulls:\n    merge: [ctrl+c]\n", "line 3: keys.pulls.merge: ctrl+c always quits and can't be bound"},
 		{"ctrl+c in global", "keys:\n  global:\n    quit: [q, ctrl+c]\n", "line 3: keys.global.quit: ctrl+c always quits and can't be bound"},
 		{"one key, two actions", "keys:\n  pulls:\n    sort: [f]\n", "keys.pulls: f is both filter and sort"},
-		{"pane against global", "keys:\n  actions_jobs:\n    rerun_job: [r]\n", "line 3: keys.actions_jobs.rerun_job: r is already keys.global.refresh"},
+		{"pane against global", "keys:\n  actions_runs:\n    filter: [r]\n", "line 3: keys.actions_runs.filter: r is already keys.global.refresh"},
 		{"screen against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
-		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "line 3: keys.actions.cancel: J is also keys.actions_jobs.rerun_job: unbind or rebind them there"},
+		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "keys.actions: J is both cancel and rerun_job"},
 		{"screen against global", "keys:\n  repo:\n    history: [o]\n", "line 3: keys.repo.history: o is already keys.global.open"},
-		{"pane against its screen", "keys:\n  actions_jobs:\n    rerun_job: [X]\n", "line 3: keys.actions_jobs.rerun_job: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
+		{"pane against its screen", "keys:\n  actions_runs:\n    filter: [X]\n", "line 3: keys.actions_runs.filter: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
 		{"pane of a screen against its screen", "keys:\n  pulls:\n    merge: [B]\n", "line 3: keys.pulls.merge: B is already keys.repo.history, which works in every pane of the Repository screen"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -78,7 +78,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "commit", repo: true, msg: ui.OpenCommitMsg{Repo: testRepo, SHA: keyCommit.SHA}, want: "global, history, history_files"},
 		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, want: "global, release_modal"},
 		{name: "actions", repo: true, steps: []string{config.ActionActions}, want: "global, actions, actions_runs"},
-		{name: "actions jobs", repo: true, steps: []string{config.ActionActions, config.ActionNextPane}, want: "global, actions, actions_jobs"},
+		{name: "actions jobs", repo: true, steps: []string{config.ActionActions, config.ActionNextPane}, want: "global, actions, actions_runs"},
 		{name: "actions log", repo: true, steps: []string{config.ActionActions, config.ActionNextPane, config.ActionSelect}, want: "global, actions_log"},
 		{name: "actions rerun", repo: true, steps: []string{config.ActionActions, "actions.rerun_failed"}, want: "always, confirm"},
 		{name: "command line", repo: true, steps: []string{config.ActionCommand}, want: "always, command_line (types)"},

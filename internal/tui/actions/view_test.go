@@ -144,8 +144,8 @@ func TestViewTwoPanesAt80(t *testing.T) {
 	m, h := newModal(t, newFake(), narrowW, narrowH)
 	h.keys("enter")
 	s := screen(m)
-	if !strings.Contains(s, "macos-lat") || !strings.Contains(s, "docs: add") {
-		t.Errorf("the 80-column modal shows only one pane:\n%s", s)
+	if !strings.Contains(s, "macos-lat") || !strings.Contains(s, "fix: skip") {
+		t.Errorf("the 80-column modal shows only one section:\n%s", s)
 	}
 	assertFits(t, m.View(), narrowW, narrowH)
 }

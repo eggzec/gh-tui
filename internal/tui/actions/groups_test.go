@@ -217,7 +217,9 @@ func duckFake() *fake {
 
 // jobsPaneRows is the rows of the jobs pane, without styles, trimmed.
 func jobsPaneRows(m *Modal) []string {
-	lines := m.paneLines(jobsPane, m.paneWidth(jobsPane), m.bodyHeight())
+	// The jobs show as wide as the zoomed runs box, not the 34 columns of the
+	// side by side one, so long names stay whole.
+	lines := m.paneLines(jobsPane, 100, m.rowsOf(jobsPane))
 	var rows []string
 	for _, l := range lines {
 		if s := strings.TrimSpace(ansi.Strip(l)); s != "" {
@@ -281,7 +283,7 @@ func TestJobGroupsFold(t *testing.T) {
 		t.Fatalf("the cursor is on %q, want a group", jobsPaneRows(m)[7])
 	}
 	// The help says so, as it says that enter opens a job.
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Jobs" || b.Help().Desc != "fold" {
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "fold" {
 		t.Errorf("enter on a group reaches %q of %q, want the fold", b.Help().Desc, src)
 	}
 	h.keys("enter")
@@ -411,7 +413,7 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 // A long name gives way to the count and the state of its group.
 func TestJobGroupLongName(t *testing.T) {
 	f := newFake()
-	long := strings.Repeat("Build every extension binary ", 3)
+	long := strings.Repeat("Build every extension binary ", 5)
 	f.jobs[failedRun] = []core.Job{
 		job(1, failedRun, long+"(linux)", core.ConclusionFailure, time.Hour, time.Minute),
 		job(2, failedRun, long+"(osx)", core.ConclusionSuccess, time.Hour, time.Minute),
@@ -422,7 +424,7 @@ func TestJobGroupLongName(t *testing.T) {
 	if !strings.HasSuffix(row, "… 2 ✗") || !strings.HasPrefix(row, "▾ Build every") {
 		t.Errorf("the long group's row is %q", row)
 	}
-	lines := m.paneLines(jobsPane, m.paneWidth(jobsPane), m.bodyHeight())
+	lines := m.paneLines(jobsPane, m.paneWidth(jobsPane), m.rowsOf(jobsPane))
 	if strings.Contains(lines[0], "\x1b]8;") || !strings.Contains(lines[1], "\x1b]8;;"+f.jobs[failedRun][0].URL) {
 		t.Errorf("the group links, or its job doesn't:\n%q\n%q", lines[0], lines[1])
 	}

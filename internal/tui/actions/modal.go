@@ -32,6 +32,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -68,6 +69,14 @@ type Modal struct {
 	caps core.RepoCaps
 
 	focus pane
+	// notes is set while the annotations box has the focus, and zoom while
+	// the focused box fills the modal.
+	notes, zoom bool
+	// frames draws the boxes. inner is the width inside the runs box, and
+	// rows the height of the runs and the jobs under their titles.
+	frames panes.Styles
+	inner  int
+	rows   [numPanes]int
 
 	// filter selects the runs; the tab shown is the one it matches.
 	filter core.RunFilter
@@ -226,6 +235,9 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.opts.icons)
 	m.errs = t.Errors(m.opts.icons)
+	m.frames = panes.DefaultStyles(t.Dark)
+	m.frames.Border = m.opts.icons.Border
+	m.frames.Ellipsis = m.opts.icons.Ellipsis
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))
@@ -283,13 +295,16 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	}
 	k = k.state(m)
 	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
+	if m.notes {
+		return []keyhelp.Layer{screen}
+	}
 	own := keyhelp.Layer{Bindings: k.pane(k.RerunJob), Short: []key.Binding{k.Select, k.RerunJob}}
 	if m.focus == runsPane {
 		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter}, Short: []key.Binding{k.Select, k.Filter}}
 		list, _ := ui.FeedLayer(m.runs)
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
 	}
-	return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, own, keyhelp.FromHelp("", k.Jobs, false))}
 }
 
 // state returns k as the modal takes it now, named for what the keys do

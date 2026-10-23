@@ -6,11 +6,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// cursorGlyph marks the row under the cursor, as the feed does.
-// sepWidth is the width of the rule between two panes, with a space on
-// each side.
-const sepWidth = 3
-
 // styles are the modal's own, built once per theme.
 type styles struct {
 	// ic draws the crumbs, separators and ellipses.

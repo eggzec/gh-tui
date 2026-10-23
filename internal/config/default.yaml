@@ -593,8 +593,8 @@ keys:
     # pinned, the list, the README and a user's contributions on the page of
     # a user or an organization; the kinds of results in the search modal,
     # which show the kind and focus the results; branches, graph and commit
-    # in History; the panes of the modal of a pull request; and runs, jobs
-    # and log in Actions. A digit with no such pane there does nothing, and
+    # in History; the panes of the modal of a pull request; and runs and
+    # annotations in Actions. A digit with no such pane there does nothing, and
     # never switches screens.
     pane_1: ["1"]
     pane_2: ["2"]
@@ -1016,11 +1016,13 @@ keys:
 
   # The Actions modal, on any of its panes.
   actions:
-    # Re-run the failed jobs of a run, or all of its jobs, and cancel it.
+    # Re-run the failed jobs of a run, or all of its jobs, re-run the job
+    # under the cursor of the jobs, and cancel the run.
     rerun_failed: [R]
     rerun: []
+    rerun_job: [J]
     cancel: [X]
-  # Actions: the runs.
+  # Actions: the runs and the jobs of the run under the cursor.
   actions_runs:
     expand: [right, l]
     collapse: [left, h]
@@ -1043,17 +1045,6 @@ keys:
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
-  # Actions: the jobs of a run. Re-run the job under the cursor.
-  actions_jobs:
-    up: [up, k]
-    down: [down, j]
-    page_up: [ctrl+b, pgup]
-    page_down: [ctrl+f, pgdown]
-    half_page_up: [ctrl+u]
-    half_page_down: [ctrl+d]
-    top: ["g g", home]
-    bottom: [G, end]
-    rerun_job: [J]
   # Actions: the log of a job, an overlay over the modal. Move the focus
   # between the log and the annotations of the job.
   actions_log:

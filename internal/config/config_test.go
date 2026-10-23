@@ -514,7 +514,7 @@ func TestActionsModalActions(t *testing.T) {
 	defaults := Default().Keys
 	for action, want := range map[string]string{
 		ActionActions: "A", ActionNextTab: "]", ActionPrevTab: "[",
-		ActionZoom: "z", "actions.rerun_failed": "R", "actions_jobs.rerun_job": "J", "actions.cancel": "X",
+		ActionZoom: "z", "actions.rerun_failed": "R", "actions.rerun_job": "J", "actions.cancel": "X",
 	} {
 		if got := defaults.Of(action); !slices.Equal(got, []string{want}) {
 			t.Errorf("default %s = %v, want [%s]", action, got, want)
