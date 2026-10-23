@@ -83,6 +83,9 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	case keymap.Matches(k, m.keys.Option):
 		m.opt = true
 		m.enableKeys()
+	case keymap.Matches(k, m.keys.Timestamps):
+		m.SetTimeMode(m.times.toggled())
+		m.info(m.times.note())
 	case keymap.Matches(k, m.keys.Follow):
 		m.SetFollow(!m.follow)
 	case keymap.Matches(k, m.keys.Search):

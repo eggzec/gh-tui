@@ -17,16 +17,13 @@ const (
 	TimeAbsolute
 )
 
-// next returns the mode the times key moves to.
-func (t TimeMode) next() TimeMode {
-	switch t {
-	case TimeHidden:
+// toggled returns the mode the times key moves to: relative times from
+// hidden ones, and hidden times from any shown.
+func (t TimeMode) toggled() TimeMode {
+	if t == TimeHidden {
 		return TimeRelative
-	case TimeRelative:
-		return TimeAbsolute
-	default:
-		return TimeHidden
 	}
+	return TimeHidden
 }
 
 type settings struct {

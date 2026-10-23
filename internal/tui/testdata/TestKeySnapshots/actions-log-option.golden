@@ -29,11 +29,11 @@ Option
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
-  option: S N T | - | - | off
+  option: S N | - | - | off
   chop or wrap long lines | S | S | on
   line numbers | N | N | on
-  timestamps | T | T | on
   cancel | esc | esc | on
+  timestamps | x | x | off
   left | left h | ←/h | off
   right | right l | →/l | off
   follow | F | F | off

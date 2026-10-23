@@ -1071,6 +1071,7 @@ keys:
     bottom: [G, end]
     toggle_all: ["*"]
     option: ["-"]
+    timestamps: [x]
     next_error: [e]
     prev_error: [E]
     next_warning: [w]
@@ -1371,11 +1372,10 @@ keys:
     ignore_case: [I]
     cancel: [esc]
   # What names an option after a log's option key, as less's - does: chop or
-  # wrap long lines, show line numbers, and show timestamps.
+  # wrap long lines and show line numbers.
   log_option:
     chop: [S]
     line_numbers: [N]
-    timestamps: [T]
     cancel: [esc]
 
   # The filter form of a list, in the rows: the keys that move between

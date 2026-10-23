@@ -219,7 +219,7 @@ func (m Model) ShortHelp() []key.Binding {
 	if m.opt {
 		o := m.keys.Options
 		// Cancel is first, so that it survives a footer too narrow for all.
-		return []key.Binding{o.Cancel, o.Chop, o.LineNumbers, o.Timestamps}
+		return []key.Binding{o.Cancel, o.Chop, o.LineNumbers}
 	}
 	return m.keys.ShortHelp()
 }
@@ -233,7 +233,7 @@ func (m Model) FullHelp() [][]key.Binding {
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
 			&k.Left, &k.Right, &k.Toggle, &k.ToggleAll,
 			&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning,
-			&k.Option, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
+			&k.Option, &k.Timestamps, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
 		} {
 			b.SetEnabled(false)
 		}

@@ -259,7 +259,7 @@ var actionsLogKeys = map[string][]string{
 	"find":   {"/"}, "next_match": {"n"}, "prev_match": {"N"},
 	"global.select": {"enter"}, "global.quit": {"q"}, "global.dismiss": {"esc"},
 	"search_prompt.run": {"enter"}, "search_prompt.cancel": {"esc"},
-	"log_option.chop": {"S"}, "log_option.line_numbers": {"N"}, "log_option.timestamps": {"T"},
+	"log_option.chop": {"S"}, "log_option.line_numbers": {"N"}, "timestamps": {"x"},
 	"log_option.cancel": {"esc"},
 }
 

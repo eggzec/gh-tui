@@ -199,9 +199,14 @@ func TestTimes(t *testing.T) {
 		TimeAbsolute: {"a", "09:50:10   one", "b", "09:50:11   two", "no time", "10:52:13   three"},
 	}
 	for _, mode := range []TimeMode{TimeRelative, TimeAbsolute, TimeHidden} {
-		m, _ = keys(t, m, "-", "T")
+		if mode == TimeAbsolute {
+			// No key shows the times of day; the parent sets them.
+			m.SetTimeMode(mode)
+		} else {
+			m, _ = keys(t, m, "x")
+		}
 		if m.TimeMode() != mode {
-			t.Fatalf("-T moved to %v, want %v", m.TimeMode(), mode)
+			t.Fatalf("moved to %v, want %v", m.TimeMode(), mode)
 		}
 		rows := strings.Split(plain(m), "\n")
 		for i, w := range want[mode] {
