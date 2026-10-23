@@ -208,6 +208,7 @@ func (m *Modal) selectRun() tea.Cmd {
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
 	m.jobs = newJobs(r)
+	m.noteCursor, m.noteTop = 0, 0
 	// The logs read ahead for the run shown before stop.
 	m.aheadLogs.Reset(m.ctx)
 	var cmd tea.Cmd
@@ -234,6 +235,7 @@ func (m *Modal) selectRun() tea.Cmd {
 func (m *Modal) clearRun() {
 	m.run, m.hasRun = core.Run{}, false
 	m.jobs = jobs{}
+	m.noteCursor, m.noteTop = 0, 0
 	m.unfollow()
 }
 

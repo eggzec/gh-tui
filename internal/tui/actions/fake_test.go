@@ -163,6 +163,10 @@ type fake struct {
 	cachedNotes map[int64]bool
 	// notesErr fails the annotation reads.
 	notesErr error
+	// notesErrs fails the annotation reads of some check runs, and notesNext
+	// gives some a next page.
+	notesErrs map[int64]error
+	notesNext map[int64]string
 
 	runsErr, jobsErr, logErr, wfErr error
 	// logErrs fails the logs of some jobs.
@@ -485,6 +489,9 @@ func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (co
 	if f.notesErr != nil {
 		return core.Page[core.Annotation]{}, f.notesErr
 	}
+	if err := f.notesErrs[q.CheckRunID]; err != nil {
+		return core.Page[core.Annotation]{}, err
+	}
 	f.cachedNotes[q.CheckRunID] = true
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.limited}, nil
+	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Next: f.notesNext[q.CheckRunID], Limited: f.limited}, nil
 }
