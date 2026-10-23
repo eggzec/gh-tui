@@ -149,6 +149,35 @@ func TestViewFitsAnySize(t *testing.T) {
 	}
 }
 
+// The count of the runs sits in the bottom border of the runs box, at both
+// widths, zoomed in or not, and not in the box's first line.
+func TestRunsCountAtBottom(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		width, height int
+		keys          []string
+	}{
+		{narrowW, narrowH, nil}, {narrowW, narrowH, []string{"z"}},
+		{120, 40, nil}, {120, 40, []string{"z"}},
+	} {
+		m, h := newModal(t, newFake(), tt.width, tt.height)
+		h.keys(tt.keys...)
+		found := false
+		for line := range strings.SplitSeq(ansi.Strip(m.View()), "\n") {
+			border := !strings.HasPrefix(line, "│") && strings.Contains(line, "─")
+			switch {
+			case border && strings.Contains(line, " runs "):
+				found = true
+			case !border && (strings.Contains(line, " runs ") || strings.Contains(line, "Runs 1")):
+				t.Errorf("%dx%d %v: count outside the bottom border: %q", tt.width, tt.height, tt.keys, line)
+			}
+		}
+		if !found {
+			t.Errorf("%dx%d %v: no runs count in a bottom border:\n%s", tt.width, tt.height, tt.keys, ansi.Strip(m.View()))
+		}
+	}
+}
+
 // At 80 columns the jobs of the open run show under it in the runs' tree.
 func TestViewTwoPanesAt80(t *testing.T) {
 	m, _ := newModal(t, newFake(), narrowW, narrowH)

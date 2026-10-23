@@ -262,17 +262,9 @@ func (m *Modal) openNote() tea.Cmd {
 func (m *Modal) noteLines(w, h, rows int) []string {
 	st := &m.st
 	es := m.noteEntries()
-	loading, more, err := m.noteState()
+	loading, _, err := m.noteState()
 	loading = loading || !m.jobs.loaded && m.jobs.err == nil
 	title := st.Subtle.Render(st.ic.Comment) + " " + st.Strong.Render("Annotations")
-	if len(es) > 0 {
-		// A job with more than a page lists its first page only.
-		n := strconv.Itoa(len(es))
-		if more {
-			n += "+"
-		}
-		title += " " + st.Subtle.Render(n)
-	}
 	if loading && len(es) > 0 {
 		title += " " + st.Subtle.Render("loading"+m.st.ic.Ellipsis)
 	}
@@ -294,6 +286,16 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 		lines = append(lines, st.Muted.Render("No annotations on this run. Pick another run, or press the refresh key to read again."))
 	}
 	return lines[:min(len(lines), max(h, 0))]
+}
+
+// notesCount is the forms of the count at the bottom of the annotations box.
+// A job with more than a page lists its first page only, hence the "+".
+func (m *Modal) notesCount() []string {
+	if !m.hasRun {
+		return nil
+	}
+	_, more, _ := m.noteState()
+	return countForms(len(m.noteEntries()), more, "annotation", "annotations")
 }
 
 // noteRow renders an annotation: its level, where it points, its message,

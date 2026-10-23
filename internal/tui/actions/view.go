@@ -45,8 +45,10 @@ func (m *Modal) framed() []string {
 		inner := b.Rect.Inner()
 		if b.Pane == paneNotes {
 			c.Body = strings.Join(m.notesLines(inner.W, inner.H), "\n")
+			c.BottomLeft = m.notesCount()
 		} else {
 			c.Body = strings.Join(m.runsBox(inner.W, inner.H), "\n")
+			c.BottomLeft = m.runsCount()
 		}
 		return c
 	})
@@ -326,7 +328,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	var text, detail string
 	switch p {
 	case runsPane:
-		text, detail = "Runs", m.runsTitle()
+		text = "Runs"
 		if f := m.filterText(); f != "" {
 			detail = strings.TrimSpace(detail + m.st.ic.Separator + f)
 		}
