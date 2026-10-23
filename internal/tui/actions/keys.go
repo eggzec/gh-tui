@@ -76,10 +76,9 @@ type KeyMap struct {
 
 // The contexts of the keys of the modal: its own, and one for each pane.
 const (
-	ctxModal  = "actions"
-	ctxRuns   = "actions_runs"
-	ctxLog    = "actions_log"
-	ctxFilter = "actions_filter"
+	ctxModal = "actions"
+	ctxRuns  = "actions_runs"
+	ctxLog   = "actions_log"
 )
 
 func newKeyMap(keys config.Keymap) KeyMap {
@@ -111,7 +110,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Annotations:  log.Binding("annotations", "annotations"),
 		notes:        notes.Binding("annotations", "annotations"),
 		Confirm:      ui.NewConfirmKeys(keys),
-		form:         ui.FilterFormKeys(keys, "actions_filter"),
+		form:         ui.FilterFormKeys(keys, "filter"),
 		// The modal's own keys come before those of the lists and the log.
 		Next: modal.Binding("global.next_pane", "pane"),
 		Prev: modal.Binding("global.prev_pane", "previous pane"),
@@ -134,14 +133,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 }
 
 // own returns the keys of the modal itself, in the order it matches them.
-// filterBack returns the back key as the filter step shows it: off, as
-// there is no step before the filter.
-func (k KeyMap) filterBack() key.Binding {
-	b := k.Back
-	b.SetEnabled(false)
-	return b
-}
-
 func (k KeyMap) own() []key.Binding {
 	return slices.Concat(k.screen(), k.pane(k.RerunJob))
 }

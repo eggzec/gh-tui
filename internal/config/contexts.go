@@ -127,8 +127,6 @@ var contexts = []Context{
 	{Name: "preview", Title: "File", Reach: ReachScreen, Modal: true},
 	{Name: "text", Title: "Text", Reach: ReachScreen, Modal: true},
 	{Name: "filter", Title: "Filter", Reach: ReachScreen, Modal: true},
-	// The filter of the runs replaces the Actions modal while it is open.
-	{Name: "actions_filter", Title: "Filter", Reach: ReachScreen, Modal: true, Within: "actions"},
 
 	{Name: "command_line", Title: "Command line", Reach: ReachCapture, Typing: true},
 	// ? closes the help while its query is empty, and is typed otherwise.

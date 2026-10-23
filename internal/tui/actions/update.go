@@ -87,11 +87,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 	}
 	// Pages and ticks of the bubbles inside.
-	cmds := []tea.Cmd{m.updateRuns(msg)}
-	if m.filterStep != nil {
-		cmds = append(cmds, m.updateFilter(msg))
-	}
-	return tea.Batch(cmds...)
+	return m.updateRuns(msg)
 }
 
 // reopened starts again what stopped while a preview opened from the modal
@@ -134,12 +130,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	m.notice = ""
 	if m.ask != nil {
 		return m.answer(msg)
-	}
-	if m.filterStep != nil {
-		if m.filterStep.form == nil && keymap.Matches(msg, m.keys.Dismiss) {
-			return m.dismiss()
-		}
-		return m.updateFilter(msg)
 	}
 	if m.inRuns() && m.runs.Takes(msg) {
 		// The prompt of the runs' find or filter takes the keys before
@@ -330,14 +320,10 @@ func (m *Modal) back() tea.Cmd {
 	return nil
 }
 
-// dismiss peels one layer at a time: the filter before its form shows, the
-// find or the quick filter of the runs, and when none is left, the modal,
-// which returns to the modal it was opened over if there is one.
+// dismiss peels one layer at a time: the find or the quick filter of the
+// runs, and when none is left, the modal, which returns to the modal it was
+// opened over if there is one.
 func (m *Modal) dismiss() tea.Cmd {
-	if m.filterStep != nil {
-		m.filterStep = nil
-		return nil
-	}
 	if m.inRuns() {
 		if cmd, ok := m.runs.ClearTransient(); ok {
 			return cmd

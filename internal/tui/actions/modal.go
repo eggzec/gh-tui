@@ -30,7 +30,6 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
-	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -113,9 +112,7 @@ type Modal struct {
 	aheadJobs *ui.Ahead[actionssvc.JobsQuery]
 	aheadLogs *ui.Ahead[int64]
 
-	// filterStep is open while the filter step is shown.
-	filterStep *filterStep
-	workflows  workflows
+	workflows workflows
 
 	// ask is the confirmation on the last line, and notice a line that
 	// tells why a key did nothing, until the next key.
@@ -254,9 +251,6 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))
-	if f := m.filterStep; f != nil && f.form != nil {
-		f.form.SetStyles(t.FilterForm(m.opts.icons))
-	}
 }
 
 // Commands implements ui.Commanded: the run, or the job, can be copied.
@@ -287,20 +281,6 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{k.Confirm.Layer()}
-	case m.filterStep != nil:
-		// The filter takes every key, so the modal's own don't work.
-		if f := m.filterStep.form; f != nil {
-			// The form shows its own help line.
-			l := ui.ContextHelp(ctxFilter, *f, f.Capturing())
-			l.Short = nil
-			if f.CapturedBy() == filterform.CaptureNone {
-				// Where the form types, backspace deletes.
-				l.Bindings = append(l.Bindings, k.filterBack())
-			}
-			return []keyhelp.Layer{l}
-		}
-		// Until the form shows, only the dismiss key does something.
-		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Dismiss, k.filterBack()}, []key.Binding{k.Dismiss})}
 	case m.focus == runsPane && m.runs.Capturing():
 		// The prompt of the runs' find or filter takes every key.
 		list, _ := ui.FeedLayer(m.runs)

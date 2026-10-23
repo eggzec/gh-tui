@@ -1372,7 +1372,7 @@ keys:
 
   # The filter form of a list, in the rows: the keys that move between
   # and change the fields, on top of the global ones that apply, close and
-  # switch the tabs. The filter of the Actions runs has the same keys.
+  # switch the tabs.
   filter:
     up: [k, up]
     down: [j, down]
@@ -1387,17 +1387,6 @@ keys:
     insert: [i]
     append: [a]
     # Clear the field in focus. Backspace is the global back key.
-    clear: [delete]
-  actions_filter:
-    up: [k, up]
-    down: [j, down]
-    top: ["g g", home]
-    bottom: [G, end]
-    left: [h, left]
-    right: [l, right]
-    toggle: [space]
-    insert: [i]
-    append: [a]
     clear: [delete]
 
   # Widgets that take every key while they are open. They may use keys
