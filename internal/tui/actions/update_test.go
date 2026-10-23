@@ -318,11 +318,11 @@ func TestFilterOverlay(t *testing.T) {
 	h.run(m.ApplyFilter(filterform.AppliedMsg{
 		Query: `workflow:CI branch:main event:push status:failure actor:@me`,
 		Values: map[string]filterform.Value{
-			fieldWorkflow: filterform.TextValue("CI"),
-			fieldBranch:   filterform.TextValue("main"),
-			fieldEvent:    filterform.TextValue("push"),
-			fieldStatus:   filterform.TextValue("failure"),
-			fieldActor:    filterform.TextValue(me),
+			fieldWorkflow: filterform.ListValue("CI"),
+			fieldBranch:   filterform.ListValue("main"),
+			fieldEvent:    filterform.ListValue("push"),
+			fieldStatus:   filterform.ListValue("failure"),
+			fieldActor:    filterform.ListValue(me),
 		},
 	}))
 	want := core.RunFilter{WorkflowID: 1, Branch: "main", Event: "push", Status: "failure", Actor: me}
@@ -462,7 +462,7 @@ func TestFilterSyncsTheTab(t *testing.T) {
 	_, before := m.Tabs()
 	h.run(m.ApplyFilter(filterform.AppliedMsg{
 		Query:  "status:failure",
-		Values: map[string]filterform.Value{fieldStatus: filterform.TextValue("failure")},
+		Values: map[string]filterform.Value{fieldStatus: filterform.ListValue("failure")},
 	}))
 	_, failing := m.Tabs()
 	if failing == before || failing < 0 {
@@ -470,7 +470,7 @@ func TestFilterSyncsTheTab(t *testing.T) {
 	}
 	h.run(m.ApplyFilter(filterform.AppliedMsg{
 		Query:  "branch:main",
-		Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("main")},
+		Values: map[string]filterform.Value{fieldBranch: filterform.ListValue("main")},
 	}))
 	if _, active := m.Tabs(); active != before {
 		t.Errorf("a branch alone shows tab %d, want %d, the tab of no status", active, before)
@@ -1230,7 +1230,7 @@ func TestFilterOpensOnTheKeptFilter(t *testing.T) {
 	}
 	h.run(m.ApplyFilter(filterform.AppliedMsg{
 		Query:  "branch:main",
-		Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("main")},
+		Values: map[string]filterform.Value{fieldBranch: filterform.ListValue("main")},
 	}))
 	if m.toggle.Off() || m.filter.Branch != "main" {
 		t.Errorf("applying left the filter at %+v, off %v", m.filter, m.toggle.Off())
