@@ -161,6 +161,8 @@ type fake struct {
 	// notes are the annotations of jobs, and cachedNotes those in memory.
 	notes       map[int64][]core.Annotation
 	cachedNotes map[int64]bool
+	// notesErr fails the annotation reads.
+	notesErr error
 
 	runsErr, jobsErr, logErr, wfErr error
 	// logErrs fails the logs of some jobs.
@@ -480,6 +482,9 @@ func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (co
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.noteReads = append(f.noteReads, q.CheckRunID)
+	if f.notesErr != nil {
+		return core.Page[core.Annotation]{}, f.notesErr
+	}
 	f.cachedNotes[q.CheckRunID] = true
 	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.limited}, nil
 }

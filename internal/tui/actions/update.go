@@ -36,6 +36,12 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(m.receiveJobs(msg), m.startTick())
+	case notesMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		m.receiveNotes(msg)
+		return nil
 	case runMsg:
 		if msg.id != m.id {
 			return nil
@@ -189,7 +195,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	switch {
 	case m.notes:
-		return nil
+		return m.pressNotes(msg)
 	case m.focus == runsPane:
 		if keymap.Matches(msg, m.keys.Jobs.Down) && m.rowsOf(jobsPane) > 0 && len(m.jobs.lines) > 0 {
 			// Down from a run with jobs under it goes into them.
@@ -264,7 +270,7 @@ func (m *Modal) setFocus(p pane) {
 // under the cursor, or opens the log of the job over the modal.
 func (m *Modal) drill() tea.Cmd {
 	if m.notes {
-		return nil
+		return m.openNote()
 	}
 	switch m.focus {
 	case runsPane:
@@ -327,8 +333,11 @@ func (m *Modal) refresh() tea.Cmd {
 	// A refresh tries again the reads ahead that failed lately.
 	m.aheadJobs.Resume()
 	m.aheadLogs.Resume()
+	if m.notes {
+		return m.rereadNotes()
+	}
 	if m.focus == jobsPane {
-		return m.rereadJobs()
+		return tea.Batch(m.rereadJobs(), m.rereadNotes())
 	}
 	return m.runs.Reload()
 }
@@ -349,7 +358,7 @@ func (m *Modal) rereadJobs() tea.Cmd {
 // earlier read kept, while GitHub couldn't be reached or rate limited the
 // read, are read again too.
 func (m *Modal) online() tea.Cmd {
-	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), m.rereadWorkflows()}
+	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), m.rereadWorkflows(), m.rereadNotes()}
 	if j := &m.jobs; !j.loading && (ui.Unreached(j.err) || j.kept) {
 		j.kept = false
 		cmds = append(cmds, m.rereadJobs())

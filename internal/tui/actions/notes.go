@@ -1,0 +1,295 @@
+package actions
+
+import (
+	"slices"
+	"strconv"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/obs"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+)
+
+// maxNoteJobs bounds how many jobs of a run have their annotations read, so
+// that a run of a big matrix doesn't spend the rate limit on one pane.
+const maxNoteJobs = 20
+
+// noteRes is what was read of the annotations of one job: the first page of
+// them.
+type noteRes struct {
+	items   []core.Annotation
+	more    bool
+	loading bool
+	err     error
+	// kept reports that the page was served from what an earlier read kept,
+	// because GitHub couldn't be reached, so it is read again once it answers.
+	kept bool
+}
+
+// noteEntry is a row of the annotations pane: an annotation and the job it
+// belongs to.
+type noteEntry struct {
+	job core.Job
+	a   core.Annotation
+}
+
+// notesMsg carries the annotations of a job.
+type notesMsg struct {
+	id    int64
+	jobID int64
+	page  core.Page[core.Annotation]
+	err   error
+}
+
+func (m *Modal) noteQuery(j core.Job) actionssvc.AnnotationsQuery {
+	// The ID of a job is that of its check run.
+	return actionssvc.AnnotationsQuery{Repo: m.repo, CheckRunID: j.ID}
+}
+
+// noteJobs are the jobs of the run shown whose annotations are listed: those
+// that ended, the failed ones first.
+func (m *Modal) noteJobs() []core.Job {
+	if !m.hasRun || !m.jobs.loaded || m.jobs.runID != m.run.ID {
+		return nil
+	}
+	var out []core.Job
+	for i := range m.jobs.items {
+		if m.jobs.items[i].Done() {
+			out = append(out, m.jobs.items[i])
+		}
+	}
+	slices.SortStableFunc(out, func(a, b core.Job) int {
+		switch fa, fb := a.Conclusion.Failed(), b.Conclusion.Failed(); {
+		case fa && !fb:
+			return -1
+		case fb && !fa:
+			return 1
+		}
+		return 0
+	})
+	return out[:min(len(out), maxNoteJobs)]
+}
+
+// readNotes shows from memory the annotations of the jobs of the run shown
+// that aren't read yet, and reads the others.
+func (m *Modal) readNotes() tea.Cmd {
+	var cmds []tea.Cmd
+	js := m.noteJobs()
+	for i := range js {
+		j := &js[i]
+		if m.ann[j.ID] != nil {
+			continue
+		}
+		if m.ann == nil {
+			m.ann = map[int64]*noteRes{}
+		}
+		if p, ok := m.svc.CachedAnnotations(m.noteQuery(*j)); ok {
+			m.ann[j.ID] = &noteRes{items: p.Items, more: p.Next != ""}
+			continue
+		}
+		m.ann[j.ID] = &noteRes{loading: true}
+		cmds = append(cmds, m.readNote(*j))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m *Modal) readNote(j core.Job) tea.Cmd {
+	svc, ctx, id, q := m.svc, m.ctx, m.id, m.noteQuery(j)
+	return func() tea.Msg {
+		ctx, end := obs.Begin(ctx, "actions.annotations")
+		p, err := svc.Annotations(ctx, q)
+		end(err, "span", "tui", "check_run", q.CheckRunID, "annotations", len(p.Items))
+		return notesMsg{id: id, jobID: j.ID, page: p, err: err}
+	}
+}
+
+func (m *Modal) receiveNotes(msg notesMsg) {
+	r := m.ann[msg.jobID]
+	if r == nil {
+		return
+	}
+	r.loading = false
+	if msg.err != nil {
+		r.err = msg.err
+		return
+	}
+	r.err, r.items, r.more = nil, msg.page.Items, msg.page.Next != ""
+	r.kept = msg.page.Offline || msg.page.Limited
+}
+
+// rereadNotes reads again the annotations that failed to load, or were kept
+// for want of an answer from GitHub.
+func (m *Modal) rereadNotes() tea.Cmd {
+	for id, r := range m.ann {
+		if !r.loading && (r.err != nil || r.kept) {
+			delete(m.ann, id)
+		}
+	}
+	return m.readNotes()
+}
+
+// noteEntries lists the annotations of the jobs shown, those of the failed
+// jobs first.
+func (m *Modal) noteEntries() []noteEntry {
+	var out []noteEntry
+	js := m.noteJobs()
+	for i := range js {
+		if r := m.ann[js[i].ID]; r != nil {
+			for _, a := range r.items {
+				out = append(out, noteEntry{job: js[i], a: a})
+			}
+		}
+	}
+	return out
+}
+
+// noteState reports whether any annotations are loading and the first error
+// of those that failed.
+func (m *Modal) noteState() (loading bool, err error) {
+	js := m.noteJobs()
+	for i := range js {
+		r := m.ann[js[i].ID]
+		switch {
+		case r == nil:
+		case r.loading:
+			loading = true
+		case r.err != nil && err == nil:
+			err = r.err
+		}
+	}
+	return loading, err
+}
+
+// notesInner is the size inside the annotations box.
+func (m *Modal) notesInner() (w, h int) {
+	aw, ah := m.area()
+	if b, ok := paneLayout(aw, ah, paneNotes, m.zoom).Box(paneNotes, panes.Whole); ok {
+		in := b.Rect.Inner()
+		return in.W, in.H
+	}
+	return 0, 0
+}
+
+// noteSplit trims the facts of the run to leave the annotations room in h
+// lines, and returns them with how many annotation rows fit under their
+// title.
+func noteSplit(facts []string, n, h int) (kept []string, rows int) {
+	want := 2 + min(n, 3)
+	if n == 0 {
+		want = 3
+	}
+	if len(facts)+want > h {
+		facts = facts[:max(min(len(facts), h-want), 0)]
+	}
+	lead := 0
+	if len(facts) > 0 {
+		lead = 1
+	}
+	return facts, min(n, max(h-len(facts)-lead-1, 0))
+}
+
+// scrollTop keeps the cursor within rows rows from top.
+func scrollTop(top, cursor, rows, n int) int {
+	rows = max(rows, 1)
+	top = min(top, cursor)
+	if cursor >= top+rows {
+		top = cursor - rows + 1
+	}
+	return max(min(top, n-rows), 0)
+}
+
+// pressNotes moves the cursor of the annotations.
+func (m *Modal) pressNotes(msg tea.KeyPressMsg) tea.Cmd {
+	n := len(m.noteEntries())
+	if n == 0 {
+		return nil
+	}
+	c := m.noteCursor
+	switch {
+	case keymap.Matches(msg, m.keys.notesUp):
+		c--
+	case keymap.Matches(msg, m.keys.notesDown):
+		c++
+	default:
+		return nil
+	}
+	m.noteCursor = min(max(c, 0), n-1)
+	w, h := m.notesInner()
+	_, rows := noteSplit(m.runFacts(w), n, h)
+	m.noteTop = scrollTop(m.noteTop, m.noteCursor, rows, n)
+	return nil
+}
+
+// openNote opens the log of the job of the annotation under the cursor.
+func (m *Modal) openNote() tea.Cmd {
+	es := m.noteEntries()
+	if m.noteCursor < 0 || m.noteCursor >= len(es) {
+		return nil
+	}
+	return m.openLog(es[m.noteCursor].job)
+}
+
+// noteLines renders what follows the facts of the run in the annotations
+// box: the title and the rows, or why there are none, in h lines of w cells.
+func (m *Modal) noteLines(w, h, rows int) []string {
+	st := &m.st
+	es := m.noteEntries()
+	loading, err := m.noteState()
+	loading = loading || !m.jobs.loaded && m.jobs.err == nil
+	title := st.Strong.Render("Annotations")
+	if len(es) > 0 {
+		title += " " + st.Subtle.Render(strconv.Itoa(len(es)))
+	}
+	if loading && len(es) > 0 {
+		title += " " + st.Subtle.Render("loading"+m.st.ic.Ellipsis)
+	}
+	lines := []string{ui.Fit(title, w)}
+	switch {
+	case len(es) > 0:
+		c := min(m.noteCursor, len(es)-1)
+		top := scrollTop(m.noteTop, c, rows, len(es))
+		for i := top; i < len(es) && i < top+rows; i++ {
+			lines = append(lines, m.noteRow(es[i], i == c, w))
+		}
+	case err != nil:
+		lines = append(lines, m.errorLines("load the annotations", jobview.RunName(m.run), err, w)...)
+	case loading:
+		lines = append(lines, st.Muted.Render("Loading annotations"+m.st.ic.Ellipsis))
+	case m.jobs.err != nil && !m.jobs.loaded:
+	default:
+		lines = append(lines, st.Muted.Render("No annotations on this run. Pick another run, or press the refresh key to read again."))
+	}
+	return lines[:min(len(lines), max(h, 0))]
+}
+
+// noteRow renders an annotation: its level, where it points, its message,
+// and the job it belongs to, dim, at the right.
+func (m *Modal) noteRow(e noteEntry, cursor bool, w int) string {
+	st := &m.st
+	a := e.a
+	var glyph string
+	switch a.Level {
+	case core.AnnotationFailure:
+		glyph = st.Glyphs[ui.RunFailure]
+	case core.AnnotationWarning:
+		glyph = st.Warning.Render("!")
+	default:
+		glyph = st.Muted.Render("i")
+	}
+	where := ""
+	if a.Path != "" && a.Path != ".github" && a.StartLine > 0 {
+		where = st.Accent.Render(ui.OneLine(a.Path)+":"+strconv.Itoa(a.StartLine)) + " "
+	}
+	text := ui.OneLine(ui.FirstLine(a.Message))
+	if a.Title != "" && a.Title != text {
+		text = ui.OneLine(a.Title) + ": " + text
+	}
+	left := m.rowGutter(cursor, m.notes) + glyph + " " + where + st.Text.Render(text)
+	job := st.Subtle.Render(ui.OneLine(e.job.Name))
+	return m.spreadWhole(left, job, w)
+}
