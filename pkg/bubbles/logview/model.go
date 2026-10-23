@@ -231,7 +231,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	if m.searching || m.opt {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
-			&k.Left, &k.Right, &k.Toggle, &k.ToggleAll,
+			&k.Left, &k.Right, &k.Expand, &k.Collapse, &k.Toggle, &k.ToggleAll,
 			&k.NextError, &k.PrevError, &k.NextWarning, &k.PrevWarning,
 			&k.Option, &k.Timestamps, &k.Follow, &k.Search, &k.Next, &k.Prev, &k.Quit, &k.Dismiss,
 		} {

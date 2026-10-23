@@ -91,6 +91,21 @@ func (m *Model) collapse() {
 	}
 }
 
+// expand expands the fold under the cursor, or the one the cursor is in.
+func (m *Model) expand() {
+	r := m.cursorRow()
+	if r < 0 {
+		return
+	}
+	f := m.rows[r].fold
+	if f < 0 {
+		f = m.rows[r].parent
+	}
+	if f >= 0 {
+		m.setOpen(f, true)
+	}
+}
+
 func (m *Model) setOpen(f int, open bool) {
 	if m.folds[f].open == open {
 		return

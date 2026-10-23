@@ -20,6 +20,10 @@ type KeyMap struct {
 	Left  key.Binding `keymap:"left" help:"left"`
 	Right key.Binding `keymap:"right" help:"right"`
 
+	// Expand opens the section or group the cursor is on or in. Collapse
+	// closes the one the cursor is in and moves to its header.
+	Expand   key.Binding `keymap:"expand" help:"expand"`
+	Collapse key.Binding `keymap:"collapse" help:"collapse"`
 	// Toggle expands or collapses the section or group under the cursor,
 	// or collapses the one the cursor is in.
 	Toggle key.Binding `keymap:"global.select" help:"fold"`
@@ -105,7 +109,7 @@ func (k KeyMap) FullHelp() [][]key.Binding { return k.fullHelp(k.Quit, k.Dismiss
 func (k KeyMap) fullHelp(closing ...key.Binding) [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
-		{k.Toggle, k.ToggleAll},
+		{k.Toggle, k.Expand, k.Collapse, k.ToggleAll},
 		{k.NextError, k.PrevError, k.NextWarning, k.PrevWarning, k.Search, k.Confirm, k.Cancel, k.Next, k.Prev},
 		{k.Option, k.Options.Chop, k.Options.LineNumbers, k.Options.Cancel, k.Timestamps},
 		append([]key.Binding{k.Left, k.Right, k.Follow}, closing...),

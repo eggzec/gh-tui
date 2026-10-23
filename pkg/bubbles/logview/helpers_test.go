@@ -249,7 +249,8 @@ func assertFits(tb testing.TB, v string, width, height int) {
 // actionsLogKeys are the keys of the Actions log, which tests fill a log
 // view's key map from.
 var actionsLogKeys = map[string][]string{
-	"up": {"up", "k"}, "down": {"down", "j"}, "left": {"left", "h"}, "right": {"right", "l"},
+	"up": {"up", "k"}, "down": {"down", "j"}, "left": {"left"}, "right": {"right"},
+	"expand": {"l"}, "collapse": {"h"},
 	"page_up": {"b", "ctrl+b", "pgup"}, "page_down": {"space", "ctrl+f", "pgdown"},
 	"half_page_up": {"ctrl+u"}, "half_page_down": {"ctrl+d"},
 	"top": {"home", "g"}, "bottom": {"end", "G"},

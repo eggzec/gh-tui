@@ -19,6 +19,8 @@ Search (types)
   top | g g home | gg/home | off
   bottom | G end | G/end | off
   fold | enter | ↵ | off
+  expand | l | l | off
+  collapse | h | h | off
   all | * | * | off
   next error | e | e | off
   prev error | E | E | off
@@ -34,7 +36,7 @@ Search (types)
   line numbers | N | N | off
   cancel | esc | esc | off
   timestamps | x | x | off
-  left | left h | ←/h | off
-  right | right l | →/l | off
+  left | left | ← | off
+  right | right | → | off
   follow | F | F | off
   close | q esc | q/esc | off

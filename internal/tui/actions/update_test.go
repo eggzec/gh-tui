@@ -199,8 +199,20 @@ func TestEnterInTheLogFolds(t *testing.T) {
 	}
 }
 
-// h and l scroll the log sideways; the overlay has no panes to move between.
-func TestHAndLScrollTheLog(t *testing.T) {
+func TestLInTheLogUnfolds(t *testing.T) {
+	t.Parallel()
+	_, h := newModal(t, newFake(), wideW, wideH)
+	l := h.openLog(t)
+	h.keys("g", "h")
+	before := logText(l)
+	h.keys("l")
+	if h.log != l || logText(l) == before {
+		t.Error("l in the log didn't unfold the step under the cursor")
+	}
+}
+
+// h and l fold the log; the overlay has no panes to move between.
+func TestHAndLFoldTheLog(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
 	l := h.openLog(t)
