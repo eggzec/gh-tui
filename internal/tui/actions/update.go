@@ -309,6 +309,8 @@ func (m *Modal) drill() tea.Cmd {
 
 // back steps back from the jobs to the runs. It does nothing on the runs.
 func (m *Modal) back() tea.Cmd {
+	// Backspace cancels the wait for the workflows as esc does.
+	m.workflows.wanted = false
 	if m.notes {
 		m.setFocus(m.focus)
 		return nil

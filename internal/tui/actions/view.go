@@ -349,6 +349,8 @@ func (m *Modal) prompt(w int) string {
 		return m.ask.Line(m.st.confirm, m.keys.Confirm, w)
 	case m.notice != "":
 		return ui.Fit(m.st.Warning.Render(termtext.Truncate(m.notice, w, m.st.ic.Ellipsis)), w)
+	case m.workflows.wanted && m.workflows.loading:
+		return ui.Fit(m.spin.View()+m.st.Muted.Render("Loading the workflows"+m.st.ic.Ellipsis), w)
 	}
 	return ""
 }
