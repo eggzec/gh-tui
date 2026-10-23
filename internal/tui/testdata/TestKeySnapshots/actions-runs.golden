@@ -43,6 +43,6 @@ Runs
   quick filter | & | & | on
   next match | n | n | off
   prev match | N | N | off
-  expand | right l | →/l | off
-  collapse | left h | ←/h | off
-  all | * | * | off
+  expand | right l | →/l | on
+  collapse | left h | ←/h | on
+  all | * | * | on
