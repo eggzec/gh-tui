@@ -115,6 +115,7 @@ func (m *Modal) receiveNotes(msg notesMsg) {
 	}
 	r.loading = false
 	if msg.err != nil {
+		// Rows from an earlier answer stay, with the error shown beside them.
 		r.err = msg.err
 		return
 	}
@@ -132,7 +133,8 @@ func (m *Modal) rereadNotes() tea.Cmd {
 		if r := m.ann[j.ID]; r != nil && !r.loading && (r.err != nil || r.kept) {
 			// The cache holds a kept page as if it were fresh, so the read
 			// goes to the service.
-			*r = noteRes{loading: true}
+			// The rows stay until the answer.
+			r.loading, r.err, r.kept = true, nil, false
 			cmds = append(cmds, m.readNote(*j))
 		}
 	}
@@ -154,21 +156,36 @@ func (m *Modal) noteEntries() []noteEntry {
 	return out
 }
 
-// noteState reports whether any annotations are loading and the first error
-// of those that failed.
-func (m *Modal) noteState() (loading bool, err error) {
+// noteState reports whether any annotations are loading, whether a job has
+// more than the page read, and the first error of those that failed.
+func (m *Modal) noteState() (loading, more bool, err error) {
 	js := m.noteJobs()
 	for i := range js {
 		r := m.ann[js[i].ID]
+		if r == nil {
+			continue
+		}
+		more = more || r.more
 		switch {
-		case r == nil:
 		case r.loading:
 			loading = true
 		case r.err != nil && err == nil:
 			err = r.err
 		}
 	}
-	return loading, err
+	return loading, more, err
+}
+
+// noteNotice is what the rows lack, as lines under the title: the error of a
+// read that failed, while the annotations of the other jobs list.
+func (m *Modal) noteNotice(w int) []string {
+	if len(m.noteEntries()) == 0 {
+		return nil
+	}
+	if _, _, err := m.noteState(); err != nil {
+		return m.errorLines("load the annotations", jobview.RunName(m.run), err, w)
+	}
+	return nil
 }
 
 // notesInner is the size inside the annotations box.
@@ -183,9 +200,9 @@ func (m *Modal) notesInner() (w, h int) {
 
 // noteSplit trims the facts of the run to leave the annotations room in h
 // lines, and returns them with how many annotation rows fit under their
-// title.
-func noteSplit(facts []string, n, h int) (kept []string, rows int) {
-	want := 2 + min(n, 3)
+// title, once extra lines of notice are kept.
+func noteSplit(facts []string, n, extra, h int) (kept []string, rows int) {
+	want := 2 + min(n, 3) + extra
 	if n == 0 {
 		want = 3
 	}
@@ -196,7 +213,7 @@ func noteSplit(facts []string, n, h int) (kept []string, rows int) {
 	if len(facts) > 0 {
 		lead = 1
 	}
-	return facts, min(n, max(h-len(facts)-lead-1, 0))
+	return facts, min(n, max(h-len(facts)-lead-1-extra, 0))
 }
 
 // scrollTop keeps the cursor within rows rows from top.
@@ -226,7 +243,7 @@ func (m *Modal) pressNotes(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	m.noteCursor = min(max(c, 0), n-1)
 	w, h := m.notesInner()
-	_, rows := noteSplit(m.runFacts(w), n, h)
+	_, rows := noteSplit(m.runFacts(w), n, len(m.noteNotice(w)), h)
 	m.noteTop = scrollTop(m.noteTop, m.noteCursor, rows, n)
 	return nil
 }
@@ -245,11 +262,16 @@ func (m *Modal) openNote() tea.Cmd {
 func (m *Modal) noteLines(w, h, rows int) []string {
 	st := &m.st
 	es := m.noteEntries()
-	loading, err := m.noteState()
+	loading, more, err := m.noteState()
 	loading = loading || !m.jobs.loaded && m.jobs.err == nil
 	title := st.Strong.Render("Annotations")
 	if len(es) > 0 {
-		title += " " + st.Subtle.Render(strconv.Itoa(len(es)))
+		// A job with more than a page lists its first page only.
+		n := strconv.Itoa(len(es))
+		if more {
+			n += "+"
+		}
+		title += " " + st.Subtle.Render(n)
 	}
 	if loading && len(es) > 0 {
 		title += " " + st.Subtle.Render("loading"+m.st.ic.Ellipsis)
@@ -257,6 +279,7 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 	lines := []string{ui.Fit(title, w)}
 	switch {
 	case len(es) > 0:
+		lines = append(lines, m.noteNotice(w)...)
 		c := min(m.noteCursor, len(es)-1)
 		top := scrollTop(m.noteTop, c, rows, len(es))
 		for i := top; i < len(es) && i < top+rows; i++ {

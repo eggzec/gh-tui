@@ -256,7 +256,7 @@ func (m *Modal) notesLines(w, h int) []string {
 		return ui.FitLines([]string{st.Muted.Render("Pick a run to see its details.")}, w, h)
 	}
 	facts := m.runFacts(w)
-	facts, rows := noteSplit(facts, len(m.noteEntries()), h)
+	facts, rows := noteSplit(facts, len(m.noteEntries()), len(m.noteNotice(w)), h)
 	if len(facts) > 0 {
 		facts = append(facts, "")
 	}
