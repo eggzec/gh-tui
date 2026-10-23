@@ -209,14 +209,13 @@ func (m *Modal) receiveJobs(msg jobsMsg) tea.Cmd {
 		return nil
 	}
 	m.jobs.err, m.jobs.kept = nil, msg.page.Offline || msg.page.Limited
-	return m.setJobs(msg.page, false)
+	return m.setJobs(msg.page)
 }
 
 // setJobs shows page. The first page of a run opens on its first failed
 // job, or else the first running one; a later one keeps the cursor on the
-// group or the job it was on. The log of the job under the cursor is read
-// once the cursor rests, if rest is set.
-func (m *Modal) setJobs(p core.Page[core.Job], rest bool) tea.Cmd {
+// group or the job it was on.
+func (m *Modal) setJobs(p core.Page[core.Job]) tea.Cmd {
 	j := &m.jobs
 	prev, had := j.selected()
 	var group string
@@ -256,7 +255,7 @@ func (m *Modal) setJobs(p core.Page[core.Job], rest bool) tea.Cmd {
 	// a second read.
 	j.loaded = true
 	m.scrollJobs()
-	return m.showJob(rest)
+	return m.showJob()
 }
 
 // firstJob is the job a run opens on: the first that failed, else the first
@@ -307,7 +306,7 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	j.cursor = to
 	m.scrollJobs()
-	return m.showJob(true)
+	return m.showJob()
 }
 
 // scrollJobs keeps the cursor of the jobs in view.

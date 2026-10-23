@@ -19,7 +19,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.opts.icons, m.opts.voice)
-		m.log.SetIcons(m.opts.icons)
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
@@ -80,7 +79,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 	}
 	// Pages and ticks of the bubbles inside.
-	cmds := []tea.Cmd{m.updateRuns(msg), m.updateLog(msg)}
+	cmds := []tea.Cmd{m.updateRuns(msg)}
 	if m.filterStep != nil {
 		cmds = append(cmds, m.updateFilter(msg))
 	}
@@ -100,7 +99,7 @@ func (m *Modal) reopened() tea.Cmd {
 	if m.workflows.loading {
 		lost = append(lost, m.readWorkflows(false))
 	}
-	lost = append(lost, m.log.ReadLost(), m.readJobsAround(), m.readLogsAround(), m.fromCache())
+	lost = append(lost, m.readJobsAround(), m.readLogsAround(), m.fromCache())
 	cmd := tea.Batch(lost...)
 	if m.loading() {
 		cmd = tea.Batch(cmd, m.startSpinner())
@@ -119,14 +118,8 @@ func (m *Modal) spun(msg spinner.TickMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Modal) updateLog(msg tea.Msg) tea.Cmd {
-	var cmd tea.Cmd
-	m.log, cmd = m.log.Update(msg)
-	return cmd
-}
-
-// press handles a key: the confirmation takes the answer, the filter and a
-// search of the log take every key, the modal's own keys come next, and
+// press handles a key: the confirmation takes the answer, the filter takes
+// every key, the modal's own keys come next, and
 // then those of the focused pane.
 func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	m.notice = ""
@@ -138,10 +131,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return m.dismiss()
 		}
 		return m.updateFilter(msg)
-	}
-	inLog := m.focus == logPane
-	if inLog && m.log.Capturing() {
-		return m.updateLog(msg)
 	}
 	if m.focus == runsPane && m.runs.Takes(msg) {
 		// The prompt of the runs' find or filter takes the keys before
@@ -172,17 +161,13 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.NothingToSwitch()
 		}
 		return m.setFilter(next)
-	case keymap.Matches(msg, k.Zoom):
-		m.zoom = !m.zoom
-		m.layout()
-		return nil
 	case keymap.Matches(msg, k.Open):
 		return m.open()
 	case keymap.Matches(msg, k.RerunFailed):
 		return m.asks(m.rerunFailed)
 	case keymap.Matches(msg, k.Rerun):
 		return m.asks(m.rerunAll)
-	case m.focus != runsPane && keymap.Matches(msg, k.rerunJob(m)):
+	case m.focus != runsPane && keymap.Matches(msg, k.RerunJob):
 		return m.asks(m.rerunJob)
 	case keymap.Matches(msg, k.Cancel):
 		return m.asks(m.cancelRun)
@@ -192,17 +177,13 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.dismiss()
 	case keymap.Matches(msg, k.Back):
 		return m.back()
-	case keymap.Matches(msg, k.Select) && m.focus != logPane:
+	case keymap.Matches(msg, k.Select):
 		return m.drill()
 	}
-	switch m.focus {
-	case runsPane:
+	if m.focus == runsPane {
 		return m.updateRuns(msg)
-	case jobsPane:
-		return m.pressJobs(msg)
-	default:
-		return m.updateLog(msg)
 	}
+	return m.pressJobs(msg)
 }
 
 // moveFocus moves the focus d panes on, round the ends.
@@ -210,14 +191,10 @@ func (m *Modal) moveFocus(d int) tea.Cmd {
 	return m.focusPane(pane((int(m.focus) + d + numPanes) % numPanes))
 }
 
-// focusPane focuses p, and reads what it shows at once rather than when
-// the cursor rests.
+// focusPane focuses p.
 func (m *Modal) focusPane(p pane) tea.Cmd {
 	m.setFocus(p)
-	if p != logPane {
-		return nil
-	}
-	return m.log.ReadNow()
+	return nil
 }
 
 // setFocus focuses pane p, and blurs the others.
@@ -228,16 +205,11 @@ func (m *Modal) setFocus(p pane) {
 	} else {
 		m.runs.Blur()
 	}
-	if p == logPane {
-		m.log.Focus()
-	} else {
-		m.log.Blur()
-	}
 	m.layout()
 }
 
-// drill focuses the pane after the focused one, or folds the group of
-// jobs under the cursor, or opens it.
+// drill focuses the jobs from the runs, and from the jobs folds the group
+// under the cursor, or opens the log of the job over the modal.
 func (m *Modal) drill() tea.Cmd {
 	switch m.focus {
 	case runsPane:
@@ -251,17 +223,16 @@ func (m *Modal) drill() tea.Cmd {
 			m.scrollJobs()
 			return m.readLogsAround()
 		}
-		if _, ok := m.jobs.selected(); !ok {
+		j, ok := m.jobs.selected()
+		if !ok {
 			return nil
 		}
-		return m.focusPane(logPane)
-	case logPane:
+		return m.openLog(j)
 	}
 	return nil
 }
 
-// back steps back one pane: the log to the jobs, and the jobs to the runs.
-// It does nothing on the runs.
+// back steps back from the jobs to the runs. It does nothing on the runs.
 func (m *Modal) back() tea.Cmd {
 	if m.focus == runsPane {
 		return nil
@@ -271,18 +242,14 @@ func (m *Modal) back() tea.Cmd {
 }
 
 // dismiss peels one layer at a time: the filter before its form shows, the
-// search of the log, the find or the quick filter of the runs, and when
-// none is left, the modal, which returns to the modal it was opened over if
-// there is one.
+// find or the quick filter of the runs, and when none is left, the modal,
+// which returns to the modal it was opened over if there is one.
 func (m *Modal) dismiss() tea.Cmd {
 	if m.filterStep != nil {
 		m.filterStep = nil
 		return nil
 	}
-	switch {
-	case m.focus == logPane && m.log.ClearSearch():
-		return nil
-	case m.focus == runsPane:
+	if m.focus == runsPane {
 		if cmd, ok := m.runs.ClearTransient(); ok {
 			return cmd
 		}
@@ -296,12 +263,8 @@ func (m *Modal) refresh() tea.Cmd {
 	// A refresh tries again the reads ahead that failed lately.
 	m.aheadJobs.Resume()
 	m.aheadLogs.Resume()
-	switch m.focus {
-	case jobsPane:
+	if m.focus == jobsPane {
 		return m.rereadJobs()
-	case logPane:
-		return m.log.Retry()
-	case runsPane:
 	}
 	return m.runs.Reload()
 }
@@ -322,7 +285,7 @@ func (m *Modal) rereadJobs() tea.Cmd {
 // earlier read kept, while GitHub couldn't be reached or rate limited the
 // read, are read again too.
 func (m *Modal) online() tea.Cmd {
-	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), ui.RetryUnreached(&m.log), m.rereadWorkflows()}
+	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), m.rereadWorkflows()}
 	if j := &m.jobs; !j.loading && (ui.Unreached(j.err) || j.kept) {
 		j.kept = false
 		cmds = append(cmds, m.rereadJobs())
@@ -330,10 +293,10 @@ func (m *Modal) online() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// open opens the run, or the job of the jobs and the log panes, on GitHub.
-// A group has no page, so the run opens from it.
+// open opens the run, or the job of the jobs, on GitHub. A group has no
+// page, so the run opens from it.
 func (m *Modal) open() tea.Cmd {
-	if m.focus == logPane || m.focus == jobsPane && !m.jobs.onGroup() {
+	if m.focus == jobsPane && !m.jobs.onGroup() {
 		if j, ok := m.jobs.selected(); ok && j.URL != "" {
 			return ui.Open(j.URL)
 		}

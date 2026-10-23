@@ -45,7 +45,7 @@ func (m *Modal) cachedJobs(q actionssvc.JobsQuery) bool {
 // the failed jobs in a window around it, as the prefetch settings say.
 // Only a job that ended has its whole log, and a failed one is the one
 // likely opened; a log can run to megabytes, so the others are left. The
-// log pane reads the log of the job under the cursor itself.
+// log overlay reads the log of the job it opens itself.
 func (m *Modal) readLogsAround() tea.Cmd {
 	j := &m.jobs
 	at := func(k int) (int64, bool) {

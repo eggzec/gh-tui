@@ -435,8 +435,10 @@ func TestKeyLayersOrder(t *testing.T) {
 		t.Errorf("j reaches %q, want the log", src)
 	}
 	keys(m, "A")
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Annotations" {
-		t.Errorf("j reaches %q on the annotations, want them", src)
+	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Log" {
+		// The annotations share the log's context, so the cursor check
+		// below tells them apart.
+		t.Errorf("j reaches %q on the annotations, want the log's context", src)
 	}
 	before := m.notes.cursor
 	keys(m, "j")

@@ -49,7 +49,7 @@ var modalsOver = []struct {
 	{"issue", []string{"global.pane_3", "global.select"}, "the issue"},
 	{"history", []string{"repo.history"}, "History"},
 	{"actions runs", []string{"repo.actions"}, "Actions"},
-	{"actions log", []string{"repo.actions", "global.next_pane", "global.next_pane"}, "Actions"},
+	{"actions log", []string{"repo.actions", "global.next_pane", "global.select"}, "the log"},
 	{"preview", []string{"files.down", "global.select"}, "the file"},
 	{"config pager", []string{"global.command", typed("config"), "command_line.run"}, "the pager"},
 	{"filter", []string{"global.pane_2", "pulls.filter"}, "the filter"},

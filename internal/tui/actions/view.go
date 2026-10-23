@@ -5,13 +5,11 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// View renders the panes side by side, or the focused one alone with a
-// breadcrumb on a narrow terminal or zoomed, in exactly the size of the last
+// View renders the panes side by side, in exactly the size of the last
 // SetSize. The filter step takes the whole modal, and a confirmation the
 // last line.
 func (m *Modal) View() string {
@@ -20,17 +18,10 @@ func (m *Modal) View() string {
 	}
 	w, h := m.width, m.bodyHeight()
 	var lines []string
-	switch {
-	case m.filterStep != nil:
+	if m.filterStep != nil {
 		lines = append(lines, ui.Fit(m.st.lastCrumb.Render("Filter"+m.st.ic.Separator+"Runs"), w))
 		lines = append(lines, m.filterLines(w, h)...)
-	case m.narrow():
-		lines = append(lines, ui.Fit(m.breadcrumb(w), w))
-		lines = append(lines, m.paneLines(m.focus, w, h)...)
-	case m.zoom:
-		lines = append(lines, m.paneTitle(m.focus, w))
-		lines = append(lines, m.paneLines(m.focus, w, h)...)
-	default:
+	} else {
 		lines = m.columns(h)
 	}
 	if p := m.prompt(w); p != "" {
@@ -39,13 +30,12 @@ func (m *Modal) View() string {
 	return strings.Join(lines, "\n")
 }
 
-// columns renders the three panes side by side, with their titles.
+// columns renders the panes side by side, with their titles.
 func (m *Modal) columns(h int) []string {
-	rw, jw, lw := m.widths()
+	rw, jw := m.widths()
 	cols := [numPanes][]string{
 		append([]string{m.paneTitle(runsPane, rw)}, m.paneLines(runsPane, rw, h)...),
 		append([]string{m.paneTitle(jobsPane, jw)}, m.paneLines(jobsPane, jw, h)...),
-		append([]string{m.paneTitle(logPane, lw)}, m.paneLines(logPane, lw, h)...),
 	}
 	lines := make([]string, m.height)
 	var b strings.Builder
@@ -55,9 +45,8 @@ func (m *Modal) columns(h int) []string {
 		b.WriteString(cols[0][i])
 		b.WriteString(m.st.sep)
 		b.WriteString(cols[1][i])
-		b.WriteString(m.st.sep)
-		b.WriteString(cols[2][i])
-		lines[i] = b.String()
+		// Below the width of the runs there is no room for the jobs.
+		lines[i] = ui.Fit(b.String(), m.width)
 	}
 	return lines
 }
@@ -67,20 +56,16 @@ func (m *Modal) bodyHeight() int {
 	return max(m.height-1, 0)
 }
 
-// widths returns the widths of the runs, jobs and log panes. On a narrow
-// terminal, or zoomed, each takes the whole width, one at a time.
-func (m *Modal) widths() (runs, jobs, log int) {
-	if m.narrow() || m.zoom {
-		return m.width, m.width, m.width
-	}
-	runs = min(max(m.width*3/10, 34), 52)
-	jobs = min(max(m.width*22/100, 24), 36)
-	return runs, jobs, max(m.width-runs-jobs-2*sepWidth, 0)
+// widths returns the widths of the runs and jobs panes: the runs take
+// about half, and the jobs the rest.
+func (m *Modal) widths() (runs, jobs int) {
+	runs = min(max(m.width/2, 34), m.width)
+	return runs, max(m.width-runs-sepWidth, 0)
 }
 
 func (m *Modal) paneWidth(p pane) int {
-	r, j, l := m.widths()
-	return [numPanes]int{r, j, l}[p]
+	r, j := m.widths()
+	return [numPanes]int{r, j}[p]
 }
 
 // layout sizes the bubbles to their panes, and keeps the row in focus of
@@ -96,25 +81,19 @@ func (m *Modal) layout() {
 	m.scrollJobs()
 }
 
-// sizePanes sizes the runs and the log to their panes.
+// sizePanes sizes the runs to their pane.
 func (m *Modal) sizePanes() {
-	h := m.bodyHeight()
-	m.runs.SetSize(m.paneWidth(runsPane), max(h-1, 0))
-	m.log.SetSize(m.paneWidth(logPane), h)
+	m.runs.SetSize(m.paneWidth(runsPane), max(m.bodyHeight()-1, 0))
 }
 
 // paneLines renders the body of pane p, h lines of w cells.
 func (m *Modal) paneLines(p pane, w, h int) []string {
-	switch p {
-	case runsPane:
+	if p == runsPane {
 		// The feed renders its size exactly, under the header's line.
 		lines := append([]string{m.runsHeader(m.paneWidth(runsPane))}, strings.Split(m.runs.View(), "\n")...)
 		return ui.PadLines(lines, w, h)
-	case jobsPane:
-		return m.jobLines(w, h)
-	case logPane:
 	}
-	return m.logBody(w, h)
+	return m.jobLines(w, h)
 }
 
 // paneTitle renders the first line of pane p: what it shows, in the accent
@@ -136,60 +115,12 @@ func (m *Modal) paneTitle(p pane, w int) string {
 		}
 	case jobsPane:
 		text, detail = "Jobs", m.jobsTitle()
-	case logPane:
-		text, detail = "Log", m.logTitle()
 	}
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
 		line += " " + m.st.Subtle.Render(termtext.Truncate(detail, room, m.st.ic.Ellipsis))
 	}
 	return ui.Fit(line, w)
-}
-
-// breadcrumb shows where the narrow modal is: the runs, the run and the
-// job, as far as the focus went. The runs say which tab they are, as the
-// frame is too narrow to show the tabs.
-func (m *Modal) breadcrumb(w int) string {
-	crumbs := []string{m.runsCrumb()}
-	if m.focus >= jobsPane && m.hasRun {
-		crumbs = append(crumbs, jobview.RunName(m.run))
-	}
-	if j, ok := m.jobs.selected(); m.focus == logPane && ok {
-		crumbs = append(crumbs, ui.OneLine(j.Name))
-	}
-	sep, ell := " "+m.st.ic.Crumb+" ", m.st.ic.Ellipsis
-	// Drop the first crumbs until the rest fit.
-	for len(crumbs) > 1 && ansi.StringWidth(strings.Join(crumbs, sep)) > w {
-		crumbs = crumbs[1:]
-		if crumbs[0] != ell {
-			crumbs = append([]string{ell}, crumbs[1:]...)
-		}
-	}
-	var b strings.Builder
-	for i, c := range crumbs {
-		if i > 0 {
-			b.WriteString(m.st.Subtle.Render(sep))
-		}
-		st := m.st.crumb
-		if i == len(crumbs)-1 {
-			st = m.st.lastCrumb
-		}
-		b.WriteString(st.Render(c))
-	}
-	return termtext.Truncate(b.String(), w, ell)
-}
-
-// runsCrumb names the runs shown: their tab, unless it is All, or that a
-// filter narrows them.
-func (m *Modal) runsCrumb() string {
-	t, ok := tabOf(m.filter)
-	switch {
-	case m.filterText() != "":
-		return "Runs" + m.st.ic.Separator + "filtered"
-	case ok && t != tabAll:
-		return "Runs" + m.st.ic.Separator + tabNames[t]
-	}
-	return "Runs"
 }
 
 // prompt renders the confirmation or the notice on the last line, if

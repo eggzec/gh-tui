@@ -11,17 +11,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
-// TestOnlineReadsKeptAgain checks that the runs, the jobs of the run
-// shown and the annotations of the job shown, served kept while GitHub
-// rate limited their reads, are read again once the limit lifts, once.
+// TestOnlineReadsKeptAgain checks that the runs and the jobs of the run
+// shown, served kept while GitHub rate limited their reads, are read again
+// once the limit lifts, once.
 func TestOnlineReadsKeptAgain(t *testing.T) {
 	f := newFake()
 	f.limited = true
 	_, h := newModal(t, f, 120, 30)
-	h.keys("enter")
 	f.mu.Lock()
 	f.limited = false
-	runs, jobs, notes := len(f.queries), len(f.jobReads), len(f.noteReads)
+	runs, jobs := len(f.queries), len(f.jobReads)
 	f.mu.Unlock()
 
 	h.send(ui.OnlineMsg{})
@@ -34,6 +33,25 @@ func TestOnlineReadsKeptAgain(t *testing.T) {
 	if got := f.jobReads[jobs:]; len(got) != 1 || got[0] != failedRun {
 		t.Errorf("jobs read after two OnlineMsg = %v, want those of run %d once", got, failedRun)
 	}
+}
+
+// TestOnlineReadsKeptAnnotationsAgain checks that the annotations of the job
+// whose log is open, served kept while GitHub rate limited their read, are
+// read again once the limit lifts, once.
+func TestOnlineReadsKeptAnnotationsAgain(t *testing.T) {
+	f := newFake()
+	f.limited = true
+	_, h := newModal(t, f, 120, 30)
+	h.openLog(t)
+	f.mu.Lock()
+	f.limited = false
+	notes := len(f.noteReads)
+	f.mu.Unlock()
+
+	h.send(ui.OnlineMsg{})
+	h.send(ui.OnlineMsg{})
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if got := f.noteReads[notes:]; len(got) != 1 || got[0] != ubuntuJob {
 		t.Errorf("annotations read after two OnlineMsg = %v, want those of job %d once", got, ubuntuJob)
 	}
@@ -98,8 +116,8 @@ func TestPollDuringJobsReadKeepsItLoading(t *testing.T) {
 	}
 }
 
-// TestReopenReadsWhatWasLost checks that the jobs, the workflows and the
-// annotations whose reads were in flight while a preview hid the modal,
+// TestReopenReadsWhatWasLost checks that the jobs and the workflows whose
+// reads were in flight while a preview hid the modal,
 // whose answers went to the preview, are read again once it reopens, so
 // that nothing stays loading, and that the next wake reads what is kept.
 func TestReopenReadsWhatWasLost(t *testing.T) {
@@ -110,27 +128,22 @@ func TestReopenReadsWhatWasLost(t *testing.T) {
 	h.hold = func(tea.Msg) bool { return true }
 	h.run(m.rereadJobs())
 	h.run(m.openFilter())
-	f.mu.Lock()
-	f.cachedNotes[ubuntuJob] = false
-	f.mu.Unlock()
-	m.log.Clear()
-	h.run(m.showJob(false))
 	h.held, h.hold = nil, nil
 	if !m.jobs.loading || !m.workflows.loading {
 		t.Fatalf("loading jobs %v, workflows %v; want both", m.jobs.loading, m.workflows.loading)
 	}
 	f.mu.Lock()
 	f.limited = true
-	jobs, wfs, notes := len(f.jobReads), f.wfReads, len(f.noteReads)
+	jobs, wfs := len(f.jobReads), f.wfReads
 	f.mu.Unlock()
 
 	h.send(ui.ReopenedMsg{Modal: m})
 	f.mu.Lock()
-	gotJobs, gotWfs, gotNotes := len(f.jobReads)-jobs, f.wfReads-wfs, len(f.noteReads)-notes
+	gotJobs, gotWfs := len(f.jobReads)-jobs, f.wfReads-wfs
 	f.limited = false
 	f.mu.Unlock()
-	if gotJobs != 1 || gotWfs != 1 || gotNotes != 1 {
-		t.Errorf("read on reopen: %d jobs, %d workflows, %d annotations; want each once", gotJobs, gotWfs, gotNotes)
+	if gotJobs != 1 || gotWfs != 1 {
+		t.Errorf("read on reopen: %d jobs, %d workflows; want each once", gotJobs, gotWfs)
 	}
 	if m.loading() {
 		t.Errorf("still loading once reopened: jobs %v, workflows %v", m.jobs.loading, m.workflows.loading)

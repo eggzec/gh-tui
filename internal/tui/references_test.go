@@ -235,7 +235,7 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 	} {
 		synctest.Test(t, func(t *testing.T) {
 			m := newKeysApp(t, true)
-			for _, s := range append([]string{"repo.actions", "global.next_pane", "global.next_pane"}, steps...) {
+			for _, s := range append([]string{"repo.actions", "global.next_pane", "global.select"}, steps...) {
 				tapAction(t, m, s)
 			}
 			tapAction(t, m, config.ActionCommand)

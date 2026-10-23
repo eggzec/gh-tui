@@ -105,22 +105,30 @@ func failTwice(f *fake) {
 func TestLogsOfFailedJobsAreReadAheadWhenOn(t *testing.T) {
 	f := newFake()
 	failTwice(f)
-	m, h := newModal(t, f, wideW, wideH, withPrefetch(func(p *config.PrefetchLayers) {
+	_, h := newModal(t, f, wideW, wideH, withPrefetch(func(p *config.PrefetchLayers) {
 		p.Actions.Jobs.Enabled = new(false)
 		p.Actions.Logs.Enabled = new(true)
 	}))
-	// The log pane reads the Ubuntu job under the cursor, and the window
-	// below it the macOS job that failed too, but not the skipped build.
-	if _, got := f.took(); !slices.Equal(got, []int64{ubuntuJob, macosJob}) {
-		t.Errorf("read the logs of %v, want the job under the cursor's and the failed one below it", got)
+	// The jobs loading reads the window around the cursor: the macOS job
+	// that failed too, but not the skipped build. Opening the log reads the
+	// Ubuntu job under the cursor, and closing it reads nothing more.
+	if _, got := f.took(); !slices.Equal(got, []int64{macosJob}) {
+		t.Errorf("read the logs of %v on load, want the failed one below the cursor", got)
 	}
-	// So the macOS job's log shows at once.
-	h.keys("enter", "j")
+	h.keys("tab", "enter")
+	if _, got := f.took(); !slices.Equal(got, []int64{ubuntuJob}) {
+		t.Errorf("read the logs of %v, want the job under the cursor's", got)
+	}
+	h.keys("backspace")
+	if _, got := f.took(); len(got) != 0 {
+		t.Errorf("read the logs of %v on closing the log, want none", got)
+	}
+	h.keys("j", "enter")
 	if _, got := f.took(); len(got) != 0 {
 		t.Errorf("read the logs of %v on the next job, want none", got)
 	}
-	if j, ok := m.log.Job(); !ok || j.ID != macosJob {
-		t.Errorf("the log pane shows job %d, want the macOS job", j.ID)
+	if h.log == nil || h.log.job.ID != macosJob {
+		t.Errorf("the log shows the wrong job, want the macOS job")
 	}
 }
 
@@ -128,8 +136,8 @@ func TestLogsAreNotReadAheadByDefault(t *testing.T) {
 	f := newFake()
 	failTwice(f)
 	_, _ = newModal(t, f, wideW, wideH, withPrefetch(nil))
-	if _, got := f.took(); !slices.Equal(got, []int64{ubuntuJob}) {
-		t.Errorf("read the logs of %v, want only the job under the cursor's", got)
+	if _, got := f.took(); len(got) != 0 {
+		t.Errorf("read the logs of %v before a log was opened, want none", got)
 	}
 }
 

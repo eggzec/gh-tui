@@ -48,6 +48,8 @@ func TestView(t *testing.T) {
 		{"190 columns filter", wideW, wideH, []string{"f"}},
 		{"190 columns confirm", wideW, wideH, []string{"R"}},
 		{"190 columns failing", wideW, wideH, []string{"]"}},
+		{"120 columns runs", 120, 40, nil},
+		{"120 columns jobs", 120, 40, []string{"tab"}},
 		{"80 columns runs", narrowW, narrowH, nil},
 		{"80 columns jobs", narrowW, narrowH, []string{"enter"}},
 		{"80 columns log", narrowW, narrowH, []string{"enter", "enter"}},
@@ -99,13 +101,13 @@ func TestViewWaiting(t *testing.T) {
 				waiting(502, "e2e", core.RunPending),
 				waiting(503, "release", core.RunRequested),
 				waiting(504, "docs", core.RunQueued))
-			m, h := newModal(t, f, narrowW, 10, WithIcons(ui.NewIcons(set)))
+			m, h := newModal(t, f, wideW, 10, WithIcons(ui.NewIcons(set)))
 			h.keys("j", "enter")
 			v := m.View()
 			if s := paneText(m, jobsPane); !strings.Contains(s, "deploy (production) waiting for approval") || !strings.Contains(s, "e2e waiting") {
 				t.Errorf("the waiting jobs:\n%s", s)
 			}
-			assertFits(t, v, narrowW, 10)
+			assertFits(t, v, wideW, 10)
 			golden.RequireEqual(t, v)
 		})
 	}
@@ -137,54 +139,13 @@ func TestViewFitsAnySize(t *testing.T) {
 	}
 }
 
-func TestNarrowBreadcrumb(t *testing.T) {
+// At 80 columns the runs and the jobs share the line, each with its title.
+func TestViewTwoPanesAt80(t *testing.T) {
 	m, h := newModal(t, newFake(), narrowW, narrowH)
-	crumb := func() string { return strings.TrimSpace(ansi.Strip(strings.Split(m.View(), "\n")[0])) }
-	steps := []struct {
-		keys []string
-		want string
-	}{
-		{nil, "Runs"},
-		{[]string{"enter"}, "Runs › CI #4812"},
-		{[]string{"enter"}, "Runs › CI #4812 › test (ubuntu-latest, 1.26)"},
-		{[]string{"backspace"}, "Runs › CI #4812"},
-		{[]string{"backspace"}, "Runs"},
-	}
-	for _, s := range steps {
-		h.keys(s.keys...)
-		if got := crumb(); got != s.want {
-			t.Errorf("after %q the breadcrumb is %q, want %q", s.keys, got, s.want)
-		}
-	}
-	// A long trail keeps its end.
-	m.SetSize(30, narrowH)
-	h.keys("enter", "enter")
-	if got := crumb(); !strings.HasPrefix(got, "…") || !strings.HasSuffix(got, "1.26)") {
-		t.Errorf("breadcrumb at 30 columns = %q, want its end", got)
-	}
-}
-
-func TestNarrowShowsOnePane(t *testing.T) {
-	m, h := newModal(t, newFake(), narrowW, narrowH)
-	if s := screen(m); strings.Contains(s, "macos-latest") || !strings.Contains(s, "CI #4812") {
-		t.Errorf("the narrow modal shows more than the runs:\n%s", s)
-	}
 	h.keys("enter")
-	if s := screen(m); !strings.Contains(s, "macos-latest") || strings.Contains(s, "docs: add authors") {
-		t.Errorf("the narrow jobs:\n%s", s)
+	s := screen(m)
+	if !strings.Contains(s, "macos-lat") || !strings.Contains(s, "docs: add") {
+		t.Errorf("the 80-column modal shows only one pane:\n%s", s)
 	}
-}
-
-func TestNarrowBreadcrumbNamesTheTab(t *testing.T) {
-	m, h := newModal(t, newFake(), narrowW, narrowH)
-	crumb := func() string { return strings.TrimSpace(ansi.Strip(strings.Split(m.View(), "\n")[0])) }
-	h.keys("]")
-	if got := crumb(); got != "Runs · Failing" {
-		t.Errorf("the Failing tab's breadcrumb is %q", got)
-	}
-	h.keys("[")
-	m.filter.Branch = "main"
-	if got := crumb(); got != "Runs · filtered" {
-		t.Errorf("a filter's breadcrumb is %q", got)
-	}
+	assertFits(t, m.View(), narrowW, narrowH)
 }

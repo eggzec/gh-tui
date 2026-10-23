@@ -111,6 +111,33 @@ type host struct {
 	// a change, so a test can look before they arrive.
 	hold func(tea.Msg) bool
 	held []tea.Msg
+	// log is the log overlay while it is open over the modal. The app gives
+	// the open modal its messages only, so the modal hears none meanwhile.
+	log *logModal
+}
+
+// update gives msg to the modal that is open.
+func (h *host) update(msg tea.Msg) tea.Cmd {
+	if h.log != nil {
+		return h.log.Update(msg)
+	}
+	return h.m.Update(msg)
+}
+
+// openLog opens the log of the job under the cursor of the jobs, and
+// returns the overlay.
+func (h *host) openLog(tb testing.TB) *logModal {
+	tb.Helper()
+	h.keys("tab", "enter")
+	if h.log == nil {
+		tb.Fatal("enter on a job didn't open its log")
+	}
+	return h.log
+}
+
+// logText is the text of the log, without styles, its spaces collapsed.
+func logText(l *logModal) string {
+	return strings.Join(strings.Fields(ansi.Strip(l.View())), " ")
 }
 
 func (h *host) run(cmd tea.Cmd) {
@@ -135,7 +162,24 @@ func (h *host) handle(msg tea.Msg) {
 			h.run(c)
 		}
 		return
-	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.LeaveModalMsg, ui.OpenFileMsg:
+	case ui.OpenModalMsg:
+		lm, ok := msg.Modal.(*logModal)
+		if !ok {
+			h.got = append(h.got, msg)
+			return
+		}
+		h.log = lm
+		h.m.Hide()
+		return
+	case ui.LeaveModalMsg:
+		if h.log == nil || msg.Modal != ui.Modal(h.log) {
+			h.got = append(h.got, msg)
+			return
+		}
+		h.log = nil
+		h.run(h.m.Update(ui.ReopenedMsg{Modal: h.m}))
+		return
+	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.OpenFileMsg:
 		h.got = append(h.got, msg)
 		return
 	case ui.DoneMsg:
@@ -148,7 +192,7 @@ func (h *host) handle(msg tea.Msg) {
 		}
 		return
 	}
-	h.run(h.m.Update(msg))
+	h.run(h.update(msg))
 }
 
 // release delivers the held messages. The messages they lead to are held
@@ -182,7 +226,7 @@ func sequence(msg tea.Msg) ([]tea.Cmd, bool) {
 // keys presses each key and runs what it returns.
 func (h *host) keys(ks ...string) {
 	for _, k := range ks {
-		h.run(h.m.Update(press(k)))
+		h.run(h.update(press(k)))
 	}
 }
 

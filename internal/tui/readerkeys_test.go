@@ -123,11 +123,11 @@ func TestReaderKeysCanBeUnbound(t *testing.T) {
 		cfg := config.Default()
 		cfg.Keys.Set("actions_log.follow", []string{})
 		m := newUnboundApp(t, cfg, true)
-		for _, name := range []string{config.ActionActions, config.ActionNextPane, config.ActionNextPane} {
+		for _, name := range []string{config.ActionActions, config.ActionNextPane, config.ActionSelect} {
 			msg, _ := keyPress(cfg.Keys.Of(name)[0])
 			driveKeys(t, m, m.key(msg))
 		}
-		if got := layerNames(m.keyLayers()); got != "global, actions, actions_log" {
+		if got := layerNames(m.keyLayers()); got != "global, actions_log" {
 			t.Fatalf("the keys reach %q, want the log of the Actions modal", got)
 		}
 		var follow int

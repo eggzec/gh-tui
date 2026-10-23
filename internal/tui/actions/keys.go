@@ -38,22 +38,18 @@ type KeyMap struct {
 	// ClearFilter clears it. ToggleFilter switches it off and on. All work
 	// with the focus on the runs.
 	Filter, ClearFilter, ToggleFilter key.Binding
-	// Zoom shows the focused pane alone.
-	Zoom key.Binding
 	// Open opens the run or the job on GitHub.
 	Open key.Binding
 	// Refresh reads the runs again, or what failed to load.
 	Refresh key.Binding
 	// RerunFailed, Rerun, RerunJob and Cancel change the selected run,
-	// once the user confirms. RerunJob has the key of the jobs, and
-	// rerunLog and rerunNotes those of the log and the annotations.
+	// once the user confirms.
 	RerunFailed, Rerun, RerunJob, Cancel key.Binding
-	rerunLog, rerunNotes                 key.Binding
 	// Confirm answers the confirmation.
 	Confirm ui.ConfirmKeys
 	// Annotations moves the focus between the annotations of a failed job
-	// and its log, with the key of the log, and notes with that of the
-	// annotations.
+	// and its log in the log overlay, with the key of the log, and notes
+	// with that of the annotations.
 	Annotations, notes key.Binding
 
 	// Jump holds the keys of Panes, which it stands for in help.
@@ -71,16 +67,18 @@ type KeyMap struct {
 
 // The contexts of the keys of the modal: its own, and one for each pane.
 const (
-	ctxModal       = "actions"
-	ctxRuns        = "actions_runs"
-	ctxJobs        = "actions_jobs"
-	ctxLog         = "actions_log"
-	ctxAnnotations = "actions_annotations"
-	ctxFilter      = "actions_filter"
+	ctxModal  = "actions"
+	ctxRuns   = "actions_runs"
+	ctxJobs   = "actions_jobs"
+	ctxLog    = "actions_log"
+	ctxFilter = "actions_filter"
 )
 
 func newKeyMap(keys config.Keymap) KeyMap {
-	modal, runs, jobs, log, notes := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxJobs), ui.In(keys, ctxLog), ui.In(keys, ctxAnnotations)
+	modal, runs, jobs, log := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxJobs), ui.In(keys, ctxLog)
+	// The annotations take their keys from the log's context: they show in
+	// the same overlay.
+	notes := log
 	k := KeyMap{
 		NextTab:      modal.Binding("global.next_tab", "tab"),
 		PrevTab:      modal.Binding("global.prev_tab", "previous tab"),
@@ -90,14 +88,11 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Filter:       runs.Binding("filter", "filter"),
 		ClearFilter:  runs.Binding("clear_filter", "clear filter"),
 		ToggleFilter: runs.Binding("filter_toggle", "filter on/off"),
-		Zoom:         modal.Binding("global.zoom", "zoom"),
 		Open:         modal.Binding("global.open", "browser"),
 		Refresh:      modal.Binding("global.refresh", "refresh"),
 		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
 		Rerun:        modal.Binding("rerun", "rerun all"),
 		RerunJob:     jobs.Binding("rerun_job", "rerun job"),
-		rerunLog:     log.Binding("rerun_job", "rerun job"),
-		rerunNotes:   notes.Binding("rerun_job", "rerun job"),
 		Cancel:       modal.Binding("cancel", "cancel run"),
 		Annotations:  log.Binding("annotations", "annotations"),
 		notes:        notes.Binding("annotations", "annotations"),
@@ -107,7 +102,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next: modal.Binding("global.next_pane", "pane"),
 		Prev: modal.Binding("global.prev_pane", "previous pane"),
 	}
-	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3"} {
+	for i, a := range [numPanes]string{"global.pane_1", "global.pane_2"} {
 		k.Panes[i] = modal.Binding(a, paneTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
@@ -141,7 +136,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Open,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }
@@ -152,21 +147,9 @@ func (k KeyMap) pane(rerun key.Binding) []key.Binding {
 	return []key.Binding{rerun, k.Select}
 }
 
-// rerunJob returns the key that re-runs a job, of the jobs, the log or the
-// annotations, whichever has the focus.
-func (k KeyMap) rerunJob(m *Modal) key.Binding {
-	switch {
-	case m.focus == logPane && m.log.OnAnnotations():
-		return k.rerunNotes
-	case m.focus == logPane:
-		return k.rerunLog
-	}
-	return k.RerunJob
-}
-
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Open}
+	return []key.Binding{k.Select, k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Open}
 }
 
 // FullHelp implements help.KeyMap.
@@ -174,12 +157,12 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
-// job returns the keys of the log pane's job view: the moves of the
+// job returns the keys of the log overlay's job view: the moves of the
 // lists through its annotations, and the select key to open one.
 func (k KeyMap) job() jobview.KeyMap {
 	return jobview.KeyMap{
 		Log: k.Log, Annotations: k.Annotations, NotesAnnotations: k.notes,
-		LogContext: ctxLog, NotesContext: ctxAnnotations,
+		LogContext: ctxLog, NotesContext: ctxLog,
 		Up: k.notesUp, Down: k.notesDown, Select: relabel(k.Select, "open file"), Open: k.Open,
 	}
 }
@@ -191,7 +174,7 @@ func relabel(b key.Binding, desc string) key.Binding {
 }
 
 // paneTitles names the panes in help.
-var paneTitles = [numPanes]string{"runs", "jobs", "log"}
+var paneTitles = [numPanes]string{"runs", "jobs"}
 
 // focusOf returns the pane that msg focuses, or -1.
 func (k KeyMap) focusOf(msg tea.KeyPressMsg) pane {
