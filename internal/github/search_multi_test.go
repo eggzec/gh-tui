@@ -16,6 +16,26 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
+func TestSearchRepoNodeTopics(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want []string
+	}{
+		"topics": {`{"repositoryTopics":{"nodes":[{"topic":{"name":"tea"}},{"topic":{"name":"timer"}}]}}`, []string{"tea", "timer"}},
+		"none":   {`{"repositoryTopics":{"nodes":[]}}`, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var n searchRepoNode
+			if err := json.Unmarshal([]byte(tc.body), &n); err != nil {
+				t.Fatal(err)
+			}
+			if got := n.hit().Repo.Topics; !slices.Equal(got, tc.want) {
+				t.Errorf("Topics = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestSearch(t *testing.T) {
 	c, reqs := serveFixture(t, "search_multi.json")
 	got, err := c.Search(t.Context(), SearchQuery{Text: "lipgloss"})

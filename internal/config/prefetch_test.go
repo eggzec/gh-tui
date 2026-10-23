@@ -196,6 +196,8 @@ func TestValidatePrefetch(t *testing.T) {
 		{"prefetch.owner.other_tabs.window.after", "1",
 			"prefetch.owner.other_tabs.window: other tabs are read a page at a time, not around the cursor"},
 		{"prefetch.owner.people.window.after", "31", "prefetch.owner.people.window.after: must be between 0 and 30"},
+		{"prefetch.search.preview", "31", "prefetch.search.preview: must be between 0 and 30, got 31"},
+		{"prefetch.search.preview", "-1", "prefetch.search.preview: must be between 0 and 30"},
 	}
 	for _, tt := range tests {
 		_, err := Default().Set(tt.key, tt.value)
@@ -208,6 +210,7 @@ func TestValidatePrefetch(t *testing.T) {
 		"prefetch.history.window.after":       "10",
 		"prefetch.pulls.other_tabs.enabled":   "false",
 		"prefetch.window.after":               "0",
+		"prefetch.search.preview":             "0",
 		"prefetch.rest":                       "2s",
 	} {
 		if _, err := Default().Set(key, value); err != nil {

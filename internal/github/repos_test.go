@@ -123,6 +123,26 @@ func TestListReposLastPage(t *testing.T) {
 	}
 }
 
+func TestRepoNodeTopics(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body string
+		want []string
+	}{
+		"topics": {`{"repositoryTopics":{"nodes":[{"topic":{"name":"tea"}},{"topic":{"name":"timer"}}]}}`, []string{"tea", "timer"}},
+		"none":   {`{"repositoryTopics":{"nodes":[]}}`, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var n repoNode
+			if err := json.Unmarshal([]byte(tc.body), &n); err != nil {
+				t.Fatal(err)
+			}
+			if got := n.core().Topics; !slices.Equal(got, tc.want) {
+				t.Errorf("Topics = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGetRepo(t *testing.T) {
 	c, reqs := serveFixture(t, "repos_get.json")
 
