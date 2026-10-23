@@ -125,12 +125,18 @@ func (m *Modal) receiveNotes(msg notesMsg) {
 // rereadNotes reads again the annotations that failed to load, or were kept
 // for want of an answer from GitHub.
 func (m *Modal) rereadNotes() tea.Cmd {
-	for id, r := range m.ann {
-		if !r.loading && (r.err != nil || r.kept) {
-			delete(m.ann, id)
+	var cmds []tea.Cmd
+	js := m.noteJobs()
+	for i := range js {
+		j := &js[i]
+		if r := m.ann[j.ID]; r != nil && !r.loading && (r.err != nil || r.kept) {
+			// The cache holds a kept page as if it were fresh, so the read
+			// goes to the service.
+			*r = noteRes{loading: true}
+			cmds = append(cmds, m.readNote(*j))
 		}
 	}
-	return m.readNotes()
+	return tea.Batch(append(cmds, m.readNotes())...)
 }
 
 // noteEntries lists the annotations of the jobs shown, those of the failed

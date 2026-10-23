@@ -1170,8 +1170,11 @@ func TestAnnotationsOpenTheirFile(t *testing.T) {
 	if s := logText(l); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
 		t.Fatalf("the log doesn't show the annotations:\n%s", s)
 	}
-	if !slices.Equal(f.noteReads, []int64{ubuntuJob}) {
-		t.Errorf("read the annotations of %v, want those of the failed job", f.noteReads)
+	// The pane reads those of every finished job, the failed one first, and
+	// the log takes the failed job's from memory.
+	reads := []int64{ubuntuJob, 100, 102, 103}
+	if !slices.Equal(f.noteReads, reads) {
+		t.Errorf("read the annotations of %v, want those of %v once each", f.noteReads, reads)
 	}
 	h.keys("A")
 	if !l.log.OnAnnotations() {
@@ -1191,10 +1194,10 @@ func TestAnnotationsOpenTheirFile(t *testing.T) {
 	if l.log.OnAnnotations() {
 		t.Error("A didn't give the keys back to the log")
 	}
-	// A job that passed has none worth reading.
+	// The log of a job that passed reads none beyond what the pane has.
 	h.keys("esc", "j", "enter")
-	if len(f.noteReads) != 1 {
-		t.Errorf("read the annotations of %v, want none of a job that passed", f.noteReads)
+	if !slices.Equal(f.noteReads, reads) {
+		t.Errorf("read the annotations of %v, want no more than %v", f.noteReads, reads)
 	}
 }
 
