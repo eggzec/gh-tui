@@ -4,30 +4,14 @@ global
   quit | ctrl+c | ^c | on
   command | : | : | on
   maximize | Z | Z | on
+  back | backspace | backspace | on
   dashboard | 0 | 0 | off
   notifications | I | I | off
   this repo | . | . | off
   owner page | @ | @ | off
   help | ? | ? | on
 
-Actions
-  tab | ] | ] | on
-  previous tab | [ | [ | on
-  pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
-  focus pane | 1 2 3 | 1-3 | on
-  zoom | z | z | on
-  browser | o | o | on
-  rerun failed | R | R | on
-  rerun all |  |  | off
-  cancel run | X | X | off
-  refresh | r | r | on
-  close | esc | esc | on
-  jobs | backspace | backspace | on
-
 Log
-  rerun job | J | J | on
-  open | enter | ↵ | off
   annotations | A | A | on
   up | up k | ↑/k | off
   down | down j | ↓/j | off

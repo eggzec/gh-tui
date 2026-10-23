@@ -25,17 +25,21 @@ import (
 
 func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 	f := newFake()
-	m, _ := newModal(t, f, wideW, wideH)
+	m, h := newModal(t, f, wideW, wideH)
 	if !m.hasRun || m.run.ID != failedRun {
 		t.Fatalf("shows run %d, want the newest, %d", m.run.ID, failedRun)
 	}
 	if j, _ := m.jobs.selected(); j.ID != ubuntuJob {
 		t.Errorf("opens on job %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
-	if m.log.State() != jobview.Ready || m.log.Errors() != 1 {
-		t.Fatalf("log state %d with %d errors, want the log with its error", m.log.State(), m.log.Errors())
+	if h.log != nil {
+		t.Fatal("the log opened before a job was picked")
 	}
-	if s := paneText(m, logPane); !strings.Contains(s, "Process completed with exit code 1.") || !strings.Contains(s, "Run go test") {
+	l := h.openLog(t)
+	if l.log.State() != jobview.Ready || l.log.Errors() != 1 {
+		t.Fatalf("log state %d with %d errors, want the log with its error", l.log.State(), l.log.Errors())
+	}
+	if s := logText(l); !strings.Contains(s, "Process completed with exit code 1.") || !strings.Contains(s, "Run go test") {
 		t.Errorf("the log doesn't show the failed step's error:\n%s", s)
 	}
 	if runs, jobs, logs := f.counts(); runs != 1 || jobs != 1 || logs != 1 {
@@ -53,27 +57,21 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	if m.run.ID != runningRun || len(m.jobs.items) != 1 || m.jobs.items[0].ID != runLintJob {
 		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.jobs.items, runningRun)
 	}
-	if m.log.State() != jobview.Pending {
-		t.Errorf("the log of a job in progress is in state %d, want pending", m.log.State())
-	}
-	// Back on the failed run, its jobs and log show from memory at once.
-	// Its jobs are read again, which the service answers from memory once
-	// the run completed; the log isn't.
+	// Back on the failed run, its jobs show from memory at once. They are
+	// read again, which the service answers from memory once the run
+	// completed.
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
 	h.keys("k")
-	if len(m.jobs.items) != 4 || m.log.State() != jobview.Ready {
-		t.Errorf("the failed run shows %d jobs and log state %d, want them from memory", len(m.jobs.items), m.log.State())
+	if len(m.jobs.items) != 4 {
+		t.Errorf("the failed run shows %d jobs, want them from memory", len(m.jobs.items))
 	}
 	h.release()
-	if _, jobs, logs := f.counts(); jobs != 3 || logs != 1 {
-		t.Errorf("reads of jobs %d and logs %d, want 3 and 1", jobs, logs)
-	}
-	if m.log.State() != jobview.Ready {
-		t.Errorf("log state %d, want the log from memory", m.log.State())
+	if _, jobs, _ := f.counts(); jobs != 3 {
+		t.Errorf("reads of jobs %d, want 3", jobs)
 	}
 	h.keys("tab", "j")
-	if j, _ := m.jobs.selected(); j.ID != macosJob || m.log.JobID() != macosJob {
-		t.Errorf("after j in the jobs the job is %d and the log's %d, want %d", j.ID, m.log.JobID(), macosJob)
+	if j, _ := m.jobs.selected(); j.ID != macosJob {
+		t.Errorf("after j in the jobs the job is %d, want %d", j.ID, macosJob)
 	}
 }
 
@@ -83,9 +81,9 @@ func TestPanesAndBack(t *testing.T) {
 		key  string
 		want pane
 	}{
-		{"tab", jobsPane}, {"tab", logPane}, {"tab", runsPane}, {"shift+tab", logPane},
-		{"2", jobsPane}, {"1", runsPane}, {"1", runsPane}, {"3", logPane}, {"2", jobsPane}, {"3", logPane}, {"3", logPane},
-		{"backspace", jobsPane}, {"backspace", runsPane}, {"backspace", runsPane}, {"enter", jobsPane}, {"enter", logPane},
+		{"tab", jobsPane}, {"tab", runsPane}, {"shift+tab", jobsPane},
+		{"1", runsPane}, {"2", jobsPane}, {"1", runsPane}, {"1", runsPane}, {"2", jobsPane}, {"2", jobsPane},
+		{"backspace", runsPane}, {"backspace", runsPane}, {"enter", jobsPane},
 	}
 	for _, s := range steps {
 		h.keys(s.key)
@@ -93,10 +91,7 @@ func TestPanesAndBack(t *testing.T) {
 			t.Fatalf("after %s the focus is on pane %d, want %d", s.key, m.focus, s.want)
 		}
 	}
-	if !m.log.Focused() || m.runs.Focused() {
-		t.Error("the log isn't the one focused bubble")
-	}
-	h.keys("backspace", "backspace", "backspace")
+	h.keys("backspace", "backspace")
 	if len(h.take()) != 0 || m.focus != runsPane {
 		t.Error("backspace closed the modal, or left the runs")
 	}
@@ -109,37 +104,52 @@ func TestPanesAndBack(t *testing.T) {
 	}
 }
 
-func TestEnterInTheLogFolds(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab", "g")
-	before := paneText(m, logPane)
-	h.keys("enter")
-	if m.focus != logPane || paneText(m, logPane) == before {
-		t.Errorf("enter in the log didn't fold the step under the cursor")
+func TestLogOverlayOpensAndBackReturns(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH)
+	l := h.openLog(t)
+	if l.job.ID != ubuntuJob {
+		t.Errorf("the log shows job %d, want %d", l.job.ID, ubuntuJob)
+	}
+	h.keys("backspace")
+	if h.log != nil || m.focus != jobsPane {
+		t.Errorf("back left the overlay %v on pane %d, want the jobs", h.log != nil, m.focus)
+	}
+	if len(h.take()) != 0 {
+		t.Error("back closed the modal")
 	}
 }
 
-func TestZoom(t *testing.T) {
+func TestLogOverlayDismissReturns(t *testing.T) {
+	t.Parallel()
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab", "z")
-	if !m.zoom || m.paneWidth(logPane) != wideW {
-		t.Fatalf("z left the log %d wide, want the modal's %d", m.paneWidth(logPane), wideW)
+	h.openLog(t)
+	h.keys("esc")
+	if h.log != nil || m.ctx.Err() != nil || len(h.take()) != 0 {
+		t.Error("esc in the log didn't return to the modal alone")
 	}
-	if s := screen(m); strings.Contains(s, "Jobs") || strings.Contains(s, "CI #4812") {
-		t.Errorf("the zoomed log shows other panes:\n%s", s)
-	}
-	if got := uitest.Enabled(m.KeyLayers()); !slices.Contains(got, "unzoom") || slices.Contains(got, "zoom") {
-		t.Errorf("zoomed help = %v, want the zoom key labelled unzoom", got)
-	}
-	// The back key never unzooms: it steps back, and the zoom key unzooms.
+}
+
+func TestLogOverlayStopsWatchingOnClose(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	_, h := newModal(t, f, wideW, wideH)
+	h.openLog(t)
 	h.keys("backspace")
-	if !m.zoom || m.focus != jobsPane {
-		t.Errorf("backspace: zoom %v on pane %d, want the jobs zoomed", m.zoom, m.focus)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if n := f.watching[ubuntuJob]; n != 0 {
+		t.Errorf("%d watches of the log remain after it closed", n)
 	}
-	h.keys("z")
-	if m.zoom {
-		t.Error("z left the pane zoomed")
-	}
+}
+
+func TestLogOverlayFitsNarrow(t *testing.T) {
+	t.Parallel()
+	_, h := newModal(t, newFake(), narrowW, narrowH)
+	l := h.openLog(t)
+	l.SetSize(narrowW, narrowH)
+	assertFits(t, l.View(), narrowW, narrowH)
 }
 
 func TestTabs(t *testing.T) {
@@ -290,11 +300,12 @@ func TestLogStates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
-			m, _ := newModal(t, f, wideW, wideH)
-			if m.log.State() != tt.state {
-				t.Fatalf("log state %d, want %d", m.log.State(), tt.state)
+			_, h := newModal(t, f, wideW, wideH)
+			l := h.openLog(t)
+			if l.log.State() != tt.state {
+				t.Fatalf("log state %d, want %d", l.log.State(), tt.state)
 			}
-			if s := paneText(m, logPane); !strings.Contains(s, tt.text) {
+			if s := logText(l); !strings.Contains(s, tt.text) {
 				t.Errorf("the log pane lacks %q:\n%s", tt.text, s)
 			}
 		})
@@ -313,18 +324,31 @@ func TestErrorWords(t *testing.T) {
 		want, runs, jobs string
 	}{
 		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
-			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub r to retry"},
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub", "✗ You don't have ac… · o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub", "✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
 			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub"},
 		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
-			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist o…",
+			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist or is private.",
 			"✗ CI #4812 doesn't exist or is private."},
 		{"internal", fmt.Errorf("list runs: github: decode: %s", termtexttest.Hostile),
-			"✗ Something went wrong. Details", "✗ Something went wrong. Deta… · r to retry",
-			"✗ Something went wrong. Details are in the log (/var/log/gh-t… r to retry"},
+			"✗ Something went wrong. Details", "✗ Something went wrong. Details are in the log (/var/log/g… · r to retry",
+			"✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) r to retry"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
+	cleanLog := func(t *testing.T, l *logModal, want string) {
+		t.Helper()
+		termtexttest.AssertClean(t, l.View(), wideW)
+		s := logText(l)
+		if !strings.Contains(s, want) {
+			t.Errorf("log = %q, want %q", s, want)
+		}
+		for _, leak := range []string{"github:", "list runs", "GET", "403", "404", "decode"} {
+			if strings.Contains(s, leak) {
+				t.Errorf("log shows %q: %q", leak, s)
+			}
+		}
+	}
 	clean := func(t *testing.T, m *Modal, p pane, want string) {
 		t.Helper()
 		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.bodyHeight()), "\n"), m.paneWidth(p))
@@ -342,12 +366,12 @@ func TestErrorWords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
-			m, _ := newModal(t, f, wideW, wideH, voice)
-			clean(t, m, logPane, tt.want)
+			_, h := newModal(t, f, wideW, wideH, voice)
+			cleanLog(t, h.openLog(t), tt.want)
 
 			f = newFake()
 			f.jobsErr = tt.err
-			m, _ = newModal(t, f, wideW, wideH, voice)
+			m, _ := newModal(t, f, wideW, wideH, voice)
 			clean(t, m, jobsPane, tt.jobs)
 
 			f = newFake()
@@ -361,11 +385,12 @@ func TestErrorWords(t *testing.T) {
 func TestLogRetry(t *testing.T) {
 	f := newFake()
 	f.logErrs[ubuntuJob] = errors.New("boom")
-	m, h := newModal(t, f, wideW, wideH)
+	_, h := newModal(t, f, wideW, wideH)
+	l := h.openLog(t)
 	delete(f.logErrs, ubuntuJob)
-	h.keys("tab", "tab", "r")
-	if m.log.State() != jobview.Ready {
-		t.Errorf("r left the log in state %d, want it read again", m.log.State())
+	h.keys("r")
+	if l.log.State() != jobview.Ready {
+		t.Errorf("r left the log in state %d, want it read again", l.log.State())
 	}
 }
 
@@ -374,26 +399,27 @@ func TestLogTruncated(t *testing.T) {
 	lg := testLog()
 	lg.Truncated = true
 	f.logs[ubuntuJob] = lg
-	m, _ := newModal(t, f, wideW, wideH)
-	if s := paneText(m, logPane); !strings.Contains(s, "Only the end of this log") {
+	_, h := newModal(t, f, wideW, wideH)
+	l := h.openLog(t)
+	if s := logText(l); !strings.Contains(s, "Only the end of this log") {
 		t.Errorf("a truncated log doesn't say so:\n%s", s)
-	}
-	if n := strings.Count(m.log.View(), "\n") + 1; n != m.bodyHeight() {
-		t.Errorf("the log with its notice is %d high, want %d", n, m.bodyHeight())
 	}
 }
 
 func TestPendingLogShowsTheSteps(t *testing.T) {
 	f := newFake()
-	m, h := newModal(t, f, wideW, wideH)
-	h.keys("j")
-	s := paneText(m, logPane)
+	_, h := newModal(t, f, wideW, wideH)
+	h.keys("j", "tab", "enter")
+	if h.log == nil {
+		t.Fatal("enter on the running job didn't open its log")
+	}
+	s := logText(h.log)
 	for _, want := range []string{"Logs arrive in ~2 MB blocks while the job runs · o to watch live on GitHub", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the log of a running job lacks %q:\n%s", want, s)
 		}
 	}
-	if _, _, logs := f.counts(); logs != 1 {
+	if _, _, logs := f.counts(); logs != 0 {
 		t.Errorf("a running job's log was asked for: %d reads", logs)
 	}
 	// The poll reads what GitHub publishes of the log only while the log
@@ -401,15 +427,15 @@ func TestPendingLogShowsTheSteps(t *testing.T) {
 	if f.watching[runLintJob] != 1 {
 		t.Errorf("the log of the running job is watched %d times, want once", f.watching[runLintJob])
 	}
-	h.keys("k")
-	if f.watching[runLintJob] != 0 {
+	h.keys("esc")
+	if h.log != nil || f.watching[runLintJob] != 0 {
 		t.Error("the log of a job no longer shown is still watched")
 	}
-	h.keys("j")
+	h.keys("enter")
 	if f.watching[runLintJob] != 1 {
 		t.Fatal("the log of the running job isn't watched once shown again")
 	}
-	h.keys("esc")
+	h.keys("esc", "esc")
 	if f.watching[runLintJob] != 0 {
 		t.Error("the log of the running job is still watched once the modal closed")
 	}
@@ -679,7 +705,11 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j")
+	h.keys("j", "tab", "enter")
+	l := h.log
+	if l == nil {
+		t.Fatal("enter on the running job didn't open its log")
+	}
 	key := actionssvc.RunSyncKey(repo, runningRun)
 
 	// A step moves on.
@@ -689,7 +719,7 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	jobs[0].Steps[2].Status = core.RunInProgress
 	f.setJobs(runningRun, jobs)
 	h.send(ui.SyncMsg{Key: key})
-	if s := paneText(m, logPane); !strings.Contains(s, "✓ Run golangci-lint") || !strings.Contains(s, "◐ Post Run") {
+	if s := logText(l); !strings.Contains(s, "✓ Run golangci-lint") || !strings.Contains(s, "◐ Post Run") {
 		t.Errorf("the poll didn't move the steps on:\n%s", s)
 	}
 	// Another run's key, or an error, is left alone.
@@ -704,10 +734,12 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	jobs[0].Status, jobs[0].Conclusion, jobs[0].CompletedAt = core.RunCompleted, core.ConclusionSuccess, at(1e9)
 	f.setJobs(runningRun, jobs)
 	h.send(ui.SyncMsg{Key: key})
-	if m.log.State() != jobview.Ready || m.log.Lines() != 1 {
-		t.Errorf("the log didn't load once the job was done: state %d", m.log.State())
+	if l.log.State() != jobview.Ready || l.log.Lines() != 1 {
+		t.Errorf("the log didn't load once the job was done: state %d", l.log.State())
 	}
-	if !slices.Equal(fl.stopped, []int64{runningRun}) {
+	// The modal under the overlay stopped following when it hid; the overlay
+	// stops its own follow of the run.
+	if len(fl.stopped) == 0 || slices.Max(fl.stopped) != runningRun || slices.Min(fl.stopped) != runningRun {
 		t.Errorf("stopped %v, want the completed run stopped", fl.stopped)
 	}
 	if s := paneText(m, runsPane); !strings.Contains(s, "✓ lint #4810") {
@@ -742,7 +774,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f := newFake()
 	f.jobsErr = errors.New("jobs boom")
 	m, h := newModal(t, f, wideW, wideH)
-	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong r to retry") {
+	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong · r to retry") {
 		t.Errorf("the jobs pane:\n%s", s)
 	}
 	f.jobsErr = nil
@@ -765,7 +797,7 @@ func TestMessagesOfOtherModalsAreIgnored(t *testing.T) {
 	other, _ := newModal(t, f, wideW, wideH)
 	h.send(jobsMsg{id: other.id, runID: failedRun, attempt: 1})
 	h.send(ui.DoneMsg{From: "Issues", Err: errors.New("x")})
-	if m.log.State() != jobview.Ready || len(m.jobs.items) != 4 {
+	if len(m.jobs.items) != 4 {
 		t.Error("the messages of another modal changed this one")
 	}
 }
@@ -775,9 +807,12 @@ func TestALogWithoutErrorsOpensOnItsSteps(t *testing.T) {
 	lg := testLog()
 	lg.Lines = slices.DeleteFunc(lg.Lines, func(l core.LogLine) bool { return l.Kind == core.LogError })
 	f.logs[macosJob] = lg
-	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "j")
-	s := paneText(m, logPane)
+	_, h := newModal(t, f, wideW, wideH)
+	h.keys("tab", "j", "enter")
+	if h.log == nil {
+		t.Fatal("enter on the job didn't open its log")
+	}
+	s := logText(h.log)
 	// The job's steps have no names in the fake, so they are numbered.
 	if !strings.Contains(s, "▸ Step 1 ▸ Step 2 ▸ Step 3") || strings.Contains(s, "FAIL: TestProgram") {
 		t.Errorf("a log without errors doesn't open folded:\n%s", s)
@@ -787,8 +822,12 @@ func TestALogWithoutErrorsOpensOnItsSteps(t *testing.T) {
 func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	short := func() string {
+		layers := m.KeyLayers()
+		if h.log != nil {
+			layers = h.log.KeyLayers()
+		}
 		var ks []string
-		for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
+		for _, b := range (ui.Hints{Layers: layers}).ShortHelp() {
 			if b.Enabled() {
 				ks = append(ks, b.Help().Key+" "+b.Help().Desc)
 			}
@@ -799,14 +838,15 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"tab"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"A"}, "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations, J rerun job, tab pane, z zoom, R rerun failed, E rerun all, o browser"},
-		// The steps of a job in progress don't fold.
-		{[]string{"tab", "j", "tab", "tab"}, "tab pane, z zoom, X cancel run, o browser"},
-		{[]string{"X"}, "y yes, n no"},
+		{nil, "↑/k up, ↓/j down, ↵ jobs, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, R rerun failed, E rerun all, o browser"},
+		// The log is an overlay with the keys of its own.
+		{[]string{"enter"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
+		{[]string{"A"}, "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},
+		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
+		// The steps of a job in progress don't fold, and have no keys to show.
+		{[]string{"backspace", "backspace", "j", "tab", "enter"}, ""},
+		{[]string{"backspace", "backspace", "X"}, "y yes, n no"},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)
@@ -836,26 +876,19 @@ func TestKeyLayersOrder(t *testing.T) {
 	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "jobs" {
 		t.Errorf("enter reaches %q of %q on the runs, want the jobs", b.Help().Desc, src)
 	}
-	h.keys("[", "tab", "tab")
-	if m.focus != logPane {
-		t.Fatalf("focus %d, want the log", m.focus)
-	}
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Log" {
-		t.Errorf("enter reaches %q in the log, want the log", src)
-	}
-	h.keys("enter")
-	if m.focus != logPane {
-		t.Errorf("enter in the log moved the focus to %d", m.focus)
+	h.keys("[", "tab")
+	if m.focus != jobsPane {
+		t.Fatalf("focus %d, want the jobs", m.focus)
 	}
 	if b, src, _ := uitest.Winner(m.KeyLayers(), "esc"); src != "Actions" || b.Help().Desc != "close" {
-		t.Errorf("esc reaches %q of %q in the log, want the modal's close", b.Help().Desc, src)
+		t.Errorf("esc reaches %q of %q on the jobs, want the modal's close", b.Help().Desc, src)
 	}
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "backspace"); src != "Actions" || b.Help().Desc != "jobs" {
-		t.Errorf("backspace reaches %q of %q in the log, want the step to the jobs", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "backspace"); src != "Actions" || b.Help().Desc != "runs" {
+		t.Errorf("backspace reaches %q of %q on the jobs, want the step to the runs", b.Help().Desc, src)
 	}
 	h.keys("backspace")
-	if m.focus != jobsPane {
-		t.Errorf("backspace left the focus on %d, want the jobs", m.focus)
+	if m.focus != runsPane {
+		t.Errorf("backspace left the focus on %d, want the runs", m.focus)
 	}
 }
 
@@ -883,7 +916,6 @@ func TestSharedKeys(t *testing.T) {
 			ok: func(m *Modal) bool { _, active := m.Tabs(); return active == 1 && m.focus == jobsPane }},
 		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
 		{name: "R on the runs", key: "R", desc: "rerun failed", ok: asks},
-		{name: "R in the log", to: []string{"tab", "tab"}, key: "R", desc: "rerun failed", ok: asks},
 		{name: "r on the runs", key: "r", desc: "refresh", ok: func(m *Modal) bool { return m.ask == nil && m.focus == runsPane }},
 		// A run still running can't be re-run, so R says why, and the help
 		// gives it to no binding it could reach.
@@ -891,11 +923,8 @@ func TestSharedKeys(t *testing.T) {
 		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
 		// The filter belongs to the runs: the jobs and the log have no f.
 		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == jobsPane }},
-		{name: "f in the log", to: []string{"tab", "tab"}, key: "f", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == logPane }},
-		{name: "F in the log", to: []string{"tab", "tab"}, key: "F", desc: "follow", src: "Log", ok: func(m *Modal) bool { return m.filterStep == nil && m.focus == logPane }},
 		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
-		{name: "3 on the runs", key: "3", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == logPane }},
-		{name: "1 in the log", to: []string{"tab", "tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
+		{name: "1 on the jobs", to: []string{"tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -930,11 +959,11 @@ func TestClearFilterIsTheRunsKey(t *testing.T) {
 	if _, src, ok := uitest.Winner(m.KeyLayers(), "F"); !ok || src != "Runs" {
 		t.Errorf("F reaches %q on the runs, want the runs' clear filter", src)
 	}
-	h.keys("tab", "tab", "F")
+	h.keys("tab", "F")
 	if m.filter != tabbed {
-		t.Errorf("F in the log changed the filter to %+v", m.filter)
+		t.Errorf("F on the jobs changed the filter to %+v", m.filter)
 	}
-	h.keys("1", "F")
+	h.keys("tab", "1", "F")
 	if want := (core.RunFilter{Status: tabbed.Status, HeadSHA: "abc123"}); m.filter != want {
 		t.Errorf("F on the runs left the filter at %+v, want %+v", m.filter, want)
 	}
@@ -1024,21 +1053,6 @@ func TestLowercaseXDoesNotCancel(t *testing.T) {
 	}
 }
 
-// h and l scroll the log sideways, not move the focus between the panes.
-func TestHAndLScrollTheLog(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab")
-	for _, k := range []string{"h", "l"} {
-		if b, src, ok := uitest.Winner(m.KeyLayers(), k); !ok || src == "Actions" || b.Help().Desc == "pane left" || b.Help().Desc == "pane right" {
-			t.Errorf("the help gives %s to %q of %q, want the log's", k, b.Help().Desc, src)
-		}
-		h.keys(k)
-		if m.focus != logPane {
-			t.Errorf("%s moved the focus to pane %d, want it to stay on the log", k, m.focus)
-		}
-	}
-}
-
 func TestRunsWithoutJobsSayWhy(t *testing.T) {
 	tests := []struct {
 		conclusion core.Conclusion
@@ -1067,19 +1081,20 @@ func TestRunsWithoutJobsSayWhy(t *testing.T) {
 
 func TestAnnotationsOpenTheirFile(t *testing.T) {
 	f := newFake()
-	m, h := newModal(t, f, wideW, wideH)
-	if s := paneText(m, logPane); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
-		t.Fatalf("the log pane doesn't show the annotations:\n%s", s)
+	_, h := newModal(t, f, wideW, wideH)
+	l := h.openLog(t)
+	if s := logText(l); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
+		t.Fatalf("the log doesn't show the annotations:\n%s", s)
 	}
 	if !slices.Equal(f.noteReads, []int64{ubuntuJob}) {
 		t.Errorf("read the annotations of %v, want those of the failed job", f.noteReads)
 	}
-	h.keys("tab", "tab", "A")
-	if !m.log.OnAnnotations() {
+	h.keys("A")
+	if !l.log.OnAnnotations() {
 		t.Fatal("A in the log didn't focus the annotations")
 	}
 	h.keys("enter")
-	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54, Return: m}
+	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54, Return: l}
 	if got := h.take(); len(got) != 1 || got[0] != want {
 		t.Fatalf("enter sent %v, want the file previewed at the run's commit", got)
 	}
@@ -1088,15 +1103,12 @@ func TestAnnotationsOpenTheirFile(t *testing.T) {
 	if got := h.take(); len(got) != 0 {
 		t.Errorf("enter on an annotation of the workflow sent %v", got)
 	}
-	if m.focus != logPane {
-		t.Errorf("enter in the annotations moved the focus to pane %d", m.focus)
-	}
 	h.keys("A")
-	if m.log.OnAnnotations() {
+	if l.log.OnAnnotations() {
 		t.Error("A didn't give the keys back to the log")
 	}
 	// A job that passed has none worth reading.
-	h.keys("shift+tab", "j")
+	h.keys("esc", "j", "enter")
 	if len(f.noteReads) != 1 {
 		t.Errorf("read the annotations of %v, want none of a job that passed", f.noteReads)
 	}
@@ -1123,17 +1135,24 @@ func TestReopenedRestartsTheTimers(t *testing.T) {
 func TestHideStopsTheReads(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
-	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j")
-	if f.watching[runLintJob] != 1 || !slices.Equal(fl.started, []int64{runningRun}) {
+	_, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "tab", "enter")
+	l := h.log
+	if l == nil {
+		t.Fatal("enter didn't open the log")
+	}
+	// The modal under the log follows the run too, until the log hides it,
+	// so the follows are counted against the stops.
+	if f.watching[runLintJob] != 1 || len(fl.started) == 0 || slices.Max(fl.started) != runningRun {
 		t.Fatalf("watches %v, follows %v; want the running job's log watched and its run followed", f.watching, fl.started)
 	}
-	m.Hide()
-	if f.watching[runLintJob] != 0 || !slices.Equal(fl.stopped, []int64{runningRun}) {
-		t.Errorf("hidden, watches %v and stopped following %v; want nothing watched or followed", f.watching, fl.stopped)
+	l.Hide()
+	if f.watching[runLintJob] != 0 || len(fl.stopped) != len(fl.started) {
+		t.Errorf("hidden, watches %v and stopped following %v of %v; want nothing watched or followed", f.watching, fl.stopped, fl.started)
 	}
-	h.send(ui.ReopenedMsg{Modal: m})
-	if f.watching[runLintJob] != 1 || len(fl.started) != 2 {
+	before := len(fl.started)
+	h.send(ui.ReopenedMsg{Modal: l})
+	if f.watching[runLintJob] != 1 || len(fl.started) != before+1 {
 		t.Errorf("reopened, watches %v and follows %v; want the log watched and the run followed again", f.watching, fl.started)
 	}
 }
@@ -1213,18 +1232,19 @@ func TestEscClosesFromEveryStep(t *testing.T) {
 // keys and as the app's dismiss intent.
 func TestEscClearsWhatIsShownFirst(t *testing.T) {
 	t.Run("log search", func(t *testing.T) {
-		m, h := newModal(t, newFake(), wideW, wideH)
-		h.keys("tab", "tab", "/", "s", "t", "enter")
-		if m.log.Query() == "" {
+		_, h := newModal(t, newFake(), wideW, wideH)
+		l := h.openLog(t)
+		h.keys("/", "s", "t", "enter")
+		if l.log.Query() == "" {
 			t.Fatal("the log shows no search")
 		}
 		h.keys("esc")
-		if m.log.Query() != "" || len(h.take()) != 0 {
-			t.Fatalf("esc: search %q, want it cleared and the modal open", m.log.Query())
+		if h.log == nil || l.log.Query() != "" || len(h.take()) != 0 {
+			t.Fatalf("esc: search %q, want it cleared and the log open", l.log.Query())
 		}
 		h.keys("esc")
-		if got := h.take(); len(got) != 1 || got[0] != (ui.LeaveModalMsg{Modal: m}) {
-			t.Errorf("the second esc sent %v, want the modal closed", got)
+		if h.log != nil {
+			t.Errorf("the second esc left the log open")
 		}
 	})
 	t.Run("runs find", func(t *testing.T) {
@@ -1259,9 +1279,11 @@ func TestBackspaceTypesInThePrompts(t *testing.T) {
 	if !m.runs.Capturing() || m.focus != runsPane || len(h.take()) != 0 {
 		t.Fatal("backspace left the prompt of the runs")
 	}
-	h.keys("esc", "tab", "tab", "/", "a", "b", "backspace")
-	if m.focus != logPane || !m.log.Capturing() || len(h.take()) != 0 {
-		t.Errorf("backspace left the search of the log: pane %d", m.focus)
+	h.keys("esc")
+	l := h.openLog(t)
+	h.keys("/", "a", "b", "backspace")
+	if h.log == nil || !l.log.Capturing() || len(h.take()) != 0 {
+		t.Error("backspace left the search of the log")
 	}
 }
 
@@ -1269,8 +1291,8 @@ func TestBackspaceTypesInThePrompts(t *testing.T) {
 // to the jobs and those to the runs, which leave it to the app.
 func TestActBackStepsBack(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab")
-	for _, want := range []pane{jobsPane, runsPane} {
+	h.keys("tab")
+	for _, want := range []pane{runsPane} {
 		cmd, ok := m.Act(ui.ActBack)
 		if !ok || cmd != nil || m.focus != want {
 			t.Fatalf("Act(back) = %v, %v on pane %d, want it taken on %d", cmd, ok, m.focus, want)
@@ -1285,14 +1307,17 @@ func TestActBackStepsBack(t *testing.T) {
 // search of the log it clears first, and otherwise for closing.
 func TestEscIsLabelledForWhatItClears(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab")
-	if b, _, _ := uitest.Winner(m.KeyLayers(), "esc"); b.Help().Desc != "close" {
-		t.Errorf("esc reads %q, want close", b.Help().Desc)
-	}
+	l := h.openLog(t)
 	h.keys("/", "s", "t", "enter")
-	if b, _, _ := uitest.Winner(m.KeyLayers(), "esc"); b.Help().Desc != "clear search" {
-		t.Errorf("esc reads %q with a search shown, want clear search", b.Help().Desc)
+	h.keys("esc")
+	if h.log != l {
+		t.Error("esc closed the log with a search shown, want it to clear the search first")
 	}
+	h.keys("esc")
+	if h.log != nil {
+		t.Error("esc didn't close the log")
+	}
+	_ = m
 }
 
 // TestEscIsLabelledForTheFindAndTheFilterOfTheRuns checks that the help

@@ -209,13 +209,12 @@ func (m *Modal) selectRun() tea.Cmd {
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
 	m.jobs = newJobs(r)
-	m.log.Clear()
 	// The logs read ahead for the run shown before stop.
 	m.aheadLogs.Reset(m.ctx)
 	var cmd tea.Cmd
 	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
 		m.aheadJobs.Opened(m.jobsQuery())
-		cmd = m.setJobs(p, !first)
+		cmd = m.setJobs(p)
 	} else {
 		m.jobs.loading = true
 		cmd = m.startSpinner()
@@ -236,7 +235,6 @@ func (m *Modal) selectRun() tea.Cmd {
 func (m *Modal) clearRun() {
 	m.run, m.hasRun = core.Run{}, false
 	m.jobs = jobs{}
-	m.log.Clear()
 	m.unfollow()
 }
 

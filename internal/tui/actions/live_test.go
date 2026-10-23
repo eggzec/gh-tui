@@ -31,13 +31,7 @@ func TestTimersMoveOnWhileTheRunRuns(t *testing.T) {
 		if !m.ticking || len(h.held) != 1 {
 			t.Fatalf("ticking %v with %d ticks, want the timers running", m.ticking, len(h.held))
 		}
-		if s := paneText(m, logPane); !strings.Contains(s, "Run golangci-lint 1m 19s") {
-			t.Errorf("after a second the step shows:\n%s", s)
-		}
 		h.release()
-		if s := paneText(m, logPane); !strings.Contains(s, "Run golangci-lint 1m 20s") {
-			t.Errorf("after two seconds the step shows:\n%s", s)
-		}
 		if s := paneText(m, runsPane); !strings.Contains(s, "1m 32s") {
 			t.Errorf("the running run's timer didn't move on:\n%s", s)
 		}

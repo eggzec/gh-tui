@@ -32,7 +32,6 @@ var closing = []struct {
 	{"history graph", []string{"repo.history"}},
 	{"actions runs", []string{"repo.actions"}},
 	{"actions jobs", []string{"repo.actions", "global.next_pane"}},
-	{"actions log", []string{"repo.actions", "global.next_pane", "global.next_pane"}},
 	{"preview", []string{"files.down", "global.select"}},
 	{"config pager", []string{"global.command", typed("config"), "command_line.run"}},
 	{"filter", []string{"global.pane_2", "pulls.filter"}},
@@ -122,14 +121,34 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 	})
 }
 
+// TestEscClosesTheLogOverlayAlone checks that esc closes the log, an
+// overlay, and leaves the Actions modal under it open.
+func TestEscClosesTheLogOverlayAlone(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
+		log := m.modal
+		tap(t, m, "esc")
+		if m.modal == nil || m.modal == log {
+			t.Error("esc should close the log and leave Actions open")
+		}
+	})
+}
+
 // TestBackspaceStepsBackThroughActions checks the steps of the Actions
-// modal: the log goes back to the jobs, the jobs to the runs, and the runs
-// have nothing before them, and the help names the step the key goes to.
+// modal: the log, an overlay, closes back to the jobs, the jobs go to the
+// runs, and the runs have nothing before them, and the help names the step
+// the key goes to.
 func TestBackspaceStepsBackThroughActions(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.next_pane")
-		for _, want := range []string{"jobs", "runs", ""} {
+		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
+		log := m.modal
+		tap(t, m, "backspace")
+		if m.modal == nil || m.modal == log {
+			t.Fatal("backspace didn't close the log over the jobs")
+		}
+		for _, want := range []string{"runs", ""} {
 			if got := backLabel(m); got != want {
 				t.Fatalf("the help names the back key %q, want %q", got, want)
 			}
@@ -191,7 +210,7 @@ func TestBackspaceDeletesInATypingWidget(t *testing.T) {
 		steps []string
 		typed []string
 	}{
-		{"actions log search", []string{"repo.actions", "global.next_pane", "global.next_pane"}, []string{"/", "a", "b"}},
+		{"actions log search", []string{"repo.actions", "global.next_pane", "global.select"}, []string{"/", "a", "b"}},
 		{"finder", []string{"global.find_file"}, []string{"a", "b"}},
 		{"pager search", []string{"global.command", typed("config"), "command_line.run"}, []string{"/", "a", "b"}},
 	}

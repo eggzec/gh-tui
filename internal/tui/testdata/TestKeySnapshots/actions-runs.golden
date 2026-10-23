@@ -15,8 +15,7 @@ Actions
   previous tab | [ | [ | on
   pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
-  focus pane | 1 2 3 | 1-3 | on
-  zoom | z | z | on
+  focus pane | 1 2 | 1/2 | on
   browser | o | o | on
   rerun failed | R | R | on
   rerun all |  |  | off

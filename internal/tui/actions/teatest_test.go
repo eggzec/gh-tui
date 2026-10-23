@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 
-	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -16,7 +15,7 @@ import (
 // ends once the modal closes.
 type app struct {
 	modal *Modal
-	// ready is closed once the log of the failed job shows.
+	// ready is closed once the jobs of the failed run show.
 	ready chan struct{}
 	done  []ui.DoneMsg
 }
@@ -34,7 +33,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.done = append(a.done, msg)
 	}
 	cmd := a.modal.Update(msg)
-	if a.ready != nil && a.modal.log.State() == jobview.Ready {
+	if a.ready != nil && a.modal.jobs.loaded {
 		close(a.ready)
 		a.ready = nil
 	}

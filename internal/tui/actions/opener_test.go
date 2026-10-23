@@ -155,9 +155,6 @@ func TestOpensOnAJobOfARun(t *testing.T) {
 	if m.focus != jobsPane {
 		t.Errorf("focus is on pane %d, want the jobs", m.focus)
 	}
-	if m.log.State() != jobview.Ready {
-		t.Errorf("log state %d, want the log of the job", m.log.State())
-	}
 }
 
 func TestOpensWithTheJobsFocused(t *testing.T) {
@@ -175,12 +172,13 @@ func TestOpensWithTheJobsFocused(t *testing.T) {
 func TestOpensOnAFailedJobAtItsError(t *testing.T) {
 	t.Parallel()
 	f := newFake()
-	m, _ := newModal(t, f, wideW, wideH, WithRun(failedRun), WithJob(ubuntuJob), WithJobsFocused())
+	m, h := newModal(t, f, wideW, wideH, WithRun(failedRun), WithJob(ubuntuJob), WithJobsFocused())
 	if m.focus != jobsPane {
 		t.Errorf("focus is on pane %d, want the jobs", m.focus)
 	}
-	if m.log.State() != jobview.Ready || m.log.Errors() != 1 {
-		t.Fatalf("log state %d with %d errors, want the log with its error", m.log.State(), m.log.Errors())
+	h.keys("enter")
+	if h.log == nil || h.log.log.State() != jobview.Ready || h.log.log.Errors() != 1 {
+		t.Fatal("enter didn't open the log of the failed job with its error")
 	}
 	if runs, jobs, logs := f.counts(); runs != 1 || jobs != 1 || logs != 1 {
 		t.Errorf("opening read %d pages of runs, %d of jobs and %d logs, want one each", runs, jobs, logs)
@@ -298,7 +296,7 @@ func TestOpensAsBeforeWithoutOptions(t *testing.T) {
 	if m.run.ID != failedRun || len(f.queries) != 1 {
 		t.Errorf("shows run %d after %d queries, want the newest after one", m.run.ID, len(f.queries))
 	}
-	if runs, jobs, logs := f.counts(); runs != 1 || jobs != 1 || logs != 1 {
-		t.Errorf("opening read %d pages of runs, %d of jobs and %d logs, want one each", runs, jobs, logs)
+	if runs, jobs, logs := f.counts(); runs != 1 || jobs != 1 || logs != 0 {
+		t.Errorf("opening read %d pages of runs, %d of jobs and %d logs, want one of each page and no log", runs, jobs, logs)
 	}
 }

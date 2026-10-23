@@ -267,7 +267,7 @@ func TestJobGroupsFold(t *testing.T) {
 		"▸ DuckDB-Wasm 3 ✓",
 		"▸ Test 3 ◐",
 		"▸ Clang-Tidy 4 ✓",
-		"⊖ BWC Test (DuckDB {s… skipped",
+		"⊖ BWC Test (DuckDB {series.group}) skipped",
 		"▸ extensions 6 ○",
 		"▸ Deploy to nightly 2 ◷",
 		"○ Upload Extensions queued",
@@ -275,11 +275,10 @@ func TestJobGroupsFold(t *testing.T) {
 	if got := jobsPaneRows(m); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("the jobs:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	// On a group, the select key opens it, and the log shows its first
-	// job that runs.
+	// On a group, the select key folds it instead of opening a log.
 	h.keys("j", "j")
-	if !m.jobs.onGroup() || m.log.JobID() != 9009 {
-		t.Fatalf("on %q the log shows job %d, want the group's running job", jobsPaneRows(m)[7], m.log.JobID())
+	if !m.jobs.onGroup() {
+		t.Fatalf("the cursor is on %q, want a group", jobsPaneRows(m)[7])
 	}
 	// The help says so, as it says that enter opens a job.
 	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Jobs" || b.Help().Desc != "fold" {
@@ -350,7 +349,7 @@ func TestJobGroupsSurvivePolls(t *testing.T) {
 		"○ windows, amd64 queued",
 		"✓ linux, arm64 1m 0s",
 		"▌ ▸ Clang-Tidy 4 ✓",
-		"⊖ BWC Test (DuckDB {s… skipped",
+		"⊖ BWC Test (DuckDB {series.group}) skipped",
 		"▸ extensions 6 ○",
 		"▸ Deploy to nightly 2 ◷",
 		"○ Upload Extensions queued",
@@ -440,16 +439,16 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 		job(3, failedRun, "lint", core.ConclusionFailure, time.Hour, time.Minute),
 	}
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "k", "tab")
-	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.log.JobID() != gen.ID || m.focus != logPane {
-		t.Fatalf("the log shows job %d, want %d", m.log.JobID(), gen.ID)
+	h.keys("tab", "k")
+	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.focus != jobsPane {
+		t.Fatalf("the cursor is on job %d, want %d", j.ID, gen.ID)
 	}
 	f.setJobs(failedRun, append(slices.Clone(f.jobs[failedRun]),
 		job(4, failedRun, "Build / linux_amd64", core.ConclusionSuccess, time.Hour, time.Minute),
 		job(5, failedRun, "Build / osx", core.ConclusionSuccess, time.Hour, time.Minute)))
 	h.run(m.fromCache())
-	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.jobs.onGroup() || m.log.JobID() != gen.ID {
-		t.Errorf("after the poll the cursor is on %q and the log shows job %d, want %d", j.Name, m.log.JobID(), gen.ID)
+	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.jobs.onGroup() {
+		t.Errorf("after the poll the cursor is on %q, want job %d", j.Name, gen.ID)
 	}
 	if rows := jobsPaneRows(m); rows[1] != "▾ Build 3 ✓" || !strings.HasPrefix(rows[2], "▌ ✓ Generate matrix") {
 		t.Errorf("after the poll:\n%s", strings.Join(rows, "\n"))

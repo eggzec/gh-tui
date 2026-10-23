@@ -32,7 +32,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
-	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
@@ -43,10 +42,6 @@ import (
 // Title names the modal in the frame, and the changes it sends in the log.
 const Title = "Actions"
 
-// narrowWidth is the width inside the frame below which the panes don't fit
-// side by side, so the modal shows one at a time.
-const narrowWidth = 110
-
 // pane is one of the modal's panes, in the order the focus moves through
 // them.
 type pane int
@@ -54,11 +49,10 @@ type pane int
 const (
 	runsPane pane = iota
 	jobsPane
-	logPane
 )
 
 // numPanes is how many panes there are.
-const numPanes = 3
+const numPanes = 2
 
 var lastID atomic.Int64
 
@@ -78,7 +72,6 @@ type Modal struct {
 	caps core.RepoCaps
 
 	focus pane
-	zoom  bool
 
 	// filter selects the runs; the tab shown is the one it matches.
 	filter core.RunFilter
@@ -95,7 +88,6 @@ type Modal struct {
 	jobs   jobs
 	// wantJob is the job the first jobs shown open on, until they are.
 	wantJob int64
-	log     jobview.Model
 	// seq counts the moves of the cursor of the runs, so that only the
 	// last rest reads jobs.
 	seq int
@@ -178,9 +170,6 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap
 	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
-	m.log = jobview.New(rctx, svc, repo, keyMap.job(),
-		jobview.WithIcons(o.icons), jobview.WithRest(o.prefetch.logs.Rest), jobview.WithClock(o.now), jobview.WithReturn(m),
-		jobview.WithVoice(*o.voice))
 	m.aheadJobs = ui.NewAhead("jobs", m.readJobsAhead, m.cachedJobs)
 	m.aheadJobs.Share(o.slots)
 	m.aheadJobs.Reset(rctx)
@@ -244,7 +233,6 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))
-	m.log.SetTheme(t)
 	if f := m.filterStep; f != nil && f.form != nil {
 		f.form.SetStyles(t.FilterForm(m.opts.icons))
 	}
@@ -261,7 +249,7 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 		return ui.Selection{}, false
 	}
 	sel := ui.Selection{What: "run", URL: m.run.URL, Repo: m.repo, SHA: m.run.HeadSHA, Owner: m.repo.Owner}
-	if m.focus == logPane || m.focus == jobsPane && !m.jobs.onGroup() {
+	if m.focus == jobsPane && !m.jobs.onGroup() {
 		if j, ok := m.jobs.selected(); ok {
 			sel.What, sel.URL = "job", j.URL
 		}
@@ -292,31 +280,20 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		}
 		// Until the form shows, only the dismiss key does something.
 		return []keyhelp.Layer{ui.ContextLayer(ctxFilter, []key.Binding{k.Dismiss, k.filterBack()}, []key.Binding{k.Dismiss})}
-	case m.focus == logPane && m.log.Capturing():
-		return m.log.KeyLayers()
 	case m.focus == runsPane && m.runs.Capturing():
 		// The prompt of the runs' find or filter takes every key.
 		list, _ := ui.FeedLayer(m.runs)
 		return []keyhelp.Layer{list}
 	}
 	k = k.state(m)
-	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Zoom, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
-	rerun := k.RerunJob
-	if m.focus == logPane {
-		rerun = k.rerunJob(m)
-	}
-	own := keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{k.Select, rerun}}
-	switch m.focus {
-	case runsPane:
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
+	own := keyhelp.Layer{Bindings: k.pane(k.RerunJob), Short: []key.Binding{k.Select, k.RerunJob}}
+	if m.focus == runsPane {
 		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter}, Short: []key.Binding{k.Select, k.Filter}}
 		list, _ := ui.FeedLayer(m.runs)
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
-	case jobsPane:
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
-	case logPane:
 	}
-	l := m.log.Layer()
-	return []keyhelp.Layer{screen, ui.MergeLayers(l.Context, keyhelp.Layer{Bindings: k.pane(rerun), Short: []key.Binding{rerun}}, l)}
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctxJobs, own, keyhelp.FromHelp("", k.Jobs, false))}
 }
 
 // state returns k as the modal takes it now, named for what the keys do
@@ -324,9 +301,6 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 // group of jobs, back names the pane before and is off on the runs, and a run offers
 // the changes that apply to it, if the viewer may make them.
 func (k KeyMap) state(m *Modal) KeyMap {
-	if m.zoom {
-		k.Zoom = relabel(k.Zoom, "unzoom")
-	}
 	switch m.focus {
 	case runsPane:
 		k.Select = relabel(k.Select, "jobs")
@@ -349,48 +323,37 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		if m.jobs.onGroup() {
 			k.Select = relabel(k.Select, "fold")
 		}
-	case logPane:
-		k.Select.SetEnabled(false)
-		k.Back = relabel(k.Back, paneTitles[jobsPane])
-		if m.log.Query() != "" {
-			k.Dismiss = relabel(k.Dismiss, "clear search")
-		}
 	}
 	g := m.gate()
 	done := m.hasRun && m.run.Done()
 	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())
 	k.RerunFailed.SetEnabled(k.RerunFailed.Enabled() && done)
 	k.Rerun.SetEnabled(k.Rerun.Enabled() && done)
-	for _, b := range []*key.Binding{&k.RerunJob, &k.rerunLog, &k.rerunNotes} {
-		b.SetEnabled(b.Enabled() && done && m.focus != runsPane)
-		*b = g.Gated(*b, ui.ActRerun, nil)
-	}
+	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.focus != runsPane)
+	k.RerunJob = g.Gated(k.RerunJob, ui.ActRerun, nil)
 	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
 	k.Rerun = g.Gated(k.Rerun, ui.ActRerun, nil)
 	// A key that re-run shares with refresh says why it can't re-run
 	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
 	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
-	// The job view handles the annotations, and only a question takes
-	// the answers.
-	k.Annotations.SetEnabled(false)
-	k.notes.SetEnabled(false)
+	// Only a question takes the answers.
 	k.Confirm.Yes.SetEnabled(false)
 	k.Confirm.No.SetEnabled(false)
 	return k
 }
 
-// narrow reports whether the modal shows one pane at a time.
-func (m *Modal) narrow() bool {
-	return m.width < narrowWidth
-}
-
-// Hide implements ui.Hider: it stops following the run and reading the
-// log of its job while another modal is open in its place, until the
-// modal is reopened.
+// Hide implements ui.Hider: it stops following the run while another modal,
+// such as the log of a job, is open in its place, until the modal is
+// reopened.
 func (m *Modal) Hide() {
 	m.unfollow()
-	m.log.Pause()
+}
+
+// Discard implements ui.Discarder: the modal ends for good, as when the
+// log it opened closes the chain.
+func (m *Modal) Discard() {
+	m.end()
 }
 
 // close ends the modal's reads and the following of its run, and asks the
@@ -410,7 +373,6 @@ func (m *Modal) leave() tea.Cmd {
 // end stops the following of the run and the reads of the modal.
 func (m *Modal) end() {
 	m.unfollow()
-	m.log.Clear()
 	m.cancel()
 }
 

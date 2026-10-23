@@ -143,9 +143,9 @@ func TestKeyValidation(t *testing.T) {
 		{"one key, two actions", "keys:\n  pulls:\n    sort: [f]\n", "keys.pulls: f is both filter and sort"},
 		{"pane against global", "keys:\n  actions_jobs:\n    rerun_job: [r]\n", "line 3: keys.actions_jobs.rerun_job: r is already keys.global.refresh"},
 		{"screen against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
-		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "line 3: keys.actions.cancel: J is also keys.actions_jobs.rerun_job, keys.actions_log.rerun_job, keys.actions_annotations.rerun_job: unbind or rebind them there"},
+		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "line 3: keys.actions.cancel: J is also keys.actions_jobs.rerun_job: unbind or rebind them there"},
 		{"screen against global", "keys:\n  repo:\n    history: [o]\n", "line 3: keys.repo.history: o is already keys.global.open"},
-		{"pane against its screen", "keys:\n  actions_log:\n    annotations: [X]\n", "line 3: keys.actions_log.annotations: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
+		{"pane against its screen", "keys:\n  actions_jobs:\n    rerun_job: [X]\n", "line 3: keys.actions_jobs.rerun_job: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
 		{"pane of a screen against its screen", "keys:\n  pulls:\n    merge: [B]\n", "line 3: keys.pulls.merge: B is already keys.repo.history, which works in every pane of the Repository screen"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -334,7 +334,7 @@ func TestDefaultContexts(t *testing.T) {
 		case ReachCapture:
 		}
 	}
-	if got, want := Chain("actions_log"), []string{"global", "actions", "actions_log"}; !slices.Equal(got, want) {
+	if got, want := Chain("actions_log"), []string{"global", "actions_log"}; !slices.Equal(got, want) {
 		t.Errorf("Chain(actions_log) = %q, want %q", got, want)
 	}
 	if got, want := Chain("pull_files"), []string{"global", "pull_modal", "pull_files"}; !slices.Equal(got, want) {

@@ -570,8 +570,8 @@ keys:
     # one chosen. ctrl+p is the key of editors.
     find_file: [ctrl+p]
     # Show the focused pane of the dashboard, the repository screen, the
-    # page of a user or an organization, or a modal such as Actions,
-    # alone, or all of them again.
+    # page of a user or an organization, or a modal such as a pull
+    # request, alone, or all of them again.
     zoom: [z]
     # Toggle the open modal between its size and the whole screen. It is
     # typed, not taken, while an input has the keys.
@@ -1054,10 +1054,9 @@ keys:
     top: ["g g", home]
     bottom: [G, end]
     rerun_job: [J]
-  # Actions: the log of a job. Re-run the job, and move the focus between
-  # the log and the annotations of the job.
+  # Actions: the log of a job, an overlay over the modal. Move the focus
+  # between the log and the annotations of the job.
   actions_log:
-    rerun_job: [J]
     annotations: [A]
     up: [up, k]
     down: [down, j]
@@ -1080,12 +1079,6 @@ keys:
     find: [/]
     next_match: [n]
     prev_match: [N]
-  # Actions: the annotations of a job, with the same keys as its log.
-  actions_annotations:
-    up: [up, k]
-    down: [down, j]
-    rerun_job: [J]
-    annotations: [A]
 
   # The readers: the keys that scroll and search a text, in the modals
   # and panes that show one.
