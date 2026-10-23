@@ -386,25 +386,25 @@ func TestLogStates(t *testing.T) {
 // The runs, the jobs and the log say what went wrong the way the user
 // should read it, without the error's chain, request or status code.
 func TestErrorWords(t *testing.T) {
-	// The runs and the jobs panes are narrow, so they cut the words and
-	// keep the hint, and they and the log put the hint on a line of its
-	// own where it doesn't fit after the words.
+	// The words and their hint are readable whole: the log puts the hint on a
+	// line of its own where it doesn't fit, and so does the jobs pane.
 	tests := []struct {
 		name             string
 		err              error
 		want, runs, jobs string
 	}{
 		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
-			"✗ Can't reach GitHub · r to retry", "✗ Can't reach", "✗ Can't reach GitHub"},
+			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub", "✗ You",
-			"✗ You don't have access to charmbracelet/bubbletea"},
+			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub"},
 		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
-			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea",
+			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist or is private.",
 			"✗ CI #4812 doesn't exist or is private."},
 		{"internal", fmt.Errorf("list runs: github: decode: %s", termtexttest.Hostile),
-			"✗ Something went wrong. Details", "✗ Something we",
-			"✗ Something went wrong. Details are in the log"},
+			"✗ Something went wrong. Details", "✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) · r to retry",
+			"✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) · r to retry"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
 	cleanLog := func(t *testing.T, l *logModal, want string) {
@@ -420,16 +420,20 @@ func TestErrorWords(t *testing.T) {
 			}
 		}
 	}
-	clean := func(t *testing.T, m *Modal, p pane, want string) {
+	clean := func(t *testing.T, m *Modal, want string) {
 		t.Helper()
-		termtexttest.AssertClean(t, strings.Join(m.paneLines(p, m.paneWidth(p), m.rowsOf(p)), "\n"), m.paneWidth(p))
-		s := strings.Join(strings.Fields(ansi.Strip(strings.Join(m.paneLines(p, m.paneWidth(p), m.rowsOf(p)), "\n"))), " ")
+		termtexttest.AssertClean(t, m.View(), m.width)
+		// The hint follows the words with a dot, or on a line of its own
+		// without one, as the room allows.
+		norm := strings.NewReplacer("│", " ", "┃", " ", " · ", " ")
+		s := strings.Join(strings.Fields(norm.Replace(screen(m))), " ")
+		want = strings.Join(strings.Fields(norm.Replace(want)), " ")
 		if !strings.Contains(s, want) {
-			t.Errorf("pane %d = %q, want %q", p, s, want)
+			t.Errorf("%dx%d screen = %q, want %q", m.width, m.height, s, want)
 		}
 		for _, leak := range []string{"github:", "list runs", "GET", "403", "404", "decode"} {
 			if strings.Contains(s, leak) {
-				t.Errorf("pane %d shows %q: %q", p, leak, s)
+				t.Errorf("screen shows %q: %q", leak, s)
 			}
 		}
 	}
@@ -440,15 +444,24 @@ func TestErrorWords(t *testing.T) {
 			_, h := newModal(t, f, wideW, wideH, voice)
 			cleanLog(t, h.openLog(t), tt.want)
 
+			// The wide layout shows a failed load of the runs in the
+			// annotations box, whole.
 			f = newFake()
-			f.jobsErr = tt.err
+			f.runsErr = tt.err
 			m, _ := newModal(t, f, wideW, wideH, voice)
-			clean(t, m, jobsPane, tt.jobs)
+			clean(t, m, tt.runs)
 
 			f = newFake()
 			f.runsErr = tt.err
-			m, _ = newModal(t, f, wideW, wideH, voice)
-			clean(t, m, runsPane, tt.runs)
+			m, h = newModal(t, f, narrowW, narrowH, voice)
+			h.keys("2")
+			clean(t, m, tt.runs)
+
+			f = newFake()
+			f.jobsErr = tt.err
+			m, h = newModal(t, f, narrowW, narrowH, voice)
+			h.keys("tab")
+			clean(t, m, tt.jobs)
 		})
 	}
 }
@@ -857,7 +870,7 @@ func TestErrorsAreInline(t *testing.T) {
 	f = newFake()
 	f.runsErr = errors.New("runs boom")
 	m, _ = newModal(t, f, wideW, wideH)
-	if s := paneText(m, runsPane); !strings.Contains(s, "Something we") {
+	if s := screen(m); !strings.Contains(s, "Something went wrong") {
 		t.Errorf("the runs pane:\n%s", s)
 	}
 }

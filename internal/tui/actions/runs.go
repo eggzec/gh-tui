@@ -260,7 +260,7 @@ func (m *Modal) runsHeader(w int) string {
 	inner := max(w-m.runs.Gutter(), 0)
 	headW, dateW := m.runCols(inner)
 	line := ui.Header([]ui.Column{{Title: "Run", Width: headW}, {Title: createdTitle, Width: dateW}}, len(runGap), m.opts.icons.Ellipsis)
-	return strings.Repeat(" ", m.runs.Gutter()) + m.st.row[ui.Look(false, m.focus == runsPane)].Muted.Render(line)
+	return strings.Repeat(" ", m.runs.Gutter()) + m.st.row[ui.Look(false, m.inRuns())].Muted.Render(line)
 }
 
 // renderRun renders a run in two lines: its state, workflow, number,
@@ -268,7 +268,7 @@ func (m *Modal) runsHeader(w int) string {
 // ran.
 func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	r = m.current(r)
-	ic, st := m.st.ic, &m.st.row[ui.Look(selected, m.focus == runsPane)]
+	ic, st := m.st.ic, &m.st.row[ui.Look(selected, m.inRuns())]
 	now := m.now()
 	state := ui.RunStateOf(r.Status, r.Conclusion)
 	name := st.Strong.Render(ui.OneLine(r.Name))
