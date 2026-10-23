@@ -44,6 +44,24 @@ func TestTreeKeepsTheCursorInView(t *testing.T) {
 	}
 }
 
+// A prompt or a chip under the runs takes a row of the feed, and the selected
+// run still shows over its jobs.
+func TestTreeKeepsTheRunWithAFooter(t *testing.T) {
+	t.Parallel()
+	for _, size := range [][2]int{{80, 24}, {120, 40}} {
+		for _, keys := range [][]string{{"/"}, {"/", "l", "enter"}} {
+			f := newFake()
+			passingJobs(f, 30)
+			m, h := newModal(t, f, size[0], size[1])
+			h.keys(keys...)
+			if row := m.runs.SelectedRow(); row < 0 || !strings.Contains(screen(m), "#4812") {
+				t.Errorf("%dx%d after %v: the selected run is off screen:\n%s", size[0], size[1], keys, screen(m))
+			}
+			assertFits(t, m.View(), size[0], size[1])
+		}
+	}
+}
+
 // The tree draws in any size, however small.
 func TestTreeFitsTinySizes(t *testing.T) {
 	t.Parallel()

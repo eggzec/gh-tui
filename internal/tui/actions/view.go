@@ -175,6 +175,12 @@ func (m *Modal) layout() {
 		m.rows[jobsPane] = min(m.jobsWant(), max(body-1, 0))
 	}
 	m.sizePanes()
+	// A footer under the runs, a prompt or a chip, takes a row of the feed;
+	// the run the jobs hang from must keep one.
+	for m.rowsOf(jobsPane) > 0 && m.runs.SelectedRow() < 0 {
+		m.rows[jobsPane]--
+		m.sizePanes()
+	}
 	m.scrollJobs()
 }
 
@@ -185,7 +191,8 @@ func (m *Modal) fit() {
 	if f := m.filterStep; f != nil && f.form != nil {
 		return
 	}
-	if min(m.jobsWant(), max(m.rowsOf(runsPane)-1, 0)) != m.rowsOf(jobsPane) {
+	if min(m.jobsWant(), max(m.rowsOf(runsPane)-1, 0)) != m.rowsOf(jobsPane) ||
+		m.rowsOf(jobsPane) > 0 && m.runs.SelectedRow() < 0 {
 		m.layout()
 	}
 	// Jobs that have no room can't hold the focus.
@@ -203,7 +210,7 @@ func (m *Modal) jobsWant() int {
 	if note, ok := m.jobsNote(m.inner); ok {
 		return len(note)
 	}
-	n := len(m.jobs.lines)
+	n := m.linesSpan(0, len(m.jobs.lines))
 	if m.jobs.more {
 		n++
 	}
