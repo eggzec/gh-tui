@@ -378,6 +378,62 @@ func TestFilterWaitsForTheWorkflows(t *testing.T) {
 	}
 }
 
+// A failed read of the workflows still opens the filter, without workflows
+// to choose from, and a later press reads them again.
+func TestFilterOpensWhenTheWorkflowsFail(t *testing.T) {
+	f := newFake()
+	f.wfErr = errors.New("boom")
+	m, h := newModal(t, f, wideW, wideH)
+	h.keys("f")
+	opened(t, h)
+	if m.workflows.wanted || m.workflows.loaded {
+		t.Errorf("wanted %v, loaded %v after a failed read, want neither", m.workflows.wanted, m.workflows.loaded)
+	}
+	h.keys("f")
+	opened(t, h)
+	if f.wfReads != 2 {
+		t.Errorf("the workflows were read %d times, want a retry", f.wfReads)
+	}
+}
+
+// Esc ends the wait for the workflows, so they open no filter on arriving.
+func TestEscEndsTheWaitForTheWorkflows(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.hold = func(msg tea.Msg) bool { _, ok := msg.(workflowsMsg); return ok }
+	h.keys("f")
+	h.keys("esc")
+	h.hold = nil
+	h.release()
+	if got := h.take(); len(got) != 0 {
+		t.Errorf("workflows arriving after esc sent %v, want nothing", got)
+	}
+	if !m.workflows.loaded || m.workflows.wanted {
+		t.Error("the workflows weren't kept, or the filter still waits")
+	}
+}
+
+// The tab follows the filter: a status of a tab shows that tab, and a
+// branch alone goes back to All.
+func TestFilterSyncsTheTab(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	_, before := m.Tabs()
+	h.run(m.ApplyFilter(filterform.AppliedMsg{
+		Query:  "status:failure",
+		Values: map[string]filterform.Value{fieldStatus: filterform.TextValue("failure")},
+	}))
+	_, failing := m.Tabs()
+	if failing == before || failing < 0 {
+		t.Errorf("status:failure shows tab %d, was %d, want the Failing tab", failing, before)
+	}
+	h.run(m.ApplyFilter(filterform.AppliedMsg{
+		Query:  "branch:main",
+		Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("main")},
+	}))
+	if _, active := m.Tabs(); active != before {
+		t.Errorf("a branch alone shows tab %d, want %d, the tab of no status", active, before)
+	}
+}
+
 func TestLogStates(t *testing.T) {
 	tests := []struct {
 		name  string

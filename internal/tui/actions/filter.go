@@ -88,9 +88,9 @@ func (m *Modal) readWorkflows(again bool) tea.Cmd {
 }
 
 // receiveWorkflows keeps the workflows, and shows the form that waited for
-// them. Without them, the form has no workflows to choose from, and a read
-// later tries again. Workflows an earlier session kept are shown, and read
-// again at once.
+// them. When the read failed the form still opens, without workflows to
+// choose from, and a read later tries again. Workflows an earlier session
+// kept are shown, and read again at once.
 func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 	m.workflows.loading = false
 	if msg.err != nil && ui.Unreached(msg.err) && m.workflows.loaded {
@@ -109,9 +109,6 @@ func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 		return again
 	}
 	m.workflows.wanted = false
-	if msg.err != nil {
-		return again
-	}
 	return tea.Batch(ui.OpenModal(m.filterModal()), again)
 }
 
