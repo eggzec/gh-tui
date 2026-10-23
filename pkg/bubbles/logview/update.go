@@ -68,6 +68,10 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 	case keymap.Matches(k, m.keys.Left):
 		m.left = max(m.left-m.hStep(), 0)
+	case keymap.Matches(k, m.keys.Expand):
+		m.expand()
+	case keymap.Matches(k, m.keys.Collapse):
+		m.collapse()
 	case keymap.Matches(k, m.keys.Toggle):
 		m.toggle()
 	case keymap.Matches(k, m.keys.ToggleAll):

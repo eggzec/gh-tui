@@ -26,6 +26,8 @@ Log
   top | g g home | gg/home | on
   bottom | G end | G/end | on
   fold | enter | ↵ | on
+  expand | l | l | on
+  collapse | h | h | on
   all | * | * | on
   next error | e | e | off
   prev error | E | E | off
@@ -41,7 +43,7 @@ Log
   line numbers | N | N | off
   cancel | esc | esc | off
   timestamps | x | x | on
-  left | left h | ←/h | on
-  right | right l | →/l | on
+  left | left | ← | on
+  right | right | → | on
   follow | F | F | on
   close | q esc | q/esc | off

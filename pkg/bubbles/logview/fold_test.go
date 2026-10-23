@@ -66,6 +66,47 @@ func TestFoldGroups(t *testing.T) {
 	}
 }
 
+func TestExpandCollapse(t *testing.T) {
+	lines := []Line{
+		{Text: "before"},
+		{Kind: Group, Text: "outer"},
+		{Text: "a"},
+		{Text: "b"},
+		{Kind: EndGroup},
+		{Text: "after"},
+	}
+	m := view(t, lines, WithSize(40, 10))
+	// Outside any fold, both do nothing.
+	m, _ = keys(t, m, "l")
+	m, _ = keys(t, m, "h")
+	if got, want := shownRows(m), []string{"before", "outer", "after"}; !slices.Equal(got, want) {
+		t.Fatalf("outside a fold: %q, want %q", got, want)
+	}
+	// On the header, l opens it and h closes it again.
+	m, _ = keys(t, m, "j", "l")
+	if !isOpen(t, m, "outer") {
+		t.Fatal("l on the header left the fold closed")
+	}
+	m, _ = keys(t, m, "l")
+	if !isOpen(t, m, "outer") {
+		t.Fatal("l on an open fold closed it")
+	}
+	// Inside the fold, h closes it and moves to its header.
+	m, _ = keys(t, m, "j", "j", "h")
+	if isOpen(t, m, "outer") || cursorText(m) != "outer" {
+		t.Errorf("h inside: open = %v, cursor on %q, want closed on the header", isOpen(t, m, "outer"), cursorText(m))
+	}
+	m, _ = keys(t, m, "h")
+	if isOpen(t, m, "outer") {
+		t.Error("h on a closed header opened it")
+	}
+	// l inside an open fold keeps it open.
+	m, _ = keys(t, m, "l", "j", "l")
+	if !isOpen(t, m, "outer") || cursorText(m) != "a" {
+		t.Errorf("l inside: open = %v, cursor on %q", isOpen(t, m, "outer"), cursorText(m))
+	}
+}
+
 func TestFoldSections(t *testing.T) {
 	lines := []Line{
 		{Text: "x"},

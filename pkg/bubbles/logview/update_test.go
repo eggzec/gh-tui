@@ -90,19 +90,19 @@ func TestScrollSideways(t *testing.T) {
 	// The gutter leaves 37 columns of text, a quarter of which is one
 	// step.
 	m := view(t, plainLines(strings.Repeat("0123456789", 5), "short"), WithSize(40, 5), WithLineNumbers(false))
-	m, _ = keys(t, m, "l")
+	m, _ = keys(t, m, "right")
 	if m.left != 9 {
 		t.Errorf("left = %d, want 9", m.left)
 	}
-	m, _ = keys(t, m, "l", "l", "l")
+	m, _ = keys(t, m, "right", "right", "right")
 	if m.left != 13 {
 		t.Errorf("left = %d, want 13, where the longest line ends", m.left)
 	}
-	m, _ = keys(t, m, "h", "h", "h")
+	m, _ = keys(t, m, "left", "left", "left")
 	if m.left != 0 {
 		t.Errorf("left = %d, want 0", m.left)
 	}
-	m, _ = keys(t, m, "-", "S", "l")
+	m, _ = keys(t, m, "-", "S", "right")
 	if m.left != 0 || !m.Wrap() {
 		t.Errorf("left = %d while wrapping, want 0", m.left)
 	}

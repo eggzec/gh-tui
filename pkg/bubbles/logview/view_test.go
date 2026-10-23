@@ -29,7 +29,7 @@ func TestView(t *testing.T) {
 		{name: "collapsed", width: 80, height: 16, keys: []string{"*", "*"}},
 		{name: "times of day", width: 100, height: 12, opts: []Option{failed, WithTimeMode(TimeAbsolute)}},
 		{name: "wrapped", width: 80, height: 24, opts: []Option{failed}, keys: []string{"-", "S"}},
-		{name: "scrolled sideways", width: 80, height: 12, opts: []Option{failed}, keys: []string{"l", "l"}},
+		{name: "scrolled sideways", width: 80, height: 12, opts: []Option{failed}, keys: []string{"right", "right"}},
 		{name: "search", width: 80, height: 16, keys: []string{"*", "*"}, search: "unused"},
 		{name: "next match", width: 80, height: 16, keys: []string{"*", "*"}, search: "unused", after: []string{"n"}},
 		{name: "no matches", width: 80, height: 6, search: "kiwi"},
@@ -87,7 +87,7 @@ func TestViewFits(t *testing.T) {
 				t.Run(strconv.FormatBool(wrap)+"/"+strconv.Itoa(w)+"x"+strconv.Itoa(h), func(t *testing.T) {
 					m := open(t, WithSize(w, h), WithWrap(wrap), WithTimeMode(TimeRelative), WithFocusFailed(true))
 					m.Append(Line{Text: strings.Repeat("你好, 世界 👋🏽 é ", 20)})
-					for _, k := range []string{"", "l", "l", "e", "j", "*", "G", "l", "-", "T", "-", "N", "*", "k"} {
+					for _, k := range []string{"", "right", "right", "e", "j", "*", "G", "right", "-", "T", "-", "N", "*", "k"} {
 						if k != "" {
 							m, _ = keys(t, m, k)
 						}
@@ -133,7 +133,7 @@ func TestViewColors(t *testing.T) {
 	}
 	// Scrolled into the red, the view starts with it.
 	m = view(t, []Line{{Text: "\x1b[31m" + strings.Repeat("x", 60)}}, WithSize(40, 2), WithStyles(st), WithLineNumbers(false))
-	m, _ = keys(t, m, "l")
+	m, _ = keys(t, m, "right")
 	if v := m.View(); !strings.Contains(v, "\x1b[31mxxx") {
 		t.Errorf("scrolled past the color: %q", v)
 	}
