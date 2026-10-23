@@ -207,6 +207,8 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return cmd
 	case keymap.Matches(msg, k.Open):
 		return m.open()
+	case keymap.Matches(msg, k.ViewFile):
+		return m.viewWorkflow(m)
 	case keymap.Matches(msg, k.RerunFailed):
 		return m.asks(m.rerunFailed)
 	case keymap.Matches(msg, k.Rerun):

@@ -26,6 +26,10 @@ type workflows struct {
 	// kept, because GitHub couldn't be reached or rate limited the read,
 	// so they are read again once it answers.
 	kept bool
+	// viewing reports that the file of a workflow waits for the workflows,
+	// to be shown in place of ret.
+	viewing bool
+	ret     ui.Modal
 }
 
 // Keys of the fields of the filter.
@@ -105,6 +109,11 @@ func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 	var again tea.Cmd
 	if msg.err == nil && msg.stale {
 		again = m.readWorkflows(true)
+	}
+	if m.workflows.viewing {
+		ret := m.workflows.ret
+		m.workflows.viewing, m.workflows.ret = false, nil
+		again = tea.Batch(again, m.openWorkflowFile(ret))
 	}
 	if !m.workflows.wanted {
 		return again
