@@ -261,6 +261,59 @@ func TestFilterWaitsForEveryPage(t *testing.T) {
 	}
 }
 
+// TestFilterOpensOnlyOverTheModal checks that the form's open is dropped
+// unless the modal that asked is still the open one.
+func TestFilterOpensOnlyOverTheModal(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.keys("backspace", "f")
+	var over ui.Modal
+	for _, msg := range h.take() {
+		if o, ok := msg.(ui.OpenModalMsg); ok {
+			over = o.Over
+		}
+	}
+	if over != ui.Modal(m) {
+		t.Errorf("the form is to open over %v, want the modal", over)
+	}
+}
+
+// TestFilterWaitEndsWhenTheUserMovesOn checks that f held back for a page is
+// forgotten once the cursor moves or the focus leaves the branches, so the
+// page landing opens no form.
+func TestFilterWaitEndsWhenTheUserMovesOn(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		key  string
+	}{
+		{"cursor", "j"},
+		{"pane", "tab"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m, h := newModal(t, twoPages(), 108, 30)
+			h.take()
+			h.skip = func(msg tea.Msg) bool {
+				b, ok := msg.(branchesMsg)
+				return ok && b.cursor == "2"
+			}
+			h.keys("backspace", "f")
+			h.take()
+			if !m.branches.wanted {
+				t.Fatal("f didn't wait for the last page")
+			}
+			h.keys(tt.key)
+			h.take()
+			h.skip = nil
+			if m.branches.wanted {
+				t.Fatalf("%s left the form wanted", tt.key)
+			}
+			h.run(m.loadBranches("2", true))
+			if openedFilter(h.take()) {
+				t.Error("the last page opened a form the user moved on from")
+			}
+		})
+	}
+}
+
 // TestFilterOpensOnAReadError checks that a failed page opens the form with
 // the branches loaded.
 func TestFilterOpensOnAReadError(t *testing.T) {
