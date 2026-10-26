@@ -317,7 +317,7 @@ func (m *panesModal) jobLogBody(id string, width int) (string, bool) {
 	l := p.logs[cc.JobID]
 	switch {
 	case l == nil || l.state == jobLogLoading:
-		return dim.Render("Loading the log…"), true
+		return dim.Render("Loading the log" + m.icons.Ellipsis), true
 	case l.state == jobLogPending:
 		return dim.Render("The log isn't published yet."), true
 	case l.state == jobLogGone:

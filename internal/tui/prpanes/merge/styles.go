@@ -29,8 +29,10 @@ type Styles struct {
 	accent   lipgloss.Style
 	arrow    string
 	sep      string
-	top      string
-	ellipsis string
+	// separator is the icon set's separator, unstyled, for text that is joined.
+	separator string
+	top       string
+	ellipsis  string
 }
 
 // NewStyles returns the styles for theme t and the icon set named set, whose
@@ -45,20 +47,21 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	tree := foldtree.DefaultStyles(t.Dark)
 	tree.CursorGlyph = " "
 	return Styles{
-		Checks:   ck,
-		Files:    files.NewStyles(t, ic, set),
-		tree:     tree,
-		warn:     t.Warning,
-		ok:       t.Success,
-		Ready:    t.Success.Render(ck.Glyphs.Pass),
-		glyphs:   ui.NewGlyphStyles(t, ic),
-		dim:      t.Subtle,
-		bold:     lipgloss.NewStyle().Bold(true),
-		accent:   t.Accent,
-		arrow:    t.Subtle.Render(" " + ic.Arrow + " "),
-		sep:      t.Subtle.Render(ic.Separator),
-		top:      top,
-		ellipsis: ic.Ellipsis,
+		Checks:    ck,
+		Files:     files.NewStyles(t, ic, set),
+		tree:      tree,
+		warn:      t.Warning,
+		ok:        t.Success,
+		Ready:     t.Success.Render(ck.Glyphs.Pass),
+		glyphs:    ui.NewGlyphStyles(t, ic),
+		dim:       t.Subtle,
+		bold:      lipgloss.NewStyle().Bold(true),
+		accent:    t.Accent,
+		arrow:     t.Subtle.Render(" " + ic.Arrow + " "),
+		sep:       t.Subtle.Render(ic.Separator),
+		top:       top,
+		ellipsis:  ic.Ellipsis,
+		separator: ic.Separator,
 	}
 }
 

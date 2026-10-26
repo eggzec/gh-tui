@@ -248,6 +248,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.frames = panes.DefaultStyles(t.Dark)
 	m.frames.Border = m.opts.icons.Border
 	m.frames.Ellipsis = m.opts.icons.Ellipsis
+	m.frames.Separator = m.opts.icons.Separator
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.runs.SetStyles(t.Feed(m.opts.icons))

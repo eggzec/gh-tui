@@ -26,7 +26,7 @@ func TestRangeLabel(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := RangeLabel(tc.total, tc.from, tc.to, tc.first, tc.last); got != tc.want {
+			if got := Unicode.RangeLabel(tc.total, tc.from, tc.to, tc.first, tc.last); got != tc.want {
 				t.Errorf("RangeLabel = %q, want %q", got, tc.want)
 			}
 		})

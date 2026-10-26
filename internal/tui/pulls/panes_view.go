@@ -60,6 +60,7 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.frames = panes.DefaultStyles(t.Dark)
 	m.frames.Border = m.icons.Border
 	m.frames.Ellipsis = m.icons.Ellipsis
+	m.frames.Separator = m.icons.Separator
 	m.chips = ui.NewLabelChips(m.st.label, t.Dark, m.icons.Ellipsis, headerChipName)
 	m.dim = t.Subtle.Faint(true)
 	m.cst = t.Confirm(m.icons)

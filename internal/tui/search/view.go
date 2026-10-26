@@ -186,7 +186,7 @@ func kindStripForms(st panes.Styles, kinds []core.SearchKind, keys []string, cur
 				parts[i] = st.StripOther.Render(t)
 			}
 		}
-		return strings.Join(parts, st.StripSep.Render(" · "))
+		return strings.Join(parts, st.StripSep.Render(st.Separator))
 	}
 	full := func(k core.SearchKind) string { return kindTitles[k] }
 	short := func(k core.SearchKind) string {

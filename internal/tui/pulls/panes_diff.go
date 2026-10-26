@@ -112,7 +112,7 @@ func (o *diffOverlay) build() tea.Cmd {
 	o.d.SetHeaderMark(o.viewMark)
 	o.d.SetLineMark(o.threadMark)
 	o.d.SetStatusNote(func() string {
-		return diffview.Note(o.d.Cursor()+1, o.d.Len(), o.hints())
+		return o.m.diffGlyphs().Note(o.d.Cursor()+1, o.d.Len(), o.hints())
 	})
 	o.setBlocks()
 	return o.d.Init()
@@ -161,9 +161,15 @@ func (o *diffOverlay) current() string {
 }
 
 // label names the range the diff is of.
+// diffGlyphs are the separator and ellipsis of the diff's titles and labels,
+// from the icon set.
+func (m *panesModal) diffGlyphs() diffview.Glyphs {
+	return diffview.Glyphs{Sep: m.icons.Separator, Ellipsis: m.icons.Ellipsis}
+}
+
 func (o *diffOverlay) label() string {
 	if o.at != "" {
-		return diffview.RangeLabel(1, 0, 0, o.at, o.at)
+		return o.m.diffGlyphs().RangeLabel(1, 0, 0, o.at, o.at)
 	}
 	return o.m.rangeLabel()
 }
@@ -172,7 +178,7 @@ func (o *diffOverlay) title() string {
 	path := o.current()
 	i, n := diffview.Place(o.src.paths(), path)
 	pct := o.d.Cursor() * 100 / max(o.d.Len()-1, 1)
-	return diffview.Title(o.mode, o.label(), path, i, n, o.modeNote(path), pct, o.m.placed().W-4)
+	return o.m.diffGlyphs().Title(o.mode, o.label(), path, i, n, o.modeNote(path), pct, o.m.placed().W-4)
 }
 
 func (o *diffOverlay) kind() panes.OverlayKind { return panes.Viewer }

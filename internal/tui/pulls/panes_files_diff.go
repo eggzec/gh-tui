@@ -215,18 +215,18 @@ func (m *panesModal) filesPreview(panes.Box) string {
 	case f.read.err != "":
 		return m.theme.Subtle.Render(f.read.err)
 	case !f.read.done:
-		return m.theme.Subtle.Render("Loading the files…")
+		return m.theme.Subtle.Render("Loading the files" + m.icons.Ellipsis)
 	case !pv.on && len(pv.order) == 0 && pv.src != nil:
 		return m.theme.Subtle.Render("No files in this range.")
 	case !pv.on:
-		return m.theme.Subtle.Render("Loading the diff…")
+		return m.theme.Subtle.Render("Loading the diff" + m.icons.Ellipsis)
 	}
 	d := &pv.o.d
 	if err := d.Err(); err != nil {
 		return m.theme.Subtle.Render("The diff couldn't be read: " + ui.OneLine(err.Error()))
 	}
 	if d.Len() == 0 && !d.Done() {
-		return m.theme.Subtle.Render("Loading the diff…")
+		return m.theme.Subtle.Render("Loading the diff" + m.icons.Ellipsis)
 	}
 	return d.View()
 }
@@ -247,7 +247,7 @@ func (m *panesModal) filesPreviewTitle(b panes.Box) string {
 	pct := o.d.Cursor() * 100 / max(o.d.Len()-1, 1)
 	// The pane is narrow: the key stays out of its title, so the path and the
 	// percentage fit. The status line hints it.
-	return diffview.Title(o.mode, m.rangeLabel(), path, i, n, o.viewLabel(path), pct, b.Rect.Inner().W)
+	return m.diffGlyphs().Title(o.mode, m.rangeLabel(), path, i, n, o.viewLabel(path), pct, b.Rect.Inner().W)
 }
 
 // rangeLabel names the range of commits the Files pane shows.
@@ -255,8 +255,8 @@ func (m *panesModal) rangeLabel() string {
 	f := &m.files
 	cs := f.commits.Commits
 	if r := f.rng; len(cs) > 0 && r.First >= 0 && r.Last < len(cs) && r.First <= r.Last {
-		return diffview.RangeLabel(len(cs), r.First, r.Last, cs[r.First].OID, cs[r.Last].OID)
+		return m.diffGlyphs().RangeLabel(len(cs), r.First, r.Last, cs[r.First].OID, cs[r.Last].OID)
 	}
 	head := m.detail.HeadSHA
-	return diffview.RangeLabel(1, 0, 0, head, head)
+	return m.diffGlyphs().RangeLabel(1, 0, 0, head, head)
 }

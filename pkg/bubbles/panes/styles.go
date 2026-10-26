@@ -21,6 +21,9 @@ type Styles struct {
 	StripCurrent, StripOther, StripSep lipgloss.Style
 	// Ellipsis ends a line or title that was cut. The default is "…".
 	Ellipsis string
+	// Separator goes between the names in the pane strip. The default is
+	// " · ".
+	Separator string
 }
 
 // DefaultStyles returns calm styles for a light or dark background: a dim
@@ -41,6 +44,7 @@ func DefaultStyles(isDark bool) Styles {
 		StripOther:   lipgloss.NewStyle().Foreground(dim),
 		StripSep:     lipgloss.NewStyle().Foreground(dim),
 		Ellipsis:     "…",
+		Separator:    " · ",
 	}
 }
 

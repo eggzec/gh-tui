@@ -34,6 +34,8 @@ const (
 type Keys struct {
 	// Mark selects a commit or marks a file, and SelectAll selects every commit.
 	Mark, SelectAll string
+	// Sep joins the clauses of a hint.
+	Sep string
 }
 
 // Text is the words of the hint, naming the keys of k. It is empty when the
@@ -43,7 +45,7 @@ func (h Hint) Text(k Keys) string {
 	case HintOne:
 		text := "at least one commit stays selected"
 		if k.SelectAll != "" {
-			text += " · " + k.SelectAll + " selects all"
+			text += k.Sep + k.SelectAll + " selects all"
 		}
 		return text
 	case HintContiguous:

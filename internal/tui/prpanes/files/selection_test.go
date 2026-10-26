@@ -24,7 +24,7 @@ func commitsAt(n int) []core.PullCommit {
 
 func TestHintText(t *testing.T) {
 	t.Parallel()
-	bound := Keys{Mark: "space", SelectAll: "A"}
+	bound := Keys{Mark: "space", SelectAll: "A", Sep: " · "}
 	tests := []struct {
 		name string
 		h    Hint
@@ -33,7 +33,7 @@ func TestHintText(t *testing.T) {
 	}{
 		{"one, bound", HintOne, bound, "at least one commit stays selected · A selects all"},
 		{"one, select all unbound", HintOne, Keys{Mark: "space"}, "at least one commit stays selected"},
-		{"one, rebound", HintOne, Keys{SelectAll: "ctrl+a"}, "at least one commit stays selected · ctrl+a selects all"},
+		{"one, rebound", HintOne, Keys{SelectAll: "ctrl+a", Sep: " · "}, "at least one commit stays selected · ctrl+a selects all"},
 		{"not a commit, bound", HintNotACommit, bound, "space selects a commit or marks a file viewed"},
 		{"not a commit, unbound", HintNotACommit, Keys{SelectAll: "A"}, ""},
 		{"contiguous", HintContiguous, Keys{}, "a range has to be contiguous: only this commit is selected now"},

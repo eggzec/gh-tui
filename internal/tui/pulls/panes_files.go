@@ -49,7 +49,7 @@ func (k filesKeys) hints(ic ui.Icons) files.Keys {
 		}
 		return ic.Key(b.Help().Key)
 	}
-	return files.Keys{Mark: name(k.tree.Mark), SelectAll: name(k.all)}
+	return files.Keys{Mark: name(k.tree.Mark), SelectAll: name(k.all), Sep: ic.Separator}
 }
 
 // newFilesKeys makes the keys of the Files pane from keys.
@@ -260,7 +260,7 @@ func (m *panesModal) filesContent(b panes.Box) panes.Content {
 	case f.err != nil && !f.loaded:
 		return panes.Content{Body: m.theme.Subtle.Render("The commits couldn't be read.")}
 	case !f.loaded:
-		return panes.Content{Body: m.theme.Subtle.Render("Loading the commits…")}
+		return panes.Content{Body: m.theme.Subtle.Render("Loading the commits" + m.icons.Ellipsis)}
 	}
 	in := b.Rect.Inner()
 	m.filesStyles()

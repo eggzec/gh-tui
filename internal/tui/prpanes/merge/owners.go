@@ -97,7 +97,7 @@ func ownersPreview(d Data, o Options) Preview {
 	// Only an owner who still has to review is named: the first one is that
 	// owner, as the required ones come first.
 	if owners[0].state == ownerRequired {
-		p.Title += " · " + owners[0].name
+		p.Title += o.Styles.separator + owners[0].name
 	}
 	p.Info = "CODEOWNERS"
 
@@ -229,9 +229,9 @@ func people(ms []core.Person) string {
 func (s *Styles) ownerState(o ownerState) string {
 	switch o {
 	case ownerRequired:
-		return s.warn.Render("required · no review yet")
+		return s.warn.Render("required" + s.separator + "no review yet")
 	case ownerApproved:
-		return s.ok.Render("approved · not required")
+		return s.ok.Render("approved" + s.separator + "not required")
 	case ownerPlain:
 	}
 	return s.dim.Render("code owner")
