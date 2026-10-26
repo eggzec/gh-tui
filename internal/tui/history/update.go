@@ -11,7 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // Update handles the modal's keys and its reads, and passes everything else
@@ -105,8 +104,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 		m.setFocus(commitPane)
 		return m.loadDetail()
-	case picker.ChosenMsg, picker.CancelMsg:
-		return m.updateFilter(msg)
 	case ui.SyncMsg:
 		// The revalidator found that a branch moved, and cached it.
 		if msg.Err != nil || msg.Key != historysvc.SyncKey(m.repo) {
@@ -119,10 +116,10 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		}
 	}
 	// Ticks, pages and highlights of the bubbles inside.
-	graphCmd, filterCmd := m.updateGraph(msg), m.updateFilter(msg)
+	graphCmd := m.updateGraph(msg)
 	var cmd tea.Cmd
 	m.commit.pager, cmd = m.commit.pager.Update(msg)
-	return tea.Batch(graphCmd, filterCmd, cmd)
+	return tea.Batch(graphCmd, cmd)
 }
 
 // tick spins the spinner while something loads.
@@ -139,9 +136,6 @@ func (m *Modal) tick(msg spinner.TickMsg) tea.Cmd {
 // press handles a key: an open filter or pager search takes every key, the
 // modal's own keys come next, and then those of the focused pane.
 func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
-	if m.branches.filter != nil && m.focus == branchPane {
-		return m.updateFilter(msg)
-	}
 	patch := m.focus == commitPane && m.commit.patch
 	if patch && m.commit.pager.Capturing() {
 		return m.updatePager(msg)

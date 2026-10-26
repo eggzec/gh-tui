@@ -196,9 +196,6 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.graph.model.SetStyles(t.Graph(m.opts.icons))
 	m.commit.pager.SetStyles(t.Pager(m.opts.icons))
-	if m.branches.filter != nil {
-		m.branches.filter.SetStyles(filterStyles(t, m.opts.icons))
-	}
 	m.commit.header = nil
 }
 
@@ -216,16 +213,13 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 	return ui.Selection{What: "commit", URL: m.commitURL(c), Repo: m.repo, SHA: c.SHA, Owner: m.repo.Owner}, true
 }
 
-// KeyLayers implements ui.Keyed. The filter of the branches and a search
-// of the patch each take every key while open; otherwise the modal's own
-// keys come first, named for what they do in the focused pane, and then
-// those of the pane: its list, the graph, or the pager of a patch.
+// KeyLayers implements ui.Keyed. A search of the patch takes every key
+// while open; otherwise the modal's own keys come first, named for what
+// they do in the focused pane, and then those of the pane: its list, the
+// graph, or the pager of a patch.
 func (m *Modal) KeyLayers() []keyhelp.Layer {
 	patch := m.focus == commitPane && m.commit.patch
-	switch {
-	case m.focus == branchPane && m.branches.filter != nil:
-		return []keyhelp.Layer{ui.ContextHelp("picker", *m.branches.filter, true)}
-	case patch && m.commit.pager.Capturing():
+	if patch && m.commit.pager.Capturing() {
 		return []keyhelp.Layer{ui.PagerLayer("history_patch", &m.commit.pager)}
 	}
 	k := m.keys.state(m)

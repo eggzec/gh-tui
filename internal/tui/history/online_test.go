@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // TestOnlineRetriesOnce checks that GitHub answering again reads once
@@ -222,85 +223,102 @@ func TestOnlineHeadRefusedIsNotReadAgain(t *testing.T) {
 	}
 }
 
-// rereadUnderFilter opens the filter over two pages of branches, served
-// kept while GitHub rate limited their read, and lifts the limit, which
-// reads them again from the first page. The second page is still on its
-// way when it returns.
-func rereadUnderFilter(t *testing.T) (*Modal, *host, *fake) {
-	t.Helper()
+// twoPages is a fake with two pages of branches, the second still to read.
+func twoPages() *fake {
 	f := newFake()
-	first := make([]core.Branch, 1, 12)
+	// The first page is long enough that nothing reads the second yet.
+	first := make([]core.Branch, 1, 61)
 	first[0] = core.Branch{Name: "main"}
-	for i := range 11 {
+	for i := range 60 {
 		first = append(first, core.Branch{Name: fmt.Sprintf("feat/%d", i)})
 	}
 	f.branchPages = map[string]core.Page[core.Branch]{
 		"":  {Items: first, Next: "2"},
-		"2": {Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}, {Name: "fix/c"}}},
+		"2": {Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}}},
 	}
-	f.limited = true
-	m, h := newModal(t, f, 108, 30)
-	h.keys("shift+tab", "f")
-	if n := m.branches.filter.Len(); n != 15 {
-		t.Fatalf("the filter lists %d branches, want both pages", n)
-	}
-	f.mu.Lock()
-	f.limited = false
-	f.mu.Unlock()
+	return f
+}
 
+// TestFilterWaitsForEveryPage checks that f opens the form only once the
+// last page of branches is read.
+func TestFilterWaitsForEveryPage(t *testing.T) {
+	m, h := newModal(t, twoPages(), 108, 30)
+	h.take()
+	var held []tea.Msg
 	h.skip = func(msg tea.Msg) bool {
 		b, ok := msg.(branchesMsg)
 		return ok && b.cursor == "2"
 	}
-	h.run(func() tea.Msg { return ui.OnlineMsg{} })
+	h.keys("backspace", "f")
+	held = h.take()
 	h.skip = nil
-	return m, h, f
-}
-
-// TestOnlineFilterKeepsLaterPages checks that the filter, open while the
-// branches are read again from the first page once the limit lifts, keeps
-// listing the branches of the later pages until the read brings them
-// again, rather than shrinking to the first page meanwhile.
-func TestOnlineFilterKeepsLaterPages(t *testing.T) {
-	m, h, f := rereadUnderFilter(t)
-	if n := m.branches.filter.Len(); n != 15 {
-		t.Errorf("the filter lists %d branches while the second page is read again, want 15", n)
+	if openedFilter(held) || !m.branches.wanted {
+		t.Fatalf("the form opened before the last page; wanted %v", m.branches.wanted)
 	}
-	// The second page arrives, with a branch deleted meanwhile.
-	f.mu.Lock()
-	f.branchPages["2"] = core.Page[core.Branch]{Items: []core.Branch{{Name: "fix/a"}, {Name: "fix/b"}}}
-	f.mu.Unlock()
 	h.run(m.loadBranches("2", true))
-	if n := m.branches.filter.Len(); n != 14 {
-		t.Errorf("the filter lists %d branches once both pages are read again, want 14", n)
+	if !openedFilter(h.take()) || m.branches.wanted {
+		t.Error("the form didn't open once the last page landed")
 	}
 }
 
-// TestOnlineFilterShowsWhatLoadedOnError checks that the filter lists the
-// branches loaded once a later page fails to be read again, rather than
-// what it listed before the read.
-func TestOnlineFilterShowsWhatLoadedOnError(t *testing.T) {
-	m, h, f := rereadUnderFilter(t)
+// TestFilterOpensOnAReadError checks that a failed page opens the form with
+// the branches loaded.
+func TestFilterOpensOnAReadError(t *testing.T) {
+	f := twoPages()
+	m, h := newModal(t, f, 108, 30)
+	h.take()
+	h.skip = func(msg tea.Msg) bool {
+		b, ok := msg.(branchesMsg)
+		return ok && b.cursor == "2"
+	}
+	h.keys("backspace", "f")
+	h.skip = nil
+	h.take()
 	f.mu.Lock()
 	f.errs["branches"] = fmt.Errorf("github: GET: %w", core.ErrOffline)
 	f.mu.Unlock()
 	h.run(m.loadBranches("2", true))
-	if n := m.branches.filter.Len(); n != 12 {
-		t.Errorf("the filter lists %d branches once the second page failed, want the 12 loaded", n)
+	if !openedFilter(h.take()) {
+		t.Fatal("the form didn't open after the read failed")
+	}
+	fl, _ := m.Filter()
+	if n := len(fl.Spec.Fields[0].Options); n != 61 {
+		t.Errorf("the form lists %d branches, want the 61 loaded", n)
 	}
 }
 
-// TestOnlineFilterChoosesBranchOfLaterPage checks that a branch chosen in
-// the filter while the page that lists it is read again gets the cursor
-// once that page arrives.
-func TestOnlineFilterChoosesBranchOfLaterPage(t *testing.T) {
-	m, h, _ := rereadUnderFilter(t)
-	h.keys("f", "i", "x", "/", "c", "enter")
-	if m.branches.filter != nil || m.graph.shown() != "fix/c" {
-		t.Fatalf("filter open %v, graph of %q; want fix/c shown", m.branches.filter != nil, m.graph.shown())
+// TestFilterSpec checks the one choice of the form.
+func TestFilterSpec(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.keys("backspace", "j")
+	fl, _ := m.Filter()
+	if len(fl.Spec.Fields) != 1 {
+		t.Fatalf("the form has %d fields, want 1", len(fl.Spec.Fields))
 	}
-	h.run(m.loadBranches("2", true))
-	if b, _ := m.branches.selected(); b.Name != "fix/c" || m.branches.follow != "" {
-		t.Errorf("cursor on %q, following %q; want on fix/c", b.Name, m.branches.follow)
+	fd := fl.Spec.Fields[0]
+	if fd.Key != "branch" || fd.Kind != filterform.Choice || fd.Label != "Branch" {
+		t.Errorf("field %q %q %v, want a Choice branch", fd.Key, fd.Label, fd.Kind)
+	}
+	for i, br := range m.branches.items {
+		want := ""
+		if br.Name == m.branches.defaultBranch {
+			want = "default"
+		}
+		if o := fd.Options[i]; o.Value != br.Name || o.Detail != want {
+			t.Errorf("option %d is %+v, want %q with detail %q", i, o, br.Name, want)
+		}
+	}
+	if b, _ := m.branches.selected(); fl.Query != "branch:"+b.Name {
+		t.Errorf("query %q, want the branch under the cursor %q", fl.Query, b.Name)
+	}
+}
+
+// TestApplyFilterFollowsAMissingBranch checks that a branch no page loaded
+// yet is followed rather than selected.
+func TestApplyFilterFollowsAMissingBranch(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	h.run(m.ApplyFilter(filterform.AppliedMsg{Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("fix/c")}}))
+	if m.branches.follow != "fix/c" || m.graph.shown() != "fix/c" {
+		t.Errorf("following %q, graph of %q; want fix/c", m.branches.follow, m.graph.shown())
 	}
 }

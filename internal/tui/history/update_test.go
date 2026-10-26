@@ -14,6 +14,7 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
@@ -285,15 +286,7 @@ func TestZoom(t *testing.T) {
 
 func TestZoomLeavesKeysToInputs(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("z", "shift+tab", "f", "z")
-	if !m.zoom || m.branches.filter == nil || m.branches.filter.Query().Text != "z" {
-		t.Fatalf("zoom %v; want z typed into the filter of the zoomed branches", m.zoom)
-	}
-	h.keys("esc")
-	if !m.zoom || m.branches.filter != nil {
-		t.Fatalf("zoom %v, filter open %v; want esc to close the filter alone", m.zoom, m.branches.filter != nil)
-	}
-	h.keys("tab", "enter", "enter", "/", "z")
+	h.keys("z", "enter", "enter", "/", "z")
 	if !m.zoom || !m.commit.patch || !m.commit.pager.Capturing() {
 		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.zoom, m.commit.patch)
 	}
@@ -476,27 +469,30 @@ func TestCompareAroundIsConfigured(t *testing.T) {
 func TestFilterBranches(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
-	h.keys("backspace", "f", "v", "2")
-	if m.branches.filter == nil || !strings.Contains(screen(m), "v2-exp") || strings.Contains(screen(m), "fix/tabs") {
-		t.Fatalf("the filter shows:\n%s", screen(m))
-	}
-	// The filter takes every key, esc and tab too.
-	h.keys("tab")
-	if m.focus != branchPane {
-		t.Fatal("tab left the filter")
+	h.keys("backspace", "f")
+	if !openedFilter(h.take()) {
+		t.Fatal("f opened no filter over the modal")
 	}
 	f.took()
-	h.keys("enter")
-	if m.branches.filter != nil || m.graph.shown() != "v2-exp" || m.focus != graphPane {
-		t.Errorf("filter open %v, graph of %q; want v2-exp shown", m.branches.filter != nil, m.graph.shown())
+	h.run(m.ApplyFilter(filterform.AppliedMsg{Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("v2-exp")}}))
+	if m.graph.shown() != "v2-exp" {
+		t.Errorf("graph of %q; want v2-exp shown", m.graph.shown())
 	}
 	if b, _ := m.branches.selected(); b.Name != "v2-exp" {
 		t.Errorf("cursor on %q, want v2-exp", b.Name)
 	}
-	h.keys("backspace", "f", "esc")
-	if m.branches.filter != nil || m.focus != branchPane {
-		t.Error("esc didn't close the filter alone")
-	}
+}
+
+// openedFilter reports whether msgs open a filter form.
+func openedFilter(msgs []tea.Msg) bool {
+	return slices.ContainsFunc(msgs, func(msg tea.Msg) bool {
+		o, ok := msg.(ui.OpenModalMsg)
+		if !ok {
+			return false
+		}
+		fm, ok := o.Modal.(*ui.FilterModal)
+		return ok && fm != nil
+	})
 }
 
 // A later page of branches is read past what an earlier session kept of
@@ -810,16 +806,6 @@ func TestEscClosesFromThePatch(t *testing.T) {
 	h.keys("esc")
 	if got := h.take(); !slices.Equal(got, []tea.Msg{ui.CloseModalMsg{Modal: m}}) {
 		t.Errorf("esc in the patch sent %#v, want the modal closed", got)
-	}
-}
-
-// TestBackspaceTypesInTheFilter checks that the filter of the branches
-// keeps backspace to delete: it neither steps back nor closes.
-func TestBackspaceTypesInTheFilter(t *testing.T) {
-	m, h := newModal(t, newFake(), 108, 30)
-	h.keys("backspace", "f", "a", "b", "backspace")
-	if m.focus != branchPane || m.branches.filter == nil || m.branches.filter.Query().Text != "a" || len(h.take()) != 0 {
-		t.Errorf("backspace in the filter: pane %d, filter %v", m.focus, m.branches.filter != nil)
 	}
 }
 
