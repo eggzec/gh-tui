@@ -338,7 +338,7 @@ func TestGuards(t *testing.T) {
 		s := modals.New(10)
 		a, b := newA("a"), newB("b")
 		s.Add(a, modals.PriorityContent, modals.WithGuard(guard("a", modals.Refuse("draft"))))
-		s.Add(b, modals.PriorityShape, modals.WithGuard(guard("b", modals.SaveAndClose(mark("saved")))))
+		s.Add(b, modals.PriorityShape, modals.WithGuard(guard("b", modals.CloseAfter(mark("saved")))))
 		ch := s.Quit()
 		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Blocker != ui.Modal(a) || ch.Closed {
 			t.Errorf("quit %+v", ch)
@@ -516,5 +516,158 @@ func TestReopenedOnceOnReturn(t *testing.T) {
 	}
 	if ch := s.Close(x); len(reopened(ch.Cmd)) != 0 {
 		t.Error("closing the last modal sent reopened")
+	}
+}
+
+func TestAnywhereKeepsOneCopyAndDiscardsTheOlder(t *testing.T) {
+	t.Parallel()
+	old, p := newA("old"), newB("p")
+	s := modals.New(10)
+	s.Add(old, modals.PriorityAnywhere)
+	s.Add(p, modals.PriorityContent)
+	s.Add(newA("new"), modals.PriorityAnywhere)
+	if old.discards != 1 {
+		t.Errorf("older copy discards = %d, want 1", old.discards)
+	}
+	if got := titles(s); !slices.Equal(got, []string{"new", "p"}) {
+		t.Errorf("held = %v", got)
+	}
+}
+
+func TestSameAgainstAnywhereTop(t *testing.T) {
+	t.Parallel()
+	s := modals.New(10)
+	top := newA("s")
+	s.Add(top, modals.PriorityAnywhere)
+	dup := newA("s")
+	ch := s.Add(dup, modals.PriorityAnywhere)
+	if ch.Refused != modals.Same || ch.Blocker != ui.Modal(top) || s.Top() != ui.Modal(top) || top.discards != 0 || dup.discards != 0 {
+		t.Errorf("change %+v", ch)
+	}
+}
+
+func TestCloseAnywhereLeavesEquals(t *testing.T) {
+	t.Parallel()
+	c1, c2, neg := newA("c1"), newB("c2"), newA("s")
+	s := modals.New(10)
+	s.Add(c1, modals.PriorityContent)
+	s.Add(c2, modals.PriorityContent)
+	s.Add(neg, modals.PriorityAnywhere)
+	ch := s.Close(neg)
+	if !ch.Closed || s.Top() != ui.Modal(c2) || c1.discards+c2.discards != 0 || neg.discards != 1 {
+		t.Errorf("change %+v, held %v", ch, titles(s))
+	}
+}
+
+func TestRankChecksHighestBeneathAnywhere(t *testing.T) {
+	t.Parallel()
+	s := modals.New(10)
+	s.Add(newA("prompt"), 60)
+	srch := newB("s")
+	s.Add(srch, modals.PriorityAnywhere)
+	l := newA("l")
+	ch := s.Add(l, 10)
+	if ch.Refused != modals.Lower || ch.Blocker != ui.Modal(srch) || s.Top() != ui.Modal(srch) {
+		t.Errorf("change %+v", ch)
+	}
+	if f := fakeOf(l); f.discards+f.hides+f.themes != 0 {
+		t.Errorf("a refused modal was called: %+v", f)
+	}
+	if ch := s.Add(newA("higher"), 70); !ch.Opened {
+		t.Errorf("a higher modal was refused: %v", ch.Refused)
+	}
+}
+
+func TestAnywhereHasNoGuard(t *testing.T) {
+	t.Parallel()
+	var asked int
+	g := func(modals.Reason) modals.Closing { asked++; return modals.Refuse("no") }
+	s := modals.New(0)
+	s.Add(newA("p"), modals.PriorityContent)
+	s.Add(newB("s"), modals.PriorityAnywhere, modals.WithGuard(g))
+	if ch := s.Quit(); ch.Refused != modals.NotRefused || ch.Cmd != nil {
+		t.Errorf("quit %+v", ch)
+	}
+	s.Add(newA("p2"), modals.PriorityContent)
+	if asked != 0 {
+		t.Errorf("an anywhere guard was asked %d times", asked)
+	}
+}
+
+func TestAnywhereNotCountedForEviction(t *testing.T) {
+	t.Parallel()
+	t.Run("a burst keeps the content", func(t *testing.T) {
+		s := modals.New(1)
+		c1, c2, c3 := newA("c1"), newB("c2"), newA("c3")
+		s.Add(c1, modals.PriorityContent)
+		s.Add(newA("s"), modals.PriorityAnywhere)
+		s.Add(newB("n"), modals.PriorityAnywhere)
+		s.Add(c2, modals.PriorityContent)
+		if c1.discards != 0 {
+			t.Fatal("content evicted by anywhere modals")
+		}
+		s.Add(c3, modals.PriorityContent)
+		if c1.discards != 1 || !slices.Equal(titles(s), []string{"c3", "c2", "n", "s"}) {
+			t.Errorf("held %v, c1 discards %d", titles(s), c1.discards)
+		}
+	})
+	t.Run("the oldest is anywhere", func(t *testing.T) {
+		s := modals.New(1)
+		neg, c1 := newA("s"), newB("c1")
+		s.Add(neg, modals.PriorityAnywhere)
+		s.Add(c1, modals.PriorityContent)
+		s.Add(newA("c2"), modals.PriorityContent)
+		s.Add(newB("c3"), modals.PriorityContent)
+		if neg.discards != 0 || c1.discards != 1 || !slices.Equal(titles(s), []string{"c3", "c2", "s"}) {
+			t.Errorf("held %v, discards neg %d c1 %d", titles(s), neg.discards, c1.discards)
+		}
+	})
+}
+
+func TestBackAsksGuard(t *testing.T) {
+	t.Parallel()
+	mark := func(name string) tea.Cmd { return func() tea.Msg { return name } }
+	t.Run("keep", func(t *testing.T) {
+		var asked []modals.Reason
+		under, top := newA("u"), newB("t")
+		s := modals.New(10)
+		s.Add(under, modals.PriorityContent)
+		s.Add(top, modals.PriorityContent, modals.WithGuard(func(r modals.Reason) modals.Closing {
+			asked = append(asked, r)
+			return modals.Closing{Keep: true, Toast: "draft", Cmd: mark("kept")}
+		}))
+		ch := s.Back(top)
+		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Blocker != ui.Modal(top) || ch.Closed {
+			t.Errorf("change %+v", ch)
+		}
+		if s.Top() != ui.Modal(top) || top.discards != 0 || !slices.Equal(asked, []modals.Reason{modals.Dismiss}) {
+			t.Errorf("top %v, asked %v", s.Top(), asked)
+		}
+		if got := msgs(ch.Cmd); len(got) != 1 || got[0] != "kept" {
+			t.Errorf("cmd msgs = %v", got)
+		}
+	})
+	t.Run("close", func(t *testing.T) {
+		under, top := newA("u"), newB("t")
+		s := modals.New(10)
+		s.Add(under, modals.PriorityContent)
+		s.Add(top, modals.PriorityContent, modals.WithGuard(func(modals.Reason) modals.Closing {
+			return modals.CloseAfter(mark("saved"))
+		}))
+		ch := s.Back(top)
+		if !ch.Closed || ch.Refused != modals.NotRefused || s.Top() != ui.Modal(under) || top.discards != 1 {
+			t.Errorf("change %+v", ch)
+		}
+		if got := msgs(ch.Cmd); len(got) != 2 || got[0] != "saved" {
+			t.Errorf("cmd msgs = %v", got)
+		}
+	})
+}
+
+func TestQuitWithoutGuards(t *testing.T) {
+	t.Parallel()
+	s := build(t, spec{"a", "x", 20})
+	if ch := s.Quit(); ch.Cmd != nil || ch.Refused != modals.NotRefused {
+		t.Errorf("quit %+v", ch)
 	}
 }
