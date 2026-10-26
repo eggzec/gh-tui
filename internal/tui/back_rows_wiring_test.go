@@ -1,13 +1,19 @@
 package tui
 
 import (
-	"slices"
+	"context"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
+	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/tui/actions"
 	"github.com/eggzec/gh-tui/internal/tui/modals"
+	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -42,27 +48,101 @@ func TestQuitCommandStaysOpenWhenAGuardKeeps(t *testing.T) {
 	}
 }
 
-// TestCtrlCSavesACoveredSaver checks that ctrl+c saves a modal that another
-// covers, not only the one on top, and quits.
-func TestCtrlCSavesACoveredSaver(t *testing.T) {
+// countDrafts counts the saves and deletes of the drafts of merge messages.
+type countDrafts struct{ saves, deletes atomic.Int32 }
+
+func (*countDrafts) Load(string) (string, error) { return "", nil }
+func (d *countDrafts) Save(string, string) error { d.saves.Add(1); return nil }
+func (d *countDrafts) Delete(string) error       { d.deletes.Add(1); return nil }
+
+// TestCtrlCSavesARealSaver checks, with the real merge dialog, that ctrl+c
+// saves the dialog's message while it is open, and quits.
+func TestCtrlCSavesARealSaver(t *testing.T) {
 	t.Parallel()
-	m, _ := newTestApp(t)
-	held := &savingModal{}
-	held.title = "Comment"
-	f := &shapeModal{}
-	f.title = "filter"
-	run(m, ui.OpenModalOver(held, nil))
-	run(m, ui.OpenModalOver(f, held))
-	if m.modals.Top() != ui.Modal(f) {
-		t.Fatalf("top is %v, want the filter over the comment", m.modals.Top())
-	}
-	cmd := m.key(ctrlC)
-	if held.saved != 1 {
-		t.Errorf("the covered modal was saved %d times, want 1", held.saved)
-	}
-	if !quits(cmd) {
-		t.Error("ctrl+c didn't quit")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		d := &countDrafts{}
+		m := newKeysAppPulls(t, true, func(*config.Config) {}, keyInbox{}, []pulls.Option{pulls.WithDrafts(d, "test")})
+		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1} })
+		driveKeys(t, m, m.key(press("M")))
+		dialog := m.modals.Top()
+		if _, ok := dialog.(*pulls.MergeDialog); !ok {
+			t.Fatalf("M opened %T, want the merge dialog", dialog)
+		}
+		cmd := m.key(ctrlC)
+		if n := d.saves.Load() + d.deletes.Load(); n != 1 {
+			t.Errorf("the open dialog's draft was kept %d times, want 1", n)
+		}
+		if !quits(cmd) {
+			t.Error("ctrl+c didn't quit")
+		}
+	})
+}
+
+// logActions is keyActions with a run that is still going, and counts the
+// follows of its log that are open.
+type logActions struct {
+	keyActions
+	open, runs atomic.Int32
+}
+
+func running() core.Run {
+	r := keyRun
+	r.Status, r.Conclusion = core.RunInProgress, ""
+	return r
+}
+
+func (a *logActions) Runs(context.Context, actionssvc.RunsQuery) (core.Page[core.Run], error) {
+	a.runs.Add(1)
+	return core.Page[core.Run]{Items: []core.Run{running()}}, nil
+}
+func (*logActions) CachedRun(core.RepoRef, int64) (core.Run, bool) { return running(), true }
+func (*logActions) Run(context.Context, core.RepoRef, int64) (core.Run, error) {
+	return running(), nil
+}
+func runningJob() core.Job {
+	j := keyJob
+	j.Status, j.Conclusion = core.RunInProgress, ""
+	return j
+}
+
+func (*logActions) CachedAllJobs(actionssvc.JobsQuery) (core.Page[core.Job], bool) {
+	return core.Page[core.Job]{Items: []core.Job{runningJob()}}, true
+}
+func (*logActions) AllJobs(context.Context, actionssvc.JobsQuery) (core.Page[core.Job], error) {
+	return core.Page[core.Job]{Items: []core.Job{runningJob()}}, nil
+}
+func (a *logActions) WatchLog(core.RepoRef, int64, int64) func() {
+	a.open.Add(1)
+	return func() { a.open.Add(-1) }
+}
+
+// TestJobLogQuitReturnsToTheActions checks, with the real Actions modal, that
+// q in a job's log ends its watch and shows the Actions modal again.
+func TestJobLogQuitReturnsToTheActions(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		svc := &logActions{}
+		m := newKeysAppOpts(t, true, func(*config.Config) {}, WithActions(actions.Opener(svc, config.Default().Keys)))
+		driveTicking(m, func() tea.Msg {
+			return ui.OpenActionsMsg{Repo: testRepo, At: ui.ActionsAt{Run: keyRun.ID, Job: keyJob.ID, Jobs: true}}
+		})
+		host := m.modals.Top()
+		driveTicking(m, m.key(press("enter")))
+		log := m.modals.Top()
+		if log == nil || log == host {
+			t.Fatalf("enter didn't open the log over the actions: %v", log)
+		}
+		if svc.open.Load() == 0 {
+			t.Fatal("the open log isn't watched")
+		}
+		driveTicking(m, m.key(press("q")))
+		if m.modals.Top() != host {
+			t.Errorf("q left %v, want the Actions modal", m.modals.Top())
+		}
+		if n := svc.open.Load(); n != 0 {
+			t.Errorf("%d watches still open after q", n)
+		}
+	})
 }
 
 // TestSearchPullIssueReturn checks, with the real modals, that esc on an issue
@@ -109,21 +189,28 @@ func TestSearchPullIssueReturn(t *testing.T) {
 // it can resume.
 func TestFilterEscTellsTheModalUnderItReopened(t *testing.T) {
 	t.Parallel()
-	m, _ := newTestApp(t)
-	host := &backModal{}
-	host.title = "Actions"
-	f := &shapeModal{}
-	f.title = "filter"
-	run(m, ui.OpenModalOver(host, nil))
-	run(m, ui.OpenModalOver(f, host))
-	run(m, m.key(press("esc")))
-	if m.modals.Top() != ui.Modal(host) {
-		t.Fatalf("esc left %v, want the host", m.modals.Top())
-	}
-	if !slices.ContainsFunc(host.msgs, func(msg tea.Msg) bool {
-		r, ok := msg.(ui.ReopenedMsg)
-		return ok && r.Modal == ui.Modal(host)
-	}) {
-		t.Errorf("the host got %v, want a ReopenedMsg for itself", host.msgs)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		svc := &logActions{}
+		m := newKeysAppOpts(t, true, func(*config.Config) {}, WithActions(actions.Opener(svc, config.Default().Keys)))
+		driveTicking(m, m.key(press("A")))
+		host := m.modals.Top()
+		if host == nil {
+			t.Fatal("A opened nothing")
+		}
+		driveTicking(m, m.key(press("f")))
+		filter := m.modals.Top()
+		if filter == nil || filter == host {
+			t.Fatalf("f opened %v, want the filter over the actions", filter)
+		}
+		// The modal under the filter is told when the filter closes, and
+		// follows the run it shows again.
+		before := svc.runs.Load()
+		driveTicking(m, m.key(press("esc")))
+		if m.modals.Top() != host {
+			t.Fatalf("esc left %v, want the Actions modal", m.modals.Top())
+		}
+		if svc.runs.Load() <= before {
+			t.Error("the Actions modal didn't read its runs again after the filter closed")
+		}
+	})
 }
