@@ -5,8 +5,8 @@ import tea "charm.land/bubbletea/v2"
 // Reason says why the app closes a modal that has a guard.
 type Reason int
 
-// The reasons. Dismiss is an esc run, a backspace the modal did not take, or
-// the eviction of the oldest modal; Quit is the app leaving.
+// The reasons. Dismiss is an esc run, a backspace the modal did not take (Back
+// asks the guard of the modal it pops), or the eviction of the oldest modal; Quit is the app leaving.
 const (
 	Dismiss Reason = iota
 	Quit
@@ -33,9 +33,3 @@ func Refuse(toast string) Closing { return Closing{Keep: true, Toast: toast} }
 
 // CloseAfter answers that the modal may close, and runs cmd.
 func CloseAfter(cmd tea.Cmd) Closing { return Closing{Cmd: cmd} }
-
-// Keep refuses the close and shows toast.
-func Keep(toast string) Closing { return Refuse(toast) }
-
-// SaveAndClose closes the modal and runs cmd, which saves what it holds.
-func SaveAndClose(cmd tea.Cmd) Closing { return CloseAfter(cmd) }

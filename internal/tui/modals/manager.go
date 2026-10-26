@@ -65,7 +65,8 @@ type opening struct {
 // past the rank rule. A nil from checks nothing.
 func WithOver(from ui.Modal) Option { return func(o *opening) { o.over = from } }
 
-// WithGuard asks g before the app closes the modal on its own account.
+// WithGuard asks g before the app closes the modal on its own account. It is
+// ignored for a modal of a negative priority, which has no guards.
 func WithGuard(g Guard) Option { return func(o *opening) { o.guard = g } }
 
 // WithMaximized sets whether the modal starts maximized. The entry keeps its
@@ -96,13 +97,40 @@ type Manager struct {
 }
 
 // New returns a manager that keeps at most maxHeld modals beneath the top;
-// opening past that evicts the oldest.
+// opening past that evicts the oldest. Modals of a negative priority are not
+// counted and are never evicted, so a burst of them cannot push real content
+// out; the oldest of the others goes.
 func New(maxHeld int) *Manager { return &Manager{maxHeld: maxHeld} }
 
+// counted counts the modals that are not of a negative priority.
+func (s *Manager) counted() int {
+	n := 0
+	for _, e := range s.trail {
+		if e.prio >= 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// highest is the entry of the highest non-negative priority, the topmost of
+// equals, or nil.
+func (s *Manager) highest() *entry {
+	var hi *entry
+	for _, e := range s.trail {
+		if e.prio >= 0 && (hi == nil || e.prio >= hi.prio) {
+			hi = e
+		}
+	}
+	return hi
+}
+
 // Add opens mod at priority p. A higher priority opens over the top, an equal
-// one replaces it (the old one is held for Back only), and a lower one is
-// refused. A negative priority opens over any top, closes nothing and is
-// never replaced. A refused open calls nothing on mod.
+// one replaces it (the old one is held for Back only), and a lower one than
+// the highest non-negative modal in the trail, even beneath an anywhere
+// modal, is refused. A negative priority opens over any top, closes nothing,
+// is never replaced and takes no guard: WithGuard is ignored for it. A
+// refused open calls nothing on mod.
 func (s *Manager) Add(mod ui.Modal, p Priority, opts ...Option) Change {
 	var o opening
 	for _, opt := range opts {
@@ -115,8 +143,15 @@ func (s *Manager) Add(mod ui.Modal, p Priority, opts ...Option) Change {
 	if top != nil && reflect.TypeOf(top.mod) == reflect.TypeOf(mod) && top.mod.Title() == mod.Title() {
 		return Change{Refused: Same, Blocker: top.mod}
 	}
-	if p >= 0 && top != nil && p < top.prio {
-		return Change{Refused: Lower, Blocker: top.mod}
+	if p >= 0 {
+		// A modal that is not on top can still outrank the new one: a search
+		// over a prompt must not let a list open over the prompt.
+		if hi := s.highest(); hi != nil && p < hi.prio {
+			return Change{Refused: Lower, Blocker: top.mod}
+		}
+	}
+	if p < 0 {
+		o.guard = nil
 	}
 
 	if p < 0 {
@@ -137,9 +172,10 @@ func (s *Manager) Add(mod ui.Modal, p Priority, opts ...Option) Change {
 	s.trail = append(s.trail, &entry{mod: mod, prio: p, guard: o.guard, maximized: o.maximized})
 
 	var cmds []tea.Cmd
-	for len(s.trail) > 1 && len(s.trail) > s.maxHeld+1 {
-		oldest := s.trail[0]
-		s.trail = s.trail[1:]
+	for s.counted() > s.maxHeld+1 {
+		i := slices.IndexFunc(s.trail, func(e *entry) bool { return e.prio >= 0 })
+		oldest := s.trail[i]
+		s.trail = slices.Delete(s.trail, i, i+1)
 		if oldest.guard != nil {
 			cmds = append(cmds, oldest.guard(Dismiss).Cmd)
 		}
@@ -164,14 +200,23 @@ func (s *Manager) Close(mod ui.Modal) Change {
 	})
 }
 
-// Back pops mod alone, to return to the modal under it. It does nothing
-// unless mod is the top.
+// Back pops mod alone, to return to the modal under it. Its guard is asked
+// with Dismiss and may keep it. It does nothing unless mod is the top.
 func (s *Manager) Back(mod ui.Modal) Change {
 	top := s.top()
 	if top == nil || top.mod != mod {
 		return Change{}
 	}
-	return s.pop(func(int) bool { return false })
+	var ans Closing
+	if top.guard != nil {
+		ans = top.guard(Dismiss)
+		if ans.Keep {
+			return Change{Refused: Kept, Blocker: top.mod, Toast: ans.Toast, Cmd: ans.Cmd}
+		}
+	}
+	ch := s.pop(func(int) bool { return false })
+	ch.Cmd = tea.Batch(ans.Cmd, ch.Cmd)
+	return ch
 }
 
 // pop closes the top, then each entry below it that more reports as part of
@@ -213,8 +258,10 @@ func discard(mod ui.Modal) {
 	}
 }
 
-// Quit asks every guard with Quit and closes nothing. The first that keeps
-// its modal refuses the quit; the guards' commands are collected in order.
+// Quit asks every guard with Quit, top first, and closes nothing. All are
+// asked even after one keeps its modal; the first that keeps refuses the quit,
+// and the guards' commands are collected in order. With no guards the Cmd is
+// nil.
 func (s *Manager) Quit() Change {
 	var ch Change
 	var cmds []tea.Cmd
