@@ -1098,6 +1098,12 @@ func newKeysAppOpts(t *testing.T, repo bool, edit func(*config.Config), extra ..
 // newKeysAppInbox is newKeysAppOpts with the notifications served by inbox.
 func newKeysAppInbox(t *testing.T, repo bool, edit func(*config.Config), inbox keyInbox, extra ...Option) *Model {
 	t.Helper()
+	return newKeysAppPulls(t, repo, edit, inbox, nil, extra...)
+}
+
+// newKeysAppPulls is newKeysAppInbox with more options for the pull requests.
+func newKeysAppPulls(t *testing.T, repo bool, edit func(*config.Config), inbox keyInbox, pullOpts []pulls.Option, extra ...Option) *Model {
+	t.Helper()
 	ctx, cfg := t.Context(), config.Default()
 	edit(&cfg)
 	acc := newFakeAccess(uitest.Classic("repo", "workflow", "notifications", "read:org", "gist"))
@@ -1108,9 +1114,9 @@ func newKeysAppInbox(t *testing.T, repo bool, edit func(*config.Config), inbox k
 	ic := ui.NewIcons(cfg.UI.Icons)
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
-		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, pulls.WithVoice(v), pulls.WithIcons(ic),
+		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, append([]pulls.Option{pulls.WithVoice(v), pulls.WithIcons(ic),
 			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}),
-			pulls.WithReviewDrafts(keyReviewDrafts())),
+			pulls.WithReviewDrafts(keyReviewDrafts())}, pullOpts...)...),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Notifications: notifications.New(ctx, inbox, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
@@ -1144,10 +1150,23 @@ func newKeysAppInbox(t *testing.T, repo bool, edit func(*config.Config), inbox k
 // ticks are dropped, as they never end.
 func driveKeys(t *testing.T, m *Model, cmd tea.Cmd) {
 	t.Helper()
+	if left := driveSteps(m, cmd, 2000); left > 0 {
+		t.Fatalf("the commands don't end: %d left", left)
+	}
+}
+
+// driveTicking is driveKeys for a modal that polls while its run is going:
+// the poll's tick never ends, so it stops after a few hundred steps, which
+// settle everything else.
+func driveTicking(m *Model, cmd tea.Cmd) { driveSteps(m, cmd, 300) }
+
+// driveSteps runs the commands for at most limit steps and returns how many
+// are left.
+func driveSteps(m *Model, cmd tea.Cmd, limit int) int {
 	queue := []tea.Cmd{cmd}
 	for steps := 0; len(queue) > 0; steps++ {
-		if steps > 2000 {
-			t.Fatalf("the commands don't end: %d left", len(queue))
+		if steps > limit {
+			return len(queue)
 		}
 		c := queue[0]
 		queue = queue[1:]
@@ -1166,6 +1185,7 @@ func driveKeys(t *testing.T, m *Model, cmd tea.Cmd) {
 		_, next := m.Update(msg)
 		queue = append(queue, next)
 	}
+	return 0
 }
 
 // cmdsOf returns the commands of a batch or a sequence, whose message
