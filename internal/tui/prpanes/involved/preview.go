@@ -11,9 +11,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 )
 
-// sep joins the roles of a person.
-const sep = " · "
-
 // Preview is what a row of the pane has to show beside it. Title and Info are
 // plain text for the frame to style. Head and Body are drawn.
 //
@@ -85,7 +82,7 @@ func group(title string, lines []string, o Options) Preview {
 		return Preview{Title: title, Body: o.Styles.dim.Render("nobody")}
 	}
 	for i, l := range lines {
-		lines[i] = cut(l, o.Width)
+		lines[i] = o.Styles.cut(l, o.Width)
 	}
 	return Preview{Title: title, Body: strings.Join(lines, "\n")}
 }
@@ -103,12 +100,12 @@ func empty(title, hint string, o Options) Preview {
 // and what they wrote in it.
 func person(d Data, p people, who Person, o Options) Preview {
 	st := &o.Styles
-	pv := Preview{Title: who.Name, Info: strings.Join(roles(d, p, who), sep)}
+	pv := Preview{Title: who.Name, Info: strings.Join(roles(d, p, who), st.sep)}
 	if who.Team != "" {
 		pv.Head = append(pv.Head, st.bold.Render("Team members:"), st.dim.Render("  members hidden"), "")
 	}
 	if who.State != None {
-		pv.Head = append(pv.Head, cut(st.bold.Render(st.glyphs.Render(glyphOf(who.State))+" review: "+who.State.String()), o.Width))
+		pv.Head = append(pv.Head, st.cut(st.bold.Render(st.glyphs.Render(glyphOf(who.State))+" review: "+who.State.String()), o.Width))
 	}
 	pv.Head = append(pv.Head, st.dim.Render(strings.Repeat("─", max(o.Width, 0))))
 	pv.Nothing = st.dim.Render("no comments or reviews from " + who.Name + " in this pull request")
@@ -210,9 +207,9 @@ func wroteIn(t *core.Thread, login string) bool {
 }
 
 // cut shortens line to width cells, which is zero for no limit.
-func cut(line string, width int) string {
+func (s *Styles) cut(line string, width int) string {
 	if width <= 0 {
 		return line
 	}
-	return ansi.Truncate(line, width, "…")
+	return ansi.Truncate(line, width, s.ellipsis)
 }

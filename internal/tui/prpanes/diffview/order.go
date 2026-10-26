@@ -19,16 +19,16 @@ const shortSHA = 7
 // the commits at those indexes. One commit is its short id alone; every commit
 // reads "all N commits · first…last" and a part of them
 // "k of N commits · first…last".
-func RangeLabel(total, from, to int, first, last string) string {
+func (g Glyphs) RangeLabel(total, from, to int, first, last string) string {
 	k := to - from + 1
 	if k <= 1 {
 		return short(first)
 	}
-	span := short(first) + "…" + short(last)
+	span := short(first) + g.Ellipsis + short(last)
 	if from <= 0 && to >= total-1 {
-		return fmt.Sprintf("all %d commits · %s", total, span)
+		return fmt.Sprintf("all %d commits%s%s", total, g.Sep, span)
 	}
-	return fmt.Sprintf("%d of %d commits · %s", k, total, span)
+	return fmt.Sprintf("%d of %d commits%s%s", k, total, g.Sep, span)
 }
 
 // short cuts a commit id to its abbreviated form.

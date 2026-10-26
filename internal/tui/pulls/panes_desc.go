@@ -92,7 +92,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 		info = append(info, fmt.Sprintf("%d%%", min(at*100/total, 100)))
 	}
 	if len(info) > 0 {
-		c.TopRight = []string{strings.Join(info, " · ")}
+		c.TopRight = []string{strings.Join(info, m.icons.Separator)}
 	}
 	return c
 }

@@ -33,7 +33,7 @@ func TestTitle(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := Title(tc.mode, label, tc.path, 2, 7, "hunks only", 40, tc.width)
+			got := Unicode.Title(tc.mode, label, tc.path, 2, 7, "hunks only", 40, tc.width)
 			if got != tc.want {
 				t.Errorf("Title = %q, want %q", got, tc.want)
 			}
@@ -47,7 +47,7 @@ func TestTitleFitsTheWidth(t *testing.T) {
 	for _, path := range []string{"a.go", long, "dir/界界界界界界界界界界界界界界界界界界界界.go"} {
 		for _, m := range []Mode{ThisFile, WholePatch} {
 			for _, w := range []int{0, 1, 10, 40, 80, 160} {
-				got := Title(m, label, path, 12, 345, "hunks only", 100, w)
+				got := Unicode.Title(m, label, path, 12, 345, "hunks only", 100, w)
 				if sw := ansi.StringWidth(got); sw > w {
 					t.Errorf("mode %d, width %d: title is %d wide: %q", m, w, sw, got)
 				}
@@ -58,7 +58,7 @@ func TestTitleFitsTheWidth(t *testing.T) {
 
 func TestTitleKeepsTheEndOfALongPath(t *testing.T) {
 	t.Parallel()
-	got := Title(ThisFile, label, strings.Repeat("d/", 50)+"main.go", 1, 2, "hunks only", 0, 80)
+	got := Unicode.Title(ThisFile, label, strings.Repeat("d/", 50)+"main.go", 1, 2, "hunks only", 0, 80)
 	if !strings.Contains(got, "…") || !strings.Contains(got, "main.go (1/2) · hunks only · 0%") {
 		t.Errorf("Title = %q, want the cut path to keep its end and the title its tail", got)
 	}
@@ -67,7 +67,7 @@ func TestTitleKeepsTheEndOfALongPath(t *testing.T) {
 func TestTitleClampsThePercent(t *testing.T) {
 	t.Parallel()
 	for pct, want := range map[int]string{-5: "0%", 250: "100%"} {
-		if got := Title(ThisFile, label, "a.go", 1, 1, "hunks only", pct, 160); !strings.HasSuffix(got, want) {
+		if got := Unicode.Title(ThisFile, label, "a.go", 1, 1, "hunks only", pct, 160); !strings.HasSuffix(got, want) {
 			t.Errorf("pct %d: Title = %q, want suffix %q", pct, got, want)
 		}
 	}
@@ -82,7 +82,7 @@ func TestTitleHostileInput(t *testing.T) {
 		"huge wide name": strings.Repeat("界", 10000),
 	} {
 		for _, w := range []int{40, 80, 160} {
-			got := Title(ThisFile, label, path, 1, 2, "hunks only", 50, w)
+			got := Unicode.Title(ThisFile, label, path, 1, 2, "hunks only", 50, w)
 			if sw := ansi.StringWidth(got); sw > w {
 				t.Errorf("%s, width %d: title is %d wide", name, w, sw)
 			}
@@ -91,7 +91,7 @@ func TestTitleHostileInput(t *testing.T) {
 			}
 		}
 	}
-	got := Title(ThisFile, label, "\x1b[31mred\x1b[0m/file.go", 1, 2, "hunks only", 50, 160)
+	got := Unicode.Title(ThisFile, label, "\x1b[31mred\x1b[0m/file.go", 1, 2, "hunks only", 50, 160)
 	if !strings.Contains(got, " · red/file.go (1/2)") {
 		t.Errorf("Title = %q, want the escapes dropped and the text kept", got)
 	}
@@ -112,7 +112,7 @@ func TestNote(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := Note(tc.cur, tc.total, tc.hints); got != tc.want {
+			if got := Unicode.Note(tc.cur, tc.total, tc.hints); got != tc.want {
 				t.Errorf("Note = %q, want %q", got, tc.want)
 			}
 		})

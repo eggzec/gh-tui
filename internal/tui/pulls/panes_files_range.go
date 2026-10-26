@@ -71,7 +71,7 @@ func (m *panesModal) readRange() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	key := base + "..." + head
+	key := base + "\x00" + head
 	if all {
 		key = "all|" + head
 	}

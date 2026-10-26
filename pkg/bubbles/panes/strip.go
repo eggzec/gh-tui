@@ -38,8 +38,8 @@ func (s Styles) StripForms(defs []Def, cur Pane) []string {
 	full := func(d Def) string { return d.Name }
 	short := func(d Def) string { return d.Short }
 	return []string{
-		build(full, " · ", false),
-		build(short, " · ", false),
+		build(full, s.Separator, false),
+		build(short, s.Separator, false),
 		build(short, " ", false),
 		build(nil, " ", true),
 	}

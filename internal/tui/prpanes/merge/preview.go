@@ -45,7 +45,7 @@ func PreviewOf(d Data, id string, o Options) (p Preview, ok bool) {
 		if !ok {
 			return Preview{}, false
 		}
-		return Preview{Title: conv.Name(v.Author) + " · changes requested"}, true
+		return Preview{Title: conv.Name(v.Author) + o.Styles.separator + "changes requested"}, true
 	}
 	if !d.ChecksLoaded {
 		return Preview{}, false

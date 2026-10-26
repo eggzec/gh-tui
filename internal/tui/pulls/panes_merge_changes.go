@@ -20,13 +20,13 @@ const changesMissing = "This review is not in the conversation read so far. ente
 func (m *panesModal) changesBody(v core.Verdict, width int) (body string, final bool) {
 	c := &m.conv
 	if !c.started || !c.model.Ready() {
-		return m.theme.Subtle.Render("Reading the conversation…"), false
+		return m.theme.Subtle.Render("Reading the conversation" + m.icons.Ellipsis), false
 	}
 	login := v.Author.Login
 	id, ok := c.model.LatestReviewBy(login, core.ReviewStateChangesRequested)
 	if !ok {
 		if c.model.Status().Loading {
-			return m.theme.Subtle.Render("Reading the conversation…"), false
+			return m.theme.Subtle.Render("Reading the conversation" + m.icons.Ellipsis), false
 		}
 		return m.dimLines(changesMissing, width), true
 	}

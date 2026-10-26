@@ -62,6 +62,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 	frames := panes.DefaultStyles(t.Dark)
 	frames.Border = ic.Border
 	frames.Ellipsis = ic.Ellipsis
+	frames.Separator = ic.Separator
 	return styles{
 		look:     look,
 		states:   states,
