@@ -245,6 +245,10 @@ func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 	b.follow = ""
 	b.clamp()
 	m.scrollBranches()
+	if b.cursor != before {
+		// The user moved on, so the filter no longer waits for the pages.
+		b.wanted = false
+	}
 	if b.cursor == before {
 		return nil
 	}
