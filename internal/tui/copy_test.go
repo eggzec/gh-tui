@@ -28,6 +28,7 @@ func newSelectApp(t *testing.T, sel ui.Selection, ok bool) *Model {
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}}
 	files := &selectSection{fakeSection: fakes[0], sel: sel, ok: ok}
 	m := New(t.Context(), config.Default(), Layout{Files: files, Pulls: fakes[1]}, WithRepo(testRepo))
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	return m

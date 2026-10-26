@@ -108,6 +108,7 @@ func TestHelpKeyThatTypesNothing(t *testing.T) {
 	cfg := config.Default()
 	cfg.Keys.Set(config.ActionHelp, []string{"?", "f1"})
 	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	mod := &fakeModal{title: "Find file", typing: true}
 	run(m, ui.OpenModal(mod))
@@ -338,6 +339,7 @@ func TestCtrlCAlwaysQuits(t *testing.T) {
 	cfg.Keys.Set(config.ActionQuit, []string{"x"})
 	files := &fakeSection{title: "Files"}
 	m := New(t.Context(), cfg, Layout{Files: files}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 
 	for _, capturing := range []bool{false, true} {

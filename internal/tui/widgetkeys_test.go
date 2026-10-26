@@ -58,6 +58,7 @@ func TestHelpClosesWithItsOwnKey(t *testing.T) {
 	cfg := config.Default()
 	cfg.Keys.Set("help.close", []string{"ctrl+g"})
 	m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.key(press("?")))
 	if !m.helpOpen() {

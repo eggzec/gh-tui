@@ -450,6 +450,7 @@ func TestProgramShowsRateLimitChanges(t *testing.T) {
 	rates := &fixedRates{s: core.RateStatus{Quotas: quotas(4812, 4960), Answered: statusAt, At: statusAt}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithRateStatus(rates))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(120, 24))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return drawn(out, "core 4 812/5 000")

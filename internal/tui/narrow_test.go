@@ -22,6 +22,7 @@ func TestSetWideWidthRelaysOut(t *testing.T) {
 	dash := &narrowFake{fakeSection: &fakeSection{title: "Dashboard"}}
 	layout := Layout{Dashboard: dash, Notifications: &fakeSection{title: "Notifications"}}
 	m := New(t.Context(), config.Default(), layout)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 90, Height: 30})
 	if !dash.narrow {

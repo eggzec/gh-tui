@@ -82,6 +82,7 @@ func newGotoApp(t *testing.T, repos *fakeRepos, opts ...Option) (*Model, []*fake
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
 	opts = append([]Option{WithRepos(repos)}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
@@ -233,6 +234,7 @@ func TestGotoAndOtherCommands(t *testing.T) {
 			page := searchpage.New(t.Context(), keySearch{}, config.Default().Keys)
 			layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Search: page}
 			m := New(t.Context(), config.Default(), layout, WithRepos(repos))
+			rankFakes(m)
 			m.toast.SetDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
@@ -327,6 +329,7 @@ func TestProgramGotoRepo(t *testing.T) {
 	_, fakes := newGotoApp(t, newGotoRepos())
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
 	app := New(t.Context(), config.Default(), layout, WithRepos(newGotoRepos()))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return drawn(out, "Dashboard content")
@@ -591,6 +594,7 @@ func TestProgramGotoNumber(t *testing.T) {
 	}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: fakes[4]}
 	app := New(t.Context(), config.Default(), layout, WithRepos(newGotoRepos()), WithKinds(newGotoKinds()))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return drawn(out, "Dashboard content")

@@ -170,6 +170,7 @@ func TestProgramSavesHistoryBeforeQuitting(t *testing.T) {
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithCommandHistory(hist))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	// q, right after the start, waits for the lines kept, saves them with
 	// itself, and only then quits.

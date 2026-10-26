@@ -22,6 +22,7 @@ func newHeaderApp(t *testing.T, opts ...Option) *Model {
 		Dashboard:     &fakeSection{title: ui.DashboardTitle},
 	}
 	m := New(t.Context(), config.Default(), layout, append([]Option{WithRepo(testRepo)}, opts...)...)
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.Update(repoInfoMsg{repo: core.Repo{Ref: testRepo, DefaultBranch: "main"}})
 	m.Update(ui.SyncMsg{})

@@ -100,6 +100,7 @@ func newFilterAppWith(t *testing.T, cfg config.Config, width, height int) (*Mode
 		filter: list.Binding("filter", "filter"), sort: list.Binding("sort", "sort"),
 	}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: pulls, Issues: fakes[2]}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	run(m, m.showScreen(repoScreen, 1))
 	return m, pulls, fakes
