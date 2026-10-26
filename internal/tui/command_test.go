@@ -274,6 +274,7 @@ func TestCommandKeyIsConfigurable(t *testing.T) {
 	cfg.Keys.Set("command_line.cancel", []string{"ctrl+g"})
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	drive(m, m.key(press(":")))
 	if m.line.Focused() {
@@ -346,6 +347,7 @@ func TestLineCompletesWithItsOwnKey(t *testing.T) {
 	cfg.Keys.Set("command_line.complete", []string{"ctrl+i"})
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), cfg, Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	drive(m, m.key(press(":")))
 	typeKeys(m, "go")
@@ -416,6 +418,7 @@ func TestProgramQuitsFromTheLine(t *testing.T) {
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return drawn(out, "Files content")
@@ -502,6 +505,7 @@ func TestActionCommandsPress(t *testing.T) {
 		cfg.Keys.Set(config.ActionRefresh, []string{})
 		fakes := []*fakeSection{{title: "Files"}}
 		m := New(t.Context(), cfg, Layout{Files: fakes[0]}, WithRepo(testRepo))
+		rankFakes(m)
 		// drive runs the toast's timer, which would wait out its 4s.
 		m.toast.SetDuration(0)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -524,6 +528,7 @@ func TestActionCommandsPress(t *testing.T) {
 		cfg := config.Default()
 		cfg.Keys.Set(config.ActionHelp, []string{})
 		m := New(t.Context(), cfg, Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		runCommand(t, m, "help")
 		if !m.helpOpen() {

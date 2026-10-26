@@ -23,6 +23,7 @@ func newSetApp(t *testing.T, cfg config.Config, told *[]config.Config) (*Model, 
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	m := New(t.Context(), cfg, layout, WithRepo(testRepo), WithSettings(func(c config.Config) { *told = append(*told, c) }))
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 	return m, fakes
@@ -261,6 +262,7 @@ func TestSetThemesAfterSettings(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		files := &orderSection{fakeSection: &fakeSection{title: "Files"}}
 		m := New(t.Context(), config.Default(), Layout{Files: files}, WithRepo(testRepo))
+		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		runCommand(t, m, "set ui.icons=unicode")
 		if !files.settings || !files.themedAfter {

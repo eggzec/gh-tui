@@ -331,6 +331,7 @@ func TestAuthModalView(t *testing.T) {
 func TestSetIconsInOpenAuthModal(t *testing.T) {
 	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	m.applyTheme(true)
 	_ = m.authCommand("")
@@ -371,6 +372,7 @@ func TestAuthModalErrorMark(t *testing.T) {
 			t.Fatal(err)
 		}
 		m := New(t.Context(), cfg, Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+		rankFakes(m)
 		m.theme = ui.NewTheme(p, true)
 		_ = m.authCommand("")
 		mod, ok := m.modals.Top().(*authModal)
@@ -396,6 +398,7 @@ func TestProgramTellsWhatTheTokenLacks(t *testing.T) {
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	acc := newFakeAccess(core.Access{Kind: core.TokenClassic})
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithAccess(acc))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(120, 24))
 	a := uitest.Classic("notifications", "public_repo")
 	acc.mu.Lock()
@@ -517,6 +520,7 @@ func newTokenApp(t *testing.T, cfg config.Config, acc Access) (*Model, *fakeInbo
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: notes}
 	m := New(t.Context(), cfg, layout, WithAccess(acc), WithVoice(v))
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	// run waits for every command, and the changes never end.
 	m.accessChanges = nil

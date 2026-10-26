@@ -269,6 +269,7 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 func TestErrorToastsStayUntilDismissed(t *testing.T) {
 	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+	rankFakes(m)
 	if d := m.toast.ErrorDuration(); d != 0 {
 		t.Errorf("error toasts stay %v, want until dismissed", d)
 	}
@@ -305,6 +306,7 @@ func TestToastKeyIsGone(t *testing.T) {
 func TestGuidanceIsAWarning(t *testing.T) {
 	t.Parallel()
 	fresh := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+	rankFakes(fresh)
 	if cmd := fresh.toast.Push(toast.Warning, "Close the file first."); cmd == nil {
 		t.Error("a warning has no timer")
 	}

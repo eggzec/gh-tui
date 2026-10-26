@@ -353,6 +353,7 @@ func TestZoomNeedsTheRepoScreen(t *testing.T) {
 	t.Parallel()
 	pulls := &fakeSection{title: "Pull requests"}
 	lone := New(t.Context(), config.Default(), Layout{Pulls: pulls}, WithRepo(testRepo))
+	rankFakes(lone)
 	lone.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(lone, lone.key(press("z")))
 	if lone.zoom.User() || !pulls.got(isKey("z")) {
@@ -554,6 +555,7 @@ func TestProgramZooms(t *testing.T) {
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(120, 36))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return strings.Contains(ansi.Strip(string(out)), "Issues content")
@@ -671,6 +673,7 @@ func TestInitRunsWhatTheFirstRepoAsksFor(t *testing.T) {
 		return nil
 	}}
 	m := New(t.Context(), config.Default(), Layout{Files: files}, WithRepo(testRepo))
+	rankFakes(m)
 	run(m, m.Init())
 	if !files.got(func(msg tea.Msg) bool { _, ok := msg.(loaded); return ok }) {
 		t.Error("the command the section returned for the first repository never ran")
@@ -1105,6 +1108,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 	t.Parallel()
 	pulls := &fakeSection{title: "Pull requests"}
 	m := New(t.Context(), config.Default(), Layout{Pulls: pulls}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	if pulls.width != 78 || !pulls.focused {
 		t.Errorf("a lone pane should fill the screen and have focus: %dx%d", pulls.width, pulls.height)
@@ -1119,6 +1123,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 		t.Error("keys for missing sections moved the focus")
 	}
 	empty := New(t.Context(), config.Default(), Layout{})
+	rankFakes(empty)
 	empty.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(empty, empty.Init())
 	run(empty, empty.key(press("x")))
@@ -1132,6 +1137,7 @@ func TestProgramRendersAndQuits(t *testing.T) {
 	_, fakes := newTestApp(t)
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	app := New(t.Context(), config.Default(), layout, WithRepo(testRepo))
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(100, 30))
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Files content")) && bytes.Contains(out, []byte("Issues content"))
@@ -1151,6 +1157,7 @@ func benchApp(b *testing.B) (*Model, *fakeSection) {
 		Issues: &fakeSection{title: "Issues"}, Notifications: &fakeSection{title: "Notifications", badge: "3"},
 	}
 	m := New(b.Context(), config.Default(), layout, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	return m, files
 }

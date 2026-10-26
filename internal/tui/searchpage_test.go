@@ -33,6 +33,7 @@ func newSearchApp(t *testing.T, repo core.RepoRef) (*Model, []*fakeSection) {
 		opts = append(opts, WithRepo(repo))
 	}
 	m := New(t.Context(), cfg, layout, opts...)
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	return m, fakes

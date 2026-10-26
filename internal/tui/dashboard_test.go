@@ -27,6 +27,7 @@ func newDashApp(t *testing.T, repo core.RepoRef, extra ...Option) (*Model, []*fa
 	}
 	opts = append(opts, extra...)
 	m := New(t.Context(), config.Default(), layout, opts...)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
@@ -184,6 +185,7 @@ func TestProgramOpensOnDashboard(t *testing.T) {
 	dash := &fakeSection{title: ui.DashboardTitle}
 	files := &fakeSection{title: "Files"}
 	app := New(t.Context(), config.Default(), Layout{Files: files, Notifications: &fakeSection{title: "Notifications"}, Dashboard: dash})
+	rankFakes(app)
 	tm := teatest.NewTestModel(t, app, teatest.WithInitialTermSize(80, 24))
 	tm.Send(ui.RepoMsg{Repo: testRepo})
 	tm.Send(press("0"))
@@ -200,6 +202,7 @@ func BenchmarkViewDashboard(b *testing.B) {
 		Dashboard: &fakeSection{title: ui.DashboardTitle},
 	}
 	m := New(b.Context(), config.Default(), layout)
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 140, Height: 40})
 	b.ReportAllocs()
 	for b.Loop() {
@@ -229,6 +232,7 @@ func TestDashboardRevisitedOnReturn(t *testing.T) {
 	dash := &revisitSection{title: ui.DashboardTitle}
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	m := New(t.Context(), config.Default(), Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3], Dashboard: dash})
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
 	if dash.inits != 1 || dash.revisits != 0 {

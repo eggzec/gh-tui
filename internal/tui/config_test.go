@@ -33,6 +33,7 @@ func newConfigApp(t *testing.T, file string) *Model {
 	fakes := []*fakeSection{{title: "Files"}, {title: "Pull requests"}, {title: "Issues"}, {title: "Notifications"}}
 	layout := Layout{Files: fakes[0], Pulls: fakes[1], Issues: fakes[2], Notifications: fakes[3]}
 	m := New(t.Context(), cfg, layout, WithRepo(testRepo), WithSource(src))
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 80})
 	return m
@@ -108,6 +109,7 @@ func TestConfigDefaults(t *testing.T) {
 func TestConfigCommandNoFile(t *testing.T) {
 	t.Parallel()
 	m := New(t.Context(), config.Default(), Layout{Files: &fakeSection{title: "Files"}}, WithRepo(testRepo))
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	runCommand(t, m, "config")
 	_, text := shownText(t, m)

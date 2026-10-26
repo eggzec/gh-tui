@@ -42,6 +42,7 @@ func newFindingApp(t *testing.T, repo core.RepoRef) (*Model, *findingSection, []
 		opts = append(opts, WithRepo(repo))
 	}
 	m := New(t.Context(), config.Default(), layout, opts...)
+	rankFakes(m)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	return m, files, fakes
 }

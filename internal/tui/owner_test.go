@@ -106,6 +106,7 @@ func newOwnerApp(t *testing.T, owners *fakeOwners, opts ...Option) (*Model, *fak
 	}
 	opts = append([]Option{WithRepos(newGotoRepos()), WithOwners(owners)}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(m, m.Init())
@@ -402,6 +403,7 @@ func TestOwnerKey(t *testing.T) {
 			owners := newFakeOwners()
 			owners.remote["eggzec"] = core.Owner{Kind: core.OwnerOrg, Profile: core.Profile{Login: "eggzec"}}
 			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(owners), WithLogin("mona"))
+			rankFakes(m)
 			m.toast.SetDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 			run(m, m.Init())
@@ -453,6 +455,7 @@ func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
 		page.title = ui.OwnerTitle
 		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page}
 		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()))
+		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		run(m, m.Init())
 		runCommand(t, m, "goto @octocat")
@@ -468,6 +471,7 @@ func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
 		dash := &selectSection{fakeSection: &fakeSection{title: ui.DashboardTitle}, sel: ui.Selection{Owner: "mona"}, ok: true}
 		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: dash, Owner: &fakeOwnerPage{}}
 		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()), WithLogin("mona"))
+		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		run(m, m.Init())
 		if m.screen != dashScreen || m.keys.state(m).Owner.Enabled() {
