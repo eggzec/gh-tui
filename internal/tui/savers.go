@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -13,8 +14,10 @@ import (
 // text it saves is the model's and the files are small.
 func (m *Model) saveOpen() {
 	var savers []ui.Saver
-	if s, ok := m.topModal().(ui.Saver); ok {
-		savers = append(savers, s)
+	for mod := range m.modals.Held() {
+		if s, ok := mod.(ui.Saver); ok {
+			savers = append(savers, s)
+		}
 	}
 	if p := m.focused(); p != nil {
 		if s, ok := p.section.(ui.Saver); ok {
@@ -31,5 +34,10 @@ func (m *Model) saveOpen() {
 // quitNow saves what is open and quits at once.
 func (m *Model) quitNow() tea.Cmd {
 	m.saveOpen()
-	return tea.Quit
+	ch := m.modals.Quit()
+	cmd := m.apply(ch)
+	if ch.Refused != modals.NotRefused {
+		return cmd
+	}
+	return tea.Batch(cmd, tea.Quit)
 }

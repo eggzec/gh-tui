@@ -138,15 +138,17 @@ func TestModalSettlesAfterAResize(t *testing.T) {
 	plain := &fakeModal{title: "Plain"}
 	run(m, ui.OpenModal(plain))
 	run(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 90, Height: 30} })
-	if w, h := m.modalSize(); plain.width != w || plain.height != h {
-		t.Errorf("the modal is %dx%d after the resize, want %dx%d", plain.width, plain.height, w, h)
+	// The modal gets what is inside its frame.
+	if w, h := m.modals.FrameSize(); plain.width != w-4 || plain.height != h-2 {
+		t.Errorf("the modal is %dx%d after the resize, want %dx%d", plain.width, plain.height, w-4, h-2)
 	}
 	mod := &settlingModal{}
 	mod.title = "README.md"
 	run(m, ui.OpenModal(mod))
+	opened := mod.settles
 	run(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 100, Height: 30} })
-	if mod.settles != 1 {
-		t.Errorf("the modal settled %d times after the resize, want once", mod.settles)
+	if got := mod.settles - opened; got != 1 {
+		t.Errorf("the modal settled %d times after the resize, want once", got)
 	}
 	if !slices.ContainsFunc(mod.msgs, func(msg tea.Msg) bool { _, ok := msg.(modalSettledMsg); return ok }) {
 		t.Error("the end of the wait didn't reach the modal")
@@ -163,9 +165,10 @@ func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
 	mod := &settlingModal{}
 	mod.title = "README.md"
 	run(m, ui.OpenModal(mod))
+	opened := mod.settles
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 15})
-	if mod.settles != 1 {
-		t.Errorf("the modal settled %d times after the terminal's resize, want once", mod.settles)
+	if got := mod.settles - opened; got != 1 {
+		t.Errorf("the modal settled %d times after the terminal's resize, want once", got)
 	}
 	h := mod.height
 	m.Update(press(":"))
@@ -176,12 +179,12 @@ func TestModalSettlesWhenTheFooterChanges(t *testing.T) {
 	if mod.height == h {
 		t.Fatalf("the command line left the modal %d rows high", h)
 	}
-	if mod.settles != 2 {
-		t.Errorf("the modal settled %d times after the command line took a row, want twice", mod.settles)
+	if got := mod.settles - opened; got != 2 {
+		t.Errorf("the modal settled %d times after the command line took a row, want twice", got)
 	}
 	m.Update(press("e"))
-	if mod.settles != 2 {
-		t.Errorf("the modal settled %d times after a key that resized nothing, want still twice", mod.settles)
+	if got := mod.settles - opened; got != 2 {
+		t.Errorf("the modal settled %d times after a key that resized nothing, want still twice", got)
 	}
 }
 
@@ -207,7 +210,7 @@ func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 	first, second := &fakeModal{title: "Search"}, &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(first))
 	run(m, ui.OpenModal(second))
-	if m.topModal() != second {
+	if m.modals.Top() != second {
 		t.Fatal("the second modal isn't open")
 	}
 	run(m, func() tea.Msg { return ui.DoneMsg{What: "x"} })
@@ -221,11 +224,11 @@ func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 
 	// Closing the replaced modal leaves the open one alone.
 	run(m, ui.CloseModal(first))
-	if m.topModal() != second {
+	if m.modals.Top() != second {
 		t.Fatal("closing a replaced modal closed the open one")
 	}
 	run(m, ui.CloseModal(second))
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Fatal("the modal is still open")
 	}
 	// Closing again is harmless.
@@ -257,12 +260,12 @@ func TestModalIsDrawnInAFrameOverTheScreen(t *testing.T) {
 		t.Error("help shows the app's keys under a modal")
 	}
 
-	fw, fh := m.frameSize()
+	fw, fh := m.modals.FrameSize()
 	if mod.width != fw-4 || mod.height != fh-2 {
 		t.Errorf("modal size %dx%d, want the frame %dx%d less its edges", mod.width, mod.height, fw, fh)
 	}
 	run(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 120, Height: 40} })
-	if fw, fh = m.frameSize(); mod.width != fw-4 || mod.height != fh-2 {
+	if fw, fh = m.modals.FrameSize(); mod.width != fw-4 || mod.height != fh-2 {
 		t.Errorf("modal not resized with the terminal: %dx%d", mod.width, mod.height)
 	}
 }

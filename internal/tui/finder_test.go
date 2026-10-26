@@ -55,7 +55,7 @@ func TestTDoesNotOpenTheFinder(t *testing.T) {
 	m, files, fakes := newFindingApp(t, testRepo)
 	run(m, m.Init())
 	run(m, m.key(press("t")))
-	if files.finds != 0 || m.topModal() != nil {
+	if files.finds != 0 || m.modals.Top() != nil {
 		t.Errorf("t found files %d times, want none", files.finds)
 	}
 	if !fakes[0].got(isKey("t")) {
@@ -75,8 +75,8 @@ func TestFindFileKeyOpensTheFinder(t *testing.T) {
 			// The finder opens from any pane of the screen.
 			run(m, m.key(press("2")))
 			run(m, m.key(k))
-			if m.topModal() != files.modal || files.loads != 1 {
-				t.Fatalf("%s opened %v and loaded %d times", k, m.topModal(), files.loads)
+			if m.modals.Top() != files.modal || files.loads != 1 {
+				t.Fatalf("%s opened %v and loaded %d times", k, m.modals.Top(), files.loads)
 			}
 			if files.modal.width == 0 || !files.modal.themed {
 				t.Error("the finder wasn't sized and themed before it was drawn")
@@ -93,7 +93,7 @@ func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
 		t.Fatalf("on screen %d, want the dashboard", m.screen)
 	}
 	run(m, m.key(ctrlP))
-	if files.finds != 0 || m.topModal() != nil {
+	if files.finds != 0 || m.modals.Top() != nil {
 		t.Errorf("^p found files %d times off the repository screen", files.finds)
 	}
 
@@ -106,8 +106,8 @@ func TestFindFileKeyNeedsTheRepoScreen(t *testing.T) {
 	m, files, _ = newFindingApp(t, testRepo)
 	files.none = true
 	run(m, m.key(ctrlP))
-	if files.finds != 1 || m.topModal() != nil {
-		t.Errorf("a finder that finds nothing opened %v", m.topModal())
+	if files.finds != 1 || m.modals.Top() != nil {
+		t.Errorf("a finder that finds nothing opened %v", m.modals.Top())
 	}
 }
 

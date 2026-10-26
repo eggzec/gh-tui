@@ -49,8 +49,8 @@ func TestHelpOverModal(t *testing.T) {
 	mod := &fakeModal{title: "Preview \x1b[31mred"}
 	run(m, ui.OpenModal(mod))
 	run(m, m.key(press("?")))
-	if !m.helpOpen() || m.topModal() != mod {
-		t.Fatalf("? over a modal: help open %v, modal open %v", m.helpOpen(), m.topModal() == mod)
+	if !m.helpOpen() || m.modals.Top() != mod {
+		t.Fatalf("? over a modal: help open %v, modal open %v", m.helpOpen(), m.modals.Top() == mod)
 	}
 	if got := m.keyhelp.Title(); got != "Help · Preview red" {
 		t.Errorf("title = %q, want the modal's, clean", got)
@@ -69,7 +69,7 @@ func TestHelpOverModal(t *testing.T) {
 		t.Errorf("esc should clear the query first: open %v, query %q", m.helpOpen(), m.keyhelp.Query())
 	}
 	run(m, m.key(press("esc")))
-	if m.helpOpen() || m.topModal() != mod {
+	if m.helpOpen() || m.modals.Top() != mod {
 		t.Fatalf("esc on an empty query should close the help alone: help open %v", m.helpOpen())
 	}
 	run(m, m.key(press("x")))
@@ -378,8 +378,8 @@ func TestHelpClosesForNewModal(t *testing.T) {
 	run(m, m.key(press("?")))
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
-	if m.helpOpen() || m.topModal() != mod {
-		t.Fatalf("help open %v, modal open %v; want the modal alone", m.helpOpen(), m.topModal() == mod)
+	if m.helpOpen() || m.modals.Top() != mod {
+		t.Fatalf("help open %v, modal open %v; want the modal alone", m.helpOpen(), m.modals.Top() == mod)
 	}
 	run(m, m.key(press("x")))
 	if !slices.Equal(mod.keys(), []string{"x"}) {
@@ -440,9 +440,14 @@ func TestHelpListsBackOnPullDiff(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m, _ := diffCtx.reach(t)
 		// Another modal stands behind the one on view.
-		m.back = []place{{modal: m.modal}}
-		m.backOwner = m.modal
-		if !m.modalBack() {
+		// The pull request replaces a modal, which is held under it.
+		pull := m.modals.Top()
+		run(m, ui.OpenModalOver(&fakeModal{title: "Under"}, pull))
+		run(m, ui.OpenModal(pull))
+		if m.modals.Top() != pull {
+			t.Fatal("the pull request did not open again")
+		}
+		if !m.modals.CanBack() {
 			t.Fatal("the modal has no modal to return to")
 		}
 		for _, l := range m.layersNow() {

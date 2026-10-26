@@ -67,7 +67,7 @@ func TestHelpListsBackBesideDisabledBinding(t *testing.T) {
 	second.title = "second"
 	run(m, ui.OpenModalOver(first, nil))
 	run(m, ui.OpenModalOver(second, first))
-	if !m.modalBack() {
+	if !m.modals.CanBack() {
 		t.Fatal("the open modal has no modal to return to")
 	}
 	if !backKey(t, m) {
@@ -120,12 +120,12 @@ func TestBackReturnsToModal(t *testing.T) {
 		t.Error("the help shows the back key off over C, which has two modals to return to")
 	}
 	run(m, m.key(backspace))
-	if m.modal != mods[1] || mods[2].discarded != 1 {
-		t.Fatalf("after one back: open %v, C discarded %d times, want B and once", m.topModal(), mods[2].discarded)
+	if m.modals.Top() != mods[1] || mods[2].discarded != 1 {
+		t.Fatalf("after one back: open %v, C discarded %d times, want B and once", m.modals.Top(), mods[2].discarded)
 	}
 	run(m, m.key(backspace))
-	if m.modal != mods[0] || mods[1].discarded != 1 {
-		t.Fatalf("after two: open %v, want A", m.topModal())
+	if m.modals.Top() != mods[0] || mods[1].discarded != 1 {
+		t.Fatalf("after two: open %v, want A", m.modals.Top())
 	}
 	if backKey(t, m) {
 		t.Error("the help shows the back key on over A, which has none to return to")
@@ -134,8 +134,8 @@ func TestBackReturnsToModal(t *testing.T) {
 		t.Error("A wasn't told that it is open again")
 	}
 	run(m, m.key(backspace))
-	if m.modal != mods[0] || mods[0].discarded != 0 {
-		t.Errorf("back at the first modal changed %v, discards %d", m.topModal(), mods[0].discarded)
+	if m.modals.Top() != mods[0] || mods[0].discarded != 0 {
+		t.Errorf("back at the first modal changed %v, discards %d", m.modals.Top(), mods[0].discarded)
 	}
 }
 
@@ -146,18 +146,18 @@ func TestBackKeepsScroll(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 2} })
-		a := m.modal
+		a := m.modals.Top()
 		if a == nil {
 			t.Fatal("no pull request opened")
 		}
 		shown := a.View()
-		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 3, Back: a} })
-		if m.modal == nil || m.modal == a {
+		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 3, Over: a} })
+		if m.modals.Top() == nil || m.modals.Top() == a {
 			t.Fatal("the second pull request didn't open in place of the first")
 		}
-		b := m.modal
+		b := m.modals.Top()
 		driveKeys(t, m, m.key(backspace))
-		if m.modal != a {
+		if m.modals.Top() != a {
 			t.Fatalf("the back key didn't return to the first pull request")
 		}
 		if got := a.View(); got != shown {
@@ -165,7 +165,7 @@ func TestBackKeepsScroll(t *testing.T) {
 		}
 		// The way back is used up, and the one left is gone for good.
 		driveKeys(t, m, m.key(backspace))
-		if m.modal != a {
+		if m.modals.Top() != a {
 			t.Error("the back key left the first modal with nothing to go back to")
 		}
 		if d, ok := b.(ui.Discarder); !ok {
@@ -202,11 +202,11 @@ func TestBackCap(t *testing.T) {
 		run(m, m.key(backspace))
 		n++
 	}
-	if m.modal != mods[2] {
-		t.Errorf("after %d backs the open modal is %v, want the third", n, m.topModal())
+	if m.modals.Top() != mods[2] {
+		t.Errorf("after %d backs the open modal is %v, want the third", n, m.modals.Top())
 	}
 	run(m, m.key(backspace))
-	if m.modal != mods[2] {
+	if m.modals.Top() != mods[2] {
 		t.Error("the back key went past the oldest modal kept")
 	}
 }
@@ -220,13 +220,12 @@ func TestBackNeedsTheOpenModal(t *testing.T) {
 	run(m, ui.OpenModal(a))
 	b := &backModal{}
 	run(m, ui.OpenModalOver(b, stale))
-	if len(m.back) != 0 || backKey(t, m) {
-		t.Errorf("a modal opened over one that wasn't open kept %d places", len(m.back))
+	if m.modals.CanBack() || backKey(t, m) {
+		t.Error("a modal opened over one that wasn't open kept a place")
 	}
 	run(m, ui.OpenModalOver(b, b))
-	run(m, ui.Reopen(b))
-	if len(m.back) != 0 {
-		t.Errorf("opening the open modal again kept %d places", len(m.back))
+	if m.modals.CanBack() {
+		t.Error("opening the open modal again kept a place")
 	}
 }
 
@@ -239,14 +238,14 @@ func TestCloseDropsBack(t *testing.T) {
 			m, _ := newTestApp(t)
 			mods := chain(m, "A", "B", "C")
 			run(m, m.key(press(k)))
-			if m.modal != nil {
-				t.Fatalf("%s left %v open", k, m.topModal())
+			if m.modals.Top() != nil {
+				t.Fatalf("%s left %v open", k, m.modals.Top())
 			}
 			if mods[0].discarded != 1 || mods[1].discarded != 1 {
 				t.Errorf("discarded A %d, B %d times, want once each", mods[0].discarded, mods[1].discarded)
 			}
-			if len(m.back) != 0 {
-				t.Errorf("%d places are kept", len(m.back))
+			if m.modals.CanBack() {
+				t.Error("places are kept")
 			}
 		})
 	}
@@ -258,15 +257,19 @@ func TestBackSurvivesPreview(t *testing.T) {
 	t.Parallel()
 	m, _ := newTestApp(t)
 	mods := chain(m, "A", "B")
-	preview := &fakeModal{title: "Preview"}
+	preview := &previewModal{}
+	preview.title = "Preview"
 	run(m, ui.OpenModal(preview))
-	run(m, ui.Reopen(mods[1]))
+	run(m, m.key(press("esc")))
+	if m.modals.Top() != mods[1] {
+		t.Fatalf("closing the preview left %v, want B", m.modals.Top())
+	}
 	if !backKey(t, m) || mods[0].discarded != 0 {
 		t.Fatalf("after the preview the back key is on: %v, A discarded %d times", backKey(t, m), mods[0].discarded)
 	}
 	run(m, m.key(backspace))
-	if m.modal != mods[0] {
-		t.Errorf("the back key after a preview opened %v, want A", m.topModal())
+	if m.modals.Top() != mods[0] {
+		t.Errorf("the back key after a preview opened %v, want A", m.modals.Top())
 	}
 }
 
@@ -279,8 +282,8 @@ func TestBackAfterChainEnds(t *testing.T) {
 	run(m, m.key(press("0")))
 	mods := chain(m, "A", "B")
 	run(m, m.key(press("esc")))
-	if m.modal != nil || mods[0].discarded != 1 {
-		t.Fatalf("the chain didn't end: open %v", m.topModal())
+	if m.modals.Top() != nil || mods[0].discarded != 1 {
+		t.Fatalf("the chain didn't end: open %v", m.modals.Top())
 	}
 	if m.screen != dashScreen {
 		t.Fatalf("on screen %d, want the dashboard", m.screen)
@@ -299,9 +302,9 @@ func TestBackTypesInPrompt(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		a := m.modal
-		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 2, Back: a} })
-		b := m.modal
+		a := m.modals.Top()
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 2, Over: a} })
+		b := m.modals.Top()
 		if b == nil || b == a {
 			t.Fatal("the second issue didn't open in place of the first")
 		}
@@ -310,7 +313,7 @@ func TestBackTypesInPrompt(t *testing.T) {
 			driveKeys(t, m, m.key(press(k)))
 		}
 		driveKeys(t, m, m.key(backspace))
-		if m.modal != b {
+		if m.modals.Top() != b {
 			t.Fatalf("the back key in the prompt left the modal")
 		}
 		if got := onScreen(m); !strings.Contains(got, "ab") || strings.Contains(got, "abx") {
@@ -340,21 +343,21 @@ func TestChainDropDiscardsRealModals(t *testing.T) {
 					m := newKeysApp(t, true)
 					p := &pauses{}
 					open := func(n int, back ui.Modal, pause ui.Pauser) {
-						var msg tea.Msg = ui.OpenIssueMsg{Repo: testRepo, Number: n, Back: back, Pause: pause}
+						var msg tea.Msg = ui.OpenIssueMsg{Repo: testRepo, Number: n, Over: back, Pause: pause}
 						if kind == "pull" {
-							msg = ui.OpenPullMsg{Repo: testRepo, Number: n, Back: back, Pause: pause}
+							msg = ui.OpenPullMsg{Repo: testRepo, Number: n, Over: back, Pause: pause}
 						}
 						driveKeys(t, m, func() tea.Msg { return msg })
 					}
 					open(1, nil, p)
-					a := m.modal
+					a := m.modals.Top()
 					open(2, a, nil)
-					if m.modal == nil || m.modal == a {
+					if m.modals.Top() == nil || m.modals.Top() == a {
 						t.Fatal("the second modal didn't open in place of the first")
 					}
 					held, resumed := p.held, p.resumed
 					driveKeys(t, m, m.key(press(k)))
-					if m.modal != nil {
+					if m.modals.Top() != nil {
 						t.Fatalf("%s left a modal open", k)
 					}
 					if p.resumed <= resumed || p.held != held {

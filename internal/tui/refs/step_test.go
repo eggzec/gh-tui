@@ -137,11 +137,11 @@ func TestRefsPickOpensWithBack(t *testing.T) {
 		keys []string
 		want tea.Msg
 	}{
-		{"an issue", nil, ui.OpenIssueMsg{Repo: repo, Number: 198, Back: ret}},
-		{"a pull request", []string{"j", "j", "j"}, ui.OpenPullMsg{Repo: repo, Number: 187, Back: ret}},
-		{"one of another repository", []string{"j", "j", "j", "j"}, ui.OpenPullMsg{Repo: other, Number: 412, Back: ret}},
-		{"a mention", []string{"G", "enter", "j"}, ui.OpenPullMsg{Repo: repo, Number: 240, Back: ret}},
-		{"a mention of another repository", []string{"G", "enter", "j", "j", "j"}, ui.OpenIssueMsg{Repo: infra, Number: 77, Back: ret}},
+		{"an issue", nil, ui.OpenIssueMsg{Repo: repo, Number: 198, Over: ret}},
+		{"a pull request", []string{"j", "j", "j"}, ui.OpenPullMsg{Repo: repo, Number: 187, Over: ret}},
+		{"one of another repository", []string{"j", "j", "j", "j"}, ui.OpenPullMsg{Repo: other, Number: 412, Over: ret}},
+		{"a mention", []string{"G", "enter", "j"}, ui.OpenPullMsg{Repo: repo, Number: 240, Over: ret}},
+		{"a mention of another repository", []string{"G", "enter", "j", "j", "j"}, ui.OpenIssueMsg{Repo: infra, Number: 77, Over: ret}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

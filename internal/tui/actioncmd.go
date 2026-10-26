@@ -77,10 +77,10 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	}
 	// A widget that takes every key has no commands but those of the
 	// line, and a modal like it is closed before the app acts.
-	if mod := m.topModal(); mod != nil && m.modalTakesKeys() {
+	if mod := m.modals.Top(); mod != nil && m.modalTakesKeys() {
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+what+".")
 	}
-	if p := m.focused(); m.topModal() == nil && p != nil {
+	if p := m.focused(); m.modals.Top() == nil && p != nil {
 		if c, ok := p.section.(ui.Capturer); ok && c.Capturing() {
 			return m.toast.Push(toast.Warning, "Finish typing first to use "+what+".")
 		}
@@ -88,7 +88,7 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	action, ok := m.resolveAction(name)
 	if !ok {
 		where := m.whereActions(name)
-		switch mod := m.topModal(); {
+		switch mod := m.modals.Top(); {
 		case where == "":
 			return m.toast.Push(toast.Warning, "Unknown command: "+name+".")
 		case mod != nil:
@@ -103,7 +103,7 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 		}
 		return m.toast.Push(toast.Warning, "The "+name+" command takes no argument.")
 	}
-	if mod := m.topModal(); mod != nil && action == config.ActionFindFile {
+	if mod := m.modals.Top(); mod != nil && action == config.ActionFindFile {
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+name+".")
 	}
 	// A list with an action of its own, such as the sort of the
@@ -116,11 +116,11 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	}
 	if readAll {
 		if m.notifHost() != nil {
-			if cmd := m.modal.Update(ui.MarkAllReadMsg{}); cmd != nil {
+			if cmd := m.modals.Top().Update(ui.MarkAllReadMsg{}); cmd != nil {
 				return cmd
 			}
 		}
-		if p := m.focused(); m.topModal() == nil && p != nil {
+		if p := m.focused(); m.modals.Top() == nil && p != nil {
 			if cmd := p.section.Update(ui.MarkAllReadMsg{}); cmd != nil {
 				return cmd
 			}
@@ -146,7 +146,7 @@ var filterTabs = map[string]filterform.Tab{"filter": filterform.FiltersTab, "sor
 // modal has its own.
 func (m *Model) canFilter(tab filterform.Tab) bool {
 	p := m.focused()
-	if m.topModal() != nil || p == nil {
+	if m.modals.Top() != nil || p == nil {
 		return true
 	}
 	_, _, ok := filterOf(p.section, tab)
@@ -157,7 +157,7 @@ func (m *Model) canFilter(tab filterform.Tab) bool {
 // that its own keys gate on what the screen has, which the key leaves
 // to nothing happening.
 func (m *Model) actionOpen(action string) bool {
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		return true
 	}
 	switch action {
@@ -270,7 +270,7 @@ func (m *Model) actionCandidates(prefix string, start, end int, atEnd bool) []cm
 	}
 	n := len(out)
 	for _, name := range m.actionNames(config.ContextGlobal) {
-		if m.topModal() != nil && m.refusedOverModal(name) {
+		if m.modals.Top() != nil && m.refusedOverModal(name) {
 			continue
 		}
 		add(name, config.ContextGlobal+"."+name)

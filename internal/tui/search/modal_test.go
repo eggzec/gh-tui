@@ -26,23 +26,23 @@ func TestModalOverRewritesBack(t *testing.T) {
 	other := newTestModal(t)
 
 	open := func(back ui.Modal) tea.Cmd {
-		return func() tea.Msg { return ui.OpenModalMsg{Modal: other, Back: back} }
+		return func() tea.Msg { return ui.OpenModalMsg{Modal: other, Over: back} }
 	}
 
 	got := m.over(open(nil))().(ui.OpenModalMsg)
-	if got.Back != ui.Modal(m) {
-		t.Errorf("Back = %v, want the modal", got.Back)
+	if got.Over != ui.Modal(m) {
+		t.Errorf("Back = %v, want the modal", got.Over)
 	}
 
 	got = m.over(open(other))().(ui.OpenModalMsg)
-	if got.Back != ui.Modal(other) {
-		t.Errorf("a set Back was replaced by %v", got.Back)
+	if got.Over != ui.Modal(other) {
+		t.Errorf("a set Back was replaced by %v", got.Over)
 	}
 
 	batch := m.over(func() tea.Msg { return tea.BatchMsg{open(nil)} })().(tea.BatchMsg)
 	got = batch[0]().(ui.OpenModalMsg)
-	if got.Back != ui.Modal(m) {
-		t.Errorf("Back in a batch = %v, want the modal", got.Back)
+	if got.Over != ui.Modal(m) {
+		t.Errorf("Back in a batch = %v, want the modal", got.Over)
 	}
 }
 

@@ -24,9 +24,9 @@ func numberedText(n int) string {
 // "line 1/100".
 func textLine(t *testing.T, m *Model) string {
 	t.Helper()
-	tm, ok := m.modal.(*textModal)
+	tm, ok := m.modals.Top().(*textModal)
 	if !ok {
-		t.Fatalf("the modal is %T, want the text modal", m.modal)
+		t.Fatalf("the modal is %T, want the text modal", m.modals.Top())
 	}
 	for l := range strings.SplitSeq(ansi.Strip(tm.View()), "\n") {
 		if _, rest, ok := strings.Cut(l, "line "); ok && strings.Contains(rest, "/") {
@@ -64,7 +64,7 @@ func TestReaderKeysFollowTheConfig(t *testing.T) {
 			t.Error("x, the page down key, didn't page")
 		}
 
-		tm := m.modal.(*textModal)
+		tm := m.modals.Top().(*textModal)
 		if !tm.pager.Wrap() {
 			t.Fatal("the text doesn't wrap")
 		}

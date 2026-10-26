@@ -7,10 +7,12 @@ import (
 )
 
 // Modal is a popup over the screen, such as a file preview or the history.
-// The app draws it in a frame over the middle of the screen. Modals never
-// stack: opening one replaces the one that is open, so a modal that needs
-// more views, such as a list and a detail, shows them inside its own frame. While it is open it takes every key, except ctrl+c, which still
-// quits; every other message reaches it as it reaches the sections.
+// The app draws it in a frame over the middle of the screen, one at a time:
+// a modal that is opened over another is ranked against it by its type, and a
+// modal that needs more views, such as a list and a detail, shows them
+// inside its own frame. While it is open it takes every key, except ctrl+c,
+// which still quits; every other message reaches it as it reaches the
+// sections.
 //
 // A Modal is implemented by a pointer, since the app finds the one to close
 // by comparing it. It closes itself by returning [CloseModal].
@@ -39,12 +41,6 @@ type Settler interface {
 	Settle() tea.Cmd
 }
 
-// ReturnsOnClose marks a Modal that other modals opened over return to when
-// they close.
-type ReturnsOnClose interface {
-	ReturnsOnClose()
-}
-
 // Tabbed is a Modal with tabs, such as the filters of a list, which the
 // app shows at the right end of the top edge of the frame.
 type Tabbed interface {
@@ -55,18 +51,16 @@ type Tabbed interface {
 
 // Saver is a Modal or a section that holds text the user wrote and hasn't
 // sent, such as a comment in a composer. The app calls Save when it quits,
-// by ctrl+c or the q command, without asking, so that quitting loses
-// nothing. Save writes what it holds now, and may block on the disk; a
+// by ctrl+c or the q command, so that quitting loses nothing. Save writes what it holds now, and may block on the disk; a
 // failure is logged and the app quits all the same.
 type Saver interface {
 	Save() error
 }
 
 // Hider is a Modal that works in the background while it is open, such as
-// following a run in progress, which it stops once another modal replaces
-// it: the app calls Hide then. A modal that opened the one in
-// its place, such as a preview, gets a [ReopenedMsg] when it is back, and
-// starts again; one that another replaced for good stays paused.
+// following a run in progress, which it stops once another modal covers
+// it: the app calls Hide then. It gets a [ReopenedMsg] when it is on top
+// again, and starts again.
 type Hider interface {
 	Hide()
 }
@@ -143,12 +137,13 @@ type Linked interface {
 	Link() string
 }
 
-// OpenModalMsg asks the app to open Modal over the screen, in place of the
-// modal that is open. If Back is that modal, the app keeps it, hidden, so
-// that the back key returns to it.
+// OpenModalMsg asks the app to open Modal over the screen. The app ranks it
+// by its type against the open modal: a higher one opens over it, an equal
+// one replaces it, and a lower one is refused. If Over is set, the open is
+// dropped unless Over is still the open modal.
 type OpenModalMsg struct {
 	Modal Modal
-	Back  Modal
+	Over  Modal
 }
 
 // OpenModal returns a command that opens m. The opener starts whatever m
@@ -160,37 +155,29 @@ func OpenModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return OpenModalMsg{Modal: m} }
 }
 
-// OpenModalOver returns a command that opens m in place of back, the modal
-// that is open and asked for it, such as a pull request picked in the
-// references of another. The back key returns to back, which stays as it
-// was; if back is no longer the open modal, m opens as OpenModal opens it.
-func OpenModalOver(m, back Modal) tea.Cmd {
-	return func() tea.Msg { return OpenModalMsg{Modal: m, Back: back} }
+// OpenModalOver returns a command that opens m as OpenModal does, but only
+// while over is still the open modal that asked for it, so that an open that
+// finished after the user moved on is dropped.
+func OpenModalOver(m, over Modal) tea.Cmd {
+	return func() tea.Msg { return OpenModalMsg{Modal: m, Over: over} }
 }
 
 // Discarder is a Modal that the app drops without it being open, such as
-// one that the back key leaves, or that the end of a chain of modals
-// leaves behind. Discard stops it for good: its reads end, and the reads
-// it held back go on.
+// one that closed under another or that the cap of held modals evicts.
+// Discard stops it for good: its reads end, and the reads it held back go on.
 type Discarder interface {
 	Discard()
 }
 
-// ReopenedMsg tells Modal that it is open again, after a modal it opened
-// in its place closed, such as a file preview opened from it. A modal that
+// ReopenedMsg tells Modal that it is on top again, after the modal that
+// covered it closed, such as a file preview opened from it. A modal that
 // stopped what it did while hidden, such as polls, starts it again.
 type ReopenedMsg struct {
 	Modal Modal
 }
 
-// Reopen returns a command that opens m again, in place of the modal that
-// is open, and then tells it with a [ReopenedMsg].
-func Reopen(m Modal) tea.Cmd {
-	return tea.Sequence(OpenModal(m), func() tea.Msg { return ReopenedMsg{Modal: m} })
-}
-
-// CloseModalMsg asks the app to close Modal. It does nothing once another
-// modal has replaced it.
+// CloseModalMsg asks the app to close Modal. It does nothing unless Modal is
+// the open modal.
 type CloseModalMsg struct {
 	Modal Modal
 }
@@ -200,9 +187,9 @@ func CloseModal(m Modal) tea.Cmd {
 	return func() tea.Msg { return CloseModalMsg{Modal: m} }
 }
 
-// LeaveModalMsg asks the app to leave Modal: to return to the modal it was
-// opened over, or to close it if there is none. It does nothing once another
-// modal has replaced it.
+// LeaveModalMsg asks the app to leave Modal: to return to the modal under
+// it, or to close it if there is none. It does nothing unless Modal is the
+// open modal.
 type LeaveModalMsg struct {
 	Modal Modal
 }

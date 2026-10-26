@@ -107,9 +107,9 @@ func newFilterAppWith(t *testing.T, cfg config.Config, width, height int) (*Mode
 
 func filterModal(t *testing.T, m *Model) *ui.FilterModal {
 	t.Helper()
-	mod, ok := m.topModal().(*ui.FilterModal)
+	mod, ok := m.modals.Top().(*ui.FilterModal)
 	if !ok {
-		t.Fatalf("modal = %T, want the filter modal", m.topModal())
+		t.Fatalf("modal = %T, want the filter modal", m.modals.Top())
 	}
 	return mod
 }
@@ -129,7 +129,7 @@ func TestFilterKeyOpensTheModal(t *testing.T) {
 		t.Error("the section got the filter key too")
 	}
 	// The form is far shorter than the screen, so the frame fits it.
-	if w, h := m.frameSize(); w > 104 || h >= 32 {
+	if w, h := m.modals.FrameSize(); w > 104 || h >= 32 {
 		t.Errorf("frame = %dx%d, want it fitted to the form", w, h)
 	}
 }
@@ -140,7 +140,7 @@ func TestFilterModalApplies(t *testing.T) {
 	run(m, m.key(press("f")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyRight}))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Error("the modal stayed open after apply")
 	}
 	if len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" || pulls.applied[0].Values["state"].Text() != "open" {
@@ -159,8 +159,8 @@ func TestFilterModalCancels(t *testing.T) {
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("f")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
-	if m.topModal() != nil || len(pulls.applied) != 0 {
-		t.Errorf("modal %v, applied %v; want it closed with nothing applied", m.topModal(), pulls.applied)
+	if m.modals.Top() != nil || len(pulls.applied) != 0 {
+		t.Errorf("modal %v, applied %v; want it closed with nothing applied", m.modals.Top(), pulls.applied)
 	}
 }
 
@@ -169,12 +169,12 @@ func TestFilterKeyWithoutAFilterGoesToTheSection(t *testing.T) {
 	m, pulls, fakes := newFilterApp(t)
 	pulls.ready = false
 	run(m, m.key(press("f")))
-	if m.topModal() != nil || !pulls.got(isKey("f")) {
+	if m.modals.Top() != nil || !pulls.got(isKey("f")) {
 		t.Error("the filter key opened a modal with nothing to filter, or didn't reach the section")
 	}
 	run(m, m.showScreen(repoScreen, 0))
 	run(m, m.key(press("f")))
-	if m.topModal() != nil || !fakes[0].got(isKey("f")) {
+	if m.modals.Top() != nil || !fakes[0].got(isKey("f")) {
 		t.Error("the filter key didn't reach a section without a filter")
 	}
 }
@@ -215,9 +215,9 @@ func TestPaneTitleChips(t *testing.T) {
 
 func sortModal(t *testing.T, m *Model) *ui.SortModal {
 	t.Helper()
-	mod, ok := m.topModal().(*ui.SortModal)
+	mod, ok := m.modals.Top().(*ui.SortModal)
 	if !ok {
-		t.Fatalf("modal = %T, want the sort modal", m.topModal())
+		t.Fatalf("modal = %T, want the sort modal", m.modals.Top())
 	}
 	return mod
 }
@@ -262,10 +262,10 @@ func TestFilterModalGrowsWithItsPicker(t *testing.T) {
 		pulls.labels = append(pulls.labels, filterform.Item{Label: fmt.Sprint("label-", i), Value: fmt.Sprint("label-", i)})
 	}
 	run(m, m.key(press("f")))
-	_, closed := m.frameSize()
+	_, closed := m.modals.FrameSize()
 	run(m, m.key(press("j")))
 	run(m, m.key(press("space")))
-	_, open := m.frameSize()
+	_, open := m.modals.FrameSize()
 	if open <= closed {
 		t.Errorf("the frame is %d tall with the list open, want more than %d", open, closed)
 	}
@@ -273,7 +273,7 @@ func TestFilterModalGrowsWithItsPicker(t *testing.T) {
 		t.Errorf("the list is cut short:\n%s", v)
 	}
 	run(m, m.key(press("esc")))
-	if _, back := m.frameSize(); back != closed {
+	if _, back := m.modals.FrameSize(); back != closed {
 		t.Errorf("the frame is %d tall with the list closed, want %d", back, closed)
 	}
 	if got := filterModal(t, m); got == nil {
@@ -289,15 +289,15 @@ func TestFilterModalAppliesAfterList(t *testing.T) {
 	run(m, m.key(press("space")))
 	run(m, m.key(press("k")))
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
-	if m.topModal() == nil || len(pulls.applied) != 0 {
-		t.Fatalf("modal %v, applied %v; want enter to close the list only", m.topModal(), pulls.applied)
+	if m.modals.Top() == nil || len(pulls.applied) != 0 {
+		t.Fatalf("modal %v, applied %v; want enter to close the list only", m.modals.Top(), pulls.applied)
 	}
 	if got := filterModal(t, m).Query(); got != "is:open" {
 		t.Errorf("query = %q, want the state chosen", got)
 	}
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
-	if m.topModal() != nil || len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" {
-		t.Errorf("modal %v, applied %+v; want the second enter to apply", m.topModal(), pulls.applied)
+	if m.modals.Top() != nil || len(pulls.applied) != 1 || pulls.applied[0].Query != "is:open" {
+		t.Errorf("modal %v, applied %+v; want the second enter to apply", m.modals.Top(), pulls.applied)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestSortKeyWithoutASortGoesToTheSection(t *testing.T) {
 	t.Parallel()
 	m, pulls, _ := newFilterApp(t)
 	run(m, m.key(press("s")))
-	if m.topModal() != nil || !pulls.got(isKey("s")) {
+	if m.modals.Top() != nil || !pulls.got(isKey("s")) {
 		t.Error("s opened a modal for a list that can't be sorted, or didn't reach the section")
 	}
 }
@@ -331,7 +331,7 @@ func TestSortKeyCanBeRebound(t *testing.T) {
 	m, pulls, _ := newFilterAppWith(t, cfg, 120, 40)
 	pulls.sorts = true
 	run(m, m.key(press("s")))
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Fatal("s still opens the sort")
 	}
 	run(m, m.key(press("O")))
@@ -357,7 +357,7 @@ func TestFilterModalFrame(t *testing.T) {
 			for _, k := range tt.then {
 				run(m, m.key(press(k)))
 				// The app sizes the modal again after each message.
-				m.fitModal()
+				m.modals.Refit()
 			}
 			golden.RequireEqual(t, m.View().Content)
 		})
@@ -393,8 +393,8 @@ func TestFilterCommands(t *testing.T) {
 			runCommand(t, m, tt.line)
 			switch tt.modal {
 			case "":
-				if m.topModal() != nil {
-					t.Errorf("modal %q opened", m.topModal().Title())
+				if m.modals.Top() != nil {
+					t.Errorf("modal %q opened", m.modals.Top().Title())
 				}
 			case "Sort":
 				sortModal(t, m)

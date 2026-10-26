@@ -183,7 +183,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}
 	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
-	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modal != nil && m.canMaximize())
+	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modals.Top() != nil && m.canMaximize())
 	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && (m.toast.Has(toast.Error) || m.going != nil))
 	if m.going != nil && !m.toast.Has(toast.Error) {
 		k.Dismiss.SetHelp(k.Dismiss.Help().Key, "cancel")

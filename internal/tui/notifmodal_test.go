@@ -18,21 +18,21 @@ func TestNotificationsOpenAsAModal(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.notifications")
-		if got := m.modalName(m.modal); got != notifName {
+		if got := m.modalName(m.modals.Top()); got != notifName {
 			t.Fatalf("I opened %q, want %q", got, notifName)
 		}
 		for _, key := range []string{"esc", "backspace", "q"} {
 			m := keysAfter(t, true, "global.notifications")
 			tap(t, m, key)
-			if m.modal != nil {
-				t.Errorf("%s left %s open", key, m.modalName(m.modal))
+			if m.modals.Top() != nil {
+				t.Errorf("%s left %s open", key, m.modalName(m.modals.Top()))
 			}
 		}
 		// I does nothing while the modal is open, as the help says.
-		host := m.modal
+		host := m.modals.Top()
 		tap(t, m, "I")
-		if m.modal != host {
-			t.Errorf("I left %s, want the notifications still open", m.modalName(m.modal))
+		if m.modals.Top() != host {
+			t.Errorf("I left %s, want the notifications still open", m.modalName(m.modals.Top()))
 		}
 	})
 }
@@ -60,8 +60,8 @@ func TestSyncReachesTheNotificationsOnce(t *testing.T) {
 		for _, name := range c.press(t, open.cfg.Keys, "global.notifications") {
 			tap(t, open, name)
 		}
-		if open.modalName(open.modal) != notifName {
-			t.Fatalf("I opened %q, want %q", open.modalName(open.modal), notifName)
+		if open.modalName(open.modals.Top()) != notifName {
+			t.Fatalf("I opened %q, want %q", open.modalName(open.modals.Top()), notifName)
 		}
 		reads.Store(0)
 		driveKeys(t, open, open.broadcast(sync))
@@ -77,14 +77,14 @@ func TestThreadOpensStackOverTheNotifications(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, "global.notifications")
-				host := m.modal
+				host := m.modals.Top()
 				tap(t, m, "enter")
-				if m.modal == host || m.modal == nil {
-					t.Fatalf("enter left %T, want a thread modal over the notifications", m.modal)
+				if m.modals.Top() == host || m.modals.Top() == nil {
+					t.Fatalf("enter left %T, want a thread modal over the notifications", m.modals.Top())
 				}
 				tap(t, m, key)
-				if m.modal != host {
-					t.Errorf("%s left %T, want the notifications", key, m.modal)
+				if m.modals.Top() != host {
+					t.Errorf("%s left %T, want the notifications", key, m.modals.Top())
 				}
 			})
 		})
@@ -100,19 +100,21 @@ func TestNotificationsDroppedWithTheirChain(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.notifications")
 		tap(t, m, "enter")
-		thread := m.modal
+		thread := m.modals.Top()
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 2} })
-		if m.modal == nil || m.modal == thread {
-			t.Fatalf("the second issue left %T, want it in place of the thread", m.modal)
+		if m.modals.Top() == nil || m.modals.Top() == thread {
+			t.Fatalf("the second issue left %T, want it in place of the thread", m.modals.Top())
 		}
 		tap(t, m, "esc")
-		if m.modal != nil {
-			t.Fatalf("esc left %T, want no modal", m.modal)
+		if m.notifHost() == nil {
+			t.Fatalf("esc left %T, want the notifications", m.modals.Top())
 		}
-		for _, p := range m.back {
-			if p.modal != nil {
-				t.Errorf("the closed chain kept %T for the back key", p.modal)
-			}
+		tap(t, m, "esc")
+		if m.modals.Top() != nil {
+			t.Fatalf("esc left %T, want no modal", m.modals.Top())
+		}
+		if m.modals.CanBack() {
+			t.Error("the closed chain kept a place for the back key")
 		}
 	})
 }
@@ -121,14 +123,14 @@ func TestReadAllInTheNotificationsModalAsks(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.notifications")
-		host := m.modal
+		host := m.modals.Top()
 		runCommand(t, m, "read all")
-		if m.modal == nil || m.modal == host {
-			t.Fatalf("read all left %v, want a confirm over the notifications", m.modal)
+		if m.modals.Top() == nil || m.modals.Top() == host {
+			t.Fatalf("read all left %v, want a confirm over the notifications", m.modals.Top())
 		}
 		tap(t, m, "esc")
-		if m.modal != host {
-			t.Errorf("esc left %v, want the notifications", m.modal)
+		if m.modals.Top() != host {
+			t.Errorf("esc left %v, want the notifications", m.modals.Top())
 		}
 	})
 }
@@ -142,7 +144,7 @@ func TestNotificationsOverAModalReturnToIt(t *testing.T) {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, mod.steps...)
-				under := m.modal
+				under := m.modals.Top()
 				if under == nil {
 					t.Fatal("the modal isn't open")
 				}
@@ -150,12 +152,12 @@ func TestNotificationsOverAModalReturnToIt(t *testing.T) {
 				depth := len(m.back)
 				for _, key := range []string{"esc", "backspace"} {
 					tap(t, m, "I")
-					if got := m.modalName(m.modal); got != notifName {
+					if got := m.modalName(m.modals.Top()); got != notifName {
 						t.Fatalf("I over %s opened %q, want %q", mod.title, got, notifName)
 					}
 					tap(t, m, key)
-					if m.modal != under || layerNames(m.keyLayers()) != views || len(m.back) != depth {
-						t.Errorf("%s left %v with keys of %q and %d back, want the modal under with %q and %d", key, m.modalName(m.modal), layerNames(m.keyLayers()), len(m.back), views, depth)
+					if m.modals.Top() != under || layerNames(m.keyLayers()) != views || len(m.back) != depth {
+						t.Errorf("%s left %v with keys of %q and %d back, want the modal under with %q and %d", key, m.modalName(m.modals.Top()), layerNames(m.keyLayers()), len(m.back), views, depth)
 					}
 				}
 			})
@@ -167,37 +169,37 @@ func TestNotificationsModalKeepsItsOverlays(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.notifications")
-		host := m.modal
+		host := m.modals.Top()
 		for _, key := range []string{"f", "s", "g"} {
 			tap(t, m, key)
-			if m.modal == host {
+			if m.modals.Top() == host {
 				t.Fatalf("%s opened nothing over the notifications", key)
 			}
 			if key != "f" {
 				for _, back := range []string{"esc"} {
 					tap(t, m, back)
-					if m.modal != host {
-						t.Fatalf("%s after %s left %v, want the notifications", back, key, m.modal)
+					if m.modals.Top() != host {
+						t.Fatalf("%s after %s left %v, want the notifications", back, key, m.modals.Top())
 					}
 					tap(t, m, key)
 				}
 				tap(t, m, "esc")
-				if m.modal != host {
-					t.Fatalf("esc after %s left %v, want the notifications", key, m.modal)
+				if m.modals.Top() != host {
+					t.Fatalf("esc after %s left %v, want the notifications", key, m.modals.Top())
 				}
 				continue
 			}
 			tap(t, m, "backspace")
-			if m.modal != host {
-				t.Fatalf("backspace after %s left %v, want the notifications", key, m.modal)
+			if m.modals.Top() != host {
+				t.Fatalf("backspace after %s left %v, want the notifications", key, m.modals.Top())
 			}
 		}
 		tap(t, m, "Z")
-		if !m.maximized {
+		if !m.modals.Maximized() {
 			t.Error("Z didn't maximize the notifications")
 		}
 		tap(t, m, "Z")
-		if m.maximized {
+		if m.modals.Maximized() {
 			t.Error("Z again didn't restore the notifications")
 		}
 	})
@@ -211,10 +213,14 @@ func TestTokenPromptRefusesTheNotifications(t *testing.T) {
 				continue
 			}
 			m := keysAfter(t, true, mod.steps...)
-			open := m.modal
+			open := m.modals.Top()
 			tap(t, m, "I")
-			if m.modal != open {
-				t.Errorf("I over the token prompt left %s", m.modalName(m.modal))
+			if m.notifHost() == nil {
+				t.Fatalf("I over the token prompt left %s, want the notifications over it", m.modalName(m.modals.Top()))
+			}
+			tap(t, m, "esc")
+			if m.modals.Top() != open {
+				t.Errorf("esc left %s, want the token prompt", m.modalName(m.modals.Top()))
 			}
 		}
 	})

@@ -72,14 +72,14 @@ func TestMaximizeToggles(t *testing.T) {
 	m, _ := newTestApp(t)
 	mod := newCtxModal("history")
 	run(m, ui.OpenModal(mod))
-	fw, fh := m.frameSize()
+	fw, fh := m.modals.FrameSize()
 	if fw >= m.width || fh >= m.height-1 {
 		t.Fatalf("the modal opens at %dx%d, want less than the screen", fw, fh)
 	}
 	wantInner(t, mod, fw, fh, "before")
 
 	send(m, "Z")
-	if !m.maximized {
+	if !m.modals.Maximized() {
 		t.Fatal("Z didn't maximize the modal")
 	}
 	wantInner(t, mod, m.width, m.height-1, "maximized")
@@ -99,7 +99,7 @@ func TestMaximizeToggles(t *testing.T) {
 	}
 
 	send(m, "Z")
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Fatal("Z again didn't restore the modal")
 	}
 	wantInner(t, mod, fw, fh, "restored")
@@ -135,8 +135,8 @@ func TestMaximizeSurvivesAResize(t *testing.T) {
 	send(m, "Z")
 	for _, size := range [][2]int{{120, 40}, {60, 20}} {
 		resize(m, size[0], size[1])
-		if !m.maximized || mod.width != size[0]-4 || mod.height != size[1]-1-2 {
-			t.Errorf("after a resize to %dx%d the modal is %dx%d, maximized %v", size[0], size[1], mod.width, mod.height, m.maximized)
+		if !m.modals.Maximized() || mod.width != size[0]-4 || mod.height != size[1]-1-2 {
+			t.Errorf("after a resize to %dx%d the modal is %dx%d, maximized %v", size[0], size[1], mod.width, mod.height, m.modals.Maximized())
 		}
 	}
 	if mod.settles == 0 {
@@ -144,9 +144,9 @@ func TestMaximizeSurvivesAResize(t *testing.T) {
 	}
 	resize(m, 100, 30)
 	send(m, "Z")
-	fw, fh := m.frameSize()
-	if m.maximized || fw >= 100 || mod.width != fw-4 || mod.height != fh-2 {
-		t.Errorf("restored and resized, the modal is %dx%d in a %dx%d frame, maximized %v", mod.width, mod.height, fw, fh, m.maximized)
+	fw, fh := m.modals.FrameSize()
+	if m.modals.Maximized() || fw >= 100 || mod.width != fw-4 || mod.height != fh-2 {
+		t.Errorf("restored and resized, the modal is %dx%d in a %dx%d frame, maximized %v", mod.width, mod.height, fw, fh, m.modals.Maximized())
 	}
 }
 
@@ -160,31 +160,31 @@ func TestMaximizeDefaults(t *testing.T) {
 
 	hist := newCtxModal("history")
 	run(m, ui.OpenModal(hist))
-	if !m.maximized {
+	if !m.modals.Maximized() {
 		t.Fatal("history opened small, though ui.maximized lists it")
 	}
 	wantInner(t, hist, m.width, m.height-1, "history")
 
 	other := newCtxModal("preview")
 	run(m, ui.OpenModal(other))
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("the preview opened maximized, though ui.maximized doesn't list it")
 	}
 	// What the user did to the one before isn't kept.
 	send(m, "Z")
 	run(m, ui.OpenModal(hist))
-	if !m.maximized {
+	if !m.modals.Maximized() {
 		t.Error("history lost its default after another modal was maximized")
 	}
 	send(m, "Z")
 	run(m, ui.OpenModal(other))
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("the preview kept the state of the history")
 	}
 
 	// A modal that is no key context has no default.
 	run(m, ui.OpenModal(&fakeModal{title: "x"}))
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("a modal without a context opened maximized")
 	}
 }
@@ -198,13 +198,15 @@ func TestMaximizeDefaultsOfSteps(t *testing.T) {
 		m.cfg.UI.Maximized = []string{listed}
 		m.applySettings()
 		run(m, ui.OpenModal(newCtxModal(ctx)))
-		if !m.maximized {
+		if !m.modals.Maximized() {
 			t.Errorf("a modal opened on %s didn't open maximized, though ui.maximized lists %s", ctx, listed)
 		}
 		m.cfg.UI.Maximized = []string{"history"}
 		m.applySettings()
+		// A modal of the kind that is open opens nothing, so close it.
+		m.modals.Close(m.modals.Top())
 		run(m, ui.OpenModal(newCtxModal(ctx)))
-		if m.maximized {
+		if m.modals.Maximized() {
 			t.Errorf("a modal opened on %s opened maximized, though ui.maximized doesn't list %s", ctx, listed)
 		}
 	}
@@ -221,11 +223,13 @@ func TestMaximizeSet(t *testing.T) {
 	if len(told) != 1 || len(m.cfg.UI.Maximized) != 1 {
 		t.Fatalf("the setting wasn't applied: %v", m.cfg.UI.Maximized)
 	}
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("the open modal changed with the setting")
 	}
+	// A modal of the kind that is open opens nothing, so close it.
+	m.modals.Close(m.modals.Top())
 	run(m, ui.OpenModal(newCtxModal("history")))
-	if !m.maximized {
+	if !m.modals.Maximized() {
 		t.Error("the next modal didn't open maximized")
 	}
 }
@@ -239,8 +243,8 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 		mod.typing = true
 		run(m, ui.OpenModal(mod))
 		send(m, "Z")
-		if m.maximized || len(mod.keys()) != 1 || mod.keys()[0] != "Z" {
-			t.Errorf("maximized %v, the modal got %v; want Z typed", m.maximized, mod.keys())
+		if m.modals.Maximized() || len(mod.keys()) != 1 || mod.keys()[0] != "Z" {
+			t.Errorf("maximized %v, the modal got %v; want Z typed", m.modals.Maximized(), mod.keys())
 		}
 	})
 	t.Run("a context that captures", func(t *testing.T) {
@@ -248,8 +252,8 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 		mod := newCtxModal("search_prompt")
 		run(m, ui.OpenModal(mod))
 		send(m, "Z")
-		if m.maximized || len(mod.keys()) != 1 {
-			t.Errorf("maximized %v, the modal got %v; want Z left to it", m.maximized, mod.keys())
+		if m.modals.Maximized() || len(mod.keys()) != 1 {
+			t.Errorf("maximized %v, the modal got %v; want Z left to it", m.modals.Maximized(), mod.keys())
 		}
 	})
 	t.Run("the search prompt of a pager", func(t *testing.T) {
@@ -257,7 +261,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 		run(m, m.openText("go.mod", "go.mod", "alpha\nZulu\n", false))
 		send(m, "/")
 		send(m, "Z")
-		if m.maximized {
+		if m.modals.Maximized() {
 			t.Error("Z maximized the modal while the search prompt was open")
 		}
 		if s := onScreen(m); !strings.Contains(s, "/Z") {
@@ -272,8 +276,8 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 			t.Fatal("the command line didn't open over the modal")
 		}
 		send(m, "Z")
-		if m.maximized || m.line.Value() != "Z" {
-			t.Errorf("maximized %v, the line holds %q; want Z typed", m.maximized, m.line.Value())
+		if m.modals.Maximized() || m.line.Value() != "Z" {
+			t.Errorf("maximized %v, the line holds %q; want Z typed", m.modals.Maximized(), m.line.Value())
 		}
 	})
 	t.Run("the help", func(t *testing.T) {
@@ -284,7 +288,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 			t.Fatal("the help didn't open")
 		}
 		send(m, "Z")
-		if m.maximized {
+		if m.modals.Maximized() {
 			t.Error("Z maximized the modal under the help")
 		}
 	})
@@ -292,7 +296,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 		m, _ := newTestApp(t)
 		run(m, ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: "Close it?"}, ui.NewConfirmKeys(config.Default().Keys), ui.NewIcons(config.IconsASCII))))
 		send(m, "Z")
-		if m.maximized {
+		if m.modals.Maximized() {
 			t.Error("Z maximized the question")
 		}
 	})
@@ -307,19 +311,21 @@ func TestMaximizeTokenModal(t *testing.T) {
 	mod.checking = false
 	run(m, ui.OpenModal(mod))
 	send(m, "Z")
-	if !m.maximized {
+	if !m.modals.Maximized() {
 		t.Error("Z didn't maximize the token modal")
 	}
 	send(m, "Z")
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("Z again didn't restore the token modal")
 	}
 
 	asking := newAuthModal(config.Default().Keys, "octocat@github.com", core.Access{}, access.Plan{Cmd: []string{"gh", "auth", "refresh"}}, uitest.Token(&uitest.Checker{}), nil)
 	asking.checking = false
+	// A modal of the kind that is open opens nothing, so close it.
+	m.modals.Close(m.modals.Top())
 	run(m, ui.OpenModal(asking))
 	send(m, "Z")
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("Z maximized the token modal while it asks")
 	}
 }
@@ -329,7 +335,7 @@ func TestMaximizeNeedsAModal(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
 	send(m, "Z")
-	if m.maximized {
+	if m.modals.Maximized() {
 		t.Error("Z maximized with no modal open")
 	}
 	if !fakes[0].got(isKey("Z")) {
@@ -360,7 +366,7 @@ func TestMaximizeInHelp(t *testing.T) {
 	if !ok || !b.Enabled() || b.Help().Key != "Z" {
 		t.Errorf("help lacks maximize on Z while a modal is open: %v, %v", b, ok)
 	}
-	m.modal.(*ctxModal).typing = true
+	m.modals.Top().(*ctxModal).typing = true
 	if b, ok := find(m); ok && b.Enabled() {
 		t.Error("help lists maximize enabled while the modal types")
 	}
@@ -374,8 +380,8 @@ func TestMaximizeUnbound(t *testing.T) {
 	mod := newCtxModal("history")
 	run(m, ui.OpenModal(mod))
 	send(m, "Z")
-	if m.maximized || len(mod.keys()) != 1 {
-		t.Errorf("maximized %v, the modal got %v; want Z left to it", m.maximized, mod.keys())
+	if m.modals.Maximized() || len(mod.keys()) != 1 {
+		t.Errorf("maximized %v, the modal got %v; want Z left to it", m.modals.Maximized(), mod.keys())
 	}
 }
 
@@ -439,7 +445,7 @@ func TestMaximizeOpensOnTheMergePane(t *testing.T) {
 		if got := layerNames(m.keyLayers()); got != "global, pull_modal, pull_merge" {
 			t.Fatalf("layers = %q, want the merge pane", got)
 		}
-		if !m.maximized {
+		if !m.modals.Maximized() {
 			t.Error("the merge pane didn't show maximized")
 		}
 	})

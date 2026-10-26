@@ -162,9 +162,9 @@ type OpenPullMsg struct {
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while its detail loads.
 	Pause Pauser
-	// Back, if set, is the modal that this one replaces, which the back
-	// key returns to. The app keeps it, hidden, behind the new one.
-	Back Modal
+	// Over, if set, is the modal this one is opened from. It must be the
+	// open modal to count; the back key returns to it.
+	Over Modal
 }
 
 // OpenIssueMsg asks for the issue Number of Repo to be opened, such as when
@@ -178,8 +178,8 @@ type OpenIssueMsg struct {
 	// Pause, if set, holds the reads ahead of the list it was opened
 	// from, such as the dashboard's, while it loads.
 	Pause Pauser
-	// Back is the modal that this one replaces, as OpenPullMsg's is.
-	Back Modal
+	// Over is the modal this one is opened from, as OpenPullMsg's is.
+	Over Modal
 }
 
 // OpenFilterMsg asks for the filter modal of the focused list to be opened,
@@ -212,9 +212,9 @@ type OpenActionsMsg struct {
 	Repo   core.RepoRef
 	Filter core.RunFilter
 	At     ActionsAt
-	// Back is the modal to return to when the Actions modal is left, nil for
+	// Over is the modal to return to when the Actions modal is left, nil for
 	// none. It must be the open modal to count.
-	Back Modal
+	Over Modal
 }
 
 // ActionsAt says where the Actions modal opens: on the run with ID Run and,
@@ -260,9 +260,6 @@ type OpenFileMsg struct {
 	// Line, if set, is the line the preview opens on, counted from 1,
 	// such as the one an annotation points at.
 	Line int
-	// Return, if set, is the modal the preview reopens when it closes,
-	// such as the one it was opened from, which it replaced.
-	Return Modal
 }
 
 // ShowMsg asks the app to switch to the section with Title.

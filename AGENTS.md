@@ -105,7 +105,8 @@ Rules:
 ### The search modal
 
 Search is an overlay modal, opened with `S` from anywhere. From inside
-another modal, `S` closes it and opens the search. A query runs only on
+another modal, `S` opens the search over it, and esc returns; on the
+search itself it only refocuses the query. A query runs only on
 submit (enter), never while typing. The frame has two panes, Results and
 Preview. A type strip above the results picks the kind with the digits 1
 to 7: repositories, issues, pull requests, code, users and organizations,
@@ -506,16 +507,26 @@ reacts to messages. Concretely:
   sparingly. Keep spacing and alignment consistent across views.
 - Loading uses spinners or skeletons, empty states tell the user what to do,
   and errors are inline and recoverable.
-- Two kinds of modal. Overlay modals (filter, sort, group, comment and
-  notifications) open over any modal, as many as needed, and replace none:
-  closing one returns to what is under it. A modal opened from the
-  notifications, such as a thread, returns to them on close (esc, backspace
-  or q). Content modals (a pull request,
-  an issue, history, actions, the pager, a file) show one at a time:
-  opening one replaces the open one. A modal that needs several views, such
-  as a list and its detail, shows them as panes or steps inside its own
-  frame. Backspace steps back one step; esc clears what is transient, then
-  closes.
+- Modals are kept by one manager, and each type has a rank in
+  `modalPriorities` (`internal/tui/modal_priority.go`; a test fails for a
+  type without one). A modal of a higher rank than the open one covers
+  it, such as a filter or a confirm, and closing it returns to what is
+  under it. One of the same rank replaces the open one, and back returns
+  to it. One that ranks lower than a modal held in the trail is refused
+  with a toast naming the modal to close first. The search and the
+  notifications, of a negative rank, open over anything, once each, and
+  are never replaced. Held modals are capped, and the oldest goes first.
+  The same modal is never opened twice: opening the one on top only
+  refocuses it. A modal that needs several views,
+  such as a list and its detail, shows them as panes or steps inside its
+  own frame. Backspace steps back one step, or returns to the modal that
+  the open one replaced; esc clears what is transient, then closes and
+  returns to what is under it.
+- A modal that holds unsent text, or that must not close at once, is
+  guarded: the manager asks its guard when it is dismissed, covered or
+  quit. The guard saves and closes, or keeps the modal open with a toast.
+  `ctrl+c` saves every held modal that is a `ui.Saver` and quits; `:q`
+  asks the guards first and stays open if one keeps its modal.
 - Everything must stay legible in both light and dark terminals and at 80
   columns.
 

@@ -21,7 +21,7 @@ var rawWords = []cmdline.Candidate{
 // which it shows, as set does of a setting. It changes only the file
 // open: files.markdown says how the next one shows.
 func (m *Model) rawCommand(arg string) tea.Cmd {
-	s, ok := m.topModal().(ui.Sourced)
+	s, ok := m.modals.Top().(ui.Sourced)
 	raw, renders := false, false
 	if ok {
 		raw, renders = s.Raw()

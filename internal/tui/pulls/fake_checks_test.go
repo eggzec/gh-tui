@@ -34,7 +34,7 @@ func TestOpenJobMsgOpensTheActionsOnTheJob(t *testing.T) {
 			t.Fatalf("OpenJobMsg asked for %T, want OpenActionsMsg", cmd())
 		}
 		if got.Repo != m.repo || got.Filter != (core.RunFilter{HeadSHA: checkSHA}) ||
-			got.At != (ui.ActionsAt{Run: 7, Job: 9, Jobs: true}) || got.Back != ui.Modal(m) {
+			got.At != (ui.ActionsAt{Run: 7, Job: 9, Jobs: true}) || got.Over != ui.Modal(m) {
 			t.Errorf("OpenActionsMsg = %+v, want the job of the commit, back to the modal", got)
 		}
 	}

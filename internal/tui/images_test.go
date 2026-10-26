@@ -663,8 +663,8 @@ func TestImagesCommand(t *testing.T) {
 				t.Errorf("the command changed graphics %+v to %+v, verdict %+v to %+v", graphics, m.graphics, verdict, m.images.verdict)
 			}
 			drive(m, m.key(press("q")))
-			if m.modal != nil {
-				t.Errorf("q left %T open, want the pager closed", m.modal)
+			if m.modals.Top() != nil {
+				t.Errorf("q left %T open, want the pager closed", m.modals.Top())
 			}
 		})
 	}
@@ -707,7 +707,7 @@ func TestImagesCommandNarrow(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 40, Height: 40})
 	runCommand(t, m, "images")
 	_, text := shownText(t, m)
-	if !m.modal.(*textModal).pager.Wrap() {
+	if !m.modals.Top().(*textModal).pager.Wrap() {
 		t.Error("the images pager doesn't wrap")
 	}
 	text = trimLines(text)
@@ -718,7 +718,7 @@ func TestImagesCommandNarrow(t *testing.T) {
 	}
 	drive(m, m.key(press("q")))
 	runCommand(t, m, "config")
-	if m.modal.(*textModal).pager.Wrap() {
+	if m.modals.Top().(*textModal).pager.Wrap() {
 		t.Error("the config pager wraps, want its lines scrolled sideways")
 	}
 }

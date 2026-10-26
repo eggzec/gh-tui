@@ -20,120 +20,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// topModal returns the open modal, or nil if none is open.
-func (m *Model) topModal() ui.Modal {
-	return m.modal
-}
-
-// openModal opens mod in place of the open modal, if any, which hides:
-// modals never stack, so the screen shows at most one frame over it. It
-// closes the command line, whose command was typed for what showed before,
-// such as when a goto run before ends while the user types another.
-func (m *Model) openModal(mod ui.Modal) { m.openModalOver(mod, nil) }
-
-// openModalOver opens mod as openModal does. If back is the open modal and
-// isn't mod, it is kept for the back key to return to, in the same history
-// as the screens: one that began another chain than the history's own
-// starts it over.
-func (m *Model) openModalOver(mod, back ui.Modal) {
-	if mod == nil {
-		return
-	}
-	if back != nil && m.modal == back && mod != back {
-		m.pushModal(back, mod)
-	}
-	m.cancelGoto()
-	if m.line.Focused() {
-		m.line.Blur()
-		m.lineDone()
-	}
-	if h, ok := m.modal.(ui.Hider); ok && m.modal != mod {
-		h.Hide()
-	}
-	// The help lists the keys of what had them before.
-	m.keyhelp.Blur()
-	if m.modal != mod {
-		m.maximized = m.opensMaximized(mod)
-	}
-	m.modal = mod
-	mod.SetTheme(m.theme)
-	m.sizeModal(m.modalSize())
-}
-
-// pushModal keeps back, which top replaces, for the back key. The modals
-// kept for another top belong to a chain that ended without closing, such
-// as one that a goto replaced, and are dropped.
-func (m *Model) pushModal(back, top ui.Modal) {
-	if m.backOwner != back {
-		m.dropModals()
-	}
-	m.back = append(m.back, place{modal: back})
-	m.backOwner = top
-	var kept []int
-	for i, p := range m.back {
-		if p.modal != nil {
-			kept = append(kept, i)
-		}
-	}
-	if len(kept) > maxBackModals {
-		i := kept[0]
-		m.discardPlaces(m.back[i : i+1])
-		m.back = slices.Delete(slices.Clone(m.back), i, i+1)
-	}
-}
-
-// modalBack reports whether the open modal has a modal to return to.
-func (m *Model) modalBack() bool {
-	n := len(m.back)
-	return m.modal != nil && m.modal == m.backOwner && n > 0 && m.back[n-1].modal != nil
-}
-
-// goModalBack returns from the open modal, which from must be, to the one
-// it replaced, which opens as it was left. The modal it leaves is dropped.
-func (m *Model) goModalBack(from ui.Modal) tea.Cmd {
-	if from == nil || m.modal != from || !m.modalBack() {
-		return nil
-	}
-	n := len(m.back) - 1
-	prev := m.back[n].modal
-	m.back = m.back[:n]
-	m.backOwner = prev
-	m.openModal(prev)
-	m.discardModal(from)
-	return func() tea.Msg { return ui.ReopenedMsg{Modal: prev} }
-}
-
-// dropModals drops the modals kept for the back key, as the chain of
-// modals that kept them is over, and leaves the screens.
-func (m *Model) dropModals() {
-	m.discardPlaces(m.back)
-	m.back = slices.DeleteFunc(slices.Clone(m.back), func(p place) bool { return p.modal != nil })
-	m.backOwner = nil
-}
-
-// discardPlaces discards the modals among ps.
-func (m *Model) discardPlaces(ps []place) {
-	for _, p := range ps {
-		m.discardModal(p.modal)
-	}
-}
-
-// discardModal stops mod, which the app drops without it being open.
-func (m *Model) discardModal(mod ui.Modal) {
-	if d, ok := mod.(ui.Discarder); ok {
-		d.Discard()
-	}
-}
-
-// sizeModal gives the open modal its size.
-func (m *Model) sizeModal(width, height int) {
-	m.modalWidth, m.modalHeight = width, height
-	if n, ok := m.modal.(ui.Narrower); ok {
-		n.SetNarrow(m.narrow())
-	}
-	m.modal.SetSize(width, height)
-}
-
 // modalContext returns the name of the key context of mod, the modal that
 // its first layer of keys is, or "" if none is. A modal context that is
 // within another, such as the filter of the runs, is that other one.
@@ -212,8 +98,8 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		if cmd, ok := act(ui.ActBack); ok {
 			return cmd, true
 		}
-		if m.modalBack() {
-			return m.goModalBack(mod), true
+		if m.modals.CanBack() {
+			return m.apply(m.modals.Back(mod)), true
 		}
 		return nil, false
 	case keymap.Matches(msg, m.keys.Dismiss):
@@ -233,9 +119,7 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 			return cmd, true
 		}
 		if o.action == "notifications" {
-			if _, auth := mod.(*authModal); !auth {
-				return m.openNotifications(), true
-			}
+			return m.openNotifications(), true
 		}
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+o.use+"."), true
 	}
@@ -278,15 +162,15 @@ func takesKeys(l keyhelp.Layer) bool { return l.Typing || capturing(l) }
 // toggleMaximized switches the open modal between its size and the whole
 // screen, and gives it the room, which it waits out as after a resize.
 func (m *Model) toggleMaximized() {
-	m.maximized = !m.maximized
-	m.resized = true
-	m.sizeModal(m.modalSize())
+	if m.modals.ToggleMaximized() {
+		m.resized = true
+	}
 }
 
 // canMaximize reports whether the maximize key changes what the open modal
 // shows; a modal that doesn't say is taken to change it.
 func (m *Model) canMaximize() bool {
-	if mx, ok := m.modal.(ui.Maximizer); ok {
+	if mx, ok := m.modals.Top().(ui.Maximizer); ok {
 		return mx.CanMaximize()
 	}
 	return true
@@ -295,15 +179,10 @@ func (m *Model) canMaximize() bool {
 // settleModal asks the open modal, if it waits out resizes, to end the
 // wait that the layout's resize began.
 func (m *Model) settleModal() tea.Cmd {
-	if s, ok := m.modal.(ui.Settler); ok {
+	if s, ok := m.modals.Top().(ui.Settler); ok {
 		return s.Settle()
 	}
 	return nil
-}
-
-// isOpen reports whether mod is open.
-func (m *Model) isOpen(mod ui.Modal) bool {
-	return mod != nil && m.modal == mod
 }
 
 // openHistory opens the history of the selected repository, on the
@@ -316,21 +195,29 @@ func (m *Model) openHistory() tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModal(mod)
-	return load
+	return m.openLoading(mod, nil, load)
+}
+
+// openLoading opens mod over the modal over, if any, and runs load only if
+// mod is on top afterwards: a refused open reads nothing.
+func (m *Model) openLoading(mod, over ui.Modal, load tea.Cmd) tea.Cmd {
+	cmd := m.open(mod, over)
+	if m.modals.Top() != mod {
+		return cmd
+	}
+	return tea.Batch(cmd, load)
 }
 
 // openNotifications shows the notifications in a modal, over what is open.
 func (m *Model) openNotifications() tea.Cmd {
-	if m.notif == nil || m.notifHost() != nil {
+	if m.notif == nil {
 		return nil
 	}
 	sec, ok := m.notif.section.(*notifications.Section)
 	if !ok {
 		return nil
 	}
-	m.openModalOver(notifications.NewModal(sec), m.modal)
-	return nil
+	return m.open(notifications.NewModal(sec), nil)
 }
 
 // notifSection returns the notifications section.
@@ -343,7 +230,7 @@ func (m *Model) notifSection() ui.Section {
 
 // notifHost returns the notifications modal if it is the open one.
 func (m *Model) notifHost() ui.Modal {
-	if h, ok := m.modal.(*notifications.Modal); ok {
+	if h, ok := m.modals.Top().(*notifications.Modal); ok {
 		return h
 	}
 	return nil
@@ -360,38 +247,26 @@ func (m *Model) openSearch() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	if f, ok := m.srch.section.(Fresher); ok {
-		f.Fresh()
-	}
-	if h := m.searchHost(); h != nil {
+	mod := search.NewModal(sec)
+	cmd := m.open(mod, nil)
+	switch {
+	case m.modals.Top() == mod:
+		if f, ok := m.srch.section.(Fresher); ok {
+			f.Fresh()
+		}
+		return tea.Batch(cmd, m.srch.start())
+	case m.searchHost() != nil:
 		sec.Focus()
-		return nil
 	}
-	// The search closes the open modal rather than stack over it.
-	if mod := m.modal; mod != nil {
-		m.discardModal(mod)
-		m.closeModal(mod)
-	}
-	m.openModalOver(search.NewModal(sec), nil)
-	return m.srch.start()
+	return cmd
 }
 
-// leaveSearch closes the search modal if it is the open one, and stops what
-// it reads ahead.
-func (m *Model) leaveSearch() {
+// leaveSearch closes the search modal if it is the open one.
+func (m *Model) leaveSearch() tea.Cmd {
 	if h := m.searchHost(); h != nil {
-		m.discardModal(h)
-		m.closeModal(h)
+		return m.apply(m.modals.Close(h))
 	}
-}
-
-// hostModal returns the modal that shows a section of the screens, the
-// notifications or the search, if it is the open one.
-func (m *Model) hostModal() ui.Modal {
-	if h := m.notifHost(); h != nil {
-		return h
-	}
-	return m.searchHost()
+	return nil
 }
 
 // hosted returns the section the open host modal shows, with the modal, or
@@ -408,20 +283,10 @@ func (m *Model) hosted() (ui.Section, ui.Modal) {
 
 // searchHost returns the search modal if it is the open one.
 func (m *Model) searchHost() ui.Modal {
-	if h, ok := m.modal.(*search.Modal); ok {
+	if h, ok := m.modals.Top().(*search.Modal); ok {
 		return h
 	}
 	return nil
-}
-
-// overReturning reports whether the open modal was opened from a modal
-// that it returns to on close, such as the notifications or the search.
-func (m *Model) overReturning() bool {
-	if !m.modalBack() {
-		return false
-	}
-	_, ok := m.back[len(m.back)-1].modal.(ui.ReturnsOnClose)
-	return ok
 }
 
 // canOpenHistory reports whether the history key does something.
@@ -448,8 +313,7 @@ func (m *Model) openActionsOn(msg ui.OpenActionsMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModalOver(mod, msg.Back)
-	return load
+	return m.openLoading(mod, msg.Over, load)
 }
 
 // openCommit opens the history of the repository of msg on its commit, if
@@ -466,8 +330,7 @@ func (m *Model) openCommit(msg ui.OpenCommitMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModalOver(mod, m.hostModal())
-	return load
+	return m.openLoading(mod, m.modals.Top(), load)
 }
 
 // openRelease opens the release of msg, if the app has a release modal,
@@ -480,8 +343,7 @@ func (m *Model) openRelease(msg ui.OpenReleaseMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModalOver(mod, m.notifHost())
-	return load
+	return m.openLoading(mod, m.modals.Top(), load)
 }
 
 // fileFinder returns the section of the repository screen that finds its
@@ -508,61 +370,12 @@ func (m *Model) findFile() tea.Cmd {
 	if mod == nil {
 		return nil
 	}
-	m.openModal(mod)
-	return load
+	return m.openLoading(mod, nil, load)
 }
 
 // canOpenActions reports whether the actions key does something.
 func (m *Model) canOpenActions() bool {
 	return m.actions != nil && m.screen == repoScreen && m.repo != (core.RepoRef{})
-}
-
-// closeModal closes mod. A modal that isn't open is ignored, so closing
-// twice, or closing one that another has replaced, is harmless.
-func (m *Model) closeModal(mod ui.Modal) {
-	if m.isOpen(mod) {
-		m.modal = nil
-		// Closing ends the chain: what it kept for the back key goes.
-		m.dropModals()
-	}
-}
-
-// frameSize is the size of the open modal with its frame: most of the
-// screen, so that the edges of the screen behind it stay in view, or less
-// if the modal fits in less.
-func (m *Model) frameSize() (width, height int) {
-	// A maximized modal ignores what it fits in, and fills the screen but
-	// for the footer.
-	if m.maximized {
-		return m.width, max(m.height-m.footerHeight(), 0)
-	}
-	// The frame is centred, and leaves the footer below it, such as the
-	// command line with its candidates.
-	width, height = max(m.width-2*max(m.width/10, 2), 0), max(m.height-2*max(m.height/10, m.footerHeight()), 0)
-	if f, ok := m.modal.(ui.Fitter); ok {
-		w, h := f.Fit(max(width-4, 0), max(height-2, 0))
-		width, height = min(width, w+4), min(height, h+2)
-	}
-	return width, height
-}
-
-// modalSize is the size inside the frame: the frame takes a row at the top
-// and bottom and two columns on each side, the edge and its padding.
-func (m *Model) modalSize() (width, height int) {
-	w, h := m.frameSize()
-	return max(w-4, 0), max(h-2, 0)
-}
-
-// fitModal sizes the open modal again if what it asks for has changed,
-// such as a filter form that opens a picker and needs the room.
-func (m *Model) fitModal() {
-	if _, ok := m.modal.(ui.Fitter); !ok {
-		return
-	}
-	if w, h := m.modalSize(); w != m.modalWidth || h != m.modalHeight {
-		m.resized = true
-		m.sizeModal(w, h)
-	}
 }
 
 // minTitleWidth is the least of a long title that the tabs of a modal
@@ -573,7 +386,7 @@ const minTitleWidth = 16
 // tabs, if it has them and they fit, at the right end of it. The tabs
 // shorten a long title, down to minTitleWidth, so they show at 80 columns.
 func (m *Model) frame(mod ui.Modal) string {
-	w, _ := m.frameSize()
+	w, _ := m.modals.FrameSize()
 	if w < 4 {
 		return ""
 	}

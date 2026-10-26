@@ -18,10 +18,10 @@ func TestOverEveryModal(t *testing.T) {
 		t.Run(mod.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, mod.steps...)
-				if m.modal == nil {
+				if m.modals.Top() == nil {
 					t.Fatal("the modal isn't open")
 				}
-				open := m.modal
+				open := m.modals.Top()
 
 				// A check could leave the modal on another step or focus
 				// without replacing it, and every later check, the quit
@@ -31,7 +31,7 @@ func TestOverEveryModal(t *testing.T) {
 				views := layerNames(m.keyLayers())
 				same := func(after string) {
 					t.Helper()
-					if got := layerNames(m.keyLayers()); m.modal != open || got != views {
+					if got := layerNames(m.keyLayers()); m.modals.Top() != open || got != views {
 						t.Fatalf("%s: left %s with keys of %q, want %q", after, mod.title, got, views)
 					}
 				}
@@ -48,8 +48,8 @@ func TestOverEveryModal(t *testing.T) {
 					if !hasToast(m, want) {
 						t.Errorf("screen key %s: toasts: %s, want %q", tt.key, toasted(m), want)
 					}
-					if m.modal != open || m.screen != screen {
-						t.Errorf("screen key %s: the key changed what shows: modal %v, screen %v", tt.key, m.modal != open, m.screen != screen)
+					if m.modals.Top() != open || m.screen != screen {
+						t.Errorf("screen key %s: the key changed what shows: modal %v, screen %v", tt.key, m.modals.Top() != open, m.screen != screen)
 					}
 					same("screen key " + tt.key)
 				}
@@ -61,12 +61,12 @@ func TestOverEveryModal(t *testing.T) {
 				if !m.line.Focused() {
 					t.Fatalf("command key: : didn't open the command line over %s", mod.title)
 				}
-				if m.modal != open {
+				if m.modals.Top() != open {
 					t.Error("command key: the key changed the modal")
 				}
 				tap(t, m, "esc")
-				if m.line.Focused() || m.modal != open {
-					t.Errorf("command key: esc left the line open %v, modal kept %v; want it closed over the same modal", m.line.Focused(), m.modal == open)
+				if m.line.Focused() || m.modals.Top() != open {
+					t.Errorf("command key: esc left the line open %v, modal kept %v; want it closed over the same modal", m.line.Focused(), m.modals.Top() == open)
 				}
 				same("the esc that closes the command line")
 
@@ -92,29 +92,39 @@ func TestOverEveryModal(t *testing.T) {
 
 				// Over a modal, the config shows in the pager, and
 				// backspace returns to the modal as it was.
-				runCommand(t, m, "config")
-				if m.modal == open || m.modalName(m.modal) != "the pager" {
-					t.Fatalf("config: over %s shows %v, want the pager", mod.title, m.modal)
+				// The pager is refused over the filter and the token
+				// prompt, and is the same over its own kind.
+				switch strings.ReplaceAll(mod.name, " ", "_") {
+				case "filter", "token_prompt", "config_pager":
+				default:
+					runCommand(t, m, "config")
+					if m.modals.Top() == open || m.modalName(m.modals.Top()) != "the pager" {
+						t.Fatalf("config: over %s shows %v, want the pager", mod.title, m.modals.Top())
+					}
+					tap(t, m, "backspace")
+					if m.modals.Top() != open {
+						t.Fatalf("config: backspace left the pager over %s, want it back", mod.title)
+					}
+					same("the backspace from the config pager")
 				}
-				tap(t, m, "backspace")
-				if m.modal != open {
-					t.Fatalf("config: backspace left the pager over %s, want it back", mod.title)
-				}
-				same("the backspace from the config pager")
 
 				// The quit key closes the modal in one press, from any of
 				// its views.
 				driveKeys(t, m, m.key(press("q")))
-				if m.modal != nil {
-					t.Errorf("quit: q left the modal open")
+				if strings.ReplaceAll(mod.name, " ", "_") == "actions_log" && m.modals.Top() != nil {
+					// The log returns to the run it was opened from.
+					driveKeys(t, m, m.key(press("q")))
+				}
+				if m.modals.Top() != nil {
+					t.Errorf("quit: q left the modal open: %T", m.modals.Top())
 				}
 
 				// The search runs over every modal and closes it.
 				m = keysAfter(t, true, mod.steps...)
-				open = m.modal
+				open = m.modals.Top()
 				runCommand(t, m, "search")
-				if m.modal == open || m.searchHost() == nil {
-					t.Errorf("search: over %s left %v, want the modal closed and the search shown", mod.title, m.modal)
+				if m.modals.Top() == open || m.searchHost() == nil {
+					t.Errorf("search: over %s left %v, want the modal closed and the search shown", mod.title, m.modals.Top())
 				}
 			})
 		})

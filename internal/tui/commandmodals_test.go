@@ -17,7 +17,7 @@ func TestEscLadderOverTheCommandLine(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "global.select")
-		open := m.modal
+		open := m.modals.Top()
 		tap(t, m, ":")
 		driveKeys(t, m, m.toast.Push(toast.Error, "It failed."))
 		tap(t, m, "esc")
@@ -25,11 +25,11 @@ func TestEscLadderOverTheCommandLine(t *testing.T) {
 			t.Errorf("first esc: error toast %v, line open %v; want the toast gone and the line open", m.toast.Has(toast.Error), m.line.Focused())
 		}
 		tap(t, m, "esc")
-		if m.line.Focused() || m.modal != open {
-			t.Errorf("second esc: line open %v, modal kept %v; want the line closed and the modal open", m.line.Focused(), m.modal == open)
+		if m.line.Focused() || m.modals.Top() != open {
+			t.Errorf("second esc: line open %v, modal kept %v; want the line closed and the modal open", m.line.Focused(), m.modals.Top() == open)
 		}
 		tap(t, m, "esc")
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("third esc left the modal open")
 		}
 	})
@@ -41,7 +41,7 @@ func TestCommandKeyIsTypedWhereTheModalTypes(t *testing.T) {
 	t.Parallel()
 	m := newKeysApp(t, true)
 	pressKeys(t, m, "ctrl+p")
-	mod := m.modal
+	mod := m.modals.Top()
 	if mod == nil {
 		t.Fatal("ctrl+p opened no finder")
 	}
@@ -49,7 +49,7 @@ func TestCommandKeyIsTypedWhereTheModalTypes(t *testing.T) {
 	if m.line.Focused() {
 		t.Error(": opened the line over the finder, which types it")
 	}
-	if m.modal != mod {
+	if m.modals.Top() != mod {
 		t.Error("the finder closed")
 	}
 }
@@ -107,7 +107,7 @@ func TestDeclaredCommandsExist(t *testing.T) {
 	for _, mod := range modalsOver {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, mod.steps...)
-			for _, name := range m.modal.Commands() {
+			for _, name := range m.modals.Top().Commands() {
 				c, ok := findCommand(name)
 				if !ok || c.over != overNamed {
 					t.Errorf("%s names %q, which is %v and not a command that modals name", mod.name, name, ok)
@@ -156,7 +156,7 @@ func TestCopyOverAModal(t *testing.T) {
 				if tt.msg != nil {
 					driveKeys(t, m, func() tea.Msg { return tt.msg })
 				}
-				open := m.modal
+				open := m.modals.Top()
 				if open == nil {
 					t.Fatal("no modal is open")
 				}
@@ -165,7 +165,7 @@ func TestCopyOverAModal(t *testing.T) {
 					if !hasToast(m, want) {
 						t.Errorf("%s: toasts %s, want %q", line, toasted(m), want)
 					}
-					if m.modal != open {
+					if m.modals.Top() != open {
 						t.Fatalf("%s changed the modal", line)
 					}
 				}

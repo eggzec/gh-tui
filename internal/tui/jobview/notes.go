@@ -196,7 +196,7 @@ func (m *Model) openNote() tea.Cmd {
 	if !ok || !inFile(a) || m.hints.SHA == "" {
 		return nil
 	}
-	msg := ui.OpenFileMsg{Repo: m.repo, Path: a.Path, Ref: m.hints.SHA, Line: a.StartLine, Return: m.opts.ret}
+	msg := ui.OpenFileMsg{Repo: m.repo, Path: a.Path, Ref: m.hints.SHA, Line: a.StartLine}
 	return func() tea.Msg { return msg }
 }
 

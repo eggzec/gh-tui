@@ -176,7 +176,6 @@ type options struct {
 	icons ui.Icons
 	rest  time.Duration
 	now   func() time.Time
-	ret   ui.Modal
 	voice ui.Voice
 }
 
@@ -186,12 +185,6 @@ type options struct {
 // keys and no log.
 func WithVoice(v ui.Voice) Option {
 	return func(o *options) { o.voice = v }
-}
-
-// WithReturn sets the modal that a file preview opened from an annotation
-// reopens when it closes: the one the view is shown in.
-func WithReturn(m ui.Modal) Option {
-	return func(o *options) { o.ret = m }
 }
 
 // WithIcons sets the glyphs of the states of the steps. Without it, the

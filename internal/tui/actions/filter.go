@@ -27,9 +27,8 @@ type workflows struct {
 	// so they are read again once it answers.
 	kept bool
 	// viewing reports that the file of a workflow waits for the workflows,
-	// to be shown in place of ret.
+	// to be shown.
 	viewing bool
-	ret     ui.Modal
 }
 
 // Keys of the fields of the filter.
@@ -111,9 +110,8 @@ func (m *Modal) receiveWorkflows(msg workflowsMsg) tea.Cmd {
 		again = m.readWorkflows(true)
 	}
 	if m.workflows.viewing {
-		ret := m.workflows.ret
-		m.workflows.viewing, m.workflows.ret = false, nil
-		again = tea.Batch(again, m.openWorkflowFile(ret))
+		m.workflows.viewing = false
+		again = tea.Batch(again, m.openWorkflowFile())
 	}
 	if !m.workflows.wanted {
 		return again

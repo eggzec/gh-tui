@@ -29,7 +29,7 @@ func (m *Model) helpOpen() bool { return m.keyhelp.Focused() }
 // openHelp opens the help on the keys that reach what has them now.
 func (m *Model) openHelp() tea.Cmd {
 	// A modal that shows the help inside itself keeps the app's closed.
-	if host, ok := m.topModal().(ui.HelpHost); ok {
+	if host, ok := m.modals.Top().(ui.HelpHost); ok {
 		if cmd, ok := host.OpenHelp(ui.NameLayerActions(m.keyLayers()), m.helpTitle()); ok {
 			return cmd
 		}
@@ -52,7 +52,7 @@ func (m *Model) updateHelp(msg tea.Msg) tea.Cmd {
 // focused section.
 func (m *Model) helpTitle() string {
 	var name string
-	if mod := m.topModal(); mod != nil {
+	if mod := m.modals.Top(); mod != nil {
 		name = mod.Title()
 	} else if p := m.focused(); p != nil {
 		name = p.section.Title()
@@ -132,7 +132,7 @@ func (m *Model) layersNow() []keyhelp.Layer {
 			if back := m.keys.Back; !listsKey(inner, back) {
 				// The key returns to the modal this one replaced; a modal
 				// that has steps of its own lists it with them.
-				back.SetEnabled(back.Enabled() && m.modalBack())
+				back.SetEnabled(back.Enabled() && m.modals.CanBack())
 				// Off, it is a row only if the modal doesn't list the key,
 				// off, itself.
 				if back.Enabled() || !listsKeyOff(inner, back) {
@@ -157,7 +157,7 @@ func (m *Model) layersNow() []keyhelp.Layer {
 // innerLayers returns the layers after the app's always ones, and whether
 // they are an open modal's.
 func (m *Model) innerLayers() (layers []keyhelp.Layer, modal bool) {
-	if mod := m.topModal(); mod != nil {
+	if mod := m.modals.Top(); mod != nil {
 		return mod.KeyLayers(), true
 	}
 	app := m.keys.state(m).layers(m)

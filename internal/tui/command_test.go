@@ -155,7 +155,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 			fakes[0].capturing = true
 		}},
 		{name: "modal open", prep: func(m *Model, _ []*fakeSection) {
-			m.openModal(&fakeModal{title: "Preview"})
+			m.open(&fakeModal{title: "Preview"}, nil)
 		}},
 	}
 	for _, tt := range tests {
@@ -164,7 +164,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 			if tt.prep != nil {
 				tt.prep(m, fakes)
 			}
-			p, mod := m.focused(), m.modal
+			p, mod := m.focused(), m.modals.Top()
 			drive(m, m.key(press(":")))
 			if m.line.Focused() != tt.open {
 				t.Fatalf("line open = %v, want %v", m.line.Focused(), tt.open)
@@ -375,7 +375,7 @@ func TestHelpNamesTheCommandKey(t *testing.T) {
 		t.Errorf("the help of a section that captures keys names the command key, which it types:\n%s", s)
 	}
 	fakes[0].capturing = false
-	m.openModal(&fakeModal{title: "Preview"})
+	m.open(&fakeModal{title: "Preview"}, nil)
 	if s := onScreen(m); strings.Contains(s, ": command") {
 		t.Errorf("the bar over a modal names the command key, which it doesn't take:\n%s", s)
 	}

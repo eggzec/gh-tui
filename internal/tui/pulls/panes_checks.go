@@ -17,6 +17,6 @@ func actionsOn(repo core.RepoRef, msg checktree.OpenJobMsg, back ui.Modal) tea.M
 		Repo:   repo,
 		Filter: core.RunFilter{HeadSHA: msg.SHA},
 		At:     ui.ActionsAt{Run: msg.RunID, Job: msg.JobID, Jobs: true},
-		Back:   back,
+		Over:   back,
 	}
 }

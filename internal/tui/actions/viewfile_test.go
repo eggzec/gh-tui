@@ -11,7 +11,7 @@ func TestViewWorkflowOpensTheFileAtTheCommit(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	f.workflows = []core.Workflow{{ID: 1, Name: "CI", Path: ".github/workflows/ci.yml"}}
-	m, h := newModal(t, f, wideW, wideH)
+	_, h := newModal(t, f, wideW, wideH)
 	h.keys("v")
 	var got []ui.OpenFileMsg
 	for _, msg := range h.take() {
@@ -23,7 +23,7 @@ func TestViewWorkflowOpensTheFileAtTheCommit(t *testing.T) {
 		t.Fatalf("v sent %d file messages, want 1", len(got))
 	}
 	o := got[0]
-	if o.Path != ".github/workflows/ci.yml" || o.Ref != "f00dcafe" || o.Repo != repo || o.Return != ui.Modal(m) {
+	if o.Path != ".github/workflows/ci.yml" || o.Ref != "f00dcafe" || o.Repo != repo {
 		t.Errorf("OpenFileMsg = %+v", o)
 	}
 }

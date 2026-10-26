@@ -84,7 +84,7 @@ func (m *Model) copyCommand(arg string) tea.Cmd {
 // selection returns what the open modal shows, if it is a ui.Selector, or
 // else what the cursor of the focused section is on, if anything.
 func (m *Model) selection() (ui.Selection, bool) {
-	if s, ok := m.topModal().(ui.Selector); ok {
+	if s, ok := m.modals.Top().(ui.Selector); ok {
 		return s.Selected()
 	}
 	p := m.focused()

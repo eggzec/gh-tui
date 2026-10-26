@@ -13,10 +13,10 @@ import (
 // backLabel returns what the open modal's help names for the back key, or
 // "" when no enabled binding holds it.
 func backLabel(m *Model) string {
-	if m.modal == nil {
+	if m.modals.Top() == nil {
 		return ""
 	}
-	b, _, ok := uitest.Winner(m.modal.KeyLayers(), "backspace")
+	b, _, ok := uitest.Winner(m.modals.Top().KeyLayers(), "backspace")
 	if !ok {
 		return ""
 	}
@@ -47,11 +47,11 @@ func TestEscClosesTheModalFromAnyStep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, tt.steps...)
-				if m.modal == nil {
+				if m.modals.Top() == nil {
 					t.Fatal("the modal isn't open")
 				}
 				tap(t, m, "esc")
-				if m.modal != nil {
+				if m.modals.Top() != nil {
 					t.Error("esc left the modal open")
 				}
 			})
@@ -61,7 +61,7 @@ func TestEscClosesTheModalFromAnyStep(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := openRelease(t)
 			tap(t, m, "esc")
-			if m.modal != nil {
+			if m.modals.Top() != nil {
 				t.Error("esc left the release open")
 			}
 		})
@@ -74,7 +74,7 @@ func openRelease(t *testing.T) *Model {
 	driveKeys(t, m, func() tea.Msg {
 		return ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}
 	})
-	if m.modal == nil {
+	if m.modals.Top() == nil {
 		t.Fatal("the release isn't open")
 	}
 	return m
@@ -98,9 +98,9 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, tt.steps...)
-				open, before := m.modal, onScreen(m)
+				open, before := m.modals.Top(), onScreen(m)
 				tap(t, m, "backspace")
-				if m.modal != open {
+				if m.modals.Top() != open {
 					t.Fatal("backspace closed the modal")
 				}
 				if after := onScreen(m); after != before {
@@ -112,9 +112,9 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 	t.Run("release", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := openRelease(t)
-			open, before := m.modal, onScreen(m)
+			open, before := m.modals.Top(), onScreen(m)
 			tap(t, m, "backspace")
-			if m.modal != open || onScreen(m) != before {
+			if m.modals.Top() != open || onScreen(m) != before {
 				t.Error("backspace changed the release")
 			}
 		})
@@ -127,9 +127,9 @@ func TestEscClosesTheLogOverlayAlone(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
-		log := m.modal
+		log := m.modals.Top()
 		tap(t, m, "esc")
-		if m.modal == nil || m.modal == log {
+		if m.modals.Top() == nil || m.modals.Top() == log {
 			t.Error("esc should close the log and leave Actions open")
 		}
 	})
@@ -143,9 +143,9 @@ func TestBackspaceStepsBackThroughActions(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
-		log := m.modal
+		log := m.modals.Top()
 		tap(t, m, "backspace")
-		if m.modal == nil || m.modal == log {
+		if m.modals.Top() == nil || m.modals.Top() == log {
 			t.Fatal("backspace didn't close the log over the jobs")
 		}
 		for _, want := range []string{"runs", ""} {
@@ -153,7 +153,7 @@ func TestBackspaceStepsBackThroughActions(t *testing.T) {
 				t.Fatalf("the help names the back key %q, want %q", got, want)
 			}
 			tap(t, m, "backspace")
-			if m.modal == nil {
+			if m.modals.Top() == nil {
 				t.Fatal("backspace closed the modal")
 			}
 		}
@@ -171,7 +171,7 @@ func TestBackspaceStepsBackThroughHistory(t *testing.T) {
 				t.Fatalf("the help names the back key %q, want %q", got, want)
 			}
 			tap(t, m, "backspace")
-			if m.modal == nil {
+			if m.modals.Top() == nil {
 				t.Fatal("backspace closed the modal")
 			}
 		}
@@ -189,11 +189,11 @@ func TestEscClearsASearchBeforeClosing(t *testing.T) {
 			tap(t, m, k)
 		}
 		tap(t, m, "esc")
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Fatal("esc closed the pager with a search on view")
 		}
 		tap(t, m, "esc")
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("esc left the pager open once the search was gone")
 		}
 	})
@@ -221,9 +221,9 @@ func TestBackspaceDeletesInATypingWidget(t *testing.T) {
 				for _, k := range tt.typed {
 					tap(t, m, k)
 				}
-				open, before := m.modal, onScreen(m)
+				open, before := m.modals.Top(), onScreen(m)
 				tap(t, m, "backspace")
-				if m.modal != open {
+				if m.modals.Top() != open {
 					t.Fatal("backspace closed or replaced the modal")
 				}
 				if onScreen(m) == before {

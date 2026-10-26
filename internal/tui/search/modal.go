@@ -18,13 +18,7 @@ var (
 	_ ui.Hider     = (*Modal)(nil)
 	_ ui.Discarder = (*Modal)(nil)
 	_ ui.Hosted    = (*Modal)(nil)
-
-	_ ui.ReturnsOnClose = (*Modal)(nil)
 )
-
-// ReturnsOnClose marks the modal as one that what it opens returns to on
-// close.
-func (m *Modal) ReturnsOnClose() {}
 
 // NewModal returns a modal that shows s, which it focuses.
 func NewModal(s *Section) *Modal {
@@ -90,8 +84,8 @@ func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		switch msg := cmd().(type) {
 		case ui.OpenModalMsg:
-			if msg.Back == nil {
-				msg.Back = m
+			if msg.Over == nil {
+				msg.Over = m
 			}
 			return msg
 		case tea.BatchMsg:

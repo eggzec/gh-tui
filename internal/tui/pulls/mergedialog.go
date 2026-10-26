@@ -322,12 +322,9 @@ func (d *mergeDialog) move(delta int) tea.Cmd {
 	return cmd
 }
 
-// close closes the dialog, back to the modal it opened over, if any.
+// close closes the dialog, which shows the modal it opened over.
 func (d *mergeDialog) close() tea.Cmd {
 	d.done = true
-	if d.ask.back != nil {
-		return ui.Reopen(d.ask.back)
-	}
 	return ui.CloseModal(d)
 }
 

@@ -151,42 +151,6 @@ func TestLogOverlayStopsWatchingOnClose(t *testing.T) {
 	}
 }
 
-// q in the log closes it and the modal under it at once. It must not leave
-// the log for the modal first, which would reopen the modal and start a watch
-// of the run that nothing stops.
-func TestLogOverlayQuitClosesBothAndStopsEveryFollow(t *testing.T) {
-	t.Parallel()
-	f := newFake()
-	fl := &follows{}
-	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("enter", "j", "j", "enter")
-	l := h.log
-	if l == nil {
-		t.Fatal("enter didn't open the log")
-	}
-	// The app offers the quit intent to the open modal's Act before its keys.
-	cmd, ok := l.Act(ui.ActQuit)
-	if !ok {
-		t.Fatal("the log didn't take the quit intent")
-	}
-	h.run(cmd)
-	got := h.take()
-	if len(got) != 1 || got[0] != (ui.CloseModalMsg{Modal: l}) {
-		t.Fatalf("q sent %v, want the log closed alone, for the app to drop the modal under it", got)
-	}
-	// The app drops the modals under the closed one, which discards them.
-	m.Discard()
-	if m.ctx.Err() == nil {
-		t.Error("the modal under the log was not ended")
-	}
-	if len(fl.started) == 0 || len(fl.stopped) != len(fl.started) {
-		t.Errorf("started following %v, stopped %v; want every follow stopped", fl.started, fl.stopped)
-	}
-	if n := f.watching[runLintJob]; n != 0 {
-		t.Errorf("%d watches of the log remain", n)
-	}
-}
-
 func TestEnterInTheLogFolds(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
@@ -294,7 +258,7 @@ func openedOver(tb testing.TB, h *host) (*ui.FilterModal, ui.Modal) {
 	for _, msg := range h.take() {
 		if o, ok := msg.(ui.OpenModalMsg); ok {
 			if fm, ok := o.Modal.(*ui.FilterModal); ok {
-				return fm, o.Back
+				return fm, o.Over
 			}
 		}
 	}
@@ -1337,7 +1301,7 @@ func TestAnnotationsOpenTheirFile(t *testing.T) {
 		t.Fatal("A in the log didn't focus the annotations")
 	}
 	h.keys("enter")
-	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54, Return: l}
+	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54}
 	if got := h.take(); len(got) != 1 || got[0] != want {
 		t.Fatalf("enter sent %v, want the file previewed at the run's commit", got)
 	}

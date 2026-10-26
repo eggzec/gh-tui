@@ -254,12 +254,12 @@ func TestStarCommandWorksWhereTheRepositoryIs(t *testing.T) {
 						driveKeys(t, m, m.key(msg))
 					}
 				}
-				open := m.modal
+				open := m.modals.Top()
 				runCommand(t, m, "star")
 				if !hasToast(m, tt.want) {
 					t.Errorf(":star toasts %s, want %q", toasted(m), tt.want)
 				}
-				if m.modal != open || len(f.log()) != 0 {
+				if m.modals.Top() != open || len(f.log()) != 0 {
 					t.Error("the refusal changed the modal or sent a change")
 				}
 			})

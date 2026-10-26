@@ -113,8 +113,8 @@ func TestRepoKeyOverSearchClosesFirst(t *testing.T) {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
 		pressKeys(t, m, ".")
-		if m.searchHost() != nil || m.modal != nil {
-			t.Errorf(". left the search open: top modal %v", m.topModal())
+		if m.searchHost() != nil || m.modals.Top() != nil {
+			t.Errorf(". left the search open: top modal %v", m.modals.Top())
 		}
 		if m.screen != repoScreen {
 			t.Errorf(". left screen %d, want the repository's", m.screen)
@@ -133,8 +133,8 @@ func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
 		pressKeys(t, m, "@")
-		if m.searchHost() != nil || m.modal != nil {
-			t.Errorf("@ left the search open: top modal %v", m.topModal())
+		if m.searchHost() != nil || m.modals.Top() != nil {
+			t.Errorf("@ left the search open: top modal %v", m.modals.Top())
 		}
 		if m.screen != ownerScreen || m.ownerLogin == "" {
 			t.Errorf("@ left screen %d on owner %q, want an owner page", m.screen, m.ownerLogin)
@@ -145,9 +145,10 @@ func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
 	})
 }
 
-// TestSearchKeyClearsTheQueryOnThePage checks that the search key, pressed
-// with the search modal on view, starts a new query.
-func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
+// TestSearchKeyOverTheSearchChangesNothing checks that the search key,
+// pressed with the search modal on view, opens no second search and keeps
+// the query and its results.
+func TestSearchKeyOverTheSearchChangesNothing(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
@@ -156,8 +157,8 @@ func TestSearchKeyClearsTheQueryOnThePage(t *testing.T) {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
 		pressKeys(t, m, "S")
-		if got := focusOf(m); got != `search: query ""` {
-			t.Errorf("after the search key the page is at %s, want an empty query", got)
+		if got := focusOf(m); got != `search: results "key"` {
+			t.Errorf("after the search key the page is at %s, want the results kept", got)
 		}
 	})
 }

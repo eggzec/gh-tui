@@ -21,9 +21,12 @@ import (
 type app struct {
 	section *Section
 	modal   ui.Modal
-	width   int
-	height  int
-	got     []tea.Msg
+	// under is the modal that the open one was opened over, shown again
+	// when it closes.
+	under  ui.Modal
+	width  int
+	height int
+	got    []tea.Msg
 	// matched, if set, is closed once the finder shows the one path that
 	// matches its query. The output can't tell: the renderer redraws only
 	// the cells of the count that changed.
@@ -55,13 +58,16 @@ func (a *app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.got = append(a.got, msg)
 		return a, tea.Quit
 	case ui.OpenModalMsg:
+		if msg.Over != nil && msg.Over == a.modal {
+			a.under = a.modal
+		}
 		a.modal = msg.Modal
 		a.modal.SetTheme(testTheme())
 		a.modal.SetSize(a.width, a.height)
 		return a, nil
 	case ui.CloseModalMsg:
 		if msg.Modal == a.modal {
-			a.modal = nil
+			a.modal, a.under = a.under, nil
 		}
 		return a, nil
 	case tea.KeyPressMsg:
