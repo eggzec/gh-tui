@@ -64,6 +64,12 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 	return m.prompt.Focus()
 }
 
+// HasDraft reports whether a comment is being written that the modal would
+// lose if it closed: the prompt keeps no draft.
+func (m *detailModal) HasDraft() bool {
+	return m.composing == composeComment && strings.TrimSpace(m.prompt.Value()) != ""
+}
+
 // closePrompt closes the prompt and gives the focus back to the thread.
 func (m *detailModal) closePrompt() {
 	if m.composing == composeNone {

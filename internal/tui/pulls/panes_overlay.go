@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"errors"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -62,6 +63,20 @@ func (m *panesModal) settle() {
 	for len(m.overlays) > 0 && m.top().closed() {
 		m.pop()
 	}
+}
+
+// Save keeps the text of the composers open over the panes as their drafts,
+// so that a modal the app closes on its own account, or quits with, loses
+// nothing: the composer restores its draft when it is opened again. It
+// implements ui.Saver.
+func (m *panesModal) Save() error {
+	var errs []error
+	for _, o := range m.overlays {
+		if c, ok := o.overlay.(*composerOverlay); ok {
+			errs = append(errs, c.comp.Save())
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // pop closes the overlay on top, and ends the reads it has in flight.
