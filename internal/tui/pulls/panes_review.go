@@ -255,6 +255,7 @@ func (m *panesModal) writeSummary(row int) tea.Cmd {
 		// An approval needs no summary; a submit that needs one is refused
 		// with the reason, not with the composer's note.
 		composer.WithOptional(),
+		m.drafts(),
 	)
 	o := &composerOverlay{m: m, comp: c, verdict: row, head: "Review #" + strconv.Itoa(m.number), submit: (*panesModal).submitReview}
 	m.open(o)

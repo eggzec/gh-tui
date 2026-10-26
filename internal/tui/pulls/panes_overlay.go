@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -77,6 +78,15 @@ func (m *panesModal) Save() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// drafts is where the composers of a comment and of a review keep what is
+// typed, or none when the section keeps none.
+func (m *panesModal) drafts() composer.Option {
+	if m.list == nil {
+		return composer.WithDrafts(nil)
+	}
+	return composer.WithDrafts(m.list.drafts)
 }
 
 // pop closes the overlay on top, and ends the reads it has in flight.

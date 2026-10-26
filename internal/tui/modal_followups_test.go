@@ -112,7 +112,7 @@ func TestRootFilterFallsBackToTheSection(t *testing.T) {
 	}
 }
 
-// A pull request or issue modal with a comment being written is not closed by
+// An issue modal with a comment being written is not closed by
 // the app on its own account: esc on the modal opened over it keeps it, with a
 // toast, until the comment is sent or dropped.
 func TestEscRunKeepsAnIssueWithAnUnsentComment(t *testing.T) {

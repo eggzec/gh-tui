@@ -90,6 +90,7 @@ func (m *panesModal) quoteDescription() tea.Cmd {
 		composer.WithKeyMap(m.keys.composer),
 		composer.WithStyles(m.theme.Prompt(m.icons)),
 		composer.WithSize(m.width, m.areaHeight()),
+		m.drafts(),
 	)
 	c.SetValue(quote(body))
 	o := &composerOverlay{m: m, comp: c, head: "Comment on " + num, submit: (*panesModal).postComment}
