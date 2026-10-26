@@ -7,6 +7,7 @@ package fallback
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -46,8 +47,9 @@ var staleAt = time.Unix(1, 0)
 // that what was asked isn't there, what shelf keeps under key is dropped,
 // since the account may have lost access.
 func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V], key string, marks Marks[V], load cache.FetchFunc[V]) (cache.Entry[V], error) {
+	var h held
 	e, err := c.Fetch(ctx, key, func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
-		e, err := load(ctx, prev, ok)
+		e, err := load(context.WithValue(ctx, kept{}, &h), prev, ok)
 		if err == nil {
 			e.Fallback = nil
 			return e, nil
@@ -68,6 +70,13 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 	})
 	if err != nil {
 		return cache.Entry[V]{}, err
+	}
+	if h.set.Load() && e.Fallback == nil {
+		// Memory holds this entry unless a change dropped or replaced it.
+		if cur, st := c.Get(key); st == cache.Fresh && cur.FetchedAt.Equal(e.FetchedAt) {
+			// The shelf is only a shortcut, so a failure is ignored.
+			_ = shelf.Save(key, e)
+		}
 	}
 	if e.Fallback != nil {
 		mark(&e.Value, marks, e.Fallback)
@@ -94,17 +103,31 @@ func Refused(err error) bool {
 // Keep returns load, which also keeps what it reads from GitHub on shelf
 // under key. What it reports as not modified isn't kept again: the
 // previous entry may hold changes that GitHub hasn't confirmed.
+//
+// Under Fetch the save waits until the cache has taken the entry, and
+// happens only if the cache still holds it: a change made while the read
+// was in flight must not leave the older value on the shelf as fresh.
 func Keep[V any](shelf *cache.Shelf[V], key string, load cache.FetchFunc[V]) cache.FetchFunc[V] {
 	return func(ctx context.Context, prev cache.Entry[V], ok bool) (cache.Entry[V], error) {
 		e, err := load(ctx, prev, ok)
 		if err != nil {
 			return e, err
 		}
+		if h, ok := ctx.Value(kept{}).(*held); ok {
+			h.set.Store(true)
+			return e, nil
+		}
 		// The shelf is only a shortcut, so a failure is ignored.
 		_ = shelf.Save(key, e)
 		return e, nil
 	}
 }
+
+// kept is the context key of the held that Fetch gives to load.
+type kept struct{}
+
+// held tells Fetch that load read an entry that Keep left for it to save.
+type held struct{ set atomic.Bool }
 
 // mark sets the flag of v that says why it was served in place of the
 // answer that failed with err.
