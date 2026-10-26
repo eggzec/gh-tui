@@ -160,7 +160,7 @@ func readNotes(ctx context.Context, svc ChecksService, q actions.AnnotationsQuer
 
 func (o *appCheckOverlay) title() string {
 	if a := o.check.App; a != nil && a.Name != "" {
-		return a.Name + " · " + o.check.Name
+		return a.Name + o.m.icons.Separator + o.check.Name
 	}
 	return o.check.Name
 }

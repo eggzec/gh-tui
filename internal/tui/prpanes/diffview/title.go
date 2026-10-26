@@ -18,16 +18,21 @@ const (
 	WholePatch
 )
 
-// sep joins the parts of a title and of a status note.
-const sep = " · "
+// Glyphs are the separator that joins the parts of a title and of a status
+// note, and the ellipsis that marks what was cut. They come from the icon set.
+type Glyphs struct{ Sep, Ellipsis string }
+
+// Unicode is the glyphs of the Unicode icon set, which tests use.
+var Unicode = Glyphs{Sep: " · ", Ellipsis: "…"}
 
 // Title is the title of the diff: "Diff · label · path (i/n) · view · P%", or
 // "Whole patch · ..." in the whole patch, where path is the file under the
 // cursor. i and n are the file's place in tree order, left out when n is 0, and
 // pct the cursor's position in percent. The title never gets wider than width: a long path is
-// cut in the middle with "…", and the rest is cut at the end only when even
+// cut in the middle with the ellipsis, and the rest is cut at the end only when even
 // that doesn't fit.
-func Title(m Mode, label, path string, i, n int, view string, pct, width int) string {
+func (g Glyphs) Title(m Mode, label, path string, i, n int, view string, pct, width int) string {
+	sep := g.Sep
 	lead := "Diff"
 	if m == WholePatch {
 		lead = "Whole patch"
@@ -40,16 +45,16 @@ func Title(m Mode, label, path string, i, n int, view string, pct, width int) st
 	}
 	tail := fmt.Sprintf("%s%s%s%s%d%%", count, sep, clean(view), sep, min(max(pct, 0), 100))
 	room := width - ansi.StringWidth(head) - ansi.StringWidth(tail)
-	return ansi.Truncate(head+cutMiddle(clean(path), room)+tail, max(width, 0), "…")
+	return ansi.Truncate(head+g.cutMiddle(clean(path), room)+tail, max(width, 0), g.Ellipsis)
 }
 
 // Note is the status note of the diff: "L<cur>/<total> · hint · hint".
 // Styling is left to the caller.
-func Note(cur, total int, hints []string) string {
+func (g Glyphs) Note(cur, total int, hints []string) string {
 	parts := make([]string, 0, 1+len(hints))
 	parts = append(parts, fmt.Sprintf("L%d/%d", cur, total))
 	parts = append(parts, hints...)
-	return strings.Join(parts, sep)
+	return strings.Join(parts, g.Sep)
 }
 
 // clean drops the escape sequences and control characters of text that came
@@ -64,9 +69,9 @@ func clean(s string) string {
 	}, ansi.Strip(s))
 }
 
-// cutMiddle shortens s to at most w cells by replacing its middle with "…",
-// since the start of a path says where it is and its end what it is.
-func cutMiddle(s string, w int) string {
+// cutMiddle shortens s to at most w cells by replacing its middle with the
+// ellipsis, since the start of a path says where it is and its end what it is.
+func (g Glyphs) cutMiddle(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
@@ -74,11 +79,12 @@ func cutMiddle(s string, w int) string {
 	if sw <= w {
 		return s
 	}
-	if w == 1 {
-		return "…"
+	ew := ansi.StringWidth(g.Ellipsis)
+	if w <= ew {
+		return ansi.Truncate(g.Ellipsis, w, "")
 	}
-	keep := w - 1
+	keep := w - ew
 	right := keep / 2
 	left := keep - right
-	return ansi.Truncate(s, left, "") + "…" + ansi.TruncateLeft(s, sw-right, "")
+	return ansi.Truncate(s, left, "") + g.Ellipsis + ansi.TruncateLeft(s, sw-right, "")
 }

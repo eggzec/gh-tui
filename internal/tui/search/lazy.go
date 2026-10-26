@@ -53,7 +53,7 @@ func (s *Section) extraText(h core.SearchHit) (suffix, add string) {
 	e, ok := s.extras[hitKey(h)]
 	switch {
 	case !ok:
-		return " loading", "\nLoading more...\n"
+		return " loading", "\nLoading more" + s.icons.Ellipsis + "\n"
 	case e.err != nil:
 		return " failed", "\nCould not load more: " + e.err.Error() + "\n"
 	default:

@@ -46,7 +46,9 @@ type Styles struct {
 	// failure, warning and notice are the glyphs of the levels of annotations.
 	failure, warning, notice string
 	ellipsis                 string
-	cursor                   string
+	// sep goes between the name of a check, its App and its state.
+	sep    string
+	cursor string
 }
 
 // NewStyles returns the styles for theme t and the icons ic.
@@ -59,6 +61,7 @@ func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 		warning:  t.Run(ui.RunInProgress).Render(ic.Warning),
 		notice:   t.Subtle.Render(ic.Info),
 		ellipsis: ic.Ellipsis,
+		sep:      " " + ic.Separator + " ",
 		cursor:   t.Muted.Render("▌"),
 	}
 	s.state[core.CheckFailing] = t.Run(ui.RunFailure)
@@ -118,9 +121,9 @@ func Build(d Data, o Options, width int) Page {
 	add := func(lines ...string) { p.Lines = append(p.Lines, lines...) }
 	head := s.bold.Render(termtext.OneLine(c.Name))
 	if c.App != nil && c.App.Name != "" {
-		head += s.dim.Render("  ·  " + termtext.OneLine(c.App.Name) + "  ·  ")
+		head += s.dim.Render(s.sep + termtext.OneLine(c.App.Name) + s.sep)
 	} else {
-		head += s.dim.Render("  ·  ")
+		head += s.dim.Render(s.sep)
 	}
 	head += s.stateWord(c)
 	add(ansi.Truncate(head, width, s.ellipsis))

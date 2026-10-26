@@ -249,7 +249,7 @@ func (s *Section) strung(parts []string, cur int) string {
 			styled[i] = f.StripOther.Render(part)
 		}
 	}
-	return strings.Join(styled, f.StripSep.Render(" · "))
+	return strings.Join(styled, f.StripSep.Render(f.Separator))
 }
 
 // keyLabel is the key that focuses pane p, or "" when it has none.

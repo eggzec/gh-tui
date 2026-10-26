@@ -104,9 +104,7 @@ func (m *Modal) area() (w, h int) {
 // strip is the row of pane names under the zoomed boxes, in the longest form
 // that fits the width, and blank when none does.
 func (m *Modal) strip() string {
-	dot := strings.TrimSpace(m.st.ic.Separator)
 	for _, f := range m.frames.StripForms(paneDefs, m.box()) {
-		f = strings.ReplaceAll(f, "·", dot)
 		if ansi.StringWidth(f) <= m.width {
 			return ui.Fit(f, m.width)
 		}
