@@ -27,3 +27,15 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	}
 	return nil, false
 }
+
+var _ ui.Actor = (*logModal)(nil)
+
+// Act implements ui.Actor. The quit key closes the log, which returns to the
+// run it was opened from; the other intents are the log's own keys or the
+// app's.
+func (l *logModal) Act(action string) (tea.Cmd, bool) {
+	if action == ui.ActQuit {
+		return l.close(), true
+	}
+	return nil, false
+}

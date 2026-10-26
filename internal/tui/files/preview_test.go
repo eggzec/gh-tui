@@ -12,7 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -329,32 +328,14 @@ func TestPreviewFileClosesOverItsSearch(t *testing.T) {
 	}
 }
 
-// stub is a modal that a preview returns to, which records that it was
-// reopened.
-type stub struct{ reopened bool }
-
-func (*stub) Commands() []string         { return nil }
-func (*stub) Title() string              { return "stub" }
-func (*stub) View() string               { return "" }
-func (*stub) SetSize(int, int)           {}
-func (*stub) SetTheme(ui.Theme)          {}
-func (*stub) KeyLayers() []keyhelp.Layer { return nil }
-func (s *stub) Update(msg tea.Msg) tea.Cmd {
-	if msg == (ui.ReopenedMsg{Modal: s}) {
-		s.reopened = true
-	}
-	return nil
-}
-
 func TestPreviewFileAtACommitOnALine(t *testing.T) {
 	f := sampleFake()
 	root := f.trees[treeKey(ghTUI, "")]
 	f.addTree(ghTUI, "c0ffee", root.Entries...)
 	h := newHost(newSection(t, f, 40, 12))
 	h.height = 4
-	ret := &stub{}
 	h.run(func() tea.Msg {
-		return ui.OpenFileMsg{Repo: ghTUI, Path: "cmd/gh-tui/main.go", Ref: "c0ffee", Line: 6, Return: ret}
+		return ui.OpenFileMsg{Repo: ghTUI, Path: "cmd/gh-tui/main.go", Ref: "c0ffee", Line: 6}
 	})
 	p, ok := h.top().(*preview)
 	if !ok {
@@ -376,11 +357,8 @@ func TestPreviewFileAtACommitOnALine(t *testing.T) {
 	}
 	h.got = nil
 	h.keys("esc")
-	if len(h.got) == 0 || h.got[0] != (ui.OpenModalMsg{Modal: ret}) || p.ctx.Err() == nil {
-		t.Errorf("esc sent %v, want the modal it came from reopened, and the preview's reads ended", h.got)
-	}
-	if !ret.reopened {
-		t.Error("the modal the preview came from wasn't told it is open again")
+	if len(h.got) == 0 || h.got[0] != (ui.CloseModalMsg{Modal: p}) || p.ctx.Err() == nil {
+		t.Errorf("esc sent %v, want the preview closed, and its reads ended", h.got)
 	}
 }
 

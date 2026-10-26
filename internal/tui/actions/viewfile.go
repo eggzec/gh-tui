@@ -11,17 +11,16 @@ import (
 )
 
 // viewWorkflow previews the workflow file of the run, as it was at the
-// commit the run ran on, in place of ret, the modal that asked, which the
-// preview reopens when it closes. The workflows are read first if they
-// aren't yet, since they know the file's path.
-func (m *Modal) viewWorkflow(ret ui.Modal) tea.Cmd {
+// commit the run ran on. The workflows are read first if they aren't yet,
+// since they know the file's path.
+func (m *Modal) viewWorkflow() tea.Cmd {
 	if !m.hasRun {
 		return nil
 	}
 	if m.workflows.loaded {
-		return m.openWorkflowFile(ret)
+		return m.openWorkflowFile()
 	}
-	m.workflows.viewing, m.workflows.ret = true, ret
+	m.workflows.viewing = true
 	if m.workflows.loading {
 		return nil
 	}
@@ -30,12 +29,12 @@ func (m *Modal) viewWorkflow(ret ui.Modal) tea.Cmd {
 }
 
 // openWorkflowFile sends the file of the run's workflow to the preview.
-func (m *Modal) openWorkflowFile(ret ui.Modal) tea.Cmd {
+func (m *Modal) openWorkflowFile() tea.Cmd {
 	path, ok := m.workflowPath(m.run)
 	if !ok || m.run.HeadSHA == "" {
 		return ui.Notify(toast.Warning, "There is no workflow file for this run.")
 	}
-	msg := ui.OpenFileMsg{Repo: m.repo, Path: path, Ref: m.run.HeadSHA, Return: ret}
+	msg := ui.OpenFileMsg{Repo: m.repo, Path: path, Ref: m.run.HeadSHA}
 	return func() tea.Msg { return msg }
 }
 

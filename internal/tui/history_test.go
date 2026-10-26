@@ -42,8 +42,8 @@ func TestHistoryKeyOpensTheHistory(t *testing.T) {
 		t.Errorf("help lacks the history key:\n%s", s)
 	}
 	run(m, m.key(press("B")))
-	if m.topModal() != h.modal || h.loads != 1 {
-		t.Fatalf("B opened %v and loaded %d times, want the history loaded once", m.topModal(), h.loads)
+	if m.modals.Top() != h.modal || h.loads != 1 {
+		t.Fatalf("B opened %v and loaded %d times, want the history loaded once", m.modals.Top(), h.loads)
 	}
 	if want := (historyArgs{repo: testRepo, branch: "main"}); len(h.opened) != 1 || h.opened[0] != want {
 		t.Errorf("opened with %+v, want %+v", h.opened, want)
@@ -67,12 +67,12 @@ func TestHistoryKeyNeedsARepoAndItsScreen(t *testing.T) {
 		t.Fatalf("on screen %d, want the dashboard", m.screen)
 	}
 	run(m, m.key(press("B")))
-	if len(h.opened) != 0 || m.topModal() != nil {
+	if len(h.opened) != 0 || m.modals.Top() != nil {
 		t.Errorf("B opened the history %d times, want none", len(h.opened))
 	}
 	m, _ = newTestApp(t)
 	run(m, m.key(press("B")))
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Error("B opened a modal without a history")
 	}
 }
@@ -133,15 +133,15 @@ func TestCommitReturnsToSearch(t *testing.T) {
 			t.Fatal("the search did not open")
 		}
 		run(m, func() tea.Msg { return ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"} })
-		if m.topModal() != mod {
-			t.Fatalf("top modal %v, want the commit", m.topModal())
+		if m.modals.Top() != mod {
+			t.Fatalf("top modal %v, want the commit", m.modals.Top())
 		}
-		if !m.modalBack() {
+		if !m.modals.CanBack() {
 			t.Fatal("the commit has no modal to go back to")
 		}
-		m.goModalBack(mod)
-		if m.searchHost() == nil || m.topModal() == mod {
-			t.Errorf("closing the commit left top modal %v, want the search again", m.topModal())
+		m.apply(m.modals.Back(mod))
+		if m.searchHost() == nil || m.modals.Top() == mod {
+			t.Errorf("closing the commit left top modal %v, want the search again", m.modals.Top())
 		}
 	})
 }
@@ -161,15 +161,15 @@ func TestCommitReturnsToNotifications(t *testing.T) {
 			t.Fatal("the notifications did not open")
 		}
 		run(m, func() tea.Msg { return ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"} })
-		if m.topModal() != mod {
-			t.Fatalf("top modal %v, want the commit", m.topModal())
+		if m.modals.Top() != mod {
+			t.Fatalf("top modal %v, want the commit", m.modals.Top())
 		}
-		if !m.modalBack() {
+		if !m.modals.CanBack() {
 			t.Fatal("the commit has no modal to go back to")
 		}
-		m.goModalBack(mod)
-		if m.notifHost() == nil || m.topModal() == mod {
-			t.Errorf("closing the commit left top modal %v, want the notifications again", m.topModal())
+		m.apply(m.modals.Back(mod))
+		if m.notifHost() == nil || m.modals.Top() == mod {
+			t.Errorf("closing the commit left top modal %v, want the notifications again", m.modals.Top())
 		}
 	})
 }
@@ -190,14 +190,14 @@ func TestOpenCommitMsgOpensTheHistoryOnTheCommit(t *testing.T) {
 
 	m, _ := newTestApp(t)
 	m.Update(ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"})
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Error("a commit opened without a history")
 	}
 
 	m, _ = newTestApp(t, WithCommit(open))
 	run(m, m.key(press("I")))
 	m.Update(ui.OpenCommitMsg{Repo: glow, SHA: "7f75d0e"})
-	if m.topModal() != mod || len(got) != 1 || got[0] != (opened{glow, "7f75d0e", ""}) {
+	if m.modals.Top() != mod || len(got) != 1 || got[0] != (opened{glow, "7f75d0e", ""}) {
 		t.Errorf("opened %v, want the history of glow on the commit", got)
 	}
 	m.Update(ui.OpenCommitMsg{Repo: glow})

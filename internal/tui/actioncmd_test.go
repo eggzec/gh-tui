@@ -105,8 +105,8 @@ type appState struct {
 func stateOf(m *Model) appState {
 	return appState{
 		view: ansi.Strip(m.View().Content), layers: layerNames(m.keyLayers()),
-		modal: fmt.Sprintf("%T", m.modal), toasts: toasted(m), screen: m.screen,
-		focus: m.focus, places: len(m.back), zoom: m.zoom.User(), maximized: m.maximized,
+		modal: fmt.Sprintf("%T", m.modals.Top()), toasts: toasted(m), screen: m.screen,
+		focus: m.focus, places: len(m.back), zoom: m.zoom.User(), maximized: m.modals.Maximized(),
 	}
 }
 
@@ -354,12 +354,12 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, tt.repo, tt.steps...)
-				open := m.modal
+				open := m.modals.Top()
 				runCommand(t, m, tt.line)
 				if !hasToast(m, tt.want) {
 					t.Errorf(":%s toasts %s, want %q", tt.line, toasted(m), tt.want)
 				}
-				if m.modal != open {
+				if m.modals.Top() != open {
 					t.Error("the refusal changed the modal")
 				}
 			})
@@ -465,12 +465,12 @@ func TestActionCommandsSayWhenNothingHappens(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, tt.steps...)
-				open := m.modal
+				open := m.modals.Top()
 				runCommand(t, m, tt.line)
 				if want := "There is nothing to do for " + tt.line + " here."; !hasToast(m, want) {
 					t.Errorf(":%s toasts %s, want %q", tt.line, toasted(m), want)
 				}
-				if m.modal != open {
+				if m.modals.Top() != open {
 					t.Error("the refusal changed the modal")
 				}
 			})
@@ -489,7 +489,7 @@ func TestModalRefusesWhatItDoesNotOwn(t *testing.T) {
 			t.Skipf("the issue has no linked items to show here: %s", got)
 		}
 		runCommand(t, m, "merge")
-		if want := "Close " + m.modalName(m.topModal()) + " first to use merge."; !hasToast(m, want) {
+		if want := "Close " + m.modalName(m.modals.Top()) + " first to use merge."; !hasToast(m, want) {
 			t.Errorf(":merge toasts %s, want %q", toasted(m), want)
 		}
 	})
@@ -529,12 +529,12 @@ func TestActionCommandsWaitForAWidgetThatTakesKeys(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "pulls.filter")
-		open := m.modal
+		open := m.modals.Top()
 		m.actionCommand("merge", "")
 		if want := "Close the filter first to use merge."; !hasToast(m, want) {
 			t.Errorf(":merge toasts %s, want %q", toasted(m), want)
 		}
-		if m.modal != open {
+		if m.modals.Top() != open {
 			t.Error("the refusal changed the modal")
 		}
 	})

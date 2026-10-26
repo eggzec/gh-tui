@@ -374,17 +374,16 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 	return s.open(e, nil)
 }
 
-// open previews the file of e in a modal, which reopens ret when it
-// closes, if set.
-func (s *Section) open(e core.TreeEntry, ret ui.Modal) tea.Cmd {
+// open previews the file of e in a modal, which opens over over, if set, and
+// returns to it when it closes.
+func (s *Section) open(e core.TreeEntry, over ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
 	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
-	p.ret = ret
 	// The app passes messages to a modal only once it is open, so the load
 	// starts after the modal opens.
-	return tea.Sequence(ui.OpenModal(p), p.load())
+	return tea.Sequence(ui.OpenModalOver(p, over), p.load())
 }
 
 // maxRecent is how many opened files the section remembers per repository.
@@ -442,7 +441,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
 	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
 	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
-	p.find, p.line, p.ret = msg.Find, msg.Line, msg.Return
+	p.find, p.line = msg.Find, msg.Line
 	return tea.Sequence(ui.OpenModal(p), p.load())
 }
 

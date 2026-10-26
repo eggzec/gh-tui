@@ -31,7 +31,7 @@ func (m *Modal) openLog(j core.Job) tea.Cmd {
 	lm := &logModal{parent: m, keys: m.keys, job: j}
 	lm.log = jobview.New(m.ctx, m.svc, m.repo, m.keys.job(),
 		jobview.WithIcons(o.icons), jobview.WithRest(o.prefetch.logs.Rest),
-		jobview.WithClock(o.now), jobview.WithReturn(lm), jobview.WithVoice(*o.voice))
+		jobview.WithClock(o.now), jobview.WithVoice(*o.voice))
 	lm.log.SetTheme(m.theme)
 	lm.log.SetSize(m.width, m.height)
 	lm.log.Focus()
@@ -123,7 +123,7 @@ func (l *logModal) Update(msg tea.Msg) tea.Cmd {
 			case keymap.Matches(msg, k.Open) && l.job.URL != "":
 				return ui.Open(l.job.URL)
 			case keymap.Matches(msg, k.ViewFile):
-				return l.parent.viewWorkflow(l)
+				return l.parent.viewWorkflow()
 			}
 		}
 	case ui.SyncMsg:
@@ -140,20 +140,6 @@ func (l *logModal) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	l.log, cmd = l.log.Update(msg)
 	return cmd
-}
-
-var _ ui.Actor = (*logModal)(nil)
-
-// Act implements ui.Actor. The quit key closes the log and the modal under
-// it, as it closes any modal; every other intent is left to Update.
-func (l *logModal) Act(action string) (tea.Cmd, bool) {
-	if action != ui.ActQuit || l.log.Capturing() {
-		return nil, false
-	}
-	// Closing the overlay drops the modals under it, which discards the
-	// parent and ends its watch; leaving to the parent first would reopen it.
-	l.Discard()
-	return ui.CloseModal(l), true
 }
 
 // close discards the log and returns to the modal under it.

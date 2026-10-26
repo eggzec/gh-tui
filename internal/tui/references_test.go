@@ -43,7 +43,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		pr := m.modal
+		pr := m.modals.Top()
 		if pr == nil {
 			t.Fatal("no issue opened")
 		}
@@ -62,14 +62,14 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 
 		// Enter on the item opens it in place of the modal.
 		driveKeys(t, m, m.key(enter))
-		if m.modal == nil || m.modal == pr {
+		if m.modals.Top() == nil || m.modals.Top() == pr {
 			t.Fatal("enter didn't open the item in place of the modal")
 		}
-		item := m.modal
+		item := m.modals.Top()
 		// Back returns to the links, with the cursor where it was.
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr {
-			t.Fatalf("back returned to %v, want the issue", m.topModal())
+		if m.modals.Top() != pr {
+			t.Fatalf("back returned to %v, want the issue", m.modals.Top())
 		}
 		if got := ansi.Strip(pr.View()); got != links {
 			t.Errorf("the links changed while the item was open:\n%s\n---\n%s", links, got)
@@ -79,7 +79,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		}
 		// Back again steps out of the links, to the issue they covered.
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr || layerNames(m.keyLayers()) != "global, issue_modal" {
+		if m.modals.Top() != pr || layerNames(m.keyLayers()) != "global, issue_modal" {
 			t.Fatalf("the second back left the keys at %q", layerNames(m.keyLayers()))
 		}
 		if got := pr.View(); got != thread {
@@ -87,11 +87,11 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		}
 		// Back with nothing behind it does nothing, and esc closes.
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr {
+		if m.modals.Top() != pr {
 			t.Error("back at the top of the modal closed it")
 		}
 		tapAction(t, m, config.ActionDismiss)
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("esc didn't close the modal")
 		}
 	})
@@ -104,7 +104,7 @@ func TestReferencesEscThenClose(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Fatal("no issue opened")
 		}
 		tapAction(t, m, "issue_modal.references")
@@ -113,25 +113,25 @@ func TestReferencesEscThenClose(t *testing.T) {
 			driveKeys(t, m, m.key(press(string(r))))
 		}
 		driveKeys(t, m, m.key(enter))
-		if v := ansi.Strip(m.modal.View()); !strings.Contains(v, "& mention") {
+		if v := ansi.Strip(m.modals.Top().View()); !strings.Contains(v, "& mention") {
 			t.Fatalf("the filter doesn't show:\n%s", v)
 		}
 		tapAction(t, m, config.ActionDismiss)
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Fatal("the first esc closed the modal; it clears the filter")
 		}
-		if v := ansi.Strip(m.modal.View()); strings.Contains(v, "& mention") {
+		if v := ansi.Strip(m.modals.Top().View()); strings.Contains(v, "& mention") {
 			t.Errorf("the filter is still there:\n%s", v)
 		}
 		tapAction(t, m, config.ActionDismiss)
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("the second esc didn't close the modal")
 		}
 
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
 		tapAction(t, m, "issue_modal.references")
 		tapAction(t, m, config.ActionQuit)
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("q over the links didn't close the modal")
 		}
 	})
@@ -144,17 +144,17 @@ func TestReferencesFilterTypesKeys(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		pr := m.modal
+		pr := m.modals.Top()
 		tapAction(t, m, "issue_modal.references")
 		tapAction(t, m, "references.quick_filter")
 		for _, r := range "qx" {
 			driveKeys(t, m, m.key(press(string(r))))
 		}
-		if m.modal != pr {
+		if m.modals.Top() != pr {
 			t.Fatal("q closed the modal while the filter types")
 		}
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr {
+		if m.modals.Top() != pr {
 			t.Fatal("backspace stepped out of the links while the filter types")
 		}
 		if got := layerNames(m.keyLayers()); got != "always, search_prompt (types)" {
@@ -176,9 +176,9 @@ func TestReferencesCommand(t *testing.T) {
 			t.Errorf("toast = %q, want the refusal", toasted(m))
 		}
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		issue := m.modal
+		issue := m.modals.Top()
 		runReferences(t, m)
-		if got := layerNames(m.keyLayers()); m.modal != issue || got != "global, references" {
+		if got := layerNames(m.keyLayers()); m.modals.Top() != issue || got != "global, references" {
 			t.Fatalf("the command left the keys at %q", got)
 		}
 		// Again it changes nothing.
@@ -195,7 +195,7 @@ func TestReferencesCommandOverOtherModals(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, true)
-		m.openModal(&sourceModal{title: "README.md", renders: true})
+		m.open(&sourceModal{title: "README.md", renders: true}, nil)
 		runReferences(t, m)
 		if want := "Close the file first to use references."; !hasToast(m, want) {
 			t.Errorf("toast = %q, want %q", toasted(m), want)
@@ -225,7 +225,7 @@ func TestReferencesColonIsTypedWhereKeysType(t *testing.T) {
 		if m.line.Focused() {
 			t.Error(": opened the line over the filter of the links")
 		}
-		if got := m.modal.View(); !strings.Contains(ansi.Strip(got), "&:") {
+		if got := m.modals.Top().View(); !strings.Contains(ansi.Strip(got), "&:") {
 			t.Errorf("the colon wasn't typed into the filter:\n%s", ansi.Strip(got))
 		}
 	})
@@ -253,8 +253,8 @@ func TestReferencesModalKeepsItsContext(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Maximized = []string{"issue_modal"} })
 		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
-		pr := m.modal
-		if !m.maximized {
+		pr := m.modals.Top()
+		if !m.modals.Maximized() {
 			t.Fatal("the issue didn't open maximized")
 		}
 		tapAction(t, m, "issue_modal.references")
@@ -273,12 +273,12 @@ func TestReferencesModalKeepsItsContext(t *testing.T) {
 		driveKeys(t, m, m.key(press("j")))
 		driveKeys(t, m, m.key(press("j")))
 		driveKeys(t, m, m.key(enter))
-		if m.modal == pr {
-			t.Fatalf("the item opened as %v", m.topModal())
+		if m.modals.Top() == pr {
+			t.Fatalf("the item opened as %v", m.modals.Top())
 		}
 		tapAction(t, m, config.ActionBack)
-		if m.modal != pr || !m.maximized {
-			t.Errorf("back returned to %v, maximized %v; want the issue, maximized", m.topModal(), m.maximized)
+		if m.modals.Top() != pr || !m.modals.Maximized() {
+			t.Errorf("back returned to %v, maximized %v; want the issue, maximized", m.modals.Top(), m.modals.Maximized())
 		}
 	})
 }

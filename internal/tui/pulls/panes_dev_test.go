@@ -59,7 +59,7 @@ func TestDevelopmentEnterOpensIssue(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("OpenIssueMsg sent %d times, want 1", len(got))
 	}
-	if g := got[0]; g.Number != 12 || g.Repo != repo || g.Back != ui.Modal(m) {
+	if g := got[0]; g.Number != 12 || g.Repo != repo || g.Over != ui.Modal(m) {
 		t.Fatalf("OpenIssueMsg = %+v, want issue 12 of %v returning to the modal", g, repo)
 	}
 }
@@ -77,7 +77,7 @@ func TestDevelopmentEnterOpensPull(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("OpenPullMsg sent %d times, want 1", len(got))
 	}
-	if g := got[0]; g.Number != 30 || g.Back != ui.Modal(m) {
+	if g := got[0]; g.Number != 30 || g.Over != ui.Modal(m) {
 		t.Fatalf("OpenPullMsg = %+v, want pull request 30 returning to the modal", g)
 	}
 }
@@ -152,7 +152,7 @@ func TestDevelopmentBackKeepsState(t *testing.T) {
 	it, _ := m.dev.model.Selected()
 	at := it.Ref.Target
 	got := opened[ui.OpenIssueMsg](press(t, h, "enter"))
-	if len(got) != 1 || got[0].Back != ui.Modal(m) {
+	if len(got) != 1 || got[0].Over != ui.Modal(m) {
 		t.Fatalf("the issue didn't open over the modal: %+v", got)
 	}
 	// The modal is kept as it was, for the back key to return to.

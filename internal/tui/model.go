@@ -11,6 +11,7 @@ package tui
 import (
 	"context"
 	"os/exec"
+	"reflect"
 	"slices"
 	"strconv"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -92,15 +94,11 @@ type Model struct {
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
-	// repository screen. back holds the places left, the newest last, for
-	// the back key to return to: screens, and modals that another opened
-	// in their place. Modal places exist only while a modal is open: they
-	// are all dropped, and discarded, when the last modal closes, and
-	// backOwner is the modal they are the way back of.
-	screen    screen
-	back      []place
-	backOwner ui.Modal
-	focus     int
+	// repository screen. back holds the screens left, the newest last, for
+	// the back key to return to.
+	screen screen
+	back   []place
+	focus  int
 	// zoom shows the focused pane of the repository screen alone, by the
 	// user's choice or because the terminal is narrow. The dashboard and the
 	// owner page keep their own.
@@ -108,18 +106,14 @@ type Model struct {
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd
-	// modal is open over the screens, or nil. Opening another replaces it.
-	modal ui.Modal
-	// modalWidth and modalHeight are the size the open modal was last
-	// given, and resized is set once the layout changed it, which the
-	// modal then waits out when the update ends: a resize of the
+	// modals holds the open modals, and priorities ranks their types.
+	modals     *modals.Manager
+	priorities map[reflect.Type]modals.Priority
+	// resized is set once the layout changed the size of the open modal,
+	// which the modal then waits out when the update ends: a resize of the
 	// terminal, or a change of the footer, such as the command line's
 	// candidates showing.
-	modalWidth, modalHeight int
-	resized                 bool
-	// maximized is whether the open modal fills the screen. It starts as
-	// ui.maximized says of the modal, and the maximize key toggles it.
-	maximized bool
+	resized bool
 	// maximizedModals are the modals that open maximized, as ui.maximized
 	// lists them.
 	maximizedModals []string
@@ -177,7 +171,7 @@ type Model struct {
 
 	sync      func(ctx context.Context) (ui.SyncMsg, bool)
 	setActive func(active bool)
-	open      Browser
+	browser   Browser
 	watchRepo func(repo core.RepoRef)
 	repoInfo  func(ctx context.Context, repo core.RepoRef) (core.Repo, error)
 	// repos checks that a repository exists before goto opens it, and
@@ -350,7 +344,7 @@ type Browser func(url string) (*exec.Cmd, error)
 
 // WithBrowser sets the function that opens a URL in the browser.
 func WithBrowser(open Browser) Option {
-	return func(m *Model) { m.open = open }
+	return func(m *Model) { m.browser = open }
 }
 
 // WithVoice sets how the app words what went wrong, with the keys a hint
@@ -388,6 +382,8 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		voice:      ui.NewVoice(cfg.Keys, ""),
 		images:     newImageProbe(cfg.Images.Enabled),
 		after:      tick,
+		modals:     modals.New(maxHeldModals),
+		priorities: modalPriorities,
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
@@ -546,9 +542,7 @@ func (m *Model) applyTheme(dark bool) {
 	for _, p := range m.all {
 		p.section.SetTheme(m.theme)
 	}
-	if m.modal != nil {
-		m.modal.SetTheme(m.theme)
-	}
+	m.modals.SetTheme(m.theme)
 	m.drawFrames()
 	m.drawHeader()
 }

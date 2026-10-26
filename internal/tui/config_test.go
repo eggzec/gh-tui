@@ -42,9 +42,9 @@ func newConfigApp(t *testing.T, file string) *Model {
 // styles, or fails if no text modal is open.
 func shownText(t *testing.T, m *Model) (title, text string) {
 	t.Helper()
-	tm, ok := m.modal.(*textModal)
+	tm, ok := m.modals.Top().(*textModal)
 	if !ok {
-		t.Fatalf("the open modal is %T, want the text modal", m.modal)
+		t.Fatalf("the open modal is %T, want the text modal", m.modals.Top())
 	}
 	return tm.Title(), ansi.Strip(tm.View())
 }
@@ -72,7 +72,7 @@ func TestConfigCommand(t *testing.T) {
 		t.Errorf("a default has a comment:\n%s", text)
 	}
 	// What lies below the screen is in the pager, a search away.
-	tm := m.modal.(*textModal)
+	tm := m.modals.Top().(*textModal)
 	for _, want := range []string{"level: warn # session (:set)", "quit: [Q] # config.yaml:4"} {
 		tm.pager.GoToLine(0)
 		drive(m, tm.pager.SetSearch(want))
@@ -82,12 +82,12 @@ func TestConfigCommand(t *testing.T) {
 	}
 	// q is not the quit key of this config, and Q is.
 	drive(m, m.key(press("q")))
-	if m.modal == nil {
+	if m.modals.Top() == nil {
 		t.Errorf("q closed the pager, but this config quits with Q")
 	}
 	drive(m, m.key(press("Q")))
-	if m.modal != nil {
-		t.Errorf("Q left %T open, want the pager closed", m.modal)
+	if m.modals.Top() != nil {
+		t.Errorf("Q left %T open, want the pager closed", m.modals.Top())
 	}
 }
 
@@ -120,8 +120,8 @@ func TestConfigCommandRefusesMore(t *testing.T) {
 	// Not parallel: it sets environment variables, which the whole process shares.
 	m := newConfigApp(t, "")
 	runCommand(t, m, "config nope")
-	if m.modal != nil {
-		t.Errorf("config nope opened %T", m.modal)
+	if m.modals.Top() != nil {
+		t.Errorf("config nope opened %T", m.modals.Top())
 	}
 	if !hasToast(m, `Can't show config "nope". Use config, or config defaults.`) {
 		t.Errorf("toasts: %s", toasted(m))

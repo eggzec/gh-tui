@@ -27,8 +27,8 @@ func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		switch msg := cmd().(type) {
 		case ui.OpenModalMsg:
-			if msg.Back == nil {
-				msg.Back = m
+			if msg.Over == nil {
+				msg.Over = m
 			}
 			return msg
 		case tea.BatchMsg:
@@ -208,7 +208,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Open):
 		return m.open()
 	case keymap.Matches(msg, k.ViewFile):
-		return m.viewWorkflow(m)
+		return m.viewWorkflow()
 	case keymap.Matches(msg, k.RerunFailed):
 		return m.asks(m.rerunFailed)
 	case keymap.Matches(msg, k.Rerun):

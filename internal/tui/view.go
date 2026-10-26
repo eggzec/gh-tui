@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
 )
@@ -40,14 +41,14 @@ func (m *Model) View() tea.View {
 	b.WriteString(footer)
 
 	screen := b.String()
-	mod := m.topModal()
+	mod := m.modals.Top()
 	if mod != nil || m.helpOpen() {
 		// The modal and the help are centered on the terminal, so the
 		// screen under them must fill it.
 		screen = lipgloss.PlaceVertical(m.height, lipgloss.Top, screen)
 	}
 	if mod != nil {
-		if m.maximized {
+		if m.modals.Maximized() {
 			// The frame covers the screen but for the footer.
 			screen = overlay.Place(screen, m.frame(mod), 0, 0)
 		} else {
@@ -89,10 +90,8 @@ func (m *Model) layout() {
 	m.toast.SetInset(toastInset, toastInset)
 	m.toast.SetSize(m.width, max(m.height-1-toastInset, 0))
 	m.arrange(m.contentHeight())
-	if m.modal != nil {
-		w, h := m.modalSize()
-		m.resized = m.resized || w != m.modalWidth || h != m.modalHeight
-		m.sizeModal(w, h)
+	if m.modals.Resize(modals.Room{Width: m.width, Height: m.height, Footer: m.footerHeight(), Narrow: m.narrow()}) {
+		m.resized = true
 	}
 	m.keyhelp.SetSize(m.helpSize())
 	m.drawFrames()

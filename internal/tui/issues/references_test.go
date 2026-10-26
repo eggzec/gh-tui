@@ -112,7 +112,7 @@ func TestIssueModalReferencesPickOpensWithBack(t *testing.T) {
 			opened = append(opened, o)
 		}
 	}
-	if len(opened) != 1 || opened[0].Number != 91 || opened[0].Repo != testRepo || opened[0].Back != m {
+	if len(opened) != 1 || opened[0].Number != 91 || opened[0].Repo != testRepo || opened[0].Over != m {
 		t.Errorf("enter opened %+v, want #91 with the modal to go back to", opened)
 	}
 	run(t, h, h.Update(ui.ReopenedMsg{Modal: m}))

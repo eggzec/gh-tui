@@ -51,8 +51,6 @@ type preview struct {
 	find   string
 	preset bool
 	line   int
-	// ret is the modal the preview reopens when it closes, if set.
-	ret ui.Modal
 	// failed is why the file failed to load, or nil.
 	failed error
 	// img shows the file in the pager, as its image where it is an image
@@ -416,13 +414,10 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// close ends the preview's reads, and closes it, or reopens the modal it
-// was opened from.
+// close ends the preview's reads and closes it, which shows the modal it was
+// opened over.
 func (p *preview) close() tea.Cmd {
 	p.cancel()
-	if p.ret != nil {
-		return ui.Reopen(p.ret)
-	}
 	return ui.CloseModal(p)
 }
 
@@ -478,7 +473,7 @@ func (p *preview) Act(action string) (tea.Cmd, bool) {
 		}
 		return p.close(), true
 	case ui.ActBack:
-		return nil, true
+		return nil, false
 	}
 	return nil, false
 }

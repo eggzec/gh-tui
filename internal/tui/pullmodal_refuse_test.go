@@ -33,9 +33,9 @@ func TestPullModalActionsReturnsToIt(t *testing.T) {
 		m = openPanes(t)
 		tapAction(t, m, "global.pane_3")
 		tapAction(t, m, "global.zoom")
-		modal, layers, view = m.modal, layerNames(m.keyLayers()), m.modal.View()
+		modal, layers, view = m.modals.Top(), layerNames(m.keyLayers()), m.modals.Top().View()
 		driveKeys(t, m, func() tea.Msg { return checktree.OpenJobMsg{SHA: strings.Repeat("a", 40), RunID: 1, JobID: 2} })
-		if m.modal == modal {
+		if m.modals.Top() == modal {
 			t.Fatal("the job message left the pull request modal open, want the Actions modal")
 		}
 		if got := layerNames(m.keyLayers()); !strings.Contains(got, "actions") {
@@ -52,17 +52,17 @@ func TestPullModalActionsReturnsToIt(t *testing.T) {
 				// through its panes, and leaves it from the runs.
 				for range 3 {
 					driveKeys(t, m, m.key(key))
-					if m.modal == modal {
+					if m.modals.Top() == modal {
 						break
 					}
 				}
-				if m.modal != modal {
-					t.Fatalf("%s left the Actions modal for %v, want the pull request modal", name, m.topModal())
+				if m.modals.Top() != modal {
+					t.Fatalf("%s left the Actions modal for %v, want the pull request modal", name, m.modals.Top())
 				}
 				if got := layerNames(m.keyLayers()); got != layers {
 					t.Errorf("the keys after %s are %q, want %q", name, got, layers)
 				}
-				if got := m.modal.View(); got != view {
+				if got := m.modals.Top().View(); got != view {
 					t.Errorf("the pull request modal shows something else after %s", name)
 				}
 			})
@@ -73,8 +73,8 @@ func TestPullModalActionsReturnsToIt(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m, _, _, _ := open(t)
 			driveKeys(t, m, m.key(press("q")))
-			if m.topModal() != nil {
-				t.Errorf("q left %v open", m.topModal())
+			if m.modals.Top() != nil {
+				t.Errorf("q left %v open", m.modals.Top())
 			}
 		})
 	})
@@ -86,13 +86,13 @@ func TestPullModalIgnoresIssueKeys(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := openPanes(t)
-		modal, view := m.modal, m.modal.View()
+		modal, view := m.modals.Top(), m.modals.Top().View()
 		for _, k := range []string{"#", "t"} {
 			driveKeys(t, m, m.key(press(k)))
-			if m.modal != modal || layerNames(m.keyLayers()) != "global, pull_modal, pull_conversation" {
+			if m.modals.Top() != modal || layerNames(m.keyLayers()) != "global, pull_modal, pull_conversation" {
 				t.Errorf("%s changed the modal or its keys to %q", k, layerNames(m.keyLayers()))
 			}
-			if got := m.modal.View(); got != view {
+			if got := m.modals.Top().View(); got != view {
 				t.Errorf("%s changed what the modal shows", k)
 			}
 		}
@@ -104,12 +104,12 @@ func TestPullModalRefusesReferences(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := openPanes(t)
-		modal := m.modal
+		modal := m.modals.Top()
 		runReferences(t, m)
 		if !hasToast(m, "Close the pull request first to use references.") {
 			t.Errorf("toast = %q, want the refusal", toasted(m))
 		}
-		if m.modal != modal || layerNames(m.keyLayers()) != "global, pull_modal, pull_conversation" {
+		if m.modals.Top() != modal || layerNames(m.keyLayers()) != "global, pull_modal, pull_conversation" {
 			t.Errorf("the command left the keys at %q", layerNames(m.keyLayers()))
 		}
 	})

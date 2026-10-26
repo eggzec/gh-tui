@@ -83,8 +83,8 @@ func TestNotificationsKeyOnTheDashboard(t *testing.T) {
 		t.Error("the notifications key is enabled on the dashboard")
 	}
 	run(m, m.key(press("I")))
-	if m.screen != dashScreen || m.modal != nil {
-		t.Errorf("I on the dashboard left screen %d with modal %v", m.screen, m.modal)
+	if m.screen != dashScreen || m.modals.Top() != nil {
+		t.Errorf("I on the dashboard left screen %d with modal %v", m.screen, m.modals.Top())
 	}
 
 	m, _ = newDashApp(t, testRepo)

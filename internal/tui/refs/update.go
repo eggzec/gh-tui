@@ -279,9 +279,9 @@ func (s *Step) openItem(r core.Reference) tea.Cmd {
 		return ui.Notify(toast.Warning, text)
 	}
 	if r.Target.Kind == core.KindPull {
-		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Back: s.opts.ret} }
+		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: s.opts.ret} }
 	}
-	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Back: s.opts.ret} }
+	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: s.opts.ret} }
 }
 
 // openInBrowser opens the item under the cursor on GitHub. An item that

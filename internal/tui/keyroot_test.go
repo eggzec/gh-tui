@@ -106,8 +106,8 @@ func TestOwnerKeyOverModals(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, steps...)
 			tap(t, m, "@")
-			if m.modal != nil || m.screen != ownerScreen {
-				t.Errorf("%v: after @, modal open %v on screen %v; want the owner page of the author", steps, m.modal != nil, m.screen)
+			if m.modals.Top() != nil || m.screen != ownerScreen {
+				t.Errorf("%v: after @, modal open %v on screen %v; want the owner page of the author", steps, m.modals.Top() != nil, m.screen)
 			}
 			if m.ownerLogin != "octocat" {
 				t.Errorf("%v: the page is of %q, want the author octocat", steps, m.ownerLogin)
@@ -118,7 +118,7 @@ func TestOwnerKeyOverModals(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, steps...)
 			tap(t, m, "@")
-			if m.modal == nil || m.screen != repoScreen {
+			if m.modals.Top() == nil || m.screen != repoScreen {
 				t.Errorf("%v: @ left the modal, which refuses it", steps)
 			}
 			want := "Close " + modalName(m) + " first to use the owner page."
@@ -129,7 +129,7 @@ func TestOwnerKeyOverModals(t *testing.T) {
 	}
 }
 
-func modalName(m *Model) string { return m.modalName(m.modal) }
+func modalName(m *Model) string { return m.modalName(m.modals.Top()) }
 
 // TestQuitQuitsWithoutAModal checks that the quit key quits when no modal
 // is open (TestOverEveryModal checks that it closes one).
@@ -154,7 +154,7 @@ func TestQuitIsTypedInAnInput(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_3", "global.select", "issue_modal.comment")
 		tap(t, m, "q")
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Error("q closed the modal while its comment was typed")
 		}
 	})
@@ -168,14 +168,14 @@ func TestDismissLadder(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_2", "global.select")
 		driveKeys(t, m, func() tea.Msg { return ui.NotifyMsg{Level: toast.Error, Text: "Could not merge."} })
 		tap(t, m, "esc")
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Error("esc closed the modal with an error toast on view")
 		}
 		if m.toast.Has(toast.Error) {
 			t.Error("esc left the error toast")
 		}
 		tap(t, m, "esc")
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("esc didn't close the modal once the toast was gone")
 		}
 	})
@@ -249,7 +249,7 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 			tap(t, m, "backspace")
 			// backspace steps back from the graph, which leaves the modal
 			// open, and never shows the panes again: the zoom key does.
-			if m.modal == nil {
+			if m.modals.Top() == nil {
 				t.Fatal("backspace closed the modal, which should step back from the graph")
 			}
 			if !strings.Contains(onScreen(m), "z unzoom") {
@@ -257,7 +257,7 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 			}
 			// esc closes the modal rather than showing the panes again.
 			tap(t, m, "esc")
-			if m.modal != nil {
+			if m.modals.Top() != nil {
 				t.Error("esc left the history open")
 			}
 		})
@@ -386,11 +386,11 @@ func TestQuitClosesTheRelease(t *testing.T) {
 		driveKeys(t, m, func() tea.Msg {
 			return ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}
 		})
-		if m.modal == nil {
+		if m.modals.Top() == nil {
 			t.Fatal("the release isn't open")
 		}
 		tap(t, m, "q")
-		if m.modal != nil {
+		if m.modals.Top() != nil {
 			t.Error("q left the release open")
 		}
 	})

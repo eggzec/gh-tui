@@ -23,7 +23,9 @@ import (
 // that what it drew asks for are fetched after it.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	_, cmd := m.update(msg)
-	m.fitModal()
+	if m.modals.Refit() {
+		m.resized = true
+	}
 	if m.resized {
 		m.resized = false
 		cmd = tea.Batch(cmd, m.settleModal())
@@ -197,8 +199,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.RepoMsg:
 		// A repository chosen in the search replaces what the search was
 		// shown over.
-		m.leaveSearch()
-		cmd := m.selectRepo(msg)
+		cmd := tea.Batch(m.leaveSearch(), m.selectRepo(msg))
 		return m, cmd
 	case ui.BaseMsg:
 		if !msg.Repo.Same(m.repo) {
@@ -225,24 +226,26 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case ui.OpenFilterMsg:
 		// The focused list asked, with its own filter or sort key.
+		var cmd tea.Cmd
 		if s, host := m.hosted(); host != nil {
-			m.openFilter(s, host)
+			cmd = m.openFilter(s, host)
 		} else if p := m.focused(); p != nil {
-			m.openFilter(p.section, nil)
+			cmd = m.openFilter(p.section, nil)
 		}
-		return m, nil
+		return m, cmd
 	case ui.OpenSortMsg:
+		var cmd tea.Cmd
 		if s, host := m.hosted(); host != nil {
-			m.openSort(s, host)
+			cmd = m.openSort(s, host)
 		} else if p := m.focused(); p != nil {
-			m.openSort(p.section, nil)
+			cmd = m.openSort(p.section, nil)
 		}
-		return m, nil
+		return m, cmd
 	case ui.OpenActionsMsg:
 		// What the notifications modal opens goes over it, so that going
 		// back returns to the notifications.
-		if msg.Back == nil {
-			msg.Back = m.hostModal()
+		if msg.Over == nil {
+			msg.Over = m.modals.Top()
 		}
 		cmd := m.openActionsOn(msg)
 		return m, cmd
@@ -256,47 +259,27 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Away from the repository screen, a number alone doesn't say
 		// which repository it is of.
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
-		if msg.Back == nil {
-			msg.Back = m.hostModal()
+		if msg.Over == nil {
+			msg.Over = m.modals.Top()
 		}
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenIssueMsg:
 		msg.ShowRepo = msg.ShowRepo || m.screen != repoScreen
-		if msg.Back == nil {
-			msg.Back = m.hostModal()
+		if msg.Over == nil {
+			msg.Over = m.modals.Top()
 		}
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenModalMsg:
-		// The group picker's section doesn't know it is shown in the
-		// notifications modal, which the picker returns to.
-		if _, ok := msg.Modal.(*ui.GroupModal); ok && msg.Back == nil {
-			msg.Back = m.notifHost()
-		}
-		// What a hit of the search opens, such as a file, goes over the search
-		// even when its section doesn't know it is shown there.
-		if msg.Back == nil {
-			msg.Back = m.searchHost()
-		}
-		m.openModalOver(msg.Modal, msg.Back)
-		return m, nil
+		cmd := m.open(msg.Modal, msg.Over)
+		return m, cmd
 	case ui.CloseModalMsg:
-		// The notifications modal is where its threads were picked from, so
-		// closing one returns there rather than ending the chain.
-		if m.isOpen(msg.Modal) && m.overReturning() {
-			cmd := m.goModalBack(msg.Modal)
-			return m, cmd
-		}
-		m.closeModal(msg.Modal)
-		return m, nil
+		cmd := m.apply(m.modals.Close(msg.Modal))
+		return m, cmd
 	case ui.LeaveModalMsg:
-		if m.isOpen(msg.Modal) && m.modalBack() {
-			cmd := m.goModalBack(msg.Modal)
-			return m, cmd
-		}
-		m.closeModal(msg.Modal)
-		return m, nil
+		cmd := m.apply(m.modals.Back(msg.Modal))
+		return m, cmd
 	}
 
 	var cmd tea.Cmd
@@ -343,7 +326,7 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	if m.opensHelp(msg) {
 		return m.openHelp()
 	}
-	if mod := m.topModal(); mod != nil {
+	if mod := m.modals.Top(); mod != nil {
 		if keymap.Matches(msg, forceQuit) {
 			return m.quitNow()
 		}
@@ -452,22 +435,22 @@ func (m *Model) takes(s ui.Section) bool {
 }
 
 // openFilter opens the filter modal of s, if s has one to open.
-func (m *Model) openFilter(s ui.Section, back ui.Modal) {
+func (m *Model) openFilter(s ui.Section, back ui.Modal) tea.Cmd {
 	fl, f, ok := filterOf(s, filterform.FiltersTab)
 	if !ok {
-		return
+		return nil
 	}
-	m.openModalOver(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
+	return m.open(ui.NewFilterModal(m.ctx, s.Title(), fl, f, ui.WithFormKeys(m.keys.form), ui.WithFormBack(m.keys.Back), ui.WithFormVoice(m.voice),
 		ui.WithFormIcons(ui.NewIcons(m.cfg.UI.Icons))), back)
 }
 
 // openSort opens the sort modal of s, if s has a sort to change.
-func (m *Model) openSort(s ui.Section, back ui.Modal) {
+func (m *Model) openSort(s ui.Section, back ui.Modal) tea.Cmd {
 	fl, f, ok := filterOf(s, filterform.SortTab)
 	if !ok {
-		return
+		return nil
 	}
-	m.openModalOver(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), back)
+	return m.open(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), back)
 }
 
 // filterOf returns what the filter modal edits for s on tab, if s has one
@@ -526,8 +509,8 @@ func (m *Model) broadcast(msg tea.Msg) tea.Cmd {
 		}
 		cmds = append(cmds, p.section.Update(msg))
 	}
-	if m.modal != nil {
-		cmds = append(cmds, m.modal.Update(msg))
+	if m.modals.Top() != nil {
+		cmds = append(cmds, m.modals.Top().Update(msg))
 	}
 	m.updateBadges()
 	return tea.Batch(cmds...)
@@ -559,10 +542,10 @@ func browserFix() string {
 }
 
 func (m *Model) openURL(url string) tea.Cmd {
-	if m.open == nil || url == "" {
+	if m.browser == nil || url == "" {
 		return nil
 	}
-	open, ctx := m.open, m.ctx
+	open, ctx := m.browser, m.ctx
 	failed := func(err error) tea.Msg {
 		if err == nil {
 			return nil

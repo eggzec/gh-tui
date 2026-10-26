@@ -40,7 +40,7 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		}
 		return s.press(msg)
 	case ui.OpenIssueMsg:
-		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause, msg.Back)
+		return s.openDetail(msg.Repo, msg.Number, nil, msg.ShowRepo, msg.Pause, msg.Over)
 	case changedMsg:
 		if !s.hasRepo || !msg.repo.Same(s.repo) {
 			return nil

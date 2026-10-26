@@ -179,9 +179,9 @@ func TestAuthCommand(t *testing.T) {
 		return nil
 	}))
 	runCommand(t, m, "auth")
-	mod, ok := m.modal.(*authModal)
+	mod, ok := m.modals.Top().(*authModal)
 	if !ok {
-		t.Fatalf("modal = %T, want the auth modal", m.modal)
+		t.Fatalf("modal = %T, want the auth modal", m.modals.Top())
 	}
 	if acc.reloads != 1 || mod.checking {
 		t.Fatalf("the token was read %d times, checking=%v; want read once", acc.reloads, mod.checking)
@@ -202,8 +202,8 @@ func TestAuthCommand(t *testing.T) {
 	}
 
 	run(m, m.key(press("y")))
-	if m.modal != nil || !slices.EqualFunc(ran, [][]string{refreshPlan.Cmd}, slices.Equal) {
-		t.Fatalf("ran %v with modal %T, want the plan's command with the modal closed", ran, m.modal)
+	if m.modals.Top() != nil || !slices.EqualFunc(ran, [][]string{refreshPlan.Cmd}, slices.Equal) {
+		t.Fatalf("ran %v with modal %T, want the plan's command with the modal closed", ran, m.modals.Top())
 	}
 	next := uitest.Classic("gist", "read:org", "repo", "workflow")
 	acc.next = &next
@@ -263,16 +263,16 @@ func TestAuthCommandWithNothingToRun(t *testing.T) {
 	acc.plan = access.Plan{Why: "A fine-grained token has no scopes to grant; run gh auth login to use a classic token."}
 	m, _ := newTestApp(t, WithAccess(acc))
 	runCommand(t, m, "auth")
-	if _, ok := m.modal.(*authModal); !ok {
-		t.Fatalf("modal = %T, want the auth modal", m.modal)
+	if _, ok := m.modals.Top().(*authModal); !ok {
+		t.Fatalf("modal = %T, want the auth modal", m.modals.Top())
 	}
 	run(m, m.key(press("y")))
-	if m.modal == nil {
+	if m.modals.Top() == nil {
 		t.Fatal("y closed a modal that asks nothing")
 	}
 	run(m, m.key(press("esc")))
-	if m.modal != nil {
-		t.Errorf("esc left %T open", m.modal)
+	if m.modals.Top() != nil {
+		t.Errorf("esc left %T open", m.modals.Top())
 	}
 }
 
@@ -334,9 +334,9 @@ func TestSetIconsInOpenAuthModal(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	m.applyTheme(true)
 	_ = m.authCommand("")
-	mod, ok := m.modal.(*authModal)
+	mod, ok := m.modals.Top().(*authModal)
 	if !ok {
-		t.Fatalf("the modal open is %T, want the auth modal", m.modal)
+		t.Fatalf("the modal open is %T, want the auth modal", m.modals.Top())
 	}
 	w, h := mod.Fit(72, 30)
 	mod.SetSize(w, h)
@@ -373,9 +373,9 @@ func TestAuthModalErrorMark(t *testing.T) {
 		m := New(t.Context(), cfg, Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
 		m.theme = ui.NewTheme(p, true)
 		_ = m.authCommand("")
-		mod, ok := m.modal.(*authModal)
+		mod, ok := m.modals.Top().(*authModal)
 		if !ok {
-			t.Fatalf("%s: the modal open is %T, want the auth modal", set, m.modal)
+			t.Fatalf("%s: the modal open is %T, want the auth modal", set, m.modals.Top())
 		}
 		w, h := mod.Fit(72, 30)
 		mod.SetSize(w, h)

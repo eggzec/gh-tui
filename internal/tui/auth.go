@@ -134,10 +134,10 @@ func (m *Model) updateAccess(msg tea.Msg) tea.Cmd {
 		return m.reloadToken(&msg.before)
 	case authReloadedMsg:
 		m.noticed = true
-		if a, ok := m.modal.(*authModal); ok {
+		if a, ok := m.modals.Top().(*authModal); ok {
 			a.checked(msg.access, m.access.Refresh(needs()...), msg.err)
 			// It may need more lines now.
-			a.SetSize(m.modalSize())
+			a.SetSize(m.modals.FrameSize())
 		}
 		// The sections read again what the token was refused, or failed
 		// to read, since it may be a new token.
@@ -231,8 +231,7 @@ func (m *Model) authCommand(string) tea.Cmd {
 	mod := newAuthModal(m.cfg.Keys, m.account(), a, m.access.Refresh(needs()...), m.token, m.run)
 	mod.checksOff = !m.cfg.Auth.Check
 	mod.icons = ui.NewIcons(m.cfg.UI.Icons)
-	m.openModal(mod)
-	return m.reloadToken(nil)
+	return tea.Batch(m.open(mod, nil), m.reloadToken(nil))
 }
 
 // reloadToken reads the token again and asks GitHub what it may do.

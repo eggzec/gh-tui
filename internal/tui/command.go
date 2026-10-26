@@ -85,7 +85,7 @@ func pressCommand(action string) func(*Model, string) tea.Cmd {
 // the open modal shows, as the key does, so that it works with the key
 // unbound.
 func (m *Model) referencesCommand(string) tea.Cmd {
-	if r, ok := m.topModal().(ui.Referencing); ok {
+	if r, ok := m.modals.Top().(ui.Referencing); ok {
 		if cmd, ok := r.ShowReferences(); ok {
 			return cmd
 		}
@@ -132,7 +132,7 @@ func (m *Model) commandsOver() bool {
 // runsOver reports whether c runs now: with no modal open, or over the
 // open one, which either takes every such command or names c.
 func (m *Model) runsOver(c command) bool {
-	mod := m.topModal()
+	mod := m.modals.Top()
 	if mod == nil {
 		return true
 	}
@@ -196,7 +196,7 @@ func (m *Model) runLine(line string, save tea.Cmd) tea.Cmd {
 	case !ok:
 		return tea.Batch(save, m.actionCommand(name, arg))
 	case !m.runsOver(c):
-		return tea.Batch(save, m.toast.Push(toast.Warning, "Close "+m.modalName(m.topModal())+" first to use "+c.name+"."))
+		return tea.Batch(save, m.toast.Push(toast.Warning, "Close "+m.modalName(m.modals.Top())+" first to use "+c.name+"."))
 	case !c.args && arg != "":
 		return tea.Batch(save, m.toast.Push(toast.Warning, "The "+c.name+" command takes no argument."))
 	case c.quits:

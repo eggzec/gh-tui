@@ -366,7 +366,7 @@ func (m *panesModal) enterDev(msg foldtree.EnterMsg) tea.Cmd {
 		return ui.Notify(toast.Warning, "Can't read "+r.Target.String()+": "+r.Problem+".")
 	}
 	if r.Target.Kind == core.KindPull {
-		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Back: m} }
+		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
 	}
-	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Back: m} }
+	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
 }

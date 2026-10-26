@@ -50,8 +50,8 @@ func TestActionsKeyOpensTheActions(t *testing.T) {
 		t.Errorf("help lacks the actions key:\n%s", s)
 	}
 	run(m, m.key(press("A")))
-	if m.topModal() != a.modal || a.loads != 1 || len(a.opened) != 1 || a.opened[0] != testRepo {
-		t.Fatalf("A opened %v on %v and loaded %d times, want the actions of %s loaded once", m.topModal(), a.opened, a.loads, testRepo)
+	if m.modals.Top() != a.modal || a.loads != 1 || len(a.opened) != 1 || a.opened[0] != testRepo {
+		t.Fatalf("A opened %v on %v and loaded %d times, want the actions of %s loaded once", m.modals.Top(), a.opened, a.loads, testRepo)
 	}
 	if a.modal.width == 0 || !a.modal.themed {
 		t.Error("the modal wasn't sized and themed before it was drawn")
@@ -72,12 +72,12 @@ func TestActionsKeyNeedsARepoAndItsScreen(t *testing.T) {
 		t.Fatalf("on screen %d, want the dashboard", m.screen)
 	}
 	run(m, m.key(press("A")))
-	if len(a.opened) != 0 || m.topModal() != nil {
+	if len(a.opened) != 0 || m.modals.Top() != nil {
 		t.Errorf("A opened the actions %d times off the repository screen", len(a.opened))
 	}
 	m, _ = newTestApp(t)
 	run(m, m.key(press("A")))
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Error("A opened a modal without actions")
 	}
 }
@@ -92,7 +92,7 @@ func (o *overlayingModal) Update(msg tea.Msg) tea.Cmd {
 	o.fakeModal.Update(msg)
 	if _, ok := msg.(tea.KeyPressMsg); ok {
 		ov := &fakeModal{title: "Overlay"}
-		return func() tea.Msg { return ui.OpenModalMsg{Modal: ov, Back: o} }
+		return func() tea.Msg { return ui.OpenModalMsg{Modal: ov, Over: o} }
 	}
 	return nil
 }
@@ -105,12 +105,12 @@ func TestOverlaysOverTheActionsReturnToIt(t *testing.T) {
 	run(m, ui.OpenModal(host))
 	for _, key := range []string{"f", "s", "g"} {
 		run(m, m.key(press(key)))
-		if m.topModal() == ui.Modal(host) {
+		if m.modals.Top() == ui.Modal(host) {
 			t.Fatalf("%s opened nothing over the actions", key)
 		}
-		run(m, ui.LeaveModal(m.topModal()))
-		if m.topModal() != ui.Modal(host) {
-			t.Fatalf("closing the overlay of %s left %v, want the actions", key, m.topModal())
+		run(m, ui.LeaveModal(m.modals.Top()))
+		if m.modals.Top() != ui.Modal(host) {
+			t.Fatalf("closing the overlay of %s left %v, want the actions", key, m.modals.Top())
 		}
 	}
 }
@@ -171,7 +171,7 @@ func TestOpenActionsMsgOpensTheRunsOfAnyRepo(t *testing.T) {
 	other := core.RepoRef{Owner: "charmbracelet", Name: "bubbletea"}
 	f := core.RunFilter{Branch: "feat/x", Status: "failure"}
 	m.Update(ui.OpenActionsMsg{Repo: other, Filter: f})
-	if m.topModal() != a.modal || len(a.opened) != 1 || a.opened[0] != other || a.filters[0] != f {
+	if m.modals.Top() != a.modal || len(a.opened) != 1 || a.opened[0] != other || a.filters[0] != f {
 		t.Errorf("opened %v with %v, want the failed runs of the branch of %s", a.opened, a.filters, other)
 	}
 	if a.targets[0] != (ui.ActionsAt{}) {
@@ -187,7 +187,7 @@ func TestOpenActionsMsgOpensOnARunAndAJob(t *testing.T) {
 	f := core.RunFilter{HeadSHA: "f00dcafe"}
 	at := ui.ActionsAt{Run: 4812, Job: 101, Jobs: true}
 	m.Update(ui.OpenActionsMsg{Repo: testRepo, Filter: f, At: at})
-	if m.topModal() != a.modal || len(a.opened) != 1 || a.filters[0] != f || a.targets[0] != at {
+	if m.modals.Top() != a.modal || len(a.opened) != 1 || a.filters[0] != f || a.targets[0] != at {
 		t.Errorf("opened %v with %v at %v, want the runs of the commit opened at %+v", a.opened, a.filters, a.targets, at)
 	}
 }
@@ -221,14 +221,14 @@ func openedOver(t *testing.T, withBack bool) (m *Model, under, over *leavingModa
 	m, _ = newTestApp(t, WithActions(open))
 	under = &leavingModal{}
 	under.title = "Pull request"
-	run(m, ui.OpenModalOver(under, nil))
 	msg := ui.OpenActionsMsg{Repo: testRepo}
 	if withBack {
-		msg.Back = under
+		run(m, ui.OpenModalOver(under, nil))
+		msg.Over = under
 	}
 	run(m, func() tea.Msg { return msg })
-	if m.modal != over {
-		t.Fatalf("the Actions modal didn't open: %v", m.topModal())
+	if m.modals.Top() != over {
+		t.Fatalf("the Actions modal didn't open: %v", m.modals.Top())
 	}
 	return m, under, over
 }
@@ -244,8 +244,8 @@ func TestActionsOverAModalReturnsToIt(t *testing.T) {
 			t.Parallel()
 			m, under, over := openedOver(t, true)
 			run(m, m.key(key))
-			if m.modal != under || over.discarded != 1 || !reopened(under) {
-				t.Errorf("%s left the Actions modal for %v, discarded %d, reopened %v; want the modal under, told it is open again", name, m.topModal(), over.discarded, reopened(under))
+			if m.modals.Top() != under || over.discarded != 1 || !reopened(under) {
+				t.Errorf("%s left the Actions modal for %v, discarded %d, reopened %v; want the modal under, told it is open again", name, m.modals.Top(), over.discarded, reopened(under))
 			}
 		})
 	}
@@ -255,8 +255,8 @@ func TestQuitClosesTheActionsAndWhatIsUnderIt(t *testing.T) {
 	t.Parallel()
 	m, _, _ := openedOver(t, true)
 	run(m, m.key(press("q")))
-	if m.topModal() != nil {
-		t.Errorf("q left %v open", m.topModal())
+	if m.modals.Top() != nil {
+		t.Errorf("q left %v open", m.modals.Top())
 	}
 }
 
@@ -264,12 +264,12 @@ func TestActionsOverNothingKeepsItsKeys(t *testing.T) {
 	t.Parallel()
 	m, _, over := openedOver(t, false)
 	run(m, m.key(backspace))
-	if m.modal != over {
-		t.Fatalf("backspace left the Actions modal for %v with nothing under it", m.topModal())
+	if m.modals.Top() != over {
+		t.Fatalf("backspace left the Actions modal for %v with nothing under it", m.modals.Top())
 	}
 	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
-	if m.topModal() != nil {
-		t.Errorf("esc left %v open, want the modal closed", m.topModal())
+	if m.modals.Top() != nil {
+		t.Errorf("esc left %v open, want the modal closed", m.modals.Top())
 	}
 }
 
@@ -291,7 +291,7 @@ func TestOpenReleaseMsgOpensTheRelease(t *testing.T) {
 
 	m, _ := newTestApp(t)
 	m.Update(msg)
-	if m.topModal() != nil {
+	if m.modals.Top() != nil {
 		t.Error("a release opened without a release modal")
 	}
 
@@ -299,7 +299,7 @@ func TestOpenReleaseMsgOpensTheRelease(t *testing.T) {
 	run(m, m.key(press("I")))
 	_, cmd := m.Update(msg)
 	run(m, cmd)
-	if m.topModal() != mod || loads != 1 || len(got) != 1 || got[0] != (opened{msg.Repo, msg.ID, msg.URL}) {
+	if m.modals.Top() != mod || loads != 1 || len(got) != 1 || got[0] != (opened{msg.Repo, msg.ID, msg.URL}) {
 		t.Errorf("opened %v and loaded %d times, want the release of the message loaded once", got, loads)
 	}
 	if mod.width == 0 || !mod.themed {

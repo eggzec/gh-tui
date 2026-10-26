@@ -109,13 +109,12 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 	back := ui.In(m.cfg.Keys, "text").Binding("global.back", "back")
 	// Over a modal, the text replaces it, and back returns to it.
-	over := m.modal
+	over := m.modals.Top()
 	back.SetEnabled(over != nil)
-	t := &textModal{title: title, back: back, returns: over != nil, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
+	t := &textModal{title: title, back: back, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
-	m.openModalOver(t, over)
-	return t.pager.SetContent(name, text)
+	return tea.Batch(m.open(t, over), t.pager.SetContent(name, text))
 }
 
 // textModal shows text in a pager, in a modal over the screen, until the
@@ -123,11 +122,9 @@ func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 type textModal struct {
 	title string
 	// back is off, and the modal takes the key so that it does nothing,
-	// unless it opened over another modal, which the key returns to:
-	// returns says so.
-	back    key.Binding
-	returns bool
-	pager   pager.Model
+	// unless it opened over another modal, which the key returns to.
+	back  key.Binding
+	pager pager.Model
 	// icons mark what the pager says went wrong.
 	icons ui.Icons
 }
@@ -186,7 +183,7 @@ func (t *textModal) Act(action string) (tea.Cmd, bool) {
 		}
 		return ui.CloseModal(t), true
 	case ui.ActBack:
-		return nil, !t.returns
+		return nil, false
 	}
 	return nil, false
 }

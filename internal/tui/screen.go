@@ -420,7 +420,6 @@ type place struct {
 	focus  int
 	repo   core.RepoRef
 	owner  string
-	modal  ui.Modal
 }
 
 // place returns the place on view.
@@ -432,7 +431,6 @@ func (m *Model) place() place {
 func (m *Model) pushBack() {
 	m.back = append(m.back, m.place())
 	if len(m.back) > maxBack {
-		m.discardPlaces(m.back[:len(m.back)-maxBack])
 		m.back = slices.Clone(m.back[len(m.back)-maxBack:])
 	}
 }
@@ -440,7 +438,7 @@ func (m *Model) pushBack() {
 // canGoBack reports whether the back key has somewhere to go: a page of an
 // owner before this one, or a place before the screen.
 func (m *Model) canGoBack() bool {
-	if m.modal != nil {
+	if m.modals.Top() != nil {
 		return false
 	}
 	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
@@ -467,8 +465,6 @@ func (m *Model) goBack() tea.Cmd {
 		m.updateOwner()
 		return cmd
 	}
-	// No modal is open, so the modals kept for its back key are done with.
-	m.dropModals()
 	if len(m.back) == 0 {
 		return nil
 	}

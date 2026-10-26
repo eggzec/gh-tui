@@ -45,13 +45,13 @@ func TestSearchKeyShowsTheModal(t *testing.T) {
 		was := m.screen
 		run(m, m.key(press("S")))
 		if m.searchHost() == nil || m.screen != was {
-			t.Fatalf("S didn't show the search in a modal: modal %v, screen %d, want %d", m.modal, m.screen, was)
+			t.Fatalf("S didn't show the search in a modal: modal %v, screen %d, want %d", m.modals.Top(), m.screen, was)
 		}
 		// The query types backspace, so leave it first.
 		run(m, m.key(press("esc")))
 		run(m, m.key(press("backspace")))
 		if m.searchHost() != nil || m.screen != was {
-			t.Errorf("backspace left modal %v on screen %d, want the search closed on %d", m.modal, m.screen, was)
+			t.Errorf("backspace left modal %v on screen %d, want the search closed on %d", m.modals.Top(), m.screen, was)
 		}
 	}
 }
@@ -90,8 +90,8 @@ func TestRepoFromSearch(t *testing.T) {
 	if m.screen != repoScreen || !fakes[0].focused {
 		t.Fatalf("a repository chosen in the search should show its files: screen %d", m.screen)
 	}
-	if m.modal != nil {
-		t.Errorf("the search stays open over the repository: %v", m.modal)
+	if m.modals.Top() != nil {
+		t.Errorf("the search stays open over the repository: %v", m.modals.Top())
 	}
 	run(m, m.key(press("S")))
 	if m.searchHost() == nil {
@@ -122,10 +122,10 @@ func TestPreviewFromSearch(t *testing.T) {
 				// the section sees the message.
 				switch o := msg.(type) {
 				case ui.OpenPullMsg:
-					o.Back = nil
+					o.Over = nil
 					msg = o
 				case ui.OpenIssueMsg:
-					o.Back = nil
+					o.Over = nil
 					msg = o
 				}
 				if msg == tt.open {
@@ -134,11 +134,11 @@ func TestPreviewFromSearch(t *testing.T) {
 				return nil
 			}
 			run(m, m.key(press("S")))
-			search := m.modal
+			search := m.modals.Top()
 			run(m, func() tea.Msg { return tt.open })
-			if m.topModal() != mod || m.screen != repoScreen || m.repo != testRepo {
+			if m.modals.Top() != mod || m.screen != repoScreen || m.repo != testRepo {
 				t.Fatalf("modal %v on screen %d for %v, want the %s over the search, with the repository kept",
-					m.topModal(), m.screen, m.repo, tt.name)
+					m.modals.Top(), m.screen, m.repo, tt.name)
 			}
 			run(m, m.key(press("j")))
 			if !slices.Contains(mod.keys(), "j") {
@@ -149,8 +149,8 @@ func TestPreviewFromSearch(t *testing.T) {
 				t.Errorf("the status bar offers %d keys, want the help and the modal's alone", len(m.hints))
 			}
 			run(m, ui.CloseModal(mod))
-			if m.topModal() != search || m.searchHost() == nil {
-				t.Fatalf("modal %v after the %s closed, want the search back", m.topModal(), tt.name)
+			if m.modals.Top() != search || m.searchHost() == nil {
+				t.Fatalf("modal %v after the %s closed, want the search back", m.modals.Top(), tt.name)
 			}
 			run(m, m.key(press("i")))
 			if got := focusOf(m); got != `search: typing ""` {
@@ -190,7 +190,7 @@ func TestSearchCommand(t *testing.T) {
 			m, _ := newSearchApp(t, testRepo)
 			runCommand(t, m, tt.line)
 			if m.searchHost() == nil {
-				t.Fatalf("search didn't show the modal as S does: modal %v", m.modal)
+				t.Fatalf("search didn't show the modal as S does: modal %v", m.modals.Top())
 			}
 			if got := m.srch.section.(*searchpage.Section).Query(); got != tt.want {
 				t.Errorf("searched for %q, want %q", got, tt.want)
@@ -207,10 +207,10 @@ func TestSearchCommand(t *testing.T) {
 	t.Run("over a modal", func(t *testing.T) {
 		m, _ := newSearchApp(t, testRepo)
 		mod := &screenModal{&fakeModal{title: "other"}}
-		m.openModal(mod)
+		m.open(mod, nil)
 		runCommand(t, m, "search foo")
-		if m.isOpen(mod) || m.searchHost() == nil {
-			t.Fatalf("search left modal %v open, want the modal closed and the search shown", m.modal)
+		if m.modals.Top() == ui.Modal(mod) || m.searchHost() == nil {
+			t.Fatalf("search left modal %v open, want the modal closed and the search shown", m.modals.Top())
 		}
 		if got := m.srch.section.(*searchpage.Section).Query(); got != "foo" {
 			t.Errorf("searched for %q, want foo", got)
@@ -221,7 +221,7 @@ func TestSearchCommand(t *testing.T) {
 		run(m, m.key(press("S")))
 		runCommand(t, m, "search bar")
 		if m.searchHost() == nil {
-			t.Fatalf("search closed the search: modal %v", m.modal)
+			t.Fatalf("search closed the search: modal %v", m.modals.Top())
 		}
 		if got := m.srch.section.(*searchpage.Section).Query(); got != "bar" {
 			t.Errorf("searched for %q, want bar", got)

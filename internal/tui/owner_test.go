@@ -554,7 +554,7 @@ func TestBackspaceOverModalDoesNothing(t *testing.T) {
 	t.Parallel()
 	m, _ := newDashApp(t, core.RepoRef{})
 	run(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} })
-	m.openModal(&fakeModal{title: "Preview"})
+	m.open(&fakeModal{title: "Preview"}, nil)
 	run(m, m.key(press("backspace")))
 	if m.screen != repoScreen || len(m.back) != 1 {
 		t.Errorf("screen %d with %d places to go back to, want the repository and 1", m.screen, len(m.back))

@@ -55,7 +55,7 @@ func TestRawCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m, _ := newTestApp(t)
 			mod := &sourceModal{title: "README.md", raw: tt.raw, renders: tt.renders}
-			m.openModal(mod)
+			m.open(mod, nil)
 			runCommand(t, m, tt.line)
 			if !slices.Equal(mod.set, tt.set) {
 				t.Errorf("SetRaw calls = %v, want %v", mod.set, tt.set)
@@ -63,7 +63,7 @@ func TestRawCommand(t *testing.T) {
 			if tt.toast != "" && !hasToast(m, tt.toast) {
 				t.Errorf("toast = %q, want %q", toasted(m), tt.toast)
 			}
-			if !m.isOpen(mod) {
+			if m.modals.Top() != ui.Modal(mod) {
 				t.Error("the command closed the modal")
 			}
 		})
@@ -85,7 +85,7 @@ func TestCommandKeyOverAModalThatTakesCommands(t *testing.T) {
 	t.Parallel()
 	m, _ := newTestApp(t)
 	mod := &sourceModal{title: "README.md", renders: true}
-	m.openModal(mod)
+	m.open(mod, nil)
 	if rows := helpRows(t, m); !slices.Contains(rows, ": command") {
 		t.Errorf("the help of a modal that takes commands lacks the command key: %q", rows)
 	}
@@ -161,7 +161,7 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newKeysApp(t, true)
 			pressKeys(t, m, tt.keys...)
-			mod := m.topModal()
+			mod := m.modals.Top()
 			if mod == nil {
 				t.Fatal("no modal open")
 			}
@@ -169,7 +169,7 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 			if m.line.Focused() != tt.open {
 				t.Fatalf("line open = %v, want %v", m.line.Focused(), tt.open)
 			}
-			if m.topModal() != mod {
+			if m.modals.Top() != mod {
 				t.Error("the command key closed the modal")
 			}
 		})
@@ -182,7 +182,7 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 	t.Parallel()
 	m := newKeysApp(t, true)
 	pressKeys(t, m, "down", "enter")
-	mod := m.topModal()
+	mod := m.modals.Top()
 	s, ok := mod.(ui.Sourced)
 	if !ok {
 		t.Fatalf("the preview %T shows no source", mod)
@@ -207,8 +207,8 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 			line += " x"
 		}
 		run(line)
-		if m.topModal() != mod {
-			t.Fatalf("%s replaced the preview with %v", name, m.topModal())
+		if m.modals.Top() != mod {
+			t.Fatalf("%s replaced the preview with %v", name, m.modals.Top())
 		}
 		if want := "Close the file first to use " + name + "."; !hasToast(m, want) {
 			t.Errorf("%s: toast = %q, want %q", name, toasted(m), want)
@@ -218,8 +218,8 @@ func TestCommandsOverTheFilePreview(t *testing.T) {
 		t.Errorf("over the preview r completes %q, want raw and refresh", got)
 	}
 	run("search")
-	if m.topModal() == mod || m.searchHost() == nil {
-		t.Errorf("search left %v over the preview, want the preview closed and the search shown", m.topModal())
+	if m.modals.Top() == mod || m.searchHost() == nil {
+		t.Errorf("search left %v over the preview, want the preview closed and the search shown", m.modals.Top())
 	}
 }
 
@@ -234,7 +234,7 @@ func TestFrameLeavesTheCommandLine(t *testing.T) {
 	if m.footerHeight() < 2 {
 		t.Fatalf("the footer is %d rows, want the line and its candidates", m.footerHeight())
 	}
-	_, h := m.frameSize()
+	_, h := m.modals.FrameSize()
 	if bottom := (m.height-h)/2 + h; bottom > m.height-m.footerHeight() {
 		t.Errorf("the frame ends at row %d, over the footer of %d rows of %d", bottom, m.footerHeight(), m.height)
 	}

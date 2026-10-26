@@ -186,7 +186,7 @@ func TestGotoIsCanceled(t *testing.T) {
 	}{
 		{name: "another command", then: func(m *Model) { m.runLine("goto cli/cli", nil) }},
 		{name: "another repository", then: func(m *Model) { drive(m, func() tea.Msg { return ui.RepoMsg{Repo: testRepo} }) }},
-		{name: "a modal", then: func(m *Model) { m.openModal(&fakeModal{title: "Preview"}) }},
+		{name: "a modal", then: func(m *Model) { m.open(&fakeModal{title: "Preview"}, nil) }},
 		{name: "the dismiss key", then: func(m *Model) { drive(m, m.key(press("esc"))) }},
 	}
 	for _, tt := range tests {
@@ -310,14 +310,14 @@ func TestGotoClosesTheLine(t *testing.T) {
 	drive(m, m.key(press(":")))
 	typeKeys(m, "go")
 	drive(m, cmd)
-	if m.modal == nil {
+	if m.modals.Top() == nil {
 		t.Fatal("the goto opened no modal")
 	}
 	if m.line.Focused() {
 		t.Error("the line is still open over the modal")
 	}
 	drive(m, m.key(press("x")))
-	if !slices.Contains(m.modal.(*fakeModal).keys(), "x") {
+	if !slices.Contains(m.modals.Top().(*fakeModal).keys(), "x") {
 		t.Error("the modal didn't get the key")
 	}
 }
@@ -607,7 +607,7 @@ func TestProgramGotoNumber(t *testing.T) {
 	tm.Send(press("esc"))
 	tm.Send(ctrlC)
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
-	if !ok || final.screen != dashScreen || final.modal == nil {
+	if !ok || final.screen != dashScreen || final.modals.Top() == nil {
 		t.Error("the final model should show the modal over the dashboard")
 	}
 }
