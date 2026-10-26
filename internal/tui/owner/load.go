@@ -220,12 +220,9 @@ func (s *Section) stepTab(by int) tea.Cmd {
 	if !p.header.ok {
 		return nil
 	}
-	tabs := tabsOf(p.header.value.Kind)
-	i := 0
-	for j, t := range tabs {
-		if t == p.tab {
-			i = j
-		}
+	c := ui.Cycle[tab](tabsOf(p.header.value.Kind))
+	if by < 0 {
+		return s.setTab(c.Prev(p.tab))
 	}
-	return s.setTab(tabs[(i+by+len(tabs))%len(tabs)])
+	return s.setTab(c.Next(p.tab))
 }

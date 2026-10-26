@@ -56,15 +56,20 @@ func tabLabel(state core.StateFilter) string {
 
 // nextTab returns the state delta tabs away from state.
 func nextTab(state core.StateFilter, delta int) core.StateFilter {
-	i := 0
-	for j, t := range tabs {
-		if t.state == state {
-			i = j
-		}
+	if delta < 0 {
+		return tabCycle.Prev(state)
 	}
-	n := len(tabs)
-	return tabs[((i+delta)%n+n)%n].state
+	return tabCycle.Next(state)
 }
+
+// tabCycle is the states of tabs, in their order.
+var tabCycle = func() ui.Cycle[core.StateFilter] {
+	c := make(ui.Cycle[core.StateFilter], len(tabs))
+	for i, t := range tabs {
+		c[i] = t.state
+	}
+	return c
+}()
 
 // defaultSort is the order of a list without a sort, which the query
 // leaves out.
