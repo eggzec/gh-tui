@@ -243,6 +243,67 @@ func TestKeepSkipsInvalidatedRead(t *testing.T) {
 	}
 }
 
+// A page written to the cache while a read was in flight is newer than the
+// read, so the shelf must not take the read's page.
+func TestKeepSkipsReplacedRead(t *testing.T) {
+	c, shelf := setup(t, true)
+	started, release := make(chan struct{}), make(chan struct{})
+	load := Keep(shelf, key, func(context.Context, cache.Entry[page], bool) (cache.Entry[page], error) {
+		close(started)
+		<-release
+		return fresh, nil
+	})
+	done := make(chan error, 1)
+	go func() {
+		_, err := Fetch(t.Context(), c, shelf, key, Page[string], load)
+		done <- err
+	}()
+	<-started
+	c.Set(key, cache.Entry[page]{Value: page{Items: []string{"mine"}}, ETag: `"v3"`})
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if e, ok := shelf.Load(key); !ok || e.ETag == fresh.ETag {
+		t.Errorf("shelf keeps %+v, %v; want the read's page left off the shelf", e, ok)
+	}
+}
+
+// Readers that join a read in flight share its one load, and the shelf
+// keeps its page.
+func TestKeepSharedRead(t *testing.T) {
+	c, shelf := setup(t, true)
+	started, release := make(chan struct{}), make(chan struct{})
+	var loads atomic.Int32
+	load := Keep(shelf, key, func(context.Context, cache.Entry[page], bool) (cache.Entry[page], error) {
+		if loads.Add(1) == 1 {
+			close(started)
+		}
+		<-release
+		return fresh, nil
+	})
+	done := make(chan error, 2)
+	read := func() {
+		_, err := Fetch(t.Context(), c, shelf, key, Page[string], load)
+		done <- err
+	}
+	go read()
+	<-started
+	go read()
+	close(release)
+	for range 2 {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := loads.Load(); n != 1 {
+		t.Errorf("load ran %d times, want once", n)
+	}
+	if e, ok := shelf.Load(key); !ok || e.ETag != fresh.ETag {
+		t.Errorf("shelf keeps %+v, %v; want the new page, ETag %s", e, ok, fresh.ETag)
+	}
+}
+
 // A refusal that drops a kept page logs it, with why, once.
 func TestFetchLogsDropped(t *testing.T) {
 	var buf bytes.Buffer
