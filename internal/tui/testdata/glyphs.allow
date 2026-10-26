@@ -1,1 +1,11 @@
-# Files under internal/tui whose strings may hold a glyph, as "path: reason".
+# Files that may hold a glyph in a string, one "path: reason" per line.
+ui/runs.go: the status table of runs, drawn with the icon set's own fallbacks
+ui/glyphs.go: the glyph tables of the icon sets
+ui/theme.go: the Unicode dot and ring of the default status table
+ui/drawing.go: the Unicode icon set and the fallbacks for zero icons
+ui/uitest/problems.go: test fixtures for error texts
+pulls/panes_desc.go: tells the ASCII set from the others by its ellipsis
+prpanes/conv/glyphs.go: the Unicode glyphs of the conversation pane's factory
+prpanes/desc/rows.go: the ASCII ellipsis that marks the description's cut rows
+prpanes/diffview/title.go: the Unicode glyphs that tests use
+prpanes/files/glyphs.go: the glyphs of the files pane's factory
