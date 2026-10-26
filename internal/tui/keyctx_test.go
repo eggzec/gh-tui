@@ -1130,6 +1130,7 @@ func newKeysAppInbox(t *testing.T, repo bool, edit func(*config.Config), inbox k
 		opts = append(opts, WithRepo(testRepo))
 	}
 	m := New(ctx, cfg, layout, append(opts, extra...)...)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	// The changes of what the token may do never end.
 	m.accessChanges = nil

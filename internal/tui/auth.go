@@ -136,8 +136,6 @@ func (m *Model) updateAccess(msg tea.Msg) tea.Cmd {
 		m.noticed = true
 		if a, ok := m.modals.Top().(*authModal); ok {
 			a.checked(msg.access, m.access.Refresh(needs()...), msg.err)
-			// It may need more lines now.
-			a.SetSize(m.modals.FrameSize())
 		}
 		// The sections read again what the token was refused, or failed
 		// to read, since it may be a new token.

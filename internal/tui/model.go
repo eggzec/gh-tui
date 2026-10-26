@@ -10,6 +10,7 @@ package tui
 
 import (
 	"context"
+	"maps"
 	"os/exec"
 	"reflect"
 	"slices"
@@ -383,7 +384,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		images:     newImageProbe(cfg.Images.Enabled),
 		after:      tick,
 		modals:     modals.New(maxHeldModals),
-		priorities: modalPriorities,
+		priorities: maps.Clone(modalPriorities),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1

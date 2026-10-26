@@ -5,7 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -31,13 +30,9 @@ func (m *Model) saveOpen() {
 	}
 }
 
-// quitNow saves what is open and quits at once.
+// quitNow saves what is open and quits at once, whatever the guards answer:
+// ctrl+c must never be trapped. The guards' commands still run.
 func (m *Model) quitNow() tea.Cmd {
 	m.saveOpen()
-	ch := m.modals.Quit()
-	cmd := m.apply(ch)
-	if ch.Refused != modals.NotRefused {
-		return cmd
-	}
-	return tea.Batch(cmd, tea.Quit)
+	return tea.Batch(m.modals.Quit().Cmd, tea.Quit)
 }

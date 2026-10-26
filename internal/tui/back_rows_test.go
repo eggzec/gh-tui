@@ -32,8 +32,8 @@ func (a *anywhereModal) Update(msg tea.Msg) tea.Cmd {
 }
 
 func init() {
-	modalPriorities[reflect.TypeFor[*shapeModal]()] = modals.PriorityShape
-	modalPriorities[reflect.TypeFor[*anywhereModal]()] = modals.PriorityAnywhere
+	fakePriorities[reflect.TypeFor[*shapeModal]()] = modals.PriorityShape
+	fakePriorities[reflect.TypeFor[*anywhereModal]()] = modals.PriorityAnywhere
 }
 
 // TestModalRowsReturnByEsc checks the wiring of the ranks: a modal of a
