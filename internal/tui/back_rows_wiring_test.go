@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -182,6 +184,81 @@ func TestSearchPullIssueReturn(t *testing.T) {
 			})
 		})
 	}
+}
+
+// recordDrafts records the drafts saved, by key.
+type recordDrafts struct {
+	mu    sync.Mutex
+	saved map[string][]string
+}
+
+func (*recordDrafts) Load(string) (string, error) { return "", nil }
+func (d *recordDrafts) Save(key, text string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.saved == nil {
+		d.saved = map[string][]string{}
+	}
+	d.saved[key] = append(d.saved[key], text)
+	return nil
+}
+func (*recordDrafts) Delete(string) error { return nil }
+
+// last is the text last saved under any key, and whether there was one.
+func (d *recordDrafts) last() (string, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, v := range d.saved {
+		return v[len(v)-1], true
+	}
+	return "", false
+}
+
+// openPullComment opens the real pull request modal with a comment being
+// written in it, and returns the app.
+func openPullComment(t *testing.T, d *recordDrafts, text string) *Model {
+	t.Helper()
+	m := newKeysAppPulls(t, true, func(*config.Config) {}, keyInbox{}, []pulls.Option{pulls.WithDrafts(d, "test")})
+	driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1} })
+	// The description quoted is the comment's first text.
+	driveKeys(t, m, m.key(press("1")))
+	driveKeys(t, m, m.key(press("c")))
+	for _, r := range text {
+		driveKeys(t, m, m.key(press(string(r))))
+	}
+	return m
+}
+
+// TestPullCommentDraftSavedWhenTheAppClosesTheModal checks, with the real pull
+// request modal, that the text of a comment being written is saved when
+// ctrl+c quits, and that nothing is saved with no composer open. A modal that
+// another one replaces stays held, so only quitting saves it.
+func TestPullCommentDraftSavedWhenTheAppClosesTheModal(t *testing.T) {
+	t.Parallel()
+	t.Run("ctrl+c", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			d := &recordDrafts{}
+			m := openPullComment(t, d, "hi")
+			cmd := m.key(ctrlC)
+			if got, ok := d.last(); !ok || !strings.HasSuffix(got, "hi") {
+				t.Errorf("saved %q (%v), want the comment typed", got, ok)
+			}
+			if !quits(cmd) {
+				t.Error("ctrl+c didn't quit")
+			}
+		})
+	})
+	t.Run("no composer", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			d := &recordDrafts{}
+			m := newKeysAppPulls(t, true, func(*config.Config) {}, keyInbox{}, []pulls.Option{pulls.WithDrafts(d, "test")})
+			driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1} })
+			m.key(ctrlC)
+			if got, ok := d.last(); ok {
+				t.Errorf("saved %q with no composer open", got)
+			}
+		})
+	})
 }
 
 // TestFilterEscTellsTheModalUnderItReopened checks that closing a modal
