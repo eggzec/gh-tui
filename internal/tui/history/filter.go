@@ -25,7 +25,8 @@ func (m *Modal) openFilter() tea.Cmd {
 }
 
 // openWanted opens the filter that waits for the branches, if the last page
-// is read or the read failed, and then waits no more.
+// is read or the read failed, and then waits no more. It also waits no more
+// once the cursor moves or another pane takes the focus.
 func (m *Modal) openWanted() tea.Cmd {
 	b := &m.branches
 	if !b.wanted || b.loading || (b.next != "" && b.err == nil) {

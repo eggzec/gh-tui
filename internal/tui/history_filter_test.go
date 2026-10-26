@@ -6,6 +6,9 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
@@ -100,11 +103,42 @@ func TestHistoryFilterDroppedWhenHistoryClosesFirst(t *testing.T) {
 		if _, ok := m.modals.Top().(*ui.FilterModal); ok {
 			t.Fatal("the form opened before the last page was read")
 		}
+		// The last page lands while the history is on top: the form's open
+		// is asked for, but not yet given to the root.
+		var open *ui.OpenModalMsg
+		queue := []tea.Cmd{held}
+		for len(queue) > 0 && len(queue) < 2000 {
+			c := queue[0]
+			queue = queue[1:]
+			if c == nil {
+				continue
+			}
+			msg := c()
+			if cmds, ok := cmdsOf(msg); ok {
+				queue = append(queue, cmds...)
+				continue
+			}
+			switch msg := msg.(type) {
+			case nil, spinner.TickMsg:
+				continue
+			case ui.OpenModalMsg:
+				open = &msg
+				continue
+			}
+			_, next := m.Update(msg)
+			queue = append(queue, next)
+		}
+		if open == nil {
+			t.Fatal("the last page landing asked for no form")
+		}
+		if open.Over != hist {
+			t.Fatalf("the form is to open over %T, want the history", open.Over)
+		}
 		pressNames(t, m, "esc")
 		if m.modals.Top() == hist {
 			t.Fatal("esc didn't close the history")
 		}
-		driveKeys(t, m, held)
+		driveKeys(t, m, func() tea.Msg { return *open })
 		if _, ok := m.modals.Top().(*ui.FilterModal); ok {
 			t.Errorf("the form opened over %T after the history was closed", m.modals.Top())
 		}
