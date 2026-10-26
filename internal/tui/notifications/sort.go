@@ -18,7 +18,7 @@ const updatedField = "updated"
 // grouped by, and the time of the update.
 func sortItems() []orderpick.Item {
 	items := groupItems()
-	return append(items, orderpick.Item{Value: updatedField, Title: "Updated", AscLabel: "Newest first", DescLabel: "Oldest first"})
+	return append(items, ui.OrderByTime("Updated", updatedField))
 }
 
 // sortLess returns the order of the levels: each level's field in turn, a

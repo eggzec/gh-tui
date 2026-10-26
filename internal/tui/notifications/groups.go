@@ -86,7 +86,7 @@ func (s *Section) groupsOf(levels []orderpick.Choice) []feed.Group[core.Notifica
 func groupItems() []orderpick.Item {
 	items := make([]orderpick.Item, len(groupFields))
 	for i, f := range groupFields {
-		items[i] = orderpick.Item{Value: f.name, Title: f.label, AscLabel: "A to Z", DescLabel: "Z to A"}
+		items[i] = ui.OrderByName(f.label, f.name)
 	}
 	return items
 }

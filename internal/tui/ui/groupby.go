@@ -53,7 +53,7 @@ func (g *Grouping[T]) Groups() []feed.Group[T] {
 func (g *Grouping[T]) Items() []orderpick.Item {
 	items := make([]orderpick.Item, len(g.Fields))
 	for i, f := range g.Fields {
-		items[i] = orderpick.Item{Value: f.Name, Title: f.Label, AscLabel: "A to Z", DescLabel: "Z to A"}
+		items[i] = OrderByName(f.Label, f.Name)
 	}
 	return items
 }

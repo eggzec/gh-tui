@@ -40,19 +40,49 @@ type Filter struct {
 // a list is best read: times newest first, counts most first, and names
 // from A.
 
+const (
+	labelNewest = "Newest first"
+	labelOldest = "Oldest first"
+	labelMost   = "Most first"
+	labelFewest = "Fewest first"
+	labelAtoZ   = "A to Z"
+	labelZtoA   = "Z to A"
+)
+
 // SortByTime returns a sort option by a time, such as updated.
 func SortByTime(label, value string) filterform.SortOption {
-	return filterform.SortOption{Label: label, Value: value, Desc: "Newest first", Asc: "Oldest first"}
+	return filterform.SortOption{Label: label, Value: value, Desc: labelNewest, Asc: labelOldest}
 }
 
 // SortByCount returns a sort option by a count, such as stars.
 func SortByCount(label, value string) filterform.SortOption {
-	return filterform.SortOption{Label: label, Value: value, Desc: "Most first", Asc: "Fewest first"}
+	return filterform.SortOption{Label: label, Value: value, Desc: labelMost, Asc: labelFewest}
 }
 
 // SortByName returns a sort option by a name.
 func SortByName(label, value string) filterform.SortOption {
-	return filterform.SortOption{Label: label, Value: value, Desc: "Z to A", Asc: "A to Z", Ascending: true}
+	return filterform.SortOption{Label: label, Value: value, Desc: labelZtoA, Asc: labelAtoZ, Ascending: true}
+}
+
+// The order items below word each direction outright. An item is shown with
+// its AscLabel until the user flips it, so a time's comparator, which puts the
+// newest first, pairs "Newest first" with AscLabel.
+
+// OrderByTime returns an order item by a time: the newest first, or flipped
+// the oldest first.
+func OrderByTime(title string, value any) orderpick.Item {
+	return orderpick.Item{Value: value, Title: title, AscLabel: labelNewest, DescLabel: labelOldest}
+}
+
+// OrderByCount returns an order item by a count: the most first, or flipped
+// the fewest first.
+func OrderByCount(title string, value any) orderpick.Item {
+	return orderpick.Item{Value: value, Title: title, AscLabel: labelMost, DescLabel: labelFewest}
+}
+
+// OrderByName returns an order item by a name: A to Z, or flipped Z to A.
+func OrderByName(title string, value any) orderpick.Item {
+	return orderpick.Item{Value: value, Title: title, AscLabel: labelAtoZ, DescLabel: labelZtoA}
 }
 
 // SearchField is the first row of a list's filter: the plain words of the

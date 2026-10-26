@@ -53,7 +53,7 @@ const createdField = "created"
 func groupItems() []orderpick.Item {
 	items := make([]orderpick.Item, len(groupFields))
 	for i, f := range groupFields {
-		items[i] = orderpick.Item{Value: f.name, Title: f.label, AscLabel: "A to Z", DescLabel: "Z to A"}
+		items[i] = ui.OrderByName(f.label, f.name)
 	}
 	return items
 }
@@ -61,7 +61,7 @@ func groupItems() []orderpick.Item {
 // sortItems are the fields the sort modal offers: those of the groups, and
 // the time of the run.
 func sortItems() []orderpick.Item {
-	return append(groupItems(), orderpick.Item{Value: createdField, Title: "Created", AscLabel: "Newest first", DescLabel: "Oldest first"})
+	return append(groupItems(), ui.OrderByTime("Created", createdField))
 }
 
 // groupsOf returns the groups of the levels, outermost first.
