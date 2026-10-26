@@ -70,6 +70,31 @@ func TestCommitEnterOpensCommit(t *testing.T) {
 	}
 }
 
+// A commit hit that names no repository, or half of one, opens nothing.
+func TestCommitEnterWithoutRepoOpensNothing(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name string
+		repo core.RepoRef
+	}{
+		{"no repository", core.RepoRef{}},
+		{"no owner", core.RepoRef{Name: "tea"}},
+		{"no name", core.RepoRef{Owner: "acme"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			s, f := commitsSection(t)
+			f.commits = []core.SearchCommit{{Repo: tt.repo, SHA: "0123456789abcdef", Subject: "tea brewing fix"}}
+			typeText(t, s, "tea")
+			for _, m := range press(t, s, "enter") {
+				if _, ok := m.(ui.OpenCommitMsg); ok {
+					t.Errorf("enter sent %#v, want no commit opened", m)
+				}
+			}
+		})
+	}
+}
+
 func TestCommitsFilterSpec(t *testing.T) {
 	t.Parallel()
 	sp := spec(core.SearchCommits, "")
