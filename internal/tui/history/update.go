@@ -189,6 +189,9 @@ func (m *Modal) updatePager(msg tea.Msg) tea.Cmd {
 // setFocus focuses pane p, and blurs the others.
 func (m *Modal) setFocus(p pane) {
 	m.focus = p
+	if p != branchPane {
+		m.branches.wanted = false
+	}
 	if p == graphPane {
 		m.graph.model.Focus()
 	} else {

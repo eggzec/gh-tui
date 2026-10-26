@@ -32,7 +32,7 @@ func (m *Modal) openWanted() tea.Cmd {
 		return nil
 	}
 	b.wanted = false
-	return ui.OpenModal(m.filterModal())
+	return ui.OpenModalOver(m.filterModal(), m)
 }
 
 // filterModal returns the filter over the modal.
