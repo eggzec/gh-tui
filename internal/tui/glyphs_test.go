@@ -41,6 +41,9 @@ func TestNoGlyphLiterals(t *testing.T) {
 		}
 		allowed[strings.TrimSpace(path)] = true
 	}
+	if err := sc.Err(); err != nil {
+		t.Fatal(err)
+	}
 	used := map[string]bool{}
 	fset := token.NewFileSet()
 	err = filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
