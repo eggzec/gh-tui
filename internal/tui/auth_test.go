@@ -357,6 +357,30 @@ func TestSetIconsInOpenAuthModal(t *testing.T) {
 	}
 }
 
+// TestAuthReloadKeepsTheModalSize checks that the token read again leaves
+// the modal at the size the manager gave it, not at the size of its frame.
+func TestAuthReloadKeepsTheModalSize(t *testing.T) {
+	t.Parallel()
+	m := New(t.Context(), config.Default(), Layout{}, WithRepo(testRepo), WithAccess(newFakeAccess(core.Access{})))
+	rankFakes(m)
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	_ = m.authCommand("")
+	mod, ok := m.modals.Top().(*authModal)
+	if !ok {
+		t.Fatalf("the modal open is %T, want the auth modal", m.modals.Top())
+	}
+	w := mod.width
+	fw, _ := m.modals.FrameSize()
+	if fw-4 != w {
+		t.Fatalf("the modal is %d wide in a frame of %d, want the frame less its borders", w, fw)
+	}
+	run(m, func() tea.Msg { return authReloadedMsg{access: core.Access{}} })
+	// The height follows the new text, the width stays inside the frame.
+	if mod.width != fw-4 {
+		t.Errorf("the modal is %d wide after the token was read again, want %d", mod.width, fw-4)
+	}
+}
+
 // TestAuthModalErrorMark checks that the modal marks why the token
 // couldn't be read with the icon set's glyph, and joins the hint as the
 // set does, as the app's other error lines are.
