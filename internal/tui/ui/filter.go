@@ -74,12 +74,6 @@ func OrderByTime(title string, value any) orderpick.Item {
 	return orderpick.Item{Value: value, Title: title, AscLabel: labelNewest, DescLabel: labelOldest}
 }
 
-// OrderByCount returns an order item by a count: the most first, or flipped
-// the fewest first.
-func OrderByCount(title string, value any) orderpick.Item {
-	return orderpick.Item{Value: value, Title: title, AscLabel: labelMost, DescLabel: labelFewest}
-}
-
 // OrderByName returns an order item by a name: A to Z, or flipped Z to A.
 func OrderByName(title string, value any) orderpick.Item {
 	return orderpick.Item{Value: value, Title: title, AscLabel: labelAtoZ, DescLabel: labelZtoA}
