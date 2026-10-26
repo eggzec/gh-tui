@@ -434,8 +434,12 @@ func (m *Model) takes(s ui.Section) bool {
 	return ok && c.Capturing()
 }
 
+// titled is what a filter or sort message acts on: a section or a modal with
+// a list, named by its title.
+type titled interface{ Title() string }
+
 // openFilter opens the filter modal of s, if s has one to open.
-func (m *Model) openFilter(s ui.Section, back ui.Modal) tea.Cmd {
+func (m *Model) openFilter(s titled, back ui.Modal) tea.Cmd {
 	fl, f, ok := filterOf(s, filterform.FiltersTab)
 	if !ok {
 		return nil
@@ -445,7 +449,7 @@ func (m *Model) openFilter(s ui.Section, back ui.Modal) tea.Cmd {
 }
 
 // openSort opens the sort modal of s, if s has a sort to change.
-func (m *Model) openSort(s ui.Section, back ui.Modal) tea.Cmd {
+func (m *Model) openSort(s titled, back ui.Modal) tea.Cmd {
 	fl, f, ok := filterOf(s, filterform.SortTab)
 	if !ok {
 		return nil
@@ -455,7 +459,7 @@ func (m *Model) openSort(s ui.Section, back ui.Modal) tea.Cmd {
 
 // filterOf returns what the filter modal edits for s on tab, if s has one
 // to open there: the Sort tab needs a list that can be sorted.
-func filterOf(s ui.Section, tab filterform.Tab) (ui.Filterable, ui.Filter, bool) {
+func filterOf(s titled, tab filterform.Tab) (ui.Filterable, ui.Filter, bool) {
 	fl, ok := s.(ui.Filterable)
 	if !ok {
 		return nil, ui.Filter{}, false
