@@ -82,9 +82,6 @@ func (m *Modal) paneWidth(p pane) int {
 func (m *Modal) layout() {
 	h := m.bodyHeight()
 	m.graph.model.SetSize(m.paneWidth(graphPane), h)
-	if f := m.branches.filter; f != nil {
-		f.SetSize(m.paneWidth(branchPane), h)
-	}
 	m.scrollBranches()
 	m.layoutCommit()
 }

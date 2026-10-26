@@ -9,7 +9,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -17,7 +16,6 @@ import (
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -30,7 +28,7 @@ const maxBranchPages = 10
 const branchPageAt = 10
 
 // branches is the branch pane: the branches of the repository, the default
-// one first, with a filter that narrows them as the user types.
+// one first.
 type branches struct {
 	items []core.Branch
 	// next is the cursor of the next page, and pages the pages read.
@@ -47,11 +45,9 @@ type branches struct {
 	// read again from the first page, until a page brings it back or the
 	// user moves, so that the cursor returns to it from a later page.
 	follow string
-	// refill is how many pages were listed when the branches were read
-	// again from the first page, until the read lists as many again,
-	// reaches the last page or fails. The filter keeps listing what it did
-	// meanwhile, so that it doesn't shrink to the first page.
-	refill int
+	// wanted reports that the filter waits for the last page of branches,
+	// which its branch field chooses from, to open.
+	wanted bool
 
 	cursor, top int
 	// defaultBranch is listed first, and the others are compared with it.
@@ -61,8 +57,6 @@ type branches struct {
 	// seq counts the moves of the cursor, so that only the last rest
 	// compares.
 	seq int
-	// filter narrows the branches while it is open, and is nil otherwise.
-	filter *picker.Model
 }
 
 // branchesMsg carries a page of branches read after cursor.
@@ -129,14 +123,8 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	b.loading = false
 	if msg.err != nil {
 		b.err = msg.err
-		if b.refill > 0 {
-			// The read stops here, so the filter lists what loaded.
-			b.refill = 0
-			if b.filter != nil {
-				b.filter.SetItems(m.filterItems())
-			}
-		}
-		return nil
+		// The read stops here, so the filter lists what loaded.
+		return m.openWanted()
 	}
 	b.err = nil
 	selected, _ := b.selected()
@@ -144,7 +132,6 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 		if b.follow == "" {
 			b.follow = selected.Name
 		}
-		b.refill = max(b.refill, b.pages)
 		b.items, b.pages, b.kept = nil, 0, false
 	}
 	b.kept = b.kept || msg.page.Offline || msg.page.Limited
@@ -176,13 +163,7 @@ func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
 	}
 	b.clamp()
 	m.scrollBranches()
-	if b.pages >= b.refill || b.next == "" {
-		b.refill = 0
-	}
-	if b.filter != nil && b.refill == 0 {
-		b.filter.SetItems(m.filterItems())
-	}
-	cmds := []tea.Cmd{m.moreBranches()}
+	cmds := []tea.Cmd{m.moreBranches(), m.openWanted()}
 	if msg.page.Stale && msg.cursor == "" {
 		cmds = append(cmds, m.loadBranches("", true))
 	}
@@ -203,7 +184,7 @@ func (m *Modal) moreBranches() tea.Cmd {
 	if b.next == "" || b.loading || b.err != nil {
 		return nil
 	}
-	if b.filter == nil && b.follow == "" && b.cursor+branchPageAt < len(b.items) {
+	if !b.wanted && b.follow == "" && b.cursor+branchPageAt < len(b.items) {
 		return nil
 	}
 	// A later page is appended where it goes rather than shown and read
@@ -377,81 +358,6 @@ func (m *Modal) receiveCompare(msg compareMsg) {
 	}
 }
 
-// openFilter opens the filter over the branch pane, and reads the pages
-// of branches left, so that it filters them all.
-func (m *Modal) openFilter() tea.Cmd {
-	b := &m.branches
-	if !b.loaded {
-		return nil
-	}
-	f := picker.New(nil,
-		picker.WithContext(m.ctx),
-		picker.WithItems(m.filterItems()),
-		picker.WithGroupHeaders(false),
-		picker.WithKeyMap(m.keys.pick),
-		picker.WithPlaceholder("Filter branches"),
-		picker.WithEmptyText("No branches match. Press esc to see them all."),
-		picker.WithStyles(filterStyles(m.theme, m.opts.icons)),
-		picker.WithSize(m.paneWidth(branchPane), m.bodyHeight()),
-	)
-	b.filter = &f
-	return tea.Batch(f.Focus(), m.moreBranches())
-}
-
-// filterItems lists the branches for the filter.
-func (m *Modal) filterItems() []picker.Item {
-	items := make([]picker.Item, len(m.branches.items))
-	for i, br := range m.branches.items {
-		items[i] = picker.Item{Title: br.Name, Value: br.Name}
-		if br.Name == m.branches.defaultBranch {
-			items[i].Detail = "default"
-		}
-	}
-	return items
-}
-
-// filterStyles are the picker's styles for the filter, which the pane
-// frames, marking a failed search with the error glyph of ic.
-func filterStyles(t ui.Theme, ic ui.Icons) picker.Styles {
-	s := t.Picker(ic)
-	s.Frame = lipgloss.NewStyle()
-	return s
-}
-
-// updateFilter passes msg to the filter, and shows the branch chosen in it.
-func (m *Modal) updateFilter(msg tea.Msg) tea.Cmd {
-	b := &m.branches
-	if b.filter == nil {
-		return nil
-	}
-	switch msg := msg.(type) {
-	case picker.ChosenMsg:
-		if msg.ID != b.filter.ID() {
-			return nil
-		}
-		b.filter, b.follow = nil, ""
-		name, _ := msg.Item.Value.(string)
-		if i := b.index(name); i >= 0 {
-			b.cursor = i
-			m.scrollBranches()
-		} else {
-			// Only what the filter listed before the branches were read
-			// again from the first page has it, so the cursor follows it
-			// to the page that brings it back.
-			b.follow = name
-		}
-		return tea.Batch(m.showBranch(name), m.branchMoved())
-	case picker.CancelMsg:
-		if msg.ID == b.filter.ID() {
-			b.filter = nil
-		}
-		return nil
-	}
-	var cmd tea.Cmd
-	*b.filter, cmd = b.filter.Update(msg)
-	return cmd
-}
-
 // isBase reports whether the files are shown at name, or at a commit
 // chosen on it.
 func (m *Modal) isBase(name string) bool {
@@ -464,10 +370,6 @@ func (m *Modal) isBase(name string) bool {
 // branchLines renders the branch pane's body, h lines of w cells.
 func (m *Modal) branchLines(w, h int) []string {
 	b := &m.branches
-	if b.filter != nil {
-		// The picker renders its size exactly.
-		return padLines(strings.Split(b.filter.View(), "\n"), w, h)
-	}
 	lines := make([]string, 0, h)
 	focused := m.focus == branchPane
 	for i := b.top; i < len(b.items) && len(lines) < h; i++ {

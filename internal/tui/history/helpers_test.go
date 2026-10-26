@@ -111,7 +111,7 @@ func (h *host) run(cmd tea.Cmd) {
 			h.run(c)
 		}
 		return
-	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.ShowMsg, ui.BaseMsg:
+	case ui.OpenMsg, ui.NotifyMsg, ui.CloseModalMsg, ui.ShowMsg, ui.BaseMsg, ui.OpenModalMsg:
 		h.got = append(h.got, msg)
 		return
 	}
