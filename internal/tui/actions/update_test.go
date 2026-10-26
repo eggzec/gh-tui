@@ -151,6 +151,30 @@ func TestLogOverlayStopsWatchingOnClose(t *testing.T) {
 	}
 }
 
+// The quit intent in the job's log leaves the log, for the app to return to
+// the Actions modal, which stays open, and the log's reads end.
+func TestLogOverlayQuitReturnsAndStopsWatching(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH)
+	l := h.openLog(t)
+	cmd, ok := l.Act(ui.ActQuit)
+	if !ok || cmd == nil {
+		t.Fatalf("Act(quit) = %v, %v, want it taken", cmd, ok)
+	}
+	if msg := cmd(); msg != (ui.LeaveModalMsg{Modal: l}) {
+		t.Errorf("quit sent %v, want the log left", msg)
+	}
+	if m.ctx.Err() != nil {
+		t.Error("quit in the log ended the modal's reads, want the modal kept")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if n := f.watching[ubuntuJob]; n != 0 {
+		t.Errorf("%d watches of the log remain after q", n)
+	}
+}
+
 func TestEnterInTheLogFolds(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
