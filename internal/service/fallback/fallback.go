@@ -71,6 +71,10 @@ func Fetch[V any](ctx context.Context, c *cache.Cache[V], shelf *cache.Shelf[V],
 	if err != nil {
 		return cache.Entry[V]{}, err
 	}
+	// h belongs to this call, but a flight is shared: if the call that
+	// started it leaves before it ends, a joiner gets the entry and nobody
+	// saves it. That only costs the shortcut. The save also runs here, after
+	// the read, so a slow disk delays this caller rather than the flight.
 	if h.set.Load() && e.Fallback == nil {
 		// Memory holds this entry unless a change dropped or replaced it.
 		if cur, st := c.Get(key); st == cache.Fresh && cur.FetchedAt.Equal(e.FetchedAt) {
@@ -123,7 +127,10 @@ func Keep[V any](shelf *cache.Shelf[V], key string, load cache.FetchFunc[V]) cac
 	}
 }
 
-// kept is the context key of the held that Fetch gives to load.
+// kept is the context key of the held that Fetch gives to load. A context
+// that load passes on carries it too, so a Keep under another Fetch inside
+// load would set this one's held and skip its own save; every Keep today
+// sits directly under its Fetch.
 type kept struct{}
 
 // held tells Fetch that load read an entry that Keep left for it to save.
