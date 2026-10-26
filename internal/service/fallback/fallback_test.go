@@ -216,6 +216,33 @@ func TestKeep(t *testing.T) {
 	}
 }
 
+// A page read before a change, such as a star, that lands after it is not
+// kept as fresh: the cache drops it, so the shelf must not take it either.
+func TestKeepSkipsInvalidatedRead(t *testing.T) {
+	c, shelf := setup(t, true)
+	started, release := make(chan struct{}), make(chan struct{})
+	load := Keep(shelf, key, func(context.Context, cache.Entry[page], bool) (cache.Entry[page], error) {
+		close(started)
+		<-release
+		return fresh, nil
+	})
+	done := make(chan error, 1)
+	go func() {
+		_, err := Fetch(t.Context(), c, shelf, key, Page[string], load)
+		done <- err
+	}()
+	<-started
+	c.Set(key, old)
+	c.Invalidate(key)
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if e, ok := shelf.Load(key); !ok || e.ETag != old.ETag {
+		t.Errorf("shelf keeps %+v, %v; want the old page, ETag %s", e, ok, old.ETag)
+	}
+}
+
 // A refusal that drops a kept page logs it, with why, once.
 func TestFetchLogsDropped(t *testing.T) {
 	var buf bytes.Buffer
