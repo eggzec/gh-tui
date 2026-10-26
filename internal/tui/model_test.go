@@ -94,6 +94,7 @@ func newApp(t *testing.T, repo core.RepoRef, opts ...Option) (*Model, []*fakeSec
 		opts = append([]Option{WithRepo(repo)}, opts...)
 	}
 	m := New(t.Context(), config.Default(), layout, opts...)
+	rankFakes(m)
 	// Toasts that never expire keep run from waiting on their timers.
 	m.toast.SetDuration(0)
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})

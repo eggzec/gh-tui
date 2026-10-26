@@ -7,6 +7,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/internal/tui/modals"
 )
 
 // CommandHistory keeps the lines of the command line between sessions,
@@ -107,12 +109,18 @@ type quitWaitedMsg struct{}
 // kept are loaded, it waits for them, up to historyWait, and then quits
 // without saving rather than write over them.
 func (m *Model) quit(save tea.Cmd) tea.Cmd {
+	// The guards are asked first: one that keeps its modal stops the quit
+	// before anything is saved.
+	ch := m.modals.Quit()
+	if ch.Refused != modals.NotRefused {
+		return tea.Batch(save, m.apply(ch))
+	}
 	m.saveOpen()
 	if m.hist == nil || m.hist.loaded {
-		return tea.Sequence(save, tea.Quit)
+		return tea.Sequence(save, ch.Cmd, tea.Quit)
 	}
 	m.hist.quitting = true
-	return tea.Tick(historyWait, func(time.Time) tea.Msg { return quitWaitedMsg{} })
+	return tea.Batch(ch.Cmd, tea.Tick(historyWait, func(time.Time) tea.Msg { return quitWaitedMsg{} }))
 }
 
 // quitWaited quits if the lines kept never loaded.

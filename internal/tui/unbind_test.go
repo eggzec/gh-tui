@@ -236,6 +236,7 @@ func newUnboundApp(t *testing.T, cfg config.Config, repo bool) *Model {
 		opts = append(opts, WithRepo(testRepo))
 	}
 	m := New(ctx, cfg, layout, opts...)
+	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.accessChanges = nil
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
