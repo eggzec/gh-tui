@@ -128,7 +128,7 @@ func (s *Section) newRepoList(o core.Owner) *repoList {
 // groupModal returns the modal that picks the levels the repositories and
 // the stars are grouped by.
 func (s *Section) groupModal() ui.Modal {
-	return s.grouping.Modal("Repositories", s.keys.order, s.icons, s.setGroups)
+	return s.grouping.Modal(s.Title(), s.keys.order, s.icons, s.setGroups)
 }
 
 // setGroups groups the repositories and the stars by levels.
