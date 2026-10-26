@@ -95,6 +95,34 @@ func TestCommitEnterWithoutRepoOpensNothing(t *testing.T) {
 	}
 }
 
+// An issue or pull request hit whose repository the search could not read
+// from its URL opens nothing.
+func TestIssueAndPullEnterWithoutRepoOpensNothing(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []core.SearchKind{core.SearchIssues, core.SearchPulls} {
+		t.Run(string(kind), func(t *testing.T) {
+			t.Parallel()
+			f := newFake()
+			hit := core.SearchHit{Kind: kind, Issue: core.Issue{Number: 7, Title: "tea brewing fix"}}
+			if kind == core.SearchIssues {
+				f.issues = []core.SearchHit{hit}
+			} else {
+				f.pulls = []core.SearchHit{hit}
+			}
+			s := newSection(t, f, 100, 24)
+			press(t, s, "esc")
+			press(t, s, strconv.Itoa(slices.Index(kinds, kind)+1))
+			typeText(t, s, "tea")
+			for _, m := range press(t, s, "enter") {
+				switch m.(type) {
+				case ui.OpenIssueMsg, ui.OpenPullMsg:
+					t.Errorf("enter sent %#v, want nothing opened", m)
+				}
+			}
+		})
+	}
+}
+
 func TestCommitsFilterSpec(t *testing.T) {
 	t.Parallel()
 	sp := spec(core.SearchCommits, "")

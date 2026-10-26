@@ -112,8 +112,15 @@ func (s *Section) openHit(hit core.SearchHit, checks bool) tea.Cmd {
 	case core.SearchRepos:
 		msg = ui.RepoMsg{Repo: hit.Repo.Ref}
 	case core.SearchPulls:
+		if hit.Issue.Repo.Owner == "" || hit.Issue.Repo.Name == "" {
+			// The repository comes from a URL that may not name one.
+			return nil
+		}
 		msg = ui.OpenPullMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Checks: checks, Pause: pause}
 	default:
+		if hit.Issue.Repo.Owner == "" || hit.Issue.Repo.Name == "" {
+			return nil
+		}
 		msg = ui.OpenIssueMsg{Repo: hit.Issue.Repo, Number: hit.Issue.Number, Pause: pause}
 	}
 	return func() tea.Msg { return msg }
