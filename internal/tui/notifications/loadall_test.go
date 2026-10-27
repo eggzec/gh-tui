@@ -31,7 +31,7 @@ func TestLoadsEveryPage(t *testing.T) {
 
 func TestStopsAtTheCap(t *testing.T) {
 	t.Parallel()
-	svc := newFake(manyThreads(maxPages+5)...)
+	svc := newFake(manyThreads(maxPages + 5)...)
 	svc.size = 1
 	s := newSection(t, svc, 80, 12)
 	if got := len(loaded(s)); got != maxPages {
