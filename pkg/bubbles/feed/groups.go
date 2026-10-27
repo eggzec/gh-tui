@@ -281,17 +281,8 @@ func (m *Model[T]) Activate() (tea.Cmd, bool) {
 	return m.fetchMore(), true
 }
 
-// SetTotal tells how many items the source holds in all, so that the row of
-// the items not loaded can say how many are left. Zero means it is not known.
-func (m *Model[T]) SetTotal(n int) {
-	m.known = n
-}
-
 // moreText reads the row of the items not loaded.
 func (m Model[T]) moreText() string {
-	if left := m.known - m.total; m.known > 0 && left > 0 {
-		return strconv.Itoa(left) + " more not loaded"
-	}
 	return "more not loaded"
 }
 

@@ -102,15 +102,6 @@ func TestGroupMoreRow(t *testing.T) {
 	m = applyGroups(t, m, []Group[item]{{Key: parity}})
 	wantOutline(t, m, "even(3)", ".0", ".2", ".4", "odd(2)", ".1", ".3", "more")
 
-	// The row reads how many are left when the total is known.
-	if got := m.moreText(); got != "more not loaded" {
-		t.Fatalf("text = %q", got)
-	}
-	m.SetTotal(20)
-	if got := m.moreText(); got != "15 more not loaded" {
-		t.Fatalf("text = %q", got)
-	}
-
 	// Reaching the row fetches the next chunk, and it is not an item.
 	calls := src.callCount()
 	m = keys(t, m, "end")
@@ -131,7 +122,7 @@ func TestGroupMoreRow(t *testing.T) {
 	if _, ok := m.Selected(); ok {
 		t.Fatal("Selected() is true on the row of the items not loaded")
 	}
-	if !strings.Contains(ansi.Strip(m.View()), "10 more not loaded") {
+	if !strings.Contains(ansi.Strip(m.View()), "more not loaded") {
 		t.Fatalf("the row is not drawn:\n%s", ansi.Strip(m.View()))
 	}
 	calls = src.callCount()
@@ -164,11 +155,6 @@ func TestGroupQuickFilter(t *testing.T) {
 	m = typed(t, m, "&", "bug", "enter")
 	// Items 2 and 7 are the bug fixes: the headers count what is left.
 	wantOutline(t, m, "even(1)", ".2", "odd(1)", ".7")
-	// The row counts the items not fetched, not those the filter leaves out.
-	m.SetTotal(20)
-	if got := m.moreText(); got != "10 more not loaded" {
-		t.Fatalf("text = %q", got)
-	}
 	m = typed(t, m, "esc")
 	if got := len(m.lines); got != 12 {
 		t.Fatalf("%d lines after clearing the filter, want 12", got)

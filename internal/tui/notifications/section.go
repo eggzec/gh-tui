@@ -247,10 +247,15 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	return s
 }
 
-// list reads a page for the feed, and keeps the threads the filter does.
-// A page the filter leaves empty still leads to the next, which the feed
-// reads while its window has room. While the token may not read
-// notifications, it reads nothing.
+// maxPages bounds the pages one read follows, so that a huge inbox can't
+// keep it going for ever.
+const maxPages = 50
+
+// list reads the notifications for the feed, and keeps the threads the
+// filter does. The inbox is small, so it follows every page from the cursor
+// and gives them as one: the list is complete and its count exact. Past
+// maxPages it gives the cursor of the rest, which the feed shows as more not
+// loaded. While the token may not read notifications, it reads nothing.
 func (s *Section) list(ctx context.Context, q notifications.ListQuery, again bool) (core.Page[core.Notification], error) {
 	// The section says why in place of the list, so the refusal isn't a
 	// failure of the list.
@@ -259,9 +264,24 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 	}
 	f := s.filter()
 	q.Again = again
-	p, err := s.svc.List(ctx, q)
-	p.Items = s.byState(ctx, f, f.apply(p.Items))
-	return p, err
+	var all core.Page[core.Notification]
+	for n := 1; ; n++ {
+		p, err := s.svc.List(ctx, q)
+		if err != nil {
+			return core.Page[core.Notification]{}, err
+		}
+		all.Items = append(all.Items, p.Items...)
+		all.Next = p.Next
+		all.Stale = all.Stale || p.Stale
+		all.Offline = all.Offline || p.Offline
+		all.Limited = all.Limited || p.Limited
+		if p.Next == "" || n == maxPages || p.Offline || p.Limited {
+			break
+		}
+		q.Cursor = p.Next
+	}
+	all.Items = s.byState(ctx, f, f.apply(all.Items))
+	return all, nil
 }
 
 func (s *Section) query(cursor string) notifications.ListQuery {

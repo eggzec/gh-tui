@@ -152,9 +152,8 @@ type Model[T any] struct {
 	heads  []string
 	fill   bool
 	// order is every grouped item in the order of the groups, whether its line
-	// shows or not, and known the number of items the source holds, or 0.
+	// shows or not.
 	order []int
-	known int
 
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
 	groupOpen     string
