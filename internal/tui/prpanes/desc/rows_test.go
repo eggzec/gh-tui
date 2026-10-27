@@ -124,6 +124,25 @@ func TestCounts(t *testing.T) {
 	}
 }
 
+func TestTreeBar(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		set     string
+		wantBar bool
+	}{
+		{config.IconsASCII, false},
+		{config.IconsUnicode, true},
+		{config.IconsNerd, true},
+	} {
+		st := Tree(foldtree.DefaultStyles(true), ui.NewIcons(tc.set))
+		for _, g := range []string{st.Branch, st.Line} {
+			if got := strings.HasPrefix(g, "│"); got != tc.wantBar {
+				t.Errorf("%s: guide %q starts with │ = %v, want %v", tc.set, g, got, tc.wantBar)
+			}
+		}
+	}
+}
+
 func TestOpenState(t *testing.T) {
 	t.Parallel()
 	o := opts(80)
