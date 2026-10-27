@@ -98,7 +98,7 @@ func (s *Step) View() string {
 		return ""
 	}
 	w := s.width
-	lines := []string{s.titleLine(w), s.st.rule.Render(strings.Repeat(s.opts.icons.Border.Top, w))}
+	lines := []string{s.titleLine(w), s.st.rule.Render(ui.Rule(s.opts.icons, w))}
 	if n := s.note(); n != "" {
 		lines = append(lines, ui.Fit(s.st.note.Render(termtext.Truncate(n, w, s.opts.icons.Ellipsis)), w))
 	}

@@ -250,7 +250,7 @@ func (m *Modal) commitLines(w, h int) []string {
 	}
 	lines = append(lines, padLines(m.fileLines(w, g.files), w, g.files)...)
 	if g.pager > 0 {
-		lines = append(lines, m.st.subtle.Render(strings.Repeat(m.st.ic.Border.Top, w)))
+		lines = append(lines, m.st.subtle.Render(ui.Rule(m.st.ic, w)))
 		lines = append(lines, strings.Split(c.pager.View(), "\n")...)
 	}
 	// Every part is rendered to the width already.

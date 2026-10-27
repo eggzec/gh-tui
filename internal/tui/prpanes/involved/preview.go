@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // Preview is what a row of the pane has to show beside it. Title and Info are
@@ -107,7 +108,7 @@ func person(d Data, p people, who Person, o Options) Preview {
 	if who.State != None {
 		pv.Head = append(pv.Head, st.cut(st.bold.Render(st.glyphs.Render(glyphOf(who.State))+" review: "+who.State.String()), o.Width))
 	}
-	pv.Head = append(pv.Head, st.dim.Render(strings.Repeat("─", max(o.Width, 0))))
+	pv.Head = append(pv.Head, st.dim.Render(ui.Rule(st.icons, o.Width)))
 	pv.Nothing = st.dim.Render("no comments or reviews from " + who.Name + " in this pull request")
 	if who.Login != "" {
 		pv.Key = "person:" + who.Login

@@ -14,6 +14,8 @@ type Styles struct {
 	bold   lipgloss.Style
 	// sep joins the roles of a person, and ellipsis ends a line that was cut.
 	sep, ellipsis string
+	// icons draw the rules.
+	icons ui.Icons
 }
 
 // NewStyles returns the styles for theme t and the icons ic.
@@ -23,6 +25,7 @@ func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 		dim:    t.Subtle,
 		bold:   lipgloss.NewStyle().Bold(true),
 		sep:    ic.Separator, ellipsis: ic.Ellipsis,
+		icons:  ic,
 	}
 }
 
