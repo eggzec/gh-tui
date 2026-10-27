@@ -89,6 +89,41 @@ func TestGroupToggle(t *testing.T) {
 	}
 }
 
+// TestHeaderSortAndGroupOff checks that the header words a sort and a grouping
+// that are both off, the sort before the grouping.
+func TestHeaderSortAndGroupOff(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(inbox()...), 140, 12)
+	run(t, s, s.setSort([]orderpick.Choice{{Value: updatedField, Desc: true}}))
+	run(t, s, s.setGroups(levels("unread")))
+	press(t, s, "alt+s")
+	press(t, s, "alt+g")
+	if !s.sortOff || !s.off {
+		t.Fatalf("sortOff %v, group off %v, want both", s.sortOff, s.off)
+	}
+	view := ansi.Strip(s.View())
+	sortAt := strings.Index(view, "sort updated")
+	groupAt := strings.Index(view, "by unread")
+	if sortAt < 0 || groupAt < 0 || sortAt > groupAt {
+		t.Errorf("want the sort chip before the group chip:\n%s", view)
+	}
+	if got := strings.Count(view, "off"); got < 2 {
+		t.Errorf("%d off marks, want one for the sort and one for the group:\n%s", got, view)
+	}
+}
+
+// TestHeaderNoSortOffWithoutSorts checks that a sort switched off with no
+// sorts left does not word "sort off".
+func TestHeaderNoSortOffWithoutSorts(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(inbox()...), 140, 12)
+	s.sortOff = true
+	s.renderHeader()
+	if view := ansi.Strip(s.View()); strings.Contains(view, "sort off") {
+		t.Errorf("header words a sort that is not there:\n%s", view)
+	}
+}
+
 // TestGroupExpandKeys checks that h, l and * reach the grouped list.
 func TestGroupExpandKeys(t *testing.T) {
 	t.Parallel()

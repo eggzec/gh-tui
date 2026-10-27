@@ -248,7 +248,8 @@ func (s *Section) renderHeader() {
 	h := strings.Repeat(" ", s.feed.Gutter()) + s.styles.filter.render(name)
 	sep := s.icons.Separator
 	kept, off := s.toggle.Kept()
-	spec := ui.ChipSpec{Filter: f.chips(sep), FilterOn: !off, SortOn: !s.sortOff}
+	// With no sorts there is none to switch off, whatever sortOff says.
+	spec := ui.ChipSpec{Filter: f.chips(sep), FilterOn: !off, SortOn: !s.sortOff || len(s.sorts) == 0}
 	if off {
 		kf := parseFilter(kept)
 		spec.Filter = kf.chips(sep)

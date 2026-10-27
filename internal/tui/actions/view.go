@@ -331,7 +331,8 @@ func (m *Modal) paneTitle(p pane, w int) string {
 			detail = strings.TrimSpace(detail + m.st.ic.Separator + f)
 		}
 		if kept, off := m.toggle.Kept(); off {
-			detail = strings.TrimSpace(detail + m.st.ic.Separator + ui.OffChip(ansi.Strip(queryOf(kept, m.workflows.items)), m.st.ic.Separator))
+			off := ui.QueryChips(m.st.ic, ui.ChipSpec{Filter: ansi.Strip(queryOf(kept, m.workflows.items)), SortOn: true})
+			detail = strings.TrimSpace(detail + m.st.ic.Separator + strings.Join(off, m.st.ic.Separator))
 		}
 	case jobsPane:
 		text, detail = "Jobs", m.jobsTitle()
