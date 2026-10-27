@@ -313,20 +313,22 @@ func (s *Section) paneLabel(p paneID) string {
 			text += s.icons.Separator + "some hidden"
 		}
 	default:
+		spec := ui.ChipSpec{FilterOn: true, SortOn: true}
 		if l := s.repoTab(); l != nil {
-			if kept, off := l.toggle.Kept(); off {
+			kept, off := l.toggle.Kept()
+			spec = ui.ChipSpec{FilterOn: !off, SortOn: !l.sortToggle.Off()}
+			if off {
 				f := ownerui.ParseFilter(kept)
-				text += s.icons.Separator + ui.OffChip(f.Chips(s.icons), s.icons.Separator)
-			} else if chips := l.Filter().Chips(s.icons); l.sortToggle.Off() {
-				text += s.icons.Separator + ui.SortOffChip(chips, s.icons.Separator)
-			} else if chips != "" {
-				text += s.icons.Separator + chips
+				spec.Filter = f.Chips(s.icons)
+			} else {
+				spec.Filter = l.Filter().Chips(s.icons)
 			}
 		}
 		if s.page != nil && (s.page.tab == reposTab || s.page.tab == starsTab) {
-			if chip := s.grouping.Chip(s.icons.Separator); chip != "" {
-				text += s.icons.Separator + chip
-			}
+			spec.Group = s.grouping.Chip(s.icons.Separator)
+		}
+		if chips := ui.QueryChips(s.icons, spec); len(chips) > 0 {
+			text += s.icons.Separator + strings.Join(chips, s.icons.Separator)
 		}
 	}
 	return text

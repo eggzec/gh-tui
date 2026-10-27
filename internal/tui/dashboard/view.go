@@ -208,16 +208,19 @@ func (s *Section) paneExtras(p paneID) string {
 			text += s.icons.Separator + strconv.Itoa(at) + "/" + strconv.Itoa(of)
 		}
 	case reposPane:
-		if kept, off := s.repos.toggle.Kept(); off {
-			f := ownerui.ParseFilter(kept)
-			text += s.icons.Separator + ui.OffChip(f.Chips(s.icons), s.icons.Separator)
-		} else if chips := s.repos.filter().Chips(s.icons); s.repos.sortToggle.Off() {
-			text += s.icons.Separator + ui.SortOffChip(chips, s.icons.Separator)
-		} else if chips != "" {
-			text += s.icons.Separator + chips
+		kept, off := s.repos.toggle.Kept()
+		spec := ui.ChipSpec{
+			FilterOn: !off, SortOn: !s.repos.sortToggle.Off(),
+			Group: s.repos.grouping.Chip(s.icons.Separator),
 		}
-		if chip := s.repos.grouping.Chip(s.icons.Separator); chip != "" {
-			text += s.icons.Separator + chip
+		if off {
+			f := ownerui.ParseFilter(kept)
+			spec.Filter = f.Chips(s.icons)
+		} else {
+			spec.Filter = s.repos.filter().Chips(s.icons)
+		}
+		if chips := ui.QueryChips(s.icons, spec); len(chips) > 0 {
+			text += s.icons.Separator + strings.Join(chips, s.icons.Separator)
 		}
 	case workPane:
 		if s.work.ok {

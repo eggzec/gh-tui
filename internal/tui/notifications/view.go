@@ -248,26 +248,26 @@ func (s *Section) renderHeader() {
 	h := strings.Repeat(" ", s.feed.Gutter()) + s.styles.filter.render(name)
 	sep := s.icons.Separator
 	kept, off := s.toggle.Kept()
+	spec := ui.ChipSpec{Filter: f.chips(sep), FilterOn: !off, SortOn: !s.sortOff}
 	if off {
 		kf := parseFilter(kept)
-		h += s.styles.filter.render(sep + ui.OffChip(kf.chips(sep), sep))
-	} else if chips := f.chips(sep); chips != "" {
-		h += s.styles.filter.render(sep + chips)
+		spec.Filter = kf.chips(sep)
+	}
+	if len(s.sorts) > 0 {
+		spec.Sort = s.sortChip()
 	}
 	if s.off && len(s.levels) > 0 {
 		names := make([]string, len(s.levels))
 		for i, c := range s.levels {
 			names[i], _ = c.Value.(string)
 		}
-		h += s.styles.filter.render(sep + ui.OffChip("by "+strings.Join(names, ", "), sep))
+		spec.Group = ui.GroupOffChip(names, sep)
 	}
-	if len(s.sorts) > 0 {
-		chip := s.sortChip()
-		if s.sortOff {
-			chip = ui.OffChip(chip, sep)
-		}
-		h += s.styles.filter.render(sep + chip)
+	var chips strings.Builder
+	for _, c := range ui.QueryChips(s.icons, spec) {
+		chips.WriteString(s.styles.filter.render(sep + c))
 	}
+	h += chips.String()
 	var hints []string
 	if k := s.keys.Filter.Help().Key; k != "" {
 		hints = append(hints, s.icons.Key(k)+" filter")

@@ -110,8 +110,8 @@ func TestFilterChips(t *testing.T) {
 	tests := []struct{ query, want string }{
 		{"", ""},
 		{"is:private fork:false archived:false template:true language:go sort:stars-desc",
-			"private · no forks · no archived · templates · go · stars ↓"},
-		{"gh tui sort:name-asc", `"gh tui" · name ↑`},
+			"private · no forks · no archived · templates · go · stars desc"},
+		{"gh tui sort:name-asc", `"gh tui" · name asc`},
 		{"topic:cli", "topic:cli"},
 	}
 	for _, tt := range tests {
@@ -121,7 +121,7 @@ func TestFilterChips(t *testing.T) {
 		}
 	}
 	f := ParseFilter("gh tui sort:name-asc")
-	if got, want := f.Chips(ui.NewIcons(config.IconsASCII)), `"gh tui" - name ^`; got != want {
+	if got, want := f.Chips(ui.NewIcons(config.IconsASCII)), `"gh tui" - name asc`; got != want {
 		t.Errorf("ASCII chips = %q, want %q", got, want)
 	}
 }

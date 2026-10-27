@@ -172,7 +172,7 @@ func (n names) String(i int) string { return n[i] }
 func (n names) Len() int            { return len(n) }
 
 // Chips names what the filter does in a few words, for a title,
-// with the separator and arrows of ic.
+// with the separator of ic.
 func (f *Filter) Chips(ic ui.Icons) string {
 	if !f.Active() {
 		return ""
@@ -203,9 +203,9 @@ func (f *Filter) Chips(ic ui.Icons) string {
 		parts = append(parts, f.language)
 	}
 	if f.sort.By != "" {
-		dir := ic.Down
+		dir := "desc"
 		if !f.sort.Desc {
-			dir = ic.Up
+			dir = "asc"
 		}
 		parts = append(parts, f.sort.By+" "+dir)
 	}

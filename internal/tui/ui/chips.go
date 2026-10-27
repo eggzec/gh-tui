@@ -47,6 +47,50 @@ func Without(query string, drop func(filterform.Token) bool) string {
 	return strings.Join(kept, " ")
 }
 
+// ChipSpec is what a list's title says of its filter, sort and grouping.
+type ChipSpec struct {
+	// Filter is the chips of the filter in force; while FilterOn is false,
+	// the chips of the filter that was switched off.
+	Filter   string
+	FilterOn bool
+	// Sort is the chip that words the sort, such as "sort updated"; empty
+	// when the sort is part of Filter or has no words.
+	Sort   string
+	SortOn bool
+	// Group is the chip of the grouping, built by Grouping.Chip or
+	// GroupOffChip, or "".
+	Group string
+}
+
+// QueryChips returns the chips of a list's title for s, so that every list
+// words its filter, sort and grouping, and their off state, the same way.
+// A filter that is off shows alone, dim, with "off" after it. The caller
+// joins the chips with Icons.Separator.
+func QueryChips(icons Icons, s ChipSpec) []string {
+	sep := icons.Separator
+	var out []string
+	switch {
+	case !s.FilterOn:
+		out = append(out, OffChip(s.Filter, sep))
+	case s.Filter != "":
+		out = append(out, s.Filter)
+	}
+	switch {
+	case s.SortOn && s.Sort != "":
+		out = append(out, s.Sort)
+	case !s.SortOn && s.Sort != "":
+		out = append(out, OffChip(s.Sort, sep))
+	case !s.SortOn && s.FilterOn:
+		// A kept filter holds its sort, so only a filter in force shows
+		// the sort off on its own.
+		out = append(out, SortOffChip(sep))
+	}
+	if s.Group != "" {
+		out = append(out, s.Group)
+	}
+	return out
+}
+
 // Chips returns the filters of query as short chips for a pane's title,
 // apart by sep, such as "@me · bug" for author:@me label:bug: a label by
 // its name, an author as @login, and the rest as written.
