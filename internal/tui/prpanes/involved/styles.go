@@ -25,7 +25,7 @@ func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 		dim:    t.Subtle,
 		bold:   lipgloss.NewStyle().Bold(true),
 		sep:    ic.Separator, ellipsis: ic.Ellipsis,
-		icons:  ic,
+		icons: ic,
 	}
 }
 
