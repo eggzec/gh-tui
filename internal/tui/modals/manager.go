@@ -33,9 +33,10 @@ type Change struct {
 	Opened, Closed bool
 	// Refused says why an open or a quit did not happen.
 	Refused Refusal
-	// Blocker is the modal that refused: the top for Lower and Same, or
-	// the one whose guard kept it.
-	Blocker ui.Modal
+	// Named is the modal the root names in its toast: the top for Lower and
+	// Same, or the one whose guard kept it. For Lower it is the top, not
+	// necessarily the modal that outranks the new one.
+	Named ui.Modal
 	// Toast is a guard's toast, if it kept its modal.
 	Toast string
 	// Cmd holds the guards' commands, then the ReopenedMsg to the new top.
@@ -141,13 +142,13 @@ func (s *Manager) Add(mod ui.Modal, p Priority, opts ...Option) Change {
 		return Change{Refused: Stale}
 	}
 	if top != nil && reflect.TypeOf(top.mod) == reflect.TypeOf(mod) && top.mod.Title() == mod.Title() {
-		return Change{Refused: Same, Blocker: top.mod}
+		return Change{Refused: Same, Named: top.mod}
 	}
 	if p >= 0 {
 		// A modal that is not on top can still outrank the new one: a search
 		// over a prompt must not let a list open over the prompt.
 		if hi := s.highest(); hi != nil && p < hi.prio {
-			return Change{Refused: Lower, Blocker: top.mod}
+			return Change{Refused: Lower, Named: top.mod}
 		}
 	}
 	if p < 0 {
@@ -211,7 +212,7 @@ func (s *Manager) Back(mod ui.Modal) Change {
 	if top.guard != nil {
 		ans = top.guard(Dismiss)
 		if ans.Keep {
-			return Change{Refused: Kept, Blocker: top.mod, Toast: ans.Toast, Cmd: ans.Cmd}
+			return Change{Refused: Kept, Named: top.mod, Toast: ans.Toast, Cmd: ans.Cmd}
 		}
 	}
 	ch := s.pop(func(int) bool { return false })
@@ -231,7 +232,7 @@ func (s *Manager) pop(more func(i int) bool) Change {
 			ans := e.guard(Dismiss)
 			cmds = append(cmds, ans.Cmd)
 			if ans.Keep {
-				ch.Refused, ch.Blocker, ch.Toast = Kept, e.mod, ans.Toast
+				ch.Refused, ch.Named, ch.Toast = Kept, e.mod, ans.Toast
 				break
 			}
 		}
@@ -272,7 +273,7 @@ func (s *Manager) Quit() Change {
 		ans := e.guard(Quit)
 		cmds = append(cmds, ans.Cmd)
 		if ans.Keep && ch.Refused == NotRefused {
-			ch.Refused, ch.Blocker, ch.Toast = Kept, e.mod, ans.Toast
+			ch.Refused, ch.Named, ch.Toast = Kept, e.mod, ans.Toast
 		}
 	}
 	ch.Cmd = tea.Batch(cmds...)

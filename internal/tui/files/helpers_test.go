@@ -238,6 +238,9 @@ func (h *host) run(cmd tea.Cmd) {
 		msg.Modal.SetTheme(testTheme())
 		msg.Modal.SetSize(h.width, h.height)
 		h.modals = append(h.modals, msg.Modal)
+		if msg.Load != nil {
+			h.run(msg.Load)
+		}
 		return
 	case ui.CloseModalMsg:
 		h.got = append(h.got, msg)

@@ -137,7 +137,7 @@ func (m *Model) apply(ch modals.Change) tea.Cmd {
 	switch ch.Refused {
 	case modals.NotRefused, modals.Stale, modals.Same:
 	case modals.Lower:
-		cmds = append(cmds, m.toast.Push(toast.Warning, "Close "+m.modalName(ch.Blocker)+" first."))
+		cmds = append(cmds, m.toast.Push(toast.Warning, "Close "+m.modalName(ch.Named)+" first."))
 	case modals.Kept:
 		if ch.Toast != "" {
 			cmds = append(cmds, m.toast.Push(toast.Warning, ch.Toast))
