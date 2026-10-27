@@ -50,7 +50,7 @@ func rowsOf(body string, o Options) []foldtree.Row {
 func tree(rows []foldtree.Row, width, height int) foldtree.Model {
 	return foldtree.New(
 		foldtree.WithSize(width, height),
-		foldtree.WithStyles(Tree(foldtree.DefaultStyles(true))),
+		foldtree.WithStyles(Tree(foldtree.DefaultStyles(true), ui.NewIcons(config.IconsNerd))),
 		foldtree.WithRows(rows),
 	)
 }

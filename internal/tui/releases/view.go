@@ -132,7 +132,7 @@ func (m *Modal) header(width int) string {
 		}
 		lines = append(lines, gutter+st.muted.Render(plural(n, "file"))+st.sep+st.muted.Render(plural(downloads, "download")))
 	}
-	lines = append(lines, gutter+st.rule.Render(strings.Repeat(st.ic.Border.Top, inner)))
+	lines = append(lines, gutter+st.rule.Render(ui.Rule(st.ic, inner)))
 	return strings.Join(lines, "\n")
 }
 

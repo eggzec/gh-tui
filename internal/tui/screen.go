@@ -223,7 +223,7 @@ func (m *Model) drawHeader() {
 		m.header = ""
 		return
 	}
-	rule := func(n int) string { return m.st.edge.Render(strings.Repeat(m.icons.Border.Top, max(n, 0))) }
+	rule := func(n int) string { return m.st.edge.Render(ui.Rule(m.icons, n)) }
 	var name string
 	switch {
 	case m.screen == dashScreen:

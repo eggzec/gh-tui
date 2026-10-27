@@ -44,10 +44,11 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 }
 
 // Tree returns base with the guides the description draws: a dim bar beside
-// the content of an open block, and a corner ending it.
-func Tree(base foldtree.Styles) foldtree.Styles {
-	base.Branch = "│  "
-	base.Line = "│  "
+// the content of an open block, and a corner ending it. The bar is the left
+// border of the icons ic.
+func Tree(base foldtree.Styles, ic ui.Icons) foldtree.Styles {
+	base.Branch = ic.Border.Left + "  "
+	base.Line = ic.Border.Left + "  "
 	base.Last = "╰─ "
 	return base
 }
