@@ -1,12 +1,14 @@
 package pulls
 
 import (
+	"errors"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -62,6 +64,29 @@ func (m *panesModal) settle() {
 	for len(m.overlays) > 0 && m.top().closed() {
 		m.pop()
 	}
+}
+
+// Save keeps the text of the composers open over the panes as their drafts,
+// so that a modal the app closes on its own account, or quits with, loses
+// nothing: the composer restores its draft when it is opened again. It
+// implements ui.Saver.
+func (m *panesModal) Save() error {
+	var errs []error
+	for _, o := range m.overlays {
+		if c, ok := o.overlay.(*composerOverlay); ok {
+			errs = append(errs, c.comp.Save())
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// drafts is where the composers of a comment and of a review keep what is
+// typed, or none when the section keeps none.
+func (m *panesModal) drafts() composer.Option {
+	if m.list == nil {
+		return composer.WithDrafts(nil)
+	}
+	return composer.WithDrafts(m.list.drafts)
 }
 
 // pop closes the overlay on top, and ends the reads it has in flight.

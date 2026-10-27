@@ -269,14 +269,20 @@ func (m *Model) leaveSearch() tea.Cmd {
 	return nil
 }
 
-// hosted returns the section the open host modal shows, with the modal, or
-// nil if there is none.
-func (m *Model) hosted() (ui.Section, ui.Modal) {
+// hosted returns the list a filter or sort message acts on when a modal is
+// open, with the modal, or nil if there is none: the section a host modal
+// shows, else the top modal itself if it is a [ui.Filterable].
+func (m *Model) hosted() (titled, ui.Modal) {
 	switch {
 	case m.notifHost() != nil:
 		return m.notifSection(), m.notifHost()
 	case m.searchHost() != nil && m.srch != nil:
 		return m.srch.section, m.searchHost()
+	}
+	if top := m.modals.Top(); top != nil {
+		if _, ok := top.(ui.Filterable); ok {
+			return top, top
+		}
 	}
 	return nil, nil
 }
