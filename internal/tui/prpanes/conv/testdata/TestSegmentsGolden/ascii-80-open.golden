@@ -1,4 +1,4 @@
-▌6 comments - ann                                                             3d
+▌6 comments * ann                                                             3d
  ├─ ann  Before.                                                              3d
  │       Logs
  │       | line one
@@ -46,7 +46,7 @@
  │      Notes
  │      | in a review
  │      `-
- ╰─ * bob - a.go:3  Thread.                                                   3d
+ ╰─ * bob * a.go:3  Thread.                                                   3d
     │               More
     │               | in a thread
     │               `-

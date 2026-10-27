@@ -42,7 +42,7 @@ type Styles struct {
 func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	chips := ui.NewLabelChips(t.Muted, t.Dark, ic.Ellipsis, maxName)
 	return Styles{
-		Glyphs: NewGlyphs(set, ic),
+		Glyphs: newGlyphs(set, ic),
 		glyphs: ui.NewGlyphStyles(t, ic),
 		icons:  ic,
 		bold:   t.Text.Bold(true),

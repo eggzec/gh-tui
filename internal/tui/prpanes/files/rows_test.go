@@ -406,8 +406,8 @@ func TestInfoForms(t *testing.T) {
 		want        []string
 	}{
 		{0, 0, 0, nil},
-		{1, 3, 0, []string{"1 file · +3 −0", "1 · +3 −0"}},
-		{12, 340, 25, []string{"12 files · +340 −25", "12 · +340 −25"}},
+		{1, 3, 0, []string{"1 file ● +3 −0", "1 ● +3 −0"}},
+		{12, 340, 25, []string{"12 files ● +340 −25", "12 ● +340 −25"}},
 	} {
 		forms := Info(tc.n, tc.add, tc.del, st)
 		got := make([]string, 0, len(forms))

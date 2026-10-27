@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
@@ -12,19 +13,20 @@ import (
 type Glyphs struct {
 	// Blocked marks what stands in the way of an issue.
 	Blocked string
-	// Separator goes between the parts of a line, and Ellipsis ends a text
-	// that was cut.
-	Separator, Ellipsis string
+	// Glyphs are the marks the panes share: Separator goes between the parts
+	// of a line, and Ellipsis ends a text that was cut.
+	prpanes.Glyphs
 	// Arrow leads from the head branch to the base, Minus goes before the
 	// deleted lines, and Rule is drawn across to set the body apart.
 	Arrow, Minus, Rule string
 }
 
-// NewGlyphs returns the glyphs of the icon set ic.
-func NewGlyphs(ic ui.Icons) Glyphs {
+// newGlyphs returns the glyphs of the icon set ic.
+func newGlyphs(ic ui.Icons) Glyphs {
 	return Glyphs{
-		Blocked: ic.Glyph(ui.GlyphBlocked), Separator: ic.Separator, Ellipsis: ic.Ellipsis,
-		Arrow: ic.Arrow, Minus: ic.Minus, Rule: ic.Border.Top,
+		Glyphs:  prpanes.GlyphsFrom(ic),
+		Blocked: ic.Glyph(ui.GlyphBlocked),
+		Arrow:   ic.Arrow, Minus: ic.Minus, Rule: ic.Border.Top,
 	}
 }
 
@@ -47,7 +49,7 @@ type Styles struct {
 // NewStyles returns the styles for theme t and the icons ic.
 func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 	s := Styles{
-		Glyphs: NewGlyphs(ic),
+		Glyphs: newGlyphs(ic),
 		Tree:   foldtree.DefaultStyles(t.Dark),
 		icons:  ic,
 		bold:   t.Text.Bold(true),

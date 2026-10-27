@@ -118,12 +118,12 @@ func (b *builder) right(at time.Time, edited, pending bool) string {
 // marker returns what a closed fold hides: the glyph, then what it is.
 func (b *builder) marker(n int, one, many string) string {
 	if n == 0 {
-		return b.st.Glyphs.Fold
+		return b.st.Glyphs.Folded
 	}
 	if n == 1 {
-		return b.st.Glyphs.Fold + " 1 " + one
+		return b.st.Glyphs.Folded + " 1 " + one
 	}
-	return b.st.Glyphs.Fold + " " + strconv.Itoa(n) + " " + many
+	return b.st.Glyphs.Folded + " " + strconv.Itoa(n) + " " + many
 }
 
 // comment draws a comment of the conversation.
@@ -211,7 +211,7 @@ func (b *builder) thread(n *node, depth int) (foldtree.Row, segs) {
 	case !r.Fold:
 		r.Marker, r.Closed = "", false
 	case replies == 0 && !kids:
-		r.Marker = b.st.Glyphs.Fold
+		r.Marker = b.st.Glyphs.Folded
 	case unread && len(r.Lines) == 1:
 		r.Closed = true
 	}
@@ -269,7 +269,7 @@ func (b *builder) run(n *node) foldtree.Row {
 	return foldtree.Row{
 		Lines:  []string{head},
 		Right:  b.st.dim.Render(right),
-		Marker: b.st.Glyphs.Fold,
+		Marker: b.st.Glyphs.Folded,
 		Fold:   true,
 		Closed: true,
 	}

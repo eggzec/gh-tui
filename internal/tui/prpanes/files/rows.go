@@ -353,7 +353,7 @@ func (b *builder) commits(d Data) foldtree.Row {
 		ID:     IDCommits,
 		Fold:   true,
 		Closed: true,
-		Marker: b.st.Glyphs.Fold,
+		Marker: b.st.Glyphs.Folded,
 		Lines:  []string{title},
 	}
 }
