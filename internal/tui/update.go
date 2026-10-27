@@ -272,7 +272,11 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.broadcast(msg)
 		return m, cmd
 	case ui.OpenModalMsg:
-		cmd := m.open(msg.Modal, msg.Over)
+		if msg.Load == nil {
+			cmd := m.open(msg.Modal, msg.Over)
+			return m, cmd
+		}
+		cmd := m.openLoading(msg.Modal, msg.Over, msg.Load)
 		return m, cmd
 	case ui.CloseModalMsg:
 		cmd := m.apply(m.modals.Close(msg.Modal))

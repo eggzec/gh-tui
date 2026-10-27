@@ -143,8 +143,8 @@ func TestAddRules(t *testing.T) {
 				t.Errorf("held = %v, want %v", got, tt.after)
 			}
 			if tt.refused != modals.NotRefused {
-				if ch.Blocker != before {
-					t.Errorf("blocker = %v, want the top", ch.Blocker)
+				if ch.Named != before {
+					t.Errorf("blocker = %v, want the top", ch.Named)
 				}
 				if f := fakeOf(req); f.discards+f.hides+f.themes+len(f.sizes) != 0 {
 					t.Errorf("a refused modal was called: %+v", f)
@@ -302,7 +302,7 @@ func TestGuards(t *testing.T) {
 		s.Add(mid, modals.PriorityContent, modals.WithGuard(guard("m", modals.CloseAfter(mark("save")))))
 		s.Add(own, modals.PriorityContent)
 		ch := s.Close(own)
-		if ch.Refused != modals.Kept || ch.Toast != "unsaved" || ch.Blocker != ui.Modal(keeper) || !ch.Closed || s.Top() != ui.Modal(keeper) {
+		if ch.Refused != modals.Kept || ch.Toast != "unsaved" || ch.Named != ui.Modal(keeper) || !ch.Closed || s.Top() != ui.Modal(keeper) {
 			t.Fatalf("change %+v top %v", ch, s.Top())
 		}
 		if mid.discards != 1 || own.discards != 1 || keeper.discards != 0 {
@@ -340,7 +340,7 @@ func TestGuards(t *testing.T) {
 		s.Add(a, modals.PriorityContent, modals.WithGuard(guard("a", modals.Refuse("draft"))))
 		s.Add(b, modals.PriorityShape, modals.WithGuard(guard("b", modals.CloseAfter(mark("saved")))))
 		ch := s.Quit()
-		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Blocker != ui.Modal(a) || ch.Closed {
+		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Named != ui.Modal(a) || ch.Closed {
 			t.Errorf("quit %+v", ch)
 		}
 		if !slices.Equal(asked, []string{"b:1", "a:1"}) || s.Top() != ui.Modal(b) || len(titles(s)) != 2 {
@@ -390,7 +390,7 @@ func TestHideDiscardAndNonTop(t *testing.T) {
 		t.Errorf("hides x %d y %d", x.hides, y.hides)
 	}
 	for _, ch := range []modals.Change{s.Close(x), s.Back(x)} {
-		if ch.Opened || ch.Closed || ch.Refused != modals.NotRefused || ch.Cmd != nil || ch.Blocker != nil {
+		if ch.Opened || ch.Closed || ch.Refused != modals.NotRefused || ch.Cmd != nil || ch.Named != nil {
 			t.Errorf("close of a non-top = %+v", ch)
 		}
 	}
@@ -541,7 +541,7 @@ func TestSameAgainstAnywhereTop(t *testing.T) {
 	s.Add(top, modals.PriorityAnywhere)
 	dup := newA("s")
 	ch := s.Add(dup, modals.PriorityAnywhere)
-	if ch.Refused != modals.Same || ch.Blocker != ui.Modal(top) || s.Top() != ui.Modal(top) || top.discards != 0 || dup.discards != 0 {
+	if ch.Refused != modals.Same || ch.Named != ui.Modal(top) || s.Top() != ui.Modal(top) || top.discards != 0 || dup.discards != 0 {
 		t.Errorf("change %+v", ch)
 	}
 }
@@ -567,7 +567,7 @@ func TestRankChecksHighestBeneathAnywhere(t *testing.T) {
 	s.Add(srch, modals.PriorityAnywhere)
 	l := newA("l")
 	ch := s.Add(l, 10)
-	if ch.Refused != modals.Lower || ch.Blocker != ui.Modal(srch) || s.Top() != ui.Modal(srch) {
+	if ch.Refused != modals.Lower || ch.Named != ui.Modal(srch) || s.Top() != ui.Modal(srch) {
 		t.Errorf("change %+v", ch)
 	}
 	if f := fakeOf(l); f.discards+f.hides+f.themes != 0 {
@@ -637,7 +637,7 @@ func TestBackAsksGuard(t *testing.T) {
 			return modals.Closing{Keep: true, Toast: "draft", Cmd: mark("kept")}
 		}))
 		ch := s.Back(top)
-		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Blocker != ui.Modal(top) || ch.Closed {
+		if ch.Refused != modals.Kept || ch.Toast != "draft" || ch.Named != ui.Modal(top) || ch.Closed {
 			t.Errorf("change %+v", ch)
 		}
 		if s.Top() != ui.Modal(top) || top.discards != 0 || !slices.Equal(asked, []modals.Reason{modals.Dismiss}) {

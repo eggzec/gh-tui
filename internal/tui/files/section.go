@@ -381,9 +381,9 @@ func (s *Section) open(e core.TreeEntry, over ui.Modal) tea.Cmd {
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
 	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
-	// The app passes messages to a modal only once it is open, so the load
-	// starts after the modal opens.
-	return tea.Sequence(ui.OpenModalOver(p, over), p.load())
+	// The load starts only once the modal is open, and not at all if the open
+	// is refused.
+	return ui.OpenModalLoading(p, over, p.load())
 }
 
 // maxRecent is how many opened files the section remembers per repository.
@@ -442,7 +442,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
 	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
 	p.find, p.line = msg.Find, msg.Line
-	return tea.Sequence(ui.OpenModal(p), p.load())
+	return ui.OpenModalLoading(p, nil, p.load())
 }
 
 // selected returns the entry under the cursor, or the zero entry, which

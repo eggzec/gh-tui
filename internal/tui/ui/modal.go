@@ -144,6 +144,16 @@ type Linked interface {
 type OpenModalMsg struct {
 	Modal Modal
 	Over  Modal
+	// Load, if set, runs only once Modal is open: a refused open reads
+	// nothing.
+	Load tea.Cmd
+}
+
+// OpenModalLoading returns a command that opens m as OpenModalOver does, and
+// then runs load, only if m ended up open. The app passes messages to a modal
+// only while it is open, so the load starts after the open.
+func OpenModalLoading(m, over Modal, load tea.Cmd) tea.Cmd {
+	return func() tea.Msg { return OpenModalMsg{Modal: m, Over: over, Load: load} }
 }
 
 // OpenModal returns a command that opens m. The opener starts whatever m

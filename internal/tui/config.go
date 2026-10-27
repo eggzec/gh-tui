@@ -114,7 +114,7 @@ func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 	t := &textModal{title: title, back: back, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
-	return tea.Batch(m.open(t, over), t.pager.SetContent(name, text))
+	return m.openLoading(t, over, t.pager.SetContent(name, text))
 }
 
 // textModal shows text in a pager, in a modal over the screen, until the
