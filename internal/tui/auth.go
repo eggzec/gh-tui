@@ -229,7 +229,7 @@ func (m *Model) authCommand(string) tea.Cmd {
 	mod := newAuthModal(m.cfg.Keys, m.account(), a, m.access.Refresh(needs()...), m.token, m.run)
 	mod.checksOff = !m.cfg.Auth.Check
 	mod.icons = ui.NewIcons(m.cfg.UI.Icons)
-	return tea.Batch(m.open(mod, nil), m.reloadToken(nil))
+	return m.openLoading(mod, nil, m.reloadToken(nil))
 }
 
 // reloadToken reads the token again and asks GitHub what it may do.

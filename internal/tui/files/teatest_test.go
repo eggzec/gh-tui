@@ -64,7 +64,7 @@ func (a *app) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.modal = msg.Modal
 		a.modal.SetTheme(testTheme())
 		a.modal.SetSize(a.width, a.height)
-		return a, nil
+		return a, msg.Load
 	case ui.CloseModalMsg:
 		if msg.Modal == a.modal {
 			a.modal, a.under = a.under, nil
