@@ -82,7 +82,7 @@ func TestFilterLists(t *testing.T) {
 			t.Fatalf("row %d is %v, want %v", i, r.Ref, want[i].Ref)
 		}
 	}
-	if view := screen(s); !strings.Contains(view, "Repositories · private · go · stars ↓") {
+	if view := screen(s); !strings.Contains(view, "Repositories · private · go · stars desc") {
 		t.Errorf("the pane title should name the filter:\n%s", view)
 	}
 

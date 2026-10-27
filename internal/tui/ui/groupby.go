@@ -89,6 +89,11 @@ func (g *Grouping[T]) Chip(sep string) string {
 		name, _ := c.Value.(string)
 		names = append(names, name)
 	}
+	return GroupOffChip(names, sep)
+}
+
+// GroupOffChip words a grouping by names that is switched off for a title.
+func GroupOffChip(names []string, sep string) string {
 	return OffChip("by "+strings.Join(names, ", "), sep)
 }
 

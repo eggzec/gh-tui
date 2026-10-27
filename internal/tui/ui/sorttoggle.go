@@ -41,13 +41,10 @@ func DropSort(query string) string {
 	})
 }
 
-// SortOffChip words the chips of a list whose sort is switched off for a
-// title: them, and the sort dim, with "off" after it.
-func SortOffChip(chips, sep string) string {
-	if chips != "" {
-		chips += sep
-	}
-	return chips + OffChip("sort", sep)
+// SortOffChip words a sort that is switched off for a title: "sort", dim,
+// with "off" after it.
+func SortOffChip(sep string) string {
+	return OffChip("sort", sep)
 }
 
 // NoSortToSwitch is the command of a sort key with no sort to switch off: a

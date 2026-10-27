@@ -247,11 +247,10 @@ func (s *Section) show(state core.StateFilter, query string) tea.Cmd {
 
 // Chips implements ui.Chipper: the filters in force, for the pane's title.
 func (s *Section) Chips() string {
-	if kept, off := s.toggle.Kept(); off {
-		return ui.OffChip(ui.Chips(kept, s.icons.Separator), s.icons.Separator)
+	kept, off := s.toggle.Kept()
+	spec := ui.ChipSpec{Filter: s.filterChips, FilterOn: !off, SortOn: !s.sortToggle.Off()}
+	if off {
+		spec.Filter = ui.Chips(kept, s.icons.Separator)
 	}
-	if s.sortToggle.Off() {
-		return ui.SortOffChip(s.filterChips, s.icons.Separator)
-	}
-	return s.filterChips
+	return strings.Join(ui.QueryChips(s.icons, spec), s.icons.Separator)
 }
