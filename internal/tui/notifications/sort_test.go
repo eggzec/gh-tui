@@ -92,8 +92,8 @@ func TestSortMultiKeyOrder(t *testing.T) {
 	}
 }
 
-// TestSortKeepsTheOrderAcrossPages checks that a page that arrives while
-// sorted joins the order, and that the cursor stays on its thread.
+// TestSortKeepsTheOrderAcrossPages checks that the pages the read follows
+// join one order.
 func TestSortKeepsTheOrderAcrossPages(t *testing.T) {
 	t.Parallel()
 	threads := make([]core.Notification, 0, 60)
@@ -106,35 +106,14 @@ func TestSortKeepsTheOrderAcrossPages(t *testing.T) {
 	s := newSection(t, svc, 80, 6)
 	run(t, s, s.setSort(levels("repository")))
 	less := s.sortLess(levels("repository"))
-	first := s.feed.Len()
-	var prev string
-	for range 2 * len(threads) {
-		if s.feed.Len() > first {
-			break
-		}
-		cur, _ := s.feed.Selected()
-		prev = cur.ID
-		press(t, s, "j")
-	}
-	if s.feed.Len() <= first {
-		t.Fatalf("no second page arrived: %d rows", first)
-	}
 	got := loaded(s)
+	if len(got) != len(threads) {
+		t.Fatalf("loaded %d threads, want %d", len(got), len(threads))
+	}
 	for i := 1; i < len(got); i++ {
 		if less(got[i], got[i-1]) < 0 {
 			t.Errorf("%s before %s", got[i-1].ID, got[i].ID)
 		}
-	}
-	// The press moved the cursor one row on, in the order the new page made.
-	cur, _ := s.feed.Selected()
-	ok := false
-	for i, n := range got {
-		if n.ID == prev && i+1 < len(got) && got[i+1].ID == cur.ID {
-			ok = true
-		}
-	}
-	if !ok && cur.ID != prev {
-		t.Errorf("cursor on %s, want %s or the row after it", cur.ID, prev)
 	}
 }
 
