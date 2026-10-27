@@ -1,5 +1,5 @@
 width 80
-▌Commits 1 of 6 · a1b3074
+▌Commits 1 of 6 ● a1b3074
  ├─ ● a1b2c30 ✓ Add the cache                                  Ada Lovelace  20d
  ├─ ● a1b2d41 ✗ Fix the off by one error in the pager when the last line is… 19d
  ├─ ● a1b2e52 ◐ Rename the helpers                                    Linus  18d
@@ -10,7 +10,7 @@ width 80
  Files
 
 width 50
-▌Commits 1 of 6 · a1b3074
+▌Commits 1 of 6 ● a1b3074
  ├─ ● a1b2c30 ✓ Add the cache    Ada Lovelace  20d
  ├─ ● a1b2d41 ✗ Fix the off by one error in t… 19d
  ├─ ● a1b2e52 ◐ Rename the helpers      Linus  18d
@@ -21,7 +21,7 @@ width 50
  Files
 
 width 30
-▌Commits 1 of 6 · a1b3074
+▌Commits 1 of 6 ● a1b3074
  ├─ ● a1b2c30 ✓ Add the c… 20d
  ├─ ● a1b2d41 ✗ Fix the o… 19d
  ├─ ● a1b2e52 ◐ Rename th… 18d

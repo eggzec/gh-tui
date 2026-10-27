@@ -8,7 +8,7 @@
  x Bob Builder  Needs work on the tree.                                       2d
  │
  │              See the threads below.
- ╰─ * ann - tree.go:42  This loop runs once per row, which is                 1d
+ ╰─ * ann * tree.go:42  This loop runs once per row, which is                 1d
     │                   slow for
     │
     │                   the long trees we draw. Could it be
@@ -30,17 +30,17 @@
               * two
 
  o dee                                                                        1d
- ╰─ + ann - tree.go:9 ~  Fixed in the next push.                              1d
+ ╰─ + ann * tree.go:9 ~  Fixed in the next push.                              1d
     ╰─ bob  Fixed in the next push.                                   edited  1d
 
  o ann  A few remarks.                                                        1d
- ╰─ * ann - tree.go  Please add a header comment to the file.         edited  1d
+ ╰─ * ann * tree.go  Please add a header comment to the file.         edited  1d
 
  - Eve  Stale.                                                                1d
 
  + fay  Looks good to me.                                                     1d
 
- 3 comments - ghost, 山田太郎, ann                                       1d - 2h
+ 3 comments * ghost, 山田太郎, ann                                       1d - 2h
  ├─ ghost  A comment of a deleted account: https://github.com/eggzec/gh-      1d
  │         tui/pull/123/files#diff-
  │         0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
@@ -48,4 +48,4 @@
  ╰─ ann  Merged soon.                                                         2h
 
  * your pending review
- ╰─ * ann - tree.go:42  A draft.                             pending  edited  1d
+ ╰─ * ann * tree.go:42  A draft.                             pending  edited  1d

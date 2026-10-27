@@ -2,6 +2,7 @@ package checktree
 
 import (
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -17,23 +18,22 @@ type Glyphs struct {
 	// Failure, Warning and Notice mark the worst level of the annotations of
 	// a check run.
 	Failure, Warning, Notice string
-	// Separator goes between the parts of the right side of a row, and
-	// Ellipsis ends a text that was cut.
-	Separator, Ellipsis string
+	// Glyphs are the marks the panes share: Separator goes between the parts
+	// of the right side of a row, and Ellipsis ends a text that was cut.
+	prpanes.Glyphs
 }
 
-// NewGlyphs returns the glyphs of the icon set named set, one of
+// newGlyphs returns the glyphs of the icon set named set, one of
 // config.IconsNerd, config.IconsUnicode and config.IconsASCII.
-func NewGlyphs(set string, ic ui.Icons) Glyphs {
+func newGlyphs(set string, ic ui.Icons) Glyphs {
 	g := Glyphs{
-		Pass:      ic.Run(ui.RunSuccess),
-		Fail:      ic.Run(ui.RunFailure),
-		Pending:   ic.Run(ui.RunInProgress),
-		Failure:   ic.No,
-		Warning:   ic.Warning,
-		Notice:    ic.Info,
-		Separator: ic.Separator,
-		Ellipsis:  ic.Ellipsis,
+		Pass:    ic.Run(ui.RunSuccess),
+		Fail:    ic.Run(ui.RunFailure),
+		Pending: ic.Run(ui.RunInProgress),
+		Failure: ic.No,
+		Warning: ic.Warning,
+		Notice:  ic.Info,
+		Glyphs:  prpanes.GlyphsFrom(ic),
 	}
 	switch set {
 	case config.IconsUnicode:

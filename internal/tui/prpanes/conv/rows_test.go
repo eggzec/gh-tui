@@ -172,7 +172,7 @@ func TestGlyphWidths(t *testing.T) {
 	t.Parallel()
 	for _, set := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
 		ic := ui.NewIcons(set)
-		g := NewGlyphs(set, ic)
+		g := newGlyphs(set, ic)
 		marks := map[string]string{"dot": g.Dot, "dash": g.Dash}
 		for name, gl := range map[string]ui.Glyph{
 			"approved": ui.GlyphApproved, "changes": ui.GlyphChanges, "commented": ui.GlyphCommented,
@@ -189,7 +189,7 @@ func TestGlyphWidths(t *testing.T) {
 		if set != config.IconsASCII {
 			continue
 		}
-		marks["fold"], marks["cut"] = g.Fold, g.Cut
+		marks["fold"], marks["cut"] = g.Folded, g.Cut
 		for name, s := range marks {
 			for _, r := range s {
 				if r > 0x7e {

@@ -2,6 +2,7 @@ package files
 
 import (
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -15,18 +16,20 @@ type Glyphs struct {
 	// Failure, Warning and Notice mark the worst level of the annotations the
 	// checks left on a file.
 	Failure, Warning, Notice string
-	// Fold is what a closed fold hides, Dot goes between the parts of a
-	// title, Rule draws the lines between the sections, and Cut ends a text
-	// that was cut.
-	Fold, Dot, Rule, Cut string
+	// Glyphs are the marks the panes share: Folded is what a closed fold
+	// hides, and Dot goes between the parts of a title.
+	prpanes.Glyphs
+	// Rule draws the lines between the sections, and Cut ends a text that was
+	// cut.
+	Rule, Cut string
 	// Minus goes before the lines a file deletes.
 	Minus string
 }
 
-// NewGlyphs returns the glyphs of the icon set named set, one of
+// newGlyphs returns the glyphs of the icon set named set, one of
 // config.IconsNerd, config.IconsUnicode and config.IconsASCII, whose icons
 // are ic.
-func NewGlyphs(set string, ic ui.Icons) Glyphs {
+func newGlyphs(set string, ic ui.Icons) Glyphs {
 	g := Glyphs{
 		Pass:    ic.Run(ui.RunSuccess),
 		Fail:    ic.Run(ui.RunFailure),
@@ -34,17 +37,19 @@ func NewGlyphs(set string, ic ui.Icons) Glyphs {
 		Failure: ic.No,
 		Warning: ic.Warning,
 		Notice:  ic.Info,
+		Glyphs:  prpanes.GlyphsFrom(ic),
+		Rule:    ic.Border.Top,
 		Cut:     ic.Ellipsis,
 		Minus:   ic.Minus,
 	}
 	switch set {
 	case config.IconsUnicode:
-		g.Commit, g.Fold, g.Dot, g.Rule = "●", "⋯", "·", "─"
+		g.Commit = "●"
 	case config.IconsASCII:
-		g.Commit, g.Fold, g.Dot, g.Rule = "o", "...", "-", "-"
+		g.Commit = "o"
 	default:
 		// oct-git_commit.
-		g.Commit, g.Fold, g.Dot, g.Rule = "", "⋯", "·", "─"
+		g.Commit = ""
 	}
 	return g
 }

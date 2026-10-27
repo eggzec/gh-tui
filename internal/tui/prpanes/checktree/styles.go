@@ -34,7 +34,7 @@ type Styles struct {
 // NewStyles returns the styles for theme t and the icon set named set, whose
 // icons are ic.
 func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
-	g := NewGlyphs(set, ic)
+	g := newGlyphs(set, ic)
 	dim := t.Subtle
 	fail, pend, pass := t.Run(ui.RunFailure), t.Run(ui.RunInProgress), t.Run(ui.RunSuccess)
 	s := Styles{
