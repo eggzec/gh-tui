@@ -67,7 +67,7 @@ func (m *Model) guardOf(mod ui.Modal) modals.Guard {
 	if d, ok := mod.(*issues.Detail); ok {
 		// The comment prompt keeps no draft, so the modal stays until the
 		// comment is sent or dropped.
-		return func(r modals.Reason) modals.Closing {
+		return func(_ modals.Reason) modals.Closing {
 			// :q asks too, so it stays open on a draft; ctrl+c quits
 			// without asking (Model.quitNow) and must always quit.
 			if d.HasDraft() {
