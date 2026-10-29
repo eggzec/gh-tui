@@ -78,7 +78,7 @@ func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 			m.groups = append(m.groups, g)
 		}
 	}
-	m.closed = nil
+	m.closed, m.seen = nil, nil
 	return m.reshape(ref)
 }
 
@@ -361,6 +361,16 @@ func (m Model[T]) members() []int {
 // build makes the lines of the groups over the loaded items.
 func (m *Model[T]) build() {
 	m.lines, m.heads, m.order = nil, nil, nil
+	if m.kids != nil && m.childrenFolded {
+		// Copies of the model share the maps, so the first states go in new ones.
+		m.closed, m.seen = maps.Clone(m.closed), maps.Clone(m.seen)
+		if m.closed == nil {
+			m.closed = map[string]struct{}{}
+		}
+		if m.seen == nil {
+			m.seen = map[string]struct{}{}
+		}
+	}
 	items := m.members()
 	m.nitems = len(items)
 	n := 0
@@ -391,6 +401,12 @@ func (m *Model[T]) group(items []int, level int, parent string, visible bool, n 
 				continue
 			}
 			l.path = parent + "\x1f" + m.itemKey(i)
+			if m.seen != nil {
+				if _, ok := m.seen[l.path]; !ok {
+					m.seen[l.path] = struct{}{}
+					m.closed[l.path] = struct{}{}
+				}
+			}
 			_, closed := m.closed[l.path]
 			l.open = !closed
 			// Like a header's, the path of an item's fold is kept even inside a

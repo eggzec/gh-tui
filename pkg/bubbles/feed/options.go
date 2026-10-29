@@ -39,6 +39,8 @@ type settings struct {
 	firstItem bool
 	// children is a childSpec[T], checked against the item type in New.
 	children any
+	// childrenFolded starts the items with children folded.
+	childrenFolded bool
 }
 
 // WithFirstItem has a grouped feed start with the cursor on its first item
@@ -61,9 +63,9 @@ type childSpec[T any] struct {
 // or filter, and is reached with [Model.SelectedChild]. The feed counts lines
 // as a grouped one does, though it has no groups unless set.
 //
-// A foldable item takes enter for itself, so [Model.Activate] does not report
-// it to the host. Call [Model.Resort] when the number of children of an item
-// has changed. Folds are kept by the item's key, so use [WithKey] for them to
+// Enter on a foldable item folds or unfolds it in [Model.Activate], which
+// reports it taken, so the host does not see the key. Call [Model.Resort] when
+// the number of children of an item has changed. Folds are kept by the item's key, so use [WithKey] for them to
 // stay on their item when a reload reorders the items: without a key the fold
 // belongs to the item's index.
 //
@@ -75,6 +77,13 @@ func WithChildren[T any](count func(T) int, render func(item T, k int, selected 
 			s.children = childSpec[T]{count: count, render: render}
 		}
 	}
+}
+
+// WithChildrenFolded has the items that own children start folded, with
+// [WithChildren]. A new item, or one after [Model.SetGroups], is folded again,
+// and what the user has opened stays open when more pages load.
+func WithChildrenFolded() Option {
+	return func(s *settings) { s.childrenFolded = true }
 }
 
 func defaultSettings() settings {

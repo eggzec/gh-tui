@@ -42,6 +42,29 @@ func activate(t *testing.T, m Model[item]) Model[item] {
 	return run(t, m, cmd)
 }
 
+func TestChildrenStartFolded(t *testing.T) {
+	counts := map[string]int{"1": 2, "3": 1}
+	m := load(t, newSource(6, 6), WithSize(30, 12), withKidCounts(counts), WithChildrenFolded())
+	if got := len(m.lines); got != 6 {
+		t.Fatalf("%d lines, want 6 folded", got)
+	}
+	// Open the second item, then regroup: the fold the user opened stays.
+	m.sel = 1
+	m = activate(t, m)
+	if got := len(m.lines); got != 8 {
+		t.Fatalf("%d lines after opening, want 8", got)
+	}
+	m.Resort()
+	if got := len(m.lines); got != 8 {
+		t.Fatalf("%d lines after Resort, want 8", got)
+	}
+	// Regrouping folds every item again.
+	m = run(t, m, m.SetGroups(nil))
+	if got := len(m.lines); got != 6 {
+		t.Fatalf("%d lines after SetGroups, want 6", got)
+	}
+}
+
 func TestChildrenBuild(t *testing.T) {
 	m := kidsModel(t)
 	if got := len(m.lines); got != 9 {
