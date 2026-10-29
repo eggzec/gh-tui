@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -110,6 +111,57 @@ func TestRootFilterFallsBackToTheSection(t *testing.T) {
 			})
 		}
 	}
+}
+
+// yieldsQuit reports whether running cmd, and the commands of a batch it returns,
+// yields tea.QuitMsg.
+func yieldsQuit(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch msg := cmd().(type) {
+	case tea.QuitMsg:
+		return true
+	case tea.BatchMsg:
+		return slices.ContainsFunc(msg, quits)
+	}
+	return false
+}
+
+// :q keeps an issue modal with an unsent comment open, with a toast, while
+// ctrl+c still quits and an empty prompt lets :q quit.
+func TestQuitKeepsAnIssueWithAnUnsentComment(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
+		first := m.modals.Top()
+		driveKeys(t, m, m.key(press("c")))
+		for _, r := range "hi" {
+			driveKeys(t, m, m.key(press(string(r))))
+		}
+		cmd := m.quit(nil)
+		if m.modals.Top() != first {
+			t.Fatalf(":q left %v, want the issue with the comment on top", m.modals.Top())
+		}
+		if !hasToast(m, "Send or drop the comment first.") {
+			t.Errorf("toast = %q, want the refusal", toasted(m))
+		}
+		if yieldsQuit(cmd) {
+			t.Error(":q quit with a comment unsent")
+		}
+		if !yieldsQuit(m.quitNow()) {
+			t.Error("ctrl+c did not quit with a comment unsent")
+		}
+	})
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		driveKeys(t, m, func() tea.Msg { return ui.OpenIssueMsg{Repo: testRepo, Number: 1} })
+		driveKeys(t, m, m.key(press("c")))
+		if !yieldsQuit(m.quit(nil)) {
+			t.Error(":q with an empty prompt did not quit")
+		}
+	})
 }
 
 // An issue modal with a comment being written is not closed by
