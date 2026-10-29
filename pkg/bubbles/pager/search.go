@@ -279,16 +279,19 @@ func (m Model) firstFrom(i int) int {
 // step jumps to the next match, or the previous one for a negative d,
 // wrapping around at the ends. Before the first jump, it goes to the
 // first match from the top of the window, or the last before it.
-func (m *Model) step(d int) {
+func (m *Model) step(d int) { m.stepFrom(d, m.topLine()) }
+
+// stepFrom is step, but before the first jump it starts from row line.
+func (m *Model) stepFrom(d, line int) {
 	n := m.search.total()
 	switch {
 	case n == 0:
 	case m.search.cur >= 0:
 		m.jump(((m.search.cur+d)%n + n) % n)
 	case d > 0:
-		m.jump(m.firstFrom(m.topLine()))
+		m.jump(m.firstFrom(line))
 	default:
-		m.jump((m.firstFrom(m.topLine()) - 1 + n) % n)
+		m.jump((m.firstFrom(line) - 1 + n) % n)
 	}
 }
 
