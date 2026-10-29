@@ -53,7 +53,7 @@ func (s *Section) bulk(read bool) tea.Cmd {
 			send := p.Do(s.ctx, ui.NotificationsTitle)
 			return tea.Batch(s.reload(), send)
 		})
-	return ui.OpenModal(ui.NewConfirmModal(c, s.keys.confirm, s.icons))
+	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
 }
 
 // bulkDone shows the threads again from the cache, which the changes have

@@ -88,7 +88,7 @@ func (m *Model) star() tea.Cmd {
 		return refusal
 	}
 	c = ui.Recheck(c.Question, repo.String(), now)
-	return ui.OpenModal(ui.NewConfirmModal(c, ui.NewConfirmKeys(m.cfg.Keys), m.icons))
+	return ui.OpenConfirm(c, ui.NewConfirmKeys(m.cfg.Keys), m.icons)
 }
 
 // starDone shows how a star or unstar went: a toast for the error that

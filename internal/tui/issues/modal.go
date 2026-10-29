@@ -85,7 +85,10 @@ type detailModal struct {
 	composing composing
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
-	ask       *ui.Confirm
+	ask *ui.Confirm
+	// armed is set once the question is armed: until then enter answers
+	// nothing.
+	armed     bool
 	confirmSt ui.ConfirmStyles
 
 	width, height int
@@ -314,6 +317,10 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
+	if ui.IsArm(msg) {
+		m.armed = m.ask != nil
+		return nil
+	}
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
@@ -524,14 +531,21 @@ func (m *detailModal) setState(state core.State) tea.Cmd {
 	if !ok {
 		return refusal
 	}
+	return m.asks(c)
+}
+
+// asks puts c on the last line, to be armed once the app hands the modal the
+// message that arms it.
+func (m *detailModal) asks(c ui.Confirm) tea.Cmd {
 	m.ask = &c
-	return nil
+	m.armed = false
+	return ui.Arm()
 }
 
 // answer takes the answer to the question on the last line: yes makes the
 // change, and no steps back to the issue. Other keys do nothing.
 func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
-	cmd, done := m.keys.confirm.Answer(*m.ask, msg)
+	cmd, done := m.keys.confirm.Answer(*m.ask, msg, m.armed)
 	if done {
 		m.ask = nil
 	}

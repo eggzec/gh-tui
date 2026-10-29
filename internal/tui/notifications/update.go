@@ -203,7 +203,7 @@ func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
 		again, ok := now()
 		return again.ask, ok && again.ids == m.ids, nil
 	})
-	return ui.OpenModal(ui.NewConfirmModal(c, s.keys.confirm, s.icons))
+	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
 }
 
 // markRead marks the unread thread under the cursor read.

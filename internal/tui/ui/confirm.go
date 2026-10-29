@@ -24,6 +24,25 @@ type Confirm struct {
 	// Run makes the change once the user says yes, and returns what sends
 	// it.
 	Run func() tea.Cmd
+	// Default is the answer that enter gives: true for yes. Only a question
+	// that is safe and easy to undo defaults to yes; the zero value, no, is
+	// for everything destructive, hard to undo or bulk.
+	Default bool
+}
+
+// armMsg arms the question that asked for it: until it comes back, the
+// default key answers nothing, so that the press that opened the question,
+// or a key held down, never answers it.
+type armMsg struct{}
+
+// Arm returns the command that arms a question just asked; the message it
+// sends goes back to the asker, which tells it apart with [IsArm].
+func Arm() tea.Cmd { return func() tea.Msg { return armMsg{} } }
+
+// IsArm reports whether msg arms a question.
+func IsArm(msg tea.Msg) bool {
+	_, ok := msg.(armMsg)
+	return ok
 }
 
 // Recheck returns the Confirm that asks question and, once the user says
@@ -57,17 +76,21 @@ func Meanwhile(name string) string {
 type ConfirmKeys struct {
 	Yes key.Binding `keymap:"yes" help:"yes"`
 	No  key.Binding `keymap:"no" help:"no"`
+	// Default gives the answer that the question shows as its default.
+	Default key.Binding `keymap:"default" help:"answer the default"`
 }
 
 // NewConfirmKeys returns the keys that answer a question, from the context
-// confirm: y for yes, and n or esc for no by default. Enter isn't a yes, so
-// that a change isn't made by a key pressed for something else.
+// confirm: y for yes, and n or esc for no by default, and enter for the
+// answer the question shows as its default, which is no unless the change is
+// safe and easy to undo. A press that arrives before the question is armed,
+// or a repeated one, never gives that answer.
 func NewConfirmKeys(keys config.Keymap) ConfirmKeys {
 	var k ConfirmKeys
 	keymap.Fill(&k, Lookup(keys, "confirm"))
 	// The answers are named by their first key, as the line that asks has
 	// little room.
-	for _, b := range []*key.Binding{&k.Yes, &k.No} {
+	for _, b := range []*key.Binding{&k.Yes, &k.No, &k.Default} {
 		if ks := b.Keys(); len(ks) > 0 {
 			b.SetHelp(keymap.Label(ks[0]), b.Help().Desc)
 		}
@@ -76,7 +99,7 @@ func NewConfirmKeys(keys config.Keymap) ConfirmKeys {
 }
 
 // ShortHelp implements help.KeyMap.
-func (k ConfirmKeys) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.No} }
+func (k ConfirmKeys) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.No, k.Default} }
 
 // FullHelp implements help.KeyMap.
 func (k ConfirmKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
@@ -88,13 +111,20 @@ func (k ConfirmKeys) Layer() keyhelp.Layer {
 }
 
 // Answer takes msg as the answer to c: yes runs c and returns what sends
-// the change, and no drops it. Either way done is set, and the question
-// closes. Any other key does nothing and leaves the question open.
-func (k ConfirmKeys) Answer(c Confirm, msg tea.KeyPressMsg) (cmd tea.Cmd, done bool) {
+// the change, and no drops it. The default key gives the default of c, but
+// only once the question is armed (see [Arm]) and not for a repeated press.
+// Either way done is set, and the question closes. Any other key does
+// nothing and leaves the question open.
+func (k ConfirmKeys) Answer(c Confirm, msg tea.KeyPressMsg, armed bool) (cmd tea.Cmd, done bool) {
 	switch {
 	case key.Matches(msg, k.Yes):
 		return c.Run(), true
 	case key.Matches(msg, k.No):
+		return nil, true
+	case key.Matches(msg, k.Default) && armed && !msg.IsRepeat:
+		if c.Default {
+			return c.Run(), true
+		}
 		return nil, true
 	}
 	return nil, false
@@ -103,8 +133,13 @@ func (k ConfirmKeys) Answer(c Confirm, msg tea.KeyPressMsg) (cmd tea.Cmd, done b
 // ConfirmStyles style the line of a Confirm.
 type ConfirmStyles struct {
 	Question, Keys lipgloss.Style
+	// DefaultKey styles the key that gives the default answer.
+	DefaultKey lipgloss.Style
 	// Ellipsis ends a question cut to its room; empty, it is "…".
 	Ellipsis string
+	// Separator joins the answers to the default; empty, it is the Unicode
+	// set's.
+	Separator string
 }
 
 // ellipsis is the ellipsis of st, or the Unicode set's while it has none.
@@ -115,7 +150,7 @@ func (st ConfirmStyles) ellipsis() string {
 // Confirm returns the styles of a confirmation: the question in the
 // accent, and the keys that answer it muted, cut with the ellipsis of ic.
 func (t Theme) Confirm(ic Icons) ConfirmStyles {
-	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, Ellipsis: ic.Ellipsis}
+	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, DefaultKey: t.Accent, Ellipsis: ic.Ellipsis, Separator: ic.Separator}
 }
 
 // ConfirmLines is the most lines a question wraps to, so that a long one,
@@ -125,7 +160,8 @@ const ConfirmLines = 2
 // Line renders c on a line of w cells: the question, cut to leave room,
 // and the keys that answer it against the right edge.
 func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
-	return Spread(st.Question.Render(OneLine(c.Question)), st.Keys.Render(k.answers()), w, st.ellipsis())
+	_, keys := c.keys(st, k)
+	return Spread(st.Question.Render(OneLine(c.Question)), keys, w, st.ellipsis())
 }
 
 // Lines renders c on at most n lines of w cells: the question, wrapped at
@@ -133,7 +169,7 @@ func (c Confirm) Line(st ConfirmStyles, k ConfirmKeys, w int) string {
 // against the right edge of the last line. What doesn't fit in n lines,
 // or a word longer than a line, such as a branch name, is cut.
 func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
-	keys := k.answers()
+	_, keys := c.keys(st, k)
 	room := w - ansi.StringWidth(keys) - 1
 	if n <= 1 || room < 1 {
 		return []string{c.Line(st, k, w)}
@@ -151,7 +187,7 @@ func (c Confirm) Lines(st ConfirmStyles, k ConfirmKeys, w, n int) []string {
 		if i < last {
 			lines[i] = Fit(termtext.Truncate(l, w, st.ellipsis()), w)
 		} else {
-			lines[i] = Spread(l, st.Keys.Render(keys), w, st.ellipsis())
+			lines[i] = Spread(l, keys, w, st.ellipsis())
 		}
 	}
 	return lines
@@ -188,6 +224,26 @@ func (k ConfirmKeys) answers() string {
 	return strings.Join(keys, "/")
 }
 
+// keys renders what stands against the right edge: the answers, and, after
+// the separator, the key that gives the default and what it answers, such
+// as "y/n · enter: no". plain is the same without styles. Without a default
+// key there is only the answers.
+func (c Confirm) keys(st ConfirmStyles, k ConfirmKeys) (plain, styled string) {
+	plain, styled = k.answers(), st.Keys.Render(k.answers())
+	dk := k.Default.Help().Key
+	if dk == "" {
+		return plain, styled
+	}
+	answer := "no"
+	if c.Default {
+		answer = "yes"
+	}
+	sep := Icons{Separator: st.Separator}.OrUnicode().Separator
+	plain += sep + dk + ": " + answer
+	styled += st.Keys.Render(sep) + st.DefaultKey.Render(dk) + st.Keys.Render(": "+answer)
+	return plain, styled
+}
+
 // OverLastLines returns view with its last lines replaced by lines, such
 // as the question of a Confirm over the bottom of a modal.
 func OverLastLines(view string, lines []string) string {
@@ -214,6 +270,9 @@ type ConfirmModal struct {
 	// answered is set once the user answered, so that a second yes, such
 	// as a repeated key, arriving before the modal closes does nothing.
 	answered bool
+	// armed is set once Init's message came back: until then the default
+	// key answers nothing.
+	armed bool
 	// view is rendered whenever the size or the styles change.
 	view string
 }
@@ -222,6 +281,11 @@ type ConfirmModal struct {
 // with the ellipsis of ic where it must be.
 func NewConfirmModal(c Confirm, keys ConfirmKeys, ic Icons) *ConfirmModal {
 	return &ConfirmModal{ask: c, keys: keys, icons: ic}
+}
+
+// OpenConfirm opens the modal that asks c, and arms it once it is open.
+func OpenConfirm(c Confirm, keys ConfirmKeys, ic Icons) tea.Cmd {
+	return OpenModalLoading(NewConfirmModal(c, keys, ic), nil, Arm())
 }
 
 // Title implements Modal.
@@ -237,11 +301,15 @@ func (m *ConfirmModal) Update(msg tea.Msg) tea.Cmd {
 		s.ReloadIcons(&m.icons)
 		return nil
 	}
+	if IsArm(msg) {
+		m.armed = true
+		return nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok || m.answered {
 		return nil
 	}
-	cmd, done := m.keys.Answer(m.ask, k)
+	cmd, done := m.keys.Answer(m.ask, k, m.armed)
 	if !done {
 		return nil
 	}
@@ -262,7 +330,8 @@ func (m *ConfirmModal) SetSize(width, height int) {
 // Fit implements Fitter: as wide as the question and its keys, or as wide
 // as there is room for and on as many lines as the question wraps to.
 func (m *ConfirmModal) Fit(maxWidth, maxHeight int) (width, height int) {
-	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(m.keys.answers()))
+	plain, _ := m.ask.keys(m.st, m.keys)
+	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(plain))
 	return w, min(maxHeight, len(m.ask.Lines(m.st, m.keys, w, ConfirmLines)))
 }
 

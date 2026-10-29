@@ -111,6 +111,7 @@ func (m *panesModal) pressOverlay(msg tea.Msg) tea.Cmd {
 // ask opens the question c over the panes.
 func (m *panesModal) ask(c ui.Confirm) {
 	m.open(&confirmOverlay{m: m, c: c})
+	m.arm = ui.Arm()
 }
 
 // placed returns where the overlay on top lies in the panes' area.
@@ -185,11 +186,12 @@ func (m *panesModal) overlayFooter() string {
 }
 
 // confirmOverlay asks a question, which y answers with yes and n or esc with
-// no. Enter does nothing.
+// no, and enter with its default once it is armed.
 type confirmOverlay struct {
-	m    *panesModal
-	c    ui.Confirm
-	done bool
+	m     *panesModal
+	c     ui.Confirm
+	done  bool
+	armed bool
 }
 
 func (o *confirmOverlay) title() string           { return "Confirm" }
@@ -210,6 +212,10 @@ func (o *confirmOverlay) layers() []keyhelp.Layer {
 }
 
 func (o *confirmOverlay) update(msg tea.Msg) tea.Cmd {
+	if ui.IsArm(msg) {
+		o.armed = true
+		return nil
+	}
 	press, ok := msg.(tea.KeyPressMsg)
 	if !ok || o.done {
 		return nil
@@ -218,7 +224,7 @@ func (o *confirmOverlay) update(msg tea.Msg) tea.Cmd {
 		o.done = true
 		return o.m.close()
 	}
-	cmd, done := o.m.keys.confirm.Answer(o.c, press)
+	cmd, done := o.m.keys.confirm.Answer(o.c, press, o.armed)
 	o.done = done
 	return cmd
 }

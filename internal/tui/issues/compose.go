@@ -139,8 +139,7 @@ func (m *detailModal) submitComment(typed string) tea.Cmd {
 		}
 		return m.comment(body)
 	})
-	m.ask = &ask
-	return nil
+	return m.asks(ask)
 }
 
 // comment returns posting body as a comment on the issue as a question,
@@ -193,8 +192,7 @@ func (m *detailModal) submitLabels(typed string) tea.Cmd {
 		}
 		return m.labels(typed)
 	})
-	m.ask = &ask
-	return nil
+	return m.asks(ask)
 }
 
 // labels returns making the issue's labels the names in typed as a

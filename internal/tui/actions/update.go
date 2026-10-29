@@ -43,6 +43,10 @@ func (m *Modal) over(cmd tea.Cmd) tea.Cmd {
 }
 
 func (m *Modal) update(msg tea.Msg) tea.Cmd {
+	if ui.IsArm(msg) {
+		m.armed = m.ask != nil
+		return nil
+	}
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.opts.icons, m.opts.voice)

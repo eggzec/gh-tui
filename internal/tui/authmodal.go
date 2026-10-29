@@ -44,7 +44,10 @@ type authModal struct {
 	close   key.Binding
 	back    key.Binding
 	confirm ui.ConfirmKeys
-	voice   ui.Voice
+	// armed is set once the arm message came, so that an enter held from
+	// before the question shows answers nothing.
+	armed bool
+	voice ui.Voice
 	// icons mark what the token may do, and why it couldn't be read, in
 	// errs.
 	icons ui.Icons
@@ -110,13 +113,17 @@ func (m *authModal) Update(msg tea.Msg) tea.Cmd {
 		s.ReloadIcons(&m.icons, &m.voice)
 		return nil
 	}
+	if ui.IsArm(msg) {
+		m.armed = true
+		return nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return nil
 	}
 	if m.asks() {
 		c := ui.Confirm{Run: func() tea.Cmd { return m.run(m.plan.Cmd, m.access) }}
-		cmd, done := m.confirm.Answer(c, k)
+		cmd, done := m.confirm.Answer(c, k, m.armed)
 		if !done {
 			return nil
 		}
