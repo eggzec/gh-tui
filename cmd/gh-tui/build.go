@@ -308,11 +308,15 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		dashboard.WithPrefetch(cfg.Prefetch),
 		dashboard.WithSlots(slots),
 	}
+	searchPreviews := searchsvc.NewPreviews(client, searchsvc.WithTTL(ttl.RepoInfo), searchsvc.WithCapacity(mem.Entries))
 	searchOpts := []searchpage.Option{
 		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
 		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch), searchpage.WithSlots(slots),
 		searchpage.WithPreviewReader(searchpage.NewPreviewReader(searchpage.PreviewServices{
-			Repos: reposvc.NewPreviews(client, reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries)),
+			Repos:    reposvc.NewPreviews(client, reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries)),
+			Users:    searchPreviews,
+			Commits:  searchPreviews,
+			Ellipsis: icons.Ellipsis,
 		})),
 	}
 	layout := tui.Layout{

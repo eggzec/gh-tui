@@ -194,6 +194,7 @@ var restCalls = []restCall{
 	{Func: "RepoReadme", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/readme", Accept: rawAccept},
 	{Func: "LatestRelease", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/latest", Decode: restRelease{}},
 	{Func: "OrgFollowers", Method: http.MethodGet, Path: "/users/{username}", Decode: restFollowers{}},
+	{Func: "GetUserProfile", Method: http.MethodGet, Path: "/users/{username}", Decode: restProfile{}},
 	{Func: "ListTeamMembers", Method: http.MethodGet, Path: "/orgs/{org}/teams/{team_slug}/members", Query: []string{"per_page"}, Decode: []restTeamMember{}},
 }
 
