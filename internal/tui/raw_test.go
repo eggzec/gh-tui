@@ -176,6 +176,23 @@ func TestCommandKeyOverTheFilePreview(t *testing.T) {
 	}
 }
 
+// Esc closes the file preview at once, over a search it shows, through the
+// app's dismiss key.
+func TestEscClosesTheFilePreviewOverASearch(t *testing.T) {
+	t.Parallel()
+	m := newKeysApp(t, true)
+	pressKeys(t, m, "down", "enter", "/")
+	typeKeys(m, "e")
+	driveKeys(t, m, m.key(enter))
+	if m.modals.Top() == nil {
+		t.Fatal("no preview open")
+	}
+	pressKeys(t, m, "esc")
+	if m.modals.Top() != nil {
+		t.Errorf("esc left %T open over a search", m.modals.Top())
+	}
+}
+
 // Over the file preview, raw and the commands that don't touch what is
 // behind it run; the rest say to close the file first.
 func TestCommandsOverTheFilePreview(t *testing.T) {
