@@ -195,8 +195,8 @@ func (m *Modal) jobsWant() int {
 	if note, ok := m.jobsNote(m.inner); ok {
 		return len(note)
 	}
-	n := m.linesSpan(0, len(m.jobs.lines))
-	if m.jobs.more {
+	n := m.linesSpan(0, len(m.cur().lines))
+	if m.cur().more {
 		n++
 	}
 	return n
@@ -278,10 +278,10 @@ func (m *Modal) runFacts(w int) []string {
 	if r.Attempt > 1 {
 		add(sub(ic.Changed), "Attempt", strconv.Itoa(r.Attempt))
 	}
-	if m.jobs.err != nil && !m.jobs.loaded {
+	if m.cur().err != nil && !m.cur().loaded {
 		// The tree has room for only a cut of the error; it reads whole here.
 		lines = append(lines, "")
-		lines = append(lines, m.errorLines("load the jobs", jobview.RunName(r), m.jobs.err, w)...)
+		lines = append(lines, m.errorLines("load the jobs", jobview.RunName(r), m.cur().err, w)...)
 	}
 	return lines
 }
@@ -292,8 +292,8 @@ func (m *Modal) runFacts(w int) []string {
 func (m *Modal) jobsSpan(now time.Time) string {
 	var start, end time.Time
 	running := false
-	for i := range m.jobs.items {
-		j := &m.jobs.items[i]
+	for i := range m.cur().items {
+		j := m.cur().items[i]
 		if j.StartedAt.IsZero() {
 			continue
 		}

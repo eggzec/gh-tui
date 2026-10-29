@@ -33,7 +33,7 @@ func (a *app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.done = append(a.done, msg)
 	}
 	cmd := a.modal.Update(msg)
-	if a.ready != nil && a.modal.jobs.loaded {
+	if a.ready != nil && a.modal.cur().loaded {
 		close(a.ready)
 		a.ready = nil
 	}

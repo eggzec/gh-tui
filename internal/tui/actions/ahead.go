@@ -47,7 +47,7 @@ func (m *Modal) cachedJobs(q actionssvc.JobsQuery) bool {
 // likely opened; a log can run to megabytes, so the others are left. The
 // log overlay reads the log of the job it opens itself.
 func (m *Modal) readLogsAround() tea.Cmd {
-	j := &m.jobs
+	j := m.cur()
 	at := func(k int) (int64, bool) {
 		if k == j.cursor || k >= len(j.lines) || j.lines[k].group != nil {
 			return 0, false
