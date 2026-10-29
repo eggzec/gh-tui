@@ -1081,13 +1081,13 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		do   func()
 		want string
 	}{
-		{"start", keys(), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"start", keys(), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		{"tab", keys("tab"), "tab pane, R rerun failed, E rerun all, o browser"},
-		{"back", keys("backspace"), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"back", keys("backspace"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		// The run in progress can be cancelled, not run again.
-		{"running run", keys("j"), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, X cancel run, o browser"},
-		{"unfolded run", keys("k", "enter"), "↑/k up, ↓/j down, ↵ fold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
-		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↑/k up, ↓/j down, ↵ log, J rerun job, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"running run", keys("j"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, X cancel run, o browser"},
+		{"unfolded run", keys("k", "enter"), "↵ fold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↵ log, J rerun job, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		// The log is an overlay with the keys of its own.
 		{"log", keys("enter"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
 		{"annotations", keys("A"), "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},

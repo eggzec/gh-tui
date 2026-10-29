@@ -289,7 +289,11 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	}
 	runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter, k.RerunJob}, Short: []key.Binding{k.Select, k.RerunJob, k.Filter}}
 	list, _ := ui.FeedLayer(m.runs)
-	return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
+	merged := ui.MergeLayers(ctxRuns, runs, list)
+	// The action of the row comes before the moves of the list: a narrow
+	// status line sheds hints from its end, and the moves are the ones to go.
+	merged.Short = slices.Concat([]key.Binding{k.Select, k.RerunJob}, list.Short, []key.Binding{k.Filter})
+	return []keyhelp.Layer{screen, merged}
 }
 
 // selectLabel names what select does on the row under the cursor: it opens
