@@ -241,7 +241,19 @@ func (m *Modal) feedRuns(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	m.dropJobsOf()
-	return tea.Batch(cmd, m.selectRun(), m.readJobsAround())
+	sel := m.selectRun()
+	// A run opened or folded, or one that left the feed, changes what to keep
+	// up to date.
+	m.follow()
+	return tea.Batch(cmd, sel, m.readJobsAround(), m.startTick())
+}
+
+// shownAt is where the cursor was, a run and the row of its jobs, when the job
+// shown was last chosen.
+type shownAt struct {
+	run int64
+	k   int
+	ok  bool
 }
 
 // cursorRun returns the run under the cursor, or the run a job row is of.
@@ -309,8 +321,14 @@ func (m *Modal) selectRun() tea.Cmd {
 	if m.hasRun && r.ID == m.run.ID {
 		m.run = r
 		// The cursor may have moved among the jobs of the run.
-		return m.showJob()
+		_, k, onChild := m.runs.SelectedChild()
+		if at := (shownAt{r.ID, k, onChild}); at != m.at {
+			m.at = at
+			return m.showJob()
+		}
+		return nil
 	}
+	m.at = shownAt{}
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
 	j := m.entry(r)
@@ -343,6 +361,7 @@ func (m *Modal) selectRun() tea.Cmd {
 // clearRun forgets the run shown, for a new list of runs.
 func (m *Modal) clearRun() {
 	m.run, m.hasRun = core.Run{}, false
+	m.at = shownAt{}
 	m.noteCursor, m.noteTop = 0, 0
 	m.unfollow()
 }

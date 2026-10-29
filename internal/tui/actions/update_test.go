@@ -932,12 +932,93 @@ func TestFollowsTheRunShownWhileItRuns(t *testing.T) {
 		t.Fatalf("follows %v, want the running run", fl.started)
 	}
 	h.keys("j")
-	if !slices.Equal(fl.stopped, []int64{runningRun}) || m.following != 0 {
+	if !slices.Equal(fl.stopped, []int64{runningRun}) || len(m.follows) != 0 {
 		t.Errorf("stopped %v on a done run, want the running one stopped", fl.stopped)
 	}
 	h.keys("k", "esc")
 	if !slices.Equal(fl.stopped, []int64{runningRun, runningRun}) {
 		t.Errorf("stopped %v, want the run stopped once the modal closed", fl.stopped)
+	}
+}
+
+func TestPollUpdatesAnOpenRunNotUnderTheCursor(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "enter", "k") // unfold the running run, then leave it
+	if m.run.ID == runningRun {
+		t.Fatalf("the cursor is still on run %d", runningRun)
+	}
+	if len(fl.stopped) != 0 || !slices.Contains(fl.started, runningRun) {
+		t.Fatalf("started %v, stopped %v, want the open running run followed", fl.started, fl.stopped)
+	}
+	jobs := testJobs()[runningRun]
+	jobs[0].Steps[1].Status, jobs[0].Steps[1].Conclusion = core.RunCompleted, core.ConclusionSuccess
+	f.setJobs(runningRun, jobs)
+	h.send(ui.SyncMsg{Key: actionssvc.RunSyncKey(repo, runningRun)})
+	got := m.jobsOf[runningRun].items
+	if len(got) == 0 || got[0].Steps[1].Status != core.RunCompleted {
+		t.Errorf("the poll didn't update the open run's jobs: %+v", got)
+	}
+}
+
+func TestPollLeavesACollapsedRunAlone(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "k") // the running run is shown, then left folded
+	if !slices.Equal(fl.stopped, []int64{runningRun}) || len(m.follows) != 0 {
+		t.Errorf("stopped %v, follows %d, want the folded run not followed", fl.stopped, len(m.follows))
+	}
+	reads := len(f.jobReads)
+	h.send(ui.SyncMsg{Key: actionssvc.RunSyncKey(repo, runningRun)})
+	if len(f.jobReads) != reads {
+		t.Errorf("a folded run's poll read its jobs: %v", f.jobReads)
+	}
+}
+
+func TestAttemptChangeKeepsTheOpenRun(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "enter", "k")
+	run, _ := f.CachedRun(repo, runningRun)
+	run.Attempt++
+	f.setRun(run)
+	h.send(ui.SyncMsg{Key: actionssvc.RunSyncKey(repo, runningRun)})
+	if j := m.jobsOf[runningRun]; j == nil || j.attempt != run.Attempt {
+		t.Fatalf("entry %+v, want the new attempt %d", j, run.Attempt)
+	}
+	var open bool
+	for _, r := range m.runs.UnfoldedItems() {
+		open = open || r.ID == runningRun
+	}
+	if !open {
+		t.Error("the new attempt folded the run")
+	}
+}
+
+func TestReloadDropsTheRunsThatLeftTheFeed(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "enter", "k")
+	if m.jobsOf[runningRun] == nil {
+		t.Fatal("the open run has no jobs")
+	}
+	f.mu.Lock()
+	f.runs = slices.DeleteFunc(f.runs, func(r core.Run) bool { return r.ID == runningRun })
+	f.mu.Unlock()
+	h.send(ui.SyncMsg{Key: actionssvc.SyncKey(repo)})
+	if m.jobsOf[runningRun] != nil {
+		t.Error("the run that left the feed kept its jobs")
+	}
+	if !slices.Contains(fl.stopped, runningRun) || m.follows[runningRun] != nil {
+		t.Errorf("stopped %v, want the run that left the feed unfollowed", fl.stopped)
 	}
 }
 

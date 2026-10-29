@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -62,7 +63,10 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		if msg.id != m.id {
 			return nil
 		}
-		return tea.Batch(m.receiveJobs(msg), m.startTick())
+		cmd := m.receiveJobs(msg)
+		// An open run whose jobs arrived may be one to keep up to date.
+		m.follow()
+		return tea.Batch(cmd, m.startTick())
 	case notesMsg:
 		if msg.id != m.id {
 			return nil
@@ -243,10 +247,10 @@ func (m *Modal) moveFocus(d int) tea.Cmd {
 	const stops = numPanes
 	at := int(m.focus)
 	if m.notes {
-		at = numPanes - 1
+		at = int(notesPane)
 	}
 	at = (at + d + stops) % stops
-	if at == numPanes-1 {
+	if pane(at) == notesPane {
 		m.focusNotes()
 		return nil
 	}
@@ -256,7 +260,7 @@ func (m *Modal) moveFocus(d int) tea.Cmd {
 // focusBox focuses the box with the number n of the digit keys: the runs,
 // or the annotations.
 func (m *Modal) focusBox(n pane) tea.Cmd {
-	if n == 1 {
+	if n == notesPane {
 		m.focusNotes()
 		return nil
 	}
@@ -373,14 +377,40 @@ func (m *Modal) refresh() tea.Cmd {
 	return m.runs.Reload()
 }
 
-// rereadJobs reads the jobs of the run shown again.
+// rereadJobs reads the jobs of the run shown again, and those of the other
+// open runs whose jobs are loaded.
 func (m *Modal) rereadJobs() tea.Cmd {
 	if !m.hasRun {
 		return nil
 	}
 	m.seq++
 	m.cur().loading = true
-	return tea.Batch(m.readJobs(m.run), m.startSpinner())
+	cmds := []tea.Cmd{m.readJobs(m.run), m.startSpinner()}
+	open := m.openLoaded()
+	for i := range open {
+		cmds = append(cmds, m.rereadRun(open[i]))
+	}
+	return tea.Batch(cmds...)
+}
+
+// openLoaded returns the open runs, other than the one shown, whose jobs are
+// loaded, as the cache has them.
+func (m *Modal) openLoaded() []core.Run {
+	var out []core.Run
+	open := m.runs.UnfoldedItems()
+	for i := range open {
+		r := m.current(open[i])
+		if j := m.jobsOf[r.ID]; j != nil && j.loaded && (!m.hasRun || r.ID != m.run.ID) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// rereadRun reads the jobs of an open run that isn't shown again.
+func (m *Modal) rereadRun(r core.Run) tea.Cmd {
+	m.jobsOf[r.ID].loading = true
+	return tea.Batch(m.readJobs(r), m.startSpinner())
 }
 
 // online reads again, now that GitHub answers again, what failed for want
@@ -393,6 +423,13 @@ func (m *Modal) online() tea.Cmd {
 	if j := m.cur(); !j.loading && (ui.Unreached(j.err) || j.kept) {
 		j.kept = false
 		cmds = append(cmds, m.rereadJobs())
+	}
+	runs := m.openLoaded()
+	for i := range runs {
+		if j := m.jobsOf[runs[i].ID]; !j.loading && (ui.Unreached(j.err) || j.kept) {
+			j.kept = false
+			cmds = append(cmds, m.rereadRun(runs[i]))
+		}
 	}
 	return tea.Batch(cmds...)
 }
