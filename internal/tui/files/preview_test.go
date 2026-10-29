@@ -301,7 +301,7 @@ func TestPreviewFileFinds(t *testing.T) {
 	}
 }
 
-func TestPreviewFileClosesOverItsSearch(t *testing.T) {
+func TestPreviewFileEscClosesAtOnce(t *testing.T) {
 	sha := file("AGENTS.md", 0).SHA
 	open := func() *host {
 		h := newHost(newSection(t, sampleFake(), 40, 12))
@@ -313,18 +313,11 @@ func TestPreviewFileClosesOverItsSearch(t *testing.T) {
 	if h.top() != nil {
 		t.Error("esc should close a preview over the search it opened with")
 	}
-	// A search of the user's own is cleared first, as in any pager.
+	// So does one of the user's own.
 	h = open()
 	h.keys("/", "G", "u", "i", "d", "enter", "esc")
-	if h.top() == nil {
-		t.Fatal("esc closed the preview over the user's search, want it cleared")
-	}
-	if p := h.top().(*preview); p.pager.Query() != "" {
-		t.Errorf("search %q after esc, want it cleared", p.pager.Query())
-	}
-	h.keys("esc")
 	if h.top() != nil {
-		t.Error("esc should close the preview once the search is cleared")
+		t.Error("esc should close the preview at once over the user's search")
 	}
 }
 

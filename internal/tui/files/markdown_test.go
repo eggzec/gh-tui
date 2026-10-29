@@ -112,7 +112,8 @@ func TestPreviewSearchesTheRenderedText(t *testing.T) {
 	if p.pager.Matches() != 1 {
 		t.Errorf("%d matches of the rendered text, want 1:\n%s", p.pager.Matches(), h.modal())
 	}
-	h.keys("esc")
+	h = openRow(t, f, rowAgents)
+	p = h.top().(*preview)
 	h.keys(strings.Split("/**bold**", "")...)
 	h.keys("enter")
 	if p.pager.Matches() != 0 {
