@@ -21,6 +21,8 @@ type settings struct {
 	wrap           bool
 	highlightLimit int
 	errorText      func(error) (text, hint string)
+	// rows are the rows of a host, shown from the start, or nil.
+	rows Rows
 	// numbersNote and chopNote explain the line numbers and the chopping
 	// of rendered content, or are empty.
 	numbersNote, chopNote string

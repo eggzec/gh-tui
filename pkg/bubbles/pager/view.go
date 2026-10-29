@@ -104,7 +104,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 	rows := 0
 	for p := m.top; p < m.count() && rows < h; p++ {
 		i := m.at(p)
-		s := m.lines[i]
+		s := m.rows.Text(i)
 		if pic, ok := m.pics[i]; ok {
 			m.writeGutter(b, i, true, gw)
 			if m.left > 0 {
@@ -194,11 +194,11 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 // writeSpan writes bytes a to e of line i in the colors of their tokens,
 // or of the matches over them.
 func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
-	if m.sgr != nil {
+	if m.rows.Marks(i) != nil {
 		m.writeStyled(b, i, a, e)
 		return
 	}
-	s := m.lines[i]
+	s := m.rows.Text(i)
 	var spans []syntax.Span
 	if i < len(m.spans) {
 		spans = m.spans[i]
@@ -251,7 +251,7 @@ func (m Model) statusLine() string {
 	case m.projecting && m.want.filter.re != nil:
 		parts = append(parts, m.esc.status.wrap("filtering"+m.styles.Ellipsis))
 	case m.proj.filter.re != nil:
-		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("filtered %d/%d", m.kept, len(m.lines))))
+		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("filtered %d/%d", m.kept, m.rows.Len())))
 	}
 	switch s := m.search; {
 	case s.running:
@@ -269,8 +269,8 @@ func (m Model) statusLine() string {
 		// as the gutter and less do while a filter hides some: the
 		// percent is how far into the content the last line in the
 		// window is.
-		pct := (m.at(m.bottom()) + 1) * 100 / len(m.lines)
-		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, len(m.lines), pct)))
+		pct := (m.at(m.bottom()) + 1) * 100 / m.rows.Len()
+		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, m.rows.Len(), pct)))
 	}
 	left := m.nameView
 	switch {

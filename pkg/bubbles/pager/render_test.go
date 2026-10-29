@@ -382,7 +382,7 @@ func TestRenderedWaitsOutAResize(t *testing.T) {
 
 // firstWord returns the first word of the line at the top of the window.
 func firstWord(m Model) string {
-	return strings.Fields(m.lines[m.topLine()])[0]
+	return strings.Fields(m.rows.Text(m.topLine()))[0]
 }
 
 // The place in rendered content is the same text at another width, and
@@ -416,7 +416,7 @@ func TestRenderedKeepsTheMatchAcrossWidths(t *testing.T) {
 	m, _ = deliver(m, enter)
 	m, _ = keys(t, m, "n", "n", "n", "n")
 	cur, curLine := m.search.cur, m.search.curLine
-	text := m.lines[curLine]
+	text := m.rows.Text(curLine)
 	m.top = m.Lines() / 2
 	top := m.top
 	for _, w := range []int{60, 20, 30} {
@@ -425,7 +425,7 @@ func TestRenderedKeepsTheMatchAcrossWidths(t *testing.T) {
 			t.Errorf("at %d cells the current match is %d, want %d", w, m.search.cur, cur)
 		}
 	}
-	if m.search.curLine != curLine || m.lines[curLine] != text {
+	if m.search.curLine != curLine || m.rows.Text(curLine) != text {
 		t.Errorf("back at 30 cells the match is on line %d, want %d", m.search.curLine, curLine)
 	}
 	if m.top != top {

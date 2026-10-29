@@ -165,7 +165,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.clamp()
 	m.search.top, m.search.row = m.top, m.row
 	if m.size < syncLimit {
-		lines, ends, _ := find(context.Background(), re, invert, m.lines, m.vis)
+		lines, ends, _ := find(context.Background(), re, invert, m.rows, m.vis)
 		m.found(lines, ends)
 		return nil
 	}
@@ -173,7 +173,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.stopSearch = cancel
 	m.search.running = true
 	m.enableSearchKeys()
-	id, qgen, all, vis := m.id, m.qgen, m.lines, m.vis
+	id, qgen, all, vis := m.id, m.qgen, m.rows, m.vis
 	return func() tea.Msg {
 		defer cancel()
 		lines, ends, err := find(ctx, re, invert, all, vis)
@@ -188,9 +188,9 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 // vis shows, or of all of them for a nil vis, and the number of matches in
 // them and every line before, until ctx is done. With invert, it returns
 // the lines that re doesn't match, each a match of its own.
-func find(ctx context.Context, re *regexp.Regexp, invert bool, all []string, vis []int32) (lines, ends []int32, err error) {
+func find(ctx context.Context, re *regexp.Regexp, invert bool, all Rows, vis []int32) (lines, ends []int32, err error) {
 	var n int32
-	count := len(all)
+	count := all.Len()
 	if vis != nil {
 		count = len(vis)
 	}
@@ -204,7 +204,7 @@ func find(ctx context.Context, re *regexp.Regexp, invert bool, all []string, vis
 		if vis != nil {
 			i = int(vis[p])
 		}
-		l := all[i]
+		l := all.Text(i)
 		var k int
 		switch {
 		case !invert:
@@ -293,7 +293,7 @@ func (m *Model) jump(i int) {
 	// An inverted search matches whole lines, from their first row.
 	var ranges [][]int
 	if !s.invert {
-		ranges = lineMatches(s.re, m.lines[s.curLine])
+		ranges = lineMatches(s.re, m.rows.Text(s.curLine))
 		if len(ranges) <= nth {
 			// The count and the ranges come from the same regexp, so only
 			// content changed behind the search's back gets here.
@@ -308,7 +308,7 @@ func (m *Model) jump(i int) {
 		m.top, m.row = p, r
 	}
 	if ranges != nil && !m.wrap {
-		line := m.lines[s.curLine]
+		line := m.rows.Text(s.curLine)
 		_, from := wrap.Advance(line[:ranges[nth][0]], 0, math.MaxInt)
 		_, to := wrap.Advance(line[:ranges[nth][1]], 0, math.MaxInt)
 		if tw := m.textWidth(); from < m.left || to > m.left+tw {
@@ -335,12 +335,12 @@ func (m *Model) findHits() {
 	for p := top; p <= bottom; p++ {
 		i := m.at(p)
 		if m.search.invert {
-			if !re.MatchString(m.lines[i]) {
+			if !re.MatchString(m.rows.Text(i)) {
 				lines = append(lines, lineHits{line: i})
 			}
 			continue
 		}
-		all := lineMatches(re, m.lines[i])
+		all := lineMatches(re, m.rows.Text(i))
 		a, e := m.shown(p)
 		first, _ := slices.BinarySearchFunc(all, a+1, func(r []int, pos int) int { return r[1] - pos })
 		end := first
@@ -358,7 +358,7 @@ func (m *Model) findHits() {
 // shown returns the bytes a to e of the line shown at p that the window
 // shows.
 func (m Model) shown(p int) (a, e int) {
-	s, tw := m.lines[m.at(p)], m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.textWidth()
 	if !m.wrap {
 		a, _ = m.leftEdge(s)
 		e, _ = wrap.Advance(s, a, tw)
