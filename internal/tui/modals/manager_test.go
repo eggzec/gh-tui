@@ -144,7 +144,7 @@ func TestAddRules(t *testing.T) {
 			}
 			if tt.refused != modals.NotRefused {
 				if ch.Named != before {
-					t.Errorf("blocker = %v, want the top", ch.Named)
+					t.Errorf("named = %v, want the top", ch.Named)
 				}
 				if f := fakeOf(req); f.discards+f.hides+f.themes+len(f.sizes) != 0 {
 					t.Errorf("a refused modal was called: %+v", f)

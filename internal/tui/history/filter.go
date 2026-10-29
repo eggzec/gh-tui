@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // fieldBranch is the key of the branch field of the filter.
@@ -15,7 +16,7 @@ const fieldBranch = "branch"
 func (m *Modal) openFilter() tea.Cmd {
 	b := &m.branches
 	if !b.loaded {
-		return nil
+		return ui.Notify(toast.Info, "The branches are still loading.")
 	}
 	b.wanted = true
 	if cmd := m.openWanted(); cmd != nil {
@@ -26,14 +27,19 @@ func (m *Modal) openFilter() tea.Cmd {
 
 // openWanted opens the filter that waits for the branches, if the last page
 // is read or the read failed, and then waits no more. It also waits no more
-// once the cursor moves or another pane takes the focus.
+// once the cursor moves or another pane takes the focus: wanted resets on
+// either. A failed read opens it with the branches read so far, and says so.
 func (m *Modal) openWanted() tea.Cmd {
 	b := &m.branches
 	if !b.wanted || b.loading || (b.next != "" && b.err == nil) {
 		return nil
 	}
 	b.wanted = false
-	return ui.OpenModalOver(m.filterModal(), m)
+	open := ui.OpenModalOver(m.filterModal(), m)
+	if b.err != nil {
+		return tea.Batch(open, ui.Notify(toast.Warning, "The branch list is partial: reading it failed."))
+	}
+	return open
 }
 
 // filterModal returns the filter over the modal.

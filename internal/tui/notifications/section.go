@@ -5,6 +5,7 @@ package notifications
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"strconv"
 	"sync"
@@ -266,6 +267,9 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 	q.Again = again
 	var all core.Page[core.Notification]
 	for n := 1; ; n++ {
+		if err := ctx.Err(); err != nil {
+			return core.Page[core.Notification]{}, err
+		}
 		p, err := s.svc.List(ctx, q)
 		if err != nil {
 			return core.Page[core.Notification]{}, err
@@ -275,6 +279,9 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 		all.Stale = all.Stale || p.Stale
 		all.Offline = all.Offline || p.Offline
 		all.Limited = all.Limited || p.Limited
+		if p.Next != "" && n == maxPages {
+			slog.InfoContext(ctx, "notifications: page cap reached", "span", "tui.notifications", "pages", n)
+		}
 		if p.Next == "" || n == maxPages || p.Offline || p.Limited {
 			break
 		}

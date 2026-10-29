@@ -78,6 +78,21 @@ func TestOpenRowsOverTheFilter(t *testing.T) {
 			}
 		})
 	})
+	t.Run("a refused open runs no load", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := keysAfter(t, true, steps...)
+			filter := m.modals.Top()
+			loads := 0
+			load := func() tea.Msg { loads++; return nil }
+			driveKeys(t, m, ui.OpenModalLoading(&topList{}, filter, load))
+			if m.modals.Top() != filter {
+				t.Fatalf("the open left %v, want the filter", topType(m))
+			}
+			if loads != 0 {
+				t.Errorf("the refused open ran its load %d times, want none", loads)
+			}
+		})
+	})
 	for _, tt := range []struct {
 		name string
 		open func(m *Model) tea.Cmd
@@ -129,22 +144,24 @@ func TestGotoNumberOverAModal(t *testing.T) {
 // under it.
 func TestConfirmOverModalsReturn(t *testing.T) {
 	t.Parallel()
-	for _, steps := range [][]string{
-		{"global.pane_2", "global.select"},
-		{"global.pane_2", "global.select", "pull_modal.merge"},
+	for name, steps := range map[string][]string{
+		"pull request modal": {"global.pane_2", "global.select"},
+		"merge dialog":       {"global.pane_2", "global.select", "pull_modal.merge"},
 	} {
-		synctest.Test(t, func(t *testing.T) {
-			m := keysAfter(t, true, steps...)
-			under := m.modals.Top()
-			ask := ui.NewConfirmModal(ui.Confirm{Question: "Sure?"}, ui.NewConfirmKeys(m.cfg.Keys), ui.Icons{})
-			driveKeys(t, m, ui.OpenModal(ask))
-			if m.modals.Top() != ask {
-				t.Fatalf("the confirm didn't open over %v: %v", topType(m), steps)
-			}
-			tap(t, m, "esc")
-			if m.modals.Top() != under {
-				t.Errorf("esc left %v, want the one under the confirm", topType(m))
-			}
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				m := keysAfter(t, true, steps...)
+				under := m.modals.Top()
+				ask := ui.NewConfirmModal(ui.Confirm{Question: "Sure?"}, ui.NewConfirmKeys(m.cfg.Keys), ui.Icons{})
+				driveKeys(t, m, ui.OpenModal(ask))
+				if m.modals.Top() != ask {
+					t.Fatalf("the confirm didn't open over %v: %v", topType(m), steps)
+				}
+				tap(t, m, "esc")
+				if m.modals.Top() != under {
+					t.Errorf("esc left %v, want the one under the confirm", topType(m))
+				}
+			})
 		})
 	}
 }
