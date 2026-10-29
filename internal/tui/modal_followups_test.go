@@ -87,8 +87,8 @@ func TestRootFilterFindsTheTopModalsList(t *testing.T) {
 	for name, msg := range map[string]tea.Msg{"filter": ui.OpenFilterMsg{}, "sort": ui.OpenSortMsg{}} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			m, pulls, _ := newFilterApp(t)
-			top := &topList{}
+			m, section, _ := newFilterApp(t)
+			top :=&topList{}
 			top.title = "Actions"
 			run(m, ui.OpenModalOver(top, nil))
 			run(m, func() tea.Msg { return msg })
@@ -100,8 +100,8 @@ func TestRootFilterFindsTheTopModalsList(t *testing.T) {
 			if m.modals.Top() != top {
 				t.Errorf("esc left %v, want the modal the filter opened over", m.modals.Top())
 			}
-			if len(pulls.applied) != 0 {
-				t.Errorf("the section applied %d filters", len(pulls.applied))
+			if len(section.applied) != 0 {
+				t.Errorf("the section applied %d filters", len(section.applied))
 			}
 		})
 	}
@@ -115,8 +115,8 @@ func TestRootFilterFallsBackToTheSection(t *testing.T) {
 		for _, over := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s over a modal %v", name, over), func(t *testing.T) {
 				t.Parallel()
-				m, pulls, _ := newFilterApp(t)
-				pulls.sorts = true
+				m, section, _ := newFilterApp(t)
+				section.sorts = true
 				if over {
 					plain := &fakeModal{title: "Plain"}
 					run(m, ui.OpenModalOver(plain, nil))
