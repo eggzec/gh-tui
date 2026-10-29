@@ -12,9 +12,7 @@ import (
 // to the feed, the log and the form. Messages of other modals, such as the
 // one this replaced, are ignored.
 func (m *Modal) Update(msg tea.Msg) tea.Cmd {
-	cmd := m.update(msg)
-	m.fit()
-	return m.over(cmd)
+	return m.over(m.update(msg))
 }
 
 // over makes the modals that cmd opens, the filter, sort and group, open over
@@ -217,7 +215,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.asks(m.rerunFailed)
 	case keymap.Matches(msg, k.Rerun):
 		return m.asks(m.rerunAll)
-	case m.inJobs() && keymap.Matches(msg, k.RerunJob):
+	case m.inRuns() && m.cursorOnJobs() && keymap.Matches(msg, k.RerunJob):
 		return m.asks(m.rerunJob)
 	case keymap.Matches(msg, k.Cancel):
 		return m.asks(m.cancelRun)
@@ -230,39 +228,25 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Select):
 		return m.drill()
 	}
-	switch {
-	case m.notes:
+	if m.notes {
 		return m.pressNotes(msg)
-	case m.focus == runsPane:
-		if keymap.Matches(msg, m.keys.Jobs.Down) && m.rowsOf(jobsPane) > 0 && len(m.cur().lines) > 0 {
-			// Down from a run with jobs under it goes into them.
-			m.setFocus(jobsPane)
-			m.scrollJobs()
-			return m.showJob()
-		}
-		return m.updateRuns(msg)
 	}
-	return m.pressJobs(msg)
+	return m.updateRuns(msg)
 }
 
-// inRuns and inJobs report that the runs, or the jobs, have the focus.
+// inRuns reports that the runs have the focus.
 func (m *Modal) inRuns() bool { return !m.notes && m.focus == runsPane }
-func (m *Modal) inJobs() bool { return !m.notes && m.focus == jobsPane }
 
-// moveFocus moves the focus d stops on, round the ends: the runs, the jobs,
-// and the annotations.
+// moveFocus moves the focus d stops on, round the ends: the runs and the
+// annotations.
 func (m *Modal) moveFocus(d int) tea.Cmd {
-	const stops = numPanes + 1
+	const stops = numPanes
 	at := int(m.focus)
 	if m.notes {
-		at = numPanes
+		at = numPanes - 1
 	}
 	at = (at + d + stops) % stops
-	if pane(at) == jobsPane && m.rowsOf(jobsPane) <= 0 {
-		// The jobs have no room, or are folded: step over them.
-		at = (at + d + stops) % stops
-	}
-	if at == numPanes {
+	if at == numPanes-1 {
 		m.focusNotes()
 		return nil
 	}
@@ -303,42 +287,40 @@ func (m *Modal) setFocus(p pane) {
 	m.layout()
 }
 
-// drill focuses the jobs from the runs, and from the jobs folds the group
-// under the cursor, or opens the log of the job over the modal.
+// onJobRow reports whether the cursor is on a row of a job, not a group.
+func (m *Modal) onJobRow() bool {
+	return m.inRuns() && !m.onGroupRow() && m.cursorOnJobs()
+}
+
+// cursorOnJobs reports whether the cursor is on a row under a run.
+func (m *Modal) cursorOnJobs() bool {
+	_, _, ok := m.runs.SelectedChild()
+	return ok
+}
+
+// drill folds or opens a run or a group of jobs under the cursor, and opens
+// the log of a job over the modal. On the line that says there are more, and on
+// the note of loading, an error or no jobs, it does nothing.
 func (m *Modal) drill() tea.Cmd {
 	if m.notes {
 		return m.openNote()
 	}
-	switch m.focus {
-	case runsPane:
-		if cmd, more := m.runs.Activate(); more {
-			return cmd
-		}
-		if _, ok := m.runs.Selected(); !ok || !m.hasRun {
-			return nil
-		}
-		// A run folds its jobs away, or shows them again.
-		if m.shut == nil {
-			m.shut = map[int64]bool{}
-		}
-		m.shut[m.run.ID] = !m.shut[m.run.ID]
-		return nil
-	case jobsPane:
-		if m.cur().onGroup() {
-			m.cur().toggle()
-			m.scrollJobs()
-			return m.readLogsAround()
-		}
-		j, ok := m.cur().selected()
-		if !ok {
-			return nil
-		}
-		return m.openLog(j)
+	if m.onGroupRow() {
+		m.toggleGroup()
+		return m.readLogsAround()
 	}
-	return nil
+	if m.onJobRow() {
+		if j, ok := m.cursorJob(); ok {
+			return m.openLog(j)
+		}
+		return nil
+	}
+	cmd, _ := m.runs.Activate()
+	return cmd
 }
 
-// back steps back from the jobs to the runs. It does nothing on the runs.
+// back returns from the annotations to the runs, and from a job row to the
+// run it is of, as the collapse key does. It does nothing on a run.
 func (m *Modal) back() tea.Cmd {
 	// Backspace cancels the wait for the workflows as esc does.
 	m.workflows.wanted = false
@@ -346,10 +328,10 @@ func (m *Modal) back() tea.Cmd {
 		m.setFocus(m.focus)
 		return nil
 	}
-	if m.focus == runsPane {
-		return nil
+	if m.inRuns() && m.cursorOnJobs() {
+		// Always a step up, even from a group, which h would fold first.
+		return m.feedRuns(keymap.ActionPress(ctxRuns + ".collapse"))
 	}
-	m.setFocus(m.focus - 1)
 	return nil
 }
 
@@ -380,8 +362,13 @@ func (m *Modal) refresh() tea.Cmd {
 	if m.notes {
 		return m.rereadNotes()
 	}
-	if m.focus == jobsPane {
+	if m.cursorOnJobs() {
 		return tea.Batch(m.rereadJobs(), m.rereadNotes())
+	}
+	// The note of a run whose jobs failed to load sits under the run, and the
+	// refresh key it names must retry it.
+	if j := m.cur(); m.runs.Unfolded() && !j.loaded && j.err != nil {
+		return m.rereadJobs()
 	}
 	return m.runs.Reload()
 }
@@ -413,8 +400,8 @@ func (m *Modal) online() tea.Cmd {
 // open opens the run, or the job of the jobs, on GitHub. A group has no
 // page, so the run opens from it.
 func (m *Modal) open() tea.Cmd {
-	if m.inJobs() && !m.cur().onGroup() {
-		if j, ok := m.cur().selected(); ok && j.URL != "" {
+	if m.onJobRow() {
+		if j, ok := m.cursorJob(); ok && j.URL != "" {
 			return ui.Open(j.URL)
 		}
 	}

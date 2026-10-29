@@ -26,7 +26,7 @@ func TestTimersMoveOnWhileTheRunRuns(t *testing.T) {
 		if m.ticking {
 			t.Fatal("the timers run for a done run")
 		}
-		h.keys("enter", "j") // fold the first run, then the running one
+		h.keys("j") // the running run is the second, and starts folded
 		// The host ran the tick, a second of the fake clock, and holds it.
 		if !m.ticking || len(h.held) != 1 {
 			t.Fatalf("ticking %v with %d ticks, want the timers running", m.ticking, len(h.held))

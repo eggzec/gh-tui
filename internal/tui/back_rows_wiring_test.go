@@ -126,7 +126,7 @@ func TestJobLogQuitReturnsToTheActions(t *testing.T) {
 		svc := &logActions{}
 		m := newKeysAppOpts(t, true, func(*config.Config) {}, WithActions(actions.Opener(svc, config.Default().Keys)))
 		driveTicking(m, func() tea.Msg {
-			return ui.OpenActionsMsg{Repo: testRepo, At: ui.ActionsAt{Run: keyRun.ID, Job: keyJob.ID, Jobs: true}}
+			return ui.OpenActionsMsg{Repo: testRepo, At: ui.ActionsAt{Run: keyRun.ID, Job: keyJob.ID}}
 		})
 		host := m.modals.Top()
 		driveTicking(m, m.key(press("enter")))

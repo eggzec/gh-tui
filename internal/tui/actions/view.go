@@ -151,82 +151,25 @@ func (m *Modal) paneWidth(pane) int { return m.inner }
 // shown.
 func (m *Modal) rowsOf(p pane) int { return m.rows[p] }
 
-// layout sizes the bubbles to their panes, and keeps the row in focus of
-// the jobs in view.
+// layout sizes the bubbles to their panes.
 func (m *Modal) layout() {
 	aw, ah := m.area()
 	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom).Box(paneRuns, panes.Whole); ok {
 		in := b.Rect.Inner()
-		body := max(in.H-1, 0)
 		m.inner = in.W
-		m.rows[runsPane] = body
-		m.rows[jobsPane] = min(m.jobsWant(), max(body-1, 0))
+		m.rows[runsPane] = max(in.H-1, 0)
 	}
-	m.sizePanes()
-	// A footer under the runs, a prompt or a chip, takes a row of the feed;
-	// the run the jobs hang from must keep one.
-	for m.rowsOf(jobsPane) > 0 && m.runs.SelectedRow() < 0 {
-		m.rows[jobsPane]--
-		m.sizePanes()
-	}
-	m.scrollJobs()
-}
-
-// fit sizes the tree again when the rows the jobs take changed, as they do
-// when the jobs load, a run folds or a group opens. Other moves leave the
-// layout alone.
-func (m *Modal) fit() {
-	if min(m.jobsWant(), max(m.rowsOf(runsPane)-1, 0)) != m.rowsOf(jobsPane) ||
-		m.rowsOf(jobsPane) > 0 && m.runs.SelectedRow() < 0 {
-		m.layout()
-	}
-	// Jobs that have no room can't hold the focus.
-	if m.focus == jobsPane && m.hasRun && m.rowsOf(jobsPane) == 0 {
-		m.setFocus(runsPane)
-	}
-}
-
-// jobsWant is how many rows the jobs of the run under the cursor would take
-// under its row: none while there is no run or its jobs are folded away.
-func (m *Modal) jobsWant() int {
-	if !m.hasRun || m.shut[m.run.ID] {
-		return 0
-	}
-	if note, ok := m.jobsNote(m.inner); ok {
-		return len(note)
-	}
-	n := m.linesSpan(0, len(m.cur().lines))
-	if m.cur().more {
-		n++
-	}
-	return n
-}
-
-// sizePanes sizes the runs to what the jobs leave of the runs box.
-func (m *Modal) sizePanes() {
-	m.runs.SetSize(m.inner, max(m.rowsOf(runsPane)-m.rowsOf(jobsPane), 0))
+	m.runs.SetSize(m.inner, m.rowsOf(runsPane))
 }
 
 // runsBox renders the inside of the runs box, h lines of w cells: its title,
-// then the runs in one list, with the jobs of the run under the cursor in
-// the lines under its row.
+// then the runs and the jobs under them in one tree.
 func (m *Modal) runsBox(w, h int) []string {
 	lines := []string{m.paneTitle(runsPane, w)}
-	var runs []string
 	if m.runs.Height() > 0 {
-		runs = strings.Split(m.runs.View(), "\n")
+		lines = append(lines, strings.Split(m.runs.View(), "\n")...)
 	}
-	k := m.rowsOf(jobsPane)
-	if k <= 0 {
-		return ui.PadLines(append(lines, runs...), w, h)
-	}
-	at := m.runs.SelectedRow()
-	if at < 0 {
-		at = len(runs) - 1
-	}
-	lines = append(lines, runs[:at+1]...)
-	lines = append(lines, m.jobLines(w, k)...)
-	return ui.PadLines(append(lines, runs[at+1:]...), w, h)
+	return ui.PadLines(lines, w, h)
 }
 
 // notesLines renders the annotations box: the facts of the run, and what
@@ -325,8 +268,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 		st = m.st.focusTitle
 	}
 	var text, detail string
-	switch p {
-	case runsPane:
+	if p == runsPane {
 		text = "Runs"
 		if f := m.filterText(); f != "" {
 			detail = strings.TrimSpace(detail + m.st.ic.Separator + f)
@@ -335,8 +277,6 @@ func (m *Modal) paneTitle(p pane, w int) string {
 			off := ui.QueryChips(m.st.ic, ui.ChipSpec{Filter: ansi.Strip(queryOf(kept, m.workflows.items)), SortOn: true})
 			detail = strings.TrimSpace(detail + m.st.ic.Separator + strings.Join(off, m.st.ic.Separator))
 		}
-	case jobsPane:
-		text, detail = "Jobs", m.jobsTitle()
 	}
 	line := st.Render(text)
 	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {

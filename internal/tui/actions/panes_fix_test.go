@@ -1,58 +1,9 @@
 package actions
 
 import (
-	"fmt"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/eggzec/gh-tui/internal/core"
 )
-
-// manyJobs are n jobs of the failed run, named job-01 and on.
-func manyJobs(n int) []core.Job {
-	jobs := make([]core.Job, n)
-	for i := range jobs {
-		jobs[i] = job(int64(7000+i), failedRun, fmt.Sprintf("job-%02d", i+1), core.ConclusionSuccess, time.Hour, time.Minute)
-	}
-	return jobs
-}
-
-// With more jobs than the section has rows, the cursor stays in view as it
-// moves, and the line that says there are more jobs stays under them.
-func TestJobsScrollInTheirSection(t *testing.T) {
-	t.Parallel()
-	const n = 30
-	f := newFake()
-	f.moreJobs = true
-	f.setJobs(failedRun, manyJobs(n))
-	m, h := newModal(t, f, 80, 24)
-	h.keys("tab")
-	more := fmt.Sprintf("First %d jobs · o shows all", n)
-	for i := 1; i <= n; i++ {
-		if i > 1 {
-			h.keys("j")
-		}
-		s := screen(m)
-		if want := fmt.Sprintf("job-%02d", i); !strings.Contains(s, want) {
-			t.Fatalf("after %d presses of j the cursor job is out of view:\n%s", i-1, s)
-		}
-		if !strings.Contains(s, more) {
-			t.Fatalf("after %d presses of j the line of more jobs is gone:\n%s", i-1, s)
-		}
-	}
-
-	m, h = newModal(t, f, 80, 24)
-	h.keys("tab", "G")
-	s := screen(m)
-	if want := fmt.Sprintf("job-%02d", n); !strings.Contains(s, want) {
-		t.Errorf("G left the last job out of view:\n%s", s)
-	}
-	if !strings.Contains(s, more) {
-		t.Errorf("G hid the line of more jobs:\n%s", s)
-	}
-	assertFits(t, m.View(), 80, 24)
-}
 
 // The details of a run say when it started and how long it took, by its jobs.
 func TestRunDetailsStartedAndDuration(t *testing.T) {
@@ -79,7 +30,7 @@ func TestRunDetailsStartedAndDuration(t *testing.T) {
 func TestAnnotationsFocusActsOnTheRun(t *testing.T) {
 	t.Parallel()
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab")
+	h.toJobs(t)
 	if sel, _ := m.Selected(); sel.What != "job" {
 		t.Fatalf("with the jobs focused, Selected is %q, want job", sel.What)
 	}
@@ -88,8 +39,8 @@ func TestAnnotationsFocusActsOnTheRun(t *testing.T) {
 	if sel, _ := m.Selected(); sel.What != "run" {
 		t.Errorf("with the annotations focused, Selected is %q, want run", sel.What)
 	}
-	if m.inJobs() || m.inRuns() {
-		t.Errorf("with the annotations focused, the runs or the jobs have the focus")
+	if m.inRuns() {
+		t.Errorf("with the annotations focused, the runs have the focus")
 	}
 	if m.View() == focused {
 		t.Errorf("the jobs look the same with the annotations focused")
@@ -99,7 +50,7 @@ func TestAnnotationsFocusActsOnTheRun(t *testing.T) {
 func TestTinySizes(t *testing.T) {
 	t.Parallel()
 	for _, size := range [][2]int{{1, 1}, {20, 2}, {100, 3}, {100, 4}} {
-		for _, keys := range [][]string{nil, {"z"}, {"2"}, {"z", "2"}, {"tab", "2"}} {
+		for _, keys := range [][]string{nil, {"z"}, {"2"}, {"z", "2"}, {"enter", "j", "2"}} {
 			m, h := newModal(t, newFake(), size[0], size[1])
 			h.keys(keys...)
 			assertFits(t, m.View(), size[0], size[1])
@@ -124,9 +75,5 @@ func TestHelpOfPanes(t *testing.T) {
 	h.keys("2")
 	if k := m.keys.state(m); !k.Back.Enabled() || k.Back.Help().Desc != "runs" {
 		t.Errorf("Back from the annotations over the runs is %v %q, want runs", k.Back.Enabled(), k.Back.Help().Desc)
-	}
-	h.keys("1", "tab", "2")
-	if k := m.keys.state(m); !k.Back.Enabled() || k.Back.Help().Desc != "jobs" {
-		t.Errorf("Back from the annotations over the jobs is %v %q, want jobs", k.Back.Enabled(), k.Back.Help().Desc)
 	}
 }

@@ -45,10 +45,10 @@ type pane int
 
 const (
 	runsPane pane = iota
-	jobsPane
 )
 
-// numPanes is how many panes there are.
+// numPanes is how many boxes the focus moves through: the runs, with their
+// jobs under them, and the annotations.
 const numPanes = 2
 
 var lastID atomic.Int64
@@ -100,9 +100,6 @@ type Modal struct {
 	// and noteCursor and noteTop the cursor and the first row of their list.
 	ann                 map[int64]*noteRes
 	noteCursor, noteTop int
-	// shut holds the runs whose jobs the user folded away; the run under the
-	// cursor shows its jobs under its row otherwise.
-	shut map[int64]bool
 	// wantJob is the job the first jobs shown open on, until they are.
 	wantJob int64
 	// seq counts the moves of the cursor of the runs, so that only the
@@ -148,9 +145,6 @@ var _ ui.Modal = (*Modal)(nil)
 func Opener(svc Service, keys config.Keymap, opts ...Option) func(ctx context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
 	return func(ctx context.Context, repo core.RepoRef, f core.RunFilter, at ui.ActionsAt) (ui.Modal, tea.Cmd) {
 		opts := append(slices.Clip(opts), WithFilter(f), WithRun(at.Run), WithJob(at.Job))
-		if at.Jobs {
-			opts = append(opts, WithJobsFocused())
-		}
 		m := New(ctx, svc, repo, keys, opts...)
 		load := m.Init()
 		return m, load
@@ -206,9 +200,6 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap
 	}
 	m.wantJob = o.job
 	m.setFocus(runsPane)
-	if o.jobsFocused {
-		m.setFocus(jobsPane)
-	}
 	return m
 }
 
@@ -269,8 +260,8 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 		return ui.Selection{}, false
 	}
 	sel := ui.Selection{What: "run", URL: m.run.URL, Repo: m.repo, SHA: m.run.HeadSHA, Owner: m.repo.Owner}
-	if m.inJobs() && !m.cur().onGroup() {
-		if j, ok := m.cur().selected(); ok {
+	if m.onJobRow() {
+		if j, ok := m.cursorJob(); ok {
 			sel.What, sel.URL = "job", j.URL
 		}
 	}
@@ -296,26 +287,41 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	if m.notes {
 		return []keyhelp.Layer{screen}
 	}
-	own := keyhelp.Layer{Bindings: k.pane(k.RerunJob), Short: []key.Binding{k.Select, k.RerunJob}}
-	if m.focus == runsPane {
-		runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter}, Short: []key.Binding{k.Select, k.Filter}}
-		list, _ := ui.FeedLayer(m.runs)
-		return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
+	runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter, k.RerunJob}, Short: []key.Binding{k.Select, k.RerunJob, k.Filter}}
+	list, _ := ui.FeedLayer(m.runs)
+	return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, runs, list)}
+}
+
+// selectLabel names what select does on the row under the cursor: it opens
+// the log of a job, and folds or unfolds a run or a group of jobs.
+func (m *Modal) selectLabel() string {
+	switch {
+	case m.onJobRow():
+		return "log"
+	case m.onGroupRow():
+		j := m.cur()
+		k, _ := m.childOf(j)
+		return foldLabel(j.isOpen(j.lines[k].group.key))
 	}
-	return []keyhelp.Layer{screen, ui.MergeLayers(ctxRuns, own, keyhelp.FromHelp("", k.Jobs, false))}
+	return foldLabel(m.runs.Unfolded())
+}
+
+// foldLabel is "fold" for what is open, else "unfold".
+func foldLabel(open bool) string {
+	if open {
+		return "fold"
+	}
+	return "unfold"
 }
 
 // state returns k as the modal takes it now, named for what the keys do
-// in the focused pane: select drills into the pane after, or folds a
-// group of jobs, back names the pane before and is off on the runs, and a run offers
-// the changes that apply to it, if the viewer may make them.
+// on the row under the cursor: select folds, unfolds or opens the log, back
+// names the box before and is off on the runs, and a run offers the changes
+// that apply to it, if the viewer may make them.
 func (k KeyMap) state(m *Modal) KeyMap {
-	switch m.focus {
-	case runsPane:
-		k.Select = relabel(k.Select, "fold")
-		if m.shut[m.run.ID] {
-			k.Select = relabel(k.Select, "unfold")
-		}
+	// Enter folds a run or a group of jobs, and opens the log of a job.
+	k.Select = relabel(k.Select, m.selectLabel())
+	{
 		// A filter that is switched off is kept, so the keys have it to act on.
 		set := formFiltered(m.filter) || m.toggle.Off()
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && set)
@@ -328,22 +334,11 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		case m.runs.FilterQuery() != "":
 			k.Dismiss = relabel(k.Dismiss, "clear filter")
 		}
-	case jobsPane:
-		k.Back = relabel(k.Back, paneTitles[runsPane])
-		// Enter folds a group of jobs, and opens the log of a job.
-		k.Select = relabel(k.Select, "open")
-		if m.cur().onGroup() {
-			k.Select = relabel(k.Select, "fold")
-		}
 	}
 	if m.notes {
-		// Back leaves the annotations for the pane under them.
+		// Back leaves the annotations for the runs.
 		k.Back.SetEnabled(true)
-		if m.focus == jobsPane {
-			k.Back = relabel(k.Back, "jobs")
-		} else {
-			k.Back = relabel(k.Back, paneTitles[runsPane])
-		}
+		k.Back = relabel(k.Back, paneTitles[runsPane])
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
 	g := m.gate()
@@ -351,7 +346,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())
 	k.RerunFailed.SetEnabled(k.RerunFailed.Enabled() && done)
 	k.Rerun.SetEnabled(k.Rerun.Enabled() && done)
-	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.inJobs())
+	k.RerunJob.SetEnabled(k.RerunJob.Enabled() && done && m.onJobRow())
 	k.RerunJob = g.Gated(k.RerunJob, ui.ActRerun, nil)
 	k.Cancel, k.RerunFailed = g.Gated(k.Cancel, ui.ActCancelRun, nil), g.Gated(k.RerunFailed, ui.ActRerun, nil)
 	k.Rerun = g.Gated(k.Rerun, ui.ActRerun, nil)

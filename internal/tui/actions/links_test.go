@@ -29,10 +29,7 @@ func TestRowLinks(t *testing.T) {
 			var line jobLine
 			line.job, line.label = 0, title
 			m.cur().lines = []jobLine{line}
-			m.inner = width
-			// A name that wraps links on each of its lines; the first is
-			// the row to check here.
-			return m.lineRows(0, selected, true, width, testNow)[0], j.URL
+			return m.renderJob(m.run, 0, selected, width), j.URL
 		}, 120, 40, 12, 3)
 	}
 }

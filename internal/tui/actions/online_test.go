@@ -42,7 +42,7 @@ func TestOnlineReadsKeptAnnotationsAgain(t *testing.T) {
 	f := newFake()
 	f.limited = true
 	_, h := newModal(t, f, 120, 30)
-	h.openLog(t)
+	h.openLogOf(t, ubuntuName)
 	f.mu.Lock()
 	f.limited = false
 	notes := len(f.noteReads)
@@ -89,7 +89,7 @@ func TestPollDuringJobsReadKeepsItLoading(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("enter", "j")
+	h.keys("j", "enter")
 	if !m.hasRun || m.run.ID != runningRun || !m.cur().loaded {
 		t.Fatalf("the running run's jobs didn't show")
 	}

@@ -14,6 +14,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -176,6 +177,8 @@ func (m *Modal) newRuns() feed.Model[core.Run] {
 		feed.WithPromptKeys(m.keys.search),
 		feed.WithStyles(m.theme.Feed(m.opts.icons)),
 		feed.WithItemHeight(1),
+		feed.WithChildren(m.jobCount, m.renderJob),
+		feed.WithChildrenFolded(),
 		feed.WithSize(m.paneWidth(runsPane), max(m.bodyHeight()-1, 0)),
 		feed.WithFocused(m.focus == runsPane),
 		feed.WithEmptyText(m.emptyText()),
@@ -209,6 +212,27 @@ func (m *Modal) current(r core.Run) core.Run {
 
 // updateRuns passes msg to the feed, and follows its cursor.
 func (m *Modal) updateRuns(msg tea.Msg) tea.Cmd {
+	if p, ok := msg.(tea.KeyPressMsg); ok && m.onGroupRow() {
+		// A group of jobs folds by its own state, which the feed doesn't hold.
+		// Each key goes one way: the other cases are the feed's, which steps
+		// up to the run or down to the first job.
+		// The feed enables these keys on its own copy only, while its rows are
+		// lined, which they are on a group.
+		expand, collapse := m.keys.Runs.Expand, m.keys.Runs.Collapse
+		expand.SetEnabled(true)
+		collapse.SetEnabled(true)
+		open := m.groupOpen()
+		if keymap.Matches(p, expand) && !open || keymap.Matches(p, collapse) && open {
+			m.toggleGroup()
+			return nil
+		}
+	}
+	return m.feedRuns(msg)
+}
+
+// feedRuns passes msg to the feed without the folding of the groups of jobs,
+// and follows its cursor.
+func (m *Modal) feedRuns(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.runs, cmd = m.runs.Update(msg)
 	if m.runs.Seeking() {
@@ -220,17 +244,72 @@ func (m *Modal) updateRuns(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmd, m.selectRun(), m.readJobsAround())
 }
 
+// cursorRun returns the run under the cursor, or the run a job row is of.
+func (m *Modal) cursorRun() (core.Run, bool) {
+	if r, _, ok := m.runs.SelectedChild(); ok {
+		return r, true
+	}
+	return m.runs.Selected()
+}
+
+// cursorJob returns the job under the cursor, when it is on a row of the jobs
+// of the run shown, or the job a group row opens on.
+func (m *Modal) cursorJob() (core.Job, bool) {
+	j := m.cur()
+	k, ok := m.childOf(j)
+	if !ok {
+		return core.Job{}, false
+	}
+	return j.selectedAt(k)
+}
+
+// onGroupRow reports whether the cursor is on a group of jobs.
+func (m *Modal) onGroupRow() bool {
+	j := m.cur()
+	k, ok := m.childOf(j)
+	return ok && j.onGroupAt(k)
+}
+
+// groupOpen reports whether the group of jobs under the cursor is open.
+func (m *Modal) groupOpen() bool {
+	j := m.cur()
+	k, ok := m.childOf(j)
+	if !ok || !j.onGroupAt(k) {
+		return false
+	}
+	return j.isOpen(j.lines[k].group.key)
+}
+
+// toggleGroup folds the group under the cursor, or opens it.
+func (m *Modal) toggleGroup() {
+	j := m.cur()
+	if k, ok := m.childOf(j); ok && j.onGroupAt(k) {
+		j.toggleAt(k)
+		m.runs.Resort()
+	}
+}
+
+// jobCount is how many rows the jobs of r take under it.
+func (m *Modal) jobCount(r core.Run) int {
+	if j := m.jobsOf[r.ID]; j != nil {
+		return j.count()
+	}
+	return 1
+}
+
 // selectRun shows the jobs of the run under the cursor, once it changed:
-// those in memory at once, and the others once the cursor rests.
+// those in memory at once, and the others once the cursor rests. While it
+// stays, it follows the cursor among the jobs.
 func (m *Modal) selectRun() tea.Cmd {
-	r, ok := m.runs.Selected()
+	r, ok := m.cursorRun()
 	if !ok {
 		return nil
 	}
 	r = m.current(r)
 	if m.hasRun && r.ID == m.run.ID {
 		m.run = r
-		return nil
+		// The cursor may have moved among the jobs of the run.
+		return m.showJob()
 	}
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
@@ -312,19 +391,15 @@ func (m *Modal) dropJobsOf() {
 }
 
 // renderRun renders a run in one line, the parent of its jobs in the tree:
-// whether its jobs show, its state, workflow, number and title, cut to the
+// its state, workflow, number and title, cut to the
 // width. What else it has shows in the details.
 func (m *Modal) renderRun(r core.Run, selected bool, w int) string {
 	r = m.current(r)
 	st := &m.st.row[ui.Look(selected, m.inRuns())]
-	marker := m.st.folded
-	if selected && !m.shut[r.ID] {
-		marker = m.st.unfolded
-	}
 	state := ui.RunStateOf(r.Status, r.Conclusion)
 	name := st.Strong.Render(ui.OneLine(r.Name))
 	// The workflow, the number and the title link to the run's page.
-	head := marker + st.Glyphs[state] + " " + m.links.Link(r.URL,
+	head := st.Glyphs[state] + " " + m.links.Link(r.URL,
 		name+" "+st.Muted.Render("#"+strconv.Itoa(r.Number))+" "+st.Text.Render(ui.OneLine(r.DisplayTitle)))
 	return termtext.Truncate(head, w, m.opts.icons.Ellipsis)
 }

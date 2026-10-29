@@ -29,13 +29,20 @@ func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 	if !m.hasRun || m.run.ID != failedRun {
 		t.Fatalf("shows run %d, want the newest, %d", m.run.ID, failedRun)
 	}
-	if j, _ := m.cur().selected(); j.ID != ubuntuJob {
-		t.Errorf("opens on job %d, want the failed one, %d", j.ID, ubuntuJob)
+	// The cursor starts on the folded run; its group of tests opens on the
+	// failed job.
+	h.toJobRow(t, ubuntuName)
+	if j, _ := m.cursorJob(); j.ID != ubuntuJob {
+		t.Errorf("the group opens on job %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
 	if h.log != nil {
 		t.Fatal("the log opened before a job was picked")
 	}
-	l := h.openLog(t)
+	h.keys("enter")
+	l := h.log
+	if l == nil {
+		t.Fatal("enter on the failed job didn't open its log")
+	}
 	if l.log.State() != jobview.Ready || l.log.Errors() != 1 {
 		t.Fatalf("log state %d with %d errors, want the log with its error", l.log.State(), l.log.Errors())
 	}
@@ -53,7 +60,7 @@ func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("enter", "j") // fold the failed run, then the next run
+	h.keys("j") // the runs start folded: down to the next run
 	if m.run.ID != runningRun || len(m.cur().items) != 1 || m.cur().items[0].ID != runLintJob {
 		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.cur().items, runningRun)
 	}
@@ -69,8 +76,9 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	if _, jobs, _ := f.counts(); jobs != 3 {
 		t.Errorf("reads of jobs %d, want 3", jobs)
 	}
-	h.keys("enter", "j", "j") // unfold, into the jobs, down one
-	if j, _ := m.cur().selected(); j.ID != macosJob {
+	h.toJobRow(t, ubuntuName) // unfold, onto the first job
+	h.keys("j")
+	if j, _ := m.cursorJob(); j.ID != macosJob {
 		t.Errorf("after j in the jobs the job is %d, want %d", j.ID, macosJob)
 	}
 }
@@ -88,9 +96,9 @@ func TestPanesAndBack(t *testing.T) {
 		key  string
 		want pane
 	}{
-		{"tab", jobsPane}, {"tab", notes}, {"tab", runsPane}, {"shift+tab", notes}, {"shift+tab", jobsPane},
+		{"tab", notes}, {"tab", runsPane}, {"shift+tab", notes}, {"shift+tab", runsPane},
 		{"1", runsPane}, {"2", notes}, {"1", runsPane}, {"1", runsPane}, {"2", notes}, {"2", notes},
-		{"backspace", runsPane}, {"backspace", runsPane}, {"j", jobsPane},
+		{"backspace", runsPane}, {"backspace", runsPane},
 	}
 	for _, s := range steps {
 		h.keys(s.key)
@@ -115,13 +123,13 @@ func TestLogOverlayOpensAndBackReturns(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	if l.job.ID != ubuntuJob {
 		t.Errorf("the log shows job %d, want %d", l.job.ID, ubuntuJob)
 	}
 	h.keys("backspace")
-	if h.log != nil || m.focus != jobsPane {
-		t.Errorf("back left the overlay %v on pane %d, want the jobs", h.log != nil, m.focus)
+	if h.log != nil || !m.cursorOnJobs() {
+		t.Errorf("back left the overlay %v, the cursor on a job %v, want the jobs", h.log != nil, m.cursorOnJobs())
 	}
 	if len(h.take()) != 0 {
 		t.Error("back closed the modal")
@@ -131,7 +139,7 @@ func TestLogOverlayOpensAndBackReturns(t *testing.T) {
 func TestLogOverlayDismissReturns(t *testing.T) {
 	t.Parallel()
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.openLog(t)
+	h.openLogOf(t, ubuntuName)
 	h.keys("esc")
 	if h.log != nil || m.ctx.Err() != nil || len(h.take()) != 0 {
 		t.Error("esc in the log didn't return to the modal alone")
@@ -142,7 +150,7 @@ func TestLogOverlayStopsWatchingOnClose(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
-	h.openLog(t)
+	h.openLogOf(t, ubuntuName)
 	h.keys("backspace")
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -157,7 +165,7 @@ func TestLogOverlayQuitReturnsAndStopsWatching(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	cmd, ok := l.Act(ui.ActQuit)
 	if !ok || cmd == nil {
 		t.Fatalf("Act(quit) = %v, %v, want it taken", cmd, ok)
@@ -178,7 +186,7 @@ func TestLogOverlayQuitReturnsAndStopsWatching(t *testing.T) {
 func TestEnterInTheLogFolds(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	h.keys("g")
 	before := logText(l)
 	h.keys("enter")
@@ -190,7 +198,7 @@ func TestEnterInTheLogFolds(t *testing.T) {
 func TestLInTheLogUnfolds(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	h.keys("g", "h")
 	before := logText(l)
 	h.keys("l")
@@ -203,7 +211,7 @@ func TestLInTheLogUnfolds(t *testing.T) {
 func TestHAndLFoldTheLog(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	for _, k := range []string{"h", "l"} {
 		if b, _, ok := uitest.Winner(l.KeyLayers(), k); !ok || b.Help().Desc == "pane left" || b.Help().Desc == "pane right" {
 			t.Errorf("the help gives %s to %q, want the log's", k, b.Help().Desc)
@@ -218,7 +226,7 @@ func TestHAndLFoldTheLog(t *testing.T) {
 func TestLogOverlayFitsNarrow(t *testing.T) {
 	t.Parallel()
 	_, h := newModal(t, newFake(), narrowW, narrowH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	l.SetSize(narrowW, narrowH)
 	assertFits(t, l.View(), narrowW, narrowH)
 }
@@ -335,7 +343,7 @@ func TestFilterOverlay(t *testing.T) {
 	if _, active := m.Tabs(); active != -1 {
 		t.Errorf("a filter of more than a tab shows tab %d, want none", active)
 	}
-	if s := paneText(m, runsPane); !strings.Contains(s, "CI #4812") {
+	if s := paneText(m); !strings.Contains(s, "CI #4812") {
 		t.Errorf("the filtered runs:\n%s", s)
 	}
 
@@ -493,7 +501,7 @@ func TestLogStates(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
 			_, h := newModal(t, f, wideW, wideH)
-			l := h.openLog(t)
+			l := h.openLogOf(t, ubuntuName)
 			if l.log.State() != tt.state {
 				t.Fatalf("log state %d, want %d", l.log.State(), tt.state)
 			}
@@ -519,13 +527,13 @@ func TestErrorWords(t *testing.T) {
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
 			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
 			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub",
-			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub"},
+			"✗ You don't have access to charmbracelet/bubbletea"},
 		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
 			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist or is private.",
 			"✗ CI #4812 doesn't exist or is private."},
 		{"internal", fmt.Errorf("list runs: github: decode: %s", termtexttest.Hostile),
 			"✗ Something went wrong. Details", "✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) · r to retry",
-			"✗ Something went wrong. Details are in the log (/var/log/gh-tui.log) · r to retry"},
+			"✗ Something went wrong. Details are in the log"},
 	}
 	voice := WithVoice(ui.NewVoice(config.Default().Keys, "/var/log/gh-tui.log"))
 	cleanLog := func(t *testing.T, l *logModal, want string) {
@@ -563,7 +571,7 @@ func TestErrorWords(t *testing.T) {
 			f := newFake()
 			f.logErrs[ubuntuJob] = tt.err
 			_, h := newModal(t, f, wideW, wideH, voice)
-			cleanLog(t, h.openLog(t), tt.want)
+			cleanLog(t, h.openLogOf(t, ubuntuName), tt.want)
 
 			// The wide layout shows a failed load of the runs in the
 			// annotations box, whole.
@@ -581,7 +589,7 @@ func TestErrorWords(t *testing.T) {
 			f = newFake()
 			f.jobsErr = tt.err
 			m, h = newModal(t, f, narrowW, narrowH, voice)
-			h.keys("tab")
+			h.keys("enter")
 			clean(t, m, tt.jobs)
 		})
 	}
@@ -591,7 +599,7 @@ func TestLogRetry(t *testing.T) {
 	f := newFake()
 	f.logErrs[ubuntuJob] = errors.New("boom")
 	_, h := newModal(t, f, wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	delete(f.logErrs, ubuntuJob)
 	h.keys("r")
 	if l.log.State() != jobview.Ready {
@@ -605,7 +613,7 @@ func TestLogTruncated(t *testing.T) {
 	lg.Truncated = true
 	f.logs[ubuntuJob] = lg
 	_, h := newModal(t, f, wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	if s := logText(l); !strings.Contains(s, "Only the end of this log") {
 		t.Errorf("a truncated log doesn't say so:\n%s", s)
 	}
@@ -614,7 +622,7 @@ func TestLogTruncated(t *testing.T) {
 func TestPendingLogShowsTheSteps(t *testing.T) {
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
-	h.keys("enter", "j", "j", "enter")
+	h.keys("j", "enter", "j", "enter") // the running run, unfolded, its job
 	if h.log == nil {
 		t.Fatal("enter on the running job didn't open its log")
 	}
@@ -678,7 +686,7 @@ func TestRerunFailedJobs(t *testing.T) {
 		t.Errorf("after y the run is %s and its jobs %s, %s; want the run and its failed job queued",
 			m.run.Status, m.cur().items[0].Status, m.cur().items[1].Status)
 	}
-	if s := paneText(m, runsPane); !strings.Contains(s, "○ CI #4812") {
+	if s := paneText(m); !strings.Contains(s, "○ CI #4812") {
 		t.Errorf("the runs don't show the re-run queued:\n%s", s)
 	}
 	if !slices.Equal(fl.started, []int64{failedRun}) {
@@ -772,7 +780,7 @@ func TestCancelARunningRun(t *testing.T) {
 	if got := lastLine(m); !strings.Contains(got, "has no failed jobs") && !strings.HasPrefix(got, "Re-run") {
 		t.Fatalf("R on the failed run: %q", got)
 	}
-	h.keys("n", "enter", "j", "R")
+	h.keys("n", "j", "R")
 	if got := lastLine(m); got != "lint #4810 is still running. X cancels it." {
 		t.Errorf("R on a running run tells %q", got)
 	}
@@ -784,7 +792,7 @@ func TestCancelARunningRun(t *testing.T) {
 	if m.run.Status != core.RunCancelling || !slices.Equal(f.sent, []string{"cancel"}) {
 		t.Errorf("after y the run is %s and sent %v", m.run.Status, f.sent)
 	}
-	if s := paneText(m, runsPane); !strings.Contains(s, "cancelling") {
+	if s := paneText(m); !strings.Contains(s, "⊘ lint #4810") {
 		t.Errorf("the runs don't show the cancel:\n%s", s)
 	}
 	// A done run can't be cancelled.
@@ -801,7 +809,8 @@ func TestRerunAJob(t *testing.T) {
 	if m.ask != nil {
 		t.Fatal("J asked from the runs, where no job is picked")
 	}
-	h.keys("tab", "j", "J")
+	h.toJobRow(t, "test (macos-latest, 1.26)")
+	h.keys("J")
 	if got := lastLine(m); !strings.HasPrefix(got, "Re-run test (macos-latest, 1.26) of CI #4812?") {
 		t.Fatalf("J asks %q", got)
 	}
@@ -816,7 +825,7 @@ func TestRerunAJob(t *testing.T) {
 	if !slices.Equal(f.sent, []string{fmt.Sprintf("rerun job %d", macosJob)}) {
 		t.Errorf("sent %v", f.sent)
 	}
-	if j, _ := m.cur().selected(); j.Status != core.RunQueued || m.cur().items[1].Status != core.RunCompleted {
+	if j, _ := m.cursorJob(); j.Status != core.RunQueued || m.cur().items[1].Status != core.RunCompleted {
 		t.Errorf("the job is %s, want it alone queued", j.Status)
 	}
 }
@@ -824,13 +833,17 @@ func TestRerunAJob(t *testing.T) {
 // leads bring up the question of each change, and want is what y sends.
 var leads = []struct {
 	name string
-	keys []string
+	lead func(tb testing.TB, h *host)
 	want string
 }{
-	{"re-run failed jobs", []string{"R"}, "rerun failed"},
-	{"re-run all jobs", []string{"E"}, "rerun"},
-	{"re-run a job", []string{"j", "j", "J"}, fmt.Sprintf("rerun job %d", macosJob)},
-	{"cancel", []string{"enter", "j", "X"}, "cancel"},
+	{"re-run failed jobs", func(_ testing.TB, h *host) { h.keys("R") }, "rerun failed"},
+	{"re-run all jobs", func(_ testing.TB, h *host) { h.keys("E") }, "rerun"},
+	{"re-run a job", func(tb testing.TB, h *host) {
+		tb.Helper()
+		h.toJobRow(tb, "test (macos-latest, 1.26)")
+		h.keys("J")
+	}, fmt.Sprintf("rerun job %d", macosJob)},
+	{"cancel", func(_ testing.TB, h *host) { h.keys("j", "X") }, "cancel"},
 }
 
 func TestASecondYesChangesOnce(t *testing.T) {
@@ -838,7 +851,7 @@ func TestASecondYesChangesOnce(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := newFake()
 			m, h := newModal(t, f, wideW, wideH)
-			h.keys(tt.keys...)
+			tt.lead(t, h)
 			if m.ask == nil {
 				t.Fatal("asked nothing")
 			}
@@ -874,7 +887,7 @@ func TestChangesAskAgain(t *testing.T) {
 		t.Run(leads[tt.lead].name, func(t *testing.T) {
 			f := newFake()
 			m, h := newModal(t, f, wideW, wideH)
-			h.keys(leads[tt.lead].keys...)
+			leads[tt.lead].lead(t, h)
 			if m.ask == nil {
 				t.Fatal("asked nothing")
 			}
@@ -889,7 +902,7 @@ func TestChangesAskAgain(t *testing.T) {
 		t.Run(leads[tt.lead].name+" after access was lost", func(t *testing.T) {
 			f := newFake()
 			m, h := newModal(t, f, wideW, wideH)
-			h.keys(leads[tt.lead].keys...)
+			leads[tt.lead].lead(t, h)
 			if m.ask == nil {
 				t.Fatal("asked nothing")
 			}
@@ -914,11 +927,11 @@ func TestFollowsTheRunShownWhileItRuns(t *testing.T) {
 	if len(fl.started) != 0 {
 		t.Fatalf("follows %v on a done run", fl.started)
 	}
-	h.keys("enter", "j")
+	h.keys("j")
 	if !slices.Equal(fl.started, []int64{runningRun}) {
 		t.Fatalf("follows %v, want the running run", fl.started)
 	}
-	h.keys("enter", "j")
+	h.keys("j")
 	if !slices.Equal(fl.stopped, []int64{runningRun}) || m.following != 0 {
 		t.Errorf("stopped %v on a done run, want the running one stopped", fl.stopped)
 	}
@@ -932,7 +945,7 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("enter", "j", "j", "enter")
+	h.keys("j", "enter", "j", "enter") // the running run, unfolded, its job
 	l := h.log
 	if l == nil {
 		t.Fatal("enter on the running job didn't open its log")
@@ -969,7 +982,7 @@ func TestPollUpdatesTheRunAndLoadsTheLogOnceDone(t *testing.T) {
 	if len(fl.stopped) == 0 || slices.Max(fl.stopped) != runningRun || slices.Min(fl.stopped) != runningRun {
 		t.Errorf("stopped %v, want the completed run stopped", fl.stopped)
 	}
-	if s := paneText(m, runsPane); !strings.Contains(s, "✓ lint #4810") {
+	if s := paneText(m); !strings.Contains(s, "✓ lint #4810") {
 		t.Errorf("the runs don't show the run done:\n%s", s)
 	}
 }
@@ -989,9 +1002,12 @@ func TestSyncKeyReloadsTheRuns(t *testing.T) {
 
 func TestOpenInTheBrowser(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("o", "tab", "o")
+	h.keys("o")
+	h.toJobRow(t, ubuntuName)
+	job, _ := m.cursorJob()
+	h.keys("o")
 	got := h.take()
-	want := []tea.Msg{ui.OpenMsg{URL: m.run.URL}, ui.OpenMsg{URL: m.cur().items[1].URL}}
+	want := []tea.Msg{ui.OpenMsg{URL: m.run.URL}, ui.OpenMsg{URL: job.URL}}
 	if !slices.Equal(got, want) {
 		t.Errorf("o sent %v, want %v", got, want)
 	}
@@ -1001,11 +1017,12 @@ func TestErrorsAreInline(t *testing.T) {
 	f := newFake()
 	f.jobsErr = errors.New("jobs boom")
 	m, h := newModal(t, f, wideW, wideH)
-	if s := paneText(m, jobsPane); !strings.Contains(s, "Something went wrong") || !strings.Contains(s, "r to retry") {
+	h.keys("enter") // the runs start folded
+	if s := paneText(m); !strings.Contains(s, "Something went wrong") {
 		t.Errorf("the jobs pane:\n%s", s)
 	}
 	f.jobsErr = nil
-	h.keys("tab", "r")
+	h.keys("r")
 	if !m.cur().loaded || m.cur().err != nil {
 		t.Errorf("r didn't read the jobs again")
 	}
@@ -1035,11 +1052,8 @@ func TestALogWithoutErrorsOpensOnItsSteps(t *testing.T) {
 	lg.Lines = slices.DeleteFunc(lg.Lines, func(l core.LogLine) bool { return l.Kind == core.LogError })
 	f.logs[macosJob] = lg
 	_, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "j", "enter")
-	if h.log == nil {
-		t.Fatal("enter on the job didn't open its log")
-	}
-	s := logText(h.log)
+	l := h.openLogOf(t, "test (macos-latest, 1.26)")
+	s := logText(l)
 	// The job's steps have no names in the fake, so they are numbered.
 	if !strings.Contains(s, "▸ Step 1 ▸ Step 2 ▸ Step 3") || strings.Contains(s, "FAIL: TestProgram") {
 		t.Errorf("a log without errors doesn't open folded:\n%s", s)
@@ -1061,24 +1075,45 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		}
 		return strings.Join(ks, ", ")
 	}
+	keys := func(ks ...string) func() { return func() { h.keys(ks...) } }
 	steps := []struct {
-		keys []string
+		name string
+		do   func()
 		want string
 	}{
-		{nil, "↑/k up, ↓/j down, ↵ fold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
-		{[]string{"tab"}, "↑/k up, ↓/j down, ↵ open, J rerun job, tab pane, R rerun failed, E rerun all, o browser"},
+		{"start", keys(), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"tab", keys("tab"), "tab pane, R rerun failed, E rerun all, o browser"},
+		{"back", keys("backspace"), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		// The run in progress can be cancelled, not run again.
+		{"running run", keys("j"), "↑/k up, ↓/j down, ↵ unfold, f filter, tab pane, X cancel run, o browser"},
+		{"unfolded run", keys("k", "enter"), "↑/k up, ↓/j down, ↵ fold, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↑/k up, ↓/j down, ↵ log, J rerun job, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		// The log is an overlay with the keys of its own.
-		{[]string{"enter"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
-		{[]string{"A"}, "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},
-		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
+		{"log", keys("enter"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
+		{"annotations", keys("A"), "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},
+		{"log again", keys("A"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
 		// The steps of a job in progress don't fold, and have no keys to show.
-		{[]string{"backspace", "backspace", "enter", "j", "j", "enter"}, ""},
-		{[]string{"backspace", "backspace", "X"}, "y yes, n no, ↵ answer the default"},
+		{"log in progress", func() {
+			// Close the log, step left up to the failed run past the group
+			// of its job, fold it, and go on to the run in progress.
+			h.keys("backspace")
+			for range 4 {
+				if h.m.cursorOnJobs() {
+					h.keys("left")
+				}
+			}
+			if h.m.runs.Unfolded() {
+				h.keys("left")
+			}
+			h.keys("j")
+			h.openLogOf(t, "lint")
+		}, ""},
+		{"cancel", keys("backspace", "backspace", "X"), "y yes, n no, ↵ answer the default"},
 	}
 	for _, s := range steps {
-		h.keys(s.keys...)
+		s.do()
 		if got := short(); got != s.want {
-			t.Errorf("after %q the help is %q, want %q", s.keys, got, s.want)
+			t.Errorf("at %s the help is %q, want %q", s.name, got, s.want)
 		}
 	}
 }
@@ -1100,22 +1135,13 @@ func TestKeyLayersOrder(t *testing.T) {
 	if m.filter == before {
 		t.Error("] didn't switch the tab")
 	}
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "fold" {
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "unfold" {
 		t.Errorf("enter reaches %q of %q on the runs, want the fold", b.Help().Desc, src)
 	}
-	h.keys("[", "tab")
-	if m.focus != jobsPane {
-		t.Fatalf("focus %d, want the jobs", m.focus)
-	}
+	h.keys("[")
+	h.toJobs(t)
 	if b, src, _ := uitest.Winner(m.KeyLayers(), "esc"); src != "Actions" || b.Help().Desc != "close" {
 		t.Errorf("esc reaches %q of %q on the jobs, want the modal's close", b.Help().Desc, src)
-	}
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "backspace"); src != "Actions" || b.Help().Desc != "runs" {
-		t.Errorf("backspace reaches %q of %q on the jobs, want the step to the runs", b.Help().Desc, src)
-	}
-	h.keys("backspace")
-	if m.focus != runsPane {
-		t.Errorf("backspace left the focus on %d, want the runs", m.focus)
 	}
 }
 
@@ -1133,6 +1159,7 @@ func TestSharedKeys(t *testing.T) {
 	tests := []struct {
 		name string
 		to   []string // the keys that reach the pane
+		jobs bool     // the cursor starts on a job of the first run
 		key  string
 		desc string // the binding the help names for key, if any
 		src  string // the layer the help names it in; the modal's if empty
@@ -1140,9 +1167,9 @@ func TestSharedKeys(t *testing.T) {
 	}{
 		{name: "] on the runs", key: "]", desc: "tab", ok: tab(1)},
 		{name: "[ on the runs", key: "[", desc: "previous tab", ok: tab(3)},
-		{name: "] on the jobs", to: []string{"tab"}, key: "]", desc: "tab",
-			ok: func(m *Modal) bool { _, active := m.Tabs(); return active == 1 && m.focus == jobsPane }},
-		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.focus == jobsPane }},
+		{name: "] on a job", jobs: true, key: "]", desc: "tab",
+			ok: func(m *Modal) bool { _, active := m.Tabs(); return active == 1 }},
+		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.notes }},
 		{name: "R on the runs", key: "R", desc: "rerun failed", ok: asks},
 		{name: "r on the runs", key: "r", desc: "refresh", ok: func(m *Modal) bool { return m.ask == nil && m.focus == runsPane }},
 		// A run still running can't be re-run, so R says why, and the help
@@ -1150,13 +1177,16 @@ func TestSharedKeys(t *testing.T) {
 		{name: "R on a running run", to: []string{"]", "]"}, key: "R", ok: func(m *Modal) bool { return m.ask == nil && m.notice != "" }},
 		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
 		// The filter belongs to the runs: the jobs and the log have no f.
-		{name: "f on the jobs", to: []string{"tab"}, key: "f", ok: func(m *Modal) bool { return !m.workflows.loaded && m.focus == jobsPane }},
+		{name: "f on a job", jobs: true, key: "f", desc: "filter", src: "Runs", ok: filters},
 		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.notes }},
-		{name: "1 on the jobs", to: []string{"tab"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return m.focus == runsPane }},
+		{name: "1 on the notes", to: []string{"2"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return !m.notes }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m, h := newModal(t, newFake(), wideW, wideH)
+			if tt.jobs {
+				h.toJobs(t)
+			}
 			h.keys(tt.to...)
 			want := tt.src
 			if want == "" {
@@ -1296,11 +1326,12 @@ func TestRunsWithoutJobsSayWhy(t *testing.T) {
 			f := newFake()
 			f.runs[0].Conclusion = tt.conclusion
 			f.jobs[failedRun] = nil
-			m, _ := newModal(t, f, wideW, wideH)
-			if got := m.noJobsText(); got != tt.want {
+			m, h := newModal(t, f, wideW, wideH)
+			h.keys("enter") // the runs start folded
+			if got := m.noJobsText(m.run); got != tt.want {
 				t.Errorf("the jobs say %q, want %q", got, tt.want)
 			}
-			if s := paneText(m, jobsPane); !strings.Contains(s, strings.Fields(tt.want)[0]) {
+			if s := paneText(m); !strings.Contains(s, strings.Fields(tt.want)[0]) {
 				t.Errorf("the jobs pane doesn't show why:\n%s", s)
 			}
 		})
@@ -1313,18 +1344,15 @@ func TestJobsNoteSitsUnderTheRunName(t *testing.T) {
 	f.jobs[failedRun] = nil
 	m, _ := newModal(t, f, wideW, wideH)
 	for _, w := range []int{80, 120} {
-		note, ok := m.jobsNote(w)
-		if !ok || len(note) == 0 {
+		note, ok := m.jobsNote(m.cur(), m.run, w)
+		if !ok || note == "" {
 			t.Fatalf("no note at %d columns", w)
 		}
-		indent := m.st.noGutter + m.jobsIndent()
-		for _, l := range note {
-			if !strings.HasPrefix(l, indent) {
-				t.Errorf("at %d columns the note line %q doesn't start with the job indent %q", w, l, indent)
-			}
-			if got := ansi.StringWidth(l); got > w {
-				t.Errorf("at %d columns the note line is %d cells wide", w, got)
-			}
+		if indent := strings.Repeat(" ", jobsIndent); !strings.HasPrefix(note, indent) {
+			t.Errorf("at %d columns the note %q doesn't start with the job indent %q", w, note, indent)
+		}
+		if got := ansi.StringWidth(note); got != w {
+			t.Errorf("at %d columns the note is %d cells wide", w, got)
 		}
 	}
 }
@@ -1332,7 +1360,7 @@ func TestJobsNoteSitsUnderTheRunName(t *testing.T) {
 func TestAnnotationsOpenTheirFile(t *testing.T) {
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	if s := logText(l); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
 		t.Fatalf("the log doesn't show the annotations:\n%s", s)
 	}
@@ -1371,7 +1399,7 @@ func TestReopenedRestartsTheTimers(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH, WithFollow(new(follows).follow))
 	other, _ := newModal(t, f, wideW, wideH)
-	h.keys("enter", "j")
+	h.keys("j")
 	// While a preview hid the modal, its ticks went to the preview, so
 	// they stopped.
 	m.opts.tick = time.Second
@@ -1389,11 +1417,8 @@ func TestHideStopsTheReads(t *testing.T) {
 	f := newFake()
 	fl := &follows{}
 	_, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("enter", "j", "tab", "enter")
-	l := h.log
-	if l == nil {
-		t.Fatal("enter didn't open the log")
-	}
+	h.keys("j")
+	l := h.openLogOf(t, "lint")
 	// The modal under the log follows the run too, until the log hides it,
 	// so the follows are counted against the stops.
 	if f.watching[runLintJob] != 1 || len(fl.started) == 0 || slices.Max(fl.started) != runningRun {
@@ -1431,7 +1456,7 @@ func TestEscClosesFromEveryStep(t *testing.T) {
 func TestEscClosesTheLogButClearsTheRunsFindFirst(t *testing.T) {
 	t.Run("log search", func(t *testing.T) {
 		_, h := newModal(t, newFake(), wideW, wideH)
-		l := h.openLog(t)
+		l := h.openLogOf(t, ubuntuName)
 		h.keys("/", "s", "t", "enter")
 		if l.log.Query() == "" {
 			t.Fatal("the log shows no search")
@@ -1474,7 +1499,7 @@ func TestBackspaceTypesInThePrompts(t *testing.T) {
 		t.Fatal("backspace left the prompt of the runs")
 	}
 	h.keys("esc")
-	l := h.openLog(t)
+	l := h.openLogOf(t, ubuntuName)
 	h.keys("/", "a", "b", "backspace")
 	if h.log == nil || !l.log.Capturing() || len(h.take()) != 0 {
 		t.Error("backspace left the search of the log")
@@ -1502,7 +1527,7 @@ func TestActBackStepsBack(t *testing.T) {
 // it is the key path that closes it.
 func TestEscClosesTheLogOverItsSearch(t *testing.T) {
 	_, h := newModal(t, newFake(), wideW, wideH)
-	h.openLog(t)
+	h.openLogOf(t, ubuntuName)
 	h.keys("/", "s", "t", "enter")
 	h.keys("esc")
 	if h.log != nil {
