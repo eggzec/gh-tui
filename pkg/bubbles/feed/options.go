@@ -37,12 +37,38 @@ type settings struct {
 	// firstItem puts the cursor on the first item, not its header, when the
 	// first rows of grouped lines arrive.
 	firstItem bool
+	// children is a childSpec[T], checked against the item type in New.
+	children any
 }
 
 // WithFirstItem has a grouped feed start with the cursor on its first item
 // instead of the header above it.
 func WithFirstItem() Option {
 	return func(s *settings) { s.firstItem = true }
+}
+
+// childSpec is what [WithChildren] sets, typed by the item.
+type childSpec[T any] struct {
+	count  func(T) int
+	render func(item T, k int, selected bool, width int) string
+}
+
+// WithChildren lets an item own rows that fold under it, as a group's items
+// fold under its header. count returns the number of children of an item, and
+// an item with some is foldable, with the same keys as a group header; render
+// draws the k-th child in at most width cells, in itemHeight lines. A child
+// follows its item one level deeper, is never marked, is not an item to find
+// or filter, and is reached with [Model.SelectedChild]. The feed counts lines
+// as a grouped one does, though it has no groups unless set.
+//
+// Like [WithKey], it infers T from count, and New ignores one whose type does
+// not match the feed's items.
+func WithChildren[T any](count func(T) int, render func(item T, k int, selected bool, width int) string) Option {
+	return func(s *settings) {
+		if count != nil && render != nil {
+			s.children = childSpec[T]{count: count, render: render}
+		}
+	}
 }
 
 func defaultSettings() settings {

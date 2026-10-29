@@ -59,8 +59,9 @@ func (m Model[T]) SelectedRow() int {
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
 	indent := ""
-	if m.Grouped() {
-		l := m.lines[i]
+	var l line
+	if m.lined() {
+		l = m.lines[i]
 		indent = strings.Repeat("  ", l.depth)
 		switch {
 		case l.head:
@@ -70,6 +71,9 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 			w.line(m.gutter(selected, false), m.styles.Hint.Render(m.moreText()))
 			w.blank(m.itemHeight - 1)
 			return
+		case l.child:
+			m.writeChild(w, l, m.gutter(selected, false), indent, selected, width-len(indent))
+			return
 		}
 	}
 	item, ok := m.item(m.at(i))
@@ -78,7 +82,51 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 		return
 	}
 	gutter := m.gutter(selected, m.marked(item))
+	// With children, every item makes room for the marker of a foldable one,
+	// so the texts line up and a child's indent stands under them.
+	first, others := indent, indent
+	if m.kids != nil {
+		width -= foldWidth
+		others += blankFold
+		first = indent + blankFold
+		if l.kids > 0 {
+			first = indent + m.marker(l.open)
+		}
+	}
 	rest := m.render(item, selected, width-len(indent))
+	for n := range m.itemHeight {
+		var text string
+		text, rest, _ = strings.Cut(rest, "\n")
+		if n == 0 {
+			w.line(gutter, first, text)
+		} else {
+			w.line(gutter, others, text)
+		}
+	}
+}
+
+// foldWidth is the cells of a fold marker; blankFold stands in for it.
+const (
+	foldWidth = 2
+	blankFold = "  "
+)
+
+// marker returns the fold marker of a header or an item.
+func (m Model[T]) marker(open bool) string {
+	if open {
+		return m.groupOpen
+	}
+	return m.groupClosed
+}
+
+// writeChild writes a child row of an item. Its indent is that of its item
+// plus one level, which is as wide as an item's marker.
+func (m Model[T]) writeChild(w *lineWriter, l line, gutter, indent string, selected bool, width int) {
+	item, ok := m.item(l.item)
+	var rest string
+	if ok {
+		rest = m.kids.render(item, l.k, selected, width)
+	}
 	for range m.itemHeight {
 		var text string
 		text, rest, _ = strings.Cut(rest, "\n")
@@ -89,11 +137,7 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 // writeHead writes the header of a group: its marker, label and the number of
 // items loaded in it.
 func (m Model[T]) writeHead(w *lineWriter, l line, gutter, indent string) {
-	marker := m.groupClosed
-	if l.open {
-		marker = m.groupOpen
-	}
-	w.line(gutter, indent, marker, m.styles.Group.Render(l.label), m.styles.Hint.Render(m.countText(l)))
+	w.line(gutter, indent, m.marker(l.open), m.styles.Group.Render(l.label), m.styles.Hint.Render(m.countText(l)))
 	w.blank(m.itemHeight - 1)
 }
 
