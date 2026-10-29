@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -33,6 +34,13 @@ type settings struct {
 	getenv     func(string) string
 	exec       func(*exec.Cmd, tea.ExecCallback) tea.Cmd
 	tempDir    string
+	// handler, extraHelp and hostCapturing are the host's hooks, and
+	// offered the options of the option mode when restricted.
+	handler       Handler
+	extraHelp     func() []key.Binding
+	hostCapturing func() bool
+	offered       []OptionID
+	restricted    bool
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.

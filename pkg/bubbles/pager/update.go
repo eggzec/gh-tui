@@ -18,53 +18,62 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
+// own handles the messages the pager sends itself, and reports whether msg
+// was one of them.
+func (m Model) own(msg tea.Msg) (Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case settledMsg:
 		if msg.id == m.id && msg.seq == m.sizeSeq {
 			m.owed = false
 		}
-		return m, nil
 	case highlightMsg:
 		if msg.id == m.id && msg.gen == m.gen {
 			m.spans = msg.spans
 		}
-		return m, nil
 	case searchMsg:
 		if msg.id == m.id && msg.qgen == m.qgen && m.search.running {
 			m.found(msg.lines, msg.ends)
 		}
-		return m, nil
 	case projectMsg:
 		if msg.id == m.id && msg.pgen == m.pgen && m.projecting {
 			cmd := m.picked(msg.vis, msg.kept)
-			return m, cmd
+			return m, cmd, true
 		}
-		return m, nil
 	case editedMsg:
 		if msg.id == m.id {
 			m.edited(msg.err)
 		}
-		return m, nil
 	case spinner.TickMsg:
 		if m.state != stateLoading {
-			return m, nil
+			return m, nil, true
 		}
 		var cmd tea.Cmd
 		m.spin, cmd = m.spin.Update(msg)
-		return m, cmd
-	case tea.KeyPressMsg:
+		return m, cmd, true
+	default:
+		return m, nil, false
+	}
+	return m, nil, true
+}
+
+func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
+	if out, cmd, ok := m.own(msg); ok {
+		return out, cmd
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if !m.focused {
 			return m, nil
 		}
 		m.flash, m.flashInfo = "", false
 		switch {
 		case m.prompt.Focused():
-			return m.updatePrompt(msg)
+			return m.updatePrompt(k)
 		case m.opt:
-			return m.updateOption(msg)
+			return m.updateOption(k)
+		case m.hostTakes():
+			return m.handle(k)
 		}
-		return m.updateKey(msg)
+		return m.updateKey(k)
 	}
 	if m.prompt.Focused() {
 		// Pastes and the like go to the prompt.
@@ -120,6 +129,20 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m, cmd
 	case keymap.Matches(k, m.keys.Quit, m.keys.Dismiss):
 		return m, m.close()
+	default:
+		return m.handle(k)
+	}
+	return m, nil
+}
+
+// handle gives a key to the host's handler, if there is one, and keeps the
+// pager as it was when the handler leaves the key.
+func (m Model) handle(k tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.handler == nil {
+		return m, nil
+	}
+	if out, cmd, ok := m.handler(m, k); ok {
+		return out, cmd
 	}
 	return m, nil
 }

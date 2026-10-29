@@ -245,9 +245,10 @@ func (m *Model) Blur() {
 func (m Model) Focused() bool { return m.focused }
 
 // Capturing reports whether the prompt is open, or the pager waits for
-// the name of an option. It then takes every key, so the parent should
+// the name of an option, or the host takes every key as [WithHelp] says.
+// The pager, or the host, then takes every key, so the parent should
 // not act on keys of its own.
-func (m Model) Capturing() bool { return m.prompt.Focused() || m.opt }
+func (m Model) Capturing() bool { return m.prompt.Focused() || m.opt || m.hostTakes() }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -298,9 +299,11 @@ func (m Model) ShortHelp() []key.Binding {
 	case m.opt:
 		o := m.keys.Options
 		// Cancel is first, so that it survives a footer too narrow for all.
-		return []key.Binding{o.Cancel, o.Chop, o.LineNumbers, o.Squeeze, o.SmartCase, o.IgnoreCase}
+		return append([]key.Binding{o.Cancel}, m.optionKeys()...)
+	case m.hostTakes():
+		return m.hostHelp()
 	}
-	return m.keys.ShortHelp()
+	return append(m.keys.ShortHelp(), m.hostHelp()...)
 }
 
 // confirmKey returns the Confirm binding, which says what it does at the
@@ -328,5 +331,9 @@ func (m Model) FullHelp() [][]key.Binding {
 			b.SetEnabled(false)
 		}
 	}
-	return k.fullHelp(k.Close())
+	help := k.fullHelp(k.Close())
+	if extra := m.hostHelp(); len(extra) > 0 {
+		help = append(help, extra)
+	}
+	return help
 }
