@@ -6,13 +6,12 @@ import (
 	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // minWidth is the narrowest conversation that is drawn; a narrower one is
@@ -354,12 +353,9 @@ func fit(lines []string, width, height int) string {
 	for i := range out {
 		var l string
 		if i < len(lines) {
-			l = ansi.Truncate(lines[i], width, "")
+			l = lines[i]
 		}
-		if pad := width - lipgloss.Width(l); pad > 0 {
-			l += strings.Repeat(" ", pad)
-		}
-		out[i] = l
+		out[i] = termtext.Fit(l, width, "")
 	}
 	return strings.Join(out, "\n")
 }
