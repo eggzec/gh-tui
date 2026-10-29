@@ -191,6 +191,27 @@ func TestFilesDiffEscClearsTheRangeBeforeClosing(t *testing.T) {
 	}
 }
 
+// Esc closes the modal at once over a search that is shown, and the search
+// goes with it.
+func TestFilesDiffEscClosesOverASearch(t *testing.T) {
+	t.Parallel()
+	h, m, _ := zoomedFiles(t, patched(), nil)
+	o := focusZoomedDiff(t, h, m)
+	press(t, h, "/")
+	press(t, h, "a")
+	press(t, h, "enter")
+	if o.d.Capturing() || o.d.Query() != "a" {
+		t.Fatalf("the search is not shown: prompt %v, query %q", o.d.Capturing(), o.d.Query())
+	}
+	if o.clear() {
+		t.Error("clear took the search before the modal closed")
+	}
+	m.Act(ui.ActDismiss)
+	if !m.closed {
+		t.Error("esc did not close the modal over a search")
+	}
+}
+
 func TestFilesDiffIgnoresZ(t *testing.T) {
 	t.Parallel()
 	h, m, _ := zoomedFiles(t, patched(), nil)

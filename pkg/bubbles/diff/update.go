@@ -164,8 +164,6 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.step(1)
 	case keymap.Matches(msg, m.keyMap.Prev):
 		m.step(-1)
-	case m.search.query != "" && keymap.Matches(msg, m.keyMap.Cancel):
-		m.clearSearch()
 	case keymap.Matches(msg, m.keyMap.Retry):
 		return m.Retry()
 	default:

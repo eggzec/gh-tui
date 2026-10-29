@@ -194,33 +194,24 @@ func TestSearchInputClosesOnBlur(t *testing.T) {
 	}
 }
 
-// Esc clears the search, first; the view's own close is the parent's.
-func TestSearchEscClears(t *testing.T) {
+// Esc leaves a search that is shown alone: the view's close is the parent's,
+// and it closes at once. A new search replaces the old one.
+func TestSearchEscKeepsTheShownSearch(t *testing.T) {
 	m := search1(t, load(t, searchSource()), "foo")
-	if !m.KeyMap().Cancel.Enabled() {
-		t.Fatal("cancel is disabled while a search is shown")
+	if m.KeyMap().Cancel.Enabled() {
+		t.Fatal("cancel is enabled while a search is shown and the input is closed")
 	}
-	at := m.Cursor()
+	at, matches := m.Cursor(), m.Matches()
 	m = keys(t, m, "esc")
-	if m.Query() != "" || m.Matches() != 0 {
-		t.Errorf("esc left the search: %q, %d", m.Query(), m.Matches())
+	if m.Query() != "foo" || m.Matches() != matches || m.Cursor() != at {
+		t.Errorf("esc changed the search shown: %q, %d, cursor %d", m.Query(), m.Matches(), m.Cursor())
 	}
-	if m.Cursor() != at {
-		t.Error("clearing the search moved the cursor")
+	if !m.KeyMap().Next.Enabled() {
+		t.Error("the keys between matches are disabled")
 	}
-	if m.KeyMap().Cancel.Enabled() || m.KeyMap().Next.Enabled() {
-		t.Error("the keys of a search that is gone are enabled")
-	}
-	if ansi.Strip(m.View()) != ansi.Strip(load(t, searchSource(), WithSize(80, 12)).View()) && strings.Contains(ansi.Strip(m.View()), "match") {
-		t.Error("the status still shows the search")
-	}
-	// The parent clears it with ClearSearch, and learns whether it did.
-	m = search1(t, load(t, searchSource()), "foo")
-	if !m.ClearSearch() || m.Query() != "" {
-		t.Error("ClearSearch did not clear the search")
-	}
-	if m.ClearSearch() {
-		t.Error("ClearSearch reported a search that was gone")
+	m = search1(t, m, "bar")
+	if m.Query() != "bar" {
+		t.Errorf("a new search did not replace the old one: %q", m.Query())
 	}
 }
 
@@ -387,7 +378,7 @@ func TestSearchHighlightsMatches(t *testing.T) {
 	}
 	assertFits(t, v, 80, 12)
 	// Without the search, nothing is highlighted.
-	m = keys(t, m, "esc")
+	m = keys(t, m, "/", "enter")
 	if strings.Contains(m.View(), other.pre) {
 		t.Error("a cleared search is still highlighted")
 	}
