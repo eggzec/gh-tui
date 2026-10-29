@@ -142,6 +142,12 @@ type Model struct {
 	// size is the size in bytes of the content shown.
 	size int
 
+	// docs are the documents of a list, or nil for a single text, and cur
+	// the one shown. The fields above that belong to a text are live for
+	// docs[cur], whose slot is only filled when it is left.
+	docs []docState
+	cur  int
+
 	// Rendered once in SetStyles, so View only copies them.
 	esc      esc
 	nameView string
