@@ -126,6 +126,12 @@ func newMergeDialog(a mergeAsk, keys mergeDialogKeys) *mergeDialog {
 			d.method = i
 		}
 	}
+	if !d.choosable() {
+		// The method row takes no cursor, so the title does.
+		d.focus = focusTitle
+		d.keys.PrevMethod.SetEnabled(false)
+		d.keys.NextMethod.SetEnabled(false)
+	}
 	d.title = prompt.New(prompt.WithMode(prompt.SingleLine), prompt.WithTitle("Title"),
 		prompt.WithPlaceholder("GitHub's default title"))
 	d.body = composer.New("", composer.WithOptional(), composer.WithTitle("Body"),
@@ -144,7 +150,17 @@ func (d *mergeDialog) Init() tea.Cmd {
 		texts, err := a.svc.MergeTexts(a.ctx, a.c.of.repo, a.c.of.number)
 		return mergeTextMsg{dialog: d, texts: texts, err: err, draft: draft}
 	}
-	return tea.Batch(d.body.Init(), load)
+	cmds := []tea.Cmd{d.body.Init(), load}
+	if d.focus == focusTitle {
+		cmds = append(cmds, d.title.Focus())
+	}
+	return tea.Batch(cmds...)
+}
+
+// choosable reports whether the user may pick the method: not when a merge
+// queue sets it, and not when the repository allows only one.
+func (d *mergeDialog) choosable() bool {
+	return !d.ask.c.queued && len(d.methods) > 1
 }
 
 // Title implements ui.Modal: it says "when ready" for an auto-merge, which
@@ -166,8 +182,9 @@ func (d *mergeDialog) current() core.MergeMethod {
 }
 
 // hasMessage reports whether the method picked takes a message: rebasing
-// keeps each commit's own.
-func (d *mergeDialog) hasMessage() bool { return d.current() != core.MergeRebase }
+// keeps each commit's own. A merge queue takes the message whatever the
+// method shown.
+func (d *mergeDialog) hasMessage() bool { return d.ask.c.queued || d.current() != core.MergeRebase }
 
 // Update implements ui.Modal.
 func (d *mergeDialog) Update(msg tea.Msg) tea.Cmd {
@@ -208,7 +225,7 @@ func (d *mergeDialog) fill(msg mergeTextMsg) {
 	// The draft keeps the method it was written for, then the title and the
 	// body.
 	if method, text, ok := strings.Cut(msg.draft, "\n"); ok {
-		if i := slices.Index(d.methods, core.MergeMethod(method)); i >= 0 {
+		if i := slices.Index(d.methods, core.MergeMethod(method)); i >= 0 && d.choosable() {
 			d.method = i
 		}
 		title, body, _ := strings.Cut(text, "\n")
@@ -232,7 +249,11 @@ func (d *mergeDialog) textFor(m core.MergeMethod) (core.MergeMessage, bool) {
 // prefill fills the fields the user didn't edit with GitHub's message for
 // the method picked.
 func (d *mergeDialog) prefill() {
-	msg, ok := d.textFor(d.current())
+	m := d.current()
+	if d.ask.c.queued && m == core.MergeRebase {
+		m = core.MergeSquash
+	}
+	msg, ok := d.textFor(m)
 	if !ok {
 		return
 	}
@@ -296,7 +317,7 @@ func (d *mergeDialog) press(k tea.KeyPressMsg) tea.Cmd {
 
 // step picks the method delta places on, round the end.
 func (d *mergeDialog) step(delta int) {
-	if n := len(d.methods); n > 1 {
+	if n := len(d.methods); d.choosable() {
 		d.method = (d.method + delta + n) % n
 		d.prefill()
 	}
@@ -305,11 +326,18 @@ func (d *mergeDialog) step(delta int) {
 // move moves the cursor delta rows on, round the end; the fields take it
 // only for a method that has a message.
 func (d *mergeDialog) move(delta int) tea.Cmd {
-	stops := 1
-	if d.hasMessage() {
-		stops = 3
+	var stops []int
+	if d.choosable() {
+		stops = append(stops, focusMethod)
 	}
-	d.focus = (d.focus + delta + stops) % stops
+	if d.hasMessage() {
+		stops = append(stops, focusTitle, focusBody)
+	}
+	if len(stops) == 0 {
+		return nil
+	}
+	i := max(slices.Index(stops, d.focus), 0)
+	d.focus = stops[(i+delta+len(stops))%len(stops)]
 	d.title.Blur()
 	d.body.Blur()
 	var cmd tea.Cmd
@@ -405,6 +433,17 @@ func (d *mergeDialog) View() string {
 // row while it has the cursor.
 func (d *mergeDialog) methodRow() string {
 	mark := "  "
+	if !d.choosable() {
+		// Shown, but not the user's to pick.
+		parts := make([]string, len(d.methods))
+		for i, m := range d.methods {
+			parts[i] = methodName(m)
+		}
+		if d.ask.c.queued {
+			parts = []string{"set by the merge queue"}
+		}
+		return d.theme.Muted.Render(mark + "Method " + strings.Join(parts, ", "))
+	}
 	if d.focus == focusMethod {
 		mark = d.theme.Accent.Render("> ")
 	}

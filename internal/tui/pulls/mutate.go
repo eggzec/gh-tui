@@ -58,7 +58,10 @@ type change struct {
 	of                   changeOf
 	msg                  core.MergeMessage
 	chooses              bool
-	start                func() *optimistic.Op
+	// queued says that a merge queue merges as it is set up, so the method
+	// is shown but not the user's to pick.
+	queued bool
+	start  func() *optimistic.Op
 	// methods are those the user may pick from, when chooses is set.
 	methods []core.MergeMethod
 }
