@@ -32,9 +32,9 @@ type KeyMap struct {
 	// Fold folds or unfolds the file whose header the cursor is on.
 	Fold key.Binding `keymap:"global.select" help:"fold"`
 	// Search opens the search input, Confirm searches the lines of every
-	// file for what it holds, and Cancel closes it. Outside the input,
-	// Cancel clears the search. The view enables Confirm only while the
-	// input is open, and Cancel only while it is or a search is shown.
+	// file for what it holds, and Cancel closes it. The view enables
+	// Confirm and Cancel only while the input is open. A search shown has no
+	// key to clear it: the parent closes the view over it.
 	Search  key.Binding `keymap:"find" help:"search"`
 	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
 	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`
