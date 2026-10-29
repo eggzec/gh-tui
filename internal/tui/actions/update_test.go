@@ -1425,10 +1425,10 @@ func TestEscClosesFromEveryStep(t *testing.T) {
 	}
 }
 
-// TestEscClearsWhatIsShownFirst checks that esc closes the log at once over
-// its search, while it takes away the find of the runs before it closes the
-// modal, from the keys and as the app's dismiss intent.
-func TestEscClearsWhatIsShownFirst(t *testing.T) {
+// TestEscClosesTheLogButClearsTheRunsFindFirst checks that esc closes the log
+// at once over its search, while the dismiss intent takes away the find of
+// the runs before it closes the modal.
+func TestEscClosesTheLogButClearsTheRunsFindFirst(t *testing.T) {
 	t.Run("log search", func(t *testing.T) {
 		_, h := newModal(t, newFake(), wideW, wideH)
 		l := h.openLog(t)
@@ -1498,8 +1498,8 @@ func TestActBackStepsBack(t *testing.T) {
 }
 
 // TestEscClosesTheLogOverItsSearch checks that esc closes the log on the
-// first press with a search shown, and that the app's dismiss intent is left
-// to the log, which the key closes.
+// first press with a search shown. The log modal's Act handles only quit, so
+// it is the key path that closes it.
 func TestEscClosesTheLogOverItsSearch(t *testing.T) {
 	_, h := newModal(t, newFake(), wideW, wideH)
 	h.openLog(t)
