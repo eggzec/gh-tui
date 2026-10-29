@@ -218,7 +218,7 @@ func (s *Section) markRead() (mark, bool) {
 			Question: "Mark " + threadName(n) + " as read?",
 			// Reading it again is one key away.
 			Default: true,
-			Run:      func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") },
+			Run:     func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") },
 		},
 		name: threadName(n), ids: n.ID,
 	}, true
