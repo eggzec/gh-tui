@@ -185,7 +185,7 @@ func TestOpenActionsMsgOpensOnARunAndAJob(t *testing.T) {
 	m, _ := newTestApp(t, WithActions(a.open))
 	run(m, m.key(press("I")))
 	f := core.RunFilter{HeadSHA: "f00dcafe"}
-	at := ui.ActionsAt{Run: 4812, Job: 101, Jobs: true}
+	at := ui.ActionsAt{Run: 4812, Job: 101}
 	m.Update(ui.OpenActionsMsg{Repo: testRepo, Filter: f, At: at})
 	if m.modals.Top() != a.modal || len(a.opened) != 1 || a.filters[0] != f || a.targets[0] != at {
 		t.Errorf("opened %v with %v at %v, want the runs of the commit opened at %+v", a.opened, a.filters, a.targets, at)

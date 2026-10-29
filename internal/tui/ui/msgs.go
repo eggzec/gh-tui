@@ -218,11 +218,10 @@ type OpenActionsMsg struct {
 }
 
 // ActionsAt says where the Actions modal opens: on the run with ID Run and,
-// among its jobs, the job with ID Job, and with the jobs focused if Jobs is
-// set. The zero value opens it on the first run, as the runs key does.
+// among its jobs, the job with ID Job. The zero value opens it on the first
+// run, as the runs key does.
 type ActionsAt struct {
 	Run, Job int64
-	Jobs     bool
 }
 
 // OpenCommitMsg asks for the history of Repo to be opened on commit SHA,

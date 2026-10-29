@@ -18,7 +18,7 @@ func TestSelectedRun(t *testing.T) {
 	plain := m.renderRun(r, false, wideW)
 	m.focus = runsPane
 	focused := m.renderRun(r, true, wideW)
-	m.focus = jobsPane
+	m.notes = true
 	blurred := m.renderRun(r, true, wideW)
 
 	if strings.Contains(plain, bold) {
@@ -34,8 +34,7 @@ func TestSelectedRun(t *testing.T) {
 				t.Errorf("%s run: line %d has no bold cell: %q", name, i, l)
 			}
 		}
-		// The selected run is unfolded, so its arrow points down.
-		if got, want := strings.Replace(ansi.Strip(got), "▾", "▸", 1), ansi.Strip(plain); got != want {
+		if got, want := ansi.Strip(got), ansi.Strip(plain); got != want {
 			t.Errorf("%s run reads %q, want the text of the plain row %q", name, got, want)
 		}
 	}

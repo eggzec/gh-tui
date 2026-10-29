@@ -35,8 +35,8 @@ func TestJobsAroundTheRunsAreReadAhead(t *testing.T) {
 	// The next run's jobs show before the cursor rests, and the rest reads
 	// the run the window reaches now, as well as the run itself again.
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
-	// The run's jobs fold away first, so that down is the next run.
-	h.keys("enter", "j")
+	// The run's jobs are folded, so that down is the next run.
+	h.keys("j")
 	if !m.cur().loaded || m.cur().runID != runningRun {
 		t.Fatalf("jobs pane shows run %d, loaded %v; want the next run's jobs at once", m.cur().runID, m.cur().loaded)
 	}
@@ -57,7 +57,7 @@ func TestJobsAheadReadAgainWhenReopened(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH, withPrefetch(nil))
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
-	h.keys("enter", "j")
+	h.keys("j")
 	h.hold, h.held = nil, nil
 	f.mu.Lock()
 	clear(f.cachedJobs)
@@ -110,15 +110,21 @@ func TestLogsOfFailedJobsAreReadAheadWhenOn(t *testing.T) {
 		p.Actions.Jobs.Enabled = new(false)
 		p.Actions.Logs.Enabled = new(true)
 	}))
-	// The jobs loading reads the window around the cursor: the macOS job
-	// that failed too, but not the skipped build. Opening the log reads the
-	// Ubuntu job under the cursor, and closing it reads nothing more.
-	if _, got := f.took(); !slices.Equal(got, []int64{macosJob}) {
+	// The jobs loading reads the window from the top of the jobs, below the
+	// run under the cursor: the Ubuntu job. Closing a log reads nothing more.
+	if _, got := f.took(); !slices.Equal(got, []int64{ubuntuJob}) {
 		t.Errorf("read the logs of %v on load, want the failed one below the cursor", got)
 	}
-	h.keys("tab", "enter")
-	if _, got := f.took(); !slices.Equal(got, []int64{ubuntuJob}) {
-		t.Errorf("read the logs of %v, want the job under the cursor's", got)
+	// The cursor goes down from the lint job and the group to the Ubuntu job,
+	// and rests there: the window around it reads the macOS job. Opening the
+	// log finds the Ubuntu job's read already.
+	h.toJobs(t)
+	h.keys("j", "j", "enter")
+	if _, got := f.took(); !slices.Equal(got, []int64{macosJob}) {
+		t.Errorf("read the logs of %v, want the failed job below the cursor's", got)
+	}
+	if h.log == nil || h.log.job.ID != ubuntuJob {
+		t.Errorf("the log shows the wrong job, want the Ubuntu job")
 	}
 	h.keys("backspace")
 	if _, got := f.took(); len(got) != 0 {
@@ -179,7 +185,8 @@ func holdLogAhead(t *testing.T, f *fake) (m *Modal, h *host, wait func()) {
 	// once the cursor is back.
 	// The first j enters the jobs, on the Ubuntu job; the second goes down
 	// to the macOS one, and the k below back up to the Ubuntu job.
-	h.keys("j", "j")
+	h.toJobs(t)
+	h.keys("j", "j", "j")
 	f.mu.Lock()
 	f.cachedLogs[macosJob] = false
 	f.logReads = nil
@@ -230,8 +237,9 @@ func countOf(xs []int64, x int64) int {
 func TestLogsAheadStopWhenTheRunChanges(t *testing.T) {
 	f := newFake()
 	m, h, wait := holdLogAhead(t, f)
-	m.focusPane(runsPane)
-	h.keys("enter", "j")
+	// Left from the job goes up to its run, which folds, and j to the next
+	// run.
+	h.keys("left", "left", "j")
 	if m.run.ID == failedRun {
 		t.Fatal("the run didn't change")
 	}
@@ -268,7 +276,7 @@ func TestLogAheadGoesOnForTheJobLanded(t *testing.T) {
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
 	h.keys("j")
 	h.hold = nil
-	if j, ok := h.m.cur().selected(); !ok || j.ID != macosJob || len(h.held) != 1 {
+	if j, ok := h.m.cursorJob(); !ok || j.ID != macosJob || len(h.held) != 1 {
 		t.Fatalf("cursor on job %d with %d rests due, want the macOS job and one", j.ID, len(h.held))
 	}
 	h.release()

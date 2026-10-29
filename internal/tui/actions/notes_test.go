@@ -25,7 +25,7 @@ func TestNotesList(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "tab")
+	h.keys("tab")
 	v := notesText(m)
 	for _, want := range []string{"Annotations", "tea_test.go:54", "want a frame, got none", "Process completed"} {
 		if !strings.Contains(v, want) {
@@ -65,7 +65,7 @@ func TestNotesFailed(t *testing.T) {
 	f := newFake()
 	f.notesErr = fmt.Errorf("list annotations: %w", core.ErrOffline)
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "tab")
+	h.keys("tab")
 	v := notesText(m)
 	if strings.Contains(v, "No annotations on this run") || !strings.Contains(v, "to retry") {
 		t.Errorf("failure not shown:\n%s", v)
@@ -76,7 +76,7 @@ func TestNotesFailed(t *testing.T) {
 func TestNotesEnterOpensLog(t *testing.T) {
 	t.Parallel()
 	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "tab")
+	h.keys("tab")
 	want := m.noteEntries()[0].job.ID
 	h.keys("enter")
 	if h.log == nil {
@@ -96,7 +96,7 @@ func TestNotesFailedAmongRows(t *testing.T) {
 	f := newFake()
 	f.notesErrs = map[int64]error{macosJob: fmt.Errorf("list annotations: %w", core.ErrOffline)}
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "tab")
+	h.keys("tab")
 	v := notesText(m)
 	if !strings.Contains(v, "tea_test.go:54") || !strings.Contains(v, "to retry") {
 		t.Errorf("row or error missing:\n%s", v)
@@ -109,7 +109,7 @@ func TestNotesMorePages(t *testing.T) {
 	f := newFake()
 	f.notesNext = map[int64]string{ubuntuJob: "2"}
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("tab", "tab")
+	h.keys("tab")
 	if v := ansi.Strip(m.View()); !strings.Contains(v, " 2+ annotations ") {
 		t.Errorf("count lacks the plus:\n%s", v)
 	}
@@ -126,7 +126,7 @@ func TestNotesASCII(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
-			h.keys("tab", "tab")
+			h.keys("tab")
 			for _, v := range []string{ansi.Strip(m.View()), notesText(m)} {
 				if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 					t.Errorf("notes view isn't ASCII:\n%s", v)
@@ -145,7 +145,7 @@ func TestViewNotes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			m, h := newModal(t, newFake(), tt.width, tt.height)
-			h.keys("tab", "tab")
+			h.keys("tab")
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)

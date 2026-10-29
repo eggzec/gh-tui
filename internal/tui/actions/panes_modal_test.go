@@ -49,7 +49,7 @@ func TestZoomShowsOneBox(t *testing.T) {
 }
 
 // The digits focus the runs and the annotations, and tab goes through the
-// runs, the jobs and the annotations.
+// runs and the annotations.
 func TestDigitsAndTabReachAnnotations(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("2")
@@ -60,9 +60,9 @@ func TestDigitsAndTabReachAnnotations(t *testing.T) {
 	if m.notes || m.focus != runsPane {
 		t.Fatal("1 didn't focus the runs")
 	}
-	h.keys("tab", "tab")
+	h.keys("tab")
 	if !m.notes {
-		t.Error("tab twice from the runs isn't on the annotations")
+		t.Error("tab from the runs isn't on the annotations")
 	}
 	h.keys("tab")
 	if m.notes || m.focus != runsPane {

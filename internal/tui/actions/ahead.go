@@ -48,8 +48,9 @@ func (m *Modal) cachedJobs(q actionssvc.JobsQuery) bool {
 // log overlay reads the log of the job it opens itself.
 func (m *Modal) readLogsAround() tea.Cmd {
 	j := m.cur()
+	cur, _ := m.childOf(j)
 	at := func(k int) (int64, bool) {
-		if k == j.cursor || k >= len(j.lines) || j.lines[k].group != nil {
+		if k == cur || k >= len(j.lines) || j.lines[k].group != nil {
 			return 0, false
 		}
 		job := j.items[j.lines[k].job]
@@ -59,7 +60,7 @@ func (m *Modal) readLogsAround() tea.Cmd {
 	if !m.hasRun || !j.loaded {
 		at = nil
 	}
-	return m.aheadLogs.Window(at, j.cursor)
+	return m.aheadLogs.Window(at, cur)
 }
 
 // readLogAhead reads the log of job jobID ahead of its use, for

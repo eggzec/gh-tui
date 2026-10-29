@@ -149,7 +149,7 @@ func TestCopyOverAModal(t *testing.T) {
 		{name: "run", steps: []string{"repo.actions"}, lines: map[string]string{
 			"copy sha": "Copied abc123.", "copy url": "Copied " + keyRun.URL + ".",
 		}},
-		{name: "job", steps: []string{"repo.actions", "global.next_pane"}, lines: map[string]string{"copy url": "Copied " + keyJob.URL + "."}},
+		{name: "job", steps: []string{"repo.actions", "actions_runs.expand", "actions_runs.down"}, lines: map[string]string{"copy url": "Copied " + keyJob.URL + "."}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

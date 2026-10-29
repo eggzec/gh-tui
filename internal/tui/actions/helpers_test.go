@@ -151,17 +151,6 @@ func (h *host) update(msg tea.Msg) tea.Cmd {
 	return h.m.Update(msg)
 }
 
-// openLog opens the log of the job under the cursor of the jobs, and
-// returns the overlay.
-func (h *host) openLog(tb testing.TB) *logModal {
-	tb.Helper()
-	h.keys("j", "enter")
-	if h.log == nil {
-		tb.Fatal("enter on a job didn't open its log")
-	}
-	return h.log
-}
-
 // logText is the text of the log, without styles, its spaces collapsed.
 func logText(l *logModal) string {
 	return strings.Join(strings.Fields(ansi.Strip(l.View())), " ")
@@ -306,17 +295,46 @@ func screen(m *Modal) string {
 	return ansi.Strip(m.View())
 }
 
-// paneText is the text of pane p, without styles, its spaces collapsed.
-func paneText(m *Modal, p pane) string {
+// paneText is the text of the runs and their jobs, without styles, its spaces
+// collapsed.
+func paneText(m *Modal) string {
 	// As wide as a zoomed box, not the 34 columns of the side by side one.
-	var lines []string
-	switch p {
-	case jobsPane:
-		lines = m.jobLines(100, m.rowsOf(p))
-	default:
-		lines = m.runsBox(100, m.rowsOf(runsPane)+1)
-	}
+	lines := wideRunsBox(m)
 	return strings.Join(strings.Fields(ansi.Strip(strings.Join(lines, "\n"))), " ")
+}
+
+// wideRunsBox renders the runs box 100 cells wide, then puts the tree back to
+// its own width, so that long names stay whole.
+func wideRunsBox(m *Modal) []string {
+	defer m.runs.SetSize(m.inner, m.rowsOf(runsPane))
+	m.runs.SetSize(100, m.rowsOf(runsPane))
+	return m.runsBox(100, m.bodyHeight())
+}
+
+// toJobs opens the run under the cursor, if it is closed, and steps onto its
+// first row.
+func (h *host) toJobs(tb testing.TB) {
+	tb.Helper()
+	if !h.m.runs.Unfolded() {
+		h.keys("enter")
+	}
+	h.keys("j")
+	if !h.m.cursorOnJobs() {
+		tb.Fatal("j from the run didn't reach its jobs")
+	}
+}
+
+// toJob steps down the jobs of the run under the cursor to the job named name.
+func (h *host) toJob(tb testing.TB, name string) {
+	tb.Helper()
+	h.toJobs(tb)
+	for range 60 {
+		if j, ok := h.m.cursorJob(); ok && j.Name == name {
+			return
+		}
+		h.keys("j")
+	}
+	tb.Fatalf("the cursor never reached the job %q", name)
 }
 
 // lastLine is the last line of the view, without styles, trimmed.

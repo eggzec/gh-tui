@@ -71,7 +71,7 @@ func (m *Modal) fromCache() tea.Cmd {
 		// arrive, which keep the cursor on the job of the same name.
 		prev := *m.cur()
 		next := m.entry(m.run)
-		next.items, next.cursor, next.loaded = prev.items, prev.cursor, prev.loaded
+		next.items, next.loaded = prev.items, prev.loaded
 		next.tree, next.lines, next.folds = prev.tree, prev.lines, prev.folds
 	}
 	m.follow()
