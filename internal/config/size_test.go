@@ -68,7 +68,7 @@ func TestLoadSizes(t *testing.T) {
 		{yaml: "big", wantErr: `line 4: invalid size "big"`},
 		{yaml: "[1]", wantErr: "line 4: want a size"},
 		{yaml: "-5", wantErr: `invalid size "-5"`},
-		{yaml: "2MiB", wantErr: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (1MiB), got 2MiB"},
+		{yaml: "32MiB", wantErr: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (20MiB), got 32MiB"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.yaml, func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestLoadSizes(t *testing.T) {
 				t.Errorf("max_size = %v, want %v", p.MaxSize, tt.want)
 			}
 			r, _ := cfg.Prefetch.Resolve("files", "preview")
-			if r.Window != (Window{After: 32}) || cfg.Files.Preview.MaxSize != MiB {
+			if r.Window != (Window{After: 32}) || cfg.Files.Preview.MaxSize != 20*MiB {
 				t.Errorf("window %+v, files %+v, want the other fields defaulted", r.Window, cfg.Files)
 			}
 		})
@@ -115,5 +115,25 @@ func TestValidateFileSizes(t *testing.T) {
 	cfg.Files.Preview.MaxSize = 101 * MiB
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "files.preview.max_size") {
 		t.Errorf("Validate() = %v, want preview.max_size over GitHub's limit rejected", err)
+	}
+	cfg = Default()
+	cfg.Files.Preview.WarnSize = cfg.Files.Preview.MaxSize + 1
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "files.preview.warn_size: must be between 1B and files.preview.max_size (20MiB)") {
+		t.Errorf("Validate() = %v, want warn_size over max_size rejected", err)
+	}
+}
+
+func TestTooLargeText(t *testing.T) {
+	for _, tt := range []struct {
+		size, limit int64
+		want        string
+	}{
+		{2516582, int64(20 * MiB), "a.bin is 2.4 MiB, over the 20 MiB limit (files.preview.max_size)."},
+		{0, int64(20 * MiB), "a.bin is over the 20 MiB limit (files.preview.max_size)."},
+		{3000, 1024, "a.bin is 2.9 KiB, over the 1 KiB limit (files.preview.max_size)."},
+	} {
+		if got := TooLargeText("a.bin", tt.size, tt.limit); got != tt.want {
+			t.Errorf("TooLargeText(%d, %d) = %q, want %q", tt.size, tt.limit, got, tt.want)
+		}
 	}
 }

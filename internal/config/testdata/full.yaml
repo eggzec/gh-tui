@@ -84,6 +84,7 @@ sync:
 files:
   preview:
     max_size: 2000000
+    warn_size: 1MB
   finder:
     preview: false
   markdown: raw

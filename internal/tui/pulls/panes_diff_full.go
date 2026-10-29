@@ -120,7 +120,7 @@ func (o *diffOverlay) receiveFull(msg fullMsg) tea.Cmd {
 	}
 	switch {
 	case errors.Is(msg.err, core.ErrTooLarge):
-		return ui.Notify(toast.Info, "This file is too large to show whole.")
+		return ui.Notify(toast.Info, ui.TooLargeText(msg.path, msg.err))
 	case msg.err != nil:
 		return ui.Fail("read "+msg.path, msg.err)
 	case msg.blob.Binary:
