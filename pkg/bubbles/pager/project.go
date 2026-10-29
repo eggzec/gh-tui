@@ -218,15 +218,3 @@ func (m *Model) filterFor(line string) tea.Cmd {
 	p.filter = filter{query: line, re: re, invert: invert}
 	return m.project(p)
 }
-
-// clearFilter stops the filter being picked, if one is, or else shows
-// every line again.
-func (m *Model) clearFilter() tea.Cmd {
-	if m.projecting {
-		m.stopProjecting()
-		return nil
-	}
-	p := m.proj
-	p.filter = filter{}
-	return m.project(p)
-}
