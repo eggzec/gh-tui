@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 
 	tea "charm.land/bubbletea/v2"
@@ -308,8 +309,8 @@ func (m *Model) jump(i int) {
 	}
 	if ranges != nil && !m.wrap {
 		line := m.lines[s.curLine]
-		_, from := advance(line[:ranges[nth][0]], 0, math.MaxInt)
-		_, to := advance(line[:ranges[nth][1]], 0, math.MaxInt)
+		_, from := wrap.Advance(line[:ranges[nth][0]], 0, math.MaxInt)
+		_, to := wrap.Advance(line[:ranges[nth][1]], 0, math.MaxInt)
 		if tw := m.textWidth(); from < m.left || to > m.left+tw {
 			m.left = max(from-tw/4, 0)
 		}
@@ -360,17 +361,17 @@ func (m Model) shown(p int) (a, e int) {
 	s, tw := m.lines[m.at(p)], m.textWidth()
 	if !m.wrap {
 		a, _ = m.leftEdge(s)
-		e, _ = advance(s, a, tw)
+		e, _ = wrap.Advance(s, a, tw)
 		return a, e
 	}
 	if p == m.top {
 		for range m.row {
-			a, _ = nextRow(s, a, tw)
+			a, _ = wrap.NextRow(s, a, tw)
 		}
 	}
 	e = a
 	for r := 0; r < m.bodyHeight() && e < len(s); r++ {
-		e, _ = nextRow(s, e, tw)
+		e, _ = wrap.NextRow(s, e, tw)
 	}
 	return a, e
 }
