@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -19,13 +20,16 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	var b strings.Builder
+	// The builder comes from a pool because the host's hooks take it by
+	// pointer, which would otherwise move it to the heap on each frame.
+	b := builders.Get().(*strings.Builder)
+	defer func() { b.Reset(); builders.Put(b) }()
 	// Tokens carry escape sequences, so leave room for them.
 	b.Grow(m.height * (m.width + 64))
 	rows := 0
 	switch {
 	case m.state == stateReady && m.count() > 0:
-		rows = m.writeLines(&b)
+		rows = m.writeLines(b)
 	case m.state == stateFailed:
 		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
 			b.WriteString(m.fit(l, m.width))
@@ -52,6 +56,9 @@ func (m Model) View() string {
 	b.WriteString(m.statusLine())
 	return b.String()
 }
+
+// builders holds the builders that View writes a frame in.
+var builders = sync.Pool{New: func() any { return new(strings.Builder) }}
 
 // message returns the placeholder shown instead of lines.
 func (m Model) message() string {
@@ -103,6 +110,12 @@ func (m Model) writeLines(b *strings.Builder) int {
 	rows := 0
 	for p := m.top; p < m.count() && rows < h; p++ {
 		i := m.at(p)
+		if text, ok := m.header(i); ok {
+			m.headerWriter(b, i, text, m.width)
+			b.WriteByte('\n')
+			rows++
+			continue
+		}
 		s := m.rows.Text(i)
 		if pic, ok := m.pics[i]; ok {
 			m.writeGutter(b, i, true, gw)
@@ -158,6 +171,10 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 	if gw == 0 {
 		return
 	}
+	if m.gutter != nil {
+		m.gutter.Write(b, i, first)
+		return
+	}
 	numberGutter{m: &m, w: gw}.Write(b, i, first)
 }
 
@@ -168,7 +185,7 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 		m.writeStyled(b, i, a, e)
 		return
 	}
-	s := m.rows.Text(i)
+	s, base := m.rows.Text(i), m.base(i)
 	var spans []syntax.Span
 	if i < len(m.spans) {
 		spans = m.spans[i]
@@ -181,7 +198,7 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 	}
 	mi := 0
 	for pos := a; pos < e; {
-		next, p := e, m.esc.text
+		next, p := e, base
 		for k < len(spans) && spans[k].End <= pos {
 			k++
 		}
