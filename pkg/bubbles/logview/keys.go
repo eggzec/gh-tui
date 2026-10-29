@@ -52,10 +52,9 @@ type KeyMap struct {
 	Follow key.Binding `keymap:"follow" help:"follow"`
 
 	// Search opens the search input, Confirm searches for what it holds,
-	// and Cancel closes it. Outside the input, Cancel clears the search.
-	// The view enables Confirm only while the input is open, and Cancel
-	// only while it is or a search is shown, so enter folds and esc closes
-	// the view otherwise.
+	// and Cancel closes it. The view enables Confirm and Cancel only while
+	// the input is open, so enter folds and esc closes the view otherwise,
+	// with a search shown too.
 	Search  key.Binding `keymap:"find" help:"search"`
 	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
 	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`

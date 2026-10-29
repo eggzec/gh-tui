@@ -248,14 +248,11 @@ func TestClose(t *testing.T) {
 		}
 	}
 
-	// With a search shown, esc clears it first.
+	// With a search shown, esc closes at once and leaves the search alone.
 	m, _ = keys(t, m, "/", "a", "enter")
-	m, msg := keys(t, m, "esc")
-	if msg != nil || m.Query() != "" || m.KeyMap().Next.Enabled() {
-		t.Errorf("esc: msg %v, query %q; want the search cleared", msg, m.Query())
-	}
-	if _, msg = keys(t, m, "esc"); msg == nil {
-		t.Error("a second esc didn't close")
+	_, msg := keys(t, m, "esc")
+	if got, ok := msg.(CloseMsg); !ok || got.ID != m.ID() || m.Query() != "a" {
+		t.Errorf("esc: msg %#v, query %q; want a close with the search kept", msg, m.Query())
 	}
 }
 

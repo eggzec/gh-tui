@@ -253,7 +253,7 @@ func (m *Model) enableKeys() {
 	keymap.Enable(&m.keys.Next, found)
 	keymap.Enable(&m.keys.Prev, found)
 	keymap.Enable(&m.keys.Confirm, m.searching)
-	keymap.Enable(&m.keys.Cancel, m.searching || m.search.query != "")
+	keymap.Enable(&m.keys.Cancel, m.searching)
 	m.keys.Options.setEnabled(m.opt)
 	if m.opt {
 		// The cancel key of the options stands in for that of the search.

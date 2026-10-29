@@ -70,8 +70,7 @@ func TestProgram(t *testing.T) {
 	tm.Type("fmt")
 	tm.Send(press("enter"))
 	tm.Send(press("n"))
-	// The first esc clears the search, the second closes.
-	tm.Send(press("esc"))
+	// Esc closes with the search shown.
 	tm.Send(press("esc"))
 
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(host)
@@ -81,8 +80,8 @@ func TestProgram(t *testing.T) {
 	if !final.second {
 		t.Error("n didn't go to the second match")
 	}
-	if !final.closed || final.pager.Query() != "" {
-		t.Errorf("closed %v with query %q; want closed with the search cleared",
+	if !final.closed || final.pager.Query() != "fmt" {
+		t.Errorf("closed %v with query %q; want closed with the search kept",
 			final.closed, final.pager.Query())
 	}
 }

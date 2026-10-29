@@ -99,8 +99,6 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.step(1)
 	case keymap.Matches(k, m.keys.Prev):
 		m.step(-1)
-	case m.search.query != "" && keymap.Matches(k, m.keys.Cancel):
-		m.clearSearch()
 	case keymap.Matches(k, m.keys.Quit, m.keys.Dismiss):
 		return m, m.close()
 	}

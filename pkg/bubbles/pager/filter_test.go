@@ -76,12 +76,10 @@ func TestFilter(t *testing.T) {
 			wantStatus: "filtered 15/100  3 matches"},
 		{name: "a filter that hides every match clears the search", keys: []string{"/", "xxxxxx", "enter", "&", "line x ", "enter"},
 			wantFilter: "line x ", wantShown: 15, wantFirst: 2, wantNote: "Pattern not found"},
-		{name: "esc clears the search first", keys: []string{"&", "line x ", "enter", "/", "1", "enter", "esc"},
-			wantFilter: "line x ", wantShown: 15, wantFirst: 2},
-		{name: "then the filter", keys: []string{"&", "line x ", "enter", "/", "1", "enter", "esc", "esc"},
-			wantShown: 100, wantFirst: 2},
-		{name: "then closes", keys: []string{"&", "line x ", "enter", "esc", "esc"},
-			wantShown: 100, wantFirst: 2, wantClose: true},
+		{name: "esc closes with a search shown", keys: []string{"&", "line x ", "enter", "/", "1", "enter", "esc"},
+			wantFilter: "line x ", wantShown: 15, wantFirst: 2, wantQuery: "1", wantMatches: 3, wantClose: true},
+		{name: "esc closes with a filter shown", keys: []string{"&", "line x ", "enter", "esc"},
+			wantFilter: "line x ", wantShown: 15, wantFirst: 2, wantClose: true},
 		{name: "esc at the prompt keeps the filter", keys: []string{"&", "line x ", "enter", "&", "kiwi", "esc"},
 			wantFilter: "line x ", wantShown: 15, wantFirst: 2},
 	}
@@ -166,7 +164,8 @@ func TestFilterKeepsThePlace(t *testing.T) {
 	if m.topLine()+1 != 23 {
 		t.Errorf("filtered: top line %d, want 23, the first shown after 21", m.topLine()+1)
 	}
-	m, _ = keys(t, m, "j", "esc")
+	m, _ = keys(t, m, "j", "&")
+	m, _ = enterAll(t, m, "enter")
 	if m.topLine()+1 != 30 {
 		t.Errorf("cleared: top line %d, want 30, where it was", m.topLine()+1)
 	}
@@ -179,9 +178,8 @@ func TestFilterInBackground(t *testing.T) {
 	if run == nil {
 		t.Fatal("a large file was filtered at once")
 	}
-	if m.Shown() != 30_000 || !strings.Contains(plain(m), "filtering…") || !m.KeyMap().Cancel.Enabled() {
-		t.Errorf("while running: %d lines shown, status %q, cancel enabled %v; want all, filtering…, and cancel",
-			m.Shown(), lastLine(plain(m)), m.KeyMap().Cancel.Enabled())
+	if m.Shown() != 30_000 || !strings.Contains(plain(m), "filtering…") {
+		t.Errorf("while running: %d lines shown, status %q; want all and filtering…", m.Shown(), lastLine(plain(m)))
 	}
 	// The filter reads the lines while the pager scrolls and renders.
 	var wg sync.WaitGroup
@@ -242,11 +240,6 @@ func TestFilterCancelled(t *testing.T) {
 		name string
 		stop func(*Model) tea.Cmd
 	}{
-		{name: "esc", stop: func(m *Model) tea.Cmd {
-			var cmd tea.Cmd
-			*m, cmd = m.Update(escKey)
-			return cmd
-		}},
 		{name: "an empty filter", stop: func(m *Model) tea.Cmd {
 			var cmd tea.Cmd
 			*m, cmd = typeFilter(t, *m, "")
@@ -274,21 +267,16 @@ func TestFilterCancelled(t *testing.T) {
 	}
 }
 
-// Esc stops a filter while it runs, and the one shown before stays.
-func TestFilterCancelKeepsTheOld(t *testing.T) {
+// Esc closes the pager while a filter runs, as it does with one shown.
+func TestFilterEscCloses(t *testing.T) {
 	m := open(t, "big.txt", bigText(t), WithSize(40, 11))
-	m, run := typeFilter(t, m, "line x ")
-	m, _ = m.Update(run())
-	m, run = typeFilter(t, m, "line xx ")
-	stale := run()
-	m, _ = keys(t, m, "esc")
-	m, _ = m.Update(stale)
-	if m.Filter() != "line x " || m.projecting || strings.Contains(plain(m), "filtering…") {
-		t.Errorf("filter %q, projecting %v, status %q; want the old one shown", m.Filter(), m.projecting, lastLine(plain(m)))
+	m, _ = typeFilter(t, m, "line x ")
+	_, cmd := m.Update(escKey)
+	if cmd == nil {
+		t.Fatal("esc while filtering sent nothing")
 	}
-	m, _ = keys(t, m, "esc")
-	if m.Filter() != "" || m.Shown() != 30_000 {
-		t.Errorf("the second esc left filter %q showing %d lines", m.Filter(), m.Shown())
+	if _, ok := cmd().(CloseMsg); !ok {
+		t.Errorf("esc while filtering sent %T, want CloseMsg", cmd())
 	}
 }
 

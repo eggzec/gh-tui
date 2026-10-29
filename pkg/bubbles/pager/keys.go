@@ -34,10 +34,9 @@ type KeyMap struct {
 
 	// Search opens the search prompt, Confirm searches for the pattern
 	// typed, a regexp, or for the lines it doesn't match after a "!", and
-	// Cancel closes the prompt. Outside the prompt, Cancel clears the
-	// search. The pager enables Confirm only while the prompt is open, and
-	// Cancel only while it is or a search or filter is shown, so esc
-	// closes the pager otherwise.
+	// Cancel closes the prompt. The pager enables Confirm and Cancel only
+	// while the prompt is open, so esc closes the pager otherwise, with a
+	// search or a filter shown too.
 	Search  key.Binding `keymap:"find" help:"search"`
 	Confirm key.Binding `keymap:"search_prompt.run" help:"search"`
 	Cancel  key.Binding `keymap:"search_prompt.cancel" help:"cancel"`

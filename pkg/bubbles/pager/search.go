@@ -139,8 +139,7 @@ func (m *Model) enableSearchKeys() {
 	keymap.Enable(&m.keys.Next, found)
 	keymap.Enable(&m.keys.Prev, found)
 	keymap.Enable(&m.keys.Confirm, m.prompt.Focused())
-	keymap.Enable(&m.keys.Cancel, m.prompt.Focused() || m.search.query != "" ||
-		m.projecting || m.proj.filter.re != nil)
+	keymap.Enable(&m.keys.Cancel, m.prompt.Focused())
 	m.keys.Options.setEnabled(m.opt)
 }
 
