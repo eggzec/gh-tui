@@ -3,6 +3,8 @@ package pager
 import (
 	"strconv"
 	"strings"
+
+	"charm.land/lipgloss/v2"
 )
 
 // Gutter draws the cells before the text of a row and says how many there
@@ -17,6 +19,71 @@ type Gutter interface {
 	// first screen row of the row, and false for the rows a wrapped row
 	// continues on.
 	Write(b *strings.Builder, i int, first bool)
+}
+
+// WithGutter draws the cells before each row with g in place of the line
+// numbers. The numbers stay the default, and a nil g restores them.
+func WithGutter(g Gutter) Option {
+	return func(s *settings) { s.gutter = g }
+}
+
+// Pair is the escape sequences that turn a style on and off, made once from
+// a style so that drawing a row costs no rendering. The zero Pair has no
+// style.
+type Pair struct{ p pair }
+
+// NewPair returns the Pair of a style.
+func NewPair(s lipgloss.Style) Pair { return Pair{newPair(s)} }
+
+// RowStyle gives the base style of row i: the style of its text where no
+// token or match colors it. The pager asks it for each row it draws, so it
+// must be cheap and must not allocate. A zero Pair keeps the text style.
+type RowStyle func(i int) Pair
+
+// WithRowStyle styles the text of each row with the style that f gives it.
+func WithRowStyle(f RowStyle) Option {
+	return func(s *settings) { s.rowStyle = f }
+}
+
+// Headed is an optional interface of [Rows]: a row that reports a header is
+// drawn by the [HeaderWriter] as one row, never wrapped.
+type Headed interface {
+	// Header returns the text of header row i, and false for the rows that
+	// are not headers.
+	Header(i int) (text string, ok bool)
+}
+
+// HeaderWriter draws header row i, whose text is given, over the whole width
+// of the pager: it writes exactly width cells, the gutter's included.
+type HeaderWriter func(b *strings.Builder, i int, text string, width int)
+
+// WithHeaderWriter draws the rows that a [Headed] source reports as headers
+// with w. Without it every row is drawn as the others are.
+func WithHeaderWriter(w HeaderWriter) Option {
+	return func(s *settings) { s.headerWriter = w }
+}
+
+// header returns the text of row i when it is a header row.
+func (m Model) header(i int) (string, bool) {
+	if m.headerWriter == nil {
+		return "", false
+	}
+	h, ok := m.rows.(Headed)
+	if !ok {
+		return "", false
+	}
+	return h.Header(i)
+}
+
+// base returns the style of the text of row i.
+func (m Model) base(i int) pair {
+	if m.rowStyle == nil {
+		return m.esc.text
+	}
+	if p := m.rowStyle(i).p; p.on != "" || p.off != "" {
+		return p
+	}
+	return m.esc.text
 }
 
 // numberGutter is the default gutter: the line numbers and the space after

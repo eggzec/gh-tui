@@ -11,7 +11,19 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
+	if m.gutter != nil {
+		return m.customWidth()
+	}
 	return numberGutter{m: &m}.Width(m.width)
+}
+
+// customWidth returns the width of the host's gutter, or 0 when it leaves
+// no room for text.
+func (m Model) customWidth() int {
+	if w := m.gutter.Width(m.width); w > 0 && w < m.width {
+		return w
+	}
+	return 0
 }
 
 // reserved returns how many lines more than the content has the gutter
@@ -26,6 +38,9 @@ func (m Model) reserved() int {
 // gutterFor returns the width of the gutter of n lines, as gutterWidth
 // does of the lines of the content.
 func (m Model) gutterFor(n int) int {
+	if m.gutter != nil {
+		return m.customWidth()
+	}
 	return numberGutter{m: &m}.widthFor(n, m.width)
 }
 
@@ -35,6 +50,9 @@ func (m Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
 // rowsIn returns how many rows the line shown at p takes.
 func (m Model) rowsIn(p int) int {
 	if !m.wrap {
+		return 1
+	}
+	if _, ok := m.header(m.at(p)); ok {
 		return 1
 	}
 	s, tw := m.rows.Text(m.at(p)), m.textWidth()
@@ -47,6 +65,9 @@ func (m Model) rowsIn(p int) int {
 
 // rowOf returns the row of the line shown at p that holds byte b.
 func (m Model) rowOf(p, b int) int {
+	if _, ok := m.header(m.at(p)); ok {
+		return 0
+	}
 	s, tw := m.rows.Text(m.at(p)), m.textWidth()
 	r := 0
 	for j, _ := wrap.NextRow(s, 0, tw); j <= b && j < len(s); j, _ = wrap.NextRow(s, j, tw) {
