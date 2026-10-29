@@ -1429,6 +1429,8 @@ keys:
   confirm:
     "yes": [y]
     "no": [n, esc]
+    # Gives the answer the question shows as its default.
+    default: [enter]
   # A prompt, such as the composer of a comment.
   prompt:
     submit: [ctrl+s]

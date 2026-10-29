@@ -10,4 +10,4 @@
 [38;2;239;125;125m gh is logged in as mona now, not octocat; restart gh-tui to switch[m    
 [38;2;239;125;125m  accounts[m                                                              
 [38;2;160;167;184mgh opens the browser to grant the token the workflow scope.[m             
-[1;38;2;122;162;247mRun gh auth refresh --hostname=github.com -s workflow?[m               [38;2;160;167;184my/n[m
+[1;38;2;122;162;247mRun gh auth refresh --hostname=github.com -s workflow?[m       [38;2;160;167;184my/n[m[38;2;160;167;184m · [m[38;2;122;162;247m↵[m[38;2;160;167;184m: no[m

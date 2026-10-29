@@ -203,6 +203,7 @@ func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
 		again, ok := now()
 		return again.ask, ok && again.ids == m.ids, nil
 	})
+	c.Default = m.ask.Default
 	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
 }
 
@@ -215,6 +216,8 @@ func (s *Section) markRead() (mark, bool) {
 	return mark{
 		ask: ui.Confirm{
 			Question: "Mark " + threadName(n) + " as read?",
+			// Reading it again is one key away.
+			Default: true,
 			Run:      func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") },
 		},
 		name: threadName(n), ids: n.ID,
