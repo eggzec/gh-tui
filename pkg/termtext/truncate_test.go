@@ -30,6 +30,27 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestTruncateLeft(t *testing.T) {
+	for _, tt := range []struct {
+		s     string
+		width int
+		tail  string
+		want  string
+	}{
+		{"abcdef", 10, "...", "abcdef"},
+		{"abcdef", 6, "...", "abcdef"},
+		{"abcdef", 5, "...", "...ef"},
+		{"abcdef", 3, "...", "def"},
+		{"abcdef", 2, "...", "ef"},
+		{"abcdef", 0, "...", ""},
+		{"abcdef", 4, "…", "…def"},
+	} {
+		if got := TruncateLeft(tt.s, tt.width, tt.tail); got != tt.want {
+			t.Errorf("TruncateLeft(%q, %d, %q) = %q, want %q", tt.s, tt.width, tt.tail, got, tt.want)
+		}
+	}
+}
+
 func TestFit(t *testing.T) {
 	for _, tt := range []struct {
 		name  string

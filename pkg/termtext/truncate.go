@@ -59,6 +59,24 @@ func TruncateMiddle(s string, width int, tail string) string {
 	return ansi.Truncate(s, keep-right, "") + tail + end
 }
 
+// TruncateLeft cuts s to width cells from the left, so its end shows, and
+// starts it with tail where it is cut. A tail as wide as width or wider is
+// left out, so the end of s shows alone.
+func TruncateLeft(s string, width int, tail string) string {
+	if width <= 0 {
+		return ""
+	}
+	w := ansi.StringWidth(s)
+	if w <= width {
+		return s
+	}
+	tw := ansi.StringWidth(tail)
+	if tw >= width {
+		return ansi.TruncateLeft(s, w-width, "")
+	}
+	return tail + ansi.TruncateLeft(s, w-width+tw, "")
+}
+
 // Cells cuts or pads g, a glyph such as a cursor or a mark, to exactly n
 // cells, so the columns after it stay where they are whatever glyph a
 // program picks.
