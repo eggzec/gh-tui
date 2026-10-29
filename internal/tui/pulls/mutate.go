@@ -290,7 +290,7 @@ func (s *Section) confirm(pr core.PullRequest, msg tea.KeyPressMsg) tea.Cmd {
 		return tea.Sequence(ui.OpenModal(d), d.Init())
 	}
 	q := s.keys.ask(s.svc, c, msg, now, send, again)
-	return ui.OpenModal(ui.NewConfirmModal(q, s.keys.confirm, s.icons))
+	return ui.OpenConfirm(q, s.keys.confirm, s.icons)
 }
 
 // subject returns pr, a row of the list, with what is cached of its

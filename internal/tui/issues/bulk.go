@@ -105,7 +105,7 @@ func (s *Section) bulk(state core.State) tea.Cmd {
 			send := p.Do(s.ctx, ui.IssuesTitle)
 			return tea.Batch(s.reload(), send)
 		})
-	return ui.OpenModal(ui.NewConfirmModal(c, s.keys.confirm, s.icons))
+	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
 }
 
 // bulkDone shows the issues again from the cache, which the changes have

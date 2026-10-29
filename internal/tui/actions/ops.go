@@ -36,7 +36,8 @@ func (m *Modal) asks(now func() (c change, notice string, refusal tea.Cmd)) tea.
 		return again.ask, again.ask.Question != "" && again.target == c.target, refusal
 	})
 	m.ask = &ask
-	return nil
+	m.armed = false
+	return ui.Arm()
 }
 
 // rerunFailed re-runs the failed jobs of the run shown, or says why not.
@@ -177,7 +178,7 @@ func (m *Modal) send(what string, start func() *optimistic.Op) func() tea.Cmd {
 // answer takes the answer to the confirmation: yes makes the change and
 // sends it, and no drops it. Other keys leave the question open.
 func (m *Modal) answer(msg tea.KeyPressMsg) tea.Cmd {
-	cmd, done := m.keys.Confirm.Answer(*m.ask, msg)
+	cmd, done := m.keys.Confirm.Answer(*m.ask, msg, m.armed)
 	if done {
 		m.ask = nil
 	}

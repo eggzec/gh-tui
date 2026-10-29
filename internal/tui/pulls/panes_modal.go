@@ -91,6 +91,9 @@ type panesModal struct {
 	// overlays are the pickers, questions and viewers open over the panes, the
 	// last on top. Only it takes keys.
 	overlays []openOverlay
+	// arm arms the question that ask just opened, sent with the next Update's
+	// commands.
+	arm tea.Cmd
 
 	// caps is what the viewer may do in repo, as far as it is known, and
 	// token says what the token lacks. sending is set while GitHub has a
@@ -300,7 +303,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			}
 			return
 		}
-		cmd = tea.Batch(cmd, syncCmd, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
+		arm := m.arm
+		m.arm = nil
+		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:

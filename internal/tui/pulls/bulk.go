@@ -145,7 +145,7 @@ func (s *Section) bulk(msg tea.KeyPressMsg) tea.Cmd {
 			send := p.Do(s.ctx, ui.PullsTitle)
 			return tea.Batch(s.reload(), send)
 		})
-	return ui.OpenModal(ui.NewConfirmModal(c, s.keys.confirm, s.icons))
+	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
 }
 
 // bulkDone shows the pull requests again from the cache, which the
