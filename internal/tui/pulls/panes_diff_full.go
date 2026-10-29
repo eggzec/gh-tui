@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"math"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -94,11 +95,35 @@ func (o *diffOverlay) toggleFull() tea.Cmd {
 		o.full.reading = map[string]bool{}
 	}
 	o.full.reading[path] = true
-	blobs, ctx, q := o.m.blobs, o.ctx, filesvc.BlobQuery{Repo: o.m.repo, SHA: f.SHA}
+	return o.readFull(path, f.SHA, 0)
+}
+
+// readFull reads the blob of the file at path, with the limit asked for, 0 for
+// the warning limit.
+func (o *diffOverlay) readFull(path, sha string, limit int64) tea.Cmd {
+	blobs, ctx, q := o.m.blobs, o.ctx, filesvc.BlobQuery{Repo: o.m.repo, SHA: sha, Limit: limit}
 	return func() tea.Msg {
 		blob, err := blobs.Blob(ctx, q)
 		return fullMsg{o: o, path: path, blob: blob, err: err}
 	}
+}
+
+// askFull asks whether to read the file at path although it is over the
+// warning limit. Yes reads it again with the hard limit, for this read only.
+func (o *diffOverlay) askFull(path, question string) tea.Cmd {
+	f, ok := o.fileOf(path)
+	if !ok {
+		return nil
+	}
+	o.full.reading[path] = false
+	c := ui.Confirm{Question: question, Run: func() tea.Cmd {
+		if o.done || o.full.reading[path] {
+			return nil
+		}
+		o.full.reading[path] = true
+		return o.readFull(path, f.SHA, math.MaxInt64)
+	}}
+	return ui.OpenConfirm(c, o.m.keys.confirm, o.m.icons)
 }
 
 // fileOf returns the file of the range at path, once the files are read.
@@ -118,7 +143,10 @@ func (o *diffOverlay) receiveFull(msg fullMsg) tea.Cmd {
 	if o.done {
 		return nil
 	}
+	question, ask := ui.AskLoad(msg.path, msg.err)
 	switch {
+	case ask:
+		return o.askFull(msg.path, question)
 	case errors.Is(msg.err, core.ErrTooLarge):
 		return ui.Notify(toast.Info, ui.TooLargeText(msg.path, msg.err))
 	case msg.err != nil:

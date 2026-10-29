@@ -12,6 +12,7 @@ type options struct {
 	blobMemory   int64
 	treeMemory   int64
 	maxBlob      int64
+	warnBlob     int64
 	store        Store
 }
 
@@ -74,6 +75,18 @@ func WithTreeMemory(n int64) Option {
 	return func(o *options) {
 		if n >= 1 {
 			o.treeMemory = n
+		}
+	}
+}
+
+// WithWarnBlobSize sets the size, in bytes, above which Blob refuses a file
+// unless the query asks for a higher limit. It is at most the largest file.
+// Without it, or with n below one, it is the default of the config
+// (config.Default).
+func WithWarnBlobSize(n int64) Option {
+	return func(o *options) {
+		if n >= 1 {
+			o.warnBlob = n
 		}
 	}
 }

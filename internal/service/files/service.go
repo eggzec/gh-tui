@@ -37,6 +37,9 @@ type Service struct {
 	api     API
 	store   Store
 	maxBlob int64
+	// warnBlob is the size above which a read needs a higher limit asked for,
+	// at most maxBlob.
+	warnBlob int64
 	// ttl is how long a tree read by a ref stays fresh.
 	ttl time.Duration
 	// refs holds trees read by a ref, which may move, so they go stale and
@@ -61,14 +64,16 @@ func New(api API, opts ...Option) *Service {
 	// its entries. Each cache keeps up to the bound on its own, so together
 	// they take up to twice it.
 	trees := cache.WithMaxSize(cmp.Or(o.treeMemory, int64(d.Cache.Memory.Trees)), treeSize)
+	maxBlob := cmp.Or(o.maxBlob, int64(d.Files.Preview.MaxSize))
 	// What a SHA names never changes, so it never goes stale.
 	return &Service{
-		api:     api,
-		store:   o.store,
-		maxBlob: cmp.Or(o.maxBlob, int64(d.Files.Preview.MaxSize)),
-		ttl:     ttl,
-		refs:    cache.New[core.Tree](cache.WithTTL(ttl), capacity, trees),
-		objects: cache.New[core.Tree](capacity, trees),
+		api:      api,
+		store:    o.store,
+		maxBlob:  maxBlob,
+		warnBlob: min(cmp.Or(o.warnBlob, int64(d.Files.Preview.WarnSize)), maxBlob),
+		ttl:      ttl,
+		refs:     cache.New[core.Tree](cache.WithTTL(ttl), capacity, trees),
+		objects:  cache.New[core.Tree](capacity, trees),
 		blobs: cache.New[core.Blob](
 			cache.WithCapacity(cmp.Or(o.blobCapacity, d.Cache.Memory.Entries)),
 			cache.WithMaxSize(cmp.Or(o.blobMemory, int64(d.Cache.Memory.Files)), blobSize),

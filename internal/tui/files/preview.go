@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -62,6 +63,11 @@ type preview struct {
 	// md.
 	raw bool
 	md  markdownView
+	// confirm answers the question whether to load a file over the warning
+	// limit, and limit is the limit the user agreed to for this file, 0 until
+	// then.
+	confirm ui.ConfirmKeys
+	limit   int64
 }
 
 // entryMsg carries the entry of the file of the preview whose pager has
@@ -95,7 +101,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	back := ui.In(keys, "preview").Binding("global.back", "back")
 	back.SetEnabled(false)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw, confirm: ui.NewConfirmKeys(keys)}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
 	p.md.setFiles(ctx, svc, repo, ref, images)
@@ -113,7 +119,7 @@ func (p *preview) load() tea.Cmd {
 	if p.entry.SHA == "" {
 		return p.findFile()
 	}
-	q := filesvc.BlobQuery{Repo: p.repo, SHA: p.entry.SHA, Size: p.entry.Size}
+	q := filesvc.BlobQuery{Repo: p.repo, SHA: p.entry.SHA, Size: p.entry.Size, Limit: p.limit}
 	if b, ok := p.svc.CachedBlob(q); ok {
 		return p.show(b, nil)
 	}
@@ -213,7 +219,21 @@ func walkEntry(tree func(filesvc.TreeQuery) (core.Tree, error), repo core.RepoRe
 func (p *preview) show(b core.Blob, err error) tea.Cmd {
 	p.failed, p.loaded = err, true
 	p.img.set(p.entry, b, err)
-	return p.draw()
+	cmd := p.draw()
+	if question, ok := ui.AskLoad(p.entry.Path, err); ok && p.limit == 0 {
+		return tea.Batch(cmd, p.askLoad(question))
+	}
+	return cmd
+}
+
+// askLoad asks whether to load the file although it is over the warning
+// limit. Yes reads it again with the hard limit, for this file only.
+func (p *preview) askLoad(question string) tea.Cmd {
+	c := ui.Confirm{Question: question, Run: func() tea.Cmd {
+		p.limit = math.MaxInt64
+		return p.load()
+	}}
+	return ui.OpenConfirm(c, p.confirm, p.icons)
 }
 
 // draw shows the file as an image while it is one the terminal shows, and
