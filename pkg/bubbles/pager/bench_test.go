@@ -175,7 +175,7 @@ func BenchmarkSearch(b *testing.B) {
 				b.SetBytes(int64(size))
 				b.ReportAllocs()
 				for b.Loop() {
-					_, _, _ = find(context.Background(), re, false, lines, nil)
+					_, _, _ = find(context.Background(), re, false, &sliceRows{lines: lines}, nil)
 				}
 			})
 		}
@@ -202,7 +202,7 @@ func BenchmarkFilter(b *testing.B) {
 		b.Run("100k/"+tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				_, _, _ = pick(context.Background(), lines, p, nil)
+				_, _, _ = pick(context.Background(), &sliceRows{lines: lines}, p, nil)
 			}
 		})
 	}

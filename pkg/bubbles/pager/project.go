@@ -19,7 +19,7 @@ func (m Model) count() int {
 	if m.vis != nil {
 		return len(m.vis)
 	}
-	return len(m.lines)
+	return m.rows.Len()
 }
 
 // at returns the index of the line shown at position p.
@@ -96,14 +96,14 @@ func (m *Model) project(p projection) tea.Cmd {
 	m.stopProjecting()
 	m.want = p
 	if m.size < syncLimit || p.filter.re == nil {
-		vis, kept, _ := pick(context.Background(), m.lines, p, m.pics)
+		vis, kept, _ := pick(context.Background(), m.rows, p, m.pics)
 		return m.picked(vis, kept)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stopProject = cancel
 	m.projecting = true
 	m.enableSearchKeys()
-	id, pgen, all, pics := m.id, m.pgen, m.lines, m.pics
+	id, pgen, all, pics := m.id, m.pgen, m.rows, m.pics
 	return func() tea.Msg {
 		defer cancel()
 		vis, kept, err := pick(ctx, all, p, pics)
@@ -168,12 +168,13 @@ func (m *Model) picked(vis []int32, kept int) tea.Cmd {
 // images, which hold them blank: they are neither blank nor matched by
 // any pattern, so a filter shows them only when it shows the lines it
 // doesn't match, such as !^$, which hides the blank ones.
-func pick(ctx context.Context, all []string, p projection, pics map[int]string) (vis []int32, kept int, err error) {
+func pick(ctx context.Context, all Rows, p projection, pics map[int]string) (vis []int32, kept int, err error) {
 	if p.none() {
-		return nil, len(all), nil
+		return nil, all.Len(), nil
 	}
 	f := p.filter
-	for i, l := range all {
+	for i := range all.Len() {
+		l := all.Text(i)
 		if i%checkEvery == 0 {
 			if err := ctx.Err(); err != nil {
 				return nil, 0, err
@@ -186,7 +187,7 @@ func pick(ctx context.Context, all []string, p projection, pics map[int]string) 
 		kept++
 		blank := func(j int) bool {
 			_, pic := pics[j]
-			return all[j] == "" && !pic
+			return all.Text(j) == "" && !pic
 		}
 		if p.squeeze && blank(i) && len(vis) > 0 && blank(int(vis[len(vis)-1])) {
 			continue

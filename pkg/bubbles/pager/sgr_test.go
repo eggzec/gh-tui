@@ -128,12 +128,28 @@ func TestColorsHostile(t *testing.T) {
 	}
 }
 
+// An empty row of colored content has no marks, and is drawn through the
+// colors like the rows around it, so a base color wraps its empty text.
+func TestColoredContentEmptyRowIsStyled(t *testing.T) {
+	m := open(t, "test.log", "\x1b[31mred\x1b[0m\n\nplain\n", WithSize(20, 4))
+	r := m.rows.(*sliceRows)
+	if r.Marks(1) == nil {
+		t.Fatal("an empty row of colored content reads as plain")
+	}
+	if len(r.Marks(1)) != 0 {
+		t.Errorf("marks of the empty row = %v, want none", r.Marks(1))
+	}
+	if n := testing.AllocsPerRun(10, func() { _ = r.Marks(1) }); n != 0 {
+		t.Errorf("Marks allocates %v times", n)
+	}
+}
+
 // Searches and filters read the text without its colors, and the matches
 // show over the right columns.
 func TestColorsSearch(t *testing.T) {
 	text := "\x1b[1;32mok\x1b[0m  \x1b[31mfa\x1b[1mil-ed\x1b[0m 你好 fail\nplain fail\n"
 	m := open(t, "test.log", text, WithSize(40, 4))
-	if m.sgr == nil {
+	if m.rows.(*sliceRows).sgr == nil {
 		t.Fatal("the colors weren't found")
 	}
 	m, _ = typeSearch(t, m, "fail")
@@ -169,7 +185,7 @@ func TestColorsNotHighlighted(t *testing.T) {
 	if cmd := m.SetContent("main.go", "package main\n"); cmd == nil {
 		t.Error("plain Go isn't highlighted")
 	}
-	if m.sgr != nil {
+	if m.rows.(*sliceRows).sgr != nil {
 		t.Error("plain content kept the colors of the content before it")
 	}
 }
