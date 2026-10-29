@@ -30,6 +30,31 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestFit(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		s     string
+		width int
+		tail  string
+		want  string
+	}{
+		{"plain pads", "abc", 6, "…", "abc   "},
+		{"plain fits", "abcdef", 6, "…", "abcdef"},
+		{"plain cut", "abcdef", 4, "…", "abc…"},
+		{"styled boundary", "\x1b[1mabcdef\x1b[m", 5, "...", "\x1b[1mab...\x1b[m"},
+		{"styled pads", "\x1b[1mab\x1b[m", 4, "...", "\x1b[1mab\x1b[m  "},
+		{"wide rune at the cut", "ab世界", 4, "", "ab世"},
+		{"wide rune cut leaves a gap", "ab世界", 3, "", "ab "},
+		{"tail wider than width", "abcdef", 2, "...", "ab"},
+		{"width 0", "abc", 0, "…", ""},
+		{"negative width", "abc", -3, "…", ""},
+	} {
+		if got := Fit(tt.s, tt.width, tt.tail); got != tt.want {
+			t.Errorf("%s: Fit(%q, %d, %q) = %q, want %q", tt.name, tt.s, tt.width, tt.tail, got, tt.want)
+		}
+	}
+}
+
 func TestTruncateMiddle(t *testing.T) {
 	for _, tt := range []struct {
 		s     string

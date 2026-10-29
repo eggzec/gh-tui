@@ -100,7 +100,7 @@ func newCells(t ui.Theme, ic ui.Icons, look int, unread bool) cells {
 		if unread {
 			style = t.Mark(m)
 		}
-		c.marks[m] = newPaint(cell(style)).render(fit(g, width, ic.Ellipsis))
+		c.marks[m] = newPaint(cell(style)).render(termtext.Fit(g, width, ic.Ellipsis))
 	}
 	return c
 }
@@ -212,27 +212,27 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 		if g := st.marks[ui.SubjectMark(n.Subject.Type, sub, known)]; g != "" {
 			b.WriteString(g)
 		} else {
-			tag.write(&b, fit(otherTag(n.Subject.Type), l.tag, ell))
+			tag.write(&b, termtext.Fit(otherTag(n.Subject.Type), l.tag, ell))
 		}
 		b.WriteByte(' ')
 	}
 	if l.repo > 0 {
-		repo.write(&b, fit(refLabel(n.Repo, n.Subject.Number, l.repo, ell), l.repo, ell))
+		repo.write(&b, termtext.Fit(refLabel(n.Repo, n.Subject.Number, l.repo, ell), l.repo, ell))
 		spaces(&b, gap)
 	}
 	// The title links to the thread's page.
-	t := cut(ui.OneLine(n.Subject.Title), l.title, ell)
+	t := termtext.Truncate(ui.OneLine(n.Subject.Title), l.title, ell)
 	b.WriteString(s.links.Link(n.Subject.WebURL, title.render(t)))
 	spaces(&b, l.title-ansi.StringWidth(t)+gap)
 	if l.reason > 0 {
-		st.reason.write(&b, fit(shortReason(n.Reason), l.reason, ell))
+		st.reason.write(&b, termtext.Fit(shortReason(n.Reason), l.reason, ell))
 		spaces(&b, gap)
 	}
 	age := ""
 	if !n.UpdatedAt.IsZero() {
 		age = s.dates.Short(n.UpdatedAt, s.now())
 	}
-	st.age.write(&b, fit(age, l.age, ""))
+	st.age.write(&b, termtext.Fit(age, l.age, ""))
 	return b.String()
 }
 
@@ -289,10 +289,10 @@ func (s *Section) renderHeader() {
 	if len(hints) > 0 {
 		h += s.styles.hint.render("  " + strings.Join(hints, sep))
 	}
-	s.header = fitANSI(h, s.width, s.icons.Ellipsis)
+	s.header = termtext.Fit(h, s.width, s.icons.Ellipsis)
 	l := newLayout(max(s.width-s.feed.Gutter(), 0), s.dates.Width(), kindWidth(s.icons))
 	titles := strings.Repeat(" ", s.feed.Gutter()) + newPaint(s.theme.Muted).render(columnHeader(l, s.icons.Ellipsis))
-	s.columns = fitANSI(titles, s.width, s.icons.Ellipsis)
+	s.columns = termtext.Fit(titles, s.width, s.icons.Ellipsis)
 	s.feed.SetEmptyText(s.emptyText())
 }
 
@@ -423,28 +423,6 @@ func columnHeader(l layout, tail string) string {
 		{Title: updatedTitle, Width: l.age},
 	}, gap, tail))
 	return b.String()
-}
-
-// fit truncates plain s to width cells, ending in tail, and pads it on the
-// right.
-func fit(s string, width int, tail string) string {
-	s = cut(s, width, tail)
-	return s + strings.Repeat(" ", width-ansi.StringWidth(s))
-}
-
-// cut truncates plain s to width cells, ending in tail.
-func cut(s string, width int, tail string) string {
-	if ansi.StringWidth(s) > width {
-		return termtext.Truncate(s, width, tail)
-	}
-	return s
-}
-
-// fitANSI truncates styled s to width cells, ending in tail, and pads it
-// on the right.
-func fitANSI(s string, width int, tail string) string {
-	s = termtext.Truncate(s, width, tail)
-	return s + strings.Repeat(" ", max(width-ansi.StringWidth(s), 0))
 }
 
 func spaces(b *strings.Builder, n int) {

@@ -71,18 +71,9 @@ func (m *Modal) errorView() string {
 		if i > 0 && i-1 < len(errs) {
 			l = gutter + errs[i-1]
 		}
-		lines[i] = fit(l, m.width, m.st.ic.Ellipsis)
+		lines[i] = termtext.Fit(l, m.width, m.st.ic.Ellipsis)
 	}
 	return strings.Join(lines, "\n")
-}
-
-// fit truncates s to width cells, ending in tail, or pads it.
-func fit(s string, width int, tail string) string {
-	s = termtext.Truncate(s, width, tail)
-	if n := ansi.StringWidth(s); n < width {
-		s += strings.Repeat(" ", width-n)
-	}
-	return s
 }
 
 // releaseName is what a release is called: its name, or else its tag, on

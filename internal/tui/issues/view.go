@@ -49,7 +49,7 @@ func (s *Section) renderHeads() {
 	more(c.author, ui.Column{Title: "Author", Width: authorWidth})
 	more(c.age, ui.Column{Title: ui.AgeTitle, Width: c.ageWidth})
 	head := ui.Header(cols, 0, s.icons.Ellipsis)
-	s.heads = strings.Repeat(" ", s.list.Gutter()) + s.theme.Muted.Render(fitStyled(head, max(s.width-s.list.Gutter(), 0), ""))
+	s.heads = strings.Repeat(" ", s.list.Gutter()) + s.theme.Muted.Render(termtext.Fit(head, max(s.width-s.list.Gutter(), 0), ""))
 }
 
 // renderChrome renders what surrounds the bubbles: the bar over the list,
@@ -92,17 +92,10 @@ func (s *Section) renderBar() {
 func spread(left, right string, width int, tail string) string {
 	rw := ansi.StringWidth(right)
 	if rw+1 > width {
-		return fitStyled(left, width, tail)
+		return termtext.Fit(left, width, tail)
 	}
 	left = termtext.Truncate(left, width-rw-1, tail)
 	return left + strings.Repeat(" ", width-ansi.StringWidth(left)-rw) + right
-}
-
-// fitStyled truncates styled text to exactly width cells, ending in tail,
-// or pads it.
-func fitStyled(s string, width int, tail string) string {
-	s = termtext.Truncate(s, width, tail)
-	return s + strings.Repeat(" ", max(width-ansi.StringWidth(s), 0))
 }
 
 // renderEmpty renders the state shown before a repository is selected,

@@ -21,6 +21,16 @@ func Truncate(s string, width int, tail string) string {
 	return ansi.Truncate(s, width, tail)
 }
 
+// Fit cuts s like Truncate, then pads it with spaces on the right, so the
+// result is exactly width cells wide. A width of no cells gives "".
+func Fit(s string, width int, tail string) string {
+	s = Truncate(s, width, tail)
+	if w := ansi.StringWidth(s); w < width {
+		s += strings.Repeat(" ", width-w)
+	}
+	return s
+}
+
 // TruncateMiddle cuts s to width cells like Truncate, but from the middle:
 // its start and its end show, joined by tail where it is cut. A tail wider
 // than width is left out, and one as wide as width shows alone. A wide rune
