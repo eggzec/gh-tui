@@ -184,6 +184,9 @@ func (m *Model) GoToLine(n int) {
 	}
 	i := min(n, m.rows.Len()) - 1
 	m.mark = i
+	if m.cursoring {
+		m.cursor = i
+	}
 	m.top, m.row = max(m.posOf(i)-m.bodyHeight()/3, 0), 0
 	m.clamp()
 }
@@ -191,6 +194,9 @@ func (m *Model) GoToLine(n int) {
 // clamp keeps the window within the content after anything that moved or
 // resized it.
 func (m *Model) clamp() {
+	if m.cursoring {
+		m.snapCursor()
+	}
 	lastTop, lastRow := m.last()
 	if m.top > lastTop || m.top == lastTop && m.row > lastRow {
 		m.top, m.row = lastTop, lastRow

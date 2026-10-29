@@ -162,6 +162,9 @@ func (m *Model) picked(vis []int32, kept, upto int) tea.Cmd {
 	m.hits = hits{}
 	m.enableSearchKeys()
 	m.clamp()
+	if m.cursoring {
+		m.show()
+	}
 	if s := m.search; s.re != nil {
 		return m.researchShown()
 	}

@@ -97,21 +97,29 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	h := max(m.bodyHeight(), 1)
 	switch {
 	case keymap.Matches(k, m.keys.Down):
-		m.down(1)
+		m.scroll(1)
 	case keymap.Matches(k, m.keys.Up):
-		m.up(1)
+		m.scroll(-1)
 	case keymap.Matches(k, m.keys.PageDown):
-		m.down(h)
+		m.scroll(h)
 	case keymap.Matches(k, m.keys.PageUp):
-		m.up(h)
+		m.scroll(-h)
 	case keymap.Matches(k, m.keys.HalfPageDown):
-		m.down(max(h/2, 1))
+		m.scroll(max(h/2, 1))
 	case keymap.Matches(k, m.keys.HalfPageUp):
-		m.up(max(h/2, 1))
+		m.scroll(-max(h/2, 1))
 	case keymap.Matches(k, m.keys.Home):
+		if m.cursoring {
+			m.cursorHome()
+			break
+		}
 		m.top, m.row = 0, 0
 		m.clamp()
 	case keymap.Matches(k, m.keys.End):
+		if m.cursoring {
+			m.cursorEnd()
+			break
+		}
 		m.top, m.row = m.last()
 		m.clamp()
 	case keymap.Matches(k, m.keys.Right):
@@ -144,6 +152,22 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.handle(k)
 	}
 	return m, nil
+}
+
+// scroll moves the window n rows down, or up for a negative n, and the cursor
+// with it, if there is one. Lines move the cursor by one line each, which a
+// page of the window does too.
+func (m *Model) scroll(n int) {
+	switch {
+	case m.cursoring && n == 1, m.cursoring && n == -1:
+		m.moveCursor(n)
+	case m.cursoring:
+		m.pageCursor(n)
+	case n > 0:
+		m.down(n)
+	default:
+		m.up(-n)
+	}
 }
 
 // handle gives a key to the host's handler, if there is one, and keeps the

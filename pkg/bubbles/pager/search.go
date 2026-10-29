@@ -303,6 +303,9 @@ func (m *Model) jump(i int) {
 		nth -= int(s.ends[k-1])
 	}
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
+	if m.cursoring {
+		m.cursor = s.curLine
+	}
 	p := m.posOf(s.curLine)
 	// An inverted search matches whole lines, from their first row.
 	var ranges [][]int
