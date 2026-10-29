@@ -150,7 +150,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.errText, m.errHint = m.errorWords()
 	}
 	m.renderName()
-	m.rows, m.spans, m.vis, m.size = noRows, nil, nil, 0
+	m.rows, m.spans, m.vis, m.pvis, m.mask, m.maskAnchor, m.size = noRows, nil, nil, nil, nil, nil, 0
 	m.seen, m.follow = 0, false
 	m.anchor = anchor{}
 	m.raw, m.lang = "", ""

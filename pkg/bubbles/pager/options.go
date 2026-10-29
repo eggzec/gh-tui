@@ -50,6 +50,8 @@ type settings struct {
 	headerWriter HeaderWriter
 	// cursoring is set by WithCursor.
 	cursoring bool
+	// reveal is the host's hook of WithReveal, or nil.
+	reveal func(row int) ([]int32, bool)
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.

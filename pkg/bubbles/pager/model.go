@@ -96,7 +96,12 @@ type Model struct {
 	// the user asked for, which differs while projecting, as the command
 	// that picks the lines runs. pgen counts projections; what an older
 	// one picked is dropped. stopProject stops the one running.
-	vis         []int32
+	vis []int32
+	// pvis is what proj picked, and mask what the host shows, with
+	// maskAnchor standing in for the rows it hides; vis is what both show.
+	pvis        []int32
+	mask        []int32
+	maskAnchor  func(int) int
 	proj, want  projection
 	kept        int
 	projecting  bool

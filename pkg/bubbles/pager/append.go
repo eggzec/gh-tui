@@ -48,12 +48,15 @@ func (m *Model) Append(from int) tea.Cmd {
 	if m.proj.none() {
 		m.kept = n
 	} else {
-		m.vis, m.kept, _ = pickRange(ctx, m.rows, m.proj, m.pics, seen, n, m.vis, m.kept)
+		m.pvis, m.kept, _ = pickRange(ctx, m.rows, m.proj, m.pics, seen, n, m.pvis, m.kept)
+		if m.mask == nil {
+			m.vis = m.pvis
+		}
 	}
 	// A search that is still running adds the rows when it arrives, as a
 	// filter that is still picking does.
 	if s := &m.search; s.re != nil && !s.running {
-		s.lines, s.ends, _ = findFrom(ctx, s.re, s.invert, m.rows, m.vis, seen, s.lines, s.ends)
+		s.lines, s.ends, _ = findFrom(ctx, s.re, s.invert, m.rows, m.searchVis(), seen, s.lines, s.ends)
 		m.enableSearchKeys()
 	}
 	m.seen = n

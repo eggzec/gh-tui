@@ -41,7 +41,7 @@ func (m Model) own(msg tea.Msg) (Model, tea.Cmd, bool) {
 			if n := m.rows.Len(); msg.upto < n && m.seen == n {
 				// Rows were appended while it ran.
 				s := m.search
-				lines, ends, _ = findFrom(context.Background(), s.re, s.invert, m.rows, m.vis, msg.upto, lines, ends)
+				lines, ends, _ = findFrom(context.Background(), s.re, s.invert, m.rows, m.searchVis(), msg.upto, lines, ends)
 			}
 			m.found(lines, ends)
 		}

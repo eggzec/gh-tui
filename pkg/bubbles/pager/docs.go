@@ -37,6 +37,8 @@ type docState struct {
 	renderedAt       int
 	pics             map[int]string
 	vis              []int32
+	pvis, mask       []int32
+	maskAnchor       func(int) int
 	size             int
 	anchor           anchor
 	atEnd, owed      bool
@@ -146,7 +148,7 @@ func (m *Model) save() {
 		name: m.name, state: m.state, err: m.err, errText: m.errText, errHint: m.errHint,
 		note: m.note, rows: m.rows, spans: m.spans, raw: m.raw, lang: m.lang,
 		render: m.render, renderedAt: m.renderedAt, pics: m.pics,
-		vis: m.vis, size: m.size, anchor: m.anchor, atEnd: m.atEnd, owed: m.owed,
+		vis: m.vis, pvis: m.pvis, mask: m.mask, maskAnchor: m.maskAnchor, size: m.size, anchor: m.anchor, atEnd: m.atEnd, owed: m.owed,
 		sizeSeq: m.sizeSeq, proj: m.proj, want: m.want, kept: m.kept,
 		top: m.top, row: m.row, left: m.left, mark: m.mark,
 		cursor: m.cursor, search: m.search, hits: m.hits, seen: m.seen, follow: m.follow,
@@ -193,7 +195,8 @@ func (m *Model) load() tea.Cmd {
 	m.name, m.state, m.err, m.errText, m.errHint = d.name, d.state, d.err, d.errText, d.errHint
 	m.note, m.rows, m.spans, m.raw, m.lang = d.note, d.rows, d.spans, d.raw, d.lang
 	m.render, m.renderedAt, m.pics = d.render, d.renderedAt, d.pics
-	m.vis, m.size, m.anchor, m.atEnd, m.owed, m.sizeSeq = d.vis, d.size, d.anchor, d.atEnd, d.owed, d.sizeSeq
+	m.vis, m.pvis, m.mask, m.maskAnchor = d.vis, d.pvis, d.mask, d.maskAnchor
+	m.size, m.anchor, m.atEnd, m.owed, m.sizeSeq = d.size, d.anchor, d.atEnd, d.owed, d.sizeSeq
 	m.proj, m.want, m.kept = d.proj, d.want, d.kept
 	m.top, m.row, m.left, m.mark, m.cursor = d.top, d.row, d.left, d.mark, d.cursor
 	m.search, m.hits = d.search, d.hits
