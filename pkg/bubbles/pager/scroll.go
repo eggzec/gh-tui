@@ -1,8 +1,6 @@
 package pager
 
 import (
-	"strconv"
-
 	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 )
 
@@ -13,10 +11,7 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
-	if m.rows.Len() == 0 {
-		return 0
-	}
-	return m.gutterFor(m.rows.Len() + m.reserved())
+	return numberGutter{m: &m}.Width(m.width)
 }
 
 // reserved returns how many lines more than the content has the gutter
@@ -31,21 +26,7 @@ func (m Model) reserved() int {
 // gutterFor returns the width of the gutter of n lines, as gutterWidth
 // does of the lines of the content.
 func (m Model) gutterFor(n int) int {
-	var w int
-	switch {
-	case n == 0:
-		return 0
-	case m.lineNumbers:
-		w = len(strconv.Itoa(n)) + 1
-	case m.search.invert:
-		w = 2
-	default:
-		return 0
-	}
-	if w >= m.width {
-		return 0
-	}
-	return w
+	return numberGutter{m: &m}.widthFor(n, m.width)
 }
 
 // textWidth returns the columns right of the gutter.
