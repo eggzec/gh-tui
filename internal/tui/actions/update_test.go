@@ -29,7 +29,7 @@ func TestOpensOnTheFailedJobAndItsError(t *testing.T) {
 	if !m.hasRun || m.run.ID != failedRun {
 		t.Fatalf("shows run %d, want the newest, %d", m.run.ID, failedRun)
 	}
-	if j, _ := m.jobs.selected(); j.ID != ubuntuJob {
+	if j, _ := m.cur().selected(); j.ID != ubuntuJob {
 		t.Errorf("opens on job %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
 	if h.log != nil {
@@ -54,23 +54,23 @@ func TestJobsAndLogFollowTheCursors(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("enter", "j") // fold the failed run, then the next run
-	if m.run.ID != runningRun || len(m.jobs.items) != 1 || m.jobs.items[0].ID != runLintJob {
-		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.jobs.items, runningRun)
+	if m.run.ID != runningRun || len(m.cur().items) != 1 || m.cur().items[0].ID != runLintJob {
+		t.Fatalf("after j the run is %d with %v, want %d with its job", m.run.ID, m.cur().items, runningRun)
 	}
 	// Back on the failed run, its jobs show from memory at once. They are
 	// read again, which the service answers from memory once the run
 	// completed.
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
 	h.keys("k")
-	if len(m.jobs.items) != 4 {
-		t.Errorf("the failed run shows %d jobs, want them from memory", len(m.jobs.items))
+	if len(m.cur().items) != 4 {
+		t.Errorf("the failed run shows %d jobs, want them from memory", len(m.cur().items))
 	}
 	h.release()
 	if _, jobs, _ := f.counts(); jobs != 3 {
 		t.Errorf("reads of jobs %d, want 3", jobs)
 	}
 	h.keys("enter", "j", "j") // unfold, into the jobs, down one
-	if j, _ := m.jobs.selected(); j.ID != macosJob {
+	if j, _ := m.cur().selected(); j.ID != macosJob {
 		t.Errorf("after j in the jobs the job is %d, want %d", j.ID, macosJob)
 	}
 }
@@ -674,9 +674,9 @@ func TestRerunFailedJobs(t *testing.T) {
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.DoneMsg); return ok }
 	h.keys("R", "y")
 	// The change shows before GitHub answers.
-	if m.run.Status != core.RunQueued || m.jobs.items[1].Status != core.RunQueued || m.jobs.items[0].Status != core.RunCompleted {
+	if m.run.Status != core.RunQueued || m.cur().items[1].Status != core.RunQueued || m.cur().items[0].Status != core.RunCompleted {
 		t.Errorf("after y the run is %s and its jobs %s, %s; want the run and its failed job queued",
-			m.run.Status, m.jobs.items[0].Status, m.jobs.items[1].Status)
+			m.run.Status, m.cur().items[0].Status, m.cur().items[1].Status)
 	}
 	if s := paneText(m, runsPane); !strings.Contains(s, "○ CI #4812") {
 		t.Errorf("the runs don't show the re-run queued:\n%s", s)
@@ -750,7 +750,7 @@ func TestRefusedChangeRollsBack(t *testing.T) {
 	f.refuse = fmt.Errorf("re-run failed jobs of run 4812: %w", refused)
 	m, h := newModal(t, f, wideW, wideH)
 	h.keys("R", "y")
-	if m.run.Status != core.RunCompleted || m.run.Conclusion != core.ConclusionFailure || m.jobs.items[1].Conclusion != core.ConclusionFailure {
+	if m.run.Status != core.RunCompleted || m.run.Conclusion != core.ConclusionFailure || m.cur().items[1].Conclusion != core.ConclusionFailure {
 		t.Errorf("after the refusal the run is %s %s, want it as it was", m.run.Status, m.run.Conclusion)
 	}
 	got := h.take()
@@ -816,7 +816,7 @@ func TestRerunAJob(t *testing.T) {
 	if !slices.Equal(f.sent, []string{fmt.Sprintf("rerun job %d", macosJob)}) {
 		t.Errorf("sent %v", f.sent)
 	}
-	if j, _ := m.jobs.selected(); j.Status != core.RunQueued || m.jobs.items[1].Status != core.RunCompleted {
+	if j, _ := m.cur().selected(); j.Status != core.RunQueued || m.cur().items[1].Status != core.RunCompleted {
 		t.Errorf("the job is %s, want it alone queued", j.Status)
 	}
 }
@@ -991,7 +991,7 @@ func TestOpenInTheBrowser(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("o", "tab", "o")
 	got := h.take()
-	want := []tea.Msg{ui.OpenMsg{URL: m.run.URL}, ui.OpenMsg{URL: m.jobs.items[1].URL}}
+	want := []tea.Msg{ui.OpenMsg{URL: m.run.URL}, ui.OpenMsg{URL: m.cur().items[1].URL}}
 	if !slices.Equal(got, want) {
 		t.Errorf("o sent %v, want %v", got, want)
 	}
@@ -1006,7 +1006,7 @@ func TestErrorsAreInline(t *testing.T) {
 	}
 	f.jobsErr = nil
 	h.keys("tab", "r")
-	if !m.jobs.loaded || m.jobs.err != nil {
+	if !m.cur().loaded || m.cur().err != nil {
 		t.Errorf("r didn't read the jobs again")
 	}
 
@@ -1024,7 +1024,7 @@ func TestMessagesOfOtherModalsAreIgnored(t *testing.T) {
 	other, _ := newModal(t, f, wideW, wideH)
 	h.send(jobsMsg{id: other.id, runID: failedRun, attempt: 1})
 	h.send(ui.DoneMsg{From: "Issues", Err: errors.New("x")})
-	if len(m.jobs.items) != 4 {
+	if len(m.cur().items) != 4 {
 		t.Error("the messages of another modal changed this one")
 	}
 }
