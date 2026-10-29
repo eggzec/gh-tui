@@ -167,7 +167,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.clamp()
 	m.search.top, m.search.row = m.top, m.row
 	if m.size < syncLimit {
-		lines, ends, _ := find(context.Background(), re, invert, m.rows, m.vis)
+		lines, ends, _ := find(context.Background(), re, invert, m.rows, m.searchVis())
 		m.found(lines, ends)
 		return nil
 	}
@@ -175,7 +175,7 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.stopSearch = cancel
 	m.search.running = true
 	m.enableSearchKeys()
-	id, qgen, all, vis := m.id, m.qgen, m.rows, m.vis
+	id, qgen, all, vis := m.id, m.qgen, m.rows, m.searchVis()
 	upto := all.Len()
 	return func() tea.Msg {
 		defer cancel()
@@ -303,10 +303,14 @@ func (m *Model) jump(i int) {
 		nth -= int(s.ends[k-1])
 	}
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
-	if m.cursoring {
-		m.cursor = s.curLine
+	if !m.revealRow(s.curLine) {
+		m.flash = noteNotFound
+		return
 	}
-	p := m.posOf(s.curLine)
+	if m.cursoring {
+		m.cursor = m.stand(s.curLine)
+	}
+	p := m.place(s.curLine)
 	// An inverted search matches whole lines, from their first row.
 	var ranges [][]int
 	if !s.invert {

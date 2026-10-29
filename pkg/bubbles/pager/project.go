@@ -136,7 +136,8 @@ func (m *Model) stopProjecting() {
 func (m *Model) clearProjection() {
 	m.stopProjecting()
 	p := projection{squeeze: m.proj.squeeze}
-	m.proj, m.want, m.vis, m.kept = p, p, nil, 0
+	m.proj, m.want, m.kept = p, p, 0
+	m.setPicked(nil)
 }
 
 // picked shows the lines the projection asked for picked, and keeps the
@@ -157,7 +158,8 @@ func (m *Model) picked(vis []int32, kept, upto int) tea.Cmd {
 		return nil
 	}
 	top := m.topLine()
-	m.proj, m.vis, m.kept = m.want, vis, kept
+	m.proj, m.kept = m.want, kept
+	m.setPicked(vis)
 	m.top, m.row = m.posOf(top), 0
 	m.hits = hits{}
 	m.enableSearchKeys()

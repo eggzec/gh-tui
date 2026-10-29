@@ -106,7 +106,7 @@ func (m *Model) fitRendered(force bool) {
 	m.clearSearch()
 	m.stopProjecting()
 	m.gen++
-	m.spans, m.vis, m.kept, m.mark = nil, nil, 0, -1
+	m.spans, m.vis, m.pvis, m.mask, m.maskAnchor, m.kept, m.mark = nil, nil, nil, nil, nil, 0, -1
 	m.top, m.row, m.left = 0, 0, 0
 	if n > 0 {
 		line := m.lineAt(at)
@@ -117,7 +117,8 @@ func (m *Model) fitRendered(force bool) {
 	if !p.none() {
 		vis, kept, _ := pick(context.Background(), m.rows, p, m.pics)
 		if p.filter.re == nil || kept > 0 {
-			m.proj, m.want, m.vis, m.kept = p, p, vis, kept
+			m.proj, m.want, m.kept = p, p, kept
+			m.setPicked(vis)
 			m.top = m.posOf(m.top)
 		}
 	}
@@ -135,7 +136,7 @@ func (m *Model) fitRendered(force bool) {
 	if s.re != nil {
 		m.search = search{query: s.query, re: s.re, invert: s.invert, from: m.topLine(), cur: -1, stay: true}
 		m.search.top, m.search.row = m.top, m.row
-		lines, ends, _ := find(context.Background(), s.re, s.invert, m.rows, m.vis)
+		lines, ends, _ := find(context.Background(), s.re, s.invert, m.rows, m.searchVis())
 		m.found(lines, ends)
 		if s.cur >= 0 && m.search.total() > 0 {
 			// The current match stays the same match, by its order, unless
