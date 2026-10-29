@@ -94,7 +94,8 @@ type Modal struct {
 	// run is the run under the cursor of the runs, once there is one.
 	run    core.Run
 	hasRun bool
-	jobs   jobs
+	// jobsOf holds the jobs read for each run, by run ID.
+	jobsOf map[int64]*jobs
 	// ann holds the annotations read for the jobs of the run shown, by job,
 	// and noteCursor and noteTop the cursor and the first row of their list.
 	ann                 map[int64]*noteRes
@@ -268,8 +269,8 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 		return ui.Selection{}, false
 	}
 	sel := ui.Selection{What: "run", URL: m.run.URL, Repo: m.repo, SHA: m.run.HeadSHA, Owner: m.repo.Owner}
-	if m.inJobs() && !m.jobs.onGroup() {
-		if j, ok := m.jobs.selected(); ok {
+	if m.inJobs() && !m.cur().onGroup() {
+		if j, ok := m.cur().selected(); ok {
 			sel.What, sel.URL = "job", j.URL
 		}
 	}
@@ -331,7 +332,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		k.Back = relabel(k.Back, paneTitles[runsPane])
 		// Enter folds a group of jobs, and opens the log of a job.
 		k.Select = relabel(k.Select, "open")
-		if m.jobs.onGroup() {
+		if m.cur().onGroup() {
 			k.Select = relabel(k.Select, "fold")
 		}
 	}
@@ -409,7 +410,7 @@ func (m *Modal) startSpinner() tea.Cmd {
 
 // loading reports whether a pane waits for something the spinner shows.
 func (m *Modal) loading() bool {
-	return m.jobs.loading || m.workflows.loading
+	return m.cur().loading || m.workflows.loading
 }
 
 // now reads the clock.

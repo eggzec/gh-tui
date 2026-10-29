@@ -54,13 +54,14 @@ func (m *Modal) noteQuery(j core.Job) actionssvc.AnnotationsQuery {
 // noteJobs are the jobs of the run shown whose annotations are listed: those
 // that ended, the failed ones first.
 func (m *Modal) noteJobs() []core.Job {
-	if !m.hasRun || !m.jobs.loaded || m.jobs.runID != m.run.ID {
+	j := m.cur()
+	if !m.hasRun || !j.loaded || j.runID != m.run.ID {
 		return nil
 	}
 	var out []core.Job
-	for i := range m.jobs.items {
-		if m.jobs.items[i].Done() {
-			out = append(out, m.jobs.items[i])
+	for i := range j.items {
+		if j.items[i].Done() {
+			out = append(out, j.items[i])
 		}
 	}
 	slices.SortStableFunc(out, func(a, b core.Job) int {
@@ -263,7 +264,7 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 	st := &m.st
 	es := m.noteEntries()
 	loading, _, err := m.noteState()
-	loading = loading || !m.jobs.loaded && m.jobs.err == nil
+	loading = loading || !m.cur().loaded && m.cur().err == nil
 	title := st.Subtle.Render(st.ic.Comment) + " " + st.Strong.Render("Annotations")
 	if loading && len(es) > 0 {
 		title += " " + st.Subtle.Render("loading"+m.st.ic.Ellipsis)
@@ -281,7 +282,7 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 		lines = append(lines, m.errorLines("load the annotations", jobview.RunName(m.run), err, w)...)
 	case loading:
 		lines = append(lines, st.Muted.Render("Loading annotations"+m.st.ic.Ellipsis))
-	case m.jobs.err != nil && !m.jobs.loaded:
+	case m.cur().err != nil && !m.cur().loaded:
 	default:
 		lines = append(lines, st.Muted.Render("No annotations on this run. Pick another run, or press the refresh key to read again."))
 	}

@@ -127,7 +127,7 @@ func TestOpensOnAJob(t *testing.T) {
 			if m.run.ID != failedRun {
 				t.Fatalf("shows run %d, want %d", m.run.ID, failedRun)
 			}
-			if j, ok := m.jobs.selected(); !ok || j.ID != tt.want {
+			if j, ok := m.cur().selected(); !ok || j.ID != tt.want {
 				t.Errorf("the jobs select %d, want %d", j.ID, tt.want)
 			}
 			if m.wantJob != 0 {
@@ -149,7 +149,7 @@ func TestOpensOnAJobOfARun(t *testing.T) {
 	if m.run.ID != passedRun {
 		t.Fatalf("shows run %d, want %d", m.run.ID, passedRun)
 	}
-	if j, _ := m.jobs.selected(); j.ID != 300 {
+	if j, _ := m.cur().selected(); j.ID != 300 {
 		t.Errorf("the jobs select %d, want 300", j.ID)
 	}
 	if m.focus != jobsPane {
@@ -164,7 +164,7 @@ func TestOpensWithTheJobsFocused(t *testing.T) {
 	if m.focus != jobsPane {
 		t.Errorf("focus is on pane %d, want the jobs", m.focus)
 	}
-	if j, _ := m.jobs.selected(); j.ID != ubuntuJob {
+	if j, _ := m.cur().selected(); j.ID != ubuntuJob {
 		t.Errorf("the jobs select %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
 }
@@ -199,7 +199,7 @@ func TestOpenerOpensWhereTheAppSays(t *testing.T) {
 	if m.run.ID != cancelledRun || m.focus != jobsPane {
 		t.Errorf("opened on run %d with pane %d focused, want run %d and the jobs", m.run.ID, m.focus, cancelledRun)
 	}
-	if j, _ := m.jobs.selected(); j.ID != 400 {
+	if j, _ := m.cur().selected(); j.ID != 400 {
 		t.Errorf("the jobs select %d, want 400", j.ID)
 	}
 	if q := f.queries[0]; q.Filter.HeadSHA != commitSHA {
