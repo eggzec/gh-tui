@@ -186,13 +186,14 @@ func (o *diffOverlay) items() int              { return 0 }
 func (o *diffOverlay) text() int               { return 0 }
 func (o *diffOverlay) closed() bool            { return o.done }
 
-// clear ends a range being picked, and then the search.
+// clear ends a range being picked. A search shown does not stop the overlay
+// from closing.
 func (o *diffOverlay) clear() bool {
 	if _, ok := o.d.Anchor(); ok {
 		o.d.ClearAnchor()
 		return true
 	}
-	return o.d.ClearSearch()
+	return false
 }
 
 // typing reports that the overlay takes the keys of the app's actions as text,

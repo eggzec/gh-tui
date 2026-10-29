@@ -62,17 +62,6 @@ func (m Model) Matches() int { return len(m.search.matches) }
 // key, so the parent should not act on keys of its own.
 func (m Model) Capturing() bool { return m.searching }
 
-// ClearSearch forgets the search shown, and reports whether there was one.
-// The parent calls it for the key that dismisses, which clears the search
-// before it closes anything.
-func (m *Model) ClearSearch() bool {
-	if m.search.query == "" {
-		return false
-	}
-	m.clearSearch()
-	return true
-}
-
 func (m *Model) openSearch() tea.Cmd {
 	m.searching = true
 	m.syncKeys()

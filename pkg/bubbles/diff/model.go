@@ -251,9 +251,9 @@ func (m Model) ShortHelp() []key.Binding {
 }
 
 // FullHelp returns every binding with the state of the view applied: the
-// retry key is enabled only after a failed fetch, the keys of the search
-// while it is open or shown, and only those that close the input while it
-// is open, which takes the rest.
+// retry key is enabled only after a failed fetch, the keys that run and
+// close the search while its input is open, and the keys between matches
+// while there are some. While the input is open, it takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keyMap
 	if m.searching {
@@ -270,7 +270,7 @@ func (m Model) FullHelp() [][]key.Binding {
 
 // syncKeys enables the retry key while a fetch has failed, the keys that
 // move between matches while there are some, and those that run and close
-// the search while its input is open, or close it while a search is shown.
+// the search prompt while its input is open.
 func (m *Model) syncKeys() {
 	keymap.Enable(&m.keyMap.Retry, m.pg.err != nil)
 	found := len(m.search.matches) > 0
@@ -278,7 +278,7 @@ func (m *Model) syncKeys() {
 	keymap.Enable(&m.keyMap.Prev, found)
 	keymap.Enable(&m.keyMap.Confirm, m.searching)
 	keymap.Enable(&m.keyMap.CancelEmpty, m.searching)
-	keymap.Enable(&m.keyMap.Cancel, m.searching || m.search.query != "")
+	keymap.Enable(&m.keyMap.Cancel, m.searching)
 }
 
 // SetStyles sets the styles and renders the fragments that depend on them.
