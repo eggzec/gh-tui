@@ -81,7 +81,7 @@ func (m Model[T]) Loaded() int {
 
 // shown returns the number of rows in the window's list.
 func (m Model[T]) shown() int {
-	if m.Grouped() {
+	if m.lined() {
 		return len(m.lines)
 	}
 	if m.filter == "" {
@@ -93,8 +93,8 @@ func (m Model[T]) shown() int {
 // at returns the index among all items of the row at position p, or -1,
 // which is also what a group header gives.
 func (m Model[T]) at(p int) int {
-	if m.Grouped() {
-		if p < 0 || p >= len(m.lines) || m.lines[p].head || m.lines[p].more {
+	if m.lined() {
+		if p < 0 || p >= len(m.lines) || m.lines[p].head || m.lines[p].more || m.lines[p].child {
 			return -1
 		}
 		return m.lines[p].item
@@ -114,10 +114,10 @@ func (m Model[T]) at(p int) int {
 // posOf returns the position of the first row at or after item g, or the
 // last row.
 func (m Model[T]) posOf(g int) int {
-	if m.Grouped() {
+	if m.lined() {
 		// An item in a closed group has no row.
 		for p, l := range m.lines {
-			if !l.head && !l.more && l.item == g {
+			if !l.head && !l.more && !l.child && l.item == g {
 				return p
 			}
 		}
@@ -196,7 +196,7 @@ func (m *Model[T]) refind() {
 		return
 	}
 	match := matcher(m.query)
-	if m.Grouped() {
+	if m.lined() {
 		for o, i := range m.order {
 			if t, ok := m.textOf(i); ok && match(t) {
 				m.hits = append(m.hits, o)
@@ -217,14 +217,14 @@ func (m *Model[T]) refind() {
 // item, which a header and the row of the items not loaded are not: they sit
 // before the item that follows them.
 func (m Model[T]) spot() (pos int, item bool) {
-	if !m.Grouped() {
+	if !m.lined() {
 		return m.sel, true
 	}
 	if m.sel < 0 || m.sel >= len(m.lines) {
 		return 0, false
 	}
 	l := m.lines[m.sel]
-	return l.before, !l.head && !l.more
+	return l.before, !l.head && !l.more && !l.child
 }
 
 // enableKeys enables the keys that do something in the state of the find
@@ -232,9 +232,9 @@ func (m Model[T]) spot() (pos int, item bool) {
 func (m *Model[T]) enableKeys() {
 	keymap.Enable(&m.keyMap.Next, len(m.hits) > 0)
 	keymap.Enable(&m.keyMap.Prev, len(m.hits) > 0)
-	keymap.Enable(&m.keyMap.Expand, m.Grouped())
-	keymap.Enable(&m.keyMap.Collapse, m.Grouped())
-	keymap.Enable(&m.keyMap.ToggleAll, m.Grouped())
+	keymap.Enable(&m.keyMap.Expand, m.lined())
+	keymap.Enable(&m.keyMap.Collapse, m.lined())
+	keymap.Enable(&m.keyMap.ToggleAll, m.lined())
 }
 
 func (m *Model[T]) openPrompt(p string) tea.Cmd {
@@ -324,7 +324,7 @@ func (m *Model[T]) step(d int) tea.Cmd {
 // moveToHit selects the row of a hit. In a closed group it opens the groups
 // around the item first, to reach it.
 func (m *Model[T]) moveToHit(h int) tea.Cmd {
-	if !m.Grouped() {
+	if !m.lined() {
 		return m.moveTo(h)
 	}
 	i := m.order[h]
@@ -363,7 +363,7 @@ func (m *Model[T]) filterFor(line string) tea.Cmd {
 	}
 	ref := m.cursor()
 	m.filter = line
-	if m.Grouped() {
+	if m.lined() {
 		if !m.regroup(ref) {
 			m.sel = 0
 		}
@@ -387,7 +387,7 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 		g = m.held
 	}
 	m.anchored, m.seeking = false, false
-	if m.Grouped() {
+	if m.lined() {
 		ref := m.cursor()
 		if !ref.valid {
 			ref = m.itemRef(g)
