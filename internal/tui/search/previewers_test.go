@@ -24,7 +24,7 @@ func TestPreviewReaderDispatchesByKind(t *testing.T) {
 	}
 	for _, k := range []core.SearchKind{core.SearchTopics, core.SearchUsers, core.SearchCommits} {
 		if read(core.SearchHit{Kind: k}) != nil {
-			t.Errorf("kind %v has a reader, want nil until it has one", k)
+			t.Errorf("kind %v has a reader without its service, want nil", k)
 		}
 	}
 	if NewPreviewReader(PreviewServices{})(core.SearchHit{Kind: core.SearchRepos}) != nil {
