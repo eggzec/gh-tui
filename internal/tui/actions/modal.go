@@ -51,6 +51,10 @@ const (
 // jobs under them, and the annotations.
 const numPanes = 2
 
+// notesPane is the stop of the annotations. It isn't a pane of the runs
+// layout, so the modal tracks it with notes, not focus.
+const notesPane pane = numPanes - 1
+
 var lastID atomic.Int64
 
 // Modal is the Actions modal. Create one with [New].
@@ -76,7 +80,7 @@ type Modal struct {
 	// rows the height of the runs and the jobs under their titles.
 	frames panes.Styles
 	inner  int
-	rows   [numPanes]int
+	rows   [runsPane + 1]int
 
 	// filter selects the runs; the tab shown is the one it matches.
 	filter core.RunFilter
@@ -120,10 +124,14 @@ type Modal struct {
 	armed  bool
 	notice string
 
-	// following is the run the sync engine follows, and stop ends it.
-	following int64
-	stop      func()
-	ticking   bool
+	// follows holds, by run ID, what ends the sync engine's following of each
+	// run kept up to date: the run shown while it runs, and the open runs
+	// whose jobs are loaded while they run.
+	follows map[int64]func()
+	ticking bool
+	// at is the run and the row of its jobs that the cursor was on when the
+	// job shown was last chosen.
+	at shownAt
 
 	spin     spinner.Model
 	spinning bool

@@ -190,7 +190,7 @@ func (m *Modal) answer(msg tea.KeyPressMsg) tea.Cmd {
 // unless the sync engine follows it and reads it anyway.
 func (m *Modal) done(msg ui.DoneMsg) tea.Cmd {
 	cmd := m.fromCache()
-	if msg.Err != nil || (m.opts.follow != nil && m.following == m.run.ID) {
+	if msg.Err != nil || (m.opts.follow != nil && m.follows[m.run.ID] != nil) {
 		return cmd
 	}
 	return tea.Batch(cmd, m.readRun())

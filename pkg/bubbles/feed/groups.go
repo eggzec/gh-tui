@@ -309,6 +309,21 @@ func (m Model[T]) Unfolded() bool {
 	return m.onFold() && m.lines[m.sel].open
 }
 
+// UnfoldedItems returns the loaded items that show their children now, wherever
+// the cursor is. An item inside a closed group doesn't show, so it is left out.
+func (m Model[T]) UnfoldedItems() []T {
+	var out []T
+	for _, l := range m.lines {
+		if l.head || l.more || l.child || !l.open {
+			continue
+		}
+		if it, ok := m.item(l.item); ok {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
 // onChild reports whether the cursor is on a child row.
 func (m Model[T]) onChild() bool {
 	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].child
