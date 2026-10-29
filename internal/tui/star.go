@@ -74,6 +74,8 @@ func (m *Model) star() tea.Cmd {
 		starred := !r.Starred
 		return ui.Confirm{
 			Question: verb + " " + repo.String() + "?",
+			// Either one is undone by the other.
+			Default: true,
 			Run: func() tea.Cmd {
 				done := ui.Do(m.ctx, starFrom, send(repo), strings.ToLower(verb)+" "+repo.String())
 				return func() tea.Msg {
@@ -87,8 +89,10 @@ func (m *Model) star() tea.Cmd {
 	if !ok {
 		return refusal
 	}
+	asked := c
 	c = ui.Recheck(c.Question, repo.String(), now)
-	return ui.OpenConfirm(c, ui.NewConfirmKeys(m.cfg.Keys), m.icons)
+	c.Default = asked.Default
+	return ui.OpenConfirm(c, m.keys.confirm, m.icons)
 }
 
 // starDone shows how a star or unstar went: a toast for the error that

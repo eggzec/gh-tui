@@ -63,7 +63,7 @@ func TestConfirmAnswer(t *testing.T) {
 		done, run bool
 	}{
 		{"y", true, true},
-		{"enter", false, false},
+		{"enter", true, false},
 		{"n", true, false},
 		{"esc", true, false},
 		{"q", false, false},
@@ -73,7 +73,7 @@ func TestConfirmAnswer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
 			var r ran
-			cmd, done := NewConfirmKeys(config.Default().Keys).Answer(r.confirm("Close issue #12?"), press(tt.key))
+			cmd, done := NewConfirmKeys(config.Default().Keys).Answer(r.confirm("Close issue #12?"), press(tt.key), true)
 			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
 				t.Errorf("%s: done %v, ran %d times, cmd %v; want done %v and run %v", tt.key, done, r.n, cmd != nil, tt.done, tt.run)
 			}
@@ -125,11 +125,11 @@ func TestRecheck(t *testing.T) {
 func TestConfirmLine(t *testing.T) {
 	c := Confirm{Question: "Reopen PR #5?"}
 	st, k := ConfirmStyles{}, NewConfirmKeys(config.Default().Keys)
-	if got, want := c.Line(st, k, 24), "Reopen PR #5?        y/n"; got != want {
+	if got, want := c.Line(st, k, 32), "Reopen PR #5?        y/n · ↵: no"; got != want {
 		t.Errorf("line = %q, want %q", got, want)
 	}
 	// A narrow line cuts the question and keeps the keys.
-	if got, want := c.Line(st, k, 12), "Reopen … y/n"; got != want {
+	if got, want := c.Line(st, k, 20), "Reopen … y/n · ↵: no"; got != want {
 		t.Errorf("narrow line = %q, want %q", got, want)
 	}
 }
@@ -153,25 +153,25 @@ func TestConfirmLines(t *testing.T) {
 		w, n int
 		want []string
 	}{
-		{"fits on one line", Confirm{Question: "Close PR #5?"}, 20, 2, []string{"Close PR #5?     y/n"}},
-		{"wraps to two", long, 40, 2, []string{
-			"Merge #1234 into release/v2.0-beta      ",
-			"with a merge commit?                 y/n",
+		{"fits on one line", Confirm{Question: "Close PR #5?"}, 28, 2, []string{"Close PR #5?     y/n · ↵: no"}},
+		{"wraps to two", long, 48, 2, []string{
+			"Merge #1234 into release/v2.0-beta              ",
+			"with a merge commit?                 y/n · ↵: no",
 		}},
-		{"cuts past the last line", long, 24, 2, []string{
-			"Merge #1234 into        ",
-			"release/v2.0-beta w… y/n",
+		{"cuts past the last line", long, 32, 2, []string{
+			"Merge #1234 into                ",
+			"release/v2.0-beta w… y/n · ↵: no",
 		}},
 		// A branch name wraps whole, and is cut if it is longer than a line.
-		{"keeps words whole", Confirm{Question: "Merge #1 into release/v2.0-beta-rc?"}, 30, 2, []string{
-			"Merge #1 into                 ",
-			"release/v2.0-beta-rc?      y/n",
+		{"keeps words whole", Confirm{Question: "Merge #1 into release/v2.0-beta-rc?"}, 38, 2, []string{
+			"Merge #1 into                         ",
+			"release/v2.0-beta-rc?      y/n · ↵: no",
 		}},
-		{"cuts a word longer than a line", Confirm{Question: "Merge #1 into release/v2.0-beta-candidate-long?"}, 30, 2, []string{
-			"Merge #1 into                 ",
-			"release/v2.0-beta-candida… y/n",
+		{"cuts a word longer than a line", Confirm{Question: "Merge #1 into release/v2.0-beta-candidate-long?"}, 38, 2, []string{
+			"Merge #1 into                         ",
+			"release/v2.0-beta-candida… y/n · ↵: no",
 		}},
-		{"one line cuts", long, 24, 1, []string{"Merge #1234 into re… y/n"}},
+		{"one line cuts", long, 32, 1, []string{"Merge #1234 into re… y/n · ↵: no"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -241,14 +241,14 @@ func TestConfirmModal(t *testing.T) {
 
 func TestConfirmModalFits(t *testing.T) {
 	m := NewConfirmModal(Confirm{Question: "Close issue #12?"}, NewConfirmKeys(config.Default().Keys), NewIcons(config.IconsUnicode))
-	if w, h := m.Fit(100, 20); w != len("Close issue #12?")+2+len("y/n") || h != 1 {
+	if w, h := m.Fit(100, 20); w != 29 || h != 1 {
 		t.Errorf("Fit = %d×%d, want the question and its keys on one line", w, h)
 	}
 	if w, _ := m.Fit(10, 20); w != 10 {
 		t.Errorf("Fit in 10 columns = %d wide", w)
 	}
-	m.SetSize(21, 1)
-	if got, want := m.View(), "Close issue #12?  y/n"; got != want {
+	m.SetSize(29, 1)
+	if got, want := m.View(), "Close issue #12?  y/n · ↵: no"; got != want {
 		t.Errorf("View = %q, want %q", got, want)
 	}
 	if m.Title() != "Confirm" || m.Question() != "Close issue #12?" {
@@ -260,11 +260,70 @@ func TestConfirmAnswersYesOrNoAlone(t *testing.T) {
 	keys := NewConfirmKeys(config.Default().Keys)
 	var r ran
 	plain := r.confirm("Close issue #12?")
-	if cmd, done := keys.Answer(plain, press("tab")); cmd != nil || done {
+	if cmd, done := keys.Answer(plain, press("tab"), true); cmd != nil || done {
 		t.Errorf("tab answered the question: %v, %v", cmd != nil, done)
 	}
-	if got := ansi.Strip(plain.Line(ConfirmStyles{}, keys, 40)); !strings.HasSuffix(got, "  y/n") {
-		t.Errorf("the question reads %q, want it to end in y/n", got)
+	if got := ansi.Strip(plain.Line(ConfirmStyles{}, keys, 40)); !strings.HasSuffix(got, "y/n · ↵: no") {
+		t.Errorf("the question reads %q, want it to end in the answers and the default", got)
+	}
+}
+
+// Enter gives the default of the question, once it is armed and not as a
+// repeated press; an unbound default key gives nothing and shows nothing.
+func TestConfirmDefaultKey(t *testing.T) {
+	keys := NewConfirmKeys(config.Default().Keys)
+	repeat := tea.KeyPressMsg{Code: tea.KeyEnter, IsRepeat: true}
+	for _, tt := range []struct {
+		name         string
+		def, armed   bool
+		msg          tea.KeyPressMsg
+		done, run    bool
+		wantHintTail string
+	}{
+		{"no", false, true, press("enter"), true, false, "↵: no"},
+		{"yes", true, true, press("enter"), true, true, "↵: yes"},
+		{"repeat", true, true, repeat, false, false, "↵: yes"},
+		{"unarmed", true, false, press("enter"), false, false, "↵: yes"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var r ran
+			c := r.confirm("Star eggzec/x?")
+			c.Default = tt.def
+			cmd, done := keys.Answer(c, tt.msg, tt.armed)
+			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
+				t.Errorf("done %v, ran %d times, cmd %v; want done %v and run %v", done, r.n, cmd != nil, tt.done, tt.run)
+			}
+			if got := ansi.Strip(c.Line(ConfirmStyles{}, keys, 60)); !strings.HasSuffix(got, tt.wantHintTail) {
+				t.Errorf("line %q, want it to end in %q", got, tt.wantHintTail)
+			}
+		})
+	}
+	cfg := config.Default().Keys
+	cfg.Set("confirm.default", nil)
+	unbound := NewConfirmKeys(cfg)
+	var r ran
+	c := r.confirm("Star eggzec/x?")
+	c.Default = true
+	if cmd, done := unbound.Answer(c, press("enter"), true); cmd != nil || done {
+		t.Errorf("an unbound default key answered: %v, %v", cmd != nil, done)
+	}
+	if got := ansi.Strip(c.Line(ConfirmStyles{}, unbound, 40)); !strings.HasSuffix(got, "  y/n") {
+		t.Errorf("line %q, want only the answers", got)
+	}
+}
+
+// A modal answers the default only once its arming message came back.
+func TestConfirmModalArms(t *testing.T) {
+	var r ran
+	c := r.confirm("Star eggzec/x?")
+	c.Default = true
+	m := NewConfirmModal(c, NewConfirmKeys(config.Default().Keys), NewIcons(config.IconsUnicode))
+	if msgs := runAll(m.Update(press("enter"))); len(msgs) != 0 || r.n != 0 {
+		t.Errorf("enter before arming gave %v, ran %d times", msgs, r.n)
+	}
+	m.Update(Arm()())
+	if msgs := runAll(m.Update(press("enter"))); r.n != 1 || !slices.Contains(msgs, tea.Msg("sent")) {
+		t.Errorf("enter once armed gave %v, ran %d times", msgs, r.n)
 	}
 }
 
@@ -305,7 +364,7 @@ func TestConfirmKeysFollowTheConfig(t *testing.T) {
 	} {
 		t.Run(tt.key, func(t *testing.T) {
 			var r ran
-			cmd, done := k.Answer(r.confirm("Close issue #12?"), press(tt.key))
+			cmd, done := k.Answer(r.confirm("Close issue #12?"), press(tt.key), true)
 			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
 				t.Errorf("%s: done %v, ran %d times; want done %v and run %v", tt.key, done, r.n, tt.done, tt.run)
 			}

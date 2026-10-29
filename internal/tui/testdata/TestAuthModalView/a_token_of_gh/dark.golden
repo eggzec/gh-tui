@@ -8,4 +8,4 @@
 [38;2;239;125;125m[m [38;2;216;220;230mMerge changes to workflows[m[38;2;107;114;133m · needs workflow[m                           
                                                                         
 [38;2;160;167;184mgh opens the browser to grant the token the workflow scope.[m             
-[1;38;2;122;162;247mRun gh auth refresh --hostname=github.com -s workflow?[m               [38;2;160;167;184my/n[m
+[1;38;2;122;162;247mRun gh auth refresh --hostname=github.com -s workflow?[m       [38;2;160;167;184my/n[m[38;2;160;167;184m · [m[38;2;122;162;247m↵[m[38;2;160;167;184m: no[m

@@ -42,6 +42,9 @@ type KeyMap struct {
 	form filterform.KeyMap
 	// order holds the keys of the sort modal's ordered picker.
 	order orderpick.KeyMap
+	// confirm holds the keys of the question the root asks, such as the one
+	// to star a repository.
+	confirm ui.ConfirmKeys
 	// Notifications opens the notifications modal over what is open, and
 	// Dashboard switches between the screen on view and the dashboard.
 	Notifications key.Binding
@@ -91,6 +94,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		form:          ui.FilterFormKeys(keys, "filter"),
 		order:         ui.OrderPickKeys(keys),
+		confirm:       ui.NewConfirmKeys(keys),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),

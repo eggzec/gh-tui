@@ -7,3 +7,4 @@ always
 Confirm
   yes | y | y | on
   no | n esc | n | on
+  answer the default | enter | ↵ | on
