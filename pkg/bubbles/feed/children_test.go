@@ -65,6 +65,29 @@ func TestChildrenStartFolded(t *testing.T) {
 	}
 }
 
+func TestUnfolded(t *testing.T) {
+	m := load(t, newSource(6, 6), WithSize(30, 12), withKids(), WithChildrenFolded())
+	if m.Unfolded() {
+		t.Fatal("an item with children starts folded")
+	}
+	m.sel = 1
+	if m.Unfolded() {
+		t.Fatal("the folded item reports unfolded")
+	}
+	m = activate(t, m)
+	if !m.Unfolded() {
+		t.Fatal("the opened item reports folded")
+	}
+	m.sel = 2
+	if m.Unfolded() {
+		t.Fatal("a child row reports unfolded")
+	}
+	m.sel = 0
+	if m.Unfolded() {
+		t.Fatal("an item without children reports unfolded")
+	}
+}
+
 func TestChildrenBuild(t *testing.T) {
 	m := kidsModel(t)
 	if got := len(m.lines); got != 9 {

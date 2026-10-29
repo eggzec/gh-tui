@@ -25,6 +25,7 @@ func TestTreeKeepsTheCursorInView(t *testing.T) {
 		f := newFake()
 		passingJobs(f, 30)
 		m, h := newModal(t, f, size[0], size[1])
+		h.keys("enter")
 		for i := range 30 {
 			h.keys("j")
 			if want := fmt.Sprintf("job-%02d", i); !strings.Contains(screen(m), want) {
@@ -32,7 +33,11 @@ func TestTreeKeepsTheCursorInView(t *testing.T) {
 			}
 			assertFits(t, m.View(), size[0], size[1])
 		}
-		h.keys("backspace")
+		// Left steps up to the run, and enter folds it.
+		h.keys("left")
+		if h.m.cursorOnJobs() {
+			t.Fatalf("%dx%d: left from a job didn't reach its run", size[0], size[1])
+		}
 		h.keys("enter")
 		if s := screen(m); strings.Contains(s, "job-00") {
 			t.Errorf("%dx%d: the folded run still shows its jobs:\n%s", size[0], size[1], s)

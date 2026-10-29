@@ -8,9 +8,8 @@ import (
 // and keeps the log of the job itself, so that opening it finds it read, or
 // being read.
 func (m *Modal) showJob() tea.Cmd {
-	defer m.layout()
 	around := m.readLogsAround()
-	j, ok := m.cur().selected()
+	j, ok := m.cursorJob()
 	if !ok {
 		m.aheadLogs.Unkeep()
 		return around

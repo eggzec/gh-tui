@@ -9,7 +9,7 @@ func BenchmarkView(b *testing.B) {
 	}{{"190 columns", wideW, wideH}, {"80 columns", narrowW, narrowH}} {
 		b.Run(size.name, func(b *testing.B) {
 			m, h := newModal(b, newFake(), size.w, size.h)
-			h.keys("tab", "tab")
+			h.keys("tab")
 			b.ReportAllocs()
 			for b.Loop() {
 				_ = m.View()
@@ -27,7 +27,7 @@ func BenchmarkUpdate(b *testing.B) {
 		f.cachedLogs[lintJob+id] = true
 	}
 	m, _ := newModal(b, f, wideW, wideH)
-	m.Update(press("tab"))
+	m.Update(press("enter"))
 	down, up := press("j"), press("k")
 	b.ReportAllocs()
 	i := 0

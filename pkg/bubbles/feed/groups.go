@@ -303,6 +303,12 @@ func (m Model[T]) onFold() bool {
 	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].foldable()
 }
 
+// Unfolded reports whether the cursor is on a header or an item that shows
+// what is under it.
+func (m Model[T]) Unfolded() bool {
+	return m.onFold() && m.lines[m.sel].open
+}
+
 // onChild reports whether the cursor is on a child row.
 func (m Model[T]) onChild() bool {
 	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].child

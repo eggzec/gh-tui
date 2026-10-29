@@ -22,7 +22,7 @@ func TestViewASCII(t *testing.T) {
 		width, height int
 		keys          []string
 	}{
-		{wideW, wideH, nil}, {wideW, wideH, []string{"tab"}}, {wideW, wideH, []string{"j"}},
+		{wideW, wideH, nil}, {wideW, wideH, []string{"tab"}}, {wideW, wideH, []string{"enter"}}, {wideW, wideH, []string{"j"}},
 		{wideW, wideH, []string{"f"}}, {wideW, wideH, []string{"R"}}, {wideW, wideH, []string{"]"}},
 		{narrowW, narrowH, []string{"j"}}, {narrowW, narrowH, []string{"j", "enter"}},
 		{narrowW, narrowH, []string{"enter", "j", "j", "enter"}}, {narrowW, narrowH, []string{"f"}},
@@ -99,8 +99,8 @@ func TestViewWaiting(t *testing.T) {
 				waiting(502, "e2e", core.RunPending),
 				waiting(503, "release", core.RunRequested),
 				waiting(504, "docs", core.RunQueued))
-			m, h := newModal(t, f, wideW, 10, WithIcons(ui.NewIcons(set)))
-			h.keys("enter", "j")
+			m, h := newModal(t, f, wideW, 14, WithIcons(ui.NewIcons(set)))
+			h.keys("j", "l")
 			v := m.View()
 			// The row of a narrow pane has no room for the state's words, so
 			// the glyph before the name tells a waiting job from a queued one.
@@ -117,7 +117,7 @@ func TestViewWaiting(t *testing.T) {
 			if d, q := glyph("deploy (production)"), glyph("docs"); d == "" || q == "" || d == q {
 				t.Errorf("the deploy row's glyph %q and the queued one's %q:\n%s", d, q, s)
 			}
-			assertFits(t, v, wideW, 10)
+			assertFits(t, v, wideW, 14)
 			golden.RequireEqual(t, v)
 		})
 	}
@@ -130,8 +130,8 @@ func TestViewMoreJobs(t *testing.T) {
 		f := newFake()
 		f.moreJobs = more
 		m, h := newModal(t, f, wideW, wideH)
-		h.keys("tab")
-		s := paneText(m, jobsPane)
+		h.toJobs(t)
+		s := paneText(m)
 		if got := strings.Contains(s, "First 4 jobs · o shows all"); got != more {
 			t.Errorf("more jobs %v: the pane says so %v:\n%s", more, got, s)
 		}
@@ -140,7 +140,7 @@ func TestViewMoreJobs(t *testing.T) {
 
 func TestViewFitsAnySize(t *testing.T) {
 	for _, size := range [][2]int{{1, 1}, {10, 3}, {30, 5}, {109, 12}, {110, 12}, {250, 60}} {
-		for _, keys := range [][]string{nil, {"tab"}, {"tab", "tab"}, {"j", "tab", "tab"}, {"z"}, {"f"}, {"R"}} {
+		for _, keys := range [][]string{nil, {"enter"}, {"tab"}, {"tab", "tab"}, {"j", "tab", "tab"}, {"z"}, {"f"}, {"R"}} {
 			m, h := newModal(t, newFake(), wideW, wideH)
 			h.keys(keys...)
 			m.SetSize(size[0], size[1])
@@ -180,7 +180,8 @@ func TestRunsCountAtBottom(t *testing.T) {
 
 // At 80 columns the jobs of the open run show under it in the runs' tree.
 func TestViewTwoPanesAt80(t *testing.T) {
-	m, _ := newModal(t, newFake(), narrowW, narrowH)
+	m, h := newModal(t, newFake(), narrowW, narrowH)
+	h.keys("enter")
 	s := screen(m)
 	if !strings.Contains(s, "macos-lat") || !strings.Contains(s, "fix: skip") {
 		t.Errorf("the 80-column modal shows only one section:\n%s", s)

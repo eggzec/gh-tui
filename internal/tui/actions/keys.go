@@ -69,7 +69,6 @@ type KeyMap struct {
 	// Runs and Jobs move through the runs and the jobs, and Log through the
 	// log. notesUp and notesDown move through the annotations.
 	Runs feed.KeyMap
-	Jobs ui.MoveKeys
 	// search are the keys of the prompt of the runs' find and filter.
 	search             cmdline.KeyMap
 	Log                logview.KeyMap
@@ -123,7 +122,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
-	k.Runs, k.Jobs = feed.NewKeyMap(runs), ui.NewMoveKeys(runs)
+	k.Runs = feed.NewKeyMap(runs)
 	k.search = ui.SearchPromptKeys(keys)
 
 	// The log folds with enter. The modal takes the keys that close it, so
@@ -162,7 +161,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log overlay's job view: the moves of the

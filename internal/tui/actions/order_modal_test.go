@@ -112,19 +112,19 @@ func TestSortModalReorders(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("s")
 	o := overlay(t, h)
-	before := paneText(m, runsPane)
+	before := paneText(m)
 	// Workflow, then flip it to Z to A.
 	choose(h, o, "space", "tab", "space", "enter")
-	after := paneText(m, runsPane)
+	after := paneText(m)
 	if before == after {
 		t.Fatalf("sort did not reorder:\n%s", after)
 	}
 	h.keys("alt+s")
-	if got := paneText(m, runsPane); got != before {
+	if got := paneText(m); got != before {
 		t.Fatalf("alt+s did not restore GitHub's order:\n%s\nwant\n%s", got, before)
 	}
 	h.keys("alt+s")
-	if got := paneText(m, runsPane); got != after {
+	if got := paneText(m); got != after {
 		t.Fatalf("alt+s did not sort again:\n%s", got)
 	}
 }
@@ -155,12 +155,14 @@ func TestEnterOnHeaderFolds(t *testing.T) {
 func TestEnterOnRunFoldsJobs(t *testing.T) {
 	t.Parallel()
 	m, h := newGroupedModal(t, newFake(), wideW, wideH)
+	// Runs open folded: enter unfolds the run, and enter again folds it.
+	h.keys("enter")
 	// The annotations pane names a job too, so look at the runs pane only.
-	if !strings.Contains(paneText(m, runsPane), "ubuntu-latest") {
+	if !strings.Contains(paneText(m), "ubuntu-latest") {
 		t.Fatalf("jobs of the first run do not show:\n%s", screen(m))
 	}
 	h.keys("enter")
-	if s := paneText(m, runsPane); strings.Contains(s, "ubuntu-latest") || !strings.Contains(s, "#4812") {
+	if s := paneText(m); strings.Contains(s, "ubuntu-latest") || !strings.Contains(s, "#4812") {
 		t.Fatalf("enter on a run did not fold its jobs:\n%s", s)
 	}
 }
@@ -168,7 +170,9 @@ func TestEnterOnRunFoldsJobs(t *testing.T) {
 func TestRegroupKeepsTheRun(t *testing.T) {
 	t.Parallel()
 	m, h := newGroupedModal(t, newFake(), wideW, wideH)
-	h.keys("down", "down", "down")
+	// The cursor starts on the first run; four rows down is the run of the
+	// second group, past its header.
+	h.keys("down", "down", "down", "down")
 	want, ok := m.runs.Selected()
 	if !ok {
 		t.Fatal("cursor not on a run")
@@ -194,7 +198,8 @@ func TestGroupedJobsNestUnderRun(t *testing.T) {
 	for _, grouped := range []bool{true, false} {
 		t.Run(map[bool]string{true: "grouped", false: "flat"}[grouped], func(t *testing.T) {
 			t.Parallel()
-			m, _ := newModalOrdered(t, testKeys(), grouped, newFake(), wideW, wideH)
+			m, h := newModalOrdered(t, testKeys(), grouped, newFake(), wideW, wideH)
+			h.keys("enter")
 			rows := strings.Split(ansi.Strip(m.View()), "\n")
 			// Columns are counted in runes, as the markers are one cell each.
 			col := func(row, marks string) int {
@@ -209,12 +214,14 @@ func TestGroupedJobsNestUnderRun(t *testing.T) {
 				if fold < 0 || !strings.Contains(row, "#") {
 					continue
 				}
-				guide := col(rows[i+1], "├└")
-				if guide < 0 {
+				// The job's state sits a level (2 cells) right of the run's,
+				// which follows the run's fold marker.
+				state := col(rows[i+1], "✓✗⊖◐")
+				if state < 0 {
 					t.Fatalf("no job under the run in:\n%s", strings.Join(rows, "\n"))
 				}
-				if guide != fold+2 {
-					t.Errorf("job guide at column %d, run marker at %d, want 2 cells right:\n%s", guide, fold, strings.Join(rows[i:i+2], "\n"))
+				if state != fold+4 {
+					t.Errorf("job state at column %d, run marker at %d, want 4 cells right:\n%s", state, fold, strings.Join(rows[i:i+2], "\n"))
 				}
 				return
 			}

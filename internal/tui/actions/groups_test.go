@@ -3,6 +3,7 @@ package actions
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -215,11 +216,11 @@ func duckFake() *fake {
 	return f
 }
 
-// jobsPaneRows is the rows of the jobs pane, without styles, trimmed.
+// jobsPaneRows is the rows under the one run listed, without styles, trimmed.
 func jobsPaneRows(m *Modal) []string {
 	// The jobs show as wide as the zoomed runs box, not the 34 columns of the
 	// side by side one, so long names stay whole.
-	lines := m.jobLines(100, m.rowsOf(jobsPane))
+	lines := wideRunsBox(m)
 	var rows []string
 	for _, l := range lines {
 		// The outline's guides are drawn, not read, so they drop out.
@@ -229,6 +230,11 @@ func jobsPaneRows(m *Modal) []string {
 		if len(words) > 0 {
 			rows = append(rows, strings.Join(words, " "))
 		}
+	}
+	// The rows before the jobs are the workflow's header and the run.
+	run := "#" + strconv.Itoa(m.run.Number)
+	if i := slices.IndexFunc(rows, func(r string) bool { return strings.Contains(r, run) }); i >= 0 {
+		rows = rows[i+1:]
 	}
 	return rows
 }
@@ -240,10 +246,10 @@ func TestViewJobGroups(t *testing.T) {
 		width, height int
 		keys          []string
 	}{
-		{"80 columns", narrowW, narrowH, []string{"j"}},
-		{"120 columns", 92, 24, []string{"j"}},
+		{"80 columns", narrowW, narrowH, []string{"enter", "j"}},
+		{"120 columns", 92, 24, []string{"enter", "j"}},
 		// The extensions open, to show a group in a group.
-		{"120 columns nested", 92, 24, []string{"j", "G", "k", "k", "enter", "j", "enter"}},
+		{"120 columns nested", 92, 24, []string{"enter", "j", "G", "k", "k", "enter", "j", "enter"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -260,18 +266,18 @@ func TestViewJobGroups(t *testing.T) {
 
 func TestJobGroupsFold(t *testing.T) {
 	m, h := newGroupedModal(t, duckFake(), wideW, wideH)
-	h.keys("tab")
-	if b, _, _ := uitest.Winner(m.KeyLayers(), "enter"); b.Help().Desc != "open" {
-		t.Errorf("enter on a job reads %q, want open", b.Help().Desc)
+	h.toJobs(t)
+	if b, _, _ := uitest.Winner(m.KeyLayers(), "enter"); b.Help().Desc != "log" {
+		t.Errorf("enter on a job reads %q, want log", b.Help().Desc)
 	}
-	// The failed group opens, on its failed job; the rest stay folded.
+	// The failed group opens; the rest stay folded.
 	want := []string{
-		"✓ check-draft 1m 0s",
+		"▌ ✓ check-draft 1m 0s",
 		"▾ Build extension binaries 7 ✗",
 		"✓ linux_amd64 2m 0s",
 		"✓ linux_arm64 3m 0s",
 		"✓ osx 4m 0s",
-		"▌ ✗ windows_amd64 5m 0s",
+		"✗ windows_amd64 5m 0s",
 		"▸ DuckDB-Wasm 3 ✓",
 		"▸ Test 3 ◐",
 		"▸ Clang-Tidy 4 ✓",
@@ -284,16 +290,16 @@ func TestJobGroupsFold(t *testing.T) {
 		t.Fatalf("the jobs:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// On a group, the select key folds it instead of opening a log.
-	h.keys("j", "j")
-	if !m.cur().onGroup() {
+	h.keys("j", "j", "j", "j", "j", "j", "j")
+	if !m.onGroupRow() {
 		t.Fatalf("the cursor is on %q, want a group", jobsPaneRows(m)[7])
 	}
 	// The help says so, as it says that enter opens a job.
-	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "fold" {
-		t.Errorf("enter on a group reaches %q of %q, want the fold", b.Help().Desc, src)
+	if b, src, _ := uitest.Winner(m.KeyLayers(), "enter"); src != "Runs" || b.Help().Desc != "unfold" {
+		t.Errorf("enter on a folded group reaches %q of %q, want the unfold", b.Help().Desc, src)
 	}
 	h.keys("enter")
-	if rows := jobsPaneRows(m); rows[7] != "▌ ▾ Test 3 ◐" || rows[8] != "✓ linux, amd64 9m 0s" || m.focus != jobsPane {
+	if rows := jobsPaneRows(m); rows[7] != "▌ ▾ Test 3 ◐" || rows[8] != "✓ linux, amd64 9m 0s" || !m.cursorOnJobs() {
 		t.Errorf("after enter on Test:\n%s", strings.Join(rows, "\n"))
 	}
 	h.keys("enter")
@@ -311,8 +317,9 @@ func TestJobGroupsFold(t *testing.T) {
 // A group isn't re-run as the one job it shows.
 func TestJobGroupNotRerun(t *testing.T) {
 	m, h := newGroupedModal(t, newFake(), wideW, wideH)
-	h.keys("tab", "k", "J")
-	if !m.cur().onGroup() || m.ask != nil || lastLine(m) != "Pick a job of the group to re-run." {
+	h.toJobs(t)
+	h.keys("j", "J")
+	if !m.onGroupRow() || m.ask != nil || lastLine(m) != "Pick a job of the group to re-run." {
 		t.Errorf("re-running a group asks %v, says %q", m.ask, lastLine(m))
 	}
 	h.keys("j", "J")
@@ -326,9 +333,9 @@ func TestJobGroupNotRerun(t *testing.T) {
 func TestJobGroupsSurvivePolls(t *testing.T) {
 	f := duckFake()
 	m, h := newGroupedModal(t, f, wideW, wideH)
-	h.keys("tab")
+	h.toJobs(t)
 	// Fold the failed group, open the tests, and rest on Clang-Tidy.
-	h.keys("k", "k", "k", "k", "enter", "j", "enter", "j", "j", "j", "j")
+	h.keys("j", "j", "j", "j", "j", "k", "k", "k", "k", "enter", "j", "enter", "j", "j", "j", "j")
 	before := jobsPaneRows(m)
 	if !strings.HasPrefix(before[6], "▌ ▸ Clang-Tidy") {
 		t.Fatalf("the cursor isn't on Clang-Tidy:\n%s", strings.Join(before, "\n"))
@@ -383,14 +390,25 @@ func TestJobGroupsSurvivePolls(t *testing.T) {
 	}
 }
 
+// toJobRow steps down the jobs of the run under the cursor to the row of the
+// job named name, past a group row that opens on that job.
+func toJobRow(tb testing.TB, h *host, name string) {
+	tb.Helper()
+	h.toJob(tb, name)
+	for range 60 {
+		if j, ok := h.m.cursorJob(); ok && j.Name == name && !h.m.onGroupRow() {
+			return
+		}
+		h.keys("j")
+	}
+	tb.Fatalf("the cursor never reached the row of the job %q", name)
+}
+
 // A job the cursor was on stays under it, or under its group once folded.
 func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	f := duckFake()
 	m, h := newGroupedModal(t, f, wideW, wideH)
-	h.keys("tab")
-	if j, _ := m.cur().selected(); j.Name != "Build extension binaries / windows_amd64" {
-		t.Fatalf("opens on %q, want the failed job", j.Name)
-	}
+	toJobRow(t, h, "Build extension binaries / windows_amd64")
 	// The failed job passes on a new attempt, so its group opens no more
 	// by itself, but it was open, so it stays open.
 	jobs := duckJobs(duckRun)
@@ -404,14 +422,14 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	r.Attempt = 2
 	f.setRun(r)
 	h.run(m.fromCache())
-	if j, _ := m.cur().selected(); j.ID != 10004 || m.cur().onGroup() {
+	if j, _ := m.cursorJob(); j.ID != 10004 || m.onGroupRow() {
 		t.Errorf("after a new attempt the cursor is on %q (%d), want the job of the same name", j.Name, j.ID)
 	}
 	// Folded, the group holds the cursor, and shows the same job.
 	m.cur().folds["Build extension binaries /"] = fold{}
 	m.cur().relines()
-	m.cur().cursor = m.cur().lineOf(4)
-	if !m.cur().onGroup() || jobsPaneRows(m)[1] != "▌ ▸ Build extension binaries 7 ✓" {
+	m.runs.SelectChild(strconv.FormatInt(m.run.ID, 10), m.cur().lineOf(4))
+	if !m.onGroupRow() || jobsPaneRows(m)[1] != "▌ ▸ Build extension binaries 7 ✓" {
 		t.Errorf("the folded group:\n%s", strings.Join(jobsPaneRows(m), "\n"))
 	}
 }
@@ -428,32 +446,28 @@ func TestJobGroupLongName(t *testing.T) {
 		job(3, failedRun, alone, core.ConclusionSuccess, time.Hour, time.Minute),
 	}
 	m, h := newGroupedModal(t, f, 120, 40)
-	h.keys("tab")
-	w := m.paneWidth(jobsPane)
-	lines := m.jobLines(w, m.rowsOf(jobsPane))
-	words := make([]string, 0, len(lines)*4)
-	for _, l := range lines {
-		if got := ansi.StringWidth(l); got != w {
-			t.Errorf("a line is %d cells, want %d: %q", got, w, ansi.Strip(l))
+	h.toJobs(t)
+	// A row is one line, cut to the width, so the name never wraps.
+	const w = 60
+	lines := make([]string, len(m.cur().lines))
+	for k := range lines {
+		lines[k] = m.renderJob(m.run, k, false, w)
+		if got := ansi.StringWidth(lines[k]); got != w {
+			t.Errorf("row %d is %d cells, want %d: %q", k, got, w, ansi.Strip(lines[k]))
 		}
-		words = append(words, strings.Fields(strings.TrimLeft(ansi.Strip(l), "▌│├└▾▸ "))...)
 	}
-	for _, name := range []string{strings.TrimSpace(long), alone} {
-		if !strings.Contains(strings.Join(words, " "), name) {
-			t.Errorf("the long name %q was cut:\n%s", name, ansi.Strip(strings.Join(lines, "\n")))
-		}
+	if len(lines) < 2 {
+		t.Fatalf("the jobs show on %d rows", len(lines))
 	}
 	if strings.Contains(lines[0], "\x1b]8;") {
 		t.Errorf("the group links: %q", lines[0])
 	}
-	links := 0
+	var linked bool
 	for _, l := range lines[1:] {
-		if strings.Contains(l, "\x1b]8;;"+f.jobs[failedRun][2].URL) {
-			links++
-		}
+		linked = linked || strings.Contains(l, "\x1b]8;;"+f.jobs[failedRun][2].URL)
 	}
-	if links < 2 {
-		t.Errorf("the job's wrapped name links on %d lines:\n%q", links, lines)
+	if !linked {
+		t.Errorf("the job's name doesn't link:\n%q", lines)
 	}
 }
 
@@ -468,15 +482,15 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 		job(3, failedRun, "lint", core.ConclusionFailure, time.Hour, time.Minute),
 	}
 	m, h := newGroupedModal(t, f, wideW, wideH)
-	h.keys("tab", "k")
-	if j, _ := m.cur().selected(); j.ID != gen.ID || m.focus != jobsPane {
+	h.toJob(t, gen.Name)
+	if j, _ := m.cursorJob(); j.ID != gen.ID || !m.cursorOnJobs() {
 		t.Fatalf("the cursor is on job %d, want %d", j.ID, gen.ID)
 	}
 	f.setJobs(failedRun, append(slices.Clone(f.jobs[failedRun]),
 		job(4, failedRun, "Build / linux_amd64", core.ConclusionSuccess, time.Hour, time.Minute),
 		job(5, failedRun, "Build / osx", core.ConclusionSuccess, time.Hour, time.Minute)))
 	h.run(m.fromCache())
-	if j, _ := m.cur().selected(); j.ID != gen.ID || m.cur().onGroup() {
+	if j, _ := m.cursorJob(); j.ID != gen.ID || m.onGroupRow() {
 		t.Errorf("after the poll the cursor is on %q, want job %d", j.Name, gen.ID)
 	}
 	if rows := jobsPaneRows(m); rows[1] != "▾ Build 3 ✓" || !strings.HasPrefix(rows[2], "▌ ✓ Generate matrix") {
@@ -489,7 +503,7 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 func TestJobGroupOpensOnFailure(t *testing.T) {
 	f := duckFake()
 	m, h := newGroupedModal(t, f, wideW, wideH)
-	h.keys("tab")
+	toJobRow(t, h, "Build extension binaries / windows_amd64")
 	fail := func(names ...string) {
 		jobs := slices.Clone(f.jobs[duckRun])
 		for i := range jobs {
@@ -504,7 +518,7 @@ func TestJobGroupOpensOnFailure(t *testing.T) {
 	if !m.cur().isOpen("Test (") {
 		t.Fatalf("Test failed, but stays folded:\n%s", strings.Join(jobsPaneRows(m), "\n"))
 	}
-	if j, _ := m.cur().selected(); j.Name != "Build extension binaries / windows_amd64" {
+	if j, _ := m.cursorJob(); j.Name != "Build extension binaries / windows_amd64" {
 		t.Errorf("the cursor moved to %q", j.Name)
 	}
 	// Folded by the user, it stays folded when another of its jobs fails.

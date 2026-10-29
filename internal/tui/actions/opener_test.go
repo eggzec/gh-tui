@@ -116,8 +116,8 @@ func TestOpensOnAJob(t *testing.T) {
 	}{
 		{"a passing one", []Option{WithJob(macosJob)}, macosJob},
 		{"the failed one", []Option{WithJob(ubuntuJob)}, ubuntuJob},
-		{"one the run lacks", []Option{WithJob(7)}, ubuntuJob},
-		{"none asked", nil, ubuntuJob},
+		{"one the run lacks", []Option{WithJob(7)}, 0},
+		{"none asked", nil, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,8 +127,9 @@ func TestOpensOnAJob(t *testing.T) {
 			if m.run.ID != failedRun {
 				t.Fatalf("shows run %d, want %d", m.run.ID, failedRun)
 			}
-			if j, ok := m.cur().selected(); !ok || j.ID != tt.want {
-				t.Errorf("the jobs select %d, want %d", j.ID, tt.want)
+			// A job the run lacks, or none asked for, leaves the cursor on the run.
+			if j, ok := m.cursorJob(); ok != (tt.want != 0) || j.ID != tt.want {
+				t.Errorf("the cursor is on job %d (%v), want %d", j.ID, ok, tt.want)
 			}
 			if m.wantJob != 0 {
 				t.Errorf("still wants job %d once the jobs showed", m.wantJob)
@@ -145,36 +146,21 @@ func TestOpensOnAJobOfARun(t *testing.T) {
 	f := newFake()
 	f.runPage = 2
 	f.logs[300] = f.logs[ubuntuJob]
-	m, _ := newModal(t, f, wideW, wideH, WithRun(passedRun), WithJob(300), WithJobsFocused())
+	m, _ := newModal(t, f, wideW, wideH, WithRun(passedRun), WithJob(300))
 	if m.run.ID != passedRun {
 		t.Fatalf("shows run %d, want %d", m.run.ID, passedRun)
 	}
-	if j, _ := m.cur().selected(); j.ID != 300 {
+	if j, _ := m.cursorJob(); j.ID != 300 {
 		t.Errorf("the jobs select %d, want 300", j.ID)
-	}
-	if m.focus != jobsPane {
-		t.Errorf("focus is on pane %d, want the jobs", m.focus)
-	}
-}
-
-func TestOpensWithTheJobsFocused(t *testing.T) {
-	t.Parallel()
-	f := newFake()
-	m, _ := newModal(t, f, wideW, wideH, WithJobsFocused())
-	if m.focus != jobsPane {
-		t.Errorf("focus is on pane %d, want the jobs", m.focus)
-	}
-	if j, _ := m.cur().selected(); j.ID != ubuntuJob {
-		t.Errorf("the jobs select %d, want the failed one, %d", j.ID, ubuntuJob)
 	}
 }
 
 func TestOpensOnAFailedJobAtItsError(t *testing.T) {
 	t.Parallel()
 	f := newFake()
-	m, h := newModal(t, f, wideW, wideH, WithRun(failedRun), WithJob(ubuntuJob), WithJobsFocused())
-	if m.focus != jobsPane {
-		t.Errorf("focus is on pane %d, want the jobs", m.focus)
+	m, h := newModal(t, f, wideW, wideH, WithRun(failedRun), WithJob(ubuntuJob))
+	if j, ok := m.cursorJob(); !ok || j.ID != ubuntuJob {
+		t.Fatalf("the cursor is on job %d, want %d", j.ID, ubuntuJob)
 	}
 	h.keys("enter")
 	if h.log == nil || h.log.log.State() != jobview.Ready || h.log.log.Errors() != 1 {
@@ -196,10 +182,10 @@ func TestOpenerOpensWhereTheAppSays(t *testing.T) {
 	m.SetTheme(testTheme())
 	m.SetSize(wideW, wideH)
 	(&host{m: m}).run(load)
-	if m.run.ID != cancelledRun || m.focus != jobsPane {
-		t.Errorf("opened on run %d with pane %d focused, want run %d and the jobs", m.run.ID, m.focus, cancelledRun)
+	if m.run.ID != cancelledRun {
+		t.Errorf("opened on run %d, want run %d", m.run.ID, cancelledRun)
 	}
-	if j, _ := m.cur().selected(); j.ID != 400 {
+	if j, _ := m.cursorJob(); j.ID != 400 {
 		t.Errorf("the jobs select %d, want 400", j.ID)
 	}
 	if q := f.queries[0]; q.Filter.HeadSHA != commitSHA {
@@ -277,7 +263,7 @@ func TestOpenerView(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			m, _ := newModal(t, newFake(), tt.width, tt.height, WithRun(failedRun), WithJob(ubuntuJob), WithJobsFocused())
+			m, _ := newModal(t, newFake(), tt.width, tt.height, WithRun(failedRun), WithJob(ubuntuJob))
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)

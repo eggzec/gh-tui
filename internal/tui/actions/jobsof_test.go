@@ -57,13 +57,13 @@ func TestJobsOfAnotherRunLeaveTheRunShownAlone(t *testing.T) {
 	t.Parallel()
 	m, h, left := shownThenMoved(t)
 	m.wantJob = 4242
-	cursor, top := m.cur().cursor, m.cur().top
+	run, cursor, _ := m.runs.SelectedChild()
 	h.send(jobsMsg{id: m.id, runID: left, attempt: m.jobsOf[left].attempt, page: core.Page[core.Job]{Items: []core.Job{{ID: 4242, Name: "only"}}}})
 	if m.wantJob != 4242 {
 		t.Errorf("wantJob = %d, a page of another run consumed it", m.wantJob)
 	}
-	if c, tp := m.cur().cursor, m.cur().top; c != cursor || tp != top {
-		t.Errorf("the run shown moved from %d/%d to %d/%d", cursor, top, c, tp)
+	if r, c, _ := m.runs.SelectedChild(); c != cursor || r.ID != run.ID {
+		t.Errorf("the cursor moved from row %d of run %d to row %d of run %d", cursor, run.ID, c, r.ID)
 	}
 	if got := len(m.jobsOf[left].items); got != 1 {
 		t.Errorf("the entry of the run left has %d jobs, want 1", got)
