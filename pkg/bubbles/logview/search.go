@@ -8,6 +8,8 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 )
 
 // match is where a search matched: bytes start to end of the text of a
@@ -126,8 +128,8 @@ func (m *Model) jump(i int) {
 		return
 	}
 	tw := m.textWidth(m.layout(), r)
-	_, start := advance(r.text[:x.start], 0, math.MaxInt)
-	_, end := advance(r.text[:x.end], 0, math.MaxInt)
+	_, start := wrap.Advance(r.text[:x.start], 0, math.MaxInt)
+	_, end := wrap.Advance(r.text[:x.end], 0, math.MaxInt)
 	if start < m.left || end > m.left+tw {
 		m.left = max(start-tw/4, 0)
 	}

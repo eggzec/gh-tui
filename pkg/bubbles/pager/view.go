@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -118,7 +119,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 		}
 		if !m.wrap {
 			a, pad := m.leftEdge(s)
-			e, used := advance(s, a, tw-pad)
+			e, used := wrap.Advance(s, a, tw-pad)
 			m.writeGutter(b, i, true, gw)
 			b.WriteString(strings.Repeat(" ", pad))
 			m.writeSpan(b, i, a, e)
@@ -128,7 +129,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 			continue
 		}
 		for r, a := 0, 0; rows < h; r++ {
-			e, used := nextRow(s, a, tw)
+			e, used := wrap.NextRow(s, a, tw)
 			if p > m.top || r >= m.row {
 				m.writeGutter(b, i, r == 0, gw)
 				if used > tw {
@@ -152,14 +153,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 
 // leftEdge returns the first byte of s shown when scrolled sideways, and
 // the blank cells before it where a wide grapheme is cut in half.
-func (m Model) leftEdge(s string) (a, pad int) {
-	a, used := advance(s, 0, m.left)
-	if used < m.left && a < len(s) {
-		e, w := advance(s, a, 2)
-		return e, used + w - m.left
-	}
-	return a, 0
-}
+func (m Model) leftEdge(s string) (a, pad int) { return wrap.LeftEdge(s, m.left) }
 
 func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 	if gw == 0 {
