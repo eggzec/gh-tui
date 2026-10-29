@@ -65,9 +65,8 @@ func TestPrompt(t *testing.T) {
 			wantQuery: "line x ", wantMatches: 15, wantLine: 1},
 		{name: "esc closes the prompt first", keys: []string{"/", "line x ", "enter", "/", "ab", "esc"},
 			wantQuery: "line x ", wantMatches: 15, wantLine: 1},
-		{name: "then clears the search", keys: []string{"/", "line x ", "enter", "/", "esc", "esc"}, wantLine: -1},
-		{name: "then closes", keys: []string{"/", "line x ", "enter", "/", "esc", "esc", "esc"},
-			wantLine: -1, wantClose: true},
+		{name: "then closes with the search shown", keys: []string{"/", "line x ", "enter", "/", "esc", "esc"},
+			wantQuery: "line x ", wantMatches: 15, wantLine: 1, wantClose: true},
 		{name: "backspace edits the line", keys: []string{"/", "a", "backspace"}, wantLine: -1, wantCapturing: true},
 		{name: "backspace on an empty line cancels", keys: []string{"/", "a", "backspace", "backspace"}, wantLine: -1},
 	}
@@ -123,9 +122,9 @@ func TestInvertedMarks(t *testing.T) {
 		if got := m.gutterWidth(); got != max(width, 2) {
 			t.Errorf("numbers %v: gutter %d wide, want %d", numbers, got, max(width, 2))
 		}
-		m, _ = keys(t, m, "esc")
+		m, _ = enterAll(t, m, "/", "kiwi", "enter")
 		if got := m.gutterWidth(); got != width {
-			t.Errorf("numbers %v: gutter %d wide after esc, want %d", numbers, got, width)
+			t.Errorf("numbers %v: gutter %d wide after the search is gone, want %d", numbers, got, width)
 		}
 	}
 }

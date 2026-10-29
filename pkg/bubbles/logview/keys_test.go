@@ -17,8 +17,8 @@ func TestKeyMapComplete(t *testing.T) {
 	keytest.NoConflicts(t, testKeys(t))
 }
 
-// Help enables the search keys only while there is a search to close or
-// clear; then cancel takes esc from close.
+// Help enables the search keys only while the input is open; with a search
+// shown, esc still closes the view.
 func TestHelpState(t *testing.T) {
 	// enter also folds, so a key is told apart by what it does.
 	status := func(m Model, k, desc string) string {
@@ -36,7 +36,7 @@ func TestHelpState(t *testing.T) {
 	m = typeText(t, m, "a")
 	m, _ = keys(t, m, "enter")
 	got := []string{status(m, "↵", "search"), status(m, "esc", "cancel"), status(m, "q/esc", "close")}
-	if !slices.Equal(got, []string{"disabled", "active", "conflict"}) {
+	if !slices.Equal(got, []string{"disabled", "disabled", "active"}) {
 		t.Errorf("search shown: confirm, cancel and close are %q", got)
 	}
 }

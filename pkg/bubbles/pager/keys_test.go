@@ -16,8 +16,8 @@ func TestKeyMapComplete(t *testing.T) {
 }
 
 // Help lists every key in every state, and enables only those that act:
-// the keys that close the search input while it is open, and cancel,
-// which takes esc from close, while a search is shown.
+// the keys that close the search input while it is open; esc closes the
+// pager otherwise, with a search shown too.
 func TestHelpState(t *testing.T) {
 	enabled := func(m Model) []string {
 		var out []string
@@ -40,12 +40,12 @@ func TestHelpState(t *testing.T) {
 	m = typeText(t, m, "line")
 	m, _ = keys(t, m, "enter")
 	got := enabled(m)
-	for _, want := range []string{"esc active", "q/esc conflict", "n active"} {
+	for _, want := range []string{"q/esc active", "n active"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("search shown: enabled %q, want %q", got, want)
 		}
 	}
-	m, _ = keys(t, m, "esc", "esc", "-")
+	m, _ = keys(t, m, "-")
 	if got, want := enabled(m), []string{"S active", "N active", "s active", "i active", "I active", "esc active"}; !slices.Equal(got, want) {
 		t.Errorf("option: enabled %q, want %q", got, want)
 	}

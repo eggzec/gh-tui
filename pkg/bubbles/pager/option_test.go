@@ -134,9 +134,9 @@ func TestSqueeze(t *testing.T) {
 	if got := shownLines(m); !slices.Equal(got, []int{1, 2, 6, 7}) || m.kept != 6 {
 		t.Errorf("filtered and squeezed %v, with %d kept; want 1 2 6 7 of 6", shownLines(m), m.kept)
 	}
-	m, _ = keys(t, m, "esc")
+	m, _ = enterAll(t, m, "&", "enter")
 	if got := shownLines(m); !slices.Equal(got, []int{1, 2, 3, 4, 6, 7}) || m.Filter() != "" {
-		t.Errorf("esc left %v, filter %q; want the squeeze only", got, m.Filter())
+		t.Errorf("an empty filter left %v, filter %q; want the squeeze only", got, m.Filter())
 	}
 	_ = m.SetContent("b.txt", "x\n\n\ny\n")
 	if got := shownLines(m); !slices.Equal(got, []int{1, 2, 4}) {

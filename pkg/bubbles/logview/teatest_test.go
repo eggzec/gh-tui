@@ -51,8 +51,7 @@ func TestProgram(t *testing.T) {
 	tm.Send(press("/"))
 	tm.Type("Get")
 	tm.Send(press("enter"))
-	// The first esc clears the search, the second closes.
-	tm.Send(press("esc"))
+	// Esc closes with the search shown.
 	tm.Send(press("esc"))
 
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(host)
@@ -60,8 +59,8 @@ func TestProgram(t *testing.T) {
 		t.Fatal("final model is not a host")
 	}
 	got := final.log
-	if !final.closed || got.Query() != "" {
-		t.Errorf("closed %v with query %q; want closed with the search cleared", final.closed, got.Query())
+	if !final.closed || got.Query() != "Get" {
+		t.Errorf("closed %v with query %q; want closed with the search kept", final.closed, got.Query())
 	}
 	if got.jumped != Error || got.at != 1 {
 		t.Errorf("last jump went to %v %d, want error 2", got.jumped, got.at+1)

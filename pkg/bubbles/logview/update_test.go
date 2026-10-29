@@ -269,14 +269,10 @@ func TestSearch(t *testing.T) {
 	if m.search.cur != 8 || cursorText(m) != "* unused: 4" {
 		t.Errorf("N wrapped to match %d on %q, want the last", m.search.cur+1, cursorText(m))
 	}
-	// esc clears the search, and then asks to close.
+	// esc asks to close at once, and leaves the search alone.
 	m, msg := keys(t, m, "esc")
-	if m.Query() != "" || msg != nil {
-		t.Errorf("esc left query %q and sent %v", m.Query(), msg)
-	}
-	_, msg = keys(t, m, "esc")
-	if msg != (CloseMsg{ID: m.ID()}) {
-		t.Errorf("second esc sent %v, want a CloseMsg", msg)
+	if msg != (CloseMsg{ID: m.ID()}) || m.Query() != "unused" {
+		t.Errorf("esc sent %v with query %q, want a CloseMsg and the search kept", msg, m.Query())
 	}
 }
 

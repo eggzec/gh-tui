@@ -115,10 +115,6 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 		m.step(1)
 	case keymap.Matches(k, m.keys.Prev):
 		m.step(-1)
-	case keymap.Matches(k, m.keys.Cancel):
-		// Esc peels one layer at a time: the search, then the filter.
-		cmd, _ := m.ClearTransient()
-		return m, cmd
 	case keymap.Matches(k, m.keys.Edit):
 		cmd := m.edit()
 		return m, cmd
