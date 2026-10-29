@@ -107,7 +107,7 @@ func (m *Model) setLines(text string) string {
 	if sgr != nil {
 		rows.sgr = styleLines(rows.lines, sgr)
 	}
-	m.rows = rows
+	m.rows, m.seen = rows, len(rows.lines)
 	return full
 }
 
@@ -151,6 +151,7 @@ func (m *Model) reset(name string, s state, err error) {
 	}
 	m.renderName()
 	m.rows, m.spans, m.vis, m.size = noRows, nil, nil, 0
+	m.seen, m.follow = 0, false
 	m.anchor = anchor{}
 	m.raw, m.lang = "", ""
 	m.render, m.renderedAt, m.pics = nil, 0, nil

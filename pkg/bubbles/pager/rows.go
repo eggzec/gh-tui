@@ -5,9 +5,15 @@ import "github.com/eggzec/gh-tui/pkg/termtext"
 // Rows is what the pager shows: one entry per row before folding and
 // wrapping. The pager reads it while it draws, searches and measures, and
 // never changes it. A host that keeps its rows in a store of its own gives
-// the pager this view of them, and must not change them between a call to
-// [Model.SetRows] and the next, or the pager shows what it held when they
-// changed.
+// the pager this view of them.
+//
+// Rows are append-only: a host may grow Len, and must then call
+// [Model.Append] with the index of the first new row, in the same Update. That
+// is the only way to tell the pager that Len grew; it never reads past the Len
+// it knows, so rows added without it are not shown. The rows before that
+// index must not change. Any other change, such as a row that is edited or
+// removed, needs a call to [Model.SetRows], or the pager shows what it held
+// when they changed.
 type Rows interface {
 	// Len returns the number of rows.
 	Len() int
@@ -46,8 +52,8 @@ func (m *Model) takeRows(r Rows) {
 		r = noRows
 	}
 	m.rows, m.state = r, stateReady
-	m.size = 0
-	for i := range r.Len() {
+	m.size, m.seen = 0, r.Len()
+	for i := range m.seen {
 		m.size += len(r.Text(i)) + 1
 	}
 	if m.proj.squeeze {

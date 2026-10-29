@@ -74,6 +74,8 @@ type projectMsg struct {
 	pgen int
 	vis  []int32
 	kept int
+	// upto is how many rows it picked among.
+	upto int
 }
 
 // Filter returns what the filter shown was typed as, such as "fix" or
@@ -97,20 +99,21 @@ func (m *Model) project(p projection) tea.Cmd {
 	m.want = p
 	if m.size < syncLimit || p.filter.re == nil {
 		vis, kept, _ := pick(context.Background(), m.rows, p, m.pics)
-		return m.picked(vis, kept)
+		return m.picked(vis, kept, m.rows.Len())
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.stopProject = cancel
 	m.projecting = true
 	m.enableSearchKeys()
 	id, pgen, all, pics := m.id, m.pgen, m.rows, m.pics
+	upto := all.Len()
 	return func() tea.Msg {
 		defer cancel()
-		vis, kept, err := pick(ctx, all, p, pics)
+		vis, kept, err := pickRange(ctx, all, p, pics, 0, upto, nil, 0)
 		if err != nil {
 			return nil
 		}
-		return projectMsg{id: id, pgen: pgen, vis: vis, kept: kept}
+		return projectMsg{id: id, pgen: pgen, vis: vis, kept: kept, upto: upto}
 	}
 }
 
@@ -140,7 +143,11 @@ func (m *Model) clearProjection() {
 // line at the top of the window there, or the first shown after it. A
 // filter that kept no line is dropped, with a note that says so, and what
 // was shown stays.
-func (m *Model) picked(vis []int32, kept int) tea.Cmd {
+func (m *Model) picked(vis []int32, kept, upto int) tea.Cmd {
+	if n := m.rows.Len(); upto < n && m.seen == n && m.want.filter.re != nil {
+		// Rows were appended while the lines were picked.
+		vis, kept, _ = pickRange(context.Background(), m.rows, m.want, m.pics, upto, n, vis, kept)
+	}
 	m.stopProject = nil
 	m.projecting = false
 	if m.want.filter.re != nil && kept == 0 {
@@ -169,11 +176,19 @@ func (m *Model) picked(vis []int32, kept int) tea.Cmd {
 // any pattern, so a filter shows them only when it shows the lines it
 // doesn't match, such as !^$, which hides the blank ones.
 func pick(ctx context.Context, all Rows, p projection, pics map[int]string) (vis []int32, kept int, err error) {
+	return pickRange(ctx, all, p, pics, 0, all.Len(), nil, 0)
+}
+
+// pickRange picks among the lines from to to of all, after vis and kept,
+// which an earlier pick of the lines before from returned. It appends to vis
+// in place, so a pager that holds rows that grow must be the only one to
+// extend them.
+func pickRange(ctx context.Context, all Rows, p projection, pics map[int]string, from, to int, vis []int32, kept int) (out []int32, n int, err error) {
 	if p.none() {
-		return nil, all.Len(), nil
+		return nil, to, nil
 	}
 	f := p.filter
-	for i := range all.Len() {
+	for i := from; i < to; i++ {
 		l := all.Text(i)
 		if i%checkEvery == 0 {
 			if err := ctx.Err(); err != nil {
