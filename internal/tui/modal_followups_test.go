@@ -10,7 +10,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/modals"
+	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
@@ -55,6 +57,27 @@ func openedTitle(t *testing.T, m *Model) string {
 		t.Fatalf("modal = %T, want the filter or sort modal", mod)
 		return ""
 	}
+}
+
+// An open composer with no text keeps no draft when the app quits.
+func TestCtrlCKeepsNoDraftOfABlankComposer(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		d := &countDrafts{}
+		m := newKeysAppPulls(t, true, func(*config.Config) {}, keyInbox{}, []pulls.Option{pulls.WithDrafts(d, "test")})
+		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1} })
+		driveKeys(t, m, m.key(press("c")))
+		if n := d.saves.Load(); n != 0 {
+			t.Fatalf("opening the composer saved %d drafts", n)
+		}
+		cmd := m.key(ctrlC)
+		if n := d.saves.Load(); n != 0 {
+			t.Errorf("a blank composer was saved %d times, want none", n)
+		}
+		if !quits(cmd) {
+			t.Error("ctrl+c didn't quit")
+		}
+	})
 }
 
 // A filter or sort message finds the list of the top modal when it has one,
