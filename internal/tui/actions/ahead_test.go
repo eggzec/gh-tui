@@ -37,8 +37,8 @@ func TestJobsAroundTheRunsAreReadAhead(t *testing.T) {
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(restMsg); return ok }
 	// The run's jobs fold away first, so that down is the next run.
 	h.keys("enter", "j")
-	if !m.jobs.loaded || m.jobs.runID != runningRun {
-		t.Fatalf("jobs pane shows run %d, loaded %v; want the next run's jobs at once", m.jobs.runID, m.jobs.loaded)
+	if !m.cur().loaded || m.cur().runID != runningRun {
+		t.Fatalf("jobs pane shows run %d, loaded %v; want the next run's jobs at once", m.cur().runID, m.cur().loaded)
 	}
 	if got, _ := f.took(); !slices.Equal(got, []int64{cancelledRun}) {
 		t.Errorf("read the jobs of %v, want only those of the run the window reaches", got)
@@ -268,7 +268,7 @@ func TestLogAheadGoesOnForTheJobLanded(t *testing.T) {
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(ui.AheadMsg); return ok }
 	h.keys("j")
 	h.hold = nil
-	if j, ok := h.m.jobs.selected(); !ok || j.ID != macosJob || len(h.held) != 1 {
+	if j, ok := h.m.cur().selected(); !ok || j.ID != macosJob || len(h.held) != 1 {
 		t.Fatalf("cursor on job %d with %d rests due, want the macOS job and one", j.ID, len(h.held))
 	}
 	h.release()

@@ -66,20 +66,20 @@ func (m *Modal) fromCache() tea.Cmd {
 		m.live[r.ID] = r
 		m.run = r
 	}
-	if m.run.Attempt != m.jobs.attempt {
+	if m.run.Attempt != m.cur().attempt {
 		// The jobs of the attempt before stay until those of the new one
 		// arrive, which keep the cursor on the job of the same name.
-		prev := m.jobs
-		m.jobs = newJobs(m.run)
-		m.jobs.items, m.jobs.cursor, m.jobs.loaded = prev.items, prev.cursor, prev.loaded
-		m.jobs.tree, m.jobs.lines, m.jobs.folds = prev.tree, prev.lines, prev.folds
+		prev := *m.cur()
+		next := m.entry(m.run)
+		next.items, next.cursor, next.loaded = prev.items, prev.cursor, prev.loaded
+		next.tree, next.lines, next.folds = prev.tree, prev.lines, prev.folds
 	}
 	m.follow()
 	var cmd tea.Cmd
 	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
-		cmd = m.setJobs(p)
+		cmd = m.setJobs(m.cur(), p)
 	} else {
-		cmd = m.readJobs()
+		cmd = m.readJobs(m.run)
 	}
 	return tea.Batch(cmd, m.startTick())
 }
@@ -147,5 +147,5 @@ func (m *Modal) running() bool {
 	if !m.hasRun {
 		return false
 	}
-	return !m.run.Done() || slices.ContainsFunc(m.jobs.items, func(j core.Job) bool { return !j.Done() })
+	return !m.run.Done() || slices.ContainsFunc(m.cur().items, func(j core.Job) bool { return !j.Done() })
 }

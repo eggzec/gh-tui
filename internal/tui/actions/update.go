@@ -57,7 +57,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		if msg.id != m.id || msg.seq != m.seq {
 			return nil
 		}
-		return m.readJobs()
+		return m.readJobs(m.run)
 	case ui.AheadMsg:
 		return tea.Batch(m.aheadJobs.Rested(msg), m.aheadLogs.Rested(msg))
 	case jobsMsg:
@@ -126,8 +126,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 func (m *Modal) reopened() tea.Cmd {
 	m.ticking, m.spinning = false, false
 	var lost []tea.Cmd
-	if m.jobs.loading && m.hasRun {
-		lost = append(lost, m.readJobs())
+	if m.cur().loading && m.hasRun {
+		lost = append(lost, m.readJobs(m.run))
 	}
 	if m.workflows.loading {
 		lost = append(lost, m.readWorkflows(false))
@@ -234,7 +234,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case m.notes:
 		return m.pressNotes(msg)
 	case m.focus == runsPane:
-		if keymap.Matches(msg, m.keys.Jobs.Down) && m.rowsOf(jobsPane) > 0 && len(m.jobs.lines) > 0 {
+		if keymap.Matches(msg, m.keys.Jobs.Down) && m.rowsOf(jobsPane) > 0 && len(m.cur().lines) > 0 {
 			// Down from a run with jobs under it goes into them.
 			m.setFocus(jobsPane)
 			m.scrollJobs()
@@ -324,12 +324,12 @@ func (m *Modal) drill() tea.Cmd {
 		m.shut[m.run.ID] = !m.shut[m.run.ID]
 		return nil
 	case jobsPane:
-		if m.jobs.onGroup() {
-			m.jobs.toggle()
+		if m.cur().onGroup() {
+			m.cur().toggle()
 			m.scrollJobs()
 			return m.readLogsAround()
 		}
-		j, ok := m.jobs.selected()
+		j, ok := m.cur().selected()
 		if !ok {
 			return nil
 		}
@@ -392,8 +392,8 @@ func (m *Modal) rereadJobs() tea.Cmd {
 		return nil
 	}
 	m.seq++
-	m.jobs.loading = true
-	return tea.Batch(m.readJobs(), m.startSpinner())
+	m.cur().loading = true
+	return tea.Batch(m.readJobs(m.run), m.startSpinner())
 }
 
 // online reads again, now that GitHub answers again, what failed for want
@@ -403,7 +403,7 @@ func (m *Modal) rereadJobs() tea.Cmd {
 // read, are read again too.
 func (m *Modal) online() tea.Cmd {
 	cmds := []tea.Cmd{ui.RetryUnreached(&m.runs), m.rereadWorkflows(), m.rereadNotes()}
-	if j := &m.jobs; !j.loading && (ui.Unreached(j.err) || j.kept) {
+	if j := m.cur(); !j.loading && (ui.Unreached(j.err) || j.kept) {
 		j.kept = false
 		cmds = append(cmds, m.rereadJobs())
 	}
@@ -413,8 +413,8 @@ func (m *Modal) online() tea.Cmd {
 // open opens the run, or the job of the jobs, on GitHub. A group has no
 // page, so the run opens from it.
 func (m *Modal) open() tea.Cmd {
-	if m.inJobs() && !m.jobs.onGroup() {
-		if j, ok := m.jobs.selected(); ok && j.URL != "" {
+	if m.inJobs() && !m.cur().onGroup() {
+		if j, ok := m.cur().selected(); ok && j.URL != "" {
 			return ui.Open(j.URL)
 		}
 	}

@@ -25,10 +25,10 @@ func TestRowLinks(t *testing.T) {
 		uitest.CheckLinks(t, func(host, title string, width int) (string, string) {
 			j := core.Job{ID: 2, Name: title, Status: core.RunCompleted, Conclusion: core.ConclusionFailure,
 				URL: ui.WebURL(host, "o/r/actions/runs/1/job/2")}
-			m.jobs.items = []core.Job{j}
+			m.cur().items = []core.Job{j}
 			var line jobLine
 			line.job, line.label = 0, title
-			m.jobs.lines = []jobLine{line}
+			m.cur().lines = []jobLine{line}
 			m.inner = width
 			// A name that wraps links on each of its lines; the first is
 			// the row to check here.
@@ -47,11 +47,11 @@ func TestRunDurationShowsInTheDetails(t *testing.T) {
 	if s := ansi.Strip(m.renderRun(r, false, 80)); strings.Contains(s, "1m 5s") {
 		t.Errorf("the run's row tells its duration\n%s", s)
 	}
-	m.jobs.items = []core.Job{{StartedAt: at, CompletedAt: at.Add(65 * time.Second)}}
+	m.cur().items = []core.Job{{StartedAt: at, CompletedAt: at.Add(65 * time.Second)}}
 	if got := m.jobsSpan(testNow); got != "1m 5s" {
 		t.Errorf("a run of 65s reads %q", got)
 	}
-	m.jobs.items = []core.Job{{}}
+	m.cur().items = []core.Job{{}}
 	if got := m.jobsSpan(testNow); got != "-" {
 		t.Errorf("a run that never ran reads %q, want -", got)
 	}
