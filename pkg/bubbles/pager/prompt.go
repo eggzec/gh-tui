@@ -65,7 +65,7 @@ func (m Model) updatePrompt(msg tea.Msg) (Model, tea.Cmd) {
 				cmd := m.filterFor(line)
 				return m, cmd
 			}
-			cmd := m.searchFor(line)
+			cmd := m.searchFor(line, false)
 			return m, cmd
 		case key.Matches(k, m.keys.Cancel):
 			m.closePrompt()
@@ -86,7 +86,7 @@ func (m Model) updatePrompt(msg tea.Msg) (Model, tea.Cmd) {
 // that matches case as the options say, or, after a "!", the lines it
 // doesn't match. A pattern that doesn't compile leaves the search shown
 // as it was.
-func (m *Model) searchFor(line string) tea.Cmd {
+func (m *Model) searchFor(line string, stay bool) tea.Cmd {
 	pattern, invert := strings.CutPrefix(line, "!")
 	if strings.TrimSpace(pattern) == "" {
 		return nil
@@ -96,7 +96,7 @@ func (m *Model) searchFor(line string) tea.Cmd {
 		m.flash = noteInvalid + reason(err)
 		return nil
 	}
-	return m.runSearch(line, re, invert, m.topLine(), false)
+	return m.runSearch(line, re, invert, m.topLine(), stay)
 }
 
 // compile compiles pattern to match case as c says.

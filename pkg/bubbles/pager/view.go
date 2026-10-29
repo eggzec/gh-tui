@@ -244,16 +244,8 @@ func (m Model) statusLine() string {
 	case m.proj.filter.re != nil:
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("filtered %d/%d", m.kept, m.rows.Len())))
 	}
-	switch s := m.search; {
-	case s.running:
-		parts = append(parts, m.esc.status.wrap("searching"+m.styles.Ellipsis))
-	case s.query != "":
-		switch n := s.total(); {
-		case s.cur < 0:
-			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("%d matches", n)))
-		default:
-			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", s.cur+1, n)))
-		}
+	if s := m.MatchStatus(); s != "" {
+		parts = append(parts, m.esc.status.wrap(s))
 	}
 	if m.state == stateReady && m.count() > 0 && m.bodyHeight() > 0 {
 		// Both the line and the percent count the lines of the content,
