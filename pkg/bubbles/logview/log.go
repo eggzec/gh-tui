@@ -165,7 +165,7 @@ func (m Model) Prepare(lines []Line, sections []Section) Log {
 func (m *Model) SetLog(l Log) {
 	m.reset(stateReady, nil)
 	m.content = l.content
-	m.enableKeys()
+	m.takeRows()
 	m.clamp()
 	if m.focusFailed {
 		m.FocusFailed()
@@ -197,8 +197,7 @@ func (m *Model) Append(lines ...Line) {
 			m.vis = append(m.vis, r)
 		}
 	}
-	m.searchFrom(from)
-	m.enableKeys()
+	m.growRows(from)
 	m.live = true
 	if pinned {
 		m.end()
@@ -266,7 +265,7 @@ func (m *Model) reset(s state, err error) {
 	m.cur, m.top, m.row, m.left = 0, 0, 0, 0
 	m.live = false
 	m.jumped, m.at = Plain, 0
-	m.clearSearch()
+	m.takeRows()
 }
 
 // normalize puts sections in order and keeps them within n lines and apart.
