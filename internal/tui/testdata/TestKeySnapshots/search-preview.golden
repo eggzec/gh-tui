@@ -44,7 +44,7 @@ Preview
   search | / | / | on
   filter | & | & | on
   search | enter | ↵ | off
-  cancel | esc | esc | on
+  cancel | esc | esc | off
   cancel | backspace ctrl+h | backspace/^h | off
   next match | n | n | on
   prev match | N | N | on
