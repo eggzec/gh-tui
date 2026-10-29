@@ -91,8 +91,8 @@ func TestOptionAndTyping(t *testing.T) {
 	}
 	m = typeText(t, m, "/")
 	m = typeText(t, m, "-*")
-	if got := m.input.Value(); got != "-*" {
-		t.Errorf("the prompt holds %q, want -*", got)
+	if got := m.pg.PromptView(40); !strings.Contains(got, "-*") {
+		t.Errorf("the prompt shows %q, want -*", got)
 	}
 	if m.ChoosingOption() {
 		t.Error("- in the prompt waits for an option")

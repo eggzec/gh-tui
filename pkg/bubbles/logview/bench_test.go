@@ -58,7 +58,7 @@ func benchView(tb testing.TB, n int) Model {
 	m.Focus()
 	m.SetLines(lines, secs)
 	m.ExpandAll()
-	m.runSearch("error")
+	m = find(tb, m, "error")
 	m.cur = len(m.vis) / 2
 	m.top = m.cur - 10
 	m.clamp()
