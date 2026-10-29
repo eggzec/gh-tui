@@ -110,6 +110,35 @@ func TestStarCommandAsksThenSends(t *testing.T) {
 	}
 }
 
+// TestStarDefaultsToYes checks that the question of a star or an unstar
+// shows yes as its default, and that enter answers it, as either is undone
+// by the other.
+func TestStarDefaultsToYes(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		starred bool
+		sent    string
+	}{
+		{"star", false, "star eggzec/gh-tui"},
+		{"unstar", true, "unstar eggzec/gh-tui"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				f := &fakeStar{known: true, starred: tt.starred}
+				m := starApp(t, f)
+				runCommand(t, m, "star")
+				if view := ansi.Strip(m.View().Content); !strings.Contains(view, "↵: yes") {
+					t.Errorf("the question doesn't show yes as its default:\n%s", view)
+				}
+				answerQuestion(t, m, "enter")
+				if got := f.log(); !slices.Equal(got, []string{tt.sent}) {
+					t.Errorf("enter sent %v, want %q", got, tt.sent)
+				}
+			})
+		})
+	}
+}
+
 // TestStarKeyAsksLikeTheCommand checks that a key that the config gives
 // the action asks the same question as the command.
 func TestStarKeyAsksLikeTheCommand(t *testing.T) {

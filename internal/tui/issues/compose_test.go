@@ -212,7 +212,9 @@ func TestLabelOpsRunInOrder(t *testing.T) {
 	if !ok {
 		t.Fatal("enter didn't submit the labels")
 	}
-	if cmd := h.Update(submit); cmd != nil || question(h) == "" {
+	// The command that comes back only arms the question; it sends nothing.
+	h.Update(submit)
+	if question(h) == "" {
 		t.Fatal("submitting didn't ask first")
 	}
 	batch, ok := h.Update(keyMsg("y"))().(tea.BatchMsg)
@@ -266,8 +268,9 @@ func TestComposeAnswers(t *testing.T) {
 				}
 				// Other keys, even the submit and the prompt's text, do
 				// nothing while the question is open, and neither does a
-				// paste or a second submit.
-				press(t, h, "enter", "x", "q", "ctrl+s")
+				// paste or a second submit. Enter is not among them: it
+				// answers the default, which is no here.
+				press(t, h, "x", "q", "ctrl+s")
 				run(t, h, h.Update(tea.PasteMsg{Content: "pasted"}))
 				run(t, h, h.Update(prompt.SubmitMsg{ID: m.prompt.ID(), Value: tt.typed}))
 				if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 || m.prompt.Value() != tt.typed {

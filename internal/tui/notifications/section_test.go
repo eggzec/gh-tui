@@ -474,6 +474,39 @@ func TestMarksAsk(t *testing.T) {
 	}
 }
 
+// Enter answers the default of the question: yes for mark read, which one
+// key undoes, and no for the marks that drop a thread or touch many.
+func TestMarksDefaultAnswer(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		keys []string
+		want []string
+	}{
+		{"mark read", []string{"down", "U"}, []string{"read 2"}},
+		{"mark done", []string{"down", "D"}, nil},
+		{"mark all read", []string{readAll}, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newFake(inbox()...)
+			s := newSection(t, svc, 80, 12)
+			press(t, s, tt.keys...)
+			if question(s) == "" {
+				t.Fatal("the mark asked nothing")
+			}
+			m, _ := asked(s)
+			// Enter answers only once the question is armed.
+			run(t, s, m.Update(ui.Arm()()))
+			run(t, s, m.Update(keyPress("enter")))
+			if question(s) != "" {
+				t.Fatal("enter left the question open")
+			}
+			if got := marks(svc); !slices.Equal(got, tt.want) {
+				t.Errorf("enter sent %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 // Mark all read marks the threads until the newest the list shows, so a
 // thread GitHub has that the list doesn't yet stays unread.
 func TestMarkAllReadUntilTheNewestSeen(t *testing.T) {

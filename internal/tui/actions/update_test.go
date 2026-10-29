@@ -700,7 +700,7 @@ func TestRerunFailedJobs(t *testing.T) {
 func TestOtherKeysLeaveTheQuestionOpen(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, wideW, wideH)
-	h.keys("E", "j", "tab", "q", "enter")
+	h.keys("E", "j", "tab", "q")
 	if got := lastLine(m); !strings.HasPrefix(got, "Re-run all jobs of CI #4812?") || m.focus != runsPane {
 		t.Fatalf("after other keys the modal shows %q with the focus on %d", got, m.focus)
 	}
@@ -708,6 +708,26 @@ func TestOtherKeysLeaveTheQuestionOpen(t *testing.T) {
 	h.keys("esc")
 	if m.ask != nil || len(f.sent) != 0 || slices.Contains(h.take(), tea.Msg(ui.CloseModalMsg{Modal: m})) {
 		t.Errorf("esc left the question %v and sent %v; want it dropped and the modal open", m.ask, f.sent)
+	}
+}
+
+// Every change of the modal is a destructive or costly one, so its question
+// defaults to no and enter sends nothing.
+func TestQuestionsDefaultToNo(t *testing.T) {
+	for _, k := range []string{"R", "E"} {
+		f := newFake()
+		m, h := newModal(t, f, wideW, wideH)
+		h.keys(k)
+		if m.ask == nil {
+			t.Fatalf("%s asked nothing", k)
+		}
+		if m.ask.Default {
+			t.Errorf("%s asks with the default yes", k)
+		}
+		h.keys("enter")
+		if m.ask != nil || len(f.sent) != 0 {
+			t.Errorf("after %s and enter the question is %v and sent %v; want it closed and nothing sent", k, m.ask, f.sent)
+		}
 	}
 }
 
@@ -785,11 +805,13 @@ func TestRerunAJob(t *testing.T) {
 	if got := lastLine(m); !strings.HasPrefix(got, "Re-run test (macos-latest, 1.26) of CI #4812?") {
 		t.Fatalf("J asks %q", got)
 	}
-	// Enter isn't a yes.
+	// Enter answers the default, which is no: it closes the question and
+	// sends nothing.
 	h.keys("enter")
-	if m.ask == nil || len(f.sent) != 0 {
-		t.Fatalf("enter answered the question and sent %v", f.sent)
+	if m.ask != nil || len(f.sent) != 0 {
+		t.Fatalf("enter left the question open or sent %v", f.sent)
 	}
+	h.keys("J")
 	h.keys("y")
 	if !slices.Equal(f.sent, []string{fmt.Sprintf("rerun job %d", macosJob)}) {
 		t.Errorf("sent %v", f.sent)
@@ -1051,7 +1073,7 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		{[]string{"A"}, "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
 		// The steps of a job in progress don't fold, and have no keys to show.
 		{[]string{"backspace", "backspace", "enter", "j", "j", "enter"}, ""},
-		{[]string{"backspace", "backspace", "X"}, "y yes, n no"},
+		{[]string{"backspace", "backspace", "X"}, "y yes, n no, ↵ answer the default"},
 	}
 	for _, s := range steps {
 		h.keys(s.keys...)
