@@ -355,30 +355,6 @@ func TestStates(t *testing.T) {
 	}
 }
 
-func TestAdvance(t *testing.T) {
-	tests := []struct {
-		s        string
-		i, cols  int
-		wantJ    int
-		wantUsed int
-	}{
-		{s: "abcdef", cols: 3, wantJ: 3, wantUsed: 3},
-		{s: "abc", cols: 10, wantJ: 3, wantUsed: 3},
-		{s: "abcdef", i: 2, cols: 2, wantJ: 4, wantUsed: 2},
-		{s: "a你好", cols: 4, wantJ: 4, wantUsed: 3},
-		{s: "a你好", cols: 5, wantJ: 7, wantUsed: 5},
-		{s: "éx", cols: 1, wantJ: 3, wantUsed: 1},
-		{s: "abc", cols: 0, wantJ: 0, wantUsed: 0},
-	}
-	for _, tt := range tests {
-		j, used := advance(tt.s, tt.i, tt.cols)
-		if j != tt.wantJ || used != tt.wantUsed {
-			t.Errorf("advance(%q, %d, %d) = %d, %d; want %d, %d",
-				tt.s, tt.i, tt.cols, j, used, tt.wantJ, tt.wantUsed)
-		}
-	}
-}
-
 func TestKeyMap(t *testing.T) {
 	k := testKeys(t)
 	k.Quit, k.Dismiss = key.NewBinding(key.WithKeys("x")), key.NewBinding(key.WithDisabled())

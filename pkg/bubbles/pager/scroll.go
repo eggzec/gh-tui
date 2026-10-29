@@ -2,48 +2,9 @@ package pager
 
 import (
 	"strconv"
-	"unicode/utf8"
 
-	"github.com/charmbracelet/x/ansi"
+	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 )
-
-// advance walks the graphemes of the plain text s from byte i, as long as
-// they fit in cols cells. It returns the byte where it stopped and the
-// cells it walked. Unlike ansi.Truncate it stops there, so walking a window
-// of a long line costs the window, not the line.
-func advance(s string, i, cols int) (j, used int) {
-	for j = i; j < len(s); {
-		// ASCII followed by ASCII is a grapheme of its own; clean has
-		// removed the control characters.
-		if s[j] < utf8.RuneSelf && (j+1 == len(s) || s[j+1] < utf8.RuneSelf) {
-			if used+1 > cols {
-				return j, used
-			}
-			used++
-			j++
-			continue
-		}
-		g, w := ansi.FirstGraphemeCluster(s[j:], ansi.GraphemeWidth)
-		if used+w > cols {
-			return j, used
-		}
-		used += w
-		j += len(g)
-	}
-	return j, used
-}
-
-// nextRow returns where the wrapped row of s that starts at byte i ends,
-// and its width. A row holds at least one grapheme, so a grapheme wider
-// than cols makes a row wider than cols.
-func nextRow(s string, i, cols int) (j, used int) {
-	j, used = advance(s, i, cols)
-	if j == i && i < len(s) {
-		g, w := ansi.FirstGraphemeCluster(s[i:], ansi.GraphemeWidth)
-		return i + len(g), w
-	}
-	return j, used
-}
 
 // bodyHeight returns the rows above the status line.
 func (m Model) bodyHeight() int { return max(m.height-1, 0) }
@@ -97,7 +58,7 @@ func (m Model) rowsIn(p int) int {
 	}
 	s, tw := m.lines[m.at(p)], m.textWidth()
 	n := 1
-	for j, _ := nextRow(s, 0, tw); j < len(s); j, _ = nextRow(s, j, tw) {
+	for j, _ := wrap.NextRow(s, 0, tw); j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		n++
 	}
 	return n
@@ -107,7 +68,7 @@ func (m Model) rowsIn(p int) int {
 func (m Model) rowOf(p, b int) int {
 	s, tw := m.lines[m.at(p)], m.textWidth()
 	r := 0
-	for j, _ := nextRow(s, 0, tw); j <= b && j < len(s); j, _ = nextRow(s, j, tw) {
+	for j, _ := wrap.NextRow(s, 0, tw); j <= b && j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		r++
 	}
 	return r
@@ -254,7 +215,7 @@ func (m *Model) scrollRight(n int) {
 	reach := 0
 	for p, last := m.top, m.bottom(); p <= last; p++ {
 		// One more column finds a wide rune that crosses the edge.
-		_, w := advance(m.lines[m.at(p)], 0, want+tw+1)
+		_, w := wrap.Advance(m.lines[m.at(p)], 0, want+tw+1)
 		reach = max(reach, w)
 	}
 	m.left = max(min(want, reach-tw), m.left)
