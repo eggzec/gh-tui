@@ -549,8 +549,9 @@ keys:
     # Choose or open what is under the cursor.
     select: [enter]
     # Dismiss, one step at a time: an error toast first, then what is
-    # transient, such as a filter or a search, and then the modal that is
-    # open. On a screen it does nothing. It never unzooms a pane: the zoom
+    # transient on a list, such as a filter or a find, and then the modal
+    # that is open. A pager or a log closes at once, over a search or a
+    # filter; the prompt of one closes first. On a screen it does nothing. It never unzooms a pane: the zoom
     # key does.
     dismiss: [esc]
     # Open what is under the cursor in the browser.

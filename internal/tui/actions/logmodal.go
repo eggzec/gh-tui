@@ -112,9 +112,6 @@ func (l *logModal) Update(msg tea.Msg) tea.Cmd {
 		if !l.log.Capturing() {
 			switch {
 			case keymap.Matches(msg, k.Dismiss):
-				if l.log.ClearSearch() {
-					return nil
-				}
 				return l.close()
 			case keymap.Matches(msg, k.Back):
 				return l.close()

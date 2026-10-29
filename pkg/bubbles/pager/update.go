@@ -123,19 +123,3 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	}
 	return m, nil
 }
-
-// ClearTransient peels one layer of what the user asked to see: the search
-// shown, else the filter. It reports whether there was one. The parent
-// calls it for the key that dismisses, which clears these before it closes
-// anything.
-func (m *Model) ClearTransient() (tea.Cmd, bool) {
-	if m.search.query != "" {
-		m.clearSearch()
-		m.clamp()
-		return nil, true
-	}
-	if !m.projecting && m.proj.filter.query == "" {
-		return nil, false
-	}
-	return m.clearFilter(), true
-}

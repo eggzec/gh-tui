@@ -45,12 +45,10 @@ type preview struct {
 	pager pager.Model
 	// icons mark a failed load.
 	icons ui.Icons
-	// find is searched for once the content is shown, and preset holds
-	// while that search is the one shown, until the user starts another.
-	// line is the line the preview opens on, if set.
-	find   string
-	preset bool
-	line   int
+	// find is searched for once the content is shown. line is the line the
+	// preview opens on, if set.
+	find string
+	line int
 	// failed is why the file failed to load, or nil.
 	failed error
 	// img shows the file in the pager, as its image where it is an image
@@ -236,7 +234,6 @@ func (p *preview) draw() tea.Cmd {
 		// The search starts from the line, if there is one.
 		p.pager.GoToLine(p.line)
 		cmd = tea.Batch(cmd, p.pager.SetSearch(p.find))
-		p.preset = p.find != ""
 	}
 	return cmd
 }
@@ -402,15 +399,9 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		if !p.pager.Capturing() && keymap.Matches(msg, p.open) {
 			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))
 		}
-		if p.preset && keymap.Matches(msg, p.pager.KeyMap().Close()) {
-			return p.close()
-		}
 	}
 	var cmd tea.Cmd
 	p.pager, cmd = p.pager.Update(msg)
-	if p.pager.Capturing() {
-		p.preset = false
-	}
 	return cmd
 }
 
@@ -457,20 +448,12 @@ func (p *preview) KeyLayers() []keyhelp.Layer {
 var _ ui.Actor = (*preview)(nil)
 
 // Act implements ui.Actor. The quit key closes the preview, or goes back
-// to the modal it was opened from. The dismiss key clears the search or
-// the filter first, unless the search is the one the preview opened with,
-// and then does the same. The back key does nothing. Every other intent is
+// to the modal it was opened from, and so does the dismiss key, whatever
+// search or filter is shown. The back key does nothing. Every other intent is
 // the app's to refuse while it is open.
 func (p *preview) Act(action string) (tea.Cmd, bool) {
 	switch action {
-	case ui.ActQuit:
-		return p.close(), true
-	case ui.ActDismiss:
-		if !p.preset {
-			if cmd, ok := p.pager.ClearTransient(); ok {
-				return cmd, true
-			}
-		}
+	case ui.ActQuit, ui.ActDismiss:
 		return p.close(), true
 	case ui.ActBack:
 		return nil, false

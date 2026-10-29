@@ -765,10 +765,9 @@ func TestOpenInBrowserOnHost(t *testing.T) {
 	}
 }
 
-// TestEscIsLabelledForWhatItClearsInThePatch checks that the help names esc
-// for the search of the patch, then for its quick filter, and otherwise for
-// closing.
-func TestEscIsLabelledForWhatItClearsInThePatch(t *testing.T) {
+// TestEscIsLabelledCloseInThePatch checks that the help names esc for
+// closing in the patch, with a quick filter or a search shown too.
+func TestEscIsLabelledCloseInThePatch(t *testing.T) {
 	m, h := newModal(t, newFake(), 108, 30)
 	desc := func() string {
 		b, _, _ := uitest.Winner(m.KeyLayers(), "esc")
@@ -782,26 +781,22 @@ func TestEscIsLabelledForWhatItClearsInThePatch(t *testing.T) {
 		t.Fatalf("esc reads %q, want close", got)
 	}
 	h.keys("&", "o", "l", "d", "enter")
-	if got := desc(); got != "clear filter" {
-		t.Fatalf("esc reads %q with a filter shown, want clear filter", got)
+	if got := desc(); got != "close" {
+		t.Fatalf("esc reads %q with a filter shown, want close", got)
 	}
 	h.keys("/", "o", "l", "d", "enter")
-	if got := desc(); got != "clear search" {
-		t.Errorf("esc reads %q with a search shown, want clear search", got)
+	if got := desc(); got != "close" {
+		t.Errorf("esc reads %q with a search shown, want close", got)
 	}
 }
 
 // TestEscClosesFromThePatch checks that esc closes the modal at once from
-// the deepest step, and clears a search of the patch before it does.
+// the deepest step, over a search of the patch too.
 func TestEscClosesFromThePatch(t *testing.T) {
 	m, h := newModal(t, newFake(), 108, 30)
 	h.keys("enter", "j", "enter", "/", "o", "l", "d", "enter")
 	if !m.commit.patch || m.commit.pager.Query() == "" {
 		t.Fatalf("patch %v, search %q; want the patch with a search shown", m.commit.patch, m.commit.pager.Query())
-	}
-	h.keys("esc")
-	if m.commit.pager.Query() != "" || !m.commit.patch || len(h.take()) != 0 {
-		t.Fatalf("esc: patch %v, search %q; want the search cleared and the patch shown", m.commit.patch, m.commit.pager.Query())
 	}
 	h.keys("esc")
 	if got := h.take(); !slices.Equal(got, []tea.Msg{ui.CloseModalMsg{Modal: m}}) {
