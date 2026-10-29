@@ -172,24 +172,20 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 	repo, number, head := g.Repo, pr.Number, pr.HeadSHA
 	caps := capsFor(g.Caps, d.Merge)
 	m, _ := caps.MergeMethod(how.method)
-	// A merge queue merges as it is set up, whatever the method.
-	chooses := plan.Kind == mergeNow || plan.Kind == mergeAuto && !d.Merge.Queue.Enabled
+	chooses := plan.Kind == mergeNow || plan.Kind == mergeAuto
 	of.kind, of.base, of.head = plan.Kind, pr.BaseRef, head
 	if chooses {
 		of.method = m
 	}
-	c = change{of: of, msg: how.msg, chooses: chooses}
+	// A merge queue merges as it is set up, whatever the method.
+	c = change{of: of, msg: how.msg, chooses: chooses, queued: plan.Kind == mergeAuto && d.Merge.Queue.Enabled}
 	switch plan.Kind {
 	case mergeNow:
 		c.note = mergeNote(pr, "")
 		c.what = "merge " + n
 		c.start = func() *optimistic.Op { return svc.Merge(repo, number, m, how.msg, head) }
 	case mergeAuto:
-		if chooses {
-			c.note = mergeNote(pr, autoWhen(plan.Review))
-		} else {
-			c.question = autoQuestion(pr, m, d.Merge.Queue.Enabled, plan.Review)
-		}
+		c.note = mergeNote(pr, autoWhen(plan.Review))
 		c.what = "merge " + n + " when its checks pass"
 		c.start = func() *optimistic.Op { return svc.AutoMerge(repo, number, m, how.msg, head) }
 	case mergeQueue:
@@ -226,14 +222,6 @@ func forBase(pr core.PullRequest) string {
 	return " for " + pr.BaseRef
 }
 
-// into says " into main", or nothing without a base.
-func into(pr core.PullRequest) string {
-	if pr.BaseRef == "" {
-		return ""
-	}
-	return " into " + pr.BaseRef
-}
-
 // autoWhen says when an auto-merge merges: once the checks pass, or once
 // it can be merged if a review is awaited too.
 func autoWhen(review bool) string {
@@ -257,20 +245,4 @@ func mergeNote(pr core.PullRequest, when string) string {
 		return "Merges when " + when + "."
 	}
 	return "Into " + pr.BaseRef + "; merges when " + when + "."
-}
-
-// autoQuestion asks to merge pr with method once its checks pass, such as
-// "Merge #79 into main when checks pass (squash)?", or "when it can be
-// merged" if a review is awaited too. A merge queue merges as it is set
-// up, so the question leaves the method out.
-func autoQuestion(pr core.PullRequest, method core.MergeMethod, queued, review bool) string {
-	q := "Merge #" + strconv.Itoa(pr.Number) + into(pr) + " when " + autoWhen(review)
-	if queued {
-		return q + "?"
-	}
-	name := string(method)
-	if method == core.MergeCommit {
-		name = "merge commit"
-	}
-	return q + " (" + name + ")?"
 }

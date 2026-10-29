@@ -158,7 +158,7 @@ func TestMergeUsesAnAllowedMethod(t *testing.T) {
 			if got := question(h); got != tt.ask {
 				t.Errorf("asks %q, want %q", got, tt.ask)
 			}
-			press(t, h, "y")
+			press(t, h, "ctrl+s")
 			if got := svc.changes(); !slices.Equal(got, []string{tt.want}) {
 				t.Errorf("changes = %v, want %q", got, tt.want)
 			}

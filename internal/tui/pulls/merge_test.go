@@ -115,7 +115,7 @@ func TestMergeMethodsOfTheRepository(t *testing.T) {
 			if got, want := dialogOf(h).current(), core.MergeRebase; got != want {
 				t.Errorf("after right the method is %q, want %q still", got, want)
 			}
-			press(t, h, "y")
+			press(t, h, "ctrl+s")
 			if got, want := svc.changes(), []string{"merge rebase 142"}; !slices.Equal(got, want) {
 				t.Errorf("changes = %v, want %v", got, want)
 			}
@@ -164,7 +164,7 @@ func TestAutoMergeWhileChecksArePending(t *testing.T) {
 			if got, want := dialogOf(h).current(), core.MergeRebase; got != want {
 				t.Fatalf("after right the method is %q, want %q", got, want)
 			}
-			msgs := press(t, h, "y")
+			msgs := press(t, h, "ctrl+s")
 			if got, want := svc.changes(), []string{"automerge rebase at a1b2c3d 142"}; !slices.Equal(got, want) {
 				t.Errorf("changes = %v, want auto-merge with the chosen method: %v", got, want)
 			}
@@ -322,13 +322,63 @@ func TestMergeQueue(t *testing.T) {
 		svc := newFakeService()
 		stand(svc, core.MergeInfo{Status: core.MergeBlocked, Queue: core.MergeQueue{Enabled: true}, CanAutoMerge: true, RepoAutoMerge: true}, core.ReviewApproved, core.ChecksPending)
 		h, _ := asking(t, svc, autoCaps, "M")
-		if got, want := question(h), "Merge #142 into main when checks pass?"; got != want {
-			t.Errorf("asks %q, want %q", got, want)
+		dlg := dialogOf(h)
+		if got, want := dlg.Title(), "Merge #142 when ready"; got != want {
+			t.Errorf("titled %q, want %q", got, want)
 		}
-		if slices.Contains(confirmKeys(h), "method") {
-			t.Errorf("help = %v, want no method with a queue", confirmKeys(h))
+		if dlg.choosable() || dlg.focus != focusTitle {
+			t.Errorf("choosable = %v, focus = %d, want a method row that takes no cursor", dlg.choosable(), dlg.focus)
+		}
+		if slices.Contains(confirmKeys(h), "next method") {
+			t.Errorf("help = %v, want the method keys disabled with a queue", confirmKeys(h))
+		}
+		dlg.title.SetValue("Add things")
+		press(t, h, "ctrl+s")
+		got := svc.changes()
+		if len(got) != 1 || !strings.HasPrefix(got[0], "automerge ") || !strings.Contains(got[0], " title=Add things") {
+			t.Errorf("changes = %q, want an auto-merge that sends the title", got)
 		}
 	})
+}
+
+// A merge that takes a message or a method opens the dialog, confirmed with
+// ctrl+s; one that takes neither, adding to the queue or turning auto-merge
+// off, asks a question, answered with y.
+func TestMergeKindsAskAsTheyAre(t *testing.T) {
+	autoCaps := writeCaps
+	autoCaps.AutoMerge = true
+	for _, tc := range []struct {
+		name    string
+		merge   core.MergeInfo
+		checks  core.ChecksState
+		dialog  bool
+		confirm string
+		change  string
+	}{
+		{"now, no queue", core.MergeInfo{Status: core.MergeClean}, core.ChecksSuccess, true, "ctrl+s", "merge squash at a1b2c3d 142"},
+		{"now, queue", core.MergeInfo{Status: core.MergeClean, Queue: core.MergeQueue{Enabled: true}}, core.ChecksSuccess, false, "y", "enqueue at a1b2c3d 142"},
+		{"auto, no queue", core.MergeInfo{Status: core.MergeBlocked, CanAutoMerge: true, RepoAutoMerge: true}, core.ChecksPending, true, "ctrl+s", "automerge squash at a1b2c3d 142"},
+		{"auto, queue", core.MergeInfo{Status: core.MergeBlocked, CanAutoMerge: true, RepoAutoMerge: true, Queue: core.MergeQueue{Enabled: true}}, core.ChecksPending, true, "ctrl+s", "automerge squash at a1b2c3d 142"},
+		{"stop, no queue", core.MergeInfo{Status: core.MergeBlocked, AutoMerge: &core.AutoMerge{Method: core.MergeSquash}, CanDisableAutoMerge: true}, core.ChecksPending, false, "y", "stopautomerge 142"},
+		{"stop, queue", core.MergeInfo{Status: core.MergeBlocked, AutoMerge: &core.AutoMerge{Method: core.MergeSquash}, CanDisableAutoMerge: true, Queue: core.MergeQueue{Enabled: true}}, core.ChecksPending, false, "y", "stopautomerge 142"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := newFakeService()
+			stand(svc, tc.merge, core.ReviewApproved, tc.checks)
+			h, _ := asking(t, svc, autoCaps, "M")
+			if got := dialogOf(h) != nil; got != tc.dialog {
+				t.Fatalf("the dialog is open: %v, want %v", got, tc.dialog)
+			}
+			if question(h) == "" {
+				t.Fatal("nothing is asked")
+			}
+			press(t, h, tc.confirm)
+			got := svc.changes()
+			if len(got) != 1 || !strings.HasPrefix(got[0], tc.change) {
+				t.Errorf("changes = %q, want one starting %q", got, tc.change)
+			}
+		})
+	}
 }
 
 func TestAutoMergeAlreadyOn(t *testing.T) {
