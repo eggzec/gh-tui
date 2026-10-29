@@ -259,12 +259,6 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	switch {
 	case patch:
 		k.Back = named(k.Back, "files")
-		switch {
-		case m.commit.pager.Query() != "":
-			k.Dismiss = named(k.Dismiss, "clear search")
-		case m.commit.pager.Filter() != "" || m.commit.pager.Projecting():
-			k.Dismiss = named(k.Dismiss, "clear filter")
-		}
 	case m.focus == commitPane:
 		k.Back = named(k.Back, paneTitles[graphPane])
 	case m.focus == graphPane:
