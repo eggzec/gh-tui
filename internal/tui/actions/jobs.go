@@ -174,7 +174,7 @@ func (j *jobs) toggle() {
 // jobsQuery reads the jobs of the attempt of the run shown, which is kept
 // for good once the attempt completed.
 func (m *Modal) jobsQuery() actionssvc.JobsQuery {
-	return actionssvc.JobsQuery{Repo: m.repo, RunID: m.jobs.runID, Attempt: m.jobs.attempt}
+	return actionssvc.JobsQuery{Repo: m.repo, RunID: m.cur().runID, Attempt: m.cur().attempt}
 }
 
 // jobsMsg carries the jobs of an attempt of a run.
@@ -186,12 +186,13 @@ type jobsMsg struct {
 	err     error
 }
 
-// readJobs reads the jobs of the run shown.
-func (m *Modal) readJobs() tea.Cmd {
+// readJobs reads the jobs of the attempt of run.
+func (m *Modal) readJobs(run core.Run) tea.Cmd {
 	if !m.hasRun {
 		return nil
 	}
-	svc, ctx, id, q := m.svc, m.ctx, m.id, m.jobsQuery()
+	svc, ctx, id := m.svc, m.ctx, m.id
+	q := actionssvc.JobsQuery{Repo: m.repo, RunID: run.ID, Attempt: run.Attempt}
 	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.jobs")
 		p, err := svc.AllJobs(ctx, q)
@@ -200,25 +201,35 @@ func (m *Modal) readJobs() tea.Cmd {
 	}
 }
 
+// receiveJobs keeps a page in the entry of its run. Only the run shown has
+// its cursor, log and notes follow the page.
 func (m *Modal) receiveJobs(msg jobsMsg) tea.Cmd {
-	if !m.hasRun || msg.runID != m.jobs.runID || msg.attempt != m.jobs.attempt {
+	j := m.jobsOf[msg.runID]
+	if !m.hasRun || j == nil || msg.attempt != j.attempt {
 		return nil
 	}
-	m.jobs.loading = false
+	j.loading = false
 	if msg.err != nil {
 		// Jobs shown already stay, and the error only shows without them.
-		m.jobs.err = msg.err
+		j.err = msg.err
 		return nil
 	}
-	m.jobs.err, m.jobs.kept = nil, msg.page.Offline || msg.page.Limited
-	return m.setJobs(msg.page)
+	j.err, j.kept = nil, msg.page.Offline || msg.page.Limited
+	return m.setJobs(j, msg.page)
 }
 
 // setJobs shows page. The first page of a run opens on its first failed
 // job, or else the first running one; a later one keeps the cursor on the
 // group or the job it was on.
-func (m *Modal) setJobs(p core.Page[core.Job]) tea.Cmd {
-	j := &m.jobs
+func (m *Modal) setJobs(j *jobs, p core.Page[core.Job]) tea.Cmd {
+	// A run that isn't shown takes the page into its entry and nothing else:
+	// the deep-link job, the scroll, the log and the notes are the shown run's.
+	shown := m.hasRun && j == m.jobsOf[m.run.ID]
+	want := int64(0)
+	if shown {
+		want = m.wantJob
+		m.wantJob = 0
+	}
 	prev, had := j.selected()
 	var group string
 	if j.onGroup() {
@@ -245,17 +256,19 @@ func (m *Modal) setJobs(p core.Page[core.Job]) tea.Cmd {
 		j.cursor = j.lineOf(max(i, 0))
 	default:
 		i := firstJob(j.items)
-		if k := slices.IndexFunc(j.items, func(x core.Job) bool { return x.ID == m.wantJob }); m.wantJob != 0 && k >= 0 {
+		if k := slices.IndexFunc(j.items, func(x core.Job) bool { return x.ID == want }); want != 0 && k >= 0 {
 			i = k
 			j.reveal(k)
 		}
-		m.wantJob = 0
 		j.cursor = j.lineOf(i)
 	}
 	// A read in flight still clears loading when it arrives, so that a
 	// poll that shows the cached jobs meanwhile doesn't let a wake start
 	// a second read.
 	j.loaded = true
+	if !shown {
+		return nil
+	}
 	m.scrollJobs()
 	return tea.Batch(m.showJob(), m.readNotes())
 }
@@ -275,7 +288,7 @@ func firstJob(items []core.Job) int {
 // pressJobs moves the cursor of the jobs, and shows the log of the job it
 // rests on.
 func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
-	j, k := &m.jobs, m.keys.Jobs
+	j, k := m.cur(), m.keys.Jobs
 	n := len(j.lines)
 	if n == 0 {
 		if keymap.Matches(msg, k.Up) {
@@ -328,7 +341,7 @@ func (m *Modal) pressJobs(msg tea.KeyPressMsg) tea.Cmd {
 
 // scrollJobs keeps the cursor of the jobs in view.
 func (m *Modal) scrollJobs() {
-	j := &m.jobs
+	j := m.cur()
 	h := max(m.jobRows(), 1)
 	j.top = min(j.top, j.cursor)
 	// The rows are counted in the lines they take, as a long name wraps.
@@ -354,7 +367,7 @@ func (m *Modal) linesSpan(from, to int) int {
 // there are more.
 func (m *Modal) jobRows() int {
 	h := max(m.rowsOf(jobsPane), 0)
-	if m.jobs.more {
+	if m.cur().more {
 		h--
 	}
 	return max(h, 0)
@@ -362,7 +375,7 @@ func (m *Modal) jobRows() int {
 
 // jobLines renders the jobs pane's body, h lines of w cells.
 func (m *Modal) jobLines(w, h int) []string {
-	j, st := &m.jobs, &m.st
+	j, st := m.cur(), &m.st
 	if note, ok := m.jobsNote(w); ok {
 		return ui.FitLines(note, w, h)
 	}
@@ -387,7 +400,7 @@ func (m *Modal) jobLines(w, h int) []string {
 // list: the error, the loading, or why there are no jobs, in lines of w
 // cells. It reports false when there are jobs to list.
 func (m *Modal) jobsNote(w int) ([]string, bool) {
-	j, st := &m.jobs, &m.st
+	j, st := m.cur(), &m.st
 	// Under a run, the note sits where the job rows do.
 	indent := st.noGutter + m.jobsIndent()
 	room := max(w-ansi.StringWidth(indent), 1)
@@ -434,21 +447,22 @@ func (m *Modal) noJobsText() string {
 // rowMark is what stands before the name of line i: the state of a job, or
 // whether a group is open.
 func (m *Modal) rowMark(i int) string {
-	l := m.jobs.lines[i]
+	cur := m.cur()
+	l := cur.lines[i]
 	if g := l.group; g != nil {
-		if m.jobs.isOpen(g.key) {
+		if cur.isOpen(g.key) {
 			return m.st.unfolded
 		}
 		return m.st.folded
 	}
-	j := &m.jobs.items[l.job]
+	j := &cur.items[l.job]
 	return m.st.Glyphs[ui.RunStateOf(j.Status, j.Conclusion)] + " "
 }
 
 // nameLines is the name of line i, in as many lines as it takes to show it
 // whole after its guides and mark, in w cells.
 func (m *Modal) nameLines(i, w int) []string {
-	l := m.jobs.lines[i]
+	l := &m.cur().lines[i]
 	// Each guide, and the branch, is two cells.
 	head := ansi.StringWidth(m.st.noGutter) + len(m.jobsIndent()) + 2*(l.depth+1) + ansi.StringWidth(m.rowMark(i))
 	room := max(w-head, 1)
@@ -470,7 +484,8 @@ func (m *Modal) jobsIndent() string {
 // the row then drops what it shows at the right.
 func (m *Modal) lineRows(i int, cursor, focused bool, w int, now time.Time) []string {
 	st := &m.st
-	l := m.jobs.lines[i]
+	cur := m.cur()
+	l := cur.lines[i]
 	style := st.Text
 	if cursor {
 		style = st.Strong
@@ -480,7 +495,7 @@ func (m *Modal) lineRows(i int, cursor, focused bool, w int, now time.Time) []st
 		// A group has no page to link.
 		right = st.Subtle.Render(strconv.Itoa(len(g.jobs))) + " " + st.Glyphs[g.state]
 	} else {
-		j := &m.jobs.items[l.job]
+		j := &cur.items[l.job]
 		right = st.Took(j.Status, j.Conclusion, j.StartedAt, j.CompletedAt, now)
 		url = j.URL
 	}
@@ -514,7 +529,7 @@ func (m *Modal) guides(i int, wrapped bool) string {
 	if m.st.ic.Set() == config.IconsASCII {
 		bar, branch, last = "| ", "|-", "`-"
 	}
-	lines := m.jobs.lines
+	lines := m.cur().lines
 	// more reports that a row of depth d follows line i before the level
 	// closes.
 	more := func(d int) bool {
@@ -574,7 +589,7 @@ func (m *Modal) rowGutter(cursor, focused bool) string {
 // jobsTitle is the detail of the jobs pane's title: how many there are,
 // and how many failed.
 func (m *Modal) jobsTitle() string {
-	j := &m.jobs
+	j := m.cur()
 	if !j.loaded || len(j.items) == 0 {
 		return ""
 	}

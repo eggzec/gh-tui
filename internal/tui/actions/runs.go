@@ -216,6 +216,7 @@ func (m *Modal) updateRuns(msg tea.Msg) tea.Cmd {
 		// its jobs for nothing.
 		return cmd
 	}
+	m.dropJobsOf()
 	return tea.Batch(cmd, m.selectRun(), m.readJobsAround())
 }
 
@@ -233,16 +234,19 @@ func (m *Modal) selectRun() tea.Cmd {
 	}
 	first := !m.hasRun
 	m.run, m.hasRun = r, true
-	m.jobs = newJobs(r)
+	j := m.entry(r)
+	// A failed read of an earlier visit must not show instead of the loading
+	// line, and what was served from the cache then may be fresh now.
+	j.err, j.kept = nil, false
 	m.noteCursor, m.noteTop = 0, 0
 	// The logs read ahead for the run shown before stop.
 	m.aheadLogs.Reset(m.ctx)
 	var cmd tea.Cmd
 	if p, ok := m.svc.CachedAllJobs(m.jobsQuery()); ok {
 		m.aheadJobs.Opened(m.jobsQuery())
-		cmd = m.setJobs(p)
+		cmd = m.setJobs(m.cur(), p)
 	} else {
-		m.jobs.loading = true
+		m.cur().loading = true
 		cmd = m.startSpinner()
 	}
 	m.follow()
@@ -250,7 +254,7 @@ func (m *Modal) selectRun() tea.Cmd {
 	// so that a scroll doesn't read each one.
 	var read tea.Cmd
 	if first {
-		read = m.readJobs()
+		read = m.readJobs(m.run)
 	} else {
 		read = m.rest()
 	}
@@ -260,9 +264,51 @@ func (m *Modal) selectRun() tea.Cmd {
 // clearRun forgets the run shown, for a new list of runs.
 func (m *Modal) clearRun() {
 	m.run, m.hasRun = core.Run{}, false
-	m.jobs = jobs{}
 	m.noteCursor, m.noteTop = 0, 0
 	m.unfollow()
+}
+
+// cur returns the jobs of the run shown, or empty ones when none is.
+func (m *Modal) cur() *jobs {
+	if j := m.jobsOf[m.run.ID]; j != nil && m.hasRun {
+		return j
+	}
+	return &jobs{}
+}
+
+// entry returns the jobs kept for r, made anew when there are none or they
+// are of another attempt. Jobs kept keep their items, folds, cursor and
+// scroll, so that a run comes back as it was left; selectRun resets what a
+// new visit must not show, its error and its kept mark.
+func (m *Modal) entry(r core.Run) *jobs {
+	if j := m.jobsOf[r.ID]; j != nil && j.attempt == r.Attempt {
+		return j
+	}
+	if m.jobsOf == nil {
+		m.jobsOf = map[int64]*jobs{}
+	}
+	j := newJobs(r)
+	m.jobsOf[r.ID] = &j
+	return &j
+}
+
+// dropJobsOf forgets the jobs of the runs that are no longer in the feed.
+func (m *Modal) dropJobsOf() {
+	// Until every run is loaded, one that isn't yet may still be in the feed.
+	if len(m.jobsOf) == 0 || !m.runs.Settled() || !m.runs.Done() {
+		return
+	}
+	listed := map[int64]bool{}
+	for i := range m.runs.Len() {
+		if r, ok := m.runs.LoadedItem(i); ok {
+			listed[r.ID] = true
+		}
+	}
+	for id := range m.jobsOf {
+		if !listed[id] && (!m.hasRun || id != m.run.ID) {
+			delete(m.jobsOf, id)
+		}
+	}
 }
 
 // renderRun renders a run in one line, the parent of its jobs in the tree:

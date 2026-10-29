@@ -10,7 +10,7 @@ import (
 func (m *Modal) showJob() tea.Cmd {
 	defer m.layout()
 	around := m.readLogsAround()
-	j, ok := m.jobs.selected()
+	j, ok := m.cur().selected()
 	if !ok {
 		m.aheadLogs.Unkeep()
 		return around

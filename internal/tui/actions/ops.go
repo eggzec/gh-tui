@@ -51,8 +51,8 @@ func (m *Modal) rerunFailed() (change, string, tea.Cmd) {
 	}
 	name := jobview.RunName(r)
 	jobs := "the failed jobs"
-	if m.jobs.loaded && m.jobs.runID == r.ID {
-		switch n := jobview.FailedJobs(m.jobs.items); n {
+	if m.cur().loaded && m.cur().runID == r.ID {
+		switch n := jobview.FailedJobs(m.cur().items); n {
 		case 0:
 			return change{}, name + " has no failed jobs to re-run.", nil
 		case 1:
@@ -97,11 +97,11 @@ func (m *Modal) rerunJob() (change, string, tea.Cmd) {
 	if notice != "" || !m.hasRun {
 		return change{}, notice, nil
 	}
-	j, ok := m.jobs.selected()
-	if !ok || m.jobs.runID != r.ID {
+	j, ok := m.cur().selected()
+	if !ok || m.cur().runID != r.ID {
 		return change{}, "Pick a job to re-run.", nil
 	}
-	if m.focus == jobsPane && m.jobs.onGroup() {
+	if m.focus == jobsPane && m.cur().onGroup() {
 		return change{}, "Pick a job of the group to re-run.", nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActRerun, nil); refused {

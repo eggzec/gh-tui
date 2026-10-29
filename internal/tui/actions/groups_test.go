@@ -285,7 +285,7 @@ func TestJobGroupsFold(t *testing.T) {
 	}
 	// On a group, the select key folds it instead of opening a log.
 	h.keys("j", "j")
-	if !m.jobs.onGroup() {
+	if !m.cur().onGroup() {
 		t.Fatalf("the cursor is on %q, want a group", jobsPaneRows(m)[7])
 	}
 	// The help says so, as it says that enter opens a job.
@@ -312,7 +312,7 @@ func TestJobGroupsFold(t *testing.T) {
 func TestJobGroupNotRerun(t *testing.T) {
 	m, h := newGroupedModal(t, newFake(), wideW, wideH)
 	h.keys("tab", "k", "J")
-	if !m.jobs.onGroup() || m.ask != nil || lastLine(m) != "Pick a job of the group to re-run." {
+	if !m.cur().onGroup() || m.ask != nil || lastLine(m) != "Pick a job of the group to re-run." {
 		t.Errorf("re-running a group asks %v, says %q", m.ask, lastLine(m))
 	}
 	h.keys("j", "J")
@@ -388,7 +388,7 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	f := duckFake()
 	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab")
-	if j, _ := m.jobs.selected(); j.Name != "Build extension binaries / windows_amd64" {
+	if j, _ := m.cur().selected(); j.Name != "Build extension binaries / windows_amd64" {
 		t.Fatalf("opens on %q, want the failed job", j.Name)
 	}
 	// The failed job passes on a new attempt, so its group opens no more
@@ -404,14 +404,14 @@ func TestJobGroupsCursorFollowsItsJob(t *testing.T) {
 	r.Attempt = 2
 	f.setRun(r)
 	h.run(m.fromCache())
-	if j, _ := m.jobs.selected(); j.ID != 10004 || m.jobs.onGroup() {
+	if j, _ := m.cur().selected(); j.ID != 10004 || m.cur().onGroup() {
 		t.Errorf("after a new attempt the cursor is on %q (%d), want the job of the same name", j.Name, j.ID)
 	}
 	// Folded, the group holds the cursor, and shows the same job.
-	m.jobs.folds["Build extension binaries /"] = fold{}
-	m.jobs.relines()
-	m.jobs.cursor = m.jobs.lineOf(4)
-	if !m.jobs.onGroup() || jobsPaneRows(m)[1] != "▌ ▸ Build extension binaries 7 ✓" {
+	m.cur().folds["Build extension binaries /"] = fold{}
+	m.cur().relines()
+	m.cur().cursor = m.cur().lineOf(4)
+	if !m.cur().onGroup() || jobsPaneRows(m)[1] != "▌ ▸ Build extension binaries 7 ✓" {
 		t.Errorf("the folded group:\n%s", strings.Join(jobsPaneRows(m), "\n"))
 	}
 }
@@ -469,14 +469,14 @@ func TestJobGroupFromALoneJob(t *testing.T) {
 	}
 	m, h := newGroupedModal(t, f, wideW, wideH)
 	h.keys("tab", "k")
-	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.focus != jobsPane {
+	if j, _ := m.cur().selected(); j.ID != gen.ID || m.focus != jobsPane {
 		t.Fatalf("the cursor is on job %d, want %d", j.ID, gen.ID)
 	}
 	f.setJobs(failedRun, append(slices.Clone(f.jobs[failedRun]),
 		job(4, failedRun, "Build / linux_amd64", core.ConclusionSuccess, time.Hour, time.Minute),
 		job(5, failedRun, "Build / osx", core.ConclusionSuccess, time.Hour, time.Minute)))
 	h.run(m.fromCache())
-	if j, _ := m.jobs.selected(); j.ID != gen.ID || m.jobs.onGroup() {
+	if j, _ := m.cur().selected(); j.ID != gen.ID || m.cur().onGroup() {
 		t.Errorf("after the poll the cursor is on %q, want job %d", j.Name, gen.ID)
 	}
 	if rows := jobsPaneRows(m); rows[1] != "▾ Build 3 ✓" || !strings.HasPrefix(rows[2], "▌ ✓ Generate matrix") {
@@ -501,21 +501,21 @@ func TestJobGroupOpensOnFailure(t *testing.T) {
 		h.run(m.fromCache())
 	}
 	fail("Test (osx, arm64)")
-	if !m.jobs.isOpen("Test (") {
+	if !m.cur().isOpen("Test (") {
 		t.Fatalf("Test failed, but stays folded:\n%s", strings.Join(jobsPaneRows(m), "\n"))
 	}
-	if j, _ := m.jobs.selected(); j.Name != "Build extension binaries / windows_amd64" {
+	if j, _ := m.cur().selected(); j.Name != "Build extension binaries / windows_amd64" {
 		t.Errorf("the cursor moved to %q", j.Name)
 	}
 	// Folded by the user, it stays folded when another of its jobs fails.
 	h.keys("j", "j", "enter")
 	fail("Test (osx, arm64)", "Test (windows, amd64)")
-	if m.jobs.isOpen("Test (") {
+	if m.cur().isOpen("Test (") {
 		t.Errorf("Test opened again, though the user folded it")
 	}
 	// A group the user never touched opens on its first failure only.
 	fail("Test (osx, arm64)", "Test (windows, amd64)", "Deploy to nightly (linux_amd64)")
-	if !m.jobs.isOpen("Deploy to nightly (") {
+	if !m.cur().isOpen("Deploy to nightly (") {
 		t.Errorf("Deploy to nightly failed, but stays folded")
 	}
 }

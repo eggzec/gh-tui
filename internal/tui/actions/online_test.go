@@ -90,11 +90,11 @@ func TestPollDuringJobsReadKeepsItLoading(t *testing.T) {
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
 	h.keys("enter", "j")
-	if !m.hasRun || m.run.ID != runningRun || !m.jobs.loaded {
+	if !m.hasRun || m.run.ID != runningRun || !m.cur().loaded {
 		t.Fatalf("the running run's jobs didn't show")
 	}
 	// A read of the jobs failed for the rate limit; the jobs shown stay.
-	m.jobs.err = fmt.Errorf("jobs: %w", core.ErrRateLimited)
+	m.cur().err = fmt.Errorf("jobs: %w", core.ErrRateLimited)
 	h.hold = func(msg tea.Msg) bool { _, ok := msg.(jobsMsg); return ok }
 	f.mu.Lock()
 	reads := len(f.jobReads)
@@ -111,8 +111,8 @@ func TestPollDuringJobsReadKeepsItLoading(t *testing.T) {
 	}
 	h.hold = nil
 	h.release()
-	if m.jobs.loading || m.jobs.err != nil {
-		t.Errorf("the read's answer left loading %v, err %v", m.jobs.loading, m.jobs.err)
+	if m.cur().loading || m.cur().err != nil {
+		t.Errorf("the read's answer left loading %v, err %v", m.cur().loading, m.cur().err)
 	}
 }
 
@@ -129,8 +129,8 @@ func TestReopenReadsWhatWasLost(t *testing.T) {
 	h.run(m.rereadJobs())
 	h.run(m.openFilter())
 	h.held, h.hold = nil, nil
-	if !m.jobs.loading || !m.workflows.loading {
-		t.Fatalf("loading jobs %v, workflows %v; want both", m.jobs.loading, m.workflows.loading)
+	if !m.cur().loading || !m.workflows.loading {
+		t.Fatalf("loading jobs %v, workflows %v; want both", m.cur().loading, m.workflows.loading)
 	}
 	f.mu.Lock()
 	f.limited = true
@@ -146,7 +146,7 @@ func TestReopenReadsWhatWasLost(t *testing.T) {
 		t.Errorf("read on reopen: %d jobs, %d workflows; want each once", gotJobs, gotWfs)
 	}
 	if m.loading() {
-		t.Errorf("still loading once reopened: jobs %v, workflows %v", m.jobs.loading, m.workflows.loading)
+		t.Errorf("still loading once reopened: jobs %v, workflows %v", m.cur().loading, m.workflows.loading)
 	}
 	// What the reopen read was served kept, so a wake reads it again.
 	h.send(ui.OnlineMsg{})
