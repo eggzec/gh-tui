@@ -2,6 +2,7 @@ package files
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,13 +18,35 @@ type BlobQuery struct {
 	// to be too large then fails without a request. It is not part of the
 	// cache key.
 	Size int64
+	// Limit raises the size limit for this read above the warning limit,
+	// up to the hard limit. 0 keeps the warning limit. It is not part of the
+	// cache key.
+	Limit int64
+}
+
+// limit returns the size above which q is refused, and whether a larger
+// limit may be asked for.
+func (s *Service) limit(q BlobQuery) (lim int64, warn bool) {
+	lim = s.warnBlob
+	if q.Limit > lim {
+		lim = min(q.Limit, s.maxBlob)
+	}
+	return lim, lim < s.maxBlob
 }
 
 // CachedBlob returns the cached content for q without a request. It reports
-// false if the content isn't in memory; it doesn't read the store.
+// false if the content isn't in memory, or is over the limit of q; it doesn't
+// read the store.
 func (s *Service) CachedBlob(q BlobQuery) (core.Blob, bool) {
 	e, st := s.blobs.Get(blobKey(q.Repo, q.SHA))
-	return e.Value, st != cache.Miss
+	if st == cache.Miss {
+		return core.Blob{}, false
+	}
+	lim, _ := s.limit(q)
+	if int64(len(e.Value.Content)) > lim {
+		return core.Blob{}, false
+	}
+	return e.Value, true
 }
 
 // Blob returns the content of a file. Content that isn't text is returned
@@ -31,14 +54,18 @@ func (s *Service) CachedBlob(q BlobQuery) (core.Blob, bool) {
 // *core.TooLargeError, which matches core.ErrTooLarge, so the tui can offer
 // to open it in the browser instead.
 func (s *Service) Blob(ctx context.Context, q BlobQuery) (core.Blob, error) {
-	if q.Size > s.maxBlob {
-		return core.Blob{}, fmt.Errorf("get blob %s of %s: %w", q.SHA, q.Repo, &core.TooLargeError{Size: q.Size, Limit: s.maxBlob})
+	lim, warn := s.limit(q)
+	tooLarge := func(size int64) error {
+		return fmt.Errorf("get blob %s of %s: %w", q.SHA, q.Repo, &core.TooLargeError{Size: size, Limit: lim, Warn: warn})
+	}
+	if q.Size > lim {
+		return core.Blob{}, tooLarge(q.Size)
 	}
 	e, err := s.blobs.Fetch(ctx, blobKey(q.Repo, q.SHA), func(ctx context.Context, _ cache.Entry[core.Blob], _ bool) (cache.Entry[core.Blob], error) {
-		if b, ok := s.storedBlob(q.SHA); ok {
+		if b, ok := s.storedBlob(q.SHA, lim); ok {
 			return cache.Entry[core.Blob]{Value: b}, nil
 		}
-		b, err := s.api.GetBlob(ctx, q.Repo, q.SHA, s.maxBlob)
+		b, err := s.api.GetBlob(ctx, q.Repo, q.SHA, lim)
 		if err != nil {
 			return cache.Entry[core.Blob]{}, err
 		}
@@ -46,7 +73,14 @@ func (s *Service) Blob(ctx context.Context, q BlobQuery) (core.Blob, error) {
 		return cache.Entry[core.Blob]{Value: b}, nil
 	})
 	if err != nil {
+		if tl, ok := errors.AsType[*core.TooLargeError](err); ok {
+			tl.Warn = warn
+		}
 		return core.Blob{}, fmt.Errorf("get blob %s of %s: %w", q.SHA, q.Repo, err)
+	}
+	if int64(len(e.Value.Content)) > lim {
+		// Cached by a read that asked for a higher limit.
+		return core.Blob{}, tooLarge(int64(len(e.Value.Content)))
 	}
 	return e.Value, nil
 }
@@ -56,7 +90,7 @@ func (s *Service) Blob(ctx context.Context, q BlobQuery) (core.Blob, error) {
 // removed and read from GitHub again. The store is shared by every
 // repository, which is safe for the same reason: a blob of that name is the
 // same content wherever it is.
-func (s *Service) storedBlob(sha string) (core.Blob, bool) {
+func (s *Service) storedBlob(sha string, limit int64) (core.Blob, bool) {
 	if !isSHA(sha) {
 		return core.Blob{}, false
 	}
@@ -69,7 +103,7 @@ func (s *Service) storedBlob(sha string) (core.Blob, bool) {
 		s.store.Delete(kindBlob, sha)
 		return core.Blob{}, false
 	}
-	if int64(len(b)) > s.maxBlob {
+	if int64(len(b)) > limit {
 		// Kept by a session with a higher limit.
 		return core.Blob{}, false
 	}

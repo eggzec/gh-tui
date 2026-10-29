@@ -192,7 +192,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	fileSvcOpts := []filesvc.Option{
 		filesvc.WithTTL(ttl.Files), filesvc.WithCapacity(mem.Entries), filesvc.WithTreeMemory(int64(mem.Trees)),
 		filesvc.WithBlobCapacity(mem.Entries), filesvc.WithBlobMemory(int64(mem.Files)),
-		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)),
+		filesvc.WithMaxBlobSize(int64(cfg.Files.Preview.MaxSize)), filesvc.WithWarnBlobSize(int64(cfg.Files.Preview.WarnSize)),
 	}
 	if store != nil {
 		fileSvcOpts = append(fileSvcOpts, filesvc.WithStore(store))

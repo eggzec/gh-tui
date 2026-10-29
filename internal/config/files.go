@@ -45,6 +45,19 @@ func TooLargeText(name string, size, limit int64) string {
 	return fmt.Sprintf("%s is %s, over the %s limit (%s).", name, humanSize(size), humanSize(limit), MaxSizeKey)
 }
 
+// WarnSizeKey is the setting above which a file is read only once the user
+// agrees.
+const WarnSizeKey = "files.preview.warn_size"
+
+// WarnText says that a file of size bytes, 0 when not known, is over the
+// limit bytes it is read without asking, and which setting changes the limit.
+func WarnText(name string, size, limit int64) string {
+	if size <= 0 {
+		return fmt.Sprintf("%s is over the %s warning limit (%s).", name, humanSize(limit), WarnSizeKey)
+	}
+	return fmt.Sprintf("%s is %s, over the %s warning limit (%s).", name, humanSize(size), humanSize(limit), WarnSizeKey)
+}
+
 // humanSize formats n in the largest binary unit it reaches, with one
 // decimal when it isn't whole, such as "2.4 MiB".
 func humanSize(n int64) string {
