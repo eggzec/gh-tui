@@ -242,7 +242,7 @@ func TestFindFilePreview(t *testing.T) {
 		reads int
 	}{
 		{"text", "agents", "Guidance for anyone.", 1},
-		{"too large", "readme", "Too large to preview", 1},
+		{"too large", "readme", "is 2.9 KiB, over the 1000 B limit", 1},
 		{"binary", "go.mod", "Binary file, not shown", 1},
 		{"binary by name", "logo", "Binary file, not shown", 0},
 		{"symlink", "claude", "Symbolic link → AGENTS.md", 1},

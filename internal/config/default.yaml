@@ -232,8 +232,11 @@ sync:
 files:
   preview:
     # The largest file the preview reads, at most 100MiB. Larger files are
-    # better opened in the browser.
-    max_size: 1MiB
+    # refused and better opened in the browser.
+    max_size: 20MiB
+    # The size above which a file is large enough to ask before it is
+    # read. At most max_size.
+    warn_size: 2MiB
   finder:
     # Show the content of the selected file beside the paths, where the
     # finder is at least 100 columns wide. Tab shows or hides it either

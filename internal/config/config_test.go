@@ -165,7 +165,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 					UnfocusedSlowdown: 2,
 				}
 				c.Files = Files{
-					Preview:  Preview{MaxSize: 2_000_000},
+					Preview:  Preview{MaxSize: 2_000_000, WarnSize: 1_000_000},
 					Finder:   Finder{Preview: false},
 					Markdown: MarkdownRaw,
 				}
@@ -297,6 +297,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`cache.revalidate.recent: must be positive, got 0s`,
 		`sync.poll.checks: must be at least 10s, got -1s`,
 		`sync.unfocused_slowdown: must be between 1 and 60, got 0`,
+		`files.preview.warn_size: must be between 1B and files.preview.max_size (32KiB), got 2MiB`,
 		`prefetch.files.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got 64KiB`,
 		`prefetch.finder.preview.max_size: must be between 0B and files.preview.max_size (32KiB), got -1B`,
 		`prefetch.window.after: must be between 0 and 30, got 31`,

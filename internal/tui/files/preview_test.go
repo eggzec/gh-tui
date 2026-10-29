@@ -43,7 +43,7 @@ func TestPreview(t *testing.T) {
 		want  string
 	}{
 		{"text", rowAgents, "AGENTS.md", "Guidance for anyone."},
-		{"too large", rowReadme, "README with spaces.md", "Too large to preview · o opens it in the browser"},
+		{"too large", rowReadme, "README with spaces.md", "README with spaces.md is 2.9 KiB, over the 1000 B limit"},
 		{"binary", rowGoMod, "go.mod", "Binary file, not shown · o opens it in the browser"},
 		{"symlink", rowLink, "CLAUDE.md", "Symbolic link → AGENTS.md"},
 		{"error", rowGitignore, ".gitignore", errMark + " Something went wrong"},
@@ -85,7 +85,7 @@ func TestPreviewSettingsIcons(t *testing.T) {
 	}{
 		{"symlink", rowLink, "Symbolic link " + ascii.Arrow + " AGENTS.md"},
 		{"binary", rowGoMod, "Binary file, not shown" + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
-		{"too large", rowReadme, "Too large to preview" + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
+		{"too large", rowReadme, "(files.preview.max_size)." + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

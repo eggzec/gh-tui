@@ -147,7 +147,7 @@ func TestDiffFullFileRefusals(t *testing.T) {
 	}{
 		{name: "deleted", path: "docs/c.md", toast: "deleted file"},
 		{name: "binary", path: "a.go", blobs: map[string]core.Blob{"sha-a.go": {Binary: true}}, toast: "binary file"},
-		{name: "too large", path: "a.go", err: &core.TooLargeError{}, toast: "too large"},
+		{name: "too large", path: "a.go", err: &core.TooLargeError{Size: 3 << 20, Limit: 1 << 20}, toast: "over the 1 MiB limit"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

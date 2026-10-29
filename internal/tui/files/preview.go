@@ -295,7 +295,7 @@ func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Bi
 	name := e.Path
 	switch {
 	case errors.Is(err, core.ErrTooLarge):
-		pg.SetMessage(name, "Too large to preview"+browserHint(open, ic))
+		pg.SetMessage(name, ui.TooLargeText(name, err)+browserHint(open, ic))
 	case err != nil:
 		pg.SetError(name, err)
 	case b.Binary:

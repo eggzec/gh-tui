@@ -80,7 +80,7 @@ func TestSet(t *testing.T) {
 		{key: "prefetch.window.after", value: "40", err: "prefetch.window.after: must be between 0 and 30, got 40"},
 		{key: "prefetch.rest", value: "1s", want: "1s"},
 		{key: "prefetch.files.preview.max_size", value: "512KiB", want: "512KiB"},
-		{key: "prefetch.files.preview.max_size", value: "2MiB", err: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size"},
+		{key: "prefetch.files.preview.max_size", value: "64MiB", err: "prefetch.files.preview.max_size: must be between 0B and files.preview.max_size"},
 		{key: "dashboard.calendar_glyph", value: "#", want: "#"},
 		{key: "dashboard.calendar_glyph", value: `"▪"`, want: "▪"},
 		{key: "history.row", value: "short_sha, subject", want: "[short_sha, subject]"},
