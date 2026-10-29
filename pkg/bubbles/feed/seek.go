@@ -26,6 +26,44 @@ func (m Model[T]) Seeking() bool {
 	return m.seeking
 }
 
+// SelectChild puts the cursor on child row k of the item that [WithKey] gives
+// key, and opens the item if it is closed. It reports false, and moves
+// nothing, unless that item is loaded, shown, and has more than k children.
+func (m *Model[T]) SelectChild(key string, k int) bool {
+	if m.key == nil || m.kids == nil || k < 0 {
+		return false
+	}
+	i, ok := m.indexOf(key)
+	if !ok {
+		return false
+	}
+	at := -1
+	for j, l := range m.lines {
+		if !l.head && !l.more && !l.child && l.item == i {
+			at = j
+			break
+		}
+	}
+	if at < 0 || m.lines[at].kids <= k {
+		return false
+	}
+	if at+1 >= len(m.lines) || !m.lines[at+1].child {
+		m.sel = at
+		// Opening adds lines only; a chunk is fetched later, if the window
+		// needs one.
+		m.setOpen(true)
+	}
+	ref := m.itemRef(i)
+	ref.child, ref.k = true, k
+	m.restore(ref)
+	if !m.onChild() {
+		return false
+	}
+	m.anchored = false
+	m.scroll()
+	return true
+}
+
 // seekStep selects the item sought if it is loaded, and else asks for the
 // chunk after the last one, unless there is none or it can't be fetched.
 func (m *Model[T]) seekStep() tea.Cmd {

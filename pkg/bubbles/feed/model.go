@@ -153,7 +153,7 @@ type Model[T any] struct {
 	closed map[string]struct{}
 	// seen holds the paths of the folds already given their first state when
 	// children start folded, so a fold the user opens is not closed again.
-	seen map[string]struct{}
+	seen   map[string]struct{}
 	nitems int
 	heads  []string
 	fill   bool
