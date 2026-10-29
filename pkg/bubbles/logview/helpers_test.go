@@ -218,7 +218,11 @@ func find(tb testing.TB, m Model, query string) Model {
 	tb.Helper()
 	m, _ = keys(tb, m, "/")
 	m = typeText(tb, m, query)
-	m, _ = keys(tb, m, "enter")
+	m, cmd := m.Update(press("enter"))
+	if cmd != nil {
+		// A search of a big log runs in the background.
+		m, _ = m.Update(cmd())
+	}
 	return m
 }
 
