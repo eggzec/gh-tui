@@ -6,6 +6,8 @@ import (
 	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Mode is what a diff shows: the one file, or every file of the range.
@@ -72,19 +74,5 @@ func clean(s string) string {
 // cutMiddle shortens s to at most w cells by replacing its middle with the
 // ellipsis, since the start of a path says where it is and its end what it is.
 func (g Glyphs) cutMiddle(s string, w int) string {
-	if w <= 0 {
-		return ""
-	}
-	sw := ansi.StringWidth(s)
-	if sw <= w {
-		return s
-	}
-	ew := ansi.StringWidth(g.Ellipsis)
-	if w <= ew {
-		return ansi.Truncate(g.Ellipsis, w, "")
-	}
-	keep := w - ew
-	right := keep / 2
-	left := keep - right
-	return ansi.Truncate(s, left, "") + g.Ellipsis + ansi.TruncateLeft(s, sw-right, "")
+	return termtext.TruncateMiddle(s, w, g.Ellipsis)
 }
