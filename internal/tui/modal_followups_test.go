@@ -88,7 +88,7 @@ func TestRootFilterFindsTheTopModalsList(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			m, section, _ := newFilterApp(t)
-			top :=&topList{}
+			top := &topList{}
 			top.title = "Actions"
 			run(m, ui.OpenModalOver(top, nil))
 			run(m, func() tea.Msg { return msg })
