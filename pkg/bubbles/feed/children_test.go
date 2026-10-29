@@ -167,6 +167,74 @@ func TestChildrenCursorKept(t *testing.T) {
 	}
 }
 
+func itemID(it item) string { return it.id }
+
+func TestChildrenCursorKeptAcrossChanges(t *testing.T) {
+	tests := []struct {
+		name   string
+		change func(counts map[string]int, m *Model[item])
+	}{
+		{"resort", func(_ map[string]int, m *Model[item]) { m.Resort() }},
+		{"more children", func(c map[string]int, m *Model[item]) { c["1"] = 4; m.Resort() }},
+		{"other item gains children", func(c map[string]int, m *Model[item]) { c["0"] = 3; m.Resort() }},
+		{"sort", func(_ map[string]int, m *Model[item]) {
+			m.SetSort(func(_, _ item) int { return 0 })
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			counts := map[string]int{"1": 3, "3": 1}
+			m := load(t, newSource(6, 6), WithSize(30, 12), withKidCounts(counts), WithChildrenFolded(), WithKey(itemID))
+			if !m.SelectChild("1", 2) {
+				t.Fatal("SelectChild failed")
+			}
+			onKid(t, m, 2)
+			tt.change(counts, &m)
+			onKid(t, m, 2)
+		})
+	}
+}
+
+func TestSelectChild(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		k    int
+		want bool
+	}{
+		{"first", "1", 0, true},
+		{"last", "1", 1, true},
+		{"past the last", "1", 2, false},
+		{"negative", "1", -1, false},
+		{"no children", "2", 0, false},
+		{"unknown", "nope", 0, false},
+	}
+	for _, folded := range []bool{false, true} {
+		for _, tt := range tests {
+			t.Run(tt.name+strconv.FormatBool(folded), func(t *testing.T) {
+				opts := []Option{WithSize(30, 12), withKids(), WithKey(itemID)}
+				if folded {
+					opts = append(opts, WithChildrenFolded())
+				}
+				m := load(t, newSource(6, 6), opts...)
+				before := m.sel
+				if got := m.SelectChild(tt.key, tt.k); got != tt.want {
+					t.Fatalf("SelectChild = %v, want %v", got, tt.want)
+				}
+				if !tt.want {
+					if m.sel != before || len(m.lines) != map[bool]int{false: 9, true: 6}[folded] {
+						t.Fatalf("a failed SelectChild moved the cursor or the folds")
+					}
+					return
+				}
+				if it, k, ok := m.SelectedChild(); !ok || it.id != tt.key || k != tt.k {
+					t.Fatalf("SelectedChild = %q, %d, %v", it.id, k, ok)
+				}
+			})
+		}
+	}
+}
+
 func TestChildrenFindSkipsChildren(t *testing.T) {
 	m := kidsModel(t)
 	m = keys(t, m, "home", "/", "kid", "enter")
