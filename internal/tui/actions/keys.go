@@ -162,7 +162,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Jobs.FullHelp(), k.Log.FullHelp())
 }
 
 // job returns the keys of the log overlay's job view: the moves of the

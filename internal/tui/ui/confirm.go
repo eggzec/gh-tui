@@ -140,6 +140,9 @@ type ConfirmStyles struct {
 	// Separator joins the answers to the default; empty, it is the Unicode
 	// set's.
 	Separator string
+	// Key names the default key in the words of the icon set, such as
+	// "enter" for the arrow in ASCII; nil leaves it as help shows it.
+	Key func(help string) string
 }
 
 // ellipsis is the ellipsis of st, or the Unicode set's while it has none.
@@ -150,7 +153,7 @@ func (st ConfirmStyles) ellipsis() string {
 // Confirm returns the styles of a confirmation: the question in the
 // accent, and the keys that answer it muted, cut with the ellipsis of ic.
 func (t Theme) Confirm(ic Icons) ConfirmStyles {
-	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, DefaultKey: t.Accent, Ellipsis: ic.Ellipsis, Separator: ic.Separator}
+	return ConfirmStyles{Question: t.Accent.Bold(true), Keys: t.Muted, DefaultKey: t.Accent, Ellipsis: ic.Ellipsis, Separator: ic.Separator, Key: ic.Key}
 }
 
 // ConfirmLines is the most lines a question wraps to, so that a long one,
@@ -233,6 +236,9 @@ func (c Confirm) keys(st ConfirmStyles, k ConfirmKeys) (plain, styled string) {
 	dk := k.Default.Help().Key
 	if dk == "" {
 		return plain, styled
+	}
+	if st.Key != nil {
+		dk = st.Key(dk)
 	}
 	answer := "no"
 	if c.Default {

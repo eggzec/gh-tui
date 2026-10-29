@@ -76,8 +76,9 @@ func TestInvolvedRerequest(t *testing.T) {
 		if !moveTo(m, "dina") {
 			t.Fatal("no row for dina")
 		}
-		cmd := m.Update(keyMsg("R"))
-		if cmd != nil || len(svc.asked) != 0 || m.top() == nil {
+		// The command that comes back arms the question; it sends nothing.
+		m.Update(keyMsg("R"))
+		if len(svc.asked) != 0 || m.top() == nil {
 			t.Fatalf("R sent %d requests and left overlay %v; want a question and no request", len(svc.asked), m.top())
 		}
 		run(m, m.Update(keyMsg("y")))
