@@ -8,7 +8,6 @@ import (
 	"github.com/alecthomas/chroma/v2"
 
 	"github.com/eggzec/gh-tui/pkg/syntax"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Doc is one text of a list of documents: its name, the language to
@@ -31,13 +30,12 @@ type docState struct {
 	err              error
 	errText, errHint string
 	note             string
-	lines            []string
+	rows             Rows
 	spans            [][]syntax.Span
 	raw, lang        string
 	render           Render
 	renderedAt       int
 	pics             map[int]string
-	sgr              [][]termtext.Style
 	vis              []int32
 	size             int
 	anchor           anchor
@@ -143,8 +141,8 @@ func (m *Model) fill(d Doc) tea.Cmd {
 func (m *Model) save() {
 	d := docState{
 		name: m.name, state: m.state, err: m.err, errText: m.errText, errHint: m.errHint,
-		note: m.note, lines: m.lines, spans: m.spans, raw: m.raw, lang: m.lang,
-		render: m.render, renderedAt: m.renderedAt, pics: m.pics, sgr: m.sgr,
+		note: m.note, rows: m.rows, spans: m.spans, raw: m.raw, lang: m.lang,
+		render: m.render, renderedAt: m.renderedAt, pics: m.pics,
 		vis: m.vis, size: m.size, anchor: m.anchor, atEnd: m.atEnd, owed: m.owed,
 		sizeSeq: m.sizeSeq, proj: m.proj, want: m.want, kept: m.kept,
 		top: m.top, row: m.row, left: m.left, mark: m.mark,
@@ -190,8 +188,8 @@ func (m *Model) load() tea.Cmd {
 	changed := d.proj.squeeze != squeeze
 	d.proj.squeeze, d.want.squeeze = squeeze, squeeze
 	m.name, m.state, m.err, m.errText, m.errHint = d.name, d.state, d.err, d.errText, d.errHint
-	m.note, m.lines, m.spans, m.raw, m.lang = d.note, d.lines, d.spans, d.raw, d.lang
-	m.render, m.renderedAt, m.pics, m.sgr = d.render, d.renderedAt, d.pics, d.sgr
+	m.note, m.rows, m.spans, m.raw, m.lang = d.note, d.rows, d.spans, d.raw, d.lang
+	m.render, m.renderedAt, m.pics = d.render, d.renderedAt, d.pics
 	m.vis, m.size, m.anchor, m.atEnd, m.owed, m.sizeSeq = d.vis, d.size, d.anchor, d.atEnd, d.owed, d.sizeSeq
 	m.proj, m.want, m.kept = d.proj, d.want, d.kept
 	m.top, m.row, m.left, m.mark = d.top, d.row, d.left, d.mark
@@ -210,8 +208,8 @@ func (m *Model) load() tea.Cmd {
 	if m.state == stateLoading {
 		cmds = append(cmds, m.spin.Tick)
 	}
-	if m.state == stateReady && m.render == nil && m.spans == nil && len(m.lines) > 0 {
-		full := strings.Join(m.lines, "\n")
+	if lines, ok := m.plainLines(); ok && m.state == stateReady && m.render == nil && m.spans == nil && len(lines) > 0 {
+		full := strings.Join(lines, "\n")
 		lang, name := m.lang, m.name
 		cmds = append(cmds, m.highlight(full, func(full string) chroma.Lexer {
 			if lang != "" {

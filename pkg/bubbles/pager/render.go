@@ -73,7 +73,7 @@ func (m *Model) fitRendered(force bool) {
 		return
 	}
 	m.owed = false
-	top, n := m.topLine(), len(m.lines)
+	top, n := m.topLine(), m.rows.Len()
 	// A resize says in atEnd whether the end was in view at the old size.
 	end := n > 0 && (m.atEnd || force && m.atEndByChoice())
 	m.atEnd = false
@@ -115,7 +115,7 @@ func (m *Model) fitRendered(force bool) {
 	}
 	m.proj, m.want = projection{squeeze: p.squeeze}, projection{squeeze: p.squeeze}
 	if !p.none() {
-		vis, kept, _ := pick(context.Background(), m.lines, p, m.pics)
+		vis, kept, _ := pick(context.Background(), m.rows, p, m.pics)
 		if p.filter.re == nil || kept > 0 {
 			m.proj, m.want, m.vis, m.kept = p, p, vis, kept
 			m.top = m.posOf(m.top)
@@ -135,7 +135,7 @@ func (m *Model) fitRendered(force bool) {
 	if s.re != nil {
 		m.search = search{query: s.query, re: s.re, invert: s.invert, from: m.topLine(), cur: -1, stay: true}
 		m.search.top, m.search.row = m.top, m.row
-		lines, ends, _ := find(context.Background(), s.re, s.invert, m.lines, m.vis)
+		lines, ends, _ := find(context.Background(), s.re, s.invert, m.rows, m.vis)
 		m.found(lines, ends)
 		if s.cur >= 0 && m.search.total() > 0 {
 			// The current match stays the same match, by its order, unless
@@ -236,7 +236,7 @@ func weigh(l string) int {
 
 // viewsEnd reports whether the end of the content is in view.
 func (m Model) viewsEnd() bool {
-	if len(m.lines) == 0 {
+	if m.rows.Len() == 0 {
 		return false
 	}
 	top, row := m.last()
@@ -257,8 +257,8 @@ func (m Model) atEndByChoice() bool {
 // line i.
 func (m Model) offsetOf(i int) int {
 	off := 0
-	for _, l := range m.lines[:min(i, len(m.lines))] {
-		off += weigh(l)
+	for j := range min(i, m.rows.Len()) {
+		off += weigh(m.rows.Text(j))
 	}
 	return off
 }
@@ -276,12 +276,12 @@ func (m Model) anchorOf(line int) int {
 // lineAt returns the index of the line that holds the place off letters
 // and digits into the text, or the last line.
 func (m Model) lineAt(off int) int {
-	for i, l := range m.lines {
-		w := weigh(l)
+	for i := range m.rows.Len() {
+		w := weigh(m.rows.Text(i))
 		if off < w {
 			return i
 		}
 		off -= w
 	}
-	return max(len(m.lines)-1, 0)
+	return max(m.rows.Len()-1, 0)
 }

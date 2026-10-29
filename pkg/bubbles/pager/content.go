@@ -65,12 +65,13 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 // highlight returns the command that highlights the lines, which are full
 // joined, with the lexer lexerOf picks, or nil for content that is not.
 func (m *Model) highlight(full string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
-	if full == "" || len(full) > m.highlightLimit || m.sgr != nil {
+	lines, ok := m.plainLines()
+	if full == "" || len(full) > m.highlightLimit || !ok {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-	id, gen, lines := m.id, m.gen, m.lines
+	id, gen := m.id, m.gen
 	return func() tea.Msg {
 		defer cancel()
 		lexer := lexerOf(full)
@@ -98,14 +99,15 @@ func (m *Model) setLines(text string) string {
 		full = termtext.Clean(text, m.tabWidth)
 	}
 	full = strings.TrimSuffix(full, "\n")
-	m.lines, m.sgr = nil, nil
+	rows := &sliceRows{}
 	if full != "" {
-		m.lines = strings.Split(full, "\n")
+		rows.lines = strings.Split(full, "\n")
 	}
 	m.size = len(full)
 	if sgr != nil {
-		m.sgr = styleLines(m.lines, sgr)
+		rows.sgr = styleLines(rows.lines, sgr)
 	}
+	m.rows = rows
 	return full
 }
 
@@ -148,7 +150,7 @@ func (m *Model) reset(name string, s state, err error) {
 		m.errText, m.errHint = m.errorWords()
 	}
 	m.renderName()
-	m.lines, m.spans, m.sgr, m.vis, m.size = nil, nil, nil, nil, 0
+	m.rows, m.spans, m.vis, m.size = noRows, nil, nil, 0
 	m.anchor = anchor{}
 	m.raw, m.lang = "", ""
 	m.render, m.renderedAt, m.pics = nil, 0, nil

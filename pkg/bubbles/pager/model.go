@@ -23,7 +23,6 @@ import (
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/syntax"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 var lastID atomic.Int64
@@ -60,9 +59,10 @@ type Model struct {
 	// note is the message of stateMessage.
 	note string
 	spin spinner.Model
-	// lines are the lines of the content, cleaned and with tabs expanded,
-	// and spans their tokens once the highlighter is done, or nil.
-	lines []string
+	// rows are the rows shown, which for content are its lines, cleaned
+	// and with tabs expanded, and spans their tokens once the
+	// highlighter is done, or nil.
+	rows  Rows
 	spans [][]syntax.Span
 	// raw is the content as it was given, which the editor gets, and lang
 	// the syntax it was given with, if any. It costs no memory of its own
@@ -90,10 +90,6 @@ type Model struct {
 	// pics are the lines of rendered content that draw images, as they
 	// are, by their index; the lines hold them blank.
 	pics map[int]string
-	// sgr are the colors of content that has its own, such as a program's
-	// output kept in a file, for each line, or nil for content without
-	// them. Such content isn't highlighted.
-	sgr [][]termtext.Style
 	// vis are the indices of the lines shown, in order, or nil to show
 	// them all. It is replaced, never changed in place. proj is what
 	// picked them, and kept how many lines its filter kept; want is what
@@ -167,10 +163,14 @@ func New(opts ...Option) Model {
 		prompt: cmdline.New(0, cmdline.WithPrompt(promptSearch), cmdline.WithKeyMap(promptKeys(s.keys))),
 		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
 		mark:   -1,
+		rows:   noRows,
 	}
 	m.SetKeyMap(s.keys)
 	m.SetStyles(s.styles)
 	m.SetSize(s.width, s.height)
+	if s.rows != nil {
+		m.takeRows(s.rows)
+	}
 	return m
 }
 
@@ -185,7 +185,7 @@ func (m Model) Init() tea.Cmd { return nil }
 func (m Model) Name() string { return m.name }
 
 // Lines returns the number of lines of the content.
-func (m Model) Lines() int { return len(m.lines) }
+func (m Model) Lines() int { return m.rows.Len() }
 
 // SetSize sets the width and height, including the status line.
 func (m *Model) SetSize(width, height int) {
@@ -193,7 +193,7 @@ func (m *Model) SetSize(width, height int) {
 		m.atEnd = m.atEndByChoice()
 	}
 	// The place the reader has, to keep through a clamp without a render.
-	keep := m.render != nil && m.state == stateReady && len(m.lines) > 0
+	keep := m.render != nil && m.state == stateReady && m.rows.Len() > 0
 	oldTop, oldGen := m.top, m.gen
 	oldLine := m.topLine()
 	off := m.anchorOf(oldLine)

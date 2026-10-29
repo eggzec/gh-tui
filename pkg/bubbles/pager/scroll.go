@@ -13,10 +13,10 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
 func (m Model) gutterWidth() int {
-	if len(m.lines) == 0 {
+	if m.rows.Len() == 0 {
 		return 0
 	}
-	return m.gutterFor(len(m.lines) + m.reserved())
+	return m.gutterFor(m.rows.Len() + m.reserved())
 }
 
 // reserved returns how many lines more than the content has the gutter
@@ -56,7 +56,7 @@ func (m Model) rowsIn(p int) int {
 	if !m.wrap {
 		return 1
 	}
-	s, tw := m.lines[m.at(p)], m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.textWidth()
 	n := 1
 	for j, _ := wrap.NextRow(s, 0, tw); j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		n++
@@ -66,7 +66,7 @@ func (m Model) rowsIn(p int) int {
 
 // rowOf returns the row of the line shown at p that holds byte b.
 func (m Model) rowOf(p, b int) int {
-	s, tw := m.lines[m.at(p)], m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.textWidth()
 	r := 0
 	for j, _ := wrap.NextRow(s, 0, tw); j <= b && j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		r++
@@ -177,10 +177,10 @@ func (m Model) bottom() int {
 // line, such as the one an error points at. A line past the end goes to
 // the last. Set it after SetContent; new content clears the mark.
 func (m *Model) GoToLine(n int) {
-	if len(m.lines) == 0 || n < 1 {
+	if m.rows.Len() == 0 || n < 1 {
 		return
 	}
-	i := min(n, len(m.lines)) - 1
+	i := min(n, m.rows.Len()) - 1
 	m.mark = i
 	m.top, m.row = max(m.posOf(i)-m.bodyHeight()/3, 0), 0
 	m.clamp()
@@ -215,7 +215,7 @@ func (m *Model) scrollRight(n int) {
 	reach := 0
 	for p, last := m.top, m.bottom(); p <= last; p++ {
 		// One more column finds a wide rune that crosses the edge.
-		_, w := wrap.Advance(m.lines[m.at(p)], 0, want+tw+1)
+		_, w := wrap.Advance(m.rows.Text(m.at(p)), 0, want+tw+1)
 		reach = max(reach, w)
 	}
 	m.left = max(min(want, reach-tw), m.left)

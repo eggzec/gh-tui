@@ -133,7 +133,7 @@ func TestColorsHostile(t *testing.T) {
 func TestColorsSearch(t *testing.T) {
 	text := "\x1b[1;32mok\x1b[0m  \x1b[31mfa\x1b[1mil-ed\x1b[0m 你好 fail\nplain fail\n"
 	m := open(t, "test.log", text, WithSize(40, 4))
-	if m.sgr == nil {
+	if m.rows.(*sliceRows).sgr == nil {
 		t.Fatal("the colors weren't found")
 	}
 	m, _ = typeSearch(t, m, "fail")
@@ -169,7 +169,7 @@ func TestColorsNotHighlighted(t *testing.T) {
 	if cmd := m.SetContent("main.go", "package main\n"); cmd == nil {
 		t.Error("plain Go isn't highlighted")
 	}
-	if m.sgr != nil {
+	if m.rows.(*sliceRows).sgr != nil {
 		t.Error("plain content kept the colors of the content before it")
 	}
 }
