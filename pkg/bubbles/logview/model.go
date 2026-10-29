@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -60,7 +60,18 @@ type Model struct {
 	// show whether the view follows them.
 	live bool
 
-	searching bool
+	// pg does the search: its prompt, regexps, count and notes. It takes no
+	// keys of its own; this view calls it. store gives it the rows, and is
+	// shared by copies of the model.
+	pg    pager.Model
+	store *rowStore
+	// matching is set while the pager holds a search, so that drawing a row
+	// needs no copy of the pager.
+	matching bool
+	// from is the row of the cursor when a search that runs in the background
+	// was submitted: if the cursor is elsewhere when it ends, the user moved
+	// on, and the search leaves the cursor where it is.
+	from int
 	// opt is set while the view waits for the name of an option.
 	opt bool
 	// flash is a note on the last key, such as "No such option: -", shown
@@ -68,8 +79,6 @@ type Model struct {
 	// than an error while flashInfo is set.
 	flash     string
 	flashInfo bool
-	input     textinput.Model
-	search    search
 	// jumped is the list the last e, E, w or W moved in, and at is the
 	// entry of it the cursor went to.
 	jumped Kind
@@ -86,12 +95,12 @@ func New(opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&s)
 	}
-	input := textinput.New()
-	input.Prompt = "/"
+	store := &rowStore{}
 	m := Model{
 		settings: s,
 		id:       lastID.Add(1),
-		input:    input,
+		store:    store,
+		pg:       pager.New(pager.WithRows(store)),
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 	m.SetKeyMap(s.keys)
@@ -120,7 +129,7 @@ func (m *Model) SetTitle(title string) {
 // SetSize sets the width and height, including the status line.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.input.SetWidth(max(m.width-2, 1))
+	m.pg.SetSize(m.width, m.height)
 	m.clamp()
 	m.show()
 }
@@ -153,7 +162,7 @@ func (m Model) Focused() bool { return m.focused }
 // Capturing reports whether the search input is open or the view waits for
 // the name of an option. It then takes every key, so the parent should not
 // act on keys of its own.
-func (m Model) Capturing() bool { return m.searching || m.opt }
+func (m Model) Capturing() bool { return m.pg.Prompting() || m.opt }
 
 // Wrap reports whether long lines are soft-wrapped.
 func (m Model) Wrap() bool { return m.wrap }
@@ -213,7 +222,7 @@ func (m *Model) SetKeyMap(k KeyMap) {
 // lists the keys that close it, and while the view waits for an option,
 // the keys that name one.
 func (m Model) ShortHelp() []key.Binding {
-	if m.searching {
+	if m.pg.Prompting() {
 		return []key.Binding{m.keys.Confirm, m.keys.Cancel}
 	}
 	if m.opt {
@@ -228,7 +237,7 @@ func (m Model) ShortHelp() []key.Binding {
 // the keys that close it act, and the input takes the rest.
 func (m Model) FullHelp() [][]key.Binding {
 	k := m.keys
-	if m.searching || m.opt {
+	if m.pg.Prompting() || m.opt {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
 			&k.Left, &k.Right, &k.Expand, &k.Collapse, &k.Toggle, &k.ToggleAll,
@@ -249,11 +258,12 @@ func (m *Model) enableKeys() {
 	keymap.Enable(&m.keys.PrevError, len(m.errs) > 0)
 	keymap.Enable(&m.keys.NextWarning, len(m.warns) > 0)
 	keymap.Enable(&m.keys.PrevWarning, len(m.warns) > 0)
-	found := len(m.search.matches) > 0
+	found := m.pg.Matches() > 0
+	m.matching = found
 	keymap.Enable(&m.keys.Next, found)
 	keymap.Enable(&m.keys.Prev, found)
-	keymap.Enable(&m.keys.Confirm, m.searching)
-	keymap.Enable(&m.keys.Cancel, m.searching)
+	keymap.Enable(&m.keys.Confirm, m.pg.Prompting())
+	keymap.Enable(&m.keys.Cancel, m.pg.Prompting())
 	m.keys.Options.setEnabled(m.opt)
 	if m.opt {
 		// The cancel key of the options stands in for that of the search.

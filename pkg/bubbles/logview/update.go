@@ -23,24 +23,39 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		m.flash, m.flashInfo = "", false
+		m.pg.ClearNote()
 		switch {
-		case m.searching:
+		case m.pg.Prompting():
 			return m.updateSearch(msg)
 		case m.opt:
 			return m.updateOption(msg)
 		}
 		return m.updateKey(msg)
 	}
-	if m.focused && m.searching {
-		// Pastes and the like go to the input.
-		// The input edits its text in place, which copies of the model share,
-		// so it gets a copy of its own first.
-		m.input.SetValue(m.input.Value())
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		return m, cmd
+	// The result of a search the pager runs in the background, and the pastes
+	// and the like the open prompt takes.
+	line, ok := m.pg.Current()
+	total := m.pg.Matches()
+	searching := m.pg.Searching()
+	cmds := []tea.Cmd{m.pg.Forward(msg)}
+	if m.focused && m.pg.Prompting() {
+		cmds = append(cmds, m.pg.UpdatePrompt(msg))
 	}
-	return m, nil
+	// A search that ended goes to the first match at or after the cursor, if
+	// the user has not moved it since.
+	if searching && !ok && !m.pg.Searching() && m.cursorRow() == m.from {
+		m.seekCursor()
+		m.syncMatch()
+		return m, tea.Batch(cmds...)
+	}
+	// Follow the pager only to a match it just moved to, so that a fold the
+	// user closed over the current match stays closed.
+	if l, k := m.pg.Current(); l != line || k != ok || m.pg.Matches() != total {
+		m.syncMatch()
+	} else {
+		m.enableKeys()
+	}
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
@@ -108,18 +123,19 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 func (m Model) updateSearch(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
 	case keymap.Matches(k, m.keys.Confirm):
-		query := m.input.Value()
-		m.closeSearch()
-		m.runSearch(query)
-		return m, nil
+		m.syncPosition()
+		cmd := m.pg.SubmitPrompt()
+		if cmd == nil {
+			m.seekCursor()
+		}
+		m.from = m.cursorRow()
+		m.syncMatch()
+		return m, cmd
 	case keymap.Matches(k, m.keys.Cancel):
 		m.closeSearch()
 		return m, nil
 	}
-	// The input edits its text in place, which copies of the model share,
-	// so it gets a copy of its own first.
-	m.input.SetValue(m.input.Value())
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(k)
+	cmd := m.pg.UpdatePrompt(k)
+	m.enableKeys()
 	return m, cmd
 }

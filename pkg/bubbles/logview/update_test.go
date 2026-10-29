@@ -262,12 +262,12 @@ func TestSearch(t *testing.T) {
 		t.Errorf("status doesn't count the match:\n%s", plain(m))
 	}
 	m, _ = keys(t, m, "n", "n")
-	if m.search.cur != 2 || !strings.Contains(cursorText(m), "commandClipboardBackend is unused") {
-		t.Errorf("n n went to match %d on %q", m.search.cur+1, cursorText(m))
+	if st := m.pg.MatchStatus(); st != "match 3/9" || !strings.Contains(cursorText(m), "commandClipboardBackend is unused") {
+		t.Errorf("n n went to %q on %q", st, cursorText(m))
 	}
 	m, _ = keys(t, m, "N", "N", "N")
-	if m.search.cur != 8 || cursorText(m) != "* unused: 4" {
-		t.Errorf("N wrapped to match %d on %q, want the last", m.search.cur+1, cursorText(m))
+	if st := m.pg.MatchStatus(); st != "match 9/9" || cursorText(m) != "* unused: 4" {
+		t.Errorf("N wrapped to %q on %q, want the last", st, cursorText(m))
 	}
 	// esc asks to close at once, and leaves the search alone.
 	m, msg := keys(t, m, "esc")
@@ -284,13 +284,68 @@ func TestSearchCase(t *testing.T) {
 	if m = find(t, m, "Error"); m.Matches() != 1 {
 		t.Errorf("query with a capital found %d, want 1", m.Matches())
 	}
-	if m = find(t, m, "kiwi"); m.Matches() != 0 || !strings.Contains(plain(m), "no matches") {
+	if m = find(t, m, "kiwi"); m.Matches() != 0 || !strings.Contains(plain(m), "Pattern not found") {
 		t.Errorf("query without matches: %d, %q", m.Matches(), plain(m))
 	}
 	// Matches ignore the log's colors.
 	m = view(t, []Line{{Text: "\x1b[31mfa\x1b[0mil"}}, WithSize(40, 5))
 	if m = find(t, m, "fail"); m.Matches() != 1 {
 		t.Errorf("colored text found %d, want 1", m.Matches())
+	}
+}
+
+func TestSearchRegexp(t *testing.T) {
+	m := view(t, plainLines("abc", "a-c", "axc", "xyz"), WithSize(40, 6))
+	if m = find(t, m, "a.c"); m.Matches() != 3 {
+		t.Errorf("a.c found %d matches, want 3", m.Matches())
+	}
+}
+
+// A leading ! shows the rows the pattern does not match.
+func TestSearchInvert(t *testing.T) {
+	m := view(t, plainLines("abc", "xyz", "abd"), WithSize(40, 6))
+	m = find(t, m, "!ab")
+	if m.Matches() != 1 {
+		t.Errorf("!ab found %d matches, want the 1 row without ab", m.Matches())
+	}
+	if cursorText(m) != "xyz" {
+		t.Errorf("cursor on %q, want xyz", cursorText(m))
+	}
+}
+
+func TestSearchNotFound(t *testing.T) {
+	m := view(t, plainLines("abc"), WithSize(40, 5))
+	m = find(t, m, "kiwi")
+	if v := plain(m); !strings.Contains(v, "Pattern not found") {
+		t.Errorf("no notice of the failed search:\n%s", v)
+	}
+	m, _ = keys(t, m, "j")
+	if v := plain(m); strings.Contains(v, "Pattern not found") {
+		t.Errorf("the notice outlived a key:\n%s", v)
+	}
+}
+
+// A match inside a closed fold opens the fold.
+func TestSearchRevealsFold(t *testing.T) {
+	m := open(t, WithSize(80, 24))
+	m.CollapseAll()
+	m = find(t, m, "unused")
+	if !isOpen(t, m, "golangci-lint") {
+		t.Error("the fold of the match stayed closed")
+	}
+}
+
+// The prompt types the keys that fold and move, instead of acting on them.
+func TestPromptIgnoresFoldKeys(t *testing.T) {
+	m := open(t, WithSize(80, 24))
+	rows := shownRows(m)
+	m, _ = keys(t, m, "/")
+	m = typeText(t, m, "*j")
+	if !slices.Equal(shownRows(m), rows) {
+		t.Error("typing in the prompt changed the folds")
+	}
+	if got := m.pg.PromptView(40); !strings.Contains(got, "*j") {
+		t.Errorf("prompt shows %q, want *j", got)
 	}
 }
 
@@ -470,8 +525,8 @@ func TestUpdatePaste(t *testing.T) {
 	m := view(t, plainLines("abc"), WithSize(40, 5))
 	m, _ = keys(t, m, "/")
 	m, _ = m.Update(tea.PasteMsg{Content: "ab"})
-	if got := m.input.Value(); got != "ab" {
-		t.Errorf("input = %q, want the paste", got)
+	if got := m.pg.PromptView(40); !strings.Contains(got, "ab") {
+		t.Errorf("prompt shows %q, want the paste", got)
 	}
 	m, _ = keys(t, m, "enter")
 	if m.Matches() != 1 {

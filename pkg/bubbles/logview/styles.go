@@ -5,11 +5,10 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/textinput"
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -161,17 +160,10 @@ func (m *Model) SetStyles(s Styles) {
 		m.spin.Spinner = s.SpinnerFrames
 	}
 	m.renderTitle()
-	st := textinput.StyleState{
-		Text:        s.Text,
-		Placeholder: s.Status,
-		Suggestion:  s.Status,
-		Prompt:      s.Prompt,
-	}
-	m.input.SetStyles(textinput.Styles{
-		Focused: st,
-		Blurred: st,
-		Cursor:  textinput.CursorStyle{Color: s.InputCursor.GetForeground(), Shape: tea.CursorBlock},
-	})
+	ps := pager.DefaultStyles(true)
+	ps.Prompt, ps.Text, ps.Status, ps.Notice = s.Prompt, s.Text, s.Status, s.NoMatches
+	ps.Cursor, ps.Ellipsis = s.InputCursor, s.Ellipsis
+	m.pg.SetStyles(ps)
 }
 
 // renderTitle renders the title for the status line, on one line and

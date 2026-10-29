@@ -59,7 +59,7 @@ func (m Model) ChoosingOption() bool { return m.opt }
 
 // Searching reports whether the search input is open, which is what
 // Capturing means unless the view waits for the name of an option.
-func (m Model) Searching() bool { return m.searching }
+func (m Model) Searching() bool { return m.pg.Prompting() }
 
 // updateOption toggles the option named by the key after the one bound to
 // Option, as less's - does: by default S chops or wraps long lines, N

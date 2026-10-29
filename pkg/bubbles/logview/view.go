@@ -323,7 +323,11 @@ func appendDuration(buf []byte, d time.Duration) []byte {
 // matches over them.
 func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 	base := m.esc.text(m, r)
-	matches, first := m.rowMatches(ri)
+	var matches [][]int
+	curMatch := -1
+	if m.matching {
+		matches, curMatch = m.pg.Ranges(ri)
+	}
 	marks := r.marks
 	if base.on == "" && len(marks) == 0 && len(matches) == 0 {
 		b.WriteString(r.text[a:e])
@@ -352,7 +356,7 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 				pen.Write(b, cur)
 			}
 		}
-		for mi < len(matches) && matches[mi].end <= pos {
+		for mi < len(matches) && matches[mi][1] <= pos {
 			mi++
 		}
 		next := e
@@ -361,12 +365,12 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 		}
 		if mi < len(matches) {
 			x := matches[mi]
-			if x.start > pos {
-				next = min(next, x.start)
+			if x[0] > pos {
+				next = min(next, x[0])
 			} else {
 				if !inMatch {
 					p := m.esc.match
-					if first+mi == m.search.cur {
+					if mi == curMatch {
 						p = m.esc.current
 					}
 					b.WriteString(ansi.ResetStyle)
@@ -374,12 +378,12 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 					pen.Lost()
 					inMatch = true
 				}
-				next = min(next, x.end)
+				next = min(next, x[1])
 			}
 		}
 		b.WriteString(r.text[pos:next])
 		pos = next
-		if inMatch && pos >= matches[mi].end {
+		if inMatch && pos >= matches[mi][1] {
 			pen.Write(b, cur)
 			inMatch = false
 		}
@@ -390,8 +394,8 @@ func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
 // statusLine renders the title on the left and where the cursor is on the
 // right, or the search input while it is open.
 func (m *Model) statusLine() string {
-	if m.searching {
-		return m.fit(m.input.View(), m.width)
+	if m.pg.Prompting() {
+		return m.pg.PromptView(m.width)
 	}
 	left := m.titleView
 	switch {
@@ -401,14 +405,12 @@ func (m *Model) statusLine() string {
 		left = m.esc.status.wrap(m.flash)
 	case m.flash != "":
 		left = m.esc.noMatches.wrap(m.flash)
+	case m.pg.Note() != "":
+		left = m.esc.noMatches.wrap(m.pg.Note())
 	}
 	var parts []string
-	if q := m.search.query; q != "" {
-		if n := len(m.search.matches); n == 0 {
-			parts = append(parts, m.esc.noMatches.wrap("no matches"))
-		} else {
-			parts = append(parts, m.esc.status.wrap(fmt.Sprintf("match %d/%d", m.search.cur+1, n)))
-		}
+	if s := m.pg.MatchStatus(); s != "" {
+		parts = append(parts, m.esc.status.wrap(s))
 	}
 	switch {
 	case m.jumped == Warning:
