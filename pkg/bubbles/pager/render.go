@@ -31,6 +31,7 @@ type Render func(width int) string
 // must have made the rest of such a line safe to draw; every other line
 // is cleaned, so no placeholder there draws an image.
 func (m *Model) SetRendered(name, source string, render Render) {
+	m.dropDocs()
 	m.reset(name, stateReady, nil)
 	m.raw, m.render = source, render
 	m.renderedAt, m.owed = -1, false

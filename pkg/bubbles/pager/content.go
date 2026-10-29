@@ -24,6 +24,7 @@ const binarySniff = 8000
 // [termtext.Decode] tells its encoding. Text with a NUL byte is taken for
 // binary and not shown.
 func (m *Model) SetContent(name, text string) tea.Cmd {
+	m.dropDocs()
 	return m.setContent(name, text, func(full string) chroma.Lexer { return lexerFor(name, full) })
 }
 
@@ -31,6 +32,7 @@ func (m *Model) SetContent(name, text string) tea.Cmd {
 // lang, a lexer's name or alias such as "diff", rather than by the name of
 // the content. An unknown lang shows the text plain.
 func (m *Model) SetContentSyntax(name, lang, text string) tea.Cmd {
+	m.dropDocs()
 	cmd := m.setContent(name, text, func(string) chroma.Lexer { return lexerNamed(lang) })
 	m.lang = lang
 	return cmd
@@ -57,6 +59,12 @@ func (m *Model) setContent(name, text string, lexerOf func(full string) chroma.L
 		_ = m.project(m.proj)
 	}
 	m.clamp()
+	return m.highlight(full, lexerOf)
+}
+
+// highlight returns the command that highlights the lines, which are full
+// joined, with the lexer lexerOf picks, or nil for content that is not.
+func (m *Model) highlight(full string, lexerOf func(full string) chroma.Lexer) tea.Cmd {
 	if full == "" || len(full) > m.highlightLimit || m.sgr != nil {
 		return nil
 	}
@@ -105,12 +113,14 @@ func (m *Model) setLines(text string) string {
 // The returned command starts the spinner, which stops once the content or
 // an error is set.
 func (m *Model) SetLoading(name string) tea.Cmd {
+	m.dropDocs()
 	m.reset(name, stateLoading, nil)
 	return m.spin.Tick
 }
 
 // SetError shows that the content named name failed to load with err.
 func (m *Model) SetError(name string, err error) {
+	m.dropDocs()
 	m.reset(name, stateFailed, err)
 }
 
@@ -118,6 +128,7 @@ func (m *Model) SetError(name string, err error) {
 // why the parent doesn't show a file: that it is too large, or where a link
 // points. Text longer than the width wraps.
 func (m *Model) SetMessage(name, text string) {
+	m.dropDocs()
 	m.reset(name, stateMessage, nil)
 	// One line without escape sequences, so it can't break the layout.
 	m.note = strings.Join(strings.Fields(termtext.OneLine(text)), " ")
