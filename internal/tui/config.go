@@ -169,18 +169,13 @@ func (t *textModal) KeyLayers() []keyhelp.Layer {
 
 var _ ui.Actor = (*textModal)(nil)
 
-// Act implements ui.Actor. The quit key closes the modal, and the dismiss
-// key clears the search or the filter first. The back key does nothing,
+// Act implements ui.Actor. The quit and dismiss keys close the modal, over
+// any search or filter. The back key does nothing,
 // unless the modal replaced another, which it returns to.
 // Every other intent is the app's to refuse while it is open.
 func (t *textModal) Act(action string) (tea.Cmd, bool) {
 	switch action {
-	case ui.ActQuit:
-		return ui.CloseModal(t), true
-	case ui.ActDismiss:
-		if cmd, ok := t.pager.ClearTransient(); ok {
-			return cmd, true
-		}
+	case ui.ActQuit, ui.ActDismiss:
 		return ui.CloseModal(t), true
 	case ui.ActBack:
 		return nil, false

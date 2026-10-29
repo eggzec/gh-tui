@@ -520,8 +520,9 @@ reacts to messages. Concretely:
   refocuses it. A modal that needs several views,
   such as a list and its detail, shows them as panes or steps inside its
   own frame. Backspace steps back one step, or returns to the modal that
-  the open one replaced; esc clears what is transient, then closes and
-  returns to what is under it.
+  the open one replaced; esc clears what is transient on a list (its find or
+  quick filter), then closes and returns to what is under it; a pager or a
+  log closes at once, over its search or filter.
 - A modal that holds unsent text, or that must not close at once, is
   guarded: the manager asks its guard when it is dismissed, covered or
   quit. The guard saves and closes, or keeps the modal open with a toast.

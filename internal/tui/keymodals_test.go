@@ -178,9 +178,9 @@ func TestBackspaceStepsBackThroughHistory(t *testing.T) {
 	})
 }
 
-// TestEscClearsASearchBeforeClosing checks that esc takes away the search
-// that a pager shows before it closes the modal.
-func TestEscClearsASearchBeforeClosing(t *testing.T) {
+// TestEscClosesAPagerOverASearch checks that esc closes the modal at once,
+// through the app's dismiss key, over the search that a pager shows.
+func TestEscClosesAPagerOverASearch(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.command", typed("config"), "command_line.run")
@@ -189,12 +189,8 @@ func TestEscClearsASearchBeforeClosing(t *testing.T) {
 			tap(t, m, k)
 		}
 		tap(t, m, "esc")
-		if m.modals.Top() == nil {
-			t.Fatal("esc closed the pager with a search on view")
-		}
-		tap(t, m, "esc")
 		if m.modals.Top() != nil {
-			t.Error("esc left the pager open once the search was gone")
+			t.Error("esc left the pager open over a search")
 		}
 	})
 }

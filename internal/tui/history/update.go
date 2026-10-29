@@ -228,14 +228,8 @@ func (m *Modal) back() tea.Cmd {
 	return nil
 }
 
-// dismiss clears a search or a filter of the patch, and when none is
-// left, closes the modal.
+// dismiss closes the modal, over any search or filter of the patch.
 func (m *Modal) dismiss() tea.Cmd {
-	if m.focus == commitPane && m.commit.patch {
-		if cmd, ok := m.commit.pager.ClearTransient(); ok {
-			return cmd
-		}
-	}
 	return m.close()
 }
 

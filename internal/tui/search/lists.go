@@ -506,11 +506,10 @@ func (s *Section) pressFeed(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 // ClearTransient peels one layer of what the user asked to see in the results
 // on view, the find, the filter or the marks, and reports whether there was
 // one, as the key that dismisses clears these before it closes the search.
+// The preview is a pager, which the key closes at once.
 func (s *Section) ClearTransient() (tea.Cmd, bool) {
 	if s.preview {
-		cmd, cleared := s.pv.ClearTransient()
-		s.render()
-		return cmd, cleared
+		return nil, false
 	}
 	if l, ok := s.visibleHits(); ok {
 		cmd, cleared := l.feed.ClearTransient()

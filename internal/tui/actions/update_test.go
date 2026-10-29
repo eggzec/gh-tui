@@ -1425,9 +1425,9 @@ func TestEscClosesFromEveryStep(t *testing.T) {
 	}
 }
 
-// TestEscClearsWhatIsShownFirst checks that esc takes away the search of
-// the log, or the find of the runs, before it closes the modal, from the
-// keys and as the app's dismiss intent.
+// TestEscClearsWhatIsShownFirst checks that esc closes the log at once over
+// its search, while it takes away the find of the runs before it closes the
+// modal, from the keys and as the app's dismiss intent.
 func TestEscClearsWhatIsShownFirst(t *testing.T) {
 	t.Run("log search", func(t *testing.T) {
 		_, h := newModal(t, newFake(), wideW, wideH)
@@ -1437,12 +1437,8 @@ func TestEscClearsWhatIsShownFirst(t *testing.T) {
 			t.Fatal("the log shows no search")
 		}
 		h.keys("esc")
-		if h.log == nil || l.log.Query() != "" || len(h.take()) != 0 {
-			t.Fatalf("esc: search %q, want it cleared and the log open", l.log.Query())
-		}
-		h.keys("esc")
 		if h.log != nil {
-			t.Errorf("the second esc left the log open")
+			t.Errorf("esc left the log open over its search")
 		}
 	})
 	t.Run("runs find", func(t *testing.T) {
@@ -1501,21 +1497,17 @@ func TestActBackStepsBack(t *testing.T) {
 	}
 }
 
-// TestEscIsLabelledForWhatItClears checks that the help names esc for the
-// search of the log it clears first, and otherwise for closing.
-func TestEscIsLabelledForWhatItClears(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	l := h.openLog(t)
+// TestEscClosesTheLogOverItsSearch checks that esc closes the log on the
+// first press with a search shown, and that the app's dismiss intent is left
+// to the log, which the key closes.
+func TestEscClosesTheLogOverItsSearch(t *testing.T) {
+	_, h := newModal(t, newFake(), wideW, wideH)
+	h.openLog(t)
 	h.keys("/", "s", "t", "enter")
 	h.keys("esc")
-	if h.log != l {
-		t.Error("esc closed the log with a search shown, want it to clear the search first")
-	}
-	h.keys("esc")
 	if h.log != nil {
-		t.Error("esc didn't close the log")
+		t.Error("esc left the log open with a search shown")
 	}
-	_ = m
 }
 
 // TestEscIsLabelledForTheFindAndTheFilterOfTheRuns checks that the help
