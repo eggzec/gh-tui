@@ -142,6 +142,7 @@ func (m *Model) enableSearchKeys() {
 	keymap.Enable(&m.keys.Confirm, m.prompt.Focused())
 	keymap.Enable(&m.keys.Cancel, m.prompt.Focused())
 	m.keys.Options.setEnabled(m.opt)
+	m.restrictOptions()
 }
 
 // researchShown runs the search shown again over the lines shown, and
