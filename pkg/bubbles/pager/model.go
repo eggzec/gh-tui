@@ -137,6 +137,11 @@ type Model struct {
 	stopSearch context.CancelFunc
 	// size is the size in bytes of the content shown.
 	size int
+	// seen is how many rows the pager has taken in: the length of rows at
+	// SetRows or at the last Append. follow keeps the window at the end as
+	// rows are appended.
+	seen   int
+	follow bool
 
 	// docs are the documents of a list, or nil for a single text, and cur
 	// the one shown. The fields above that belong to a text are live for

@@ -88,6 +88,8 @@ type searchMsg struct {
 	qgen  int
 	lines []int32
 	ends  []int32
+	// upto is how many rows it searched among.
+	upto int
 }
 
 // Query returns the text of the search shown, or "" if there is none.
@@ -174,13 +176,14 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 	m.search.running = true
 	m.enableSearchKeys()
 	id, qgen, all, vis := m.id, m.qgen, m.rows, m.vis
+	upto := all.Len()
 	return func() tea.Msg {
 		defer cancel()
 		lines, ends, err := find(ctx, re, invert, all, vis)
 		if err != nil {
 			return nil
 		}
-		return searchMsg{id: id, qgen: qgen, lines: lines, ends: ends}
+		return searchMsg{id: id, qgen: qgen, lines: lines, ends: ends, upto: upto}
 	}
 }
 
@@ -189,12 +192,23 @@ func (m *Model) runSearch(query string, re *regexp.Regexp, invert bool, from int
 // them and every line before, until ctx is done. With invert, it returns
 // the lines that re doesn't match, each a match of its own.
 func find(ctx context.Context, re *regexp.Regexp, invert bool, all Rows, vis []int32) (lines, ends []int32, err error) {
+	return findFrom(ctx, re, invert, all, vis, 0, nil, nil)
+}
+
+// findFrom returns what find does for the lines at or after line from of
+// those shown, after lines and ends, which an earlier search of the lines
+// before it returned. It appends to them in place.
+func findFrom(ctx context.Context, re *regexp.Regexp, invert bool, all Rows, vis []int32, from int, lines, ends []int32) (outLines, outEnds []int32, err error) {
 	var n int32
-	count := all.Len()
+	if len(ends) > 0 {
+		n = ends[len(ends)-1]
+	}
+	count, first := all.Len(), from
 	if vis != nil {
 		count = len(vis)
+		first, _ = slices.BinarySearch(vis, int32(from))
 	}
-	for p := range count {
+	for p := first; p < count; p++ {
 		if p%checkEvery == 0 {
 			if err := ctx.Err(); err != nil {
 				return nil, nil, err

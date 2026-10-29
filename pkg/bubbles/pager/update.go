@@ -1,6 +1,8 @@
 package pager
 
 import (
+	"context"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -14,6 +16,9 @@ import (
 // gutter.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m, cmd := m.update(msg)
+	if _, ok := msg.(tea.KeyPressMsg); ok && m.follow {
+		m.stopFollowing()
+	}
 	m.fitRendered(false)
 	return m, cmd
 }
@@ -32,11 +37,17 @@ func (m Model) own(msg tea.Msg) (Model, tea.Cmd, bool) {
 		}
 	case searchMsg:
 		if msg.id == m.id && msg.qgen == m.qgen && m.search.running {
-			m.found(msg.lines, msg.ends)
+			lines, ends := msg.lines, msg.ends
+			if n := m.rows.Len(); msg.upto < n && m.seen == n {
+				// Rows were appended while it ran.
+				s := m.search
+				lines, ends, _ = findFrom(context.Background(), s.re, s.invert, m.rows, m.vis, msg.upto, lines, ends)
+			}
+			m.found(lines, ends)
 		}
 	case projectMsg:
 		if msg.id == m.id && msg.pgen == m.pgen && m.projecting {
-			cmd := m.picked(msg.vis, msg.kept)
+			cmd := m.picked(msg.vis, msg.kept, msg.upto)
 			return m, cmd, true
 		}
 	case editedMsg:

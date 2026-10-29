@@ -47,6 +47,8 @@ type docState struct {
 	mark             int
 	search           search
 	hits             hits
+	seen             int
+	follow           bool
 }
 
 // SetDocs shows the first of docs and keeps the rest, in order, to step to
@@ -146,7 +148,7 @@ func (m *Model) save() {
 		vis: m.vis, size: m.size, anchor: m.anchor, atEnd: m.atEnd, owed: m.owed,
 		sizeSeq: m.sizeSeq, proj: m.proj, want: m.want, kept: m.kept,
 		top: m.top, row: m.row, left: m.left, mark: m.mark,
-		search: m.search, hits: m.hits,
+		search: m.search, hits: m.hits, seen: m.seen, follow: m.follow,
 	}
 	// A copy, as Add does: a copy of the model that steps writes its own.
 	m.docs = slices.Clone(m.docs)
@@ -194,6 +196,7 @@ func (m *Model) load() tea.Cmd {
 	m.proj, m.want, m.kept = d.proj, d.want, d.kept
 	m.top, m.row, m.left, m.mark = d.top, d.row, d.left, d.mark
 	m.search, m.hits = d.search, d.hits
+	m.seen, m.follow = d.seen, d.follow
 	m.renderName()
 	if m.render != nil {
 		// It was fitted to the width at the time, so it fits again once, at
@@ -205,6 +208,10 @@ func (m *Model) load() tea.Cmd {
 	m.enableSearchKeys()
 
 	var cmds []tea.Cmd
+	if m.rows.Len() != m.seen {
+		// The host grew the rows while another document was shown.
+		cmds = append(cmds, m.Append(m.seen))
+	}
 	if m.state == stateLoading {
 		cmds = append(cmds, m.spin.Tick)
 	}
