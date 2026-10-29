@@ -71,25 +71,16 @@ func (s *Section) previewed() previewBody {
 		return previewBody{}
 	}
 	if h.Kind == core.SearchRepos {
-		suffix, add := s.extraText(h)
-		b := previewBody{key: "repo " + hitKey(h) + suffix, name: h.Repo.Ref.String()}
-		// What was read is Markdown, with the README in it, so the pager
-		// shows it rendered, as it does an issue's body.
-		if e, ok := s.extras[hitKey(h)]; ok && e.err == nil && e.text != "" {
-			b.issue = func() (string, string) { return repoText(h.Repo), e.text }
-			return b
-		}
-		b.text = func() string { return repoText(h.Repo) + add }
-		return b
+		return s.readBody("repo", h.Repo.Ref.String(), h, repoText(h.Repo))
 	}
 	if h.Kind == core.SearchTopics {
 		return previewBody{key: "topic " + h.Topic.Name, name: h.Topic.Name, text: func() string { return topicText(h.Topic) }}
 	}
 	if h.Kind == core.SearchCommits {
-		return previewBody{key: "commit " + hitKey(h), name: h.Commit.Repo.String() + "@" + h.Commit.SHA, text: func() string { return commitText(h.Commit) }}
+		return s.readBody("commit", h.Commit.Repo.String()+"@"+h.Commit.SHA, h, commitText(h.Commit))
 	}
 	if h.Kind == core.SearchUsers {
-		return previewBody{key: "user " + h.User.Login, name: h.User.Login, text: func() string { return userText(h.User) }}
+		return s.readBody("user", h.User.Login, h, userText(h.User))
 	}
 	return previewBody{
 		key:   "issue " + hitKey(h) + " " + s.text,
@@ -97,6 +88,21 @@ func (s *Section) previewed() previewBody {
 		issue: func() (string, string) { return issueParts(h) },
 		find:  s.text,
 	}
+}
+
+// readBody returns the preview of a hit whose text is its own, plain, with
+// what a read of it added below: Markdown, which the pager shows rendered, as
+// it does an issue's body. While it is read or failed, the note says so under
+// the plain text.
+func (s *Section) readBody(kind, name string, h core.SearchHit, own string) previewBody {
+	suffix, add := s.extraText(h)
+	b := previewBody{key: kind + " " + hitKey(h) + suffix, name: name}
+	if e, ok := s.extras[hitKey(h)]; ok && e.err == nil && e.text != "" {
+		b.issue = func() (string, string) { return own, e.text }
+		return b
+	}
+	b.text = func() string { return own + add }
+	return b
 }
 
 // markdownRender returns what renders an issue's header as it is, wrapped,

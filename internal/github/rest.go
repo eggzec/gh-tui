@@ -69,14 +69,19 @@ const rawAccept = "application/vnd.github.raw+json"
 // the current resource, the Response has NotModified set and there is no
 // content.
 func (c *Client) getRaw(ctx context.Context, path string, cond Conditional, limit int64) ([]byte, Response, error) {
-	b, res, err := c.rawRoundTrip(ctx, path, cond, limit)
+	return c.getMedia(ctx, path, rawAccept, cond, limit)
+}
+
+// getMedia is getRaw for the media type accept.
+func (c *Client) getMedia(ctx context.Context, path, accept string, cond Conditional, limit int64) ([]byte, Response, error) {
+	b, res, err := c.rawRoundTrip(ctx, path, accept, cond, limit)
 	if err != nil {
 		return nil, res, fmt.Errorf("%s %s: %w", http.MethodGet, path, err)
 	}
 	return b, res, nil
 }
 
-func (c *Client) rawRoundTrip(ctx context.Context, path string, cond Conditional, limit int64) ([]byte, Response, error) {
+func (c *Client) rawRoundTrip(ctx context.Context, path, accept string, cond Conditional, limit int64) ([]byte, Response, error) {
 	u, err := c.resolve(path)
 	if err != nil {
 		return nil, Response{}, err
@@ -85,7 +90,7 @@ func (c *Client) rawRoundTrip(ctx context.Context, path string, cond Conditional
 	if err != nil {
 		return nil, Response{}, err
 	}
-	req.Header.Set("Accept", rawAccept)
+	req.Header.Set("Accept", accept)
 	if cond.ETag != "" {
 		req.Header.Set("If-None-Match", cond.ETag)
 	}
