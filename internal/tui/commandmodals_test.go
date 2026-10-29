@@ -174,6 +174,40 @@ func TestCopyOverAModal(t *testing.T) {
 	}
 }
 
+// Esc closes the diff of a pull request at once, over a search it shows,
+// through the app's dismiss key, and leaves the pull request open.
+func TestEscClosesTheDiffOverASearch(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.pane_2", "global.select", "global.pane_6")
+		for _, key := range []string{"j", "j", "j"} {
+			m.View()
+			pressKeys(t, m, key)
+		}
+		files := m.View().Content
+		pressKeys(t, m, "enter")
+		diff := m.View().Content
+		if diff == files {
+			t.Fatal("enter did not open the diff")
+		}
+		pressKeys(t, m, "/")
+		typeKeys(m, "e")
+		driveKeys(t, m, m.key(enter))
+		pull := m.modals.Top()
+		if pull == nil {
+			t.Fatal("no pull request open")
+		}
+		searched := m.View().Content
+		pressKeys(t, m, "esc")
+		if m.modals.Top() != pull {
+			t.Errorf("esc left %T on top, want the pull request", m.modals.Top())
+		}
+		if got := m.View().Content; got == searched || got == diff {
+			t.Error("esc left the diff open over a search")
+		}
+	})
+}
+
 // n and p step through the files of an open diff, and are refused over the
 // pull request itself, which has no files to step through.
 func TestColonNRunsOnlyInTheDiff(t *testing.T) {

@@ -129,7 +129,7 @@ func TestDiffWholePatchKeepsTheFile(t *testing.T) {
 	}
 }
 
-func TestDiffEscClearsSearchThenCloses(t *testing.T) {
+func TestDiffEscClosesAtOnceOverASearch(t *testing.T) {
 	t.Parallel()
 	h, m, o := diffPanes(t, "a.go")
 	press(t, h, "/")
@@ -141,11 +141,8 @@ func TestDiffEscClearsSearchThenCloses(t *testing.T) {
 	if o.typing() {
 		t.Fatal("enter left the prompt open")
 	}
-	if _, ok := m.Act(ui.ActDismiss); !ok || m.top() == nil {
-		t.Error("dismiss closed the diff, want it to clear the search first")
-	}
 	if _, ok := m.Act(ui.ActDismiss); !ok || m.top() != nil {
-		t.Error("the second dismiss left the diff open")
+		t.Error("dismiss left the diff open over a search")
 	}
 }
 
