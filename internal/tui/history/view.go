@@ -359,30 +359,14 @@ func (m *Modal) fileRow(f core.CommitFile, cursor, focused bool, w int) string {
 	if showCounts {
 		room -= countsW + 1
 	}
-	name = truncateLeft(name, room, m.st.ic.Ellipsis)
+	// A path keeps its file name, so it is cut from the left.
+	name = termtext.TruncateLeft(name, room, m.st.ic.Ellipsis)
 	line := gutter + st.Render(letter) + " " + m.st.text.Render(name)
 	if !showCounts {
 		return fit(line, w)
 	}
 	pad := w - 4 - ansi.StringWidth(name) - countsW
 	return line + strings.Repeat(" ", max(pad, 1)) + m.st.success.Render(adds) + " " + m.st.error.Render(dels)
-}
-
-// truncateLeft cuts s to w cells from the left, starting it with tail, so
-// that a path keeps its file name.
-func truncateLeft(s string, w int, tail string) string {
-	if w <= 0 {
-		return ""
-	}
-	sw := ansi.StringWidth(s)
-	if sw <= w {
-		return s
-	}
-	tw := ansi.StringWidth(tail)
-	if tw >= w {
-		return ansi.TruncateLeft(s, sw-w, "")
-	}
-	return tail + ansi.TruncateLeft(s, sw-w+tw, "")
 }
 
 // headerLines returns the rendered header of the commit shown, at width w,
@@ -535,14 +519,7 @@ func pad(s string, w int) string {
 
 // fit pads or cuts s to w cells.
 func fit(s string, w int) string {
-	sw := ansi.StringWidth(s)
-	switch {
-	case sw == w:
-		return s
-	case sw < w:
-		return s + strings.Repeat(" ", w-sw)
-	}
-	return ansi.Truncate(s, w, "")
+	return termtext.Fit(s, w, "")
 }
 
 // padLines returns exactly h of lines, which are w cells wide already:
