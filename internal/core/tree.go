@@ -90,6 +90,9 @@ func LooksBinary(b []byte) bool {
 type TooLargeError struct {
 	Size  int64
 	Limit int64
+	// Warn is set when Limit is the limit above which a file is read only
+	// once the user agrees, and a larger limit may be asked for.
+	Warn bool
 }
 
 func (e *TooLargeError) Error() string {

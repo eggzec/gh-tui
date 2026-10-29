@@ -307,7 +307,7 @@ func TestBlob(t *testing.T) {
 		if c, ok := s.CachedBlob(BlobQuery{Repo: repo, SHA: "b1"}); !ok || string(c.Content) != "hello" {
 			t.Errorf("CachedBlob = %+v, %v; want hello", c, ok)
 		}
-		api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui b1 %d", int64(config.Default().Files.Preview.MaxSize)))
+		api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui b1 %d", int64(config.Default().Files.Preview.WarnSize)))
 	})
 }
 
@@ -349,6 +349,47 @@ func TestBlobTooLarge(t *testing.T) {
 		}
 		api.wantCalls(t, "blob eggzec/gh-tui big 100")
 	})
+}
+
+func TestBlobWarnLimit(t *testing.T) {
+	api := &fakeAPI{t: t, blob: func(sha string, _ int64) (core.Blob, error) {
+		return core.Blob{SHA: sha, Size: 50, Content: make([]byte, 50)}, nil
+	}}
+	s := New(api, WithWarnBlobSize(10), WithMaxBlobSize(100))
+	q := BlobQuery{Repo: repo, SHA: "mid"}
+
+	// Over the warning limit by its tree entry: refused with a way to ask.
+	_, err := s.Blob(t.Context(), BlobQuery{Repo: repo, SHA: "mid", Size: 50})
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || !e.Warn || e.Limit != 10 {
+		t.Fatalf("Blob error = %v, want a warning TooLargeError over 10", err)
+	}
+	api.wantCalls(t)
+
+	// Over the hard limit: refused outright, naming the hard limit.
+	_, err = s.Blob(t.Context(), BlobQuery{Repo: repo, SHA: "huge", Size: 500})
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || e.Warn || e.Limit != 100 {
+		t.Fatalf("Blob error = %v, want a refusal over 100 with no warning", err)
+	}
+	api.wantCalls(t)
+
+	// With the limit raised it reads, up to the hard limit.
+	q.Limit = 1 << 40
+	if b, err := s.Blob(t.Context(), q); err != nil || len(b.Content) != 50 {
+		t.Fatalf("Blob with a raised limit = %d bytes, %v; want 50", len(b.Content), err)
+	}
+	api.wantCalls(t, "blob eggzec/gh-tui mid 100")
+
+	// What the raised read cached is not served to a default query.
+	q.Limit = 0
+	if _, ok := s.CachedBlob(q); ok {
+		t.Error("CachedBlob served a blob over the warning limit")
+	}
+	_, err = s.Blob(t.Context(), q)
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || !e.Warn || e.Size != 50 {
+		t.Errorf("Blob error = %v, want a warning TooLargeError of 50", err)
+	}
+	// No new request: the refusal came from the cached size.
+	api.wantCalls(t, "blob eggzec/gh-tui mid 100")
 }
 
 func TestCompareFold(t *testing.T) {

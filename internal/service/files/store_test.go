@@ -132,7 +132,7 @@ func TestStoreColdWritesThrough(t *testing.T) {
 	}
 	api.wantCalls(t,
 		"all eggzec/gh-tui HEAD ",
-		fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.MaxSize)),
+		fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.WarnSize)),
 	)
 }
 
@@ -370,7 +370,7 @@ func TestStoreCorruptBlob(t *testing.T) {
 	if got, _ := store.Get(kindBlob, helloSHA); string(got) != "hello" {
 		t.Errorf("stored blob = %q, want hello", got)
 	}
-	api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.MaxSize)))
+	api.wantCalls(t, fmt.Sprintf("blob eggzec/gh-tui %s %d", helloSHA, int64(config.Default().Files.Preview.WarnSize)))
 }
 
 func TestStoreBlobNotNamedByContent(t *testing.T) {
