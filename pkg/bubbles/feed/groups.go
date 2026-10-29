@@ -40,6 +40,13 @@ type line struct {
 	// before is the number of loaded items that come before the line in the
 	// order of the groups, whether they show or not.
 	before int
+	// kids is the number of children of an item line, which is foldable when
+	// it has some: path then identifies it and open whether its children show.
+	// A child line has child set, k as its place among them, item as its
+	// item's and path as its item's.
+	kids  int
+	child bool
+	k     int
 }
 
 // cursorRef remembers what the cursor is on, to find it in new lines.
@@ -47,6 +54,8 @@ type cursorRef struct {
 	valid bool
 	head  bool
 	more  bool
+	child bool
+	k     int
 	path  string
 	item  int
 	key   string
@@ -86,8 +95,10 @@ func (m *Model[T]) SetSort(cmp func(a, b T) int) tea.Cmd {
 }
 
 // Resort puts the items in order again, for when what cmp reads has changed.
+// It also picks up a changed number of children, which is read only when the
+// lines are built.
 func (m *Model[T]) Resort() {
-	if m.Grouped() {
+	if m.lined() {
 		m.regroup(m.cursor())
 	}
 }
@@ -96,7 +107,7 @@ func (m *Model[T]) Resort() {
 // the cursor back on ref.
 func (m *Model[T]) reshape(ref cursorRef) tea.Cmd {
 	m.anchored, m.seeking, m.fill = false, false, true
-	if !m.Grouped() {
+	if !m.lined() {
 		m.sel = m.flatSel()
 		m.lines, m.heads, m.order, m.nitems = nil, nil, nil, 0
 		if m.filter != "" {
@@ -127,6 +138,17 @@ func (m Model[T]) Grouped() bool {
 	return len(m.groups) > 0 || m.less != nil
 }
 
+// lined reports whether the rows are lines: grouped or sorted, or with items
+// that own children.
+func (m Model[T]) lined() bool {
+	return m.Grouped() || m.kids != nil
+}
+
+// foldable reports whether line l folds: a header, or an item with children.
+func (l line) foldable() bool {
+	return l.head || l.kids > 0
+}
+
 // Expand opens the group of the header under the cursor.
 func (m *Model[T]) Expand() tea.Cmd {
 	return m.setOpen(true)
@@ -140,7 +162,7 @@ func (m *Model[T]) Collapse() tea.Cmd {
 
 // ExpandAll opens every group.
 func (m *Model[T]) ExpandAll() tea.Cmd {
-	if !m.Grouped() {
+	if !m.lined() {
 		return nil
 	}
 	ref := m.cursor()
@@ -150,13 +172,18 @@ func (m *Model[T]) ExpandAll() tea.Cmd {
 	return m.sync()
 }
 
-// CollapseAll closes every group, and moves the cursor to the header at the
-// top of the one it was in.
+// CollapseAll closes every group and every item's children, and moves the
+// cursor to the header at the top of the group it was in. Without groups it
+// moves to the item whose children closed.
 func (m *Model[T]) CollapseAll() tea.Cmd {
-	if !m.Grouped() {
+	if !m.lined() {
 		return nil
 	}
 	ref := m.headRef(0)
+	if !ref.valid && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].path != "" {
+		// Without groups the cursor goes to the item whose children close.
+		ref = m.itemRef(m.lines[m.sel].item)
+	}
 	// Closing adds no line, so no chunk is fetched just to fill the window.
 	m.fill = false
 	m.closed = make(map[string]struct{}, len(m.heads))
@@ -170,18 +197,24 @@ func (m *Model[T]) CollapseAll() tea.Cmd {
 
 // setOpen opens or closes the group of the header under the cursor.
 func (m *Model[T]) setOpen(open bool) tea.Cmd {
-	if !m.Grouped() || m.sel < 0 || m.sel >= len(m.lines) {
+	if !m.lined() || m.sel < 0 || m.sel >= len(m.lines) {
 		return nil
 	}
 	l := m.lines[m.sel]
-	if !l.head && open {
+	if !l.foldable() && open {
 		return nil
 	}
-	ref := m.cursor()
-	if !l.head {
+	ref, path := m.cursor(), l.path
+	switch {
+	case l.child:
+		// The cursor goes to the item whose children close.
+		ref = m.itemRef(l.item)
+	case l.kids > 0:
+	case !l.head:
 		ref = m.headRef(l.depth - 1)
+		path = ref.path
 	}
-	if ref.path == "" {
+	if path == "" || l.more {
 		return nil
 	}
 	closed := maps.Clone(m.closed)
@@ -189,9 +222,9 @@ func (m *Model[T]) setOpen(open bool) tea.Cmd {
 		closed = map[string]struct{}{}
 	}
 	if open {
-		delete(closed, ref.path)
+		delete(closed, path)
 	} else {
-		closed[ref.path] = struct{}{}
+		closed[path] = struct{}{}
 	}
 	m.closed, m.fill = closed, open
 	m.build()
@@ -213,7 +246,7 @@ func (m Model[T]) headRef(depth int) cursorRef {
 // right is the key that goes into a group: it opens a closed header, and on
 // an open one moves to its first line. It does nothing on an item.
 func (m *Model[T]) right() tea.Cmd {
-	if !m.onHeader() {
+	if !m.onFold() {
 		return nil
 	}
 	l := m.lines[m.sel]
@@ -231,18 +264,18 @@ func (m *Model[T]) right() tea.Cmd {
 // left is the key that goes out of a group: it closes an open header, and
 // from an item or a closed header moves to the header of the group around it.
 func (m *Model[T]) left() tea.Cmd {
-	if !m.Grouped() || m.sel < 0 || m.sel >= len(m.lines) {
+	if !m.lined() || m.sel < 0 || m.sel >= len(m.lines) {
 		return nil
 	}
 	l := m.lines[m.sel]
 	if l.more {
 		return nil
 	}
-	if l.head && l.open {
+	if l.foldable() && l.open {
 		return m.setOpen(false)
 	}
 	for i := m.sel - 1; i >= 0; i-- {
-		if p := m.lines[i]; p.head && p.depth < l.depth {
+		if p := m.lines[i]; p.foldable() && p.depth < l.depth {
 			m.sel = i
 			return m.sync()
 		}
@@ -262,12 +295,22 @@ func (m *Model[T]) toggleAll() tea.Cmd {
 
 // onHeader reports whether the cursor is on a group header.
 func (m Model[T]) onHeader() bool {
-	return m.Grouped() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].head
+	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].head
+}
+
+// onFold reports whether the cursor is on a header or a foldable item.
+func (m Model[T]) onFold() bool {
+	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].foldable()
+}
+
+// onChild reports whether the cursor is on a child row.
+func (m Model[T]) onChild() bool {
+	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].child
 }
 
 // onMore reports whether the cursor is on the row of the items not loaded.
 func (m Model[T]) onMore() bool {
-	return m.Grouped() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].more
+	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].more
 }
 
 // Activate is what enter does on the row of the items not loaded: it fetches
@@ -275,10 +318,15 @@ func (m Model[T]) onMore() bool {
 // on that row, so the parent knows the key was taken, and does nothing for
 // any other row.
 func (m *Model[T]) Activate() (tea.Cmd, bool) {
-	if !m.onMore() {
-		return nil, false
+	if m.onMore() {
+		return m.fetchMore(), true
 	}
-	return m.fetchMore(), true
+	if m.kids != nil && m.sel >= 0 && m.sel < len(m.lines) {
+		if l := m.lines[m.sel]; l.kids > 0 {
+			return m.setOpen(!l.open), true
+		}
+	}
+	return nil, false
 }
 
 // moreText reads the row of the items not loaded.
@@ -328,10 +376,35 @@ func (m *Model[T]) group(items []int, level int, parent string, visible bool, n 
 	if level == len(m.groups) {
 		for _, i := range items {
 			m.order = append(m.order, i)
-			if visible {
-				m.lines = append(m.lines, line{depth: level, item: i, before: *n})
-			}
+			l := line{depth: level, item: i, before: *n}
 			*n++
+			if m.kids != nil {
+				if it, ok := m.item(i); ok {
+					l.kids = m.kids.count(it)
+				}
+			}
+			if l.kids <= 0 {
+				l.kids = 0
+				if visible {
+					m.lines = append(m.lines, l)
+				}
+				continue
+			}
+			l.path = parent + "\x1f" + m.itemKey(i)
+			_, closed := m.closed[l.path]
+			l.open = !closed
+			// Like a header's, the path of an item's fold is kept even inside a
+			// closed group, so that toggleAll counts it.
+			m.heads = append(m.heads, l.path)
+			if !visible {
+				continue
+			}
+			m.lines = append(m.lines, l)
+			for k := 0; l.open && k < l.kids; k++ {
+				m.lines = append(m.lines, line{
+					child: true, k: k, depth: level + 1, item: i, path: l.path, before: *n,
+				})
+			}
 		}
 		return
 	}
@@ -396,9 +469,18 @@ func (m Model[T]) itemRef(i int) cursorRef {
 	return ref
 }
 
+// itemKey returns what identifies item i among the others in the path of its
+// fold: its key, or its index without one.
+func (m Model[T]) itemKey(i int) string {
+	if it, ok := m.item(i); ok && m.key != nil {
+		return m.key(it)
+	}
+	return strconv.Itoa(i)
+}
+
 // cursor returns what the cursor is on.
 func (m Model[T]) cursor() cursorRef {
-	if !m.Grouped() {
+	if !m.lined() {
 		if g := m.at(m.sel); g >= 0 {
 			return m.itemRef(g)
 		}
@@ -413,7 +495,11 @@ func (m Model[T]) cursor() cursorRef {
 	case l.more:
 		return cursorRef{valid: true, more: true}
 	}
-	return m.itemRef(m.lines[m.sel].item)
+	ref := m.itemRef(m.lines[m.sel].item)
+	if l := m.lines[m.sel]; l.child {
+		ref.child, ref.k = true, l.k
+	}
+	return ref
 }
 
 // restore puts the cursor on ref in the grouped lines, if it is there, and
@@ -436,7 +522,7 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 			}
 			continue
 		}
-		if l.head || l.more {
+		if l.head || l.more || l.child != ref.child || l.child && l.k != ref.k {
 			continue
 		}
 		if ref.byKey {
@@ -448,6 +534,12 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 			m.sel = i
 			return true
 		}
+	}
+	if ref.child {
+		// The child is gone, or its item is closed: the cursor stays on the
+		// item.
+		ref.child = false
+		return m.restore(ref)
 	}
 	return false
 }
@@ -476,7 +568,7 @@ func (m Model[T]) itemsAfter() int {
 		return 0
 	}
 	after := m.nitems - l.before
-	if !l.head {
+	if !l.head && !l.child {
 		after--
 	}
 	return after

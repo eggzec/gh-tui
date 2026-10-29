@@ -88,14 +88,14 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.step(1)
 	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
-	case m.Grouped() && keymap.Matches(msg, m.keyMap.Expand):
+	case m.lined() && keymap.Matches(msg, m.keyMap.Expand):
 		return m.afterMove(m.right())
-	case m.Grouped() && keymap.Matches(msg, m.keyMap.Collapse):
+	case m.lined() && keymap.Matches(msg, m.keyMap.Collapse):
 		return m.afterMove(m.left())
-	case m.Grouped() && keymap.Matches(msg, m.keyMap.ToggleAll):
+	case m.lined() && keymap.Matches(msg, m.keyMap.ToggleAll):
 		return m.afterMove(m.toggleAll())
 	case keymap.Matches(msg, m.markKeys.Mark) && m.canMark():
-		if m.onHeader() {
+		if m.onHeader() || m.onChild() {
 			return nil
 		}
 		// Marking moves on as the down key does, so that a run of rows
@@ -215,13 +215,13 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	}
 	before := len(m.lines)
 	m.reindex()
-	if moved && m.Grouped() {
+	if moved && m.lined() {
 		m.fill = len(m.lines) > before
 	}
 	m.pruneMarks()
-	if m.firstItem && before == 0 && m.Grouped() {
+	if m.firstItem && before == 0 && m.lined() {
 		for i, l := range m.lines {
-			if !l.head && !l.more {
+			if !l.head && !l.more && !l.child {
 				m.sel = i
 				break
 			}
@@ -272,7 +272,7 @@ func (m Model[T]) wantsTail() bool {
 	if m.done || m.tail.fetching || m.tail.err != nil || m.filter != "" || m.stalled() {
 		return false
 	}
-	if m.Grouped() {
+	if m.lined() {
 		// Count the loaded items after the cursor's item, not the headers.
 		// A chunk that added no line, because its groups are closed, leaves
 		// the window as empty as it was, so more would not fill it.
@@ -317,7 +317,7 @@ func (m Model[T]) margin() int {
 func (m *Model[T]) keep() tea.Cmd {
 	// A filter shows rows by position among the items it keeps, so the
 	// window says nothing of which chunks are near it.
-	if m.Grouped() {
+	if m.lined() {
 		// The groups need every item, so none is evicted, and any that was
 		// is fetched again.
 		var cmd tea.Cmd

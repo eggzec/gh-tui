@@ -17,6 +17,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -81,6 +82,8 @@ type Model[T any] struct {
 	render Render[T]
 	key    func(T) string
 	onLoad func([]T) tea.Cmd
+	// kids is set by WithChildren, or nil.
+	kids *childSpec[T]
 
 	// gen counts Resets and Reloads; ctx is cancelled when it changes.
 	gen    int
@@ -156,8 +159,12 @@ type Model[T any] struct {
 	order []int
 
 	// Rendered once in SetStyles and SetKeyMap, so View only copies them.
-	groupOpen     string
-	groupClosed   string
+	groupOpen   string
+	groupClosed string
+	// foldWidth is the cells of a fold marker, and blankFold stands in for it
+	// on an item that does not fold.
+	foldWidth     int
+	blankFold     string
 	gutterFocused string
 	gutterBlurred string
 	gutterNone    string
@@ -187,6 +194,9 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 	}
 	m.key, _ = m.settings.key.(func(T) string)
 	m.onLoad, _ = m.settings.onLoad.(func([]T) tea.Cmd)
+	if c, ok := m.children.(childSpec[T]); ok {
+		m.kids = &c
+	}
 	m.prompt = m.newPrompt()
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	// Init fetches the first chunk, and it cannot record that itself.
@@ -274,6 +284,17 @@ func (m Model[T]) ID() int {
 // loaded, such as on a group header or on the row of the items not loaded.
 func (m Model[T]) Selected() (T, bool) {
 	return m.item(m.at(m.sel))
+}
+
+// SelectedChild returns the item whose k-th child row is selected, which is
+// only so with [WithChildren] and the cursor on a child row.
+func (m Model[T]) SelectedChild() (item T, k int, ok bool) {
+	if !m.onChild() {
+		return item, 0, false
+	}
+	l := m.lines[m.sel]
+	item, ok = m.item(l.item)
+	return item, l.k, ok
 }
 
 // Item returns the item of row i, or false if there is none or it is not
@@ -412,6 +433,8 @@ func (m *Model[T]) SetStyles(s Styles) {
 	}
 	m.groupOpen = s.Group.Render(termtext.Cells(s.OpenGlyph, 1)) + " "
 	m.groupClosed = s.Group.Render(termtext.Cells(s.ClosedGlyph, 1)) + " "
+	m.foldWidth = max(lipgloss.Width(m.groupOpen), lipgloss.Width(m.groupClosed))
+	m.blankFold = strings.Repeat(" ", m.foldWidth)
 	m.loadingText = s.Loading.Render("Loading" + s.Ellipsis)
 	m.emptyLine = s.Empty.Render(m.emptyText)
 	m.placeholder = s.Placeholder.Render(s.Ellipsis)
@@ -483,7 +506,7 @@ func (m *Model[T]) reindex() {
 		m.starts = append(m.starts, m.total)
 		m.total += c.n
 	}
-	if m.Grouped() {
+	if m.lined() {
 		m.regroup(m.cursor())
 		return
 	}
