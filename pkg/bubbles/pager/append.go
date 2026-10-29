@@ -64,7 +64,7 @@ func (m *Model) Append(from int) tea.Cmd {
 		m.hits.valid = false
 	}
 	if m.follow {
-		m.top, m.row = m.last()
+		m.toEnd()
 	}
 	m.clamp()
 	return nil
@@ -79,10 +79,19 @@ func (m *Model) retake(n int) tea.Cmd {
 	// The filter runs again over the rows, which also runs the search again.
 	cmd := m.project(m.want)
 	if m.follow {
-		m.top, m.row = m.last()
+		m.toEnd()
 	}
 	m.clamp()
 	return cmd
+}
+
+// toEnd scrolls the window to the end, and puts the cursor, if there is
+// one, on the last line shown.
+func (m *Model) toEnd() {
+	m.top, m.row = m.last()
+	if m.cursoring {
+		m.setCurPos(m.count() - 1)
+	}
 }
 
 // SetFollow keeps the window at the end of the rows as they grow with
@@ -92,7 +101,7 @@ func (m *Model) retake(n int) tea.Cmd {
 func (m *Model) SetFollow(on bool) {
 	m.follow = on
 	if on && m.state == stateReady {
-		m.top, m.row = m.last()
+		m.toEnd()
 		m.clamp()
 	}
 }
@@ -103,7 +112,10 @@ func (m Model) Following() bool { return m.follow }
 // stopFollowing turns following off after a key left the window away from
 // the end.
 func (m *Model) stopFollowing() {
-	if top, row := m.last(); m.follow && (m.top != top || m.row != row) {
+	if !m.follow {
+		return
+	}
+	if top, row := m.last(); m.top != top || m.row != row || m.cursoring && !m.cursorAtEnd() {
 		m.follow = false
 	}
 }

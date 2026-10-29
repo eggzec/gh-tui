@@ -172,6 +172,10 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 		return
 	}
 	if m.gutter != nil {
+		if cg, ok := m.gutter.(CursorGutter); ok && m.cursoring {
+			cg.WriteCursor(b, i, first, i == m.cursor)
+			return
+		}
 		m.gutter.Write(b, i, first)
 		return
 	}

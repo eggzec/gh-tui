@@ -135,7 +135,7 @@ func (g numberGutter) Write(b *strings.Builder, i int, first bool) {
 		st = m.esc.current
 	case s.invert && hit:
 		st = m.esc.match
-	case i == m.mark:
+	case m.cursoring && i == m.cursor, i == m.mark:
 		st = m.esc.current
 	}
 	if !m.lineNumbers {

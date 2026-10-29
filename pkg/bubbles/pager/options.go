@@ -48,6 +48,8 @@ type settings struct {
 	gutter       Gutter
 	rowStyle     RowStyle
 	headerWriter HeaderWriter
+	// cursoring is set by WithCursor.
+	cursoring bool
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.

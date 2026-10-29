@@ -115,6 +115,9 @@ type Model struct {
 	// mark is the line that GoToLine went to, whose number stands out, or
 	// -1.
 	mark int
+	// cursor is the row the cursor is on, an index into rows, while the
+	// pager has a cursor.
+	cursor int
 
 	// prompt is the search prompt, open while it is focused.
 	prompt cmdline.Model

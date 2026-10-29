@@ -45,6 +45,7 @@ type docState struct {
 	kept             int
 	top, row, left   int
 	mark             int
+	cursor           int
 	search           search
 	hits             hits
 	seen             int
@@ -148,7 +149,7 @@ func (m *Model) save() {
 		vis: m.vis, size: m.size, anchor: m.anchor, atEnd: m.atEnd, owed: m.owed,
 		sizeSeq: m.sizeSeq, proj: m.proj, want: m.want, kept: m.kept,
 		top: m.top, row: m.row, left: m.left, mark: m.mark,
-		search: m.search, hits: m.hits, seen: m.seen, follow: m.follow,
+		cursor: m.cursor, search: m.search, hits: m.hits, seen: m.seen, follow: m.follow,
 	}
 	// A copy, as Add does: a copy of the model that steps writes its own.
 	m.docs = slices.Clone(m.docs)
@@ -194,7 +195,7 @@ func (m *Model) load() tea.Cmd {
 	m.render, m.renderedAt, m.pics = d.render, d.renderedAt, d.pics
 	m.vis, m.size, m.anchor, m.atEnd, m.owed, m.sizeSeq = d.vis, d.size, d.anchor, d.atEnd, d.owed, d.sizeSeq
 	m.proj, m.want, m.kept = d.proj, d.want, d.kept
-	m.top, m.row, m.left, m.mark = d.top, d.row, d.left, d.mark
+	m.top, m.row, m.left, m.mark, m.cursor = d.top, d.row, d.left, d.mark, d.cursor
 	m.search, m.hits = d.search, d.hits
 	m.seen, m.follow = d.seen, d.follow
 	m.renderName()
