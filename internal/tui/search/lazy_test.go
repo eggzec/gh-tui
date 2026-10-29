@@ -117,7 +117,7 @@ func TestPreviewShowsLoadingUntilTheReadLands(t *testing.T) {
 	typeOnly(t, s, "tea")
 	cmd := s.Update(keyPress("enter"))
 	// Hold the read's message back: the preview says it is loading.
-	_, held := drive(t, s, cmd, func(m tea.Msg) bool { _, ok := m.(previewReadMsg); return ok }, nil)
+	_, held := drive(t, s, cmd, func(m tea.Msg) bool { _, ok := m.(previewReadMsg); return ok })
 	if len(held) != 1 {
 		t.Fatalf("held %d reads, want one", len(held))
 	}

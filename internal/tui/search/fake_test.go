@@ -427,13 +427,13 @@ func newSection(tb testing.TB, svc Service, width, height int, opts ...Option) *
 // sleep, and send them themselves.
 func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 	tb.Helper()
-	app, _ := drive(tb, s, cmd, nil, nil)
+	app, _ := drive(tb, s, cmd, nil)
 	return app
 }
 
 // drive is run, except that the messages hold reports true for are kept
 // from s and appended to held, for the caller to give it later.
-func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool, held []tea.Msg) (app, _ []tea.Msg) {
+func drive(tb testing.TB, s *Section, cmd tea.Cmd, hold func(tea.Msg) bool) (app, held []tea.Msg) {
 	tb.Helper()
 	queue := []tea.Cmd{cmd}
 	for len(queue) > 0 {
