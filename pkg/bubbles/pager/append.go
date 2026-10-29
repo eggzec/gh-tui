@@ -57,7 +57,9 @@ func (m *Model) Append(from int) tea.Cmd {
 		m.enableSearchKeys()
 	}
 	m.seen = n
-	if m.gutterFor(n) != gutter {
+	// A host's gutter has grown with its rows before Append is called, so
+	// both widths read alike and only the matches kept can be dropped.
+	if m.gutter != nil || m.gutterFor(n) != gutter {
 		// More digits narrow the text, which the matches shown depend on.
 		m.hits.valid = false
 	}

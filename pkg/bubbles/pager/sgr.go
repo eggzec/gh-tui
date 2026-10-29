@@ -56,7 +56,7 @@ func styleLines(lines []string, styles []termtext.Style) [][]termtext.Style {
 // over them, which hide its colors. It writes one style at most for each
 // byte, each short, so a frame stays small whatever the content holds.
 func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
-	s, base, marks := m.rows.Text(i), m.esc.text, m.rows.Marks(i)
+	s, base, marks := m.rows.Text(i), m.base(i), m.rows.Marks(i)
 	matches, first, _ := m.lineHits(i)
 	cur := -1
 	if m.search.cur >= 0 && i == m.search.curLine {

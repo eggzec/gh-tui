@@ -43,6 +43,11 @@ type settings struct {
 	hostCapturing func() bool
 	offered       []OptionID
 	restricted    bool
+	// gutter, rowStyle and headerWriter draw the rows the host's way, or
+	// are nil for the pager's own.
+	gutter       Gutter
+	rowStyle     RowStyle
+	headerWriter HeaderWriter
 }
 
 // DefaultTabWidth is the number of columns between tab stops by default.
