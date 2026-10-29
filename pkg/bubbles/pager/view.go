@@ -3,7 +3,6 @@ package pager
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -159,36 +158,7 @@ func (m Model) writeGutter(b *strings.Builder, i int, first bool, gw int) {
 	if gw == 0 {
 		return
 	}
-	if !first {
-		b.WriteString(strings.Repeat(" ", gw))
-		return
-	}
-	st := m.esc.number
-	s := m.search
-	_, _, hit := m.lineHits(i)
-	switch {
-	case s.invert && s.cur >= 0 && i == s.curLine:
-		st = m.esc.current
-	case s.invert && hit:
-		st = m.esc.match
-	case i == m.mark:
-		st = m.esc.current
-	}
-	if !m.lineNumbers {
-		// Only the marks of an inverted search show, in a cell of their
-		// own.
-		b.WriteString(st.on)
-		b.WriteString(" ")
-		b.WriteString(st.off)
-		b.WriteString(" ")
-		return
-	}
-	n := strconv.Itoa(i + 1)
-	b.WriteString(st.on)
-	b.WriteString(strings.Repeat(" ", gw-1-len(n)))
-	b.WriteString(n)
-	b.WriteString(st.off)
-	b.WriteByte(' ')
+	numberGutter{m: &m, w: gw}.Write(b, i, first)
 }
 
 // writeSpan writes bytes a to e of line i in the colors of their tokens,
