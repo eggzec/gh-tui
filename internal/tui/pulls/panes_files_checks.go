@@ -11,6 +11,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 )
 
@@ -47,7 +48,11 @@ func (m *panesModal) filesRows(width int, folded bool) []foldtree.Row {
 		}
 	}
 	f.targets = targets
-	return files.Rows(d, files.Options{Width: width, Styles: f.styles, Dates: m.dates, Now: now, Folded: folded})
+	o := files.Options{Width: width, Styles: f.styles, Dates: m.dates, Now: now, Folded: folded}
+	if page := m.detail.URL; page != "" {
+		o.FileURL = func(path string) string { return page + "/files#" + ui.DiffAnchor(path) }
+	}
+	return files.Rows(d, o)
 }
 
 // wantChecks asks for the checks of each commit whose fold is open, once. It
