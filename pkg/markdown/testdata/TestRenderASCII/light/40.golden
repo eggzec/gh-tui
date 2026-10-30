@@ -13,13 +13,13 @@ with a long body crashes.
 | It only happens
 | on narrow terminals.
 
-See ]8;;https://example.com/docs\[38;5;29;1mthe docs[m]8;;\
+See ]8;;https://example.com/docs\[4m[38;5;29;1mthe docs[m[24m]8;;\
 and #12, cc @mona.
 
-[38;5;243mImage: ]8;;https://example.com/shot.png\screenshot]8;;\[m
-[38;5;205;4m(]8;;https://example.com/shot.png\https://example.com/shot.png]8;;\)[m
-[38;5;243mImage: ]8;;https://example.com/logo.png\logo]8;;\[m
-[38;5;205;4m(]8;;https://example.com/logo.png\https://example.com/logo.png]8;;\)[m
+[38;5;243mImage: ]8;;https://example.com/shot.png\[4mscreenshot[24m]8;;\[m
+[38;5;205;4m(]8;;https://example.com/shot.png\[4mhttps://example.com/shot.png[24m]8;;\)[m
+[38;5;243mImage: ]8;;https://example.com/logo.png\[4mlogo[24m]8;;\[m
+[38;5;205;4m(]8;;https://example.com/logo.png\[4mhttps://example.com/logo.png[24m]8;;\)[m
 
 [1m+ Stack trace[m
 

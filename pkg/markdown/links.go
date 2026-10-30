@@ -244,6 +244,16 @@ func (r *Renderer) dropGone(lines []string) []string {
 	return kept
 }
 
+// underlined returns the text of a link drawn underlined, as the address
+// it stands for is: the underline is set again after each reset in it, and
+// ends with it.
+func underlined(inner string) string {
+	const on = "\x1b[4m"
+	inner = strings.ReplaceAll(inner, "\x1b[m", "\x1b[m"+on)
+	inner = strings.ReplaceAll(inner, "\x1b[0m", "\x1b[0m"+on)
+	return on + strings.TrimSuffix(inner, on) + "\x1b[24m"
+}
+
 // relink returns line, made safe, with the characters of each link of the
 // render as a hyperlink.
 func (r *Renderer) relink(line string) string {
@@ -266,7 +276,7 @@ func (r *Renderer) relink(line string) string {
 		}
 		line = rest
 		if n := int(c - linkOpen); n < len(r.urls) {
-			b.WriteString(termtext.Link(r.urls[n], inner))
+			b.WriteString(termtext.Link(r.urls[n], underlined(inner)))
 		} else {
 			b.WriteString(inner)
 		}
