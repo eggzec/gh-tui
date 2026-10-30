@@ -1066,10 +1066,8 @@ keys:
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
-  # Actions: the log of a job, an overlay over the modal. Move the focus
-  # between the log and the annotations of the job.
+  # Actions: the log of a job, an overlay over the modal.
   actions_log:
-    annotations: [A]
     up: [up, k]
     down: [down, j]
     left: [left]

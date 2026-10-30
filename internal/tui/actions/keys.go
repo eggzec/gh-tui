@@ -58,10 +58,6 @@ type KeyMap struct {
 	RerunFailed, Rerun, RerunJob, Cancel key.Binding
 	// Confirm answers the confirmation.
 	Confirm ui.ConfirmKeys
-	// Annotations moves the focus between the annotations of a failed job
-	// and its log in the log overlay, with the key of the log, and notes
-	// with that of the annotations.
-	Annotations, notes key.Binding
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -84,9 +80,6 @@ const (
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	modal, runs, log := ui.In(keys, ctxModal), ui.In(keys, ctxRuns), ui.In(keys, ctxLog)
-	// The annotations take their keys from the log's context: they show in
-	// the same overlay.
-	notes := log
 	k := KeyMap{
 		NextTab:      modal.Binding("global.next_tab", "tab"),
 		PrevTab:      modal.Binding("global.prev_tab", "previous tab"),
@@ -109,8 +102,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		RerunJob:     modal.Binding("rerun_job", "rerun job"),
 		Zoom:         modal.Binding("global.zoom", "zoom"),
 		Cancel:       modal.Binding("cancel", "cancel run"),
-		Annotations:  log.Binding("annotations", "annotations"),
-		notes:        notes.Binding("annotations", "annotations"),
 		Confirm:      ui.NewConfirmKeys(keys),
 		form:         ui.FilterFormKeys(keys, "filter"),
 		// The modal's own keys come before those of the lists and the log.
@@ -121,7 +112,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		k.Panes[i] = modal.Binding(a, paneTitles[i])
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
-	k.notesUp, k.notesDown = notes.Binding("up", "up"), notes.Binding("down", "down")
+	k.notesUp, k.notesDown = log.Binding("up", "up"), log.Binding("down", "down")
 	k.Runs = feed.NewKeyMap(runs)
 	k.search = ui.SearchPromptKeys(keys)
 
@@ -161,23 +152,18 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Annotations, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Log.FullHelp())
-}
-
-// job returns the keys of the log overlay's job view: the moves of the
-// lists through its annotations, and the select key to open one.
-func (k KeyMap) job() jobview.KeyMap {
-	return jobview.KeyMap{
-		Log: k.Log, Annotations: k.Annotations, NotesAnnotations: k.notes,
-		LogContext: ctxLog, NotesContext: ctxLog,
-		Up: k.notesUp, Down: k.notesDown, Select: relabel(k.Select, "open file"), Open: k.Open,
-	}
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Log.FullHelp())
 }
 
 // relabel returns b described as desc.
 func relabel(b key.Binding, desc string) key.Binding {
 	b.SetHelp(b.Help().Key, desc)
 	return b
+}
+
+// job returns the keys of the log overlay's job view.
+func (k KeyMap) job() jobview.KeyMap {
+	return jobview.KeyMap{Log: k.Log, LogContext: ctxLog, Open: k.Open}
 }
 
 // paneTitles names the panes in help.

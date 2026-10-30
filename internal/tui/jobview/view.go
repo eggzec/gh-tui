@@ -23,7 +23,6 @@ func (m Model) lines() []string {
 	if n := m.notice(); n != "" {
 		lines = ui.Wrap(n, w)[:1]
 	}
-	lines = append(lines, m.noteLines(w)...)
 	switch m.state {
 	case Pending, Expired:
 		lines = append(lines, m.stepLines(w, h-len(lines))...)

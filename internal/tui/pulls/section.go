@@ -119,6 +119,10 @@ type Service interface {
 // requests and to read them ahead.
 type ChecksService interface {
 	jobview.Service
+	// CachedAnnotations returns a page of annotations from memory, without
+	// a request.
+	CachedAnnotations(q actions.AnnotationsQuery) (core.Page[core.Annotation], bool)
+	Annotations(ctx context.Context, q actions.AnnotationsQuery) (core.Page[core.Annotation], error)
 	// CachedChecks returns the checks of a commit from memory, without a
 	// request.
 	CachedChecks(q actions.ChecksQuery) (core.Checks, bool)

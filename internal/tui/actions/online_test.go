@@ -35,28 +35,6 @@ func TestOnlineReadsKeptAgain(t *testing.T) {
 	}
 }
 
-// TestOnlineReadsKeptAnnotationsAgain checks that the annotations of the job
-// whose log is open, served kept while GitHub rate limited their read, are
-// read again once the limit lifts, once.
-func TestOnlineReadsKeptAnnotationsAgain(t *testing.T) {
-	f := newFake()
-	f.limited = true
-	_, h := newModal(t, f, 120, 30)
-	h.openLogOf(t, ubuntuName)
-	f.mu.Lock()
-	f.limited = false
-	notes := len(f.noteReads)
-	f.mu.Unlock()
-
-	h.send(ui.OnlineMsg{})
-	h.send(ui.OnlineMsg{})
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if got := f.noteReads[notes:]; len(got) != 1 || got[0] != ubuntuJob {
-		t.Errorf("annotations read after two OnlineMsg = %v, want those of job %d once", got, ubuntuJob)
-	}
-}
-
 // TestOnlineReadsKeptWorkflowsAgain checks that the workflows of the
 // filter, served kept while GitHub rate limited their read, are read
 // again once the limit lifts, once.
