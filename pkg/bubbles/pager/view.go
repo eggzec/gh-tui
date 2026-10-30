@@ -106,7 +106,7 @@ func (m *Model) errorLines(width, height int) []string {
 // writeLines writes the rows of the window, each followed by a newline, and
 // returns how many it wrote.
 func (m Model) writeLines(b *strings.Builder) int {
-	h, gw, tw := m.bodyHeight(), m.gutterWidth(), m.textWidth()
+	h, gw, fullTW := m.bodyHeight(), m.gutterWidth(), m.textWidth()
 	rows := 0
 	for p := m.top; p < m.count() && rows < h; p++ {
 		i := m.at(p)
@@ -117,6 +117,8 @@ func (m Model) writeLines(b *strings.Builder) int {
 			continue
 		}
 		s := m.rows.Text(i)
+		ind := m.indent(i)
+		tw := max(fullTW-ind, 0)
 		if pic, ok := m.pics[i]; ok {
 			m.writeGutter(b, i, true, gw)
 			if m.left > 0 {
@@ -124,7 +126,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 				// while scrolled sideways.
 				pic = ""
 			}
-			writePicture(b, pic, tw)
+			writePicture(b, pic, fullTW)
 			b.WriteByte('\n')
 			rows++
 			continue
@@ -133,7 +135,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 			a, pad := m.leftEdge(s)
 			e, used := wrap.Advance(s, a, tw-pad)
 			m.writeGutter(b, i, true, gw)
-			b.WriteString(strings.Repeat(" ", pad))
+			b.WriteString(strings.Repeat(" ", ind+pad))
 			m.writeSpan(b, i, a, e)
 			b.WriteString(strings.Repeat(" ", tw-pad-used))
 			b.WriteByte('\n')
@@ -144,6 +146,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 			e, used := wrap.NextRow(s, a, tw)
 			if p > m.top || r >= m.row {
 				m.writeGutter(b, i, r == 0, gw)
+				b.WriteString(strings.Repeat(" ", ind))
 				if used > tw {
 					// Only a grapheme wider than the whole text column
 					// gets here.

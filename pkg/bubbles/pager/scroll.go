@@ -47,6 +47,20 @@ func (m Model) gutterFor(n int) int {
 // textWidth returns the columns right of the gutter.
 func (m Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
 
+// indent returns the blank cells before the text of row i, which the rows
+// ask for with [Indenter], or 0.
+func (m Model) indent(i int) int {
+	in, ok := m.rows.(Indenter)
+	if !ok {
+		return 0
+	}
+	return max(in.Indent(i), 0)
+}
+
+// widthOf returns the columns of the text of row i, right of the gutter and
+// its indent.
+func (m Model) widthOf(i int) int { return max(m.textWidth()-m.indent(i), 0) }
+
 // rowsIn returns how many rows the line shown at p takes.
 func (m Model) rowsIn(p int) int {
 	if !m.wrap {
@@ -55,7 +69,7 @@ func (m Model) rowsIn(p int) int {
 	if _, ok := m.header(m.at(p)); ok {
 		return 1
 	}
-	s, tw := m.rows.Text(m.at(p)), m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.widthOf(m.at(p))
 	n := 1
 	for j, _ := wrap.NextRow(s, 0, tw); j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		n++
@@ -68,7 +82,7 @@ func (m Model) rowOf(p, b int) int {
 	if _, ok := m.header(m.at(p)); ok {
 		return 0
 	}
-	s, tw := m.rows.Text(m.at(p)), m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.widthOf(m.at(p))
 	r := 0
 	for j, _ := wrap.NextRow(s, 0, tw); j <= b && j < len(s); j, _ = wrap.NextRow(s, j, tw) {
 		r++
@@ -218,15 +232,15 @@ func (m *Model) clamp() {
 // scrollRight scrolls n columns right, but no further than the longest
 // line in the window reaches.
 func (m *Model) scrollRight(n int) {
-	tw := m.textWidth()
 	want := m.left + n
 	reach := 0
 	for p, last := m.top, m.bottom(); p <= last; p++ {
+		tw := m.widthOf(m.at(p))
 		// One more column finds a wide rune that crosses the edge.
 		_, w := wrap.Advance(m.rows.Text(m.at(p)), 0, want+tw+1)
-		reach = max(reach, w)
+		reach = max(reach, w-tw)
 	}
-	m.left = max(min(want, reach-tw), m.left)
+	m.left = max(min(want, reach), m.left)
 }
 
 // hStep returns the columns one sideways scroll moves.

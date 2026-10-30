@@ -335,7 +335,7 @@ func (m *Model) jump(i int) {
 		line := m.rows.Text(s.curLine)
 		_, from := wrap.Advance(line[:ranges[nth][0]], 0, math.MaxInt)
 		_, to := wrap.Advance(line[:ranges[nth][1]], 0, math.MaxInt)
-		if tw := m.textWidth(); from < m.left || to > m.left+tw {
+		if tw := m.widthOf(s.curLine); from < m.left || to > m.left+tw {
 			m.left = max(from-tw/4, 0)
 		}
 	}
@@ -382,7 +382,7 @@ func (m *Model) findHits() {
 // shown returns the bytes a to e of the line shown at p that the window
 // shows.
 func (m Model) shown(p int) (a, e int) {
-	s, tw := m.rows.Text(m.at(p)), m.textWidth()
+	s, tw := m.rows.Text(m.at(p)), m.widthOf(m.at(p))
 	if !m.wrap {
 		a, _ = m.leftEdge(s)
 		e, _ = wrap.Advance(s, a, tw)
