@@ -42,6 +42,34 @@ func TestRepoLinks(t *testing.T) {
 	}
 }
 
+// A link cut short by the width keeps no open link or colour: the cut text
+// is closed, at every width.
+func TestTruncatedLinkClosed(t *testing.T) {
+	s := newSection(t, newFake(), 140, 38)
+	hit := core.CodeHit{Repo: core.RepoRef{Owner: "o", Name: "r"}, Path: "some/long/path/to/main.go", URL: ui.WebURL("github.com", "o/r/blob/abc/main.go")}
+	for _, width := range []int{30, 20, 12} {
+		row := s.renderCode(hit, false, width)
+		if opens, closes := strings.Count(row, "\x1b]8;;http"), strings.Count(row, "\x1b]8;;\x1b\\"); opens != closes {
+			t.Errorf("at %d: %d links opened, %d closed: %q", width, opens, closes, row)
+		}
+		if w := ansi.StringWidth(row); w != width {
+			t.Errorf("at %d: row is %d cells", width, w)
+		}
+	}
+}
+
+// A code hit links its file to the address GitHub gave, whatever the host,
+// as long as it is a plain https one, and its repository to the session's
+// host. A hit of another host is not rewritten to the session's.
+func TestCodeLinksOtherHost(t *testing.T) {
+	s := newSection(t, newFake(), 140, 38, WithHost("github.com"))
+	hit := core.CodeHit{Repo: core.RepoRef{Owner: "o", Name: "r"}, Path: "main.go", URL: "https://ghe.example/o/r/blob/abc/main.go"}
+	links := uitest.Links(t, s.renderCode(hit, true, 140))
+	if len(links) != 2 || links[0] != hit.URL || links[1] != ui.WebURL("github.com", "o/r") {
+		t.Errorf("row links to %q, want the hit's own address and the session host's repository", links)
+	}
+}
+
 // A file links its repository and itself to their pages.
 func TestCodeLinks(t *testing.T) {
 	for _, host := range uitest.Hosts {

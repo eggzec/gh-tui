@@ -226,6 +226,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// Links go to the pages of the session's host, over plain http where
 	// it serves them so, and to no other host so.
 	webHost := client.WebHost()
+	term := os.Getenv("TERM")
+	termtext.SetLinks(cfg.Links == config.LinksOn || cfg.Links == config.LinksAuto && term != "" && term != "dumb")
 	if core.WebScheme(webHost) == "http" {
 		termtext.AllowPlainHTTP(webHost)
 	}

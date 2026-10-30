@@ -33,7 +33,7 @@ const MaxLink = 2 << 10
 //     ultraviolet, which keeps the link on each cell it covers (OSC 8 into
 //     Cell.Link) and writes it again around those cells, ended with BEL.
 func Link(addr, text string) string {
-	if !linkable(addr) {
+	if linksOff.Load() || !linkable(addr) {
 		return text
 	}
 	return "\x1b]8;;" + addr + "\x1b\\" + plain(text) + "\x1b]8;;\x1b\\"
@@ -84,6 +84,16 @@ var httpHost atomic.Pointer[string]
 // may give, must still be https.
 func AllowPlainHTTP(host string) {
 	httpHost.Store(&host)
+}
+
+// linksOff is set when [Link] must return its text as it is.
+var linksOff atomic.Bool
+
+// SetLinks switches [Link] on, as it is by default, or off, when it
+// returns its text as it is, for a terminal that can't show links or a user
+// who doesn't want them.
+func SetLinks(on bool) {
+	linksOff.Store(!on)
 }
 
 // plainHTTP reports whether host, of an address, may be linked to over

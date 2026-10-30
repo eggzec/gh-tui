@@ -51,7 +51,11 @@ type Config struct {
 	UI       UI             `yaml:"ui"`
 	// Images configures the images drawn inline, which only some
 	// terminals show.
-	Images   Images   `yaml:"images" when:"startup" why:"the terminal is asked whether it shows images at startup" scope:"global"`
+	Images Images `yaml:"images" when:"startup" why:"the terminal is asked whether it shows images at startup" scope:"global"`
+	// Links is LinksAuto, which writes clickable links (OSC 8) unless TERM
+	// is dumb or empty, LinksOn, which always does, or LinksOff, which
+	// writes the plain text only.
+	Links    string   `yaml:"links" when:"startup" why:"the links are switched on or off once, at startup" scope:"global"`
 	Auth     Auth     `yaml:"auth" when:"startup" why:"the token's checks start with the app"`
 	GitHub   GitHub   `yaml:"github" when:"startup" why:"the connection to GitHub is set up at startup"`
 	PageSize PageSize `yaml:"page_size" when:"startup" why:"the services read pages of this size from the start"`
@@ -178,7 +182,7 @@ func (c Config) Validate() error {
 	}
 
 	errs = append(errs, c.Keys.validate(), c.Cache.validate(), c.Sync.validate(), c.Files.validate(), c.History.validate(), c.Dashboard.validate(), c.Owner.validate(), c.Prefetch.validate(c.Files.Preview.MaxSize),
-		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), c.Log.validate(),
+		c.UI.validate(), c.GitHub.validate(), c.PageSize.validate(), c.Commands.validate(), c.Images.validate(), validateLinks(c.Links), c.Log.validate(),
 		validateEditor(c.Editor))
 	return errors.Join(errs...)
 }

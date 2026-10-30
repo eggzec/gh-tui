@@ -89,6 +89,11 @@ images:
   # elsewhere, and when this is off, a GIF shows its first frame.
   animate: true
 
+# Clickable links (OSC 8) around repositories, files, titles and the like.
+# auto writes them unless the TERM variable is dumb or empty; on always
+# writes them; off writes the plain text only.
+links: auto
+
 cache:
   # How long what was read of each kind of data is shown without asking
   # GitHub again. After that it is read again, usually with a conditional
