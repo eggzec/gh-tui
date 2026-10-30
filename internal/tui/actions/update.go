@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -315,7 +316,7 @@ func (m *Modal) drill() tea.Cmd {
 	}
 	if m.onJobRow() {
 		if j, ok := m.cursorJob(); ok {
-			return m.openLog(j)
+			return m.openLog(j, jobview.Hints{})
 		}
 		return nil
 	}

@@ -2,6 +2,7 @@ package actions
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -87,6 +88,28 @@ func TestNotesEnterOpensLog(t *testing.T) {
 	}
 	if got := h.log.job.ID; got != want {
 		t.Errorf("opened the log of job %d, want %d", got, want)
+	}
+	a := m.noteEntries()[0].a
+	if got := h.log.hints.Find; !slices.Equal(got, noteFind(a)) || len(got) == 0 {
+		t.Errorf("the log opens on %q, want what annotation %+v printed", got, a)
+	}
+}
+
+func TestNoteFind(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		a    core.Annotation
+		want []string
+	}{
+		{"file and message", core.Annotation{Path: "a/b.go", StartLine: 12, Message: "undefined: x\nmore"}, []string{"a/b.go:12", "undefined: x"}},
+		{"no file", core.Annotation{Message: "Process completed with exit code 1."}, []string{"Process completed with exit code 1."}},
+		{"no line", core.Annotation{Path: ".github", Message: " "}, nil},
+	}
+	for _, tt := range tests {
+		if got := noteFind(tt.a); !slices.Equal(got, tt.want) {
+			t.Errorf("%s: noteFind = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package actions
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -255,7 +256,22 @@ func (m *Modal) openNote() tea.Cmd {
 	if m.noteCursor < 0 || m.noteCursor >= len(es) {
 		return nil
 	}
-	return m.openLog(es[m.noteCursor].job)
+	e := es[m.noteCursor]
+	return m.openLog(e.job, jobview.Hints{Find: noteFind(e.a)})
+}
+
+// noteFind lists what the log of a job may have printed of annotation a, for
+// the log to open on: the file and line a compiler or linter prints, else the
+// first line of the message. It is a guess, which the log may not bear out.
+func noteFind(a core.Annotation) []string {
+	var find []string
+	if a.Path != "" && a.StartLine > 0 {
+		find = append(find, a.Path+":"+strconv.Itoa(a.StartLine))
+	}
+	if msg, _, _ := strings.Cut(strings.TrimSpace(a.Message), "\n"); msg != "" {
+		find = append(find, msg)
+	}
+	return find
 }
 
 // noteLines renders what follows the facts of the run in the annotations

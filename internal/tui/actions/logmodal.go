@@ -18,17 +18,18 @@ type logModal struct {
 	parent *Modal
 	keys   KeyMap
 	job    core.Job
+	hints  jobview.Hints
 
 	following int64
 	stop      func()
 }
 
 // openLog opens the log of job j over the modal.
-func (m *Modal) openLog(j core.Job) tea.Cmd {
+func (m *Modal) openLog(j core.Job, h jobview.Hints) tea.Cmd {
 	m.aheadLogs.Opened(j.ID)
 	m.aheadLogs.Keep(j.ID)
 	o := m.opts
-	lm := &logModal{parent: m, keys: m.keys, job: j}
+	lm := &logModal{parent: m, keys: m.keys, job: j, hints: h}
 	lm.log = jobview.New(m.ctx, m.svc, m.repo, m.keys.job(),
 		jobview.WithIcons(o.icons), jobview.WithRest(o.prefetch.logs.Rest),
 		jobview.WithClock(o.now), jobview.WithVoice(*o.voice))
@@ -41,7 +42,7 @@ func (m *Modal) openLog(j core.Job) tea.Cmd {
 }
 
 func (l *logModal) show(rest bool) tea.Cmd {
-	return l.log.Show(l.job, rest)
+	return l.log.Show(l.job, rest, l.hints)
 }
 
 func (l *logModal) follow() {

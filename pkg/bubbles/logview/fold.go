@@ -1,6 +1,9 @@
 package logview
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // rebuild lists the rows shown, skipping the insides of collapsed folds.
 // It makes a new slice, so copies of the model keep theirs.
@@ -149,6 +152,23 @@ func (m *Model) reveal(r int) {
 		})
 	}
 	m.jumpTo(m.locate(r))
+}
+
+// FocusText moves the cursor to the first line of the log that contains
+// text, expanding the folds that hide it. Section titles don't count. It
+// reports whether a line matched, and moves nothing if none did.
+func (m *Model) FocusText(text string) bool {
+	if text == "" {
+		return false
+	}
+	r := slices.IndexFunc(m.rows, func(r row) bool {
+		return r.kind != kindSection && strings.Contains(r.text, text)
+	})
+	if r < 0 {
+		return false
+	}
+	m.reveal(r)
+	return true
 }
 
 // FocusFailed collapses every section but the first that failed, and moves
