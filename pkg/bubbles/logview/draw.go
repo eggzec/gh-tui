@@ -34,12 +34,16 @@ type look struct {
 	cursor      int
 	matching    bool
 	// ranges returns the matches in row i and which of them is current,
-	// or -1.
+	// or -1. View sets it, on its value receiver, which works because the
+	// store is a pointer shared by every copy of the model.
 	ranges func(i int) ([][]int, int)
 }
 
 // syncLook copies what the pager's hooks read onto the shared store.
 func (m *Model) syncLook() {
+	// A fold the pager revealed lives only on the store until adopted; copying
+	// the model's folds over it would undo the reveal.
+	m.adoptReveal()
 	s := m.store
 	s.rows = m.rows
 	s.look = look{
