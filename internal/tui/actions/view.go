@@ -219,7 +219,7 @@ func (m *Modal) runFacts(w int) []string {
 	}
 	add(sub(ic.Clock), "Duration", m.jobsSpan(now))
 	if r.Attempt > 1 {
-		add(sub(ic.Changed), "Attempt", strconv.Itoa(r.Attempt))
+		add(sub(ic.Attempt), "Attempt", strconv.Itoa(r.Attempt))
 	}
 	if m.cur().err != nil && !m.cur().loaded {
 		// The tree has room for only a cut of the error; it reads whole here.
