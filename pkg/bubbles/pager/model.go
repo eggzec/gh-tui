@@ -1,6 +1,7 @@
 // Package pager is a less-like viewer for text such as a file: it
 // highlights the syntax, scrolls in both directions or soft-wraps, numbers
-// the lines, searches them, and filters them.
+// the lines, searches them, and filters them. A host may also give it its own
+// rows, through [Rows], as the log viewer does.
 //
 // The content arrives already fetched with [Model.SetContent]; while it is
 // on its way, [Model.SetLoading] and [Model.SetError] show a placeholder.
