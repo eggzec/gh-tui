@@ -15,9 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
-	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
 func TestShowsAFailedJobOnItsError(t *testing.T) {
@@ -120,7 +118,7 @@ func TestRestWaitsUntilReadNow(t *testing.T) {
 
 func TestFromMemory(t *testing.T) {
 	f := newFake()
-	f.cached[failedJob], f.cachedNotes[failedJob] = true, true
+	f.cached[failedJob] = true
 	m := newView(t, f, 80, 12)
 	if cmd := m.Show(failed(), true, Hints{}); cmd != nil || m.State() != Ready {
 		t.Errorf("a log in memory isn't shown at once: state %d", m.State())
@@ -220,231 +218,8 @@ func TestViewFitsAnySize(t *testing.T) {
 	}
 }
 
-func TestAnnotations(t *testing.T) {
-	f := newFake()
-	m := newView(t, f, 80, 20)
-	run(m, m.Show(failed(), false, Hints{SHA: "f00d"}))
-	s := text(m)
-	for _, want := range []string{"Annotations 3 A to pick one", "✗ tea_test.go:54 want a frame, got none", "! key.go:12 unused: x is unused", "✗ Process completed with exit code 1."} {
-		if !strings.Contains(s, want) {
-			t.Errorf("the view lacks %q:\n%s", want, s)
-		}
-	}
-	assertFits(t, m.View(), 80, 20)
-	m.Focus()
-	if got := keys(m, "A"); len(got) != 0 || !m.OnAnnotations() || m.view.Focused() {
-		t.Fatal("A didn't give the keys to the annotations")
-	}
-	// Folding every step works from the annotations, which keep the keys.
-	before := m.view.View()
-	if got := keys(m, "*"); len(got) != 0 || !m.OnAnnotations() || m.view.Focused() || m.view.View() == before {
-		t.Error("* didn't fold the steps of the log from the annotations")
-	}
-	keys(m, "*")
-	got := keys(m, "j", "enter")
-	want := ui.OpenFileMsg{Repo: repo, Path: "key.go", Ref: "f00d", Line: 12}
-	if len(got) != 1 || got[0] != want {
-		t.Errorf("enter sent %v, want %v", got, want)
-	}
-	if got := keys(m, "j", "enter"); len(got) != 0 {
-		t.Errorf("enter on an annotation of the workflow sent %v", got)
-	}
-	keys(m, "A")
-	if m.OnAnnotations() || !m.view.Focused() {
-		t.Error("A didn't give the keys back to the log")
-	}
-	// Blurred and focused again, the log keeps the keys.
-	m.Blur()
-	m.Focus()
-	if m.OnAnnotations() {
-		t.Error("the annotations took the keys back")
-	}
-}
-
-// An option of the log is chosen from the annotations: the option key leaves
-// the log waiting for the name, which it takes, and then the annotations
-// have the keys again.
-func TestLogOptionFromAnnotations(t *testing.T) {
-	f := newFake()
-	m := newView(t, f, 80, 20)
-	run(m, m.Show(failed(), false, Hints{SHA: "f00d"}))
-	m.Focus()
-	keys(m, "A")
-	if m.view.Wrap() {
-		t.Fatal("the log wraps at first")
-	}
-	keys(m, "-")
-	if !m.Capturing() || !m.view.Focused() || !m.view.ChoosingOption() {
-		t.Fatalf("- left capturing %v, log focused %v; want the log waiting for an option", m.Capturing(), m.view.Focused())
-	}
-	if l := m.Layer(); l.Context != "log_option" || l.Typing {
-		t.Errorf("layer of context %q, typing %v; want log_option that types nothing", l.Context, l.Typing)
-	}
-	keys(m, "S")
-	if !m.view.Wrap() {
-		t.Error("-S from the annotations didn't wrap the log")
-	}
-	if m.view.Focused() || m.Capturing() || !m.OnAnnotations() {
-		t.Errorf("after the option: log focused %v, capturing %v, on annotations %v; want the annotations to keep the keys",
-			m.view.Focused(), m.Capturing(), m.OnAnnotations())
-	}
-	// The annotations take their own keys again.
-	keys(m, "j")
-	if m.notes.cursor != 1 {
-		t.Errorf("j left the annotation cursor on %d, want 1", m.notes.cursor)
-	}
-}
-
-func TestAnnotationsAreReadOnlyForFailedJobs(t *testing.T) {
-	f := newFake()
-	f.logs[runningJob] = testLog()
-	m := newView(t, f, 80, 20)
-	j := running()
-	j.Status, j.Conclusion = core.RunCompleted, core.ConclusionSuccess
-	run(m, m.Show(j, false, Hints{}))
-	run(m, m.Show(failed(), false, Hints{NoAnnotations: true}))
-	if len(f.noteReads) != 0 || strings.Contains(text(m), "Annotations") {
-		t.Errorf("read annotations of %v, want none", f.noteReads)
-	}
-	// From memory, with the log.
-	f.cachedNotes[failedJob], f.cached[failedJob] = true, true
-	m = newView(t, f, 80, 20)
-	if cmd := m.Show(failed(), false, Hints{}); cmd != nil || !strings.Contains(text(m), "Annotations 3") {
-		t.Error("the annotations in memory didn't show at once")
-	}
-}
-
-func TestAnnotationsRetry(t *testing.T) {
-	f := newFake()
-	f.notesErr = errBoom
-	m := newView(t, f, 80, 20)
-	run(m, m.Show(failed(), false, Hints{}))
-	if s := text(m); !strings.Contains(s, "Annotations ✗ Something went wrong") {
-		t.Fatalf("the view doesn't say the annotations failed:\n%s", s)
-	}
-	f.notesErr = nil
-	run(m, m.Retry())
-	if s := text(m); !strings.Contains(s, "Annotations 3") {
-		t.Errorf("retry didn't read the annotations again:\n%s", s)
-	}
-}
-
-// TestAnnotationsKeptReadAgain checks that annotations served kept while
-// GitHub rate limited their read are read again once, by RetryKept, and
-// that annotations read fresh aren't.
-func TestAnnotationsKeptReadAgain(t *testing.T) {
-	f := newFake()
-	f.notesLimited = true
-	m := newView(t, f, 80, 20)
-	run(m, m.Show(failed(), false, Hints{}))
-	f.notesLimited = false
-	reads := len(f.noteReads)
-	run(m, m.RetryKept())
-	run(m, m.RetryKept())
-	if got := f.noteReads[reads:]; len(got) != 1 || got[0] != failedJob {
-		t.Errorf("annotations read after two RetryKept = %v, want those of job %d once", got, failedJob)
-	}
-}
-
-// The annotations say why they failed to load the way the user should
-// read it, after their title, without the error's chain, request or status
-// code.
-func TestAnnotationErrorWords(t *testing.T) {
-	tests := []struct {
-		name string
-		err  error
-		want string
-	}{
-		{"offline", fmt.Errorf("list annotations: github: GET /repos/o/r/check-runs/1/annotations: %w", core.ErrOffline), "Annotations ✗ Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list annotations: github: 403 Forbidden: %w", core.ErrForbidden), "Annotations ✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub"},
-		{"not found", fmt.Errorf("list annotations: github: 404 Not Found: %w", core.ErrNotFound), "Annotations ✗ test (ubuntu-latest, 1.26) doesn't exist or is private."},
-		{"internal", fmt.Errorf("list annotations: github: decode: %s", termtexttest.Hostile), "Annotations ✗ Something went wrong · r to retry"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := newFake()
-			f.notesErr = tt.err
-			m := newView(t, f, 120, 20, WithVoice(ui.NewVoice(config.Default().Keys, "")))
-			run(m, m.Show(failed(), false, Hints{}))
-			termtexttest.AssertClean(t, m.View(), 120)
-			s := text(m)
-			if !strings.Contains(s+" ", tt.want+" ") {
-				t.Errorf("the view shows %q, want %q", s, tt.want)
-			}
-			for _, leak := range []string{"github:", "list annotations", "GET", "403", "404", "decode"} {
-				if strings.Contains(s, leak) {
-					t.Errorf("the view shows %q: %q", leak, s)
-				}
-			}
-		})
-	}
-}
-
-// Annotations that failed to load say why, in both themes.
-func TestViewNotesFailed(t *testing.T) {
-	for _, dark := range []bool{false, true} {
-		t.Run(fmt.Sprintf("dark=%t", dark), func(t *testing.T) {
-			f := newFake()
-			f.notesErr = fmt.Errorf("list annotations: %w", core.ErrForbidden)
-			m := newView(t, f, 60, 12, WithVoice(ui.NewVoice(config.Default().Keys, "")))
-			p, err := config.Default().Palette(dark)
-			if err != nil {
-				t.Fatal(err)
-			}
-			m.SetTheme(ui.NewTheme(p, dark))
-			run(m, m.Show(failed(), false, Hints{}))
-			v := m.View()
-			assertFits(t, v, 60, 12)
-			golden.RequireEqual(t, v)
-		})
-	}
-}
-
-func TestKeyLayers(t *testing.T) {
-	m := newView(t, newFake(), 80, 20)
-	run(m, m.Show(failed(), false, Hints{}))
-	m.Focus()
-	names := func() string {
-		bs := ui.Hints{Layers: m.KeyLayers()}.ShortHelp()
-		out := make([]string, 0, len(bs))
-		for _, b := range bs {
-			out = append(out, b.Help().Key+" "+b.Help().Desc)
-		}
-		return strings.Join(out, ", ")
-	}
-	if got, want := names(), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, q/esc close, A annotations"; got != want {
-		t.Errorf("keys of the log %q, want %q", got, want)
-	}
-	keys(m, "A")
-	if got, want := names(), "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"; got != want {
-		t.Errorf("keys of the annotations %q, want %q", got, want)
-	}
-}
-
 func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, testKeys())
-}
-
-// The layers take a key in the order the view does: the log's until the
-// annotations have the focus, and theirs alone then.
-func TestKeyLayersOrder(t *testing.T) {
-	m := newView(t, newFake(), 80, 20)
-	run(m, m.Show(failed(), false, Hints{}))
-	m.Focus()
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Log" {
-		t.Errorf("j reaches %q, want the log", src)
-	}
-	keys(m, "A")
-	if _, src, _ := uitest.Winner(m.KeyLayers(), "j"); src != "Log" {
-		// The annotations share the log's context, so the cursor check
-		// below tells them apart.
-		t.Errorf("j reaches %q on the annotations, want the log's context", src)
-	}
-	before := m.notes.cursor
-	keys(m, "j")
-	if m.notes.cursor != before+1 {
-		t.Errorf("j moved the annotations from %d to %d, want one down", before, m.notes.cursor)
-	}
 }
 
 // With the ASCII icons the job draws ASCII alone: its steps, the log's
@@ -453,7 +228,7 @@ func TestViewASCII(t *testing.T) {
 	for _, j := range []core.Job{failed(), running()} {
 		f := newFake()
 		m := newView(t, f, 80, 20, WithIcons(ui.NewIcons(config.IconsASCII)))
-		run(m, m.Show(j, false, Hints{SHA: "f00d"}))
+		run(m, m.Show(j, false, Hints{}))
 		if v := ansi.Strip(m.View()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("job %s: view isn't ASCII:\n%s", j.Name, v)
 		}

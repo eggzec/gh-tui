@@ -1,7 +1,6 @@
 // Package jobview shows one job of a GitHub Actions run: its log, with the
 // failed step open on its first error, or its steps while GitHub doesn't
-// publish the log yet, and above them the annotations of a failed job,
-// each of which opens its file on its line. The Actions modal shows the
+// publish the log yet. The Actions modal shows the
 // job under the cursor of its jobs with it, and the checks of a pull
 // request the job of a check.
 //
@@ -14,7 +13,6 @@ package jobview
 
 import (
 	"context"
-	"slices"
 	"sync/atomic"
 	"time"
 
@@ -23,21 +21,16 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
 
-// Service is what the view reads a job's log and annotations from.
+// Service is what the view reads a job's log from.
 type Service interface {
 	// CachedLog returns a job's log from memory, without a request.
 	CachedLog(repo core.RepoRef, jobID int64) (core.Log, bool)
 	Log(ctx context.Context, repo core.RepoRef, jobID int64) (core.Log, error)
-	// CachedAnnotations returns a page of annotations from memory, without
-	// a request.
-	CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool)
-	Annotations(ctx context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error)
 	// CachedPartialLog returns what was read of the log of a job in
 	// progress from memory, without a request.
 	CachedPartialLog(repo core.RepoRef, jobID int64) (core.PartialLog, bool)
@@ -52,63 +45,28 @@ type Service interface {
 type KeyMap struct {
 	// Log moves through the log.
 	Log logview.KeyMap
-	// Annotations moves the focus from the log to the annotations, and
-	// NotesAnnotations, the key the annotations have for it, back to the
-	// log.
-	Annotations      key.Binding
-	NotesAnnotations key.Binding
-	// LogContext and NotesContext name the contexts of keys that the log
-	// and the annotations are, in the parent's modal, for help.
-	LogContext, NotesContext string
-	// Up and Down move through the annotations, and Select opens the file
-	// of the one under the cursor.
-	Up, Down, Select key.Binding
+	// LogContext names the context of keys that the log is, in the parent's
+	// modal, for help.
+	LogContext string
 	// Open opens the job on GitHub, which the notices name.
 	Open key.Binding
 }
 
-// own returns the keys of the view itself, in the order it matches them,
-// with the key that moves the focus as the annotations or the log, whichever
-// has it, has the key.
-func (k KeyMap) own(onNotes bool) []key.Binding {
-	return []key.Binding{k.annotations(onNotes), k.Up, k.Down, k.Select, k.Open}
-}
-
-// annotations returns the key that moves the focus to the other of the
-// annotations and the log.
-func (k KeyMap) annotations(onNotes bool) key.Binding {
-	if onNotes {
-		return k.NotesAnnotations
-	}
-	return k.Annotations
+// own returns the keys of the view itself.
+func (k KeyMap) own() []key.Binding {
+	return []key.Binding{k.Open}
 }
 
 // ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding { return k.shortHelp(false) }
+func (k KeyMap) ShortHelp() []key.Binding { return nil }
 
 // FullHelp implements help.KeyMap: the keys of the view and the log.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return append([][]key.Binding{append(k.own(false), k.NotesAnnotations)}, k.Log.FullHelp()...)
-}
-
-// shortHelp returns the keys of the view worth a hint.
-func (k KeyMap) shortHelp(onNotes bool) []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Select, k.annotations(onNotes)}
+	return append([][]key.Binding{k.own()}, k.Log.FullHelp()...)
 }
 
 // Hints are what the parent knows of a job shown beyond the job itself.
-type Hints struct {
-	// SHA is the commit the job ran on, at which the files of its
-	// annotations open.
-	SHA string
-	// NoAnnotations reports that the job is known to have none, such as
-	// from its check run, so none are read.
-	NoAnnotations bool
-	// KeptNotes reports that the parent read the annotations from what an
-	// earlier read kept. The cache holds such a page without its marks, so
-	// the parent says it, and they are read again once GitHub answers.
-	KeptNotes bool
-}
+type Hints struct{}
 
 // State is what the view shows.
 type State int
@@ -149,10 +107,8 @@ type Model struct {
 	state State
 	// failed is why the log failed to load, while the state is Failed.
 	failed error
-	notes  notes
-	// focused is set while the view takes keys, and onNotes while the
-	// annotations take them rather than the log.
-	focused, onNotes bool
+	// focused is set while the view takes keys.
+	focused bool
 	// truncated reports that only the end of the log was read.
 	truncated bool
 	// resting is set while the log waits for the cursor of the parent to
@@ -248,21 +204,19 @@ func (m *Model) SetSize(width, height int) {
 	m.layout()
 }
 
-// layout sizes the log to the room below the notice and the annotations.
+// layout sizes the log to the room below the notice.
 func (m *Model) layout() {
-	h := m.height - m.notesHeight()
+	h := m.height
 	if m.notice() != "" {
 		h--
 	}
 	m.view.SetSize(m.width, max(h, 0))
-	m.notes.scroll(m.noteRows())
 }
 
-// Focus makes the view take keys: the log, or the annotations if they had
-// the focus.
+// Focus makes the view take keys.
 func (m *Model) Focus() {
 	m.focused = true
-	m.focusLog(!m.onNotes || len(m.notes.items) == 0)
+	m.view.Focus()
 }
 
 // Blur makes the view ignore keys.
@@ -271,22 +225,8 @@ func (m *Model) Blur() {
 	m.view.Blur()
 }
 
-// focusLog gives the keys to the log, or to the annotations.
-func (m *Model) focusLog(log bool) {
-	m.onNotes = !log
-	if log && m.focused {
-		m.view.Focus()
-	} else {
-		m.view.Blur()
-	}
-}
-
 // Focused reports whether the view takes keys.
 func (m Model) Focused() bool { return m.focused }
-
-// OnAnnotations reports whether the annotations take the keys rather than
-// the log.
-func (m Model) OnAnnotations() bool { return m.focused && m.onNotes }
 
 // Capturing reports whether the search of the log takes every key.
 func (m Model) Capturing() bool { return m.view.Capturing() }
@@ -307,33 +247,21 @@ func (m Model) LogID() int64 { return m.view.ID() }
 // KeyMap returns the keys of the log.
 func (m Model) KeyMap() logview.KeyMap { return m.view.KeyMap() }
 
-// KeyLayers returns the keys of the view as a layer of keys, whichever of
-// the log and the annotations has the focus.
+// KeyLayers returns the keys of the view as a layer of keys.
 func (m Model) KeyLayers() []keyhelp.Layer { return []keyhelp.Layer{m.Layer()} }
 
-// Layer returns the keys of the view in the order it matches them: those
-// of the annotations, which take every key but those of the whole log
-// while they have the focus, and then those of the log, once it shows. It
-// is a layer of the context of whichever has the focus, or of a search of
-// the log while that takes every key.
+// Layer returns the keys of the view in the order it matches them: its own,
+// and then those of the log, once it shows. It is a layer of the context of
+// the log, or of a search of the log while that takes every key.
 func (m Model) Layer() keyhelp.Layer {
-	k := m.keys.state(m)
-	on := m.OnAnnotations()
+	k := m.keys.state()
 	ctx := k.LogContext
-	if on {
-		ctx = k.NotesContext
-	}
-	notes := keyhelp.Layer{Bindings: k.own(m.OnAnnotations()), Short: k.shortHelp(on)}
+	own := keyhelp.Layer{Bindings: k.own()}
 	log := keyhelp.FromHelp("", m.view, m.view.Searching())
-	whole := m.wholeLog()
 	limit := func(bs []key.Binding) {
 		for i, b := range bs {
-			// The log's keys do nothing until it shows, and only those of the
-			// whole log reach it from the annotations.
-			keep := m.showsLog() && (!on || m.view.Capturing() || slices.ContainsFunc(whole, func(w key.Binding) bool {
-				return slices.Equal(w.Keys(), b.Keys())
-			}))
-			bs[i].SetEnabled(b.Enabled() && keep)
+			// The log's keys do nothing until it shows.
+			bs[i].SetEnabled(b.Enabled() && m.showsLog())
 		}
 	}
 	limit(log.Bindings)
@@ -346,21 +274,11 @@ func (m Model) Layer() keyhelp.Layer {
 		// So does the name of an option, but it types nothing.
 		ctx = "log_option"
 	}
-	return ui.MergeLayers(ctx, notes, log)
+	return ui.MergeLayers(ctx, own, log)
 }
 
-// state returns k as the view takes it now: the annotations only while
-// there are some, the keys that move through them while they have the
-// focus, and not the open key, which the parent handles.
-func (k KeyMap) state(m Model) KeyMap {
-	notes := len(m.notes.items) > 0 && !m.view.Capturing()
-	on := m.OnAnnotations()
-	k.Annotations.SetEnabled(k.Annotations.Enabled() && notes)
-	k.NotesAnnotations.SetEnabled(k.NotesAnnotations.Enabled() && notes)
-	k.NotesAnnotations.SetHelp(k.NotesAnnotations.Help().Key, "log")
-	for _, b := range []*key.Binding{&k.Up, &k.Down, &k.Select} {
-		b.SetEnabled(b.Enabled() && notes && on)
-	}
+// state returns k without the open key, which the parent handles.
+func (k KeyMap) state() KeyMap {
 	k.Open.SetEnabled(false)
 	return k
 }
@@ -393,19 +311,9 @@ func (m Model) Title() string {
 	return ui.OneLine(m.job.Name)
 }
 
-// Update takes the view's rests, log and annotations, and passes the rest
-// to the log. Keys go to the annotations while they have the focus.
+// Update takes the view's rests and log, and passes the rest to the log.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if cmd, ok := m.press(msg); ok {
-			return m, cmd
-		}
-	case notesMsg:
-		if msg.id == m.id {
-			m.receiveNotes(msg)
-		}
-		return m, nil
 	case restMsg:
 		if msg.id != m.id || msg.seq != m.seq || !m.resting {
 			return m, nil
@@ -426,9 +334,5 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.view, cmd = m.view.Update(msg)
-	if _, ok := msg.(tea.KeyPressMsg); ok && m.onNotes && m.view.Focused() && !m.view.Capturing() {
-		// An option chosen from the annotations leaves the log blurred.
-		m.view.Blur()
-	}
 	return m, cmd
 }

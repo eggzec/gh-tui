@@ -1170,9 +1170,7 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		{"unfolded run", keys("k", "enter"), "↵ fold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↵ log, J rerun job, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
 		// The log is an overlay with the keys of its own.
-		{"log", keys("enter"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
-		{"annotations", keys("A"), "* all, - option: S N, ↑/k up, ↓/j down, ↵ open file, A log"},
-		{"log again", keys("A"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search, A annotations"},
+		{"log", keys("enter"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search"},
 		// The steps of a job in progress don't fold, and have no keys to show.
 		{"log in progress", func() {
 			// Close the log, step left up to the failed run past the group
@@ -1438,41 +1436,17 @@ func TestJobsNoteSitsUnderTheRunName(t *testing.T) {
 	}
 }
 
-func TestAnnotationsOpenTheirFile(t *testing.T) {
+func TestLogShowsNoAnnotations(t *testing.T) {
 	f := newFake()
 	_, h := newModal(t, f, wideW, wideH)
 	l := h.openLogOf(t, ubuntuName)
-	if s := logText(l); !strings.Contains(s, "Annotations 2") || !strings.Contains(s, "✗ tea_test.go:54 want a frame, got none") {
-		t.Fatalf("the log doesn't show the annotations:\n%s", s)
+	if s := logText(l); strings.Contains(s, "Annotations") {
+		t.Fatalf("the log shows annotations:\n%s", s)
 	}
-	// The pane reads those of every finished job, the failed one first, and
-	// the log takes the failed job's from memory.
+	// The pane reads those of every finished job, the failed one first.
 	reads := []int64{ubuntuJob, 100, 102, 103}
 	if !slices.Equal(f.noteReads, reads) {
 		t.Errorf("read the annotations of %v, want those of %v once each", f.noteReads, reads)
-	}
-	h.keys("A")
-	if !l.log.OnAnnotations() {
-		t.Fatal("A in the log didn't focus the annotations")
-	}
-	h.keys("enter")
-	want := ui.OpenFileMsg{Repo: repo, Path: "tea_test.go", Ref: "f00dcafe", Line: 54}
-	if got := h.take(); len(got) != 1 || got[0] != want {
-		t.Fatalf("enter sent %v, want the file previewed at the run's commit", got)
-	}
-	// The exit code is about the workflow, not a file.
-	h.keys("j", "enter")
-	if got := h.take(); len(got) != 0 {
-		t.Errorf("enter on an annotation of the workflow sent %v", got)
-	}
-	h.keys("A")
-	if l.log.OnAnnotations() {
-		t.Error("A didn't give the keys back to the log")
-	}
-	// The log of a job that passed reads none beyond what the pane has.
-	h.keys("esc", "j", "enter")
-	if !slices.Equal(f.noteReads, reads) {
-		t.Errorf("read the annotations of %v, want no more than %v", f.noteReads, reads)
 	}
 }
 

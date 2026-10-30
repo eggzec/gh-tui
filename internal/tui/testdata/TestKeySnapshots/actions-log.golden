@@ -12,10 +12,6 @@ global
   help | ? | ? | on
 
 Log
-  annotations | A | A | on
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
-  open file | enter | ↵ | off
   browser | o | o | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on

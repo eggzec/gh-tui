@@ -15,7 +15,7 @@ import (
 )
 
 // Show shows job j: its log from memory at once, or read, after the rest
-// of WithRest if rest is set, and the annotations of a failed job with it.
+// of WithRest if rest is set.
 // A job that hasn't finished shows its steps, or once it runs what GitHub
 // publishes of its log, and its whole log once it is shown again,
 // finished. Showing the job shown again keeps its log, and only takes its
@@ -45,13 +45,9 @@ func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
 		}
 		return m.watch(rest)
 	}
-	notes := m.cachedNotes()
 	if lg, ok := m.svc.CachedLog(m.repo, j.ID); ok {
 		m.setLog(lg)
-		if notes {
-			return nil
-		}
-		return m.readNotes()
+		return nil
 	}
 	m.state = Loading
 	spin := m.view.SetLoading()
@@ -73,8 +69,6 @@ func (m *Model) Clear() {
 	m.job, m.hints, m.state, m.truncated, m.resting = core.Job{}, Hints{}, None, false, false
 	m.part, m.unwatch = shownPart{}, nil
 	m.view.SetTitle("")
-	m.notes = notes{}
-	m.focusLog(true)
 	m.layout()
 }
 
@@ -90,48 +84,35 @@ func (m *Model) ReadNow() tea.Cmd {
 }
 
 // ReadLost reads again what was being read while the view was hidden,
-// such as behind a file preview opened from an annotation, whose answers
-// went to the preview and were lost: the annotations, and the log unless
-// it waited for a rest, which is lost too and read at once instead.
+// such as behind a file preview, whose answers went to the preview and
+// were lost: the log, unless it waited for a rest, which is lost too and
+// read at once instead.
 func (m *Model) ReadLost() tea.Cmd {
-	if m.state == None {
-		return nil
-	}
-	var notes tea.Cmd
-	if m.notes.loading {
-		notes = m.readNotes()
-	}
 	if m.state != Loading {
-		return notes
+		return nil
 	}
 	// A rest or a read still to come is stale.
 	m.resting = false
 	m.seq++
-	return tea.Batch(notes, m.read())
+	return m.read()
 }
 
-// Err returns why the log failed to load, else why the annotations did,
-// or nil if neither failed.
+// Err returns why the log failed to load, or nil if it didn't.
 func (m Model) Err() error {
 	if m.state == Failed {
 		return m.failed
 	}
-	return m.notes.err
+	return nil
 }
 
-// Retry reads the log or the annotations again once they failed to load,
-// and does nothing otherwise.
+// Retry reads the log again once it failed to load, and does nothing
+// otherwise.
 func (m *Model) Retry() tea.Cmd {
-	var notes tea.Cmd
-	if m.notes.err != nil {
-		m.notes.err = nil
-		notes = m.readNotes()
-	}
 	if m.state != Failed {
-		return notes
+		return nil
 	}
 	m.state, m.failed = Loading, nil
-	return tea.Batch(notes, m.view.SetLoading(), m.read())
+	return tea.Batch(m.view.SetLoading(), m.read())
 }
 
 // restMsg reports that the rest of seq ended.
@@ -150,8 +131,7 @@ type logMsg struct {
 	err   error
 }
 
-// read reads the log of the job shown, and its annotations unless they are
-// in memory.
+// read reads the log of the job shown.
 func (m *Model) read() tea.Cmd {
 	if m.job.ID == 0 {
 		return nil
@@ -159,15 +139,11 @@ func (m *Model) read() tea.Cmd {
 	if !m.job.Done() {
 		return m.readPartial()
 	}
-	var notes tea.Cmd
-	if !m.notes.loaded && !m.notes.loading {
-		notes = m.readNotes()
-	}
 	svc, ctx, id, repo, jobID := m.svc, m.ctx, m.id, m.repo, m.job.ID
 	// The view and the steps as they are now, since the command runs
 	// apart from Update.
 	view, steps, now := m.view, m.job.Steps, m.opts.now
-	return tea.Batch(notes, func() tea.Msg {
+	return func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "actions.log")
 		l, err := svc.Log(ctx, repo, jobID)
 		end(err, "span", "tui", "job", jobID, "lines", len(l.Lines), "truncated", l.Truncated)
@@ -176,7 +152,7 @@ func (m *Model) read() tea.Cmd {
 			msg.shown = prepare(view, l, steps, now())
 		}
 		return msg
-	})
+	}
 }
 
 func (m *Model) receive(msg logMsg) {

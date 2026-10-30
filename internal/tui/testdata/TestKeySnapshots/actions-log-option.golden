@@ -5,10 +5,6 @@ always
   help | ? | ? | on
 
 Option
-  annotations | A | A | off
-  up | up k | ↑/k | off
-  down | down j | ↓/j | off
-  open file | enter | ↵ | off
   browser | o | o | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off

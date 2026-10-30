@@ -17,7 +17,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 )
@@ -74,14 +73,6 @@ func testLog() core.Log {
 	}}
 }
 
-func testNotes() []core.Annotation {
-	return []core.Annotation{
-		{Path: "tea_test.go", StartLine: 54, Level: core.AnnotationFailure, Message: "want a frame, got none"},
-		{Path: "key.go", StartLine: 12, Level: core.AnnotationWarning, Title: "unused", Message: "x is unused"},
-		{Path: ".github", Level: core.AnnotationFailure, Message: "Process completed with exit code 1."},
-	}
-}
-
 // fake serves logs and annotations from memory and counts its reads.
 type fake struct {
 	mu     sync.Mutex
@@ -89,14 +80,6 @@ type fake struct {
 	cached map[int64]bool
 	errs   map[int64]error
 	reads  []int64
-
-	notes       map[int64][]core.Annotation
-	cachedNotes map[int64]bool
-	notesErr    error
-	noteReads   []int64
-	// notesLimited serves the annotations kept, as while GitHub rate
-	// limits their read.
-	notesLimited bool
 
 	// partial holds the partial logs of jobs in progress, which a read
 	// finds, and cachedPartial those in memory. watching counts the
@@ -110,26 +93,8 @@ type fake struct {
 func newFake() *fake {
 	return &fake{
 		logs: map[int64]core.Log{failedJob: testLog()}, cached: map[int64]bool{}, errs: map[int64]error{},
-		notes: map[int64][]core.Annotation{failedJob: testNotes()}, cachedNotes: map[int64]bool{},
 		partial: map[int64]core.PartialLog{}, cachedPartial: map[int64]bool{}, watching: map[int64]int{},
 	}
-}
-
-func (f *fake) CachedAnnotations(q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID]}, f.cachedNotes[q.CheckRunID]
-}
-
-func (f *fake) Annotations(_ context.Context, q actionssvc.AnnotationsQuery) (core.Page[core.Annotation], error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.noteReads = append(f.noteReads, q.CheckRunID)
-	if f.notesErr != nil {
-		return core.Page[core.Annotation]{}, f.notesErr
-	}
-	f.cachedNotes[q.CheckRunID] = true
-	return core.Page[core.Annotation]{Items: f.notes[q.CheckRunID], Limited: f.notesLimited}, nil
 }
 
 func (f *fake) CachedLog(_ core.RepoRef, jobID int64) (core.Log, bool) {
@@ -199,13 +164,8 @@ func testTheme() ui.Theme {
 func testKeys() KeyMap {
 	return KeyMap{
 		Log:        logview.NewKeyMap(ui.In(config.Default().Keys, "actions_log")),
-		LogContext: "actions_log", NotesContext: "actions_log",
-		Annotations:      key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "annotations")),
-		NotesAnnotations: key.NewBinding(key.WithKeys("A"), key.WithHelp("A", "log")),
-		Up:               key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:             key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
-		Select:           key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open file")),
-		Open:             key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser")),
+		LogContext: "actions_log",
+		Open:       key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser")),
 	}
 }
 
@@ -221,20 +181,15 @@ func press(k string) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: rune(k[0]), Text: k}
 }
 
-// keys presses each key, runs what it returns, and keeps the messages for
-// the app.
-func keys(m *Model, ks ...string) []tea.Msg {
-	var got []tea.Msg
+// keys presses each key and runs what it returns.
+func keys(m *Model, ks ...string) {
 	for _, k := range ks {
 		var cmd tea.Cmd
 		*m, cmd = m.Update(press(k))
 		if cmd != nil {
-			if msg := cmd(); msg != nil {
-				got = append(got, msg)
-			}
+			cmd()
 		}
 	}
-	return got
 }
 
 func newView(tb testing.TB, f Service, w, h int, opts ...Option) *Model {
