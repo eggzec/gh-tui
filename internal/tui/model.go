@@ -24,6 +24,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/modals"
+	"github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -421,6 +422,9 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	m.maximizedModals = cfg.UI.Maximized
 	m.readRates()
 	m.line.SetComplete(m.complete)
+	if s, ok := layout.Search.(interface{ SetValues(search.Values) }); ok {
+		s.SetValues(searchValues{m})
+	}
 
 	switch {
 	case m.repo != (core.RepoRef{}):

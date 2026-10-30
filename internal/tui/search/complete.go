@@ -109,7 +109,10 @@ func wordSpan(line string, cursor int) (start, end int) {
 // for a word with no colon, and a value such as is:open after one. A minus
 // that negates the word stays. A word that is empty or holds a quote has no
 // candidates.
-func completeQuery(kind core.SearchKind, line string, cursor int) []candidate {
+//
+// vals, when set, completes the value of repo:, org: and user: from what the
+// app knows, for the kinds whose search takes that qualifier.
+func completeQuery(kind core.SearchKind, line string, cursor int, vals Values) []candidate {
 	if cursor < 0 || cursor > len(line) {
 		return nil
 	}
@@ -148,6 +151,57 @@ func completeQuery(kind core.SearchKind, line string, cursor int) []candidate {
 				push(neg + q.name + ":" + v)
 			}
 		}
+		for _, v := range knownValues(vals, q.name, val) {
+			push(neg + q.name + ":" + v)
+		}
+	}
+	return out
+}
+
+// Values is what the app already knows that a qualifier's value completes
+// to. Its methods read memory only, since completion runs on every edit.
+type Values interface {
+	// Repos returns repositories as owner/name, the most relevant first.
+	Repos() []string
+	// Owners returns the logins of users and organizations, the most
+	// relevant first.
+	Owners() []string
+}
+
+// SetValues sets what the values of repo:, org: and user: complete to in the
+// query. Without it, only the qualifiers and their fixed values complete. The
+// app sets it once it can tell what it has read, after the section is built.
+func (s *Section) SetValues(v Values) {
+	s.values = v
+}
+
+// maxValues is the most known values one completion offers, so the row stays
+// short.
+const maxValues = 8
+
+// knownValues returns up to maxValues values of the qualifier name that start
+// with prefix, in the order vals gives them.
+func knownValues(vals Values, name, prefix string) []string {
+	if vals == nil {
+		return nil
+	}
+	var all []string
+	switch strings.ToLower(name) {
+	case "repo":
+		all = vals.Repos()
+	case "org", "user":
+		all = vals.Owners()
+	default:
+		return nil
+	}
+	var out []string
+	for _, v := range all {
+		if hasPrefixFold(v, prefix) && !slices.ContainsFunc(out, func(o string) bool { return strings.EqualFold(o, v) }) {
+			out = append(out, v)
+			if len(out) == maxValues {
+				break
+			}
+		}
 	}
 	return out
 }
@@ -175,7 +229,7 @@ func (s *Section) refreshComplete() {
 	cursor := len(string([]rune(line)[:min(s.input.Position(), len([]rune(line)))]))
 	s.comp = completion{sel: -1, line: line, cursor: cursor}
 	if s.typing {
-		s.comp.cands = completeQuery(s.kind, line, cursor)
+		s.comp.cands = completeQuery(s.kind, line, cursor, s.values)
 	}
 }
 

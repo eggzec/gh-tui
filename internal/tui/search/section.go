@@ -146,6 +146,9 @@ type Section struct {
 	// key that starts typing until the one that stops it.
 	typing  bool
 	focused bool
+	// values completes the values of repo:, org: and user:, and is nil
+	// without a source.
+	values Values
 	// comp is the candidate row of the query while it types.
 	comp completion
 
