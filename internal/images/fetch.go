@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -423,7 +424,10 @@ func (f *Fetcher) download(ctx context.Context, src Source, etag string) (data [
 		}
 	}
 	if src.Body == "" {
-		return nil, "", false, untrustedError{host: u.Hostname()}
+		if f.hostMissing(u) {
+			return nil, "", false, untrustedError{host: u.Hostname()}
+		}
+		return nil, "", false, fmt.Errorf("%w: %s", ErrNotAllowed, u.Host)
 	}
 	data, addr, placed, err := f.signed(ctx, src, "")
 	if se := (*statusError)(nil); errors.As(err, &se) && se.refused() {
@@ -432,6 +436,22 @@ func (f *Fetcher) download(ctx context.Context, src Source, etag string) (data [
 	// What a signed address serves is kept under the stable one, without
 	// its validators, which the next address won't match.
 	return data, "", placed, err
+}
+
+// hostMissing reports whether u would be fetched directly but for its host
+// not being trusted, so that trusting the host is what would help.
+func (f *Fetcher) hostMissing(u *url.URL) bool {
+	host := u.Hostname()
+	if u.Scheme != "https" || u.User != nil || u.Opaque != "" || host == "" {
+		return false
+	}
+	if p := u.Port(); p != "" && p != "443" {
+		return false
+	}
+	if _, err := netip.ParseAddr(host); err == nil {
+		return false
+	}
+	return !f.hosts.builtin(host)
 }
 
 // signed fetches src from the address its body's rendered HTML gives, a

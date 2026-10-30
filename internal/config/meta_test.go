@@ -39,6 +39,7 @@ func TestStartup(t *testing.T) {
 		"files.preview.max_size":         "the files are read with it from the start",
 		"prefetch.files.preview.enabled": "",
 		"auth.check":                     "the token's checks start with the app",
+		"images.trusted_hosts":           "the image fetcher is built with the trusted hosts at startup",
 		"log.level":                      "",
 		"log.keep":                       "the log file is opened at startup",
 		"theme":                          "",
