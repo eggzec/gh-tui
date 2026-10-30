@@ -50,9 +50,10 @@ func fetchImage(f *images.Fetcher, files blobReader) ui.ImageFetch {
 			img, err = f.Fetch(ctx, images.Source{URL: src.URL, Body: src.Body, Index: -1, Private: src.Private}, b)
 		}
 		switch {
+		case errors.Is(err, images.ErrTooLarge), errors.Is(err, core.ErrTooLarge):
+			return ui.Picture{}, fmt.Errorf("%w: %w", ui.ErrImageTooLarge, err)
 		case errors.Is(err, images.ErrUnavailable), errors.Is(err, images.ErrNotAllowed),
-			errors.Is(err, images.ErrTooLarge), errors.Is(err, images.ErrFormat),
-			errors.Is(err, core.ErrTooLarge), errors.Is(err, core.ErrNotFound):
+			errors.Is(err, images.ErrFormat), errors.Is(err, core.ErrNotFound):
 			return ui.Picture{}, fmt.Errorf("%w: %w", ui.ErrImageGone, err)
 		case err != nil:
 			return ui.Picture{}, err

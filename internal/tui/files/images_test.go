@@ -3,6 +3,7 @@ package files
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
@@ -144,6 +146,34 @@ func TestPreviewImageFails(t *testing.T) {
 	}
 	if cmd, _ := images.Load(); cmd != nil {
 		t.Error("a resize asked for the failed image again")
+	}
+}
+
+// An image file that is too large says so, instead of showing as the
+// binary file it would otherwise be, and isn't asked for at a new size.
+func TestPreviewImageTooLarge(t *testing.T) {
+	big := func(context.Context, ui.ImageSource, ui.ImageBox) (ui.Picture, error) {
+		return ui.Picture{}, fmt.Errorf("read: %w", ui.ErrImageTooLarge)
+	}
+	images := ui.NewImages(context.Background(), big, true)
+	images.SetGraphics(ui.Graphics{Images: true, Cell: uitest.TestCell})
+	p := imagePreview(t, images, "docs/logo.png")
+	if _, changed := uitest.LoadAvatars(t, images); !changed {
+		t.Error("the failure didn't have the views draw again")
+	}
+	p.Update(ui.ImagesMsg{})
+	v := p.View()
+	assertFits(t, v, 40, 12)
+	if got := ansi.Strip(v); !strings.Contains(got, "is too large to show as an") {
+		t.Errorf("preview = %q, want the too large notice", got)
+	}
+	golden.RequireEqual(t, v)
+	p.SetSize(30, 8)
+	if cmd, _ := images.Load(); cmd != nil {
+		t.Error("a resize asked for the too large image again")
+	}
+	if got := ansi.Strip(p.View()); !strings.Contains(got, "too large") {
+		t.Errorf("after a resize the preview = %q, want the notice", got)
 	}
 }
 

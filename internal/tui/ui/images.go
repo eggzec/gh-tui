@@ -105,6 +105,11 @@ type ImageFetch func(ctx context.Context, src ImageSource, box ImageBox) (Pictur
 // doesn't have it, or it is no image the app can show.
 var ErrImageGone = errors.New("image won't load")
 
+// ErrImageTooLarge is an image that is over the size the app shows, as
+// fetched or decoded. Like ErrImageGone no retry mends it, but a view may
+// say why the image isn't there.
+var ErrImageTooLarge = errors.New("image too large")
+
 // ImageSize is a box in cells, which an image takes or is made to fit.
 type ImageSize struct{ Cols, Rows int }
 
@@ -181,6 +186,9 @@ const (
 	// ImageGone is an image that failed in a way no retry mends, such as
 	// one the decoder refuses, at any size.
 	ImageGone
+	// ImageTooLarge is an image over the size the app shows, which no retry
+	// mends either.
+	ImageTooLarge
 )
 
 // imageMsg carries a fetched image to the images it was asked by.
@@ -219,6 +227,8 @@ type entry struct {
 	queued bool
 	// gone is set when it failed in a way no retry mends.
 	gone bool
+	// large is set when it is gone for being too large.
+	large bool
 }
 
 // cells returns the cells the image takes once sent.
@@ -435,6 +445,8 @@ func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
 	case e.state == imageReady && e.sent:
 		c := e.cells()
 		return termimg.Rows(e.id, c.Cols, c.Rows), ImageShown
+	case e.state == imageFailed && e.large:
+		return nil, ImageTooLarge
 	case e.state == imageFailed && e.gone:
 		return nil, ImageGone
 	case e.state == imageFailed:
@@ -596,7 +608,8 @@ func (a *Images) Update(msg tea.Msg) (cmd tea.Cmd, redraw Redraw, handled bool) 
 		// An avatar's box stays blank, while a file shows what it showed
 		// without images, so its view draws again. One that may mend is
 		// asked for again once GitHub answers again (Online).
-		e.state, e.gone = imageFailed, m.err == nil || errors.Is(m.err, ErrImageGone)
+		e.large = errors.Is(m.err, ErrImageTooLarge)
+		e.state, e.gone = imageFailed, m.err == nil || e.large || errors.Is(m.err, ErrImageGone)
 		if e.gone && m.err != nil {
 			slog.DebugContext(a.ctx, "image unavailable", "span", "tui", "host", hostOf(e.src.URL), "file", e.src.file(), "err", hostsOnly(m.err.Error()))
 		}
