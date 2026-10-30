@@ -233,6 +233,27 @@ func TestFindFileRecent(t *testing.T) {
 	}
 }
 
+// A file over the warning size says that opening it loads it anyway; the
+// finder never asks.
+func TestFindFilePreviewOfAFileOverTheWarningSize(t *testing.T) {
+	fk := sampleFake()
+	fk.blobErrs[file("README with spaces.md", 0).SHA] = &core.TooLargeError{Size: 3_000, Limit: 1_000, Warn: true}
+	h := newHost(loaded(t, fk, 40, 12, fast))
+	h.width, h.height = 120, 16
+	f := findIn(t, h)
+	h.keys(strings.Split("readme", "")...)
+	// The preview wraps the sentence, so each part is looked for alone.
+	v := ansi.Strip(f.View())
+	for _, want := range []string{"over the 1000 B warning limit", "Open it to load it anyway."} {
+		if !strings.Contains(v, want) {
+			t.Errorf("view = %q, want %q", v, want)
+		}
+	}
+	if strings.Contains(v, "in the browser") {
+		t.Errorf("view = %q, want no key that opens it in the browser", v)
+	}
+}
+
 func TestFindFilePreview(t *testing.T) {
 	png := file("logo.png", 100)
 	tests := []struct {
