@@ -69,15 +69,18 @@ func (s *Service) Blob(ctx context.Context, q BlobQuery) (core.Blob, error) {
 	}
 	e, err := s.blobs.Fetch(ctx, blobKey(q.Repo, q.SHA), func(ctx context.Context, _ cache.Entry[core.Blob], _ bool) (cache.Entry[core.Blob], error) {
 		if b, ok := s.storedBlob(q.SHA, lim); ok {
-			return cache.Entry[core.Blob]{Value: b}, nil
+			return s.shelve(b)
 		}
 		b, err := s.api.GetBlob(ctx, q.Repo, q.SHA, lim)
 		if err != nil {
 			return cache.Entry[core.Blob]{}, err
 		}
 		s.keepBlob(b)
-		return cache.Entry[core.Blob]{Value: b}, nil
+		return s.shelve(b)
 	})
+	if big, ok := errors.AsType[*bigBlobError](err); ok {
+		e, err = cache.Entry[core.Blob]{Value: big.blob}, nil
+	}
 	if err != nil {
 		if tl, ok := errors.AsType[*core.TooLargeError](err); ok {
 			return core.Blob{}, tooLarge(tl.Size)
@@ -89,6 +92,22 @@ func (s *Service) Blob(ctx context.Context, q BlobQuery) (core.Blob, error) {
 		return core.Blob{}, tooLarge(int64(len(e.Value.Content)))
 	}
 	return e.Value, nil
+}
+
+// bigBlobError carries a blob that is over the budget of the memory shelf
+// out of a fetch, which then doesn't keep it: the shelf always keeps the
+// entry just set, so one such blob would push out every other.
+type bigBlobError struct{ blob core.Blob }
+
+func (*bigBlobError) Error() string { return "blob is over the memory budget" }
+
+// shelve is the result of a fetch of b: the entry to keep, or a bigBlobError
+// if b is bigger than the shelf's budget. The store still has it.
+func (s *Service) shelve(b core.Blob) (cache.Entry[core.Blob], error) {
+	if blobSize(b) > s.blobMemory {
+		return cache.Entry[core.Blob]{}, &bigBlobError{b}
+	}
+	return cache.Entry[core.Blob]{Value: b}, nil
 }
 
 // storedBlob returns the blob named sha from the store. The name is the
