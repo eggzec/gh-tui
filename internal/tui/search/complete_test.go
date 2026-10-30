@@ -93,7 +93,7 @@ func TestCompleteQueryValues(t *testing.T) {
 		{"repo owner prefix", core.SearchIssues, "repo:octo/", vals, []string{"repo:octo/hello", "repo:Octo/world"}},
 		{"negated repo", core.SearchIssues, "-repo:oth", vals, []string{"-repo:other/thing"}},
 		{"org", core.SearchIssues, "org:o", vals, []string{"org:octo", "org:other"}},
-		{"user", core.SearchIssues, "user:b", vals, []string{"user:bob"}},
+		{"user", core.SearchCommits, "user:b", vals, []string{"user:bob"}},
 		{"no provider", core.SearchIssues, "repo:", nil, nil},
 		{"unknown qualifier", core.SearchIssues, "zzz:o", vals, nil},
 		{"fixed values kept", core.SearchIssues, "is:op", vals, []string{"is:open"}},
@@ -115,7 +115,8 @@ func TestTabCompletesValue(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
 	s.SetValues(fakeValues{repos: []string{"octo/hello"}})
 	s.Focus()
-	press(t, s, "i")
+	// Issues take repo:, which repositories do not.
+	press(t, s, "2", "i")
 	typeOnly(t, s, "tea repo:oc")
 	press(t, s, "tab")
 	if got := s.input.Value(); got != "tea repo:octo/hello" {
