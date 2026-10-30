@@ -16,6 +16,7 @@ const diagram = "Before.\n\n```mermaid\nsequenceDiagram\n    participant C as Cl
 // A diagram shows as one line that names its kind and size and offers
 // its link, at 80 columns on a light and a dark terminal.
 func TestDiagramHead(t *testing.T) {
+	linksOn(t, true)
 	for _, dark := range []bool{true, false} {
 		name := "light"
 		if dark {
@@ -162,6 +163,7 @@ func TestDiagramHostile(t *testing.T) {
 // The offer of a head is a hyperlink to the diagram's view, opened and
 // closed once, which takes no cells.
 func TestDiagramLink(t *testing.T) {
+	linksOn(t, true)
 	r := New(DefaultStyle(true))
 	url := Blocks(diagram)[0].URL
 	out, heads := r.RenderHeads(diagram, 80)
@@ -242,6 +244,7 @@ func TestDiagramLinkForged(t *testing.T) {
 // Every head that offers its diagram links to it once, at every size up
 // to the longest link and past it, where the head says it's too large.
 func TestDiagramOfferIsLinked(t *testing.T) {
+	linksOn(t, true)
 	rnd := rand.New(rand.NewPCG(7, 8))
 	r := New(DefaultStyle(true))
 	var b strings.Builder
