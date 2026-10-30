@@ -70,7 +70,6 @@ type markdownView struct {
 	// relative addresses in it start from.
 	ctx  context.Context
 	svc  Service
-	host string
 	repo core.RepoRef
 	ref  string
 	file string
@@ -142,33 +141,8 @@ func (v *markdownView) setTheme(t ui.Theme, ic ui.Icons) {
 // setFiles finds the image files the markdown names in repo at ref, the
 // base it is shown at, through svc under ctx, and draws them with
 // images.
-func (v *markdownView) setFiles(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, images *ui.Images) {
-	v.ctx, v.svc, v.host, v.repo, v.ref, v.images = ctx, svc, host, repo, ref, images
-}
-
-// linkTo returns the page on GitHub that the relative link addr of the file
-// rendered names, as GitHub resolves it, and addr as it is for what isn't a
-// relative link, or for an image, which the pictures find themselves.
-func (v *markdownView) linkTo(addr string, image bool) string {
-	if image {
-		return addr
-	}
-	p, rel := repoPath(v.file, addr)
-	if !rel || p == "" {
-		return addr
-	}
-	u, err := url.Parse(strings.TrimSpace(addr))
-	if err != nil {
-		return addr
-	}
-	out := webURL(v.host, v.repo, v.ref, core.TreeEntry{Path: p})
-	if u.RawQuery != "" {
-		out += "?" + u.RawQuery
-	}
-	if u.Fragment != "" {
-		out += "#" + u.EscapedFragment()
-	}
-	return out
+func (v *markdownView) setFiles(ctx context.Context, svc Service, repo core.RepoRef, ref string, images *ui.Images) {
+	v.ctx, v.svc, v.repo, v.ref, v.images = ctx, svc, repo, ref, images
 }
 
 // setHeight bounds the pictures by height rows, those of the pager above
@@ -196,7 +170,7 @@ func (v *markdownView) render(name, src string) pager.Render {
 		pics := v.pictures()
 		v.on = pics != nil
 		v.md.SetPictures(pics)
-		return v.md.Render(markdown.Resolve(src, v.linkTo), width)
+		return v.md.Render(src, width)
 	}
 }
 

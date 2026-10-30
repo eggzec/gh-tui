@@ -269,7 +269,7 @@ func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) fol
 	name := termtext.OneLine(path.Base(f.Path))
 	viewed := state == core.Viewed
 	icon := b.st.fileIcon(f.Path)
-	text := icon + b.link(f.Path, name)
+	text := b.link(f.Path, icon+name)
 	badge := b.badge(f.Path)
 	switch {
 	case viewed && badge != "":
