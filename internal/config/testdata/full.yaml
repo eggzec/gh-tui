@@ -132,6 +132,7 @@ images:
   max_rows: 8
   avatars: false
   animate: false
+  trusted_hosts: [img.example.com, "*.cdn.example.org"]
 
 auth:
   check: false

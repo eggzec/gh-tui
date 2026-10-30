@@ -88,6 +88,11 @@ images:
   # Play animated GIFs where the terminal can, which only kitty does;
   # elsewhere, and when this is off, a GIF shows its first frame.
   animate: true
+  # Hosts besides GitHub's to fetch images from, directly and over https,
+  # such as the host of an image a body links on a GitHub Enterprise Server
+  # or elsewhere: example.com, or *.example.com for its subdomains. Private
+  # and loopback addresses stay refused. Read once, at startup.
+  trusted_hosts: []
 
 # Clickable links (OSC 8) around repositories, files, titles and the like.
 # auto writes them unless the TERM variable is dumb or empty; on always
