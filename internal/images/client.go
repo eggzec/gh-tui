@@ -1,10 +1,14 @@
 package images
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"syscall"
 	"time"
 )
 
@@ -39,11 +43,63 @@ func newClient(base http.RoundTripper, h hosts) *http.Client {
 }
 
 // newTransport returns the transport of the client: the default one's
-// settings, with connections of its own.
-func newTransport() http.RoundTripper {
+// settings, with connections of its own, which refuse a private address
+// when they go to a host the user trusts.
+func newTransport(h hosts) http.RoundTripper {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConnsPerHost = maxFetches
+	t.DialContext = h.dialer().DialContext
 	return t
+}
+
+var errPrivate = errors.New("private address refused")
+
+// dialer returns a dialer that refuses loopback, private, link-local and
+// unspecified addresses for a trusted host, and dials any other as the
+// default dialer does.
+func (h hosts) dialer() *trustedDialer {
+	return &trustedDialer{
+		hosts: h,
+		plain: &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second},
+		guarded: &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			Control:   refusePrivate,
+		},
+	}
+}
+
+type trustedDialer struct {
+	hosts          hosts
+	plain, guarded *net.Dialer
+}
+
+func (d *trustedDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(addr)
+	if err == nil && d.hosts.trusted(host) {
+		return d.guarded.DialContext(ctx, network, addr)
+	}
+	return d.plain.DialContext(ctx, network, addr)
+}
+
+// refusePrivate is a dialer's Control hook: it sees the resolved address,
+// so a name that resolves, or a redirect that leads, to a private one is
+// refused too.
+func refusePrivate(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return err
+	}
+	ip = ip.Unmap()
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsUnspecified() {
+		return fmt.Errorf("%w: %s", errPrivate, ip)
+	}
+	return nil
 }
 
 // credentials are the headers a request of the client must never carry.
