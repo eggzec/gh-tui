@@ -82,11 +82,18 @@ func (s *Section) previewed() previewBody {
 	if h.Kind == core.SearchUsers {
 		return s.readBody("user", h.User.Login, h, userText(h.User))
 	}
+	suffix, add := s.extraText(h)
 	return previewBody{
-		key:   "issue " + hitKey(h) + " " + s.text,
-		name:  hitKey(h),
-		issue: func() (string, string) { return issueParts(h) },
-		find:  s.text,
+		key:  "issue " + hitKey(h) + " " + s.text + suffix,
+		name: hitKey(h),
+		issue: func() (string, string) {
+			head, body := issueParts(h)
+			if add == "" {
+				return head, body
+			}
+			return head, strings.TrimRight(body, "\n") + "\n" + add
+		},
+		find: s.text,
 	}
 }
 
@@ -208,6 +215,19 @@ func issueParts(h core.SearchHit) (head, body string) {
 			names[j] = l.Name
 		}
 		fmt.Fprintf(&b, "Labels: %s\n", strings.Join(names, ", "))
+	}
+	if len(i.Assignees) > 0 {
+		names := make([]string, len(i.Assignees))
+		for j, u := range i.Assignees {
+			names[j] = u.Login
+		}
+		fmt.Fprintf(&b, "Assignees: %s\n", strings.Join(names, ", "))
+	}
+	if !i.UpdatedAt.IsZero() {
+		fmt.Fprintf(&b, "Updated: %s\n", i.UpdatedAt.Format("2006-01-02 15:04"))
+	}
+	if i.Comments > 0 {
+		fmt.Fprintf(&b, "Comments: %d\n", i.Comments)
 	}
 	return b.String(), i.Body
 }

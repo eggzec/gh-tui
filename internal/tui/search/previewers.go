@@ -12,6 +12,8 @@ type PreviewServices struct {
 	Repos   RepoPreviews
 	Users   UserPreviews
 	Commits CommitPreviews
+	Issues  IssuePreviews
+	Pulls   PullPreviews
 	// Ellipsis marks what a preview leaves out, such as the files of a
 	// commit beyond the first page.
 	Ellipsis string
@@ -30,6 +32,10 @@ func NewPreviewReader(s PreviewServices) PreviewReader {
 			return userReader(s.Users, h)
 		case core.SearchCommits:
 			return commitReader(s.Commits, s.Ellipsis, h)
+		case core.SearchIssues:
+			return issueReader(s.Issues, h)
+		case core.SearchPulls:
+			return pullReader(s.Pulls, s.Ellipsis, h)
 		default:
 			return nil
 		}
