@@ -66,6 +66,35 @@ func TestFoldGroups(t *testing.T) {
 	}
 }
 
+// TestSearchRevealKeepsFoldsAndRows checks that a search which reveals a fold
+// above the cursor and then seeks the cursor leaves the fold's state agreeing
+// with the rows shown.
+func TestSearchRevealKeepsFoldsAndRows(t *testing.T) {
+	lines := []Line{
+		{Text: "top"},
+		{Kind: Group, Text: "outer"},
+		{Text: "needle inside"},
+		{Kind: EndGroup},
+		{Text: "a"},
+		{Text: "b"},
+		{Text: "needle outside"},
+		{Text: "c"},
+	}
+	m := view(t, lines, WithSize(40, 20))
+	m, _ = keys(t, m, "j", "j", "j") // on "b", below the fold
+	m = find(t, m, "needle")
+	inner := slices.Index(m.vis, 2) >= 0
+	if got := isOpen(t, m, "outer"); got != inner {
+		t.Fatalf("fold open = %v but inner row shown = %v", got, inner)
+	}
+	// A toggle then flips the fold the right way.
+	m.ExpandAll()
+	m.CollapseAll()
+	if isOpen(t, m, "outer") || slices.Index(m.vis, 2) >= 0 {
+		t.Errorf("after collapse all: open = %v, rows %q", isOpen(t, m, "outer"), shownRows(m))
+	}
+}
+
 func TestExpandCollapse(t *testing.T) {
 	lines := []Line{
 		{Text: "before"},
