@@ -985,6 +985,7 @@ func TestAttemptChangeKeepsTheOpenRun(t *testing.T) {
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
 	h.keys("j", "enter", "k")
+	folds := len(m.jobsOf[runningRun].folds)
 	run, _ := f.CachedRun(repo, runningRun)
 	run.Attempt++
 	f.setRun(run)
@@ -998,6 +999,43 @@ func TestAttemptChangeKeepsTheOpenRun(t *testing.T) {
 	}
 	if !open {
 		t.Error("the new attempt folded the run")
+	}
+	if len(m.jobsOf[runningRun].folds) != folds {
+		t.Errorf("folds %v, want the %d of before the new attempt", m.jobsOf[runningRun].folds, folds)
+	}
+}
+
+func TestEscStopsEveryFollowedRun(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	fl := &follows{}
+	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
+	h.keys("j", "enter", "k") // the running run is open and followed, another is shown
+	if len(m.follows) == 0 {
+		t.Fatal("no run followed")
+	}
+	h.keys("esc")
+	if len(m.follows) != 0 || !slices.Contains(fl.stopped, runningRun) {
+		t.Errorf("follows %d, stopped %v, want every followed run stopped", len(m.follows), fl.stopped)
+	}
+}
+
+func TestRereadSkipsFinishedOpenRuns(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	m, h := newModal(t, f, wideW, wideH)
+	h.keys("enter", "G") // the first run opened and loaded, then left for the last run
+	r, _ := f.CachedRun(repo, failedRun)
+	j := m.jobsOf[r.ID]
+	if j == nil || !j.loaded || !r.Done() {
+		t.Fatalf("run %d: jobs %+v, want a finished run with jobs loaded", r.ID, j)
+	}
+	if got := m.openLoaded(); len(got) != 0 {
+		t.Errorf("openLoaded = %v, want the finished run left out", got)
+	}
+	j.kept = true
+	if got := m.openLoaded(); len(got) != 1 {
+		t.Errorf("openLoaded = %v with kept jobs, want the run", got)
 	}
 }
 

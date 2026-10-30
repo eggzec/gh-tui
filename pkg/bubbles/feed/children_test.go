@@ -88,6 +88,19 @@ func TestUnfolded(t *testing.T) {
 	}
 }
 
+func TestUnfoldedItems(t *testing.T) {
+	m := load(t, newSource(6, 6), WithSize(30, 12), withKids(), WithChildrenFolded())
+	if got := m.UnfoldedItems(); len(got) != 0 {
+		t.Fatalf("%v unfolded at the start, want none", got)
+	}
+	m.sel = 1
+	m = activate(t, m)
+	m.sel = 0 // the cursor away from the open item
+	if got := m.UnfoldedItems(); len(got) != 1 || got[0].id != "1" {
+		t.Fatalf("UnfoldedItems = %v, want item 1", got)
+	}
+}
+
 func TestChildrenBuild(t *testing.T) {
 	m := kidsModel(t)
 	if got := len(m.lines); got != 9 {

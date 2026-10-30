@@ -395,13 +395,16 @@ func (m *Modal) rereadJobs() tea.Cmd {
 }
 
 // openLoaded returns the open runs, other than the one shown, whose jobs are
-// loaded, as the cache has them.
+// loaded, as the cache has them. A finished run whose jobs were read whole
+// has nothing new to read, so it is left out unless its jobs are kept or
+// failed to load.
 func (m *Modal) openLoaded() []core.Run {
 	var out []core.Run
 	open := m.runs.UnfoldedItems()
 	for i := range open {
 		r := m.current(open[i])
-		if j := m.jobsOf[r.ID]; j != nil && j.loaded && (!m.hasRun || r.ID != m.run.ID) {
+		j := m.jobsOf[r.ID]
+		if j != nil && j.loaded && (!m.hasRun || r.ID != m.run.ID) && (!r.Done() || j.kept || j.err != nil) {
 			out = append(out, r)
 		}
 	}
