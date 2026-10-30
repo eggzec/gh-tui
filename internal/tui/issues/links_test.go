@@ -30,7 +30,7 @@ func TestHeaderLinks(t *testing.T) {
 		it.Author = core.User{Login: "octo-cat"}
 		it.Assignees = []core.User{{Login: "ann"}, {Login: "bo[bot]"}}
 		h := m.header(it)
-		want := []string{it.URL, ui.WebURL(host, "octo-cat"), ui.WebURL(host, "ann"), ui.WebURL(host, "bo%5Bbot%5D")}
+		want := []string{it.URL, ui.WebURL(host, "octo-cat"), ui.WebURL(host, "ann"), ui.WebURL(host, "apps/bo")}
 		if links := uitest.Links(t, h); strings.Join(links, " ") != strings.Join(want, " ") {
 			t.Errorf("%s: header links to %q, want %q", host, links, want)
 		}
