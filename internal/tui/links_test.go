@@ -19,6 +19,24 @@ type linkedModal struct {
 
 func (l *linkedModal) Link() string { return l.link }
 
+// The account in the status bar links to the user's profile, or to the
+// host's page before the login is known.
+func TestStatusAccountLink(t *testing.T) {
+	t.Parallel()
+	for _, host := range uitest.Hosts {
+		m, _ := newTestApp(t)
+		m.host = host
+		m.login = ""
+		if got := uitest.Links(t, strings.Join(m.linkItem().Forms, "\n")); len(got) == 0 || got[0] != ui.WebURL(host, "") {
+			t.Errorf("%s: no login: links to %q", host, got)
+		}
+		m.login = "octo-cat"
+		if got := uitest.Links(t, strings.Join(m.linkItem().Forms, "\n")); len(got) == 0 || got[0] != ui.WebURL(host, "octo-cat") {
+			t.Errorf("%s: links to %q, want the profile", host, got)
+		}
+	}
+}
+
 // The title of a modal with a page links to it, on the screen as the
 // terminal gets it, however narrow the frame.
 func TestModalTitleLinks(t *testing.T) {

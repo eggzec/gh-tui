@@ -613,7 +613,7 @@ func (m *detailModal) header(it core.Issue) string {
 	// The number sits by the state, as in the pull request's header.
 	b.WriteString(t.Muted.Render("#" + strconv.Itoa(it.Number)))
 	b.WriteString(dot)
-	b.WriteString(t.Muted.Render(login(it.Author)))
+	b.WriteString(termtext.Link(ui.PageProfileURL(it.URL, it.Author.Login), t.Muted.Render(login(it.Author))))
 	b.WriteString(t.Subtle.Render(" opened " + m.dates.Prose(it.CreatedAt, now)))
 	if it.UpdatedAt.After(it.CreatedAt) {
 		b.WriteString(dot)
@@ -633,13 +633,14 @@ func (m *detailModal) header(it core.Issue) string {
 		}
 	}
 	if len(it.Assignees) > 0 {
-		names := make([]string, len(it.Assignees))
-		for i, u := range it.Assignees {
-			names[i] = login(u)
-		}
 		b.WriteString("\n  ")
 		b.WriteString(t.Subtle.Render("assigned to "))
-		b.WriteString(t.Muted.Render(strings.Join(names, ", ")))
+		for i, u := range it.Assignees {
+			if i > 0 {
+				b.WriteString(t.Muted.Render(", "))
+			}
+			b.WriteString(termtext.Link(ui.PageProfileURL(it.URL, u.Login), t.Muted.Render(login(u))))
+		}
 	}
 	return b.String()
 }

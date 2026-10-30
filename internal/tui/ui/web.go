@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
+	"net/url"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -15,6 +16,26 @@ import (
 func WebURL(host, path string) string {
 	host = cmp.Or(host, core.DefaultHost)
 	return core.WebScheme(host) + "://" + host + "/" + path
+}
+
+// ProfileURL returns the page of the user or bot login on host, or "" for
+// no login.
+func ProfileURL(host, login string) string {
+	if login == "" {
+		return ""
+	}
+	return WebURL(host, url.PathEscape(login))
+}
+
+// PageProfileURL returns the page of login on the host of page, the address
+// of a pull request or an issue, for a view that has no host of its own. It
+// returns "" when page has no host or login is empty.
+func PageProfileURL(page, login string) string {
+	u, err := url.Parse(page)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return ProfileURL(u.Host, login)
 }
 
 // DiffAnchor returns the anchor of the diff of the file at path on a page

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/statusbar"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // WithLogin sets the login of the account the app acts as, which the
@@ -251,7 +252,13 @@ func limitedUntil(r core.RateStatus) time.Time {
 // with no dot.
 func (m *Model) linkItem() statusbar.Item {
 	state, at := m.linkNow()
-	account := m.bst.label.Render(m.account())
+	// The account links to the user's profile, or to the host's page while
+	// the login isn't known.
+	page := ui.WebURL(m.host, "")
+	if m.login != "" {
+		page = ui.ProfileURL(m.host, m.login)
+	}
+	account := termtext.Link(page, m.bst.label.Render(m.account()))
 	var dot lipgloss.Style
 	var text string
 	switch state {

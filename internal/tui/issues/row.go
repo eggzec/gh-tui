@@ -254,7 +254,10 @@ func (s *Section) renderRow(it core.Issue, selected bool, width int) string {
 	}
 	if c.author {
 		pad(&b, gap)
-		writeFit(&b, cl.meta, ui.OneLine(it.Author.Login), authorWidth, st.ellipsis)
+		// The author links to their profile, on the host of the issue.
+		var who strings.Builder
+		writeFit(&who, cl.meta, ui.OneLine(it.Author.Login), authorWidth, st.ellipsis)
+		b.WriteString(s.links.Link(ui.PageProfileURL(it.URL, it.Author.Login), who.String()))
 	}
 	if c.age {
 		pad(&b, gap)

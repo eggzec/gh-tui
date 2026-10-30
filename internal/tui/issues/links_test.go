@@ -27,9 +27,12 @@ func TestHeaderLinks(t *testing.T) {
 	for _, host := range uitest.Hosts {
 		it := m.issue
 		it.URL, it.Title = ui.WebURL(host, "o/r/issues/3"), uitest.HostileTitle
+		it.Author = core.User{Login: "octo-cat"}
+		it.Assignees = []core.User{{Login: "ann"}, {Login: "bo[bot]"}}
 		h := m.header(it)
-		if links := uitest.Links(t, h); len(links) != 1 || links[0] != it.URL {
-			t.Errorf("%s: header links to %q, want %q once", host, links, it.URL)
+		want := []string{it.URL, ui.WebURL(host, "octo-cat"), ui.WebURL(host, "ann"), ui.WebURL(host, "bo%5Bbot%5D")}
+		if links := uitest.Links(t, h); strings.Join(links, " ") != strings.Join(want, " ") {
+			t.Errorf("%s: header links to %q, want %q", host, links, want)
 		}
 		if strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
 			t.Errorf("%s: header carries the title's escapes: %q", host, h)
