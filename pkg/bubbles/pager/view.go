@@ -126,6 +126,7 @@ func (m Model) writeLines(b *strings.Builder) int {
 				// while scrolled sideways.
 				pic = ""
 			}
+			// A picture uses the full width, indent or not.
 			writePicture(b, pic, fullTW)
 			b.WriteByte('\n')
 			rows++

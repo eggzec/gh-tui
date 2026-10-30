@@ -48,13 +48,13 @@ func (m Model) gutterFor(n int) int {
 func (m Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
 
 // indent returns the blank cells before the text of row i, which the rows
-// ask for with [Indenter], or 0.
+// ask for with [Indenter], or 0. It leaves at least one column for the text.
 func (m Model) indent(i int) int {
 	in, ok := m.rows.(Indenter)
 	if !ok {
 		return 0
 	}
-	return max(in.Indent(i), 0)
+	return min(max(in.Indent(i), 0), max(m.textWidth()-1, 0))
 }
 
 // widthOf returns the columns of the text of row i, right of the gutter and
@@ -243,5 +243,6 @@ func (m *Model) scrollRight(n int) {
 	m.left = max(min(want, reach), m.left)
 }
 
-// hStep returns the columns one sideways scroll moves.
+// hStep returns the columns one sideways scroll moves. It is the same for
+// every row, so it ignores their indents.
 func (m Model) hStep() int { return max(m.textWidth()/4, 1) }

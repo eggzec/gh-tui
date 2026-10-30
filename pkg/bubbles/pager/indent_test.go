@@ -20,7 +20,8 @@ func (r indentRows) Text(i int) string          { return r.lines[i] }
 func (r indentRows) Marks(int) []termtext.Style { return nil }
 func (r indentRows) Indent(i int) int           { return r.ind[i] }
 
-// plainRows is the same rows with no Indent.
+// plainRows is the same rows with no Indenter: its Indent shadows the
+// embedded method with another signature, so the interface is not met.
 type plainRows struct{ indentRows }
 
 func (plainRows) Indent() {}
@@ -35,7 +36,7 @@ func TestIndentNarrowsWrap(t *testing.T) {
 		lines: []string{strings.Repeat("a", 18), strings.Repeat("b", 18), "tail"},
 		ind:   []int{0, 4, 8},
 	}
-	m := fresh(t, WithSize(20, 12), WithWrap(true), WithRows(r), WithGutter(timeGutterNone{}))
+	m := fresh(t, WithSize(20, 12), WithWrap(true), WithRows(r), WithGutter(noGutter{}))
 	m.Focus()
 	for i, want := range []int{1, 2, 1} {
 		if n := m.rowsIn(i); n != want {
@@ -61,7 +62,7 @@ func TestIndentWrapRowsAndPosition(t *testing.T) {
 		lines: []string{strings.Repeat("x", 30), strings.Repeat("y", 30), "end"},
 		ind:   []int{0, 10, 0},
 	}
-	m := fresh(t, WithSize(20, 4), WithWrap(true), WithRows(r), WithGutter(timeGutterNone{}))
+	m := fresh(t, WithSize(20, 4), WithWrap(true), WithRows(r), WithGutter(noGutter{}))
 	m.Focus()
 	// 30 cells wrap to 2 rows at 20 columns and to 3 at 10.
 	if a, b := m.rowsIn(0), m.rowsIn(1); a != 2 || b != 3 {
@@ -90,25 +91,23 @@ func TestIndentWrapRowsAndPosition(t *testing.T) {
 
 func TestIndentScrollsSideways(t *testing.T) {
 	r := indentRows{lines: []string{strings.Repeat("z", 40)}, ind: []int{6}}
-	m := fresh(t, WithSize(20, 4), WithRows(r), WithGutter(timeGutterNone{}))
+	m := fresh(t, WithSize(20, 4), WithRows(r), WithGutter(noGutter{}))
 	m.Focus()
 	m.scrollRight(100)
 	// 40 cells, 14 shown right of the indent: 26 is as far as it goes.
 	if m.left != 26 {
 		t.Errorf("left = %d, want 26", m.left)
 	}
-	for i, l := range screen(m)[:1] {
-		if got := strings.TrimRight(l, " "); got != "      "+strings.Repeat("z", 14) {
-			t.Errorf("row %d = %q", i, got)
-		}
+	if got := strings.TrimRight(screen(m)[0], " "); got != "      "+strings.Repeat("z", 14) {
+		t.Errorf("row 0 = %q", got)
 	}
 }
 
 func TestNoIndenterIsUnchanged(t *testing.T) {
 	lines := []string{strings.Repeat("a", 30), "b"}
 	zero := indentRows{lines: lines, ind: []int{0, 0}}
-	a := fresh(t, WithSize(20, 6), WithWrap(true), WithRows(zero), WithGutter(timeGutterNone{}))
-	b := fresh(t, WithSize(20, 6), WithWrap(true), WithRows(plainRows{zero}), WithGutter(timeGutterNone{}))
+	a := fresh(t, WithSize(20, 6), WithWrap(true), WithRows(zero), WithGutter(noGutter{}))
+	b := fresh(t, WithSize(20, 6), WithWrap(true), WithRows(plainRows{indentRows: zero}), WithGutter(noGutter{}))
 	a.Focus()
 	b.Focus()
 	if a.View() != b.View() {
@@ -119,8 +118,33 @@ func TestNoIndenterIsUnchanged(t *testing.T) {
 	}
 }
 
-// timeGutterNone is a gutter that takes no columns.
-type timeGutterNone struct{}
+func TestIndentWiderThanPager(t *testing.T) {
+	r := indentRows{
+		lines: []string{strings.Repeat("w", 25), "short"},
+		ind:   []int{50, 20},
+	}
+	m := fresh(t, WithSize(20, 12), WithWrap(true), WithRows(r), WithGutter(noGutter{}))
+	m.Focus()
+	// One column is left for the text, so each cell takes a row.
+	if a, b := m.rowsIn(0), m.rowsIn(1); a != 25 || b != 5 {
+		t.Errorf("rows = %d, %d, want 25, 5", a, b)
+	}
+	lines := screen(m)
+	if len(lines) != 12 {
+		t.Fatalf("%d lines, want 12", len(lines))
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != 20 {
+			t.Errorf("line %d is %d cells, want 20", i, w)
+		}
+	}
+	if got, want := strings.TrimRight(lines[0], " "), strings.Repeat(" ", 19)+"w"; got != want {
+		t.Errorf("line 0 = %q, want %q", got, want)
+	}
+}
 
-func (timeGutterNone) Width(int) int                     { return 0 }
-func (timeGutterNone) Write(*strings.Builder, int, bool) {}
+// noGutter is a gutter that takes no columns.
+type noGutter struct{}
+
+func (noGutter) Width(int) int                     { return 0 }
+func (noGutter) Write(*strings.Builder, int, bool) {}
