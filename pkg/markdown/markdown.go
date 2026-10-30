@@ -17,6 +17,8 @@ import (
 	"charm.land/glamour/v2/ansi"
 	"github.com/alecthomas/chroma/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // keep is how many renders each generation of the cache holds. A render
@@ -64,6 +66,13 @@ type Renderer struct {
 	// addresses too.
 	pictures Pictures
 	relative bool
+	// resolve makes a relative address of a link absolute, or is nil, and
+	// urls holds the addresses of the links of the render at hand, by their
+	// number, and linking whether the render made them, which it does
+	// while termtext shows links.
+	resolve func(addr string) string
+	urls    []string
+	linking bool
 }
 
 // Pictures returns the lines that draw the image at url in at most width
@@ -182,6 +191,17 @@ func (r *Renderer) SetRelativePictures(on bool) {
 	}
 }
 
+// SetLinks makes the relative addresses of the links of a source, such as
+// docs/guide.md, go where resolve says, an absolute address, for a caller
+// that knows what they are relative to, such as a file of a repository.
+// A link whose resolved address can't be linked to shows its text and its
+// address as it is written. A nil resolve leaves them as they are. It
+// forgets what was rendered.
+func (r *Renderer) SetLinks(resolve func(addr string) string) {
+	r.resolve = resolve
+	r.recent, r.older = nil, nil
+}
+
 // SetHint sets what the note that ends a source too long to show in full
 // offers, such as "o to open on GitHub", and forgets what was rendered.
 // The default offers nothing.
@@ -215,6 +235,11 @@ func (r *Renderer) RenderHeads(src string, width int, open ...int) (string, []He
 func (r *Renderer) get(src string, width int, open []int) rendered {
 	if width <= 0 || strings.TrimSpace(src) == "" {
 		return rendered{}
+	}
+	if on := termtext.LinksOn(); on != r.linking {
+		// What was rendered shows its links as they were.
+		r.linking = on
+		r.recent, r.older = nil, nil
 	}
 	k := key{src: src, width: width}
 	if len(open) > 0 {
@@ -361,7 +386,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	}
 	lines, front := trimBlank(lines)
 	for i, l := range lines {
-		lines[i] = safe(tidy(quoteBars(unspan(l), g)))
+		lines[i] = r.relink(safe(tidy(quoteBars(unspan(l), g))))
 	}
 	if g.ASCII {
 		asciiLines(lines, g, func(i int) bool { return sp.code[i+front] })
@@ -405,7 +430,11 @@ func (r *Renderer) lines(text string, width int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return strings.Split(out, "\n"), nil
+	lines := strings.Split(r.swapLinks(out), "\n")
+	if r.linking {
+		lines = r.dropGone(lines)
+	}
+	return lines, nil
 }
 
 func (r *Renderer) glamour(text string, width int) (string, error) {

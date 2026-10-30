@@ -70,6 +70,7 @@ type markdownView struct {
 	// relative addresses in it start from.
 	ctx  context.Context
 	svc  Service
+	host string
 	repo core.RepoRef
 	ref  string
 	file string
@@ -141,8 +142,39 @@ func (v *markdownView) setTheme(t ui.Theme, ic ui.Icons) {
 // setFiles finds the image files the markdown names in repo at ref, the
 // base it is shown at, through svc under ctx, and draws them with
 // images.
-func (v *markdownView) setFiles(ctx context.Context, svc Service, repo core.RepoRef, ref string, images *ui.Images) {
-	v.ctx, v.svc, v.repo, v.ref, v.images = ctx, svc, repo, ref, images
+func (v *markdownView) setFiles(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, images *ui.Images) {
+	v.ctx, v.svc, v.host, v.repo, v.ref, v.images = ctx, svc, host, repo, ref, images
+}
+
+// link returns the page on the host of the file or directory that the
+// relative address addr names, as GitHub resolves it from the file shown,
+// or "" for one that leaves the repository.
+func (v *markdownView) link(addr string) string {
+	addr = strings.TrimSpace(addr)
+	p, rel := repoPath(v.file, addr)
+	if !rel || p == "" {
+		return ""
+	}
+	u, err := url.Parse(addr)
+	if err != nil {
+		return ""
+	}
+	kind := "/blob/"
+	if strings.HasSuffix(u.Path, "/") {
+		kind = "/tree/"
+	}
+	ref := v.ref
+	if ref == "" {
+		ref = "HEAD"
+	}
+	out := ui.WebURL(v.host, escapePath(v.repo.String())) + kind + escapePath(ref) + "/" + escapePath(p)
+	if u.RawQuery != "" {
+		out += "?" + u.RawQuery
+	}
+	if u.Fragment != "" {
+		out += "#" + url.PathEscape(u.Fragment)
+	}
+	return out
 }
 
 // setHeight bounds the pictures by height rows, those of the pager above
@@ -161,6 +193,7 @@ func (v *markdownView) render(name, src string) pager.Render {
 			v.md.SetGlyphs(v.icons.Markdown)
 			v.md.SetHint(rawHint)
 			v.md.SetRelativePictures(true)
+			v.md.SetLinks(v.link)
 		}
 		if name != v.file {
 			v.reset()

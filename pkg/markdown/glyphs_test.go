@@ -54,6 +54,7 @@ func asciiOnly(t *testing.T, out string) {
 // width, on a dark or a light terminal, with its diagrams shut or open,
 // and when it is cut.
 func TestASCIIGlyphsRenderASCII(t *testing.T) {
+	linksOn(t, true)
 	long := everything + "\n\n" + strings.Repeat("- item\n", maxLines)
 	for _, dark := range []bool{true, false} {
 		for _, width := range []int{12, 40, 80} {
@@ -93,6 +94,7 @@ func TestASCIIGlyphsRenderASCII(t *testing.T) {
 
 // The ASCII glyphs render the sample as the goldens hold it.
 func TestRenderASCII(t *testing.T) {
+	linksOn(t, true)
 	for _, dark := range []bool{true, false} {
 		name := "light"
 		if dark {

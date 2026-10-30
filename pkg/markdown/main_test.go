@@ -6,6 +6,7 @@ import (
 
 	"github.com/eggzec/gh-tui/pkg/syntax"
 	"github.com/eggzec/gh-tui/pkg/syntax/syntaxtest"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // TestMain times lexers by a clock that doesn't move, so code highlights
@@ -15,6 +16,8 @@ import (
 // (wallClock).
 func TestMain(m *testing.M) {
 	syntax.UseClock(syntaxtest.Stopped{})
+	// The tests that look for links switch them on (linksOn).
+	termtext.SetLinks(false)
 	os.Exit(m.Run())
 }
 

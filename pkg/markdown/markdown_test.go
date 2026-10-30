@@ -9,6 +9,8 @@ import (
 	glamourstyles "charm.land/glamour/v2/styles"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // sample is a comment with what GitHub bodies hold: a template's comments
@@ -31,6 +33,7 @@ const sample = "<!-- Thanks for the report! Fill in what you can. -->\r\n" +
 	"```mermaid\r\ngraph TD\r\n  A-->B\r\n```\r\n"
 
 func TestRender(t *testing.T) {
+	linksOn(t, true)
 	for _, dark := range []bool{true, false} {
 		name := "light"
 		if dark {
@@ -86,9 +89,110 @@ func TestRenderNeutralisesEscapes(t *testing.T) {
 // A control in the name of a link, which glamour decodes from a character
 // reference, can't break the link's hyperlink and show its address.
 func TestRenderKeepsLinksWhole(t *testing.T) {
-	out := ansi.Strip(New(DefaultStyle(true)).Render("[x&#27;y&#x1b;z](https://x.test/a)", 60))
+	const src = "[x&#27;y&#x1b;z](https://x.test/a)"
+	// With links off, nothing of a hyperlink is left.
+	linksOn(t, false)
+	out := ansi.Strip(New(DefaultStyle(true)).Render(src, 60))
 	if strings.Contains(out, "]8;") || strings.Contains(out, "id=") {
 		t.Errorf("the link's hyperlink shows: %q", out)
+	}
+	// With them on, the one link is ours, and what shows is its text.
+	linksOn(t, true)
+	raw := New(DefaultStyle(true)).Render(src, 60)
+	if n := strings.Count(raw, "\x1b]8;;https://x.test/a\x1b\\"); n != 1 || strings.Count(raw, "]8;") != 2 {
+		t.Errorf("want one controlled link, got %q", raw)
+	}
+	if strings.Contains(ansi.Strip(raw), "x.test") {
+		t.Errorf("the address shows next to the link: %q", ansi.Strip(raw))
+	}
+}
+
+// linksOn sets whether termtext makes links for the rest of the test.
+func linksOn(t *testing.T, on bool) {
+	t.Helper()
+	was := termtext.LinksOn()
+	termtext.SetLinks(on)
+	t.Cleanup(func() { termtext.SetLinks(was) })
+}
+
+// A link of the source shows its text only, with its address in the
+// hyperlink, and the address stays visible when links are off or when the
+// address can't be linked.
+func TestRenderLinks(t *testing.T) {
+	const src = "See [the docs](https://example.com/docs) and [bad](http://example.com/x)."
+	linksOn(t, false)
+	off := ansi.Strip(New(DefaultStyle(true)).Render(src, 80))
+	if !strings.Contains(off, "https://example.com/docs") {
+		t.Errorf("links off: the address is gone: %q", off)
+	}
+	linksOn(t, true)
+	raw := New(DefaultStyle(true)).Render(src, 80)
+	on := ansi.Strip(raw)
+	if strings.Contains(on, "https://example.com/docs") || !strings.Contains(on, "the docs") {
+		t.Errorf("links on: want the text without its address: %q", on)
+	}
+	if !strings.Contains(raw, "\x1b]8;;https://example.com/docs\x1b\\") {
+		t.Errorf("links on: no hyperlink: %q", raw)
+	}
+	// Plain http can't be linked, so it keeps its address.
+	if !strings.Contains(on, "http://example.com/x") {
+		t.Errorf("an address that can't be linked is hidden: %q", on)
+	}
+}
+
+// A hyperlink of the source is still dropped, with links on.
+func TestRenderDropsSourceHyperlink(t *testing.T) {
+	linksOn(t, true)
+	const src = "a \x1b]8;;https://evil.test/\x07click\x1b]8;;\x07 b \U000F2000x\U000F1FFF"
+	raw := New(DefaultStyle(true)).Render(src, 60)
+	if strings.Contains(raw, "\x1b") {
+		t.Errorf("a hyperlink of the source got through: %q", raw)
+	}
+	for _, r := range raw {
+		if isLinkRune(r) {
+			t.Errorf("a character of links got through: %q", raw)
+			break
+		}
+	}
+}
+
+// Wrapping follows what shows: no line is wider than the width, with links
+// on or off, and the words are the same.
+func TestRenderLinksWrap(t *testing.T) {
+	const src = "Read the [very long documentation page of the project](https://example.com/docs/a/very/long/path/that/would/not/fit/on/a/line) now, and [more](https://example.com/more) soon."
+	words := strings.Fields
+	for _, width := range []int{20, 40, 80} {
+		linksOn(t, true)
+		on := New(DefaultStyle(true)).Render(src, width)
+		for l := range strings.SplitSeq(on, "\n") {
+			if w := ansi.StringWidth(l); w > width {
+				t.Errorf("width %d: line of %d cells: %q", width, w, l)
+			}
+		}
+		onWords := words(ansi.Strip(on))
+		if got := strings.Join(onWords, " "); strings.Contains(got, "https://") {
+			t.Errorf("width %d: address shows: %q", width, got)
+		}
+		linksOn(t, false)
+		off := New(DefaultStyle(true)).Render(src, width)
+		for l := range strings.SplitSeq(off, "\n") {
+			if w := ansi.StringWidth(l); w > width {
+				t.Errorf("width %d, off: line of %d cells: %q", width, w, l)
+			}
+		}
+	}
+}
+
+// A resolver gives the relative links of the source their address.
+func TestRenderResolvesRelative(t *testing.T) {
+	linksOn(t, true)
+	r := New(DefaultStyle(true))
+	r.SetLinks(func(addr string) string { return "https://example.com/blob/" + addr })
+	raw := r.Render("See [guide](docs/guide.md) and [site](https://other.test/).", 80)
+	for _, want := range []string{"\x1b]8;;https://example.com/blob/docs/guide.md\x1b\\", "\x1b]8;;https://other.test/\x1b\\"} {
+		if !strings.Contains(raw, want) {
+			t.Errorf("missing %q in %q", want, raw)
+		}
 	}
 }
 

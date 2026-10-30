@@ -96,6 +96,11 @@ func SetLinks(on bool) {
 	linksOff.Store(!on)
 }
 
+// LinksOn reports whether [Link] makes links, as it does by default.
+func LinksOn() bool {
+	return !linksOff.Load()
+}
+
 // plainHTTP reports whether host, of an address, may be linked to over
 // plain http.
 func plainHTTP(host string) bool {
