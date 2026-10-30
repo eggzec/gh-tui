@@ -244,7 +244,7 @@ func (m *Modal) Title() string {
 	if m.loaded {
 		name = releaseName(m.rel)
 	}
-	return name + m.icons.Separator + m.repo.String()
+	return ui.Title(ui.TitleSpec{Name: name, Chips: []string{m.repo.String()}, Sep: m.icons.Separator})
 }
 
 // Link implements ui.Linked: the page of the release, or of the releases

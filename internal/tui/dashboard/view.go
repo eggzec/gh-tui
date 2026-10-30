@@ -148,14 +148,22 @@ func (s *Section) compose() {
 // with its counts, the name, and the short name, so the last always fits.
 // The keys are in the strip of a dashboard that shows one pane.
 func (s *Section) titleForms(p paneID) []string {
-	prefix := ""
+	key := ""
 	if k := s.keyLabel(p); k != "" && !s.onePane() {
-		prefix = "[" + k + "] "
+		key = k
+	}
+	sep := s.icons.Separator
+	form := func(name string, chips ...string) string {
+		return ui.Title(ui.TitleSpec{Key: key, Name: name, Chips: chips, Sep: sep})
+	}
+	var chips []string
+	if extras := s.paneExtras(p); extras != "" {
+		chips = []string{strings.TrimPrefix(extras, sep)}
 	}
 	forms := []string{
-		prefix + paneTitles[p] + s.paneExtras(p),
-		prefix + paneTitles[p],
-		prefix + shortTitles[p],
+		form(paneTitles[p], chips...),
+		form(paneTitles[p]),
+		form(shortTitles[p]),
 	}
 	return slices.Compact(forms)
 }

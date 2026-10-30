@@ -106,31 +106,35 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	if p == m.focus {
 		st = m.st.focusTitle
 	}
-	var text, detail string
+	ell := m.st.ic.Ellipsis
+	spec := ui.TitleSpec{
+		Width: w, Sep: m.st.ic.Separator, Ellipsis: ell,
+		NameStyle: st.Render, CountStyle: m.st.subtle.Render,
+	}
 	switch p {
 	case branchPane:
-		text = "Branches"
+		spec.Name = "Branches"
 		if n := len(m.branches.items); n > 0 {
-			detail = strconv.Itoa(n)
+			spec.Count = strconv.Itoa(n)
 			if m.branches.next != "" {
-				detail += "+"
+				spec.Count += "+"
 			}
 		}
 	case graphPane:
-		text = m.graphName()
+		spec.Name = ui.OneLine(m.graphName())
 	case commitPane:
-		text = "Commit"
+		spec.Name = "Commit"
 		if c := &m.commit; c.has {
-			text, detail = short(c.c.SHA), ui.OneLine(c.c.Subject)
+			// The subject follows the SHA after a space, not as a count.
+			text := termtext.Truncate(short(c.c.SHA), w, ell)
+			line := st.Render(text)
+			if room := w - ansi.StringWidth(text) - 1; room > 1 {
+				line += " " + m.st.subtle.Render(termtext.Truncate(ui.OneLine(c.c.Subject), room, ell))
+			}
+			return fit(line, w)
 		}
 	}
-	ell := m.st.ic.Ellipsis
-	text = termtext.Truncate(ui.OneLine(text), w, ell)
-	line := st.Render(text)
-	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
-		line += " " + m.st.subtle.Render(termtext.Truncate(detail, room, ell))
-	}
-	return fit(line, w)
+	return fit(ui.Title(spec), w)
 }
 
 // breadcrumb shows where the narrow modal is: the branches, the branch,

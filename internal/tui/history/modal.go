@@ -176,7 +176,7 @@ func (m *Modal) Init() tea.Cmd {
 
 // Title names the repository.
 func (m *Modal) Title() string {
-	return "History" + m.opts.icons.Separator + m.repo.String()
+	return ui.Title(ui.TitleSpec{Name: "History", Chips: []string{m.repo.String()}, Sep: m.opts.icons.Separator})
 }
 
 // SetSize sizes the panes to the room inside the frame.
