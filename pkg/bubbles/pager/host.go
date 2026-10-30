@@ -2,6 +2,7 @@ package pager
 
 import (
 	"fmt"
+	"regexp"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -100,13 +101,41 @@ func (m Model) Current() (line int, ok bool) {
 // and which of them is the current match, or -1. A search of the rows that a
 // pattern does not match has none.
 func (m Model) Ranges(line int) (ranges [][]int, cur int) {
-	s := m.search
-	if s.re == nil || s.invert || line < 0 || line >= m.rows.Len() {
+	return m.matcher().ranges(line)
+}
+
+// RangesFunc returns [Model.Ranges] as a function that holds only what it
+// reads, so a host can give it to its row hooks on each frame without
+// moving a copy of the whole model to the heap. It is nil when no search
+// marks matches.
+func (m Model) RangesFunc() func(line int) (ranges [][]int, cur int) {
+	k := m.matcher()
+	if k.re == nil || k.invert {
+		return nil
+	}
+	return k.ranges
+}
+
+// matcher is what Ranges reads of the model.
+type matcher struct {
+	re                   *regexp.Regexp
+	invert               bool
+	cur, curLine, curNth int
+	rows                 Rows
+}
+
+func (m *Model) matcher() matcher {
+	s := &m.search
+	return matcher{re: s.re, invert: s.invert, cur: s.cur, curLine: s.curLine, curNth: s.curNth, rows: m.rows}
+}
+
+func (k matcher) ranges(line int) (ranges [][]int, cur int) {
+	if k.re == nil || k.invert || line < 0 || line >= k.rows.Len() {
 		return nil, -1
 	}
-	ranges = lineMatches(s.re, m.rows.Text(line))
-	if s.cur >= 0 && s.curLine == line {
-		return ranges, s.curNth
+	ranges = lineMatches(k.re, k.rows.Text(line))
+	if k.cur >= 0 && k.curLine == line {
+		return ranges, k.curNth
 	}
 	return ranges, -1
 }

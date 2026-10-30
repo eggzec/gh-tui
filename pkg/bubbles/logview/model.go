@@ -52,17 +52,13 @@ type Model struct {
 
 	content
 
-	// cur is the entry of vis under the cursor. top and row are the first
-	// entry in the window and, when wrapping, the first of its rows shown.
-	// left is the first column of text shown when not wrapping.
-	cur, top, row, left int
 	// live is set once lines were appended, which makes the status line
 	// show whether the view follows them.
 	live bool
 
-	// pg does the search: its prompt, regexps, count and notes. It takes no
-	// keys of its own; this view calls it. store gives it the rows, and is
-	// shared by copies of the model.
+	// pg draws and scrolls the rows, holds the cursor and does the search. It
+	// takes no keys of its own; this view calls it. store gives it the rows
+	// and how to draw them, and is shared by copies of the model.
 	pg    pager.Model
 	store *rowStore
 	// matching is set while the pager holds a search, so that drawing a row
@@ -100,8 +96,16 @@ func New(opts ...Option) Model {
 		settings: s,
 		id:       lastID.Add(1),
 		store:    store,
-		pg:       pager.New(pager.WithRows(store)),
-		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
+		pg: pager.New(
+			pager.WithRows(store),
+			pager.WithGutter(gutter{store}),
+			pager.WithHeaderWriter(store.writeHeader),
+			pager.WithRowStyle(store.rowStyle),
+			pager.WithCursor(true),
+			pager.WithReveal(store.reveal),
+			pager.WithWrap(s.wrap),
+		),
+		spin: spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 	m.SetKeyMap(s.keys)
 	m.SetStyles(s.styles)
@@ -129,9 +133,14 @@ func (m *Model) SetTitle(title string) {
 // SetSize sets the width and height, including the status line.
 func (m *Model) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.relayout()
+}
+
+// relayout tells the pager of a change to the size or the gutter, which
+// sets how many rows a line wraps to.
+func (m *Model) relayout() {
+	m.syncLook()
 	m.pg.SetSize(m.width, m.height)
-	m.clamp()
-	m.show()
 }
 
 // Width returns the width.
@@ -171,9 +180,8 @@ func (m Model) Wrap() bool { return m.wrap }
 // sideways.
 func (m *Model) SetWrap(wrap bool) {
 	m.wrap = wrap
-	m.row, m.left = 0, 0
-	m.clamp()
-	m.show()
+	m.syncLook()
+	m.pg.SetWrap(wrap)
 }
 
 // LineNumbers reports whether the line numbers are shown.
@@ -182,8 +190,7 @@ func (m Model) LineNumbers() bool { return m.lineNumbers }
 // SetLineNumbers sets whether the line numbers are shown.
 func (m *Model) SetLineNumbers(show bool) {
 	m.lineNumbers = show
-	m.clamp()
-	m.show()
+	m.relayout()
 }
 
 // TimeMode returns how the time of each line is shown.
@@ -192,8 +199,7 @@ func (m Model) TimeMode() TimeMode { return m.times }
 // SetTimeMode sets how the time of each line is shown.
 func (m *Model) SetTimeMode(t TimeMode) {
 	m.times = t
-	m.clamp()
-	m.show()
+	m.relayout()
 }
 
 // Follow reports whether the view follows appended lines while its cursor
@@ -205,7 +211,8 @@ func (m Model) Follow() bool { return m.follow }
 func (m *Model) SetFollow(follow bool) {
 	m.follow = follow
 	if follow {
-		m.end()
+		m.syncLook()
+		m.pg.End()
 	}
 }
 

@@ -59,9 +59,7 @@ func benchView(tb testing.TB, n int) Model {
 	m.SetLines(lines, secs)
 	m.ExpandAll()
 	m = find(tb, m, "error")
-	m.cur = len(m.vis) / 2
-	m.top = m.cur - 10
-	m.clamp()
+	m.pg.SetCursor(m.vis[len(m.vis)/2])
 	return m
 }
 

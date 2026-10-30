@@ -66,7 +66,7 @@ func (m *Model) SetPosition(p Position) {
 }
 
 // curPos returns the position of the cursor among the lines shown.
-func (m Model) curPos() int {
+func (m *Model) curPos() int {
 	return max(min(m.posOf(m.cursor), m.count()-1), 0)
 }
 
@@ -90,7 +90,7 @@ func (m *Model) snapCursor() {
 
 // covers reports whether all the rows of the line shown at p are in the
 // window.
-func (m Model) covers(p int) bool {
+func (m *Model) covers(p int) bool {
 	return m.inView(p, 0) && m.inView(p, m.rowsIn(p)-1)
 }
 

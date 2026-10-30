@@ -28,13 +28,15 @@ func WithReveal(reveal func(row int) (vis []int32, changed bool)) Option {
 // them show it. Rows appended with [Model.Append] after the mask was set are
 // not shown until SetVisible is called again. A search without the
 // [WithReveal] hook is over the rows shown when it runs, so run it again after
-// the mask changes.
+// the mask changes. The pager keeps vis without copying it, as it keeps the
+// mask the reveal hook returns, since a mask can list every row of a long
+// log: the host must not change either after it hands it over.
 func (m *Model) SetVisible(vis []int32, anchor func(hidden int) int) {
 	top := m.topLine()
 	if vis == nil {
 		m.mask, m.maskAnchor = nil, nil
 	} else {
-		m.mask, m.maskAnchor = slices.Clone(vis), anchor
+		m.mask, m.maskAnchor = vis, anchor
 	}
 	m.applyMask(top)
 }
@@ -143,7 +145,7 @@ func (m *Model) revealRow(i int) bool {
 	if vis == nil {
 		m.mask = nil
 	} else {
-		m.mask = slices.Clone(vis)
+		m.mask = vis
 	}
 	m.applyMask(top)
 	return !m.hiddenByMask(i)

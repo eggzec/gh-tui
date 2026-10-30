@@ -119,6 +119,16 @@ func TestMovesScrollSideways(t *testing.T) {
 	}
 }
 
+// A header row is drawn whole, so its length doesn't let the rest scroll.
+func TestRightSkipsHeaderRows(t *testing.T) {
+	rows := timedRows{strings.Repeat("header ", 20), "short"}
+	m := fresh(t, WithSize(30, 5), WithRows(rows), WithHeaderWriter(bannerWriter))
+	m.Right()
+	if m.left != 0 {
+		t.Errorf("scrolled %d columns for a long header", m.left)
+	}
+}
+
 func TestRightKeepsToTheLinesInTheWindow(t *testing.T) {
 	m := fresh(t, WithSize(30, 5), WithRows(hostRows{"short", "tiny"}))
 	m.Right()

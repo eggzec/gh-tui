@@ -166,7 +166,6 @@ func (m *Model) SetLog(l Log) {
 	m.reset(stateReady, nil)
 	m.content = l.content
 	m.takeRows()
-	m.clamp()
 	if m.focusFailed {
 		m.FocusFailed()
 	}
@@ -185,7 +184,7 @@ func (m *Model) Append(lines ...Line) {
 	if m.state != stateReady {
 		m.SetLines(nil, nil)
 	}
-	pinned := m.follow && (len(m.vis) == 0 || m.cur == len(m.vis)-1)
+	pinned := m.follow && (len(m.vis) == 0 || m.cursorRow() == m.vis[len(m.vis)-1])
 	from := len(m.rows)
 	for _, l := range lines {
 		m.add(l)
@@ -200,10 +199,8 @@ func (m *Model) Append(lines ...Line) {
 	m.growRows(from)
 	m.live = true
 	if pinned {
-		m.end()
-		return
+		m.pg.End()
 	}
-	m.clamp()
 }
 
 // SetSections updates the sections of a log that grows by Append, with
@@ -262,7 +259,6 @@ func (m *Model) reset(s state, err error) {
 		m.errText, m.errHint = m.errorWords()
 	}
 	m.content = content{inSec: -1}
-	m.cur, m.top, m.row, m.left = 0, 0, 0, 0
 	m.live = false
 	m.jumped, m.at = Plain, 0
 	m.takeRows()

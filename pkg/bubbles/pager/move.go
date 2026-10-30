@@ -58,6 +58,16 @@ func (m *Model) Right() {
 	m.findHits()
 }
 
+// Bottom returns the row of the last line with a row in the window, or -1
+// when no line is shown.
+func (m Model) Bottom() int {
+	p := m.bottom()
+	if p < 0 {
+		return -1
+	}
+	return m.at(p)
+}
+
 // Show scrolls the window as little as it takes to show the cursor.
 func (m *Model) Show() { m.show() }
 

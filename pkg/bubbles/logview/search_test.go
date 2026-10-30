@@ -97,7 +97,6 @@ func TestStepFromCursorBeforeFirstJump(t *testing.T) {
 	}
 	// The user scrolls to the bottom while it runs, so it does not jump.
 	m, _ = keys(t, m, "G")
-	m.syncPosition()
 	m, _ = m.Update(cmd())
 	if _, ok := m.pg.Current(); ok {
 		t.Fatal("the search jumped to a match after the user scrolled")

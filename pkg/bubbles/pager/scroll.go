@@ -10,16 +10,16 @@ func (m Model) bodyHeight() int { return max(m.height-1, 0) }
 // gutterWidth returns the width of the line numbers and the space after
 // them, or of the marks of an inverted search while the numbers are
 // hidden, or 0 when there is neither or no room for text.
-func (m Model) gutterWidth() int {
+func (m *Model) gutterWidth() int {
 	if m.gutter != nil {
 		return m.customWidth()
 	}
-	return numberGutter{m: &m}.Width(m.width)
+	return numberGutter{m: m}.Width(m.width)
 }
 
 // customWidth returns the width of the host's gutter, or 0 when it leaves
 // no room for text.
-func (m Model) customWidth() int {
+func (m *Model) customWidth() int {
 	if w := m.gutter.Width(m.width); w > 0 && w < m.width {
 		return w
 	}
@@ -28,7 +28,7 @@ func (m Model) customWidth() int {
 
 // reserved returns how many lines more than the content has the gutter
 // has room to number, for rendered content that may grow.
-func (m Model) reserved() int {
+func (m *Model) reserved() int {
 	if m.render == nil || m.reserve == nil {
 		return 0
 	}
@@ -37,19 +37,19 @@ func (m Model) reserved() int {
 
 // gutterFor returns the width of the gutter of n lines, as gutterWidth
 // does of the lines of the content.
-func (m Model) gutterFor(n int) int {
+func (m *Model) gutterFor(n int) int {
 	if m.gutter != nil {
 		return m.customWidth()
 	}
-	return numberGutter{m: &m}.widthFor(n, m.width)
+	return numberGutter{m: m}.widthFor(n, m.width)
 }
 
 // textWidth returns the columns right of the gutter.
-func (m Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
+func (m *Model) textWidth() int { return max(m.width-m.gutterWidth(), 0) }
 
 // indent returns the blank cells before the text of row i, which the rows
 // ask for with [Indenter], or 0. It leaves at least one column for the text.
-func (m Model) indent(i int) int {
+func (m *Model) indent(i int) int {
 	in, ok := m.rows.(Indenter)
 	if !ok {
 		return 0
@@ -59,10 +59,10 @@ func (m Model) indent(i int) int {
 
 // widthOf returns the columns of the text of row i, right of the gutter and
 // its indent.
-func (m Model) widthOf(i int) int { return max(m.textWidth()-m.indent(i), 0) }
+func (m *Model) widthOf(i int) int { return max(m.textWidth()-m.indent(i), 0) }
 
 // rowsIn returns how many rows the line shown at p takes.
-func (m Model) rowsIn(p int) int {
+func (m *Model) rowsIn(p int) int {
 	if !m.wrap {
 		return 1
 	}
@@ -78,7 +78,7 @@ func (m Model) rowsIn(p int) int {
 }
 
 // rowOf returns the row of the line shown at p that holds byte b.
-func (m Model) rowOf(p, b int) int {
+func (m *Model) rowOf(p, b int) int {
 	if _, ok := m.header(m.at(p)); ok {
 		return 0
 	}
@@ -92,7 +92,7 @@ func (m Model) rowOf(p, b int) int {
 
 // inView reports whether row r of the line shown at p is in the window.
 // It walks only the lines above it in the window.
-func (m Model) inView(p, r int) bool {
+func (m *Model) inView(p, r int) bool {
 	if p < m.top || p == m.top && r < m.row {
 		return false
 	}
@@ -147,7 +147,7 @@ func (m *Model) up(n int) {
 }
 
 // last returns the top line and row of the window scrolled to the end.
-func (m Model) last() (top, row int) {
+func (m *Model) last() (top, row int) {
 	n, h := m.count(), m.bodyHeight()
 	if n == 0 || h == 0 {
 		return 0, 0
@@ -172,7 +172,7 @@ func (m Model) last() (top, row int) {
 
 // bottom returns the position of the last line shown with a row in the
 // window.
-func (m Model) bottom() int {
+func (m *Model) bottom() int {
 	h, n := m.bodyHeight(), m.count()
 	if n == 0 {
 		return -1

@@ -163,6 +163,7 @@ func (m *Model) SetStyles(s Styles) {
 	ps := pager.DefaultStyles(true)
 	ps.Prompt, ps.Text, ps.Status, ps.Notice = s.Prompt, s.Text, s.Status, s.NoMatches
 	ps.Cursor, ps.Ellipsis = s.InputCursor, s.Ellipsis
+	ps.Match, ps.CurrentMatch = s.Match, s.CurrentMatch
 	m.pg.SetStyles(ps)
 }
 
@@ -200,6 +201,9 @@ type esc struct {
 	// ellipsis ends cut text, and is ellipsisWidth cells wide.
 	ellipsis      string
 	ellipsisWidth int
+	// The base styles of the rows, as the pager takes them.
+	kindRows              [Debug + 1]pager.Pair
+	sectionRow, failedRow pager.Pair
 }
 
 func newEsc(s Styles) esc {
@@ -231,35 +235,15 @@ func newEsc(s Styles) esc {
 	e.kinds[Notice] = newPair(s.NoticeLine)
 	e.kinds[Command] = newPair(s.Command)
 	e.kinds[Debug] = newPair(s.Debug)
+	kinds := [...]lipgloss.Style{
+		Plain: s.Text, Group: s.Group, Error: s.ErrorLine, Warning: s.WarningLine,
+		Notice: s.NoticeLine, Command: s.Command, Debug: s.Debug,
+	}
+	for k := range kinds {
+		e.kindRows[k] = pager.NewPair(kinds[k])
+	}
+	e.sectionRow, e.failedRow = pager.NewPair(s.Section), pager.NewPair(s.FailedSection)
 	return e
-}
-
-// text returns the base style of a row: of its kind, or of its section.
-func (e *esc) text(m *Model, r *row) pair {
-	switch {
-	case r.kind == kindSection && m.secs[r.sec].failed:
-		return e.failed
-	case r.kind == kindSection:
-		return e.section
-	case int(r.kind) < len(e.kinds):
-		return e.kinds[r.kind]
-	default:
-		return e.kinds[Plain]
-	}
-}
-
-// mark returns the mark in the gutter of a row, in its style, or "".
-func (e *esc) mark(m *Model, r *row) string {
-	switch {
-	case r.kind == Error, r.kind == kindSection && m.secs[r.sec].failed:
-		return e.errorMark
-	case r.kind == Warning:
-		return e.warningMark
-	case r.kind == Notice:
-		return e.noticeMark
-	default:
-		return ""
-	}
 }
 
 // oneCell returns g cut or padded to one cell, as the gutter's marks are.

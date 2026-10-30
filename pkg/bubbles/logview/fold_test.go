@@ -138,7 +138,7 @@ func TestFoldDefaults(t *testing.T) {
 			t.Errorf("fold %q open = %v, want %v", m.rows[f.head].text, f.open, want)
 		}
 	}
-	if m.cur != 0 || cursorText(m) != "Set up job" {
+	if m.cursorRow() != 0 || cursorText(m) != "Set up job" {
 		t.Errorf("cursor on %q, want the first section", cursorText(m))
 	}
 }
@@ -237,7 +237,7 @@ func TestFocusFailed(t *testing.T) {
 	if !isOpen(t, m, "run golangci-lint") {
 		t.Error("the group of the error is collapsed")
 	}
-	if !m.covers(m.cur) {
+	if !inView(m) {
 		t.Error("the error is out of view")
 	}
 	if !strings.Contains(plain(m), "error 1/5") {
@@ -257,7 +257,7 @@ func TestFocusFailedWithoutSections(t *testing.T) {
 		t.Errorf("FocusFailed moved to %q, want the error", cursorText(m))
 	}
 	m = view(t, plainLines("fine", "all good"), WithSize(40, 5))
-	if m.FocusFailed() || m.cur != 0 {
+	if m.FocusFailed() || m.cursorRow() != 0 {
 		t.Error("FocusFailed found something in a log without errors")
 	}
 }

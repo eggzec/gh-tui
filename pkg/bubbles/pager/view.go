@@ -20,7 +20,11 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	return m.Body() + m.statusLine()
+	b := builders.Get().(*strings.Builder)
+	defer func() { b.Reset(); builders.Put(b) }()
+	m.WriteBody(b)
+	b.WriteString(m.statusLine())
+	return b.String()
 }
 
 // Body renders the rows above the status line, each ended by a newline, so
@@ -34,8 +38,18 @@ func (m Model) Body() string {
 	// pointer, which would otherwise move it to the heap on each frame.
 	b := builders.Get().(*strings.Builder)
 	defer func() { b.Reset(); builders.Put(b) }()
-	// Tokens carry escape sequences, so leave room for them.
-	b.Grow(m.height * (m.width + 64))
+	m.WriteBody(b)
+	return b.String()
+}
+
+// WriteBody writes what Body returns to b, so that a host drawing its own
+// status line under the rows builds the frame in one buffer.
+func (m Model) WriteBody(b *strings.Builder) {
+	if m.width <= 0 || m.height <= 0 {
+		return
+	}
+	// Tokens and styles carry escape sequences, so leave room for them.
+	b.Grow(m.height * (2*m.width + 64))
 	rows := 0
 	switch {
 	case m.state == stateReady && m.count() > 0:
@@ -63,7 +77,6 @@ func (m Model) Body() string {
 		b.WriteString(blank)
 		b.WriteByte('\n')
 	}
-	return b.String()
 }
 
 // builders holds the builders that View writes a frame in.
