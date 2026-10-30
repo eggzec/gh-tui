@@ -316,6 +316,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			Repos:    reposvc.NewPreviews(client, reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries)),
 			Users:    searchPreviews,
 			Commits:  searchPreviews,
+			Issues:   refSvc,
+			Pulls:    pullSvc,
 			Ellipsis: icons.Ellipsis,
 		})),
 	}
