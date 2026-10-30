@@ -53,6 +53,15 @@ type Headed interface {
 	Header(i int) (text string, ok bool)
 }
 
+// Indenter is an optional interface of [Rows]: row i is drawn Indent(i)
+// blank cells right of the gutter, on each of its screen rows, and wraps in
+// the columns that are left. Header rows are drawn whole and ignore it.
+type Indenter interface {
+	// Indent returns the blank cells before row i. It is asked while the
+	// pager draws and measures, so it must be cheap.
+	Indent(i int) int
+}
+
 // HeaderWriter draws header row i, whose text is given, over the whole width
 // of the pager: it writes exactly width cells, the gutter's included.
 type HeaderWriter func(b *strings.Builder, i int, text string, width int)
