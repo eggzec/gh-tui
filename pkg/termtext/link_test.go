@@ -55,6 +55,25 @@ func TestLink(t *testing.T) {
 
 // A link takes no cells, and cutting it anywhere, from either side,
 // leaves it closed.
+// With links off, Link returns the text and nothing else, for the cached
+// kind too, and links again once they are on.
+func TestSetLinks(t *testing.T) {
+	const addr = "https://github.com/o/r"
+	SetLinks(false)
+	t.Cleanup(func() { SetLinks(true) })
+	if got := Link(addr, "x"); got != "x" {
+		t.Errorf("Link with links off = %q, want the text", got)
+	}
+	var l Links
+	if got := l.Link(addr, "x"); got != "x" {
+		t.Errorf("Links.Link with links off = %q, want the text", got)
+	}
+	SetLinks(true)
+	if got := Link(addr, "x"); got == "x" {
+		t.Error("Link with links on returns the text")
+	}
+}
+
 // Plain http links only to the host AllowPlainHTTP names, and to no
 // other name or port, however like it.
 func TestLinkPlainHTTP(t *testing.T) {

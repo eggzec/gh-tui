@@ -247,6 +247,7 @@ func (c Config) Values(key string) []string {
 var choices = map[string][]string{
 	"ui.icons":                     {IconsNerd, IconsUnicode, IconsASCII},
 	"images.enabled":               {ImagesAuto, ImagesOn, ImagesOff},
+	"links":                        {LinksAuto, LinksOn, LinksOff},
 	"dashboard.contributions":      {Contributions30d, Contributions90d, ContributionsYear},
 	"ui.date_format":               {DateRelative, DateAbsolute},
 	"cache.revalidate.scope":       {ScopeRecent, ScopeAll},

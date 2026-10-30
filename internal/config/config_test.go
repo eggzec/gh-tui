@@ -263,6 +263,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 	cfg.UI.Icons = "emoji"
 	cfg.UI.DateFormat = "yesterday"
 	cfg.Images = Images{Enabled: "yes", MaxRows: 0}
+	cfg.Links = "sometimes"
 	cfg.Log = Log{Level: "trace", File: "gh-tui.log", MaxSize: KiB, Keep: -1, Summary: time.Second}
 	cfg.Editor = "vim\n-c q"
 
@@ -311,6 +312,7 @@ func TestValidateReportsEveryProblem(t *testing.T) {
 		`ui.date_format: must be relative, absolute or a Go time layout such as "2006-01-02 15:04", got "yesterday"`,
 		`images.enabled: must be auto, on or off, got "yes"`,
 		`images.max_rows: must be at least 1, got 0`,
+		`links: must be auto, on or off, got "sometimes"`,
 		`log.level: must be debug, info, warn or error, got "trace"`,
 		`log.file: must be an absolute path, got "gh-tui.log"`,
 		`log.max_size: must be at least 64KiB, got 1KiB`,
