@@ -102,6 +102,9 @@ type Options struct {
 	// Folded is whether the Commits section is folded now, since its title
 	// says more of the selection while it is.
 	Folded bool
+	// FileURL is the address of the diff of the file at a path, or nil when
+	// the pane doesn't know one; a name then isn't a link.
+	FileURL func(path string) string
 }
 
 // Short returns the first characters of a commit's SHA.
@@ -265,13 +268,14 @@ func (b *builder) note(id, text string) foldtree.Row {
 func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) foldtree.Row {
 	name := termtext.OneLine(path.Base(f.Path))
 	viewed := state == core.Viewed
-	text := b.st.fileIcon(f.Path) + name
+	icon := b.st.fileIcon(f.Path)
+	text := icon + b.link(f.Path, name)
 	badge := b.badge(f.Path)
 	switch {
 	case viewed && badge != "":
-		text = b.st.dim.Render(ansi.Strip(text)) + " " + badge + " " + b.st.check
+		text = b.link(f.Path, b.st.dim.Render(ansi.Strip(icon+name))) + " " + badge + " " + b.st.check
 	case viewed:
-		text = b.st.dim.Render(ansi.Strip(text)) + " " + b.st.check
+		text = b.link(f.Path, b.st.dim.Render(ansi.Strip(icon+name))) + " " + b.st.check
 	case badge != "":
 		text += " " + badge
 	}
@@ -285,6 +289,14 @@ func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) fol
 		Lines: []string{text},
 		Right: b.counts(f.Additions, f.Deletions, viewed),
 	}
+}
+
+// link makes text a link to the file at path, when the options say where it is.
+func (b *builder) link(path, text string) string {
+	if b.o.FileURL == nil {
+		return text
+	}
+	return termtext.Link(b.o.FileURL(path), text)
 }
 
 // counts is "+a −d" drawn in color, or dim when quiet, leaving out a count of
