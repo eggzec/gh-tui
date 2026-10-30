@@ -119,11 +119,14 @@ func (s *Step) titleLine(w int) string {
 			left += " " + t
 		}
 	}
-	left = s.st.title.Render(left)
-	if s.filter == "" || s.prompt.Focused() {
-		return ui.Fit(termtext.Truncate(left, w, s.opts.icons.Ellipsis), w)
+	spec := ui.TitleSpec{
+		Name: left, Width: w, Sep: s.opts.icons.Separator, Ellipsis: s.opts.icons.Ellipsis,
+		NameStyle: s.st.title.Render, CountStyle: s.st.chip.Render,
 	}
-	return ui.Spread(left, s.st.chip.Render(promptFilter+" "+ui.OneLine(s.filter)), w, s.opts.icons.Ellipsis)
+	if s.filter != "" && !s.prompt.Focused() {
+		spec.Count = promptFilter + " " + ui.OneLine(s.filter)
+	}
+	return ui.Title(spec)
 }
 
 // note says why the links shown may not be the latest: GitHub couldn't be
