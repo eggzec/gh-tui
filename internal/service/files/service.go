@@ -49,6 +49,8 @@ type Service struct {
 	// which are also stored under the SHA they resolved to.
 	objects *cache.Cache[core.Tree]
 	blobs   *cache.Cache[core.Blob]
+	// blobMemory is the byte budget of blobs; a blob over it isn't kept.
+	blobMemory int64
 }
 
 // New returns a service that calls api.
@@ -65,6 +67,7 @@ func New(api API, opts ...Option) *Service {
 	// they take up to twice it.
 	trees := cache.WithMaxSize(cmp.Or(o.treeMemory, int64(d.Cache.Memory.Trees)), treeSize)
 	maxBlob := cmp.Or(o.maxBlob, int64(d.Files.Preview.MaxSize))
+	blobMemory := cmp.Or(o.blobMemory, int64(d.Cache.Memory.Files))
 	// What a SHA names never changes, so it never goes stale.
 	return &Service{
 		api:      api,
@@ -76,8 +79,9 @@ func New(api API, opts ...Option) *Service {
 		objects:  cache.New[core.Tree](capacity, trees),
 		blobs: cache.New[core.Blob](
 			cache.WithCapacity(cmp.Or(o.blobCapacity, d.Cache.Memory.Entries)),
-			cache.WithMaxSize(cmp.Or(o.blobMemory, int64(d.Cache.Memory.Files)), blobSize),
+			cache.WithMaxSize(blobMemory, blobSize),
 		),
+		blobMemory: blobMemory,
 	}
 }
 

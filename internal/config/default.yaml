@@ -150,7 +150,9 @@ cache:
     # How many entries each kind of data keeps, such as the pages of pull
     # requests, or the files read.
     entries: 1024
-    # The memory that the contents of files take.
+    # The memory that the contents of files take. A file bigger than this
+    # is shown but not kept. While a file is shown it takes about twice its
+    # size, since the pager holds its own copy.
     files: 32MiB
     # The memory that listings of files take: the directories browsed and
     # the list of every path of a commit that the file finder searches.
@@ -232,10 +234,12 @@ sync:
 files:
   preview:
     # The largest file the preview reads, at most 100MiB. Larger files are
-    # refused and better opened in the browser.
+    # refused and better opened in the browser. A file that is shown takes
+    # about twice its size in memory.
     max_size: 20MiB
     # The size above which a file is large enough to ask before it is
-    # read. At most max_size.
+    # read. At most max_size. A file read after that question takes about
+    # twice its size in memory while it is shown.
     warn_size: 2MiB
   finder:
     # Show the content of the selected file beside the paths, where the

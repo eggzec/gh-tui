@@ -392,6 +392,59 @@ func TestBlobWarnLimit(t *testing.T) {
 	api.wantCalls(t, "blob eggzec/gh-tui mid 100")
 }
 
+// TestBlobOverMemory reads a blob over the budget of the memory shelf: it is
+// returned but not kept, and a smaller blob already kept stays.
+func TestBlobOverMemory(t *testing.T) {
+	api := &fakeAPI{t: t, blob: func(sha string, _ int64) (core.Blob, error) {
+		n := 10
+		if sha == "big" {
+			n = 1000
+		}
+		return core.Blob{SHA: sha, Size: int64(n), Content: make([]byte, n)}, nil
+	}}
+	s := New(api, WithBlobMemory(500), WithWarnBlobSize(5000), WithMaxBlobSize(5000))
+	small := BlobQuery{Repo: repo, SHA: "small"}
+	big := BlobQuery{Repo: repo, SHA: "big"}
+
+	if _, err := s.Blob(t.Context(), small); err != nil {
+		t.Fatalf("Blob small: %v", err)
+	}
+	b, err := s.Blob(t.Context(), big)
+	if err != nil || len(b.Content) != 1000 {
+		t.Fatalf("Blob big = %d bytes, %v; want 1000", len(b.Content), err)
+	}
+	if _, ok := s.CachedBlob(big); ok {
+		t.Error("a blob over the memory budget was kept")
+	}
+	if _, ok := s.CachedBlob(small); !ok {
+		t.Error("a blob over the budget evicted a smaller one")
+	}
+}
+
+// TestBlobHardLimit refuses a file over the hard limit however high the
+// query's limit is, and one that a raised limit loaded is not served to a
+// query with the default limit.
+func TestBlobHardLimit(t *testing.T) {
+	api := &fakeAPI{t: t, blob: func(sha string, _ int64) (core.Blob, error) {
+		return core.Blob{SHA: sha, Size: 50, Content: make([]byte, 50)}, nil
+	}}
+	s := New(api, WithWarnBlobSize(10), WithMaxBlobSize(100))
+
+	_, err := s.Blob(t.Context(), BlobQuery{Repo: repo, SHA: "huge", Size: 101, Limit: 1 << 60})
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || e.Warn || e.Limit != 100 {
+		t.Errorf("Blob error = %v, want a refusal over 100 with no warning", err)
+	}
+	api.wantCalls(t)
+
+	if _, err := s.Blob(t.Context(), BlobQuery{Repo: repo, SHA: "mid", Limit: 100}); err != nil {
+		t.Fatalf("Blob with a raised limit: %v", err)
+	}
+	_, err = s.Blob(t.Context(), BlobQuery{Repo: repo, SHA: "mid"})
+	if e, ok := errors.AsType[*core.TooLargeError](err); !ok || !e.Warn {
+		t.Errorf("Blob error = %v, want a warning TooLargeError", err)
+	}
+}
+
 func TestCompareFold(t *testing.T) {
 	tests := []struct {
 		a, b string
