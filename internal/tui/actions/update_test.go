@@ -1014,7 +1014,7 @@ func TestEscStopsEveryFollowedRun(t *testing.T) {
 	first.Status, first.Conclusion = core.RunInProgress, core.ConclusionNone
 	f.setRun(first)
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("enter", "j", "enter", "j") // two running runs open and followed, a third shown
+	h.keys("j", "enter", "k", "enter", "j") // two running runs open and followed, the second shown
 	if len(m.follows) != 2 {
 		t.Fatalf("follows %d, want the two open running runs followed", len(m.follows))
 	}
