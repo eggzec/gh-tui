@@ -104,7 +104,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw, confirm: ui.NewConfirmKeys(keys)}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
-	p.md.setFiles(ctx, svc, repo, ref, images)
+	p.md.setFiles(ctx, svc, host, repo, ref, images)
 	p.img = fileImage{images: images, repo: repo, ellipsis: ic.Ellipsis}
 	p.pager.Focus()
 	return p
