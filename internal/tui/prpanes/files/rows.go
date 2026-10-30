@@ -291,12 +291,12 @@ func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) fol
 	}
 }
 
-// link makes text a link to the file at path, when the options say where it is.
-func (b *builder) link(path, text string) string {
+// link makes text a link to the file at name, when the options say where it is.
+func (b *builder) link(name, text string) string {
 	if b.o.FileURL == nil {
 		return text
 	}
-	return termtext.Link(b.o.FileURL(path), text)
+	return termtext.Link(b.o.FileURL(name), text)
 }
 
 // counts is "+a −d" drawn in color, or dim when quiet, leaving out a count of

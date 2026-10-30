@@ -20,8 +20,9 @@ func TestFileLinks(t *testing.T) {
 		page := ui.WebURL(host, "o/r/pull/7")
 		o := opts("unicode", 60)
 		o.FileURL = func(path string) string { return page + "/files#" + ui.DiffAnchor(path) }
-		var got []string
-		for _, r := range Tree(fs, 0, o) {
+		rows := Tree(fs, 0, o)
+		got := make([]string, 0, len(rows))
+		for _, r := range rows {
 			got = append(got, uitest.Links(t, strings.Join(r.Lines, "\n"))...)
 		}
 		// The rows follow the order of the paths.
