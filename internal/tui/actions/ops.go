@@ -51,8 +51,8 @@ func (m *Modal) rerunFailed() (change, string, tea.Cmd) {
 	}
 	name := jobview.RunName(r)
 	jobs := "the failed jobs"
-	if m.cur().loaded && m.cur().runID == r.ID {
-		switch n := jobview.FailedJobs(m.cur().items); n {
+	if cur := m.cur(); cur.loaded && cur.runID == r.ID {
+		switch n := jobview.FailedJobs(cur.items); n {
 		case 0:
 			return change{}, name + " has no failed jobs to re-run.", nil
 		case 1:
