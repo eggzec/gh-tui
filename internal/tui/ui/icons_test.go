@@ -22,7 +22,7 @@ func marks(ic Icons) []string {
 	return slices.Concat([]string{
 		ic.Fork, ic.Private, ic.Archived, ic.Template, ic.Mirror, ic.Here, ic.Star, ic.Repo, ic.Person, ic.Org, ic.Error, ic.Language(""),
 		ic.Yes, ic.No, ic.Info, ic.Cursor, ic.Folded, ic.Unfolded, ic.Marked,
-		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent,
+		ic.ChangesRequested, ic.ReviewRequired, ic.Dot, ic.Ring, ic.Crumb, ic.Before, ic.Cell, ic.Comment, ic.Recent, ic.Attempt,
 	}, ic.states[:], ic.runs[:], ic.glyphs[:], slices.Collect(maps.Values(ic.langs)))
 }
 

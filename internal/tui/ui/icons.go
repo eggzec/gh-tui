@@ -90,6 +90,8 @@ type Icons struct {
 	// Workflow and Event lead what a run tells of where it came from, and
 	// Clock a time or how long it took.
 	Workflow, Event, Clock string
+	// Attempt marks which attempt of a run it is.
+	Attempt string
 	// OpenQuote and CloseQuote go around text quoted in prose, and Dash
 	// sets a clause apart in it.
 	OpenQuote, CloseQuote, Dash string
@@ -165,7 +167,7 @@ func newIcons(set string) Icons {
 			Yes: "✓", No: "✗", Info: "•",
 			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Changed: "↻",
 			ChangesRequested: "±", ReviewRequired: "•",
-			Workflow: "⚙", Event: "↯", Clock: "◷",
+			Workflow: "⚙", Event: "↯", Clock: "◷", Attempt: "↺",
 			lang: "◉",
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
@@ -179,7 +181,7 @@ func newIcons(set string) Icons {
 			Yes: "+", No: "x", Info: "i",
 			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Changed: "~",
 			ChangesRequested: "~", ReviewRequired: "?",
-			Workflow: "W", Event: "e", Clock: "t",
+			Workflow: "W", Event: "e", Clock: "t", Attempt: "#",
 			// A colored dot, as the other sets have, since the star takes *.
 			lang: "o",
 			states: [NumStates]string{
@@ -202,8 +204,8 @@ func newIcons(set string) Icons {
 			Marked:           "\uf14a",                           // fa-check_square
 			Changed:          "\uf46a",                           // oct-sync
 			ChangesRequested: "\uf4d2", ReviewRequired: "\uf444", // oct-file_diff, oct-dot_fill
-			// fa-cogs, fa-bolt, oct-clock
-			Workflow: "\uf085", Event: "\uf0e7", Clock: "\uf43a",
+			// fa-cogs, fa-bolt, oct-clock, oct-history
+			Workflow: "\uf085", Event: "\uf0e7", Clock: "\uf43a", Attempt: "\uf464",
 			langs: nerdLanguages,
 			lang:  "\uf44f",
 			files: nerdFiles,
