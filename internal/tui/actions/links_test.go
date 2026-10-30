@@ -34,6 +34,25 @@ func TestRowLinks(t *testing.T) {
 	}
 }
 
+// The branch, the commit and the actor of a run link to their pages, on the
+// host of the run.
+func TestRunFactsLinks(t *testing.T) {
+	m, _ := newModal(t, newFake(), 120, 30)
+	for _, host := range uitest.Hosts {
+		m.run = core.Run{ID: 1, Name: "CI", Branch: "fix/a b", HeadSHA: "0123456789abcdef", Actor: "octo-cat",
+			URL: ui.WebURL(host, "o/r/actions/runs/1")}
+		got := uitest.Links(t, strings.Join(m.runFacts(80), "\n"))
+		want := []string{
+			ui.WebURL(host, "o/r/tree/fix/a%20b"),
+			ui.WebURL(host, "o/r/commit/0123456789abcdef"),
+			ui.WebURL(host, "octo-cat"),
+		}
+		if strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Errorf("%s: facts link to %q, want %q", host, got, want)
+		}
+	}
+}
+
 // The run's row keeps to its name and title; how long it took shows in its
 // details, and a run whose jobs never started has no duration.
 func TestRunDurationShowsInTheDetails(t *testing.T) {

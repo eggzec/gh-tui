@@ -392,8 +392,13 @@ func (m *Modal) renderHeader(w int) []string {
 	var lines []string
 	// A value too long for the pane wraps below itself, past the labels.
 	indent := strings.Repeat(" ", labelWidth)
-	field := func(label, value string) {
+	// A value may link to a page; each wrapped line links on its own, so a
+	// link never spans a line break.
+	field := func(label, value string, addr ...string) {
 		for i, l := range wrap(value, w, indent) {
+			if len(addr) > 0 {
+				l = termtext.Link(addr[0], l)
+			}
 			if i == 0 {
 				l = m.st.label.Render(pad(label, labelWidth)) + ansi.TruncateLeft(l, labelWidth, "")
 			}
@@ -405,12 +410,12 @@ func (m *Modal) renderHeader(w int) []string {
 	for _, name := range f.detail {
 		switch name {
 		case config.FieldSHA:
-			field("Commit", m.st.muted.Render(k.SHA))
+			field("Commit", m.st.muted.Render(k.SHA), m.commitURL(k))
 		case config.FieldAuthor:
-			field("Author", m.st.text.Render(f.person(k.Author)))
+			field("Author", m.st.text.Render(f.person(k.Author)), ui.ProfileURL(m.opts.host, k.Author.Login))
 		case config.FieldCommitter:
 			if !shared {
-				field("Committer", m.st.text.Render(f.person(k.Committer)))
+				field("Committer", m.st.text.Render(f.person(k.Committer)), ui.ProfileURL(m.opts.host, k.Committer.Login))
 			}
 		case config.FieldDate:
 			field("Date", m.st.text.Render(f.dates(k.Author.Date, k.Committer.Date, now)))

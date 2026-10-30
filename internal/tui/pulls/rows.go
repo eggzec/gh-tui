@@ -313,7 +313,10 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	if c.author {
 		pad(&b, 2)
 		login, lw := truncate(ui.OneLine(pr.Author.Login), authorWidth, s.st.ic.Ellipsis)
-		st.author.write(&b, login)
+		// The author links to their profile, on the host of the pull request.
+		var who strings.Builder
+		st.author.write(&who, login)
+		b.WriteString(s.links.Link(ui.PageProfileURL(pr.URL, pr.Author.Login), who.String()))
 		pad(&b, authorWidth-lw)
 	}
 	if c.age {

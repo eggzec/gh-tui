@@ -185,8 +185,9 @@ func TestDiagramKeys(t *testing.T) {
 	if !strings.HasPrefix(want, "https://mermaid.live/view#pako:") {
 		t.Fatalf("the comments have no diagram with a link: %q", want)
 	}
-	// The other link is the issue's, in the header.
-	if v := m.View(); strings.Count(v, "\x1b]8;;"+want+"\x1b\\") != 1 || strings.Count(v, "\x1b]8;;\x1b\\") != 2 {
+	// The other links are the issue's, its author's and its assignee's, in
+	// the header.
+	if v := m.View(); strings.Count(v, "\x1b]8;;"+want+"\x1b\\") != 1 || strings.Count(v, "\x1b]8;;\x1b\\") != 4 {
 		t.Errorf("the head doesn't link to %q once:\n%q", want, v)
 	}
 	var help []string

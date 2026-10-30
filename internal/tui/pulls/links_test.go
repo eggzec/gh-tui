@@ -23,6 +23,23 @@ func TestRowLinks(t *testing.T) {
 	}
 }
 
+// The author in a row links to their profile on the host of the pull
+// request.
+func TestRowAuthorLinks(t *testing.T) {
+	s := started(t, newFakeService(), 140, 10).Section
+	for _, host := range uitest.Hosts {
+		pr := core.PullRequest{}
+		pr.Number, pr.Title, pr.State = 7, "t", core.StateOpen
+		pr.URL = ui.WebURL(host, "o/r/pull/7")
+		pr.Author.Login = "octo-cat"
+		links := uitest.Links(t, s.renderRow(pr, false, 140))
+		want := []string{pr.URL, ui.WebURL(host, "octo-cat")}
+		if strings.Join(links, " ") != strings.Join(want, " ") {
+			t.Errorf("%s: row links to %q, want %q", host, links, want)
+		}
+	}
+}
+
 // The title and the number in the header link to the pull request's page.
 func TestDetailHeaderLinks(t *testing.T) {
 	s := started(t, newFakeService(), 120, 30)

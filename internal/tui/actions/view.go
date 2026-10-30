@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -198,10 +199,24 @@ func (m *Modal) runFacts(w int) []string {
 	now := m.now()
 	var lines []string
 	ic := st.ic
-	add := func(glyph, name, value string) {
+	add := func(glyph, name, value string, addr ...string) {
 		if value = ui.OneLine(value); value != "" {
+			if len(addr) > 0 {
+				value = termtext.Link(addr[0], value)
+			}
 			lines = append(lines, glyph+" "+st.Subtle.Render(name+" ")+value)
 		}
+	}
+	// The run's page names the host and the repository, which the branch,
+	// the commit and the actor are pages of.
+	var branchURL, commitURL string
+	if repoPage, _, ok := strings.Cut(r.URL, "/actions/"); ok {
+		segs := strings.Split(r.Branch, "/")
+		for i, s := range segs {
+			segs[i] = url.PathEscape(s)
+		}
+		branchURL = repoPage + "/tree/" + strings.Join(segs, "/")
+		commitURL = repoPage + "/commit/" + url.PathEscape(r.HeadSHA)
 	}
 	sub := func(g string) string { return st.Subtle.Render(g) }
 	add(sub(ic.Workflow), "Workflow", r.Name)
@@ -211,9 +226,9 @@ func (m *Modal) runFacts(w int) []string {
 		add(st.Glyphs[ui.RunStateOf(r.Status, r.Conclusion)], "Result", string(r.Conclusion))
 	}
 	add(sub(ic.Event), "Event", r.Event)
-	add(sub(ic.Glyph(ui.GlyphBranchEvent)), "Branch", r.Branch)
-	add(sub(ic.Glyph(ui.GlyphCommit)), "Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)])
-	add(sub(ic.Person), "Actor", r.Actor)
+	add(sub(ic.Glyph(ui.GlyphBranchEvent)), "Branch", r.Branch, branchURL)
+	add(sub(ic.Glyph(ui.GlyphCommit)), "Commit", r.HeadSHA[:min(len(r.HeadSHA), 7)], commitURL)
+	add(sub(ic.Person), "Actor", r.Actor, ui.PageProfileURL(r.URL, r.Actor))
 	if !r.CreatedAt.IsZero() {
 		add(sub(ic.Clock), "Started", m.opts.dates.Short(r.CreatedAt, now))
 	}
