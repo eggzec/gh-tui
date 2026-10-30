@@ -34,6 +34,8 @@ const (
 	shownLoading
 	// shownImage is the image.
 	shownImage
+	// shownTooLarge says the image is over the size the app shows.
+	shownTooLarge
 )
 
 // fileImage shows a file of a repository in a pager: as its image, in
@@ -50,9 +52,10 @@ type fileImage struct {
 	blob  core.Blob
 	err   error
 	on    bool
-	// gone is set once the image failed in a way no retry mends, so a
-	// new size, which asks for a new fit, doesn't ask for it again.
-	gone bool
+	// end is ImageGone or ImageTooLarge once the image failed in a way no
+	// retry mends, so a new size, which asks for a new fit, doesn't ask for
+	// it again.
+	end ui.ImageState
 	// shown is what the pager shows, and pic the lines of the image.
 	shown shown
 	pic   []string
@@ -65,7 +68,7 @@ type fileImage struct {
 func (fi *fileImage) set(e core.TreeEntry, b core.Blob, err error) {
 	fi.entry, fi.blob, fi.err = e, b, err
 	fi.on = err == nil && fi.images != nil && !e.Symlink() && imageFile(e.Path)
-	fi.shown, fi.pic, fi.gone = shownNothing, nil, false
+	fi.shown, fi.pic, fi.end = shownNothing, nil, ui.ImageOff
 }
 
 // clear forgets the file, for a pager that shows something else.
@@ -87,7 +90,10 @@ func (fi *fileImage) draw(pg *pager.Model) (text bool) {
 	case ui.ImageLoading:
 		want = shownLoading
 	case ui.ImageGone:
-		fi.gone = true
+		fi.end = st
+	case ui.ImageTooLarge:
+		fi.end = st
+		want = shownTooLarge
 	case ui.ImageFailed, ui.ImageOff:
 		// It shows as it did before images, such as a binary file. A
 		// failure that may mend is asked for again once GitHub answers
@@ -103,6 +109,8 @@ func (fi *fileImage) draw(pg *pager.Model) (text bool) {
 		pg.SetMessage(fi.entry.Path, "")
 	case shownLoading:
 		pg.SetMessage(fi.entry.Path, "Loading the image"+fi.ellipsis)
+	case shownTooLarge:
+		pg.SetMessage(fi.entry.Path, fi.entry.Path+" is too large to show as an image.")
 	case shownNothing, shownText:
 		return true
 	}
@@ -122,8 +130,8 @@ func (fi *fileImage) rows(pg *pager.Model) ([]string, ui.ImageState) {
 	if !fi.on {
 		return nil, ui.ImageOff
 	}
-	if fi.gone {
-		return nil, ui.ImageGone
+	if fi.end != ui.ImageOff {
+		return nil, fi.end
 	}
 	w, h := pg.Width(), pg.Height()-1
 	if w <= 0 || h <= 0 {

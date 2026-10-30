@@ -713,15 +713,16 @@ func TestFitNotShown(t *testing.T) {
 // shows instead. One that may mend is asked for again once GitHub
 // answers.
 func TestFitFails(t *testing.T) {
-	f := &fakeFetch{fail: map[string]error{"gone": fmt.Errorf("lossless webp: %w", ErrImageGone), "net": errors.New("reset")}}
+	f := &fakeFetch{fail: map[string]error{"gone": fmt.Errorf("lossless webp: %w", ErrImageGone), "net": errors.New("reset"), "big": fmt.Errorf("blob: %w", ErrImageTooLarge)}}
 	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
 	box := ImageSize{Cols: 10, Rows: 10}
 	a.Fit(fileOf("gone"), box)
 	a.Fit(fileOf("net"), box)
+	a.Fit(fileOf("big"), box)
 	if _, redraw := load(t, a); redraw != RedrawSoon {
 		t.Errorf("failed with redraw %d, want soon", redraw)
 	}
-	for sha, want := range map[string]ImageState{"gone": ImageGone, "net": ImageFailed} {
+	for sha, want := range map[string]ImageState{"gone": ImageGone, "net": ImageFailed, "big": ImageTooLarge} {
 		if rows, st := a.Fit(fileOf(sha), box); rows != nil || st != want {
 			t.Errorf("%s: Fit = %q, %d, want %d", sha, rows, st, want)
 		}

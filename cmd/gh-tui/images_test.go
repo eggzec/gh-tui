@@ -66,9 +66,28 @@ func TestFetchImageFile(t *testing.T) {
 		t.Errorf("read %+v, want the file's blob with its size", blobs.asked)
 	}
 	for _, sha := range []string{"vp8l", "missing"} {
-		if _, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: sha}, box); !errors.Is(err, ui.ErrImageGone) {
+		_, err := fetch(t.Context(), ui.ImageSource{Repo: repo, SHA: sha}, box)
+		if !errors.Is(err, ui.ErrImageGone) || errors.Is(err, ui.ErrImageTooLarge) {
 			t.Errorf("%s: err = %v, want one that won't load", sha, err)
 		}
+	}
+}
+
+// bigBlobs reads every file as one over the size limit.
+type bigBlobs struct{}
+
+func (bigBlobs) Blob(context.Context, filesvc.BlobQuery) (core.Blob, error) {
+	return core.Blob{}, core.ErrTooLarge
+}
+
+// An image file over the size limit is too large, not gone, so the pane
+// can say so.
+func TestFetchImageFileTooLarge(t *testing.T) {
+	fetch := fetchImage(newImages("github.com", nil, nil), bigBlobs{})
+	src := ui.ImageSource{Repo: core.RepoRef{Owner: "eggzec", Name: "gh-tui"}, SHA: "huge"}
+	_, err := fetch(t.Context(), src, ui.ImageBox{Cols: 40, Rows: 20, Cell: imgcaps.Cell{Width: 10, Height: 20}})
+	if !errors.Is(err, ui.ErrImageTooLarge) {
+		t.Errorf("err = %v, want one that is too large", err)
 	}
 }
 
