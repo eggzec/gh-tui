@@ -197,6 +197,8 @@ func (v *markdownView) render(name, src string) pager.Render {
 		}
 		if name != v.file {
 			v.reset()
+			// Relative links resolve from the file's directory.
+			v.md.SetLinks(v.link)
 		}
 		v.file = name
 		v.drew = false

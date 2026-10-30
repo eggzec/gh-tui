@@ -233,7 +233,13 @@ func (r *Renderer) stand(addr, inner string) string {
 func (r *Renderer) dropGone(lines []string) []string {
 	kept := lines[:0]
 	for _, l := range lines {
-		if strings.ContainsRune(l, goneMark) {
+		if i := strings.IndexRune(l, goneMark); i >= 0 {
+			if r.bare(l[:i]) == "" {
+				// The address began the line, so the space that
+				// followed it would indent the rest.
+				last := strings.LastIndex(l, string(goneMark)) + utf8.RuneLen(goneMark)
+				l = l[:last] + dropSpace(l[last:])
+			}
 			l = strings.ReplaceAll(l, string(goneMark), "")
 			if r.bare(l) == "" {
 				continue
@@ -242,6 +248,26 @@ func (r *Renderer) dropGone(lines []string) []string {
 		kept = append(kept, l)
 	}
 	return kept
+}
+
+// dropSpace returns s without its first space, if only escape sequences
+// come before it.
+func dropSpace(s string) string {
+	for i := 0; i < len(s); {
+		switch {
+		case s[i] == ' ':
+			return s[:i] + s[i+1:]
+		case s[i] == esc && i+1 < len(s) && s[i+1] == '[':
+			j := i + 2
+			for j < len(s) && (s[j] < '@' || s[j] > '~') {
+				j++
+			}
+			i = j + 1
+		default:
+			return s
+		}
+	}
+	return s
 }
 
 // underlined returns the text of a link drawn underlined, as the address

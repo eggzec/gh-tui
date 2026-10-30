@@ -156,6 +156,26 @@ func TestRenderDropsSourceHyperlink(t *testing.T) {
 	}
 }
 
+// The characters of links in a code block, which comes from the source, don't
+// make a link: only the real one does, to its own address.
+func TestRenderCodeBlockMakesNoLink(t *testing.T) {
+	linksOn(t, true)
+	const src = "[real](https://example.com/real)\n\n```\n\U000F2000click me\U000F1FFF\n```\n"
+	raw := New(DefaultStyle(true)).Render(src, 60)
+	if n := strings.Count(raw, "\x1b]8;;https://"); n != 1 {
+		t.Errorf("want one hyperlink, got %d: %q", n, raw)
+	}
+	if !strings.Contains(raw, "\x1b]8;;https://example.com/real\x1b\\") {
+		t.Errorf("the real link is missing: %q", raw)
+	}
+	for _, r := range raw {
+		if isLinkRune(r) {
+			t.Errorf("a character of links got through: %q", raw)
+			break
+		}
+	}
+}
+
 // Wrapping follows what shows: no line is wider than the width, with links
 // on or off, and the words are the same.
 func TestRenderLinksWrap(t *testing.T) {
@@ -167,6 +187,21 @@ func TestRenderLinksWrap(t *testing.T) {
 		for l := range strings.SplitSeq(on, "\n") {
 			if w := ansi.StringWidth(l); w > width {
 				t.Errorf("width %d: line of %d cells: %q", width, w, l)
+			}
+		}
+		// The text after a hidden address that wrapped doesn't start
+		// one column further in than the paragraph.
+		indent := -1
+		for l := range strings.SplitSeq(ansi.Strip(on), "\n") {
+			if strings.TrimSpace(l) == "" {
+				continue
+			}
+			n := len(l) - len(strings.TrimLeft(l, " "))
+			if indent < 0 {
+				indent = n
+			}
+			if n > indent {
+				t.Errorf("width %d: line indented %d, paragraph %d: %q", width, n, indent, l)
 			}
 		}
 		onWords := words(ansi.Strip(on))
