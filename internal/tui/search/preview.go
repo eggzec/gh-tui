@@ -30,6 +30,12 @@ type previewBody struct {
 	// find is the text the pager jumps to, which is the query where the
 	// result's text holds it.
 	find string
+	// message, when set, is shown as it is instead of text, such as for a
+	// file that is binary or too large.
+	message string
+	// line, when set, is the line the pager starts on, before it searches for
+	// find.
+	line int
 }
 
 // What the pager says of -N over a rendered body: its lines are rendered
@@ -55,12 +61,7 @@ func (s *Section) previewed() previewBody {
 		if !ok {
 			return previewBody{}
 		}
-		return previewBody{
-			key:  "code " + h.Repo.String() + ":" + h.Path + "@" + h.SHA + " " + s.text,
-			name: h.Path,
-			text: func() string { return codeText(h) },
-			find: s.text,
-		}
+		return s.codeBody(h)
 	}
 	l, ok := s.visibleHits()
 	if !ok {
@@ -260,8 +261,13 @@ func (s *Section) syncPreview() tea.Cmd {
 			raw += "\n" + body + "\n"
 		}
 		s.pv.SetRendered(p.name, raw, s.markdownRender(head, body))
+	case p.message != "":
+		s.pv.SetMessage(p.name, p.message)
 	case p.text != nil:
 		cmd = s.pv.SetContent(p.name, p.text())
+		if p.line > 0 {
+			s.pv.GoToLine(p.line)
+		}
 	default:
 		// Nothing is selected, so nothing of the last hit may stay.
 		cmd = s.pv.SetContent("", "")

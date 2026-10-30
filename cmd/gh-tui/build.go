@@ -312,6 +312,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	searchOpts := []searchpage.Option{
 		searchpage.WithStart(searchStart(repoSvc, pinned)), searchpage.WithIcons(icons), searchpage.WithDates(dates), searchpage.WithHost(webHost), searchpage.WithVoice(voice),
 		searchpage.WithDetails(pullSvc, issueSvc), searchpage.WithPrefetch(cfg.Prefetch), searchpage.WithSlots(slots),
+		searchpage.WithCodeReader(searchpage.NewCodeReader(fileSvc)),
 		searchpage.WithPreviewReader(searchpage.NewPreviewReader(searchpage.PreviewServices{
 			Repos:    reposvc.NewPreviews(client, reposvc.WithInfoTTL(ttl.RepoInfo), reposvc.WithCapacity(mem.Entries)),
 			Users:    searchPreviews,
