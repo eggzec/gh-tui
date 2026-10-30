@@ -305,8 +305,11 @@ func (m *Model) jump(i int) {
 	if k > 0 {
 		nth -= int(s.ends[k-1])
 	}
+	prev := *s
 	s.cur, s.curLine, s.curNth = i, int(s.lines[k]), nth
 	if !m.revealRow(s.curLine) {
+		// The counter stays where it was.
+		s.cur, s.curLine, s.curNth = prev.cur, prev.curLine, prev.curNth
 		m.flash = noteNotFound
 		return
 	}

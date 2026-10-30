@@ -30,15 +30,23 @@ func WithReveal(reveal func(row int) (vis []int32, changed bool)) Option {
 // [WithReveal] hook is over the rows shown when it runs, so run it again after
 // the mask changes. The pager keeps vis without copying it, as it keeps the
 // mask the reveal hook returns, since a mask can list every row of a long
-// log: the host must not change either after it hands it over.
+// log: the host must not change either after it hands it over. SetVisible
+// does not cancel a search in flight: its result lands over the rows as they
+// were when it started, so run the search again after the mask changes. The
+// mask is dropped when the pager is fitted to rendered content.
 func (m *Model) SetVisible(vis []int32, anchor func(hidden int) int) {
 	top := m.topLine()
+	m.setMask(vis, anchor)
+	m.applyMask(top)
+}
+
+// setMask keeps the mask and its anchor, or drops both for a nil mask.
+func (m *Model) setMask(vis []int32, anchor func(hidden int) int) {
 	if vis == nil {
 		m.mask, m.maskAnchor = nil, nil
-	} else {
-		m.mask, m.maskAnchor = vis, anchor
+		return
 	}
-	m.applyMask(top)
+	m.mask, m.maskAnchor = vis, anchor
 }
 
 // applyMask composes the lines shown with the mask, and keeps the window on
@@ -142,11 +150,7 @@ func (m *Model) revealRow(i int) bool {
 		return false
 	}
 	top := m.topLine()
-	if vis == nil {
-		m.mask = nil
-	} else {
-		m.mask = vis
-	}
+	m.setMask(vis, m.maskAnchor)
 	m.applyMask(top)
 	return !m.hiddenByMask(i)
 }

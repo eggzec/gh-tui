@@ -4,7 +4,9 @@ import "strings"
 
 // WithCursor gives the pager a cursor: a current row that the line, page,
 // top and bottom keys move, and that a search lands on. It is off by
-// default, and a pager without it scrolls as before.
+// default, and a pager without it scrolls as before. With line numbers off
+// and no inverted search the cursor gutter is 0 wide and the cursor is
+// invisible: the host then needs a [CursorGutter] of its own.
 func WithCursor(on bool) Option {
 	return func(s *settings) { s.cursoring = on }
 }

@@ -34,8 +34,7 @@ type look struct {
 	cursor      int
 	matching    bool
 	// ranges returns the matches in row i and which of them is current,
-	// or -1. View sets it, on its value receiver, which works because the
-	// store is a pointer shared by every copy of the model.
+	// or -1. View sets it through the shared store.
 	ranges func(i int) ([][]int, int)
 }
 

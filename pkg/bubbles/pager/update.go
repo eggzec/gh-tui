@@ -159,7 +159,7 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 // page of the window does too.
 func (m *Model) scroll(n int) {
 	switch {
-	case m.cursoring && n == 1, m.cursoring && n == -1:
+	case m.cursoring && (n == 1 || n == -1):
 		m.moveCursor(n)
 	case m.cursoring:
 		m.pageCursor(n)
