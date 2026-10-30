@@ -45,10 +45,55 @@ var enterpriseSubdomains = []string{"avatars.", "media.", "raw."}
 // GitHub that web, its web host, names, and no other.
 type hosts struct {
 	web string
+	// exact are the extra hosts the user trusts, and wild the suffixes
+	// (".example.com") of their wildcards, all lowercase.
+	exact map[string]bool
+	wild  []string
 }
 
-func newHosts(web string) hosts {
-	return hosts{web: hostPort(strings.ToLower(web), "")}
+// newHosts returns the hosts of web's GitHub, and the extra entries: exact
+// hosts, or wildcards of subdomains (*.example.com). An entry that is not
+// one, such as one with a port, is left out.
+func newHosts(web string, extra ...string) hosts {
+	h := hosts{web: hostPort(strings.ToLower(web), "")}
+	for _, e := range extra {
+		e = strings.ToLower(strings.TrimSpace(e))
+		suffix, wildcard := strings.CutPrefix(e, "*")
+		if wildcard {
+			e = suffix
+			if !strings.HasPrefix(e, ".") {
+				continue
+			}
+			e = e[1:]
+		}
+		if e == "" || strings.ContainsAny(e, ":/@?#*[] ") || strings.HasPrefix(e, ".") || strings.HasSuffix(e, ".") {
+			continue
+		}
+		if wildcard {
+			h.wild = append(h.wild, "."+e)
+			continue
+		}
+		if h.exact == nil {
+			h.exact = map[string]bool{}
+		}
+		h.exact[e] = true
+	}
+	return h
+}
+
+// trusted reports whether host, without a port, is one of the extra
+// hosts.
+func (h hosts) trusted(host string) bool {
+	host = strings.ToLower(host)
+	if h.exact[host] {
+		return true
+	}
+	for _, s := range h.wild {
+		if len(host) > len(s) && strings.HasSuffix(host, s) {
+			return true
+		}
+	}
+	return false
 }
 
 // allowed reports whether u may be fetched first: https, no user, and a
@@ -58,6 +103,11 @@ func (h hosts) allowed(u *url.URL) bool {
 		return false
 	}
 	host := hostPort(strings.ToLower(u.Hostname()), u.Port())
+	if u.Port() == "" || u.Port() == "443" {
+		if h.trusted(u.Hostname()) {
+			return true
+		}
+	}
 	if h.web == github {
 		switch {
 		case githubHosts[host]:

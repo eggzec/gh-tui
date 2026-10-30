@@ -26,6 +26,16 @@ func WithHTML(h HTML) Option {
 	return func(f *Fetcher) { f.signer.html = h }
 }
 
+// WithTrustedHosts adds hosts that images may be fetched from, besides
+// GitHub's own: each an exact host (img.example.com) or a wildcard of its
+// subdomains (*.example.com, which is not example.com itself). Entries
+// with a port or anything else that is not a host are ignored. They are
+// fetched directly over https, without credentials, and never at a
+// private address.
+func WithTrustedHosts(entries []string) Option {
+	return func(f *Fetcher) { f.trusted = entries }
+}
+
 // WithStore keeps the images fetched in s, which is the account's own.
 func WithStore(s Store) Option {
 	return func(f *Fetcher) { f.store = s }

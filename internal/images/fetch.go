@@ -67,6 +67,7 @@ type Source struct {
 // concurrent use. Fetch blocks, so call it in a tea.Cmd.
 type Fetcher struct {
 	hosts     hosts
+	trusted   []string
 	client    *http.Client
 	transport http.RoundTripper
 	signer    signer
@@ -109,8 +110,9 @@ func New(web string, opts ...Option) *Fetcher {
 	for _, opt := range opts {
 		opt(f)
 	}
+	f.hosts = newHosts(web, f.trusted...)
 	if f.transport == nil {
-		f.transport = newTransport()
+		f.transport = newTransport(f.hosts)
 	}
 	f.client = newClient(f.transport, f.hosts)
 	f.signer.now, f.signer.hosts = f.now, f.hosts
