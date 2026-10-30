@@ -217,6 +217,14 @@ func (m *Model) SetFollow(follow bool) {
 	}
 }
 
+// Position returns where the view is in its lines, to restore later with
+// [Model.SetPosition].
+func (m Model) Position() pager.Position { return m.pg.Position() }
+
+// SetPosition restores a position that Position returned, kept within the
+// lines.
+func (m *Model) SetPosition(p pager.Position) { m.pg.SetPosition(p) }
+
 // KeyMap returns the key bindings.
 func (m Model) KeyMap() KeyMap { return m.keys }
 

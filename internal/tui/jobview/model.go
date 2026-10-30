@@ -24,6 +24,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // Service is what the view reads a job's log from.
@@ -117,6 +118,9 @@ type Model struct {
 	unwatch func()
 	// find is what the log opens on, from [Hints].
 	find []string
+	// pos is where the log goes once it shows, set by SetPosition while
+	// it loads.
+	pos *pager.Position
 
 	width, height int
 	st            ui.RunStyles
