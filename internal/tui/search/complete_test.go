@@ -54,7 +54,7 @@ func TestCompleteQuery(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := texts(completeQuery(tt.kind, tt.line, tt.cursor))
+			got := texts(completeQuery(tt.kind, tt.line, tt.cursor, nil))
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("complete(%q, %d) = %q, want %q", tt.line, tt.cursor, got, tt.want)
 			}
@@ -64,9 +64,62 @@ func TestCompleteQuery(t *testing.T) {
 
 func TestCompleteQuerySpan(t *testing.T) {
 	t.Parallel()
-	cs := completeQuery(core.SearchIssues, "tea is:op more", 9)
+	cs := completeQuery(core.SearchIssues, "tea is:op more", 9, nil)
 	if len(cs) != 1 || cs[0].Start != 4 || cs[0].End != 9 {
 		t.Fatalf("span = %+v, want 4..9", cs)
+	}
+}
+
+type fakeValues struct{ repos, owners []string }
+
+func (f fakeValues) Repos() []string  { return f.repos }
+func (f fakeValues) Owners() []string { return f.owners }
+
+func TestCompleteQueryValues(t *testing.T) {
+	t.Parallel()
+	vals := fakeValues{
+		repos:  []string{"octo/hello", "Octo/world", "other/thing", "octo/hello"},
+		owners: []string{"octo", "other", "bob"},
+	}
+	tests := []struct {
+		name string
+		kind core.SearchKind
+		line string
+		vals Values
+		want []string
+	}{
+		{"repo all", core.SearchIssues, "repo:", vals, []string{"repo:octo/hello", "repo:Octo/world", "repo:other/thing"}},
+		{"repo prefix", core.SearchIssues, "repo:o/", vals, nil},
+		{"repo owner prefix", core.SearchIssues, "repo:octo/", vals, []string{"repo:octo/hello", "repo:Octo/world"}},
+		{"negated repo", core.SearchIssues, "-repo:oth", vals, []string{"-repo:other/thing"}},
+		{"org", core.SearchIssues, "org:o", vals, []string{"org:octo", "org:other"}},
+		{"user", core.SearchIssues, "user:b", vals, []string{"user:bob"}},
+		{"no provider", core.SearchIssues, "repo:", nil, nil},
+		{"unknown qualifier", core.SearchIssues, "zzz:o", vals, nil},
+		{"fixed values kept", core.SearchIssues, "is:op", vals, []string{"is:open"}},
+		{"kind lacks qualifier", core.SearchTopics, "repo:", vals, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := texts(completeQuery(tt.kind, tt.line, len(tt.line), tt.vals))
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("complete(%q) = %q, want %q", tt.line, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTabCompletesValue(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	s.SetValues(fakeValues{repos: []string{"octo/hello"}})
+	s.Focus()
+	press(t, s, "i")
+	typeOnly(t, s, "tea repo:oc")
+	press(t, s, "tab")
+	if got := s.input.Value(); got != "tea repo:octo/hello" {
+		t.Fatalf("after tab, query = %q", got)
 	}
 }
 

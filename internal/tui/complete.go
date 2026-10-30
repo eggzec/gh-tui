@@ -313,6 +313,30 @@ func (m *Model) knownOwners() iter.Seq[string] {
 	}
 }
 
+// searchValues completes the values of repo:, org: and user: in the query of
+// the search from what goto completes from, in the same order.
+type searchValues struct{ m *Model }
+
+// Repos returns the known repositories as owner/name.
+func (v searchValues) Repos() []string {
+	var out []string
+	for r := range v.m.knownRepos() {
+		out = append(out, r.String())
+	}
+	return out
+}
+
+// Owners returns the known logins, leaving out the viewer's own as goto does.
+func (v searchValues) Owners() []string {
+	var out []string
+	for o := range v.m.knownOwners() {
+		if !v.m.isViewer(o) {
+			out = append(out, o)
+		}
+	}
+	return out
+}
+
 // completeNumber completes the number after '#' in word, in the
 // repository before it or else the selected one, from the issues and pull
 // requests the app has read, with their titles.
