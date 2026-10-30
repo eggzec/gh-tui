@@ -581,6 +581,12 @@ confirm a mutation against real GitHub. Check 80x24 and 120x40, and check
 again after a rebase. Agent skills, such as the one for this script, live
 in `.agents/skills`.
 
+Review visual changes, and golden or snapshot churn, with screenshots rather
+than pasted text screens: capture the screen with its colours
+(`tmux -L NAME capture-pane -e -p`) to a file under `.tmp/`, render it to a
+PNG with vhs, and open the image. The TUI skill
+has the recipe.
+
 ## Git workflow
 
 ### Worktrees
