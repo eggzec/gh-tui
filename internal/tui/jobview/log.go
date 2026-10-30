@@ -20,11 +20,11 @@ import (
 // publishes of its log, and its whole log once it is shown again,
 // finished. Showing the job shown again keeps its log, and only takes its
 // steps and what the poll read of a partial log.
-func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
+func (m *Model) Show(j core.Job, rest bool) tea.Cmd {
 	defer m.layout()
 	running := m.state == Pending || m.state == Partial
 	if j.ID == m.job.ID && m.state != None && (!running || !j.Done()) {
-		m.job, m.hints = j, h
+		m.job = j
 		if running {
 			// A job that started, or a view shown again after a pause, has
 			// the poll read on.
@@ -36,7 +36,7 @@ func (m *Model) Show(j core.Job, rest bool, h Hints) tea.Cmd {
 		return nil
 	}
 	m.Clear()
-	m.job, m.hints = j, h
+	m.job = j
 	if !j.Done() {
 		m.state = Pending
 		if j.Status != core.RunInProgress {
@@ -66,7 +66,7 @@ func (m *Model) Clear() {
 	if m.unwatch != nil {
 		m.unwatch()
 	}
-	m.job, m.hints, m.state, m.truncated, m.resting = core.Job{}, Hints{}, None, false, false
+	m.job, m.state, m.truncated, m.resting = core.Job{}, None, false, false
 	m.part, m.unwatch = shownPart{}, nil
 	m.view.SetTitle("")
 	m.layout()
