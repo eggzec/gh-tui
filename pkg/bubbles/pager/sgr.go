@@ -71,6 +71,7 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 	}
 	// The pen writes only what changes from one style to the next.
 	pen := base.pen
+	began := b.Len()
 	pen.Start(b)
 	pen.Write(b, style)
 	mi, inMatch := 0, false
@@ -117,5 +118,8 @@ func (m Model) writeStyled(b *strings.Builder, i, a, e int) {
 			inMatch = false
 		}
 	}
-	b.WriteString(ansi.ResetStyle)
+	// A row that wrote only its text has nothing to reset.
+	if b.Len()-began > e-a {
+		b.WriteString(ansi.ResetStyle)
+	}
 }
