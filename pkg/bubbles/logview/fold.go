@@ -7,33 +7,39 @@ import (
 
 // rebuild lists the rows shown, skipping the insides of collapsed folds.
 // It makes a new slice, so copies of the model keep theirs.
-func (m *Model) rebuild() {
-	vis := make([]int, 0, len(m.vis))
-	for r := 0; r < len(m.rows); {
+func (m *Model) rebuild() { m.vis = visible(m.rows, m.folds, len(m.vis)) }
+
+// visible lists the rows shown, skipping the insides of collapsed folds, in
+// a new slice with room for size.
+func visible(rows []row, folds []fold, size int) []int {
+	vis := make([]int, 0, size)
+	for r := 0; r < len(rows); {
 		vis = append(vis, r)
-		if f := m.rows[r].fold; f >= 0 && !m.folds[f].open {
-			r = m.folds[f].end
+		if f := rows[r].fold; f >= 0 && !folds[f].open {
+			r = folds[f].end
 			continue
 		}
 		r++
 	}
-	m.vis = vis
+	return vis
 }
 
 // locate returns the entry of vis that shows row r, or the header of the
 // collapsed fold that hides it.
-func (m *Model) locate(r int) int {
+func (m *Model) locate(r int) int { return locate(m.vis, m.rows, m.folds, r) }
+
+func locate(vis []int, rows []row, folds []fold, r int) int {
 	for {
-		if v, ok := slices.BinarySearch(m.vis, r); ok {
+		if v, ok := slices.BinarySearch(vis, r); ok {
 			return v
 		}
-		f := m.rows[r].parent
+		f := rows[r].parent
 		if f < 0 {
 			// Rows outside folds are always shown.
-			v, _ := slices.BinarySearch(m.vis, r)
-			return min(v, len(m.vis)-1)
+			v, _ := slices.BinarySearch(vis, r)
+			return min(v, len(vis)-1)
 		}
-		r = m.folds[f].head
+		r = folds[f].head
 	}
 }
 
@@ -42,7 +48,7 @@ func (m *Model) cursorRow() int {
 	if len(m.vis) == 0 {
 		return -1
 	}
-	return m.vis[m.cur]
+	return m.pg.Cursor()
 }
 
 // refold applies a change to the folds, on a copy of them, and keeps the
@@ -52,16 +58,11 @@ func (m *Model) refold(change func(folds []fold)) {
 	if len(m.vis) == 0 {
 		return
 	}
-	cur, top := m.vis[m.cur], m.vis[m.top]
 	m.folds = slices.Clone(m.folds)
 	change(m.folds)
 	m.rebuild()
-	m.cur, m.top = m.locate(cur), m.locate(top)
-	if m.vis[m.top] != top {
-		m.row = 0
-	}
-	m.clamp()
-	m.show()
+	m.pushVisible()
+	m.pg.Show()
 }
 
 // toggle expands or collapses the fold under the cursor. On a row inside a
@@ -151,7 +152,8 @@ func (m *Model) reveal(r int) {
 			}
 		})
 	}
-	m.jumpTo(m.locate(r))
+	m.syncLook()
+	m.pg.SetCursor(r)
 }
 
 // FocusText moves the cursor to the first line of the log that contains

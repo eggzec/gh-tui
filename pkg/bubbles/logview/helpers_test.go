@@ -234,6 +234,13 @@ func cursorText(m Model) string {
 	return ""
 }
 
+// inView reports whether the cursor's row is in the window.
+func inView(m Model) bool {
+	at := slices.Index(m.vis, m.cursorRow())
+	bottom := slices.Index(m.vis, m.pg.Bottom())
+	return at >= 0 && at >= m.pg.Position().Top && at <= bottom
+}
+
 // plain returns the view without escape sequences.
 func plain(m Model) string { return ansi.Strip(m.View()) }
 

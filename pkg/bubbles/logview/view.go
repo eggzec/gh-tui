@@ -3,7 +3,6 @@ package logview
 import (
 	"cmp"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -11,8 +10,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/errline"
-	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the rows in the window and the status line, in exactly
@@ -22,12 +19,14 @@ func (m Model) View() string {
 		return ""
 	}
 	var b strings.Builder
-	// Rows carry escape sequences, so leave room for them.
-	b.Grow(m.height * (m.width + 96))
 	rows := 0
 	switch {
 	case m.state == stateReady && len(m.vis) > 0:
-		rows = m.writeRows(&b)
+		// The pager draws the rows through the hooks, which read the look.
+		m.syncLook()
+		m.store.look.ranges = m.pg.RangesFunc()
+		m.pg.WriteBody(&b)
+		rows = m.bodyHeight()
 	case m.state == stateFailed:
 		for _, l := range m.errorLines(m.width, m.bodyHeight()) {
 			b.WriteString(m.fit(l, m.width))
@@ -53,6 +52,9 @@ func (m Model) View() string {
 	b.WriteString(m.statusLine())
 	return b.String()
 }
+
+// bodyHeight returns the rows above the status line.
+func (m *Model) bodyHeight() int { return max(m.height-1, 0) }
 
 // message returns the placeholder shown instead of rows.
 func (m *Model) message() string {
@@ -91,148 +93,6 @@ func (m *Model) errorLines(width, height int) []string {
 	return errline.Fit(st, m.errText, m.errHint, width, height)
 }
 
-// writeRows writes the rows of the window, each followed by a newline, and
-// returns how many it wrote.
-func (m *Model) writeRows(b *strings.Builder) int {
-	h, l := m.bodyHeight(), m.layout()
-	rows := 0
-	for v := m.top; v < len(m.vis) && rows < h; v++ {
-		ri := m.vis[v]
-		r := &m.rows[ri]
-		if l.width()+indent(r) >= m.width {
-			// Too narrow for any text: cut the gutter.
-			var t strings.Builder
-			m.writeGutter(&t, l, v, r, true)
-			m.writeMarker(&t, r)
-			b.WriteString(m.fit(t.String(), m.width))
-			b.WriteByte('\n')
-			rows++
-			continue
-		}
-		tw := m.textWidth(l, r)
-		if r.fold >= 0 {
-			m.writeHeader(b, l, v, ri, r, tw)
-			b.WriteByte('\n')
-			rows++
-			continue
-		}
-		if !m.wrap {
-			a, pad := wrap.LeftEdge(r.text, m.left)
-			e, used := wrap.Advance(r.text, a, tw-pad)
-			m.writeGutter(b, l, v, r, true)
-			spaces(b, pad)
-			m.writeText(b, ri, r, a, e)
-			spaces(b, tw-pad-used)
-			b.WriteByte('\n')
-			rows++
-			continue
-		}
-		for sub, a := 0, 0; rows < h; sub++ {
-			e, used := wrap.NextRow(r.text, a, tw)
-			if v > m.top || sub >= m.row {
-				m.writeGutter(b, l, v, r, sub == 0)
-				if used > tw {
-					// Only a grapheme wider than the whole text column gets
-					// here.
-					spaces(b, tw)
-				} else {
-					m.writeText(b, ri, r, a, e)
-					spaces(b, tw-used)
-				}
-				b.WriteByte('\n')
-				rows++
-			}
-			if a = e; a >= len(r.text) {
-				break
-			}
-		}
-	}
-	return rows
-}
-
-// writeGutter writes the cursor, the line number, the mark, the time and
-// the indent of row r, shown by entry v. Only the first row of a wrapped
-// line has the number, mark and time.
-func (m *Model) writeGutter(b *strings.Builder, l layout, v int, r *row, first bool) {
-	switch {
-	case v != m.cur:
-		b.WriteByte(' ')
-	case m.focused:
-		b.WriteString(m.esc.cursor)
-	default:
-		b.WriteString(m.esc.blurred)
-	}
-	if l.numbers > 0 {
-		if first && r.kind != kindSection {
-			var buf [20]byte
-			n := strconv.AppendInt(buf[:0], int64(r.src+1), 10)
-			spaces(b, l.numbers-1-len(n))
-			b.WriteString(m.esc.number.on)
-			b.Write(n)
-			b.WriteString(m.esc.number.off)
-			b.WriteByte(' ')
-		} else {
-			spaces(b, l.numbers)
-		}
-	}
-	mk := ""
-	if first {
-		mk = m.esc.mark(m, r)
-	}
-	if mk == "" {
-		mk = " "
-	}
-	b.WriteString(mk)
-	b.WriteByte(' ')
-	if l.times > 0 {
-		if first {
-			m.writeTime(b, r)
-		} else {
-			spaces(b, timeWidth)
-		}
-		b.WriteByte(' ')
-	}
-	spaces(b, 2*r.depth)
-}
-
-// writeMarker writes the glyph of an open or a folded fold before the row
-// that starts it, or blanks when the fold is empty.
-func (m *Model) writeMarker(b *strings.Builder, r *row) {
-	switch {
-	case r.fold < 0:
-	case m.folds[r.fold].end == m.folds[r.fold].head+1:
-		spaces(b, 2)
-	case m.folds[r.fold].open:
-		b.WriteString(m.esc.open)
-	default:
-		b.WriteString(m.esc.closed)
-	}
-}
-
-// writeTime writes the time of row r in timeWidth cells.
-func (m *Model) writeTime(b *strings.Builder, r *row) {
-	if r.time.IsZero() {
-		spaces(b, timeWidth)
-		return
-	}
-	var buf [24]byte
-	var t []byte
-	if m.times == TimeAbsolute {
-		t = r.time.AppendFormat(buf[:0], "15:04:05")
-	} else {
-		began := m.began
-		if r.sec >= 0 && !m.secs[r.sec].began.IsZero() {
-			began = m.secs[r.sec].began
-		}
-		t = appendSince(buf[:0], r.time.Sub(began))
-	}
-	t = t[:min(len(t), timeWidth)]
-	spaces(b, timeWidth-len(t))
-	b.WriteString(m.esc.time.on)
-	b.Write(t)
-	b.WriteString(m.esc.time.off)
-}
-
 // appendSince appends a time since the start of a section: minutes,
 // seconds and tenths under an hour, and hours, minutes and seconds after.
 func appendSince(buf []byte, d time.Duration) []byte {
@@ -260,48 +120,6 @@ func appendTwo(buf []byte, n int) []byte {
 	return strconv.AppendInt(buf, int64(n), 10)
 }
 
-// writeHeader writes the row that starts a fold: its marker and title, and
-// how long a section took at the right edge.
-func (m *Model) writeHeader(b *strings.Builder, l layout, v, ri int, r *row, tw int) {
-	m.writeGutter(b, l, v, r, true)
-	m.writeMarker(b, r)
-	var buf [16]byte
-	var dur []byte
-	if r.kind == kindSection && m.secs[r.sec].duration > 0 {
-		dur = appendDuration(buf[:0], m.secs[r.sec].duration)
-	}
-	room := tw
-	if len(dur) > 0 && len(dur)+minText/2 < tw {
-		room = tw - len(dur) - 1
-	} else {
-		dur = nil
-	}
-	e, used := wrap.Advance(r.text, 0, room)
-	cut := e < len(r.text)
-	ell, ew := m.esc.ellipsis, m.esc.ellipsisWidth
-	if ew > room {
-		ell, ew = "", 0
-	}
-	if cut {
-		e, used = wrap.Advance(r.text, 0, room-ew)
-	}
-	m.writeText(b, ri, r, 0, e)
-	if cut && ell != "" {
-		base := m.esc.text(m, r)
-		b.WriteString(base.on)
-		b.WriteString(ell)
-		b.WriteString(base.off)
-		used += ew
-	}
-	spaces(b, room-used)
-	if len(dur) > 0 {
-		b.WriteByte(' ')
-		b.WriteString(m.esc.duration.on)
-		b.Write(dur)
-		b.WriteString(m.esc.duration.off)
-	}
-}
-
 // appendDuration appends how long a step took, the way GitHub shows it:
 // "0s", "42s", "1m 5s" or "1h 2m".
 func appendDuration(buf []byte, d time.Duration) []byte {
@@ -316,79 +134,6 @@ func appendDuration(buf []byte, d time.Duration) []byte {
 		buf = append(strconv.AppendInt(buf, int64(d/time.Hour), 10), "h "...)
 		return append(strconv.AppendInt(buf, int64(d/time.Minute%60), 10), 'm')
 	}
-}
-
-// writeText writes bytes a to e of the text of row r, which is row ri, in
-// the style of its kind under its own colors, or in the style of the
-// matches over them.
-func (m *Model) writeText(b *strings.Builder, ri int, r *row, a, e int) {
-	base := m.esc.text(m, r)
-	var matches [][]int
-	curMatch := -1
-	if m.matching {
-		matches, curMatch = m.pg.Ranges(ri)
-	}
-	marks := r.marks
-	if base.on == "" && len(marks) == 0 && len(matches) == 0 {
-		b.WriteString(r.text[a:e])
-		return
-	}
-	// k counts the marks before or at a, the last of which is the style
-	// there.
-	k, _ := slices.BinarySearchFunc(marks, a+1, func(x termtext.Style, pos int) int { return x.Pos - pos })
-	cur := ""
-	if k > 0 {
-		cur = marks[k-1].Seq
-	}
-	// The pen writes only what changes from one style to the next.
-	pen := base.pen
-	pen.Start(b)
-	pen.Write(b, cur)
-	mi, inMatch := 0, false
-	for pos := a; pos < e; {
-		if k < len(marks) && marks[k].Pos <= pos {
-			for k < len(marks) && marks[k].Pos <= pos {
-				k++
-			}
-			cur = marks[k-1].Seq
-			// A match hides the log's colors, which come back after it.
-			if !inMatch {
-				pen.Write(b, cur)
-			}
-		}
-		for mi < len(matches) && matches[mi][1] <= pos {
-			mi++
-		}
-		next := e
-		if k < len(marks) {
-			next = min(next, marks[k].Pos)
-		}
-		if mi < len(matches) {
-			x := matches[mi]
-			if x[0] > pos {
-				next = min(next, x[0])
-			} else {
-				if !inMatch {
-					p := m.esc.match
-					if mi == curMatch {
-						p = m.esc.current
-					}
-					b.WriteString(ansi.ResetStyle)
-					b.WriteString(p.on)
-					pen.Lost()
-					inMatch = true
-				}
-				next = min(next, x[1])
-			}
-		}
-		b.WriteString(r.text[pos:next])
-		pos = next
-		if inMatch && pos >= matches[mi][1] {
-			pen.Write(b, cur)
-			inMatch = false
-		}
-	}
-	b.WriteString(ansi.ResetStyle)
 }
 
 // statusLine renders the title on the left and where the cursor is on the
@@ -442,12 +187,13 @@ func (m *Model) statusLine() string {
 // counts rows, so a log folded to its step titles doesn't read as a few
 // lines of hundreds.
 func (m *Model) position() string {
+	cur, bottom := m.cursorRow(), max(m.pg.Bottom(), 0)
 	if len(m.vis) < len(m.rows) || m.n == 0 {
-		pct := (m.bottom() + 1) * 100 / len(m.vis)
-		return fmt.Sprintf("row %d/%d  %d%%", m.cur+1, len(m.vis), pct)
+		pct := (m.locate(bottom) + 1) * 100 / len(m.vis)
+		return fmt.Sprintf("row %d/%d  %d%%", m.locate(cur)+1, len(m.vis), pct)
 	}
-	line := min(m.rows[m.vis[m.cur]].src+1, m.n)
-	pct := min(m.rows[m.vis[m.bottom()]].src+1, m.n) * 100 / m.n
+	line := min(m.rows[cur].src+1, m.n)
+	pct := min(m.rows[bottom].src+1, m.n) * 100 / m.n
 	return fmt.Sprintf("line %d/%d  %d%%", line, m.n, pct)
 }
 

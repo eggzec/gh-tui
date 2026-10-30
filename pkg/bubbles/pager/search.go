@@ -381,7 +381,7 @@ func (m *Model) findHits() {
 
 // shown returns the bytes a to e of the line shown at p that the window
 // shows.
-func (m Model) shown(p int) (a, e int) {
+func (m *Model) shown(p int) (a, e int) {
 	s, tw := m.rows.Text(m.at(p)), m.widthOf(m.at(p))
 	if !m.wrap {
 		a, _ = m.leftEdge(s)

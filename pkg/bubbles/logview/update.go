@@ -42,11 +42,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmds = append(cmds, m.pg.UpdatePrompt(msg))
 	}
 	// A search that ended goes to the first match at or after the cursor, if
-	// the user has not moved it since.
-	if searching && !ok && !m.pg.Searching() && m.cursorRow() == m.from {
-		m.seekCursor()
-		m.syncMatch()
-		return m, tea.Batch(cmds...)
+	// the user has not moved it since. The pager goes to the first from the
+	// top of its window, which may be above the cursor.
+	if searching && !ok && !m.pg.Searching() {
+		if _, jumped := m.pg.Current(); jumped || m.cursorRow() == m.from {
+			m.seekCursor(m.from)
+			m.syncMatch()
+			return m, tea.Batch(cmds...)
+		}
 	}
 	// Follow the pager only to a match it just moved to, so that a fold the
 	// user closed over the current match stays closed.
@@ -59,30 +62,29 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
-	h := max(m.bodyHeight(), 1)
+	// The pager measures the rows with the look, as drawing them does.
+	m.syncLook()
 	switch {
 	case keymap.Matches(k, m.keys.Down):
-		m.move(1)
+		m.pg.Down(1)
 	case keymap.Matches(k, m.keys.Up):
-		m.move(-1)
+		m.pg.Up(1)
 	case keymap.Matches(k, m.keys.PageDown):
-		m.page(h)
+		m.pg.PageDown()
 	case keymap.Matches(k, m.keys.PageUp):
-		m.page(-h)
+		m.pg.PageUp()
 	case keymap.Matches(k, m.keys.HalfPageDown):
-		m.page(max(h/2, 1))
+		m.pg.HalfPageDown()
 	case keymap.Matches(k, m.keys.HalfPageUp):
-		m.page(-max(h/2, 1))
+		m.pg.HalfPageUp()
 	case keymap.Matches(k, m.keys.Home):
-		m.home()
+		m.pg.Home()
 	case keymap.Matches(k, m.keys.End):
-		m.end()
+		m.pg.End()
 	case keymap.Matches(k, m.keys.Right):
-		if !m.wrap {
-			m.scrollRight(m.hStep())
-		}
+		m.pg.Right()
 	case keymap.Matches(k, m.keys.Left):
-		m.left = max(m.left-m.hStep(), 0)
+		m.pg.Left()
 	case keymap.Matches(k, m.keys.Expand):
 		m.expand()
 	case keymap.Matches(k, m.keys.Collapse):
@@ -123,10 +125,11 @@ func (m Model) updateKey(k tea.KeyPressMsg) (Model, tea.Cmd) {
 func (m Model) updateSearch(k tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
 	case keymap.Matches(k, m.keys.Confirm):
-		m.syncPosition()
+		from := m.cursorRow()
+		m.syncLook()
 		cmd := m.pg.SubmitPrompt()
 		if cmd == nil {
-			m.seekCursor()
+			m.seekCursor(from)
 		}
 		m.from = m.cursorRow()
 		m.syncMatch()

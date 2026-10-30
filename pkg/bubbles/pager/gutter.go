@@ -73,7 +73,7 @@ func WithHeaderWriter(w HeaderWriter) Option {
 }
 
 // header returns the text of row i when it is a header row.
-func (m Model) header(i int) (string, bool) {
+func (m *Model) header(i int) (string, bool) {
 	if m.headerWriter == nil {
 		return "", false
 	}

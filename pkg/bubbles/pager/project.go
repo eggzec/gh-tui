@@ -15,7 +15,7 @@ import (
 // matches and highlights keep to the content whatever is shown.
 
 // count returns the number of lines shown.
-func (m Model) count() int {
+func (m *Model) count() int {
 	if m.vis != nil {
 		return len(m.vis)
 	}
@@ -23,7 +23,7 @@ func (m Model) count() int {
 }
 
 // at returns the index of the line shown at position p.
-func (m Model) at(p int) int {
+func (m *Model) at(p int) int {
 	if m.vis != nil {
 		return int(m.vis[p])
 	}
@@ -32,7 +32,7 @@ func (m Model) at(p int) int {
 
 // posOf returns the position of line i if it is shown, or else of the
 // first line shown after it, or count past the last.
-func (m Model) posOf(i int) int {
+func (m *Model) posOf(i int) int {
 	if m.vis == nil {
 		return i
 	}

@@ -49,8 +49,8 @@ func TestScroll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := view(t, numbered(100), WithSize(40, 11))
 			m, _ = keys(t, m, tt.keys...)
-			if m.cur != tt.wantCur || m.top != tt.wantTop {
-				t.Errorf("cursor %d, top %d; want %d, %d", m.cur, m.top, tt.wantCur, tt.wantTop)
+			if p := m.pg.Position(); p.Cursor != tt.wantCur || p.Top != tt.wantTop {
+				t.Errorf("cursor %d, top %d; want %d, %d", p.Cursor, p.Top, tt.wantCur, tt.wantTop)
 			}
 		})
 	}
@@ -77,9 +77,9 @@ func TestScrollWrapped(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.keys, " "), func(t *testing.T) {
 			got, _ := keys(t, m, tt.keys...)
-			if got.cur != tt.wantCur || got.top != tt.wantTop || got.row != tt.wantRow {
+			if p := got.pg.Position(); p.Cursor != tt.wantCur || p.Top != tt.wantTop || p.Row != tt.wantRow {
 				t.Errorf("cursor %d at %d:%d, want %d at %d:%d",
-					got.cur, got.top, got.row, tt.wantCur, tt.wantTop, tt.wantRow)
+					p.Cursor, p.Top, p.Row, tt.wantCur, tt.wantTop, tt.wantRow)
 			}
 			assertFits(t, got.View(), 13, 5)
 		})
@@ -90,21 +90,22 @@ func TestScrollSideways(t *testing.T) {
 	// The gutter leaves 37 columns of text, a quarter of which is one
 	// step.
 	m := view(t, plainLines(strings.Repeat("0123456789", 5), "short"), WithSize(40, 5), WithLineNumbers(false))
+	left := func() int { return m.pg.Position().Left }
 	m, _ = keys(t, m, "right")
-	if m.left != 9 {
-		t.Errorf("left = %d, want 9", m.left)
+	if left() != 9 {
+		t.Errorf("left = %d, want 9", left())
 	}
 	m, _ = keys(t, m, "right", "right", "right")
-	if m.left != 13 {
-		t.Errorf("left = %d, want 13, where the longest line ends", m.left)
+	if left() != 13 {
+		t.Errorf("left = %d, want 13, where the longest line ends", left())
 	}
 	m, _ = keys(t, m, "left", "left", "left")
-	if m.left != 0 {
-		t.Errorf("left = %d, want 0", m.left)
+	if left() != 0 {
+		t.Errorf("left = %d, want 0", left())
 	}
 	m, _ = keys(t, m, "-", "S", "right")
-	if m.left != 0 || !m.Wrap() {
-		t.Errorf("left = %d while wrapping, want 0", m.left)
+	if left() != 0 || !m.Wrap() {
+		t.Errorf("left = %d while wrapping, want 0", left())
 	}
 }
 
@@ -130,7 +131,7 @@ func TestErrors(t *testing.T) {
 			if cursorText(got) != errText(tt.want) {
 				t.Errorf("cursor on %q, want error %d", cursorText(got), tt.want+1)
 			}
-			if !got.covers(got.cur) {
+			if !inView(got) {
 				t.Error("the error is out of view")
 			}
 			if !strings.Contains(plain(got), tt.status) {
@@ -436,7 +437,7 @@ func TestAppendFollows(t *testing.T) {
 			if got := cursorText(m); got != tt.wantCursor {
 				t.Errorf("cursor on %q, want %q", got, tt.wantCursor)
 			}
-			if !m.covers(m.cur) {
+			if !inView(m) {
 				t.Error("the cursor is out of view")
 			}
 		})
@@ -570,13 +571,13 @@ func TestOldPagingKeysUnbound(t *testing.T) {
 		t.Run(k, func(t *testing.T) {
 			m := view(t, numbered(100), WithSize(40, 11))
 			m, _ = keys(t, m, "ctrl+f", "ctrl+f")
-			cur, top := m.cur, m.top
-			if top == 0 {
+			before := m.pg.Position()
+			if before.Top == 0 {
 				t.Fatal("setup did not scroll")
 			}
 			m, _ = keys(t, m, k)
-			if m.cur != cur || m.top != top {
-				t.Errorf("after %q: cursor %d, top %d; want %d, %d", k, m.cur, m.top, cur, top)
+			if p := m.pg.Position(); p.Cursor != before.Cursor || p.Top != before.Top {
+				t.Errorf("after %q: cursor %d, top %d; want %d, %d", k, p.Cursor, p.Top, before.Cursor, before.Top)
 			}
 		})
 	}
