@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
+	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
 // Show shows job j: its log from memory at once, or read, after the rest
@@ -67,9 +68,28 @@ func (m *Model) Clear() {
 		m.unwatch()
 	}
 	m.job, m.state, m.truncated, m.resting, m.find = core.Job{}, None, false, false, nil
-	m.part, m.unwatch = shownPart{}, nil
+	m.part, m.unwatch, m.pos = shownPart{}, nil, nil
 	m.view.SetTitle("")
 	m.layout()
+}
+
+// Position returns where the log is, or where it goes once it shows.
+func (m Model) Position() pager.Position {
+	if m.pos != nil {
+		return *m.pos
+	}
+	return m.view.Position()
+}
+
+// SetPosition moves the log to p, a position that Position returned, at
+// once if the log shows, or else once it does.
+func (m *Model) SetPosition(p pager.Position) {
+	if m.state == Ready || m.state == Partial {
+		m.pos = nil
+		m.view.SetPosition(p)
+		return
+	}
+	m.pos = &p
 }
 
 // ReadNow reads the log of the job shown at once, if it waits for a rest,
@@ -213,6 +233,10 @@ func (m *Model) showLines(p shownLog) {
 		if m.view.FocusText(text) {
 			break
 		}
+	}
+	if m.pos != nil {
+		m.view.SetPosition(*m.pos)
+		m.pos = nil
 	}
 }
 
