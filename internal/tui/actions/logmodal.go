@@ -41,7 +41,7 @@ func (m *Modal) openLog(j core.Job) tea.Cmd {
 }
 
 func (l *logModal) show(rest bool) tea.Cmd {
-	return l.log.Show(l.job, rest, jobview.Hints{})
+	return l.log.Show(l.job, rest)
 }
 
 func (l *logModal) follow() {

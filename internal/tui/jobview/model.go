@@ -65,9 +65,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return append([][]key.Binding{k.own()}, k.Log.FullHelp()...)
 }
 
-// Hints are what the parent knows of a job shown beyond the job itself.
-type Hints struct{}
-
 // State is what the view shows.
 type State int
 
@@ -103,7 +100,6 @@ type Model struct {
 
 	view  logview.Model
 	job   core.Job
-	hints Hints
 	state State
 	// failed is why the log failed to load, while the state is Failed.
 	failed error
