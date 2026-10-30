@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
 
 // PreviewReader returns what reads more of the preview of hit than the hit
@@ -64,19 +65,34 @@ func (s *Section) extraText(h core.SearchHit) (suffix, add string) {
 // readPreview starts the reads of the previews that need one: the hit under
 // the cursor first, then those within prefetch.search.preview rows of it.
 func (s *Section) readPreview() tea.Cmd {
-	l, shown := s.visibleHits()
-	if !shown || s.previewer == nil || s.text == "" || s.textCtx == nil {
+	if s.text == "" || s.textCtx == nil {
 		return nil
 	}
-	at := l.feed.Index()
+	if l, ok := s.visibleCode(); ok {
+		if s.codeReader == nil {
+			return nil
+		}
+		return readAround(&l.feed, s.previewRows, s.readCode)
+	}
+	l, shown := s.visibleHits()
+	if !shown || s.previewer == nil {
+		return nil
+	}
+	return readAround(&l.feed, s.previewRows, s.readExtra)
+}
+
+// readAround reads the item under the cursor of f first, then those within
+// rows of it.
+func readAround[T any](f *feed.Model[T], rows int, read func(T) tea.Cmd) tea.Cmd {
+	at := f.Index()
 	var cmds []tea.Cmd
-	for d := 0; d <= s.previewRows; d++ {
+	for d := 0; d <= rows; d++ {
 		for _, i := range [2]int{at + d, at - d} {
 			if d == 0 && i != at || d > 0 && i == at {
 				continue
 			}
-			if h, ok := l.feed.Item(i); ok {
-				cmds = append(cmds, s.readExtra(h))
+			if h, ok := f.Item(i); ok {
+				cmds = append(cmds, read(h))
 			}
 		}
 	}
@@ -86,8 +102,12 @@ func (s *Section) readPreview() tea.Cmd {
 // readExtra returns the read of h's preview, unless it needs none or was
 // read or is being read.
 func (s *Section) readExtra(h core.SearchHit) tea.Cmd {
-	read := s.previewer(h)
-	key := hitKey(h)
+	return s.begin(hitKey(h), s.previewer(h))
+}
+
+// begin returns the read of what is kept under key, unless read is nil or the
+// key was read or is being read.
+func (s *Section) begin(key string, read func(ctx context.Context) (string, error)) tea.Cmd {
 	if _, done := s.extras[key]; read == nil || done || s.loading[key] {
 		return nil
 	}

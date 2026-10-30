@@ -178,8 +178,10 @@ type Section struct {
 	// loading the keys being read.
 	previewer   PreviewReader
 	previewRows int
-	extras      map[string]extra
-	loading     map[string]bool
+	// codeReader reads the whole file of a code hit, kept in extras too.
+	codeReader CodeReader
+	extras     map[string]extra
+	loading    map[string]bool
 	// hits holds the results of each kind for text, made when the kind is
 	// first shown, and code those of code search, made when asked for.
 	hits   map[core.SearchKind]*hitList
