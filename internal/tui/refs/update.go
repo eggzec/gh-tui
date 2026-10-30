@@ -37,7 +37,7 @@ func (s *Step) read(again bool) tea.Cmd {
 		end(err, "span", "tui", "repo", q.Repo.String(), "number", q.Number, "stale", r.Stale, "offline", r.Offline, "limited", r.Limited)
 		return readMsg{id: id, seq: seq, refs: r, err: err}
 	}
-	return tea.Batch(read, s.startSpinner())
+	return tea.Batch(read, s.spin.Start())
 }
 
 // Reread reads the links again unless they are as new as the item, which
@@ -74,7 +74,7 @@ func (s *Step) Update(msg tea.Msg) tea.Cmd {
 		return s.pick(msg.Node)
 	case spinner.TickMsg:
 		if msg.ID == s.spin.ID() {
-			return s.spun(msg)
+			return s.spin.Update(msg, s.loading && !s.loaded)
 		}
 		cmd = s.updateTree(msg)
 	case ui.OnlineMsg:
@@ -125,17 +125,6 @@ func (s *Step) land() tea.Cmd {
 		n++
 	}
 	return nil
-}
-
-// spun moves the spinner on while something loads.
-func (s *Step) spun(msg spinner.TickMsg) tea.Cmd {
-	if !s.loading || s.loaded {
-		s.spinning = false
-		return nil
-	}
-	var cmd tea.Cmd
-	s.spin, cmd = s.spin.Update(msg)
-	return cmd
 }
 
 // receive takes the links of a read. Links kept by an earlier session are

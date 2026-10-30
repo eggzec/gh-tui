@@ -133,8 +133,7 @@ type Modal struct {
 	// job shown was last chosen.
 	at shownAt
 
-	spin     spinner.Model
-	spinning bool
+	spin ui.Spinner
 
 	width, height int
 	theme         ui.Theme
@@ -187,7 +186,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, keys config.Keymap
 		opts:   o,
 		live:   map[int64]core.Run{},
 		levels: defaultGroups(),
-		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
+		spin:   ui.NewSpinner(spinner.Dot),
 	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
@@ -404,15 +403,6 @@ func (m *Modal) leave() tea.Cmd {
 func (m *Modal) end() {
 	m.unfollow()
 	m.cancel()
-}
-
-// startSpinner starts the spinner while something loads, unless it runs.
-func (m *Modal) startSpinner() tea.Cmd {
-	if m.spinning {
-		return nil
-	}
-	m.spinning = true
-	return m.spin.Tick
 }
 
 // loading reports whether a pane waits for something the spinner shows.

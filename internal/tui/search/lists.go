@@ -362,14 +362,10 @@ func (s *Section) staleView() ([]string, bool) {
 // spinTitle starts the spinner of the title, while dimmed results wait
 // for new ones.
 func (s *Section) spinTitle() tea.Cmd {
-	if s.spinning {
-		return nil
-	}
 	if _, ok := s.staleView(); !ok {
 		return nil
 	}
-	s.spinning = true
-	return s.spin.Tick
+	return s.spin.Start()
 }
 
 func emptyText(k core.SearchKind) string {

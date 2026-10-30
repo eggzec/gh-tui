@@ -62,13 +62,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case spinner.TickMsg:
 		if msg.ID == s.spin.ID() {
-			if _, ok := s.staleView(); !ok {
-				s.spinning = false
-				return nil
-			}
-			var cmd tea.Cmd
-			s.spin, cmd = s.spin.Update(msg)
-			return cmd
+			_, stale := s.staleView()
+			return s.spin.Update(msg, stale)
 		}
 	}
 	cmds := make([]tea.Cmd, 0, len(s.hits)+3)

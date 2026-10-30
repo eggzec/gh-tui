@@ -117,7 +117,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return m.done(msg)
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
-			return m.spun(msg)
+			return m.spin.Update(msg, m.loading())
 		}
 	}
 	// Pages and ticks of the bubbles inside.
@@ -129,7 +129,8 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 // the reads that were in flight, whose answers were lost, and the run
 // shown, read from the cache in case a poll moved it.
 func (m *Modal) reopened() tea.Cmd {
-	m.ticking, m.spinning = false, false
+	m.ticking = false
+	m.spin.Stop()
 	var lost []tea.Cmd
 	if m.cur().loading && m.hasRun {
 		lost = append(lost, m.readJobs(m.run))
@@ -141,20 +142,9 @@ func (m *Modal) reopened() tea.Cmd {
 	lost = append(lost, m.runs.Reload(), m.readJobsAround(), m.readLogsAround(), m.fromCache())
 	cmd := tea.Batch(lost...)
 	if m.loading() {
-		cmd = tea.Batch(cmd, m.startSpinner())
+		cmd = tea.Batch(cmd, m.spin.Start())
 	}
 	return tea.Batch(cmd, m.startTick())
-}
-
-// spun spins the spinner while something loads.
-func (m *Modal) spun(msg spinner.TickMsg) tea.Cmd {
-	if !m.loading() {
-		m.spinning = false
-		return nil
-	}
-	var cmd tea.Cmd
-	m.spin, cmd = m.spin.Update(msg)
-	return cmd
 }
 
 // press handles a key: the confirmation takes the answer, the filter takes
@@ -388,7 +378,7 @@ func (m *Modal) rereadJobs() tea.Cmd {
 	}
 	m.seq++
 	m.cur().loading = true
-	cmds := []tea.Cmd{m.readJobs(m.run), m.startSpinner()}
+	cmds := []tea.Cmd{m.readJobs(m.run), m.spin.Start()}
 	open := m.openLoaded()
 	for i := range open {
 		cmds = append(cmds, m.rereadRun(open[i]))
@@ -421,7 +411,7 @@ func (m *Modal) openLoaded() []core.Run {
 // rereadRun reads the jobs of an open run that isn't shown again.
 func (m *Modal) rereadRun(r core.Run) tea.Cmd {
 	m.jobsOf[r.ID].loading = true
-	return tea.Batch(m.readJobs(r), m.startSpinner())
+	return tea.Batch(m.readJobs(r), m.spin.Start())
 }
 
 // online reads again, now that GitHub answers again, what failed for want

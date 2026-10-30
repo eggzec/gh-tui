@@ -105,7 +105,7 @@ func (b *branches) index(name string) int {
 func (m *Modal) loadBranches(cursor string, again bool) tea.Cmd {
 	m.branches.loading = true
 	svc, ctx, repo, id := m.svc, m.ctx, m.repo, m.id
-	return tea.Batch(m.startSpinner(), func() tea.Msg {
+	return tea.Batch(m.spin.Start(), func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.branches")
 		p, err := svc.Branches(ctx, historysvc.BranchesQuery{Repo: repo, Cursor: cursor, Again: again})
 		end(err, "span", "tui", "repo", repo.String(), "first", cursor == "", "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)

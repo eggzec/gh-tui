@@ -132,7 +132,7 @@ func (m *Modal) follow(k core.Commit) tea.Cmd {
 	cmds := []tea.Cmd{m.showFile()}
 	if !cached {
 		m.commit.loading = true
-		cmds = append(cmds, m.startSpinner())
+		cmds = append(cmds, m.spin.Start())
 	}
 	msg := restMsg{id: m.id, seq: m.seq}
 	cmds = append(cmds, tea.Tick(m.opts.prefetch.commits.Rest, func(time.Time) tea.Msg { return msg }), m.readAround())
@@ -174,7 +174,7 @@ func (m *Modal) loadDetail() tea.Cmd {
 	}
 	c.loading, c.requested = true, true
 	svc, ctx, repo, id, sha := m.svc, m.graph.ctx, m.repo, m.id, c.c.SHA
-	return tea.Batch(m.startSpinner(), func() tea.Msg {
+	return tea.Batch(m.spin.Start(), func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.commit")
 		d, err := svc.Commit(ctx, repo, sha)
 		end(err, "span", "tui", "repo", repo.String(), "sha", short(sha), "files", len(d.Files))
@@ -219,7 +219,7 @@ func (m *Modal) moreFiles() tea.Cmd {
 	}
 	c.filesLoading = true
 	svc, ctx, repo, id, sha, cursor := m.svc, m.graph.ctx, m.repo, m.id, c.c.SHA, c.next
-	return tea.Batch(m.startSpinner(), func() tea.Msg {
+	return tea.Batch(m.spin.Start(), func() tea.Msg {
 		ctx, end := obs.Begin(ctx, "history.files")
 		p, err := svc.CommitFiles(ctx, historysvc.CommitFilesQuery{Repo: repo, SHA: sha, Cursor: cursor})
 		end(err, "span", "tui", "repo", repo.String(), "sha", short(sha))

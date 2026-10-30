@@ -344,7 +344,7 @@ func (m *Modal) selectRun() tea.Cmd {
 		cmd = m.setJobs(m.cur(), p)
 	} else {
 		m.cur().loading = true
-		cmd = m.startSpinner()
+		cmd = m.spin.Start()
 	}
 	m.follow()
 	// The first run shows at once; the others wait for the cursor to rest,
