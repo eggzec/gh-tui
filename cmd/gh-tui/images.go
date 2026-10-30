@@ -16,13 +16,14 @@ import (
 // host is web. It keeps what it fetched in entries, the account's own
 // directory of the disk cache, when there is one, and reads the rendered
 // HTML of bodies with html, for the images that load only from where it
-// says.
-func newImages(web string, entries cache.Store, html images.HTML) *images.Fetcher {
+// says. The options in extra go after those, such as the hosts the user
+// trusts.
+func newImages(web string, entries cache.Store, html images.HTML, extra ...images.Option) *images.Fetcher {
 	opts := []images.Option{images.WithHTML(html)}
 	if entries != nil {
 		opts = append(opts, images.WithStore(entries))
 	}
-	return images.New(web, opts...)
+	return images.New(web, append(opts, extra...)...)
 }
 
 // blobReader reads the content of a file of a repository.

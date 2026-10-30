@@ -423,7 +423,7 @@ func (f *Fetcher) download(ctx context.Context, src Source, etag string) (data [
 		}
 	}
 	if src.Body == "" {
-		return nil, "", false, fmt.Errorf("%w: %s", ErrNotAllowed, u.Host)
+		return nil, "", false, untrustedError{host: u.Hostname()}
 	}
 	data, addr, placed, err := f.signed(ctx, src, "")
 	if se := (*statusError)(nil); errors.As(err, &se) && se.refused() {

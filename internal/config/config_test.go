@@ -172,7 +172,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 				c.Prefetch.Enabled, c.Prefetch.Window, c.Prefetch.Rest, c.Prefetch.Parallel = false, Window{Before: 2, After: 6}, time.Second, 2
 				c.Prefetch.Pulls.OtherTabs.Enabled = new(false)
 				c.Notifications = Notifications{MarkReadOnOpen: false}
-				c.Images = Images{Enabled: ImagesOff, MaxRows: 8}
+				c.Images = Images{Enabled: ImagesOff, MaxRows: 8, TrustedHosts: []string{"img.example.com", "*.cdn.example.org"}}
 				c.History = History{
 					Row:       []string{FieldShortSHA, FieldSubject, FieldVerified, FieldAge},
 					Detail:    []string{FieldSHA, FieldAuthor, FieldDate, FieldTrailers},

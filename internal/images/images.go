@@ -38,6 +38,16 @@ var (
 	ErrOffline = errors.New("offline")
 )
 
+// untrustedError is an address on a host that images aren't fetched from,
+// and says how to allow it. It is an ErrNotAllowed.
+type untrustedError struct{ host string }
+
+func (e untrustedError) Error() string {
+	return "image host " + e.host + " is not trusted; add it to images.trusted_hosts"
+}
+
+func (untrustedError) Is(target error) bool { return target == ErrNotAllowed }
+
 // statusError is a response other than success, which wraps
 // ErrUnavailable for the ones that say the image isn't there for us.
 type statusError struct {

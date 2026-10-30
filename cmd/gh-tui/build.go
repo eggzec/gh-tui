@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/drafts"
 	"github.com/eggzec/gh-tui/internal/github"
 	"github.com/eggzec/gh-tui/internal/imgcaps"
+	"github.com/eggzec/gh-tui/internal/images"
 	"github.com/eggzec/gh-tui/internal/obs"
 	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
@@ -232,7 +233,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		termtext.AllowPlainHTTP(webHost)
 	}
 	icons, dates := ui.NewIcons(cfg.UI.Icons), ui.NewDates(cfg.UI.DateFormat)
-	pics := ui.NewImages(ctx, fetchImage(newImages(webHost, entries, client.BodyHTML), fileSvc), cfg.Images.Avatars)
+	pics := ui.NewImages(ctx, fetchImage(newImages(webHost, entries, client.BodyHTML, images.WithTrustedHosts(cfg.Images.TrustedHosts)), fileSvc), cfg.Images.Avatars)
 	pics.SetMaxRows(cfg.Images.MaxRows)
 	pics.SetAnimate(cfg.Images.Animate)
 	// What went wrong names the configured keys, and the log file while
