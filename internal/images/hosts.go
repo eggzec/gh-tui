@@ -1,6 +1,7 @@
 package images
 
 import (
+	"net/netip"
 	"net/url"
 	"path"
 	"strings"
@@ -69,6 +70,10 @@ func newHosts(web string, extra ...string) hosts {
 		if e == "" || strings.ContainsAny(e, ":/@?#*[] ") || strings.HasPrefix(e, ".") || strings.HasSuffix(e, ".") {
 			continue
 		}
+		// An address is always refused when dialled, so it is no use.
+		if _, err := netip.ParseAddr(e); err == nil {
+			continue
+		}
 		if wildcard {
 			h.wild = append(h.wild, "."+e)
 			continue
@@ -96,6 +101,31 @@ func (h hosts) trusted(host string) bool {
 	return false
 }
 
+// guarded reports whether a connection to host, without a port, refuses
+// private addresses: it is a trusted host that is not one of GitHub's own,
+// which keep their own rules whatever the user trusts.
+func (h hosts) guarded(host string) bool {
+	return h.trusted(host) && !h.builtin(hostPort(strings.ToLower(host), ""))
+}
+
+// builtin reports whether host, lowercase, is one of web's GitHub's own
+// image hosts.
+func (h hosts) builtin(host string) bool {
+	host = hostPort(strings.ToLower(host), "")
+	if h.web == github {
+		return githubHosts[host] || host == github || bucket(host)
+	}
+	if host == h.web {
+		return true
+	}
+	for _, sub := range enterpriseSubdomains {
+		if host == sub+h.web {
+			return true
+		}
+	}
+	return false
+}
+
 // allowed reports whether u may be fetched first: https, no user, and a
 // host and path where web's GitHub serves images.
 func (h hosts) allowed(u *url.URL) bool {
@@ -103,10 +133,8 @@ func (h hosts) allowed(u *url.URL) bool {
 		return false
 	}
 	host := hostPort(strings.ToLower(u.Hostname()), u.Port())
-	if u.Port() == "" || u.Port() == "443" {
-		if h.trusted(u.Hostname()) {
-			return true
-		}
+	if (u.Port() == "" || u.Port() == "443") && !h.builtin(host) && h.trusted(u.Hostname()) {
+		return true
 	}
 	if h.web == github {
 		switch {

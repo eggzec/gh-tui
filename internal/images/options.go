@@ -31,7 +31,9 @@ func WithHTML(h HTML) Option {
 // subdomains (*.example.com, which is not example.com itself). Entries
 // with a port or anything else that is not a host are ignored. They are
 // fetched directly over https, without credentials, and never at a
-// private address.
+// private address, except that with a proxy set in the environment the
+// proxy resolves the name, so a private address is not refused then.
+// GitHub's own hosts keep their rules whatever the entries say.
 func WithTrustedHosts(entries []string) Option {
 	return func(f *Fetcher) { f.trusted = entries }
 }

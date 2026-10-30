@@ -60,6 +60,7 @@ var errPrivate = errors.New("private address refused")
 func (h hosts) dialer() *trustedDialer {
 	return &trustedDialer{
 		hosts: h,
+		// plain mirrors the dialer of http.DefaultTransport.
 		plain: &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second},
 		guarded: &net.Dialer{
 			Timeout:   30 * time.Second,
@@ -76,7 +77,7 @@ type trustedDialer struct {
 
 func (d *trustedDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	host, _, err := net.SplitHostPort(addr)
-	if err == nil && d.hosts.trusted(host) {
+	if err == nil && d.hosts.guarded(host) {
 		return d.guarded.DialContext(ctx, network, addr)
 	}
 	return d.plain.DialContext(ctx, network, addr)
