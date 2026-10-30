@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
@@ -404,7 +406,12 @@ func (m *Modal) openLoaded() []core.Run {
 	for i := range open {
 		r := m.current(open[i])
 		j := m.jobsOf[r.ID]
-		if j != nil && j.loaded && (!m.hasRun || r.ID != m.run.ID) && (!r.Done() || j.kept || j.err != nil) {
+		if j == nil || !j.loaded || (m.hasRun && r.ID == m.run.ID) {
+			continue
+		}
+		stale := !r.Done() || j.kept || j.err != nil ||
+			slices.ContainsFunc(j.items, func(x core.Job) bool { return !x.Done() })
+		if stale {
 			out = append(out, r)
 		}
 	}

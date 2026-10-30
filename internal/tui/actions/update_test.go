@@ -985,6 +985,7 @@ func TestAttemptChangeKeepsTheOpenRun(t *testing.T) {
 	fl := &follows{}
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
 	h.keys("j", "enter", "k")
+	m.jobsOf[runningRun].folds = map[string]fold{"build": {}}
 	folds := len(m.jobsOf[runningRun].folds)
 	run, _ := f.CachedRun(repo, runningRun)
 	run.Attempt++
@@ -1000,7 +1001,7 @@ func TestAttemptChangeKeepsTheOpenRun(t *testing.T) {
 	if !open {
 		t.Error("the new attempt folded the run")
 	}
-	if len(m.jobsOf[runningRun].folds) != folds {
+	if len(m.jobsOf[runningRun].folds) != folds || folds == 0 {
 		t.Errorf("folds %v, want the %d of before the new attempt", m.jobsOf[runningRun].folds, folds)
 	}
 }
@@ -1009,14 +1010,17 @@ func TestEscStopsEveryFollowedRun(t *testing.T) {
 	t.Parallel()
 	f := newFake()
 	fl := &follows{}
+	first, _ := f.CachedRun(repo, failedRun)
+	first.Status, first.Conclusion = core.RunInProgress, core.ConclusionNone
+	f.setRun(first)
 	m, h := newModal(t, f, wideW, wideH, WithFollow(fl.follow))
-	h.keys("j", "enter", "k") // the running run is open and followed, another is shown
-	if len(m.follows) == 0 {
-		t.Fatal("no run followed")
+	h.keys("enter", "j", "enter", "j") // two running runs open and followed, a third shown
+	if len(m.follows) != 2 {
+		t.Fatalf("follows %d, want the two open running runs followed", len(m.follows))
 	}
 	h.keys("esc")
-	if len(m.follows) != 0 || !slices.Contains(fl.stopped, runningRun) {
-		t.Errorf("follows %d, stopped %v, want every followed run stopped", len(m.follows), fl.stopped)
+	if len(m.follows) != 0 || !slices.Contains(fl.stopped, runningRun) || !slices.Contains(fl.stopped, failedRun) {
+		t.Errorf("follows %d, stopped %v, want both followed runs stopped", len(m.follows), fl.stopped)
 	}
 }
 
@@ -1036,6 +1040,12 @@ func TestRereadSkipsFinishedOpenRuns(t *testing.T) {
 	j.kept = true
 	if got := m.openLoaded(); len(got) != 1 {
 		t.Errorf("openLoaded = %v with kept jobs, want the run", got)
+	}
+	j.kept = false
+	j.items = slices.Clone(j.items)
+	j.items[0].Status, j.items[0].Conclusion = core.RunInProgress, core.ConclusionNone
+	if got := m.openLoaded(); len(got) != 1 {
+		t.Errorf("openLoaded = %v with a job still running, want the run", got)
 	}
 }
 
