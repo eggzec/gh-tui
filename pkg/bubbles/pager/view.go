@@ -264,6 +264,9 @@ func (m Model) statusLine() string {
 		return m.fit(m.prompt.View(), m.width)
 	}
 	var parts []string
+	if n := m.Docs(); n > 1 {
+		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("%d/%d", m.Doc()+1, n)))
+	}
 	switch {
 	case m.projecting && m.want.filter.re != nil:
 		parts = append(parts, m.esc.status.wrap("filtering"+m.styles.Ellipsis))

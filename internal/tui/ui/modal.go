@@ -88,7 +88,8 @@ const (
 	// the modal shows; the modal is [Referencing].
 	CommandReferences = "references"
 	// CommandNextFile and CommandPrevFile go to the next and the previous
-	// file of the diff the modal shows.
+	// document or file the modal shows: the modal is [Stepping], or shows a
+	// diff.
 	CommandNextFile = "n"
 	CommandPrevFile = "p"
 )
@@ -108,6 +109,13 @@ type HelpHost interface {
 	// OpenHelp shows the help of layers, titled title, and reports whether
 	// the modal took it: when it didn't, the app opens its own.
 	OpenHelp(layers []keyhelp.Layer, title string) (cmd tea.Cmd, ok bool)
+}
+
+// Stepping is a Modal that shows several documents, one at a time, which the
+// next and previous commands step through.
+type Stepping interface {
+	// Step shows the document delta places on, stopping at the ends.
+	Step(delta int) tea.Cmd
 }
 
 // Referencing is a Modal that can show the issues and pull requests linked

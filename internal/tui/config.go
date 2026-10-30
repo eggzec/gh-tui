@@ -107,6 +107,12 @@ func completeConfig(_ *Model, arg string, cursor, end int, _ bool) []cmdline.Can
 // editor too. wrap soft-wraps long lines, as prose wants, where a file
 // whose lines line up scrolls sideways.
 func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
+	return m.openTexts(title, []pager.Doc{{Name: name, Text: text}}, wrap)
+}
+
+// openTexts opens docs in one pager, which the next and previous commands
+// step through; wrap is as for openText.
+func (m *Model) openTexts(title string, docs []pager.Doc, wrap bool) tea.Cmd {
 	back := ui.In(m.cfg.Keys, "text").Binding("global.back", "back")
 	// Over a modal, the text replaces it, and back returns to it.
 	over := m.modals.Top()
@@ -114,7 +120,7 @@ func (m *Model) openText(title, name, text string, wrap bool) tea.Cmd {
 	t := &textModal{title: title, back: back, pager: pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(m.cfg.Keys, "text"))), pager.WithEditor(m.cfg.Editor)), icons: ui.NewIcons(m.cfg.UI.Icons)}
 	t.pager.Focus()
 	t.pager.SetWrap(wrap)
-	return m.openLoading(t, over, t.pager.SetContent(name, text))
+	return m.openLoading(t, over, t.pager.SetDocs(docs))
 }
 
 // textModal shows text in a pager, in a modal over the screen, until the
@@ -159,8 +165,20 @@ func (t *textModal) SetSize(width, height int) { t.pager.SetSize(width, height) 
 // SetTheme styles the pager.
 func (t *textModal) SetTheme(th ui.Theme) { t.pager.SetStyles(th.Pager(t.icons)) }
 
-// Commands implements ui.Commanded: the text takes only the commands that act on the app.
-func (t *textModal) Commands() []string { return nil }
+// Commands implements ui.Commanded: the text takes the commands that act on
+// the app, and those that step its documents while it holds several.
+func (t *textModal) Commands() []string {
+	if t.pager.Docs() < 2 {
+		return nil
+	}
+	return []string{ui.CommandNextFile, ui.CommandPrevFile}
+}
+
+// Step implements ui.Stepping.
+func (t *textModal) Step(delta int) tea.Cmd {
+	cmd, _ := t.pager.Step(delta)
+	return cmd
+}
 
 // KeyLayers implements ui.Keyed: the pager's keys.
 func (t *textModal) KeyLayers() []keyhelp.Layer {

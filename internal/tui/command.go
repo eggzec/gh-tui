@@ -67,18 +67,23 @@ var commands = []command{
 	{name: "images", detail: "show whether images are drawn here, and why", over: overAny, run: (*Model).imagesCommand},
 	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
-	{name: ui.CommandNextFile, detail: "go to the next file of the diff", over: overNamed, run: pressCommand("pull_diff.next_file")},
-	{name: ui.CommandPrevFile, detail: "go to the previous file of the diff", over: overNamed, run: pressCommand("pull_diff.prev_file")},
+	{name: ui.CommandNextFile, detail: "go to the next file of the diff, or document", over: overNamed, run: stepCommand(1, "pull_diff.next_file")},
+	{name: ui.CommandPrevFile, detail: "go to the previous file of the diff, or document", over: overNamed, run: stepCommand(-1, "pull_diff.prev_file")},
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, over: overAny, run: (*Model).searchCommand},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
 }
 
-// pressCommand is the run of a command that does what the key of action
-// does, so that it works with the key unbound.
-func pressCommand(action string) func(*Model, string) tea.Cmd {
-	return func(m *Model, _ string) tea.Cmd { return m.pressAction(action) }
+// stepCommand is the run of a command that steps the documents of the open
+// modal when it is ui.Stepping, and else does what the key of action does.
+func stepCommand(delta int, action string) func(*Model, string) tea.Cmd {
+	return func(m *Model, _ string) tea.Cmd {
+		if s, ok := m.modals.Top().(ui.Stepping); ok {
+			return s.Step(delta)
+		}
+		return m.pressAction(action)
+	}
 }
 
 // referencesCommand shows the issues and pull requests linked to the one
