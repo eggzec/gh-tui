@@ -58,6 +58,10 @@ func WarnText(name string, size, limit int64) string {
 	return fmt.Sprintf("%s is %s, over the %s warning limit (%s).", name, humanSize(size), humanSize(limit), WarnSizeKey)
 }
 
+// OpenToLoadText is the sentence that follows WarnText where opening the file
+// loads it although it is over the warning limit.
+const OpenToLoadText = "Open it to load it anyway."
+
 // humanSize formats n in the largest binary unit it reaches, with one
 // decimal when it isn't whole, such as "2.4 MiB".
 func humanSize(n int64) string {

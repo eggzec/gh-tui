@@ -7,6 +7,18 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
+func TestOpenToLoadText(t *testing.T) {
+	t.Parallel()
+	got, ok := OpenToLoadText("a.bin", &core.TooLargeError{Size: 3 << 20, Limit: 2 << 20, Warn: true})
+	want := "a.bin is 3 MiB, over the 2 MiB warning limit (files.preview.warn_size). Open it to load it anyway."
+	if !ok || got != want {
+		t.Errorf("OpenToLoadText = %q, %v, want %q", got, ok, want)
+	}
+	if _, ok := OpenToLoadText("a.bin", &core.TooLargeError{Size: 3 << 20, Limit: 2 << 20}); ok {
+		t.Error("a file over the hard limit has no way to load it")
+	}
+}
+
 func TestTooLargeText(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {

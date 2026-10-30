@@ -424,6 +424,10 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 	if !f.img.draw(&f.pager) {
 		return nil
 	}
+	if text, ok := ui.OpenToLoadText(e.Path, err); ok {
+		f.pager.SetMessage(e.Path, text)
+		return nil
+	}
 	cmd, _ := fill(&f.pager, e, b, err, key.Binding{}, f.s.icons, f.rendering())
 	return tea.Batch(cmd, f.md.lookUp())
 }
