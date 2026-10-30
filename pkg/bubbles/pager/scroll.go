@@ -178,7 +178,8 @@ func (m Model) bottom() int {
 		return -1
 	}
 	if !m.wrap {
-		return min(m.top+h, n) - 1
+		// Never past the last row, even when the window is stale.
+		return max(min(m.top+h, n)-1, min(m.top, n-1))
 	}
 	i, rows := m.top, m.rowsIn(m.top)-m.row
 	for rows < h && i+1 < n {
@@ -235,6 +236,10 @@ func (m *Model) scrollRight(n int) {
 	want := m.left + n
 	reach := 0
 	for p, last := m.top, m.bottom(); p <= last; p++ {
+		if _, ok := m.header(m.at(p)); ok {
+			// A fold row doesn't scroll sideways.
+			continue
+		}
 		tw := m.widthOf(m.at(p))
 		// One more column finds a wide rune that crosses the edge.
 		_, w := wrap.Advance(m.rows.Text(m.at(p)), 0, want+tw+1)

@@ -20,6 +20,16 @@ func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
+	return m.Body() + m.statusLine()
+}
+
+// Body renders the rows above the status line, each ended by a newline, so
+// that a host can draw its own status line under them. It is empty when the
+// pager has no size.
+func (m Model) Body() string {
+	if m.width <= 0 || m.height <= 0 {
+		return ""
+	}
 	// The builder comes from a pool because the host's hooks take it by
 	// pointer, which would otherwise move it to the heap on each frame.
 	b := builders.Get().(*strings.Builder)
@@ -53,7 +63,6 @@ func (m Model) View() string {
 		b.WriteString(blank)
 		b.WriteByte('\n')
 	}
-	b.WriteString(m.statusLine())
 	return b.String()
 }
 
