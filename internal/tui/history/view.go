@@ -397,7 +397,13 @@ func (m *Modal) renderHeader(w int) []string {
 	field := func(label, value string, addr ...string) {
 		for i, l := range wrap(value, w, indent) {
 			if len(addr) > 0 {
-				l = termtext.Link(addr[0], l)
+				// Link the text only, not the continuation indent or the pad.
+				text := strings.TrimSpace(ansi.Strip(l))
+				if text != "" && strings.Contains(l, text) {
+					l = strings.Replace(l, text, termtext.Link(addr[0], text), 1)
+				} else {
+					l = termtext.Link(addr[0], l)
+				}
 			}
 			if i == 0 {
 				l = m.st.label.Render(pad(label, labelWidth)) + ansi.TruncateLeft(l, labelWidth, "")

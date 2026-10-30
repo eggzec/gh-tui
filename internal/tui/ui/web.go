@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/url"
+	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -23,6 +24,11 @@ func WebURL(host, path string) string {
 func ProfileURL(host, login string) string {
 	if login == "" {
 		return ""
+	}
+	// A bot has no user page: its login ends in [bot] and its page is the
+	// app's, under apps/.
+	if app, ok := strings.CutSuffix(login, "[bot]"); ok {
+		return WebURL(host, "apps/"+url.PathEscape(app))
 	}
 	return WebURL(host, url.PathEscape(login))
 }

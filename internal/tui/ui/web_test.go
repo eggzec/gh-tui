@@ -2,6 +2,18 @@ package ui
 
 import "testing"
 
+func TestProfileURL(t *testing.T) {
+	for login, want := range map[string]string{
+		"":                "",
+		"ann":             "https://github.com/ann",
+		"dependabot[bot]": "https://github.com/apps/dependabot",
+	} {
+		if got := ProfileURL("github.com", login); got != want {
+			t.Errorf("ProfileURL(%q) = %q, want %q", login, got, want)
+		}
+	}
+}
+
 func TestWebURL(t *testing.T) {
 	for host, want := range map[string]string{
 		"":                     "https://github.com/cli/cli",
