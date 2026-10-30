@@ -25,7 +25,7 @@ type Images struct {
 	Animate bool `yaml:"animate"`
 	// TrustedHosts are hosts other than GitHub's, as example.com or
 	// *.example.com, that images are fetched from directly over https.
-	TrustedHosts []string `yaml:"trusted_hosts"`
+	TrustedHosts []string `yaml:"trusted_hosts" when:"startup" why:"the image fetcher is built with the trusted hosts at startup"`
 }
 
 // The values of images.enabled.
