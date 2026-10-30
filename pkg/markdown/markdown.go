@@ -338,6 +338,10 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	// source, since any line may hold a span, and unspan would turn the
 	// text's own into those.
 	src = scrubSpan(src)
+	// The characters of links are glamour's alone, and no address of an
+	// earlier render may stand for one.
+	src = scrubLinks(src)
+	r.urls = r.urls[:0]
 	b := newBudget()
 	var parts []part
 	text := prepare(src, open, r.hint, g, width, func(i int, blk Block, shown bool) string {
