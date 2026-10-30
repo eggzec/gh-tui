@@ -280,7 +280,8 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 	st := &m.st
 	es := m.noteEntries()
 	loading, _, err := m.noteState()
-	loading = loading || !m.cur().loaded && m.cur().err == nil
+	cur := m.cur()
+	loading = loading || !cur.loaded && cur.err == nil
 	title := st.Subtle.Render(st.ic.Comment) + " " + st.Strong.Render("Annotations")
 	if loading && len(es) > 0 {
 		title += " " + st.Subtle.Render("loading"+m.st.ic.Ellipsis)
@@ -298,7 +299,7 @@ func (m *Modal) noteLines(w, h, rows int) []string {
 		lines = append(lines, m.errorLines("load the annotations", jobview.RunName(m.run), err, w)...)
 	case loading:
 		lines = append(lines, st.Muted.Render("Loading annotations"+m.st.ic.Ellipsis))
-	case m.cur().err != nil && !m.cur().loaded:
+	case cur.err != nil && !cur.loaded:
 	default:
 		lines = append(lines, st.Muted.Render("No annotations on this run. Pick another run, or press the refresh key to read again."))
 	}
