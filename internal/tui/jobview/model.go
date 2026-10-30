@@ -115,10 +115,21 @@ type Model struct {
 	// it while the job runs.
 	part    shownPart
 	unwatch func()
+	// find is what the log opens on, from [Hints].
+	find []string
 
 	width, height int
 	st            ui.RunStyles
 	errs          ui.ErrorStyles
+}
+
+// Hints say where a log opens, when the caller knows more than the log.
+type Hints struct {
+	// Find lists texts, best first: the log opens on the first line that
+	// contains the first of them that any line contains, and so shows the
+	// step that printed it. When none appears, the log opens as it does
+	// without hints, at the failed step.
+	Find []string
 }
 
 // Option configures a Model in [New].

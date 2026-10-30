@@ -31,7 +31,7 @@ func TestPartialLog(t *testing.T) {
 	f := newFake()
 	f.partial[runningJob] = partialLog(2, 5, 1)
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if m.State() != Partial || m.Lines() != 3 {
 		t.Fatalf("state %d with %d lines, want the partial log", m.State(), m.Lines())
 	}
@@ -51,7 +51,7 @@ func TestPartialLogAppends(t *testing.T) {
 	f.partial[runningJob] = partialLog(2, 5, 1)
 	m := newView(t, f, 80, 12)
 	m.Focus()
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	// The steps show folded; open the second, onto its first line.
 	keys(m, "j", "enter", "j")
 	if s := text(m); !strings.Contains(s, "▌2 lint 1") {
@@ -59,7 +59,7 @@ func TestPartialLogAppends(t *testing.T) {
 	}
 
 	f.poll(partialLog(4, 15, 1))
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	s := text(m)
 	for _, want := range []string{"▌2 lint 1", "row 3/6", "lint 4", "partial, as of 14:15"} {
 		if !strings.Contains(s, want) {
@@ -77,7 +77,7 @@ func TestPartialLogAppends(t *testing.T) {
 	// every step still folds.
 	keys(m, "/", "l", "i", "n", "t", "enter")
 	f.poll(partialLog(5, 16, 1))
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if s := text(m); !strings.Contains(s, "match 2/6") {
 		t.Errorf("the search didn't take the appended line:\n%s", s)
 	}
@@ -92,9 +92,9 @@ func TestPartialLogStartsOver(t *testing.T) {
 	f := newFake()
 	f.partial[runningJob] = partialLog(4, 5, 1)
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	f.poll(partialLog(1, 6, 2))
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if m.State() != Partial || m.Lines() != 2 {
 		t.Errorf("state %d with %d lines, want the 2 of the new log", m.State(), m.Lines())
 	}
@@ -107,7 +107,7 @@ func TestPartialLogPreparedInRead(t *testing.T) {
 	f := newFake()
 	f.partial[runningJob] = partialLog(4, 5, 1)
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	f.partial[runningJob] = partialLog(6, 6, 1)
 	if msg := m.readPartial()().(partialMsg); msg.shown != nil {
 		t.Error("a read that adds to the lines shown prepared them")
@@ -128,12 +128,12 @@ func TestPartialLogPreparedInRead(t *testing.T) {
 func TestPartialLogPending(t *testing.T) {
 	f := newFake()
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if m.State() != Pending || !strings.Contains(text(m), "Logs arrive in ~2 MB blocks while the job runs") {
 		t.Fatalf("state %d, want the steps:\n%s", m.State(), text(m))
 	}
 	f.poll(partialLog(1, 5, 1))
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if m.State() != Partial || len(f.partialReads) != 1 {
 		t.Errorf("state %d after %d reads, want the partial log the poll read", m.State(), len(f.partialReads))
 	}
@@ -150,10 +150,10 @@ func TestPartialLogThenDone(t *testing.T) {
 	f.partial[runningJob] = partialLog(2, 5, 1)
 	f.logs[runningJob] = partialLog(6, 0, 0).Log
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	j := running()
 	j.Status, j.Conclusion = core.RunCompleted, core.ConclusionSuccess
-	run(m, m.Show(j, false))
+	run(m, m.Show(j, false, Hints{}))
 	if m.State() != Ready || m.Lines() != 7 || !slices.Equal(f.reads, []int64{runningJob}) {
 		t.Errorf("state %d with %d lines after reads %v, want the whole log", m.State(), m.Lines(), f.reads)
 	}
@@ -167,7 +167,7 @@ func TestPartialLogRests(t *testing.T) {
 	f := newFake()
 	f.partial[runningJob] = partialLog(2, 5, 1)
 	m := newView(t, f, 80, 12, WithRest(time.Hour))
-	_ = m.Show(running(), true)
+	_ = m.Show(running(), true, Hints{})
 	if m.State() != Pending || len(f.partialReads) != 0 {
 		t.Fatalf("a job shown to rest is in state %d after %d reads, want its steps, unread", m.State(), len(f.partialReads))
 	}
@@ -183,7 +183,7 @@ func TestPartialLogKeys(t *testing.T) {
 	f.partial[runningJob] = partialLog(2, 5, 1)
 	m := newView(t, f, 80, 12)
 	m.Focus()
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	layers := m.KeyLayers()
 	log := layers[len(layers)-1]
 	if !slices.ContainsFunc(log.Bindings, func(b key.Binding) bool { return b.Enabled() && b.Help().Key == "*" }) {
@@ -197,13 +197,13 @@ func TestPartialLogOlderReads(t *testing.T) {
 	f := newFake()
 	f.partial[runningJob] = partialLog(4, 15, 1)
 	m := newView(t, f, 80, 12)
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	*m, _ = m.Update(partialMsg{id: m.id, jobID: runningJob, log: partialLog(2, 5, 1)})
 	if m.Lines() != 5 || !strings.Contains(text(m), "partial, as of 14:15") {
 		t.Errorf("an older read rolled the log back to %d lines:\n%s", m.Lines(), text(m))
 	}
 	f.poll(partialLog(4, 17, 1))
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if m.Lines() != 5 || !strings.Contains(text(m), "partial, as of 14:17") {
 		t.Errorf("a check with nothing new left %d lines:\n%s", m.Lines(), text(m))
 	}
@@ -216,11 +216,11 @@ func TestPartialLogWatch(t *testing.T) {
 	m := newView(t, f, 80, 12)
 	j := running()
 	j.Status = core.RunQueued
-	run(m, m.Show(j, false))
+	run(m, m.Show(j, false, Hints{}))
 	if f.watching[runningJob] != 0 || len(f.partialReads) != 0 {
 		t.Fatalf("a queued job is watched %v, read %v", f.watching, f.partialReads)
 	}
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if f.watching[runningJob] != 1 || len(f.partialReads) != 0 {
 		t.Errorf("a job that started is watched %v, read %v; want watched, for the poll to read", f.watching, f.partialReads)
 	}
@@ -228,7 +228,7 @@ func TestPartialLogWatch(t *testing.T) {
 	if f.watching[runningJob] != 0 {
 		t.Error("a paused view still watches")
 	}
-	run(m, m.Show(running(), false))
+	run(m, m.Show(running(), false, Hints{}))
 	if f.watching[runningJob] != 1 {
 		t.Error("a view shown again after a pause doesn't watch")
 	}
