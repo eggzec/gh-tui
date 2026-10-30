@@ -66,7 +66,7 @@ func (m *Modal) openFilter() tea.Cmd {
 		return nil
 	}
 	m.workflows.loading = true
-	return tea.Batch(m.readWorkflows(false), m.startSpinner())
+	return tea.Batch(m.readWorkflows(false), m.spin.Start())
 }
 
 // workflowsMsg carries the workflows of the repository. Stale reports that

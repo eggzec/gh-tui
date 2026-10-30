@@ -143,9 +143,8 @@ type Step struct {
 	prompt cmdline.Model
 	filter string
 
-	spin     spinner.Model
-	spinning bool
-	voice    ui.Voice
+	spin  ui.Spinner
+	voice ui.Voice
 
 	width, height int
 	theme         ui.Theme
@@ -170,7 +169,7 @@ func New(ctx context.Context, svc Service, self core.Target, pull bool, keys con
 		pull:   pull,
 		keys:   newKeyMap(keys),
 		opts:   o,
-		spin:   spinner.New(spinner.WithSpinner(spinner.Dot)),
+		spin:   ui.NewSpinner(spinner.Dot),
 	}
 	s.pages.Store(1)
 	s.landFrom = -1
@@ -253,13 +252,4 @@ func (s *Step) query(again bool) refssvc.Query {
 		q.Updated = s.opts.item().Updated
 	}
 	return q
-}
-
-// startSpinner starts the spinner while something loads, unless it runs.
-func (s *Step) startSpinner() tea.Cmd {
-	if s.spinning {
-		return nil
-	}
-	s.spinning = true
-	return s.spin.Tick
 }

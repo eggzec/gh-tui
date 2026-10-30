@@ -112,7 +112,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.loadBranches("", false), m.readHead())
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
-			return m.tick(msg)
+			return m.spin.Update(msg, m.loading())
 		}
 	}
 	// Ticks, pages and highlights of the bubbles inside.
@@ -120,17 +120,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.commit.pager, cmd = m.commit.pager.Update(msg)
 	return tea.Batch(graphCmd, cmd)
-}
-
-// tick spins the spinner while something loads.
-func (m *Modal) tick(msg spinner.TickMsg) tea.Cmd {
-	if !m.loading() {
-		m.spinning = false
-		return nil
-	}
-	var cmd tea.Cmd
-	m.spin, cmd = m.spin.Update(msg)
-	return cmd
 }
 
 // press handles a key: an open filter or pager search takes every key, the

@@ -82,8 +82,7 @@ type Modal struct {
 	// zoom shows the focused pane alone, as a narrow modal does.
 	zoom bool
 
-	spin     spinner.Model
-	spinning bool
+	spin ui.Spinner
 
 	width, height int
 	theme         ui.Theme
@@ -142,7 +141,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		opts:          o,
 		format:        newFormat(o.cfg, o.dates.In(o.loc), o.icons),
 		focus:         graphPane,
-		spin:          spinner.New(spinner.WithSpinner(spinner.Dot)),
+		spin:          ui.NewSpinner(spinner.Dot),
 		commit:        newCommit(o.editor, keys),
 	}
 	m.ahead = ui.NewAhead("commit", m.readDetail, m.cachedDetail)
@@ -172,7 +171,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 
 // Init reads the branches and the first commits of the branch shown.
 func (m *Modal) Init() tea.Cmd {
-	return tea.Batch(m.loadBranches("", false), m.graph.model.Init(), m.startSpinner())
+	return tea.Batch(m.loadBranches("", false), m.graph.model.Init(), m.spin.Start())
 }
 
 // Title names the repository.
@@ -302,15 +301,6 @@ func (m *Modal) zoomed() bool {
 func (m *Modal) close() tea.Cmd {
 	m.cancel()
 	return ui.CloseModal(m)
-}
-
-// spinning starts the spinner while something loads, unless it runs.
-func (m *Modal) startSpinner() tea.Cmd {
-	if m.spinning {
-		return nil
-	}
-	m.spinning = true
-	return m.spin.Tick
 }
 
 // loading reports whether a pane waits for something the spinner shows.

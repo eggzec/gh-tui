@@ -197,9 +197,8 @@ type Section struct {
 
 	// stale holds, for each kind, the results of the query before, shown
 	// dimmed until those of the new one arrive, with spin in the title.
-	stale    map[core.SearchKind][]string
-	spin     spinner.Model
-	spinning bool
+	stale map[core.SearchKind][]string
+	spin  ui.Spinner
 
 	recent []string
 	starts startList
@@ -245,7 +244,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		stale:      make(map[core.SearchKind][]string),
 		langs:      make(map[string]string),
 		icons:      ui.NewIcons(config.Default().UI.Icons),
-		spin:       spinner.New(spinner.WithSpinner(spinner.MiniDot)),
+		spin:       ui.NewSpinner(spinner.MiniDot),
 	}
 	s.textCtx, s.cancelText = context.WithCancel(ctx)
 	for _, opt := range opts {

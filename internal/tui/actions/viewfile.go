@@ -25,7 +25,7 @@ func (m *Modal) viewWorkflow() tea.Cmd {
 		return nil
 	}
 	m.workflows.loading = true
-	return tea.Batch(m.readWorkflows(false), m.startSpinner())
+	return tea.Batch(m.readWorkflows(false), m.spin.Start())
 }
 
 // openWorkflowFile sends the file of the run's workflow to the preview.
