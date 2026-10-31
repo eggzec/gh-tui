@@ -72,8 +72,8 @@ func TestFIsTypedWhereTyping(t *testing.T) {
 		name string
 		keys []tea.Msg
 	}{
-		{name: "query line", keys: append([]tea.Msg{tab}, keyA)},
-		{name: "text editor", keys: append(keys(down, rowBase), keyA)},
+		{name: "query line", keys: append([]tea.Msg{tab}, keySlash)},
+		{name: "text editor", keys: append(keys(down, rowBase), keySlash)},
 		{name: "picker", keys: append(keys(down, rowAuthor), space, keySlash)},
 	}
 	for _, tt := range tests {

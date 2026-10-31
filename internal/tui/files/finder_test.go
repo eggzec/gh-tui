@@ -174,6 +174,22 @@ func TestFindFileHasNoBrowserKey(t *testing.T) {
 	}
 }
 
+// ctrl+p opens the finder from outside, so inside it must not move up.
+func TestFindFileCtrlPDoesNotMoveUp(t *testing.T) {
+	h := newHost(loaded(t, sampleFake(), 40, 12))
+	f := findIn(t, h)
+	h.keys("down")
+	at := selectedPath(f)
+	h.keys("ctrl+p")
+	if got := selectedPath(f); got != at {
+		t.Errorf("ctrl+p moved the cursor from %q to %q", at, got)
+	}
+	h.keys("up")
+	if got := selectedPath(f); got == at {
+		t.Errorf("up left the cursor on %q", got)
+	}
+}
+
 func TestFindFileCloses(t *testing.T) {
 	h := newHost(loaded(t, sampleFake(), 40, 12))
 	f := findIn(t, h)
@@ -462,9 +478,9 @@ func TestFindFilePreviewToggle(t *testing.T) {
 			if f.preview != tt.want {
 				t.Fatalf("preview %v, want %v", f.preview, tt.want)
 			}
-			h.keys("tab")
+			h.keys("ctrl+o")
 			if f.preview == tt.want {
-				t.Fatal("tab didn't toggle the preview")
+				t.Fatal("ctrl+o didn't toggle the preview")
 			}
 			f.SetSize(tt.width, 16)
 			if f.preview == tt.want {
@@ -475,7 +491,7 @@ func TestFindFilePreviewToggle(t *testing.T) {
 	}
 }
 
-// The preview owes no render of markdown at its new width once tab shows
+// The preview owes no render of markdown at its new width once ctrl+o shows
 // it at another width than it rendered at, nor once the finder comes
 // back resized, as the app gives a hidden modal its size but no
 // messages: it renders again, or waits out the resize.
@@ -487,11 +503,11 @@ func TestFindFilePreviewSettles(t *testing.T) {
 	if !strings.Contains(ansi.Strip(f.View()), "Guidance for anyone.") {
 		t.Fatalf("the finder doesn't preview AGENTS.md:\n%s", ansi.Strip(f.View()))
 	}
-	h.keys("tab")
+	h.keys("ctrl+o")
 	f.SetSize(110, 16)
-	h.keys("tab")
+	h.keys("ctrl+o")
 	if f.Settle() != nil {
-		t.Error("after tab the preview still owes a render at its new width")
+		t.Error("after ctrl+o the preview still owes a render at its new width")
 	}
 	f.SetSize(130, 16)
 	h.run(func() tea.Msg { return ui.ReopenedMsg{Modal: f} })

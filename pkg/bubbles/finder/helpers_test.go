@@ -19,12 +19,12 @@ import (
 func testKeys(tb testing.TB) KeyMap {
 	tb.Helper()
 	table := map[string][]string{
-		"up":        {"up", "ctrl+p"},
-		"down":      {"down", "ctrl+n"},
-		"page_up":   {"pgup"},
-		"page_down": {"pgdown"},
-		"choose":    {"enter"},
-		"cancel":    {"esc"},
+		"picker.up":        {"up", "ctrl+p"},
+		"picker.down":      {"down", "ctrl+n"},
+		"picker.page_up":   {"pgup"},
+		"picker.page_down": {"pgdown"},
+		"choose":           {"enter"},
+		"cancel":           {"esc"},
 	}
 	return NewKeyMap(keytest.Table(table))
 }

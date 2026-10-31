@@ -37,10 +37,8 @@ type KeyMap struct {
 	// Toggle flips a Toggle and opens the dropdown of a Choice, of what is
 	// sorted by and the order, and of a Multi or Person.
 	Toggle key.Binding `keymap:"toggle" help:"toggle"`
-	// Insert and Append start typing in a Text field or the query line,
-	// with the cursor at the start or at the end.
-	Insert key.Binding `keymap:"insert" help:"insert"`
-	Append key.Binding `keymap:"append" help:"append"`
+	// Search starts typing in a Text field or the query line.
+	Search key.Binding `keymap:"search" help:"search"`
 	// Apply sends an AppliedMsg from any row. A dropdown has its own
 	// enter, List.Choose.
 	Apply key.Binding `keymap:"global.select" help:"apply"`
@@ -106,7 +104,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Top, k.Bottom, k.Prev, k.Next, k.Toggle},
-		{k.Insert, k.Append, k.Clear, k.Apply, k.Cancel, k.Quit, k.Retry},
+		{k.Search, k.Clear, k.Apply, k.Cancel, k.Quit, k.Retry},
 		{k.NextTab, k.PrevTab, k.NextPane, k.PrevPane},
 		{k.Typing.Submit, k.Typing.Leave, k.Typing.Up, k.Typing.Down},
 		{k.ListClear, k.List.Choose, k.List.Cancel},
@@ -171,8 +169,8 @@ func (m *Model) opensList() bool {
 	return ok
 }
 
-// types reports whether Insert and Append start typing on the row in
-// focus: a Text field or the query line.
+// types reports whether Search starts typing on the row in focus: a Text
+// field or the query line.
 func (m *Model) types() bool {
 	return m.row == m.queryRow() || m.kind() == Text
 }
@@ -228,7 +226,11 @@ func (m *Model) helpItems() []hint {
 	case m.opensList():
 		out = append(out, h(relabel(k.Toggle, "list"), rankChange))
 	case m.types():
-		out = append(out, h(hinted(k.Insert), rankChange), h(hinted(k.Append), rankChange))
+		if m.onQuery() {
+			out = append(out, h(hinted(k.Search), rankChange))
+		} else {
+			out = append(out, h(relabel(k.Search, "edit"), rankChange))
+		}
 	}
 	if m.canClear() {
 		out = append(out, h(hinted(k.Clear), rankClear))
@@ -319,7 +321,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	n := &k.List.Normal
 	form := []*key.Binding{
 		&k.NextTab, &k.PrevTab, &k.NextPane, &k.PrevPane, &k.Up, &k.Down, &k.Top, &k.Bottom, &k.Prev, &k.Next, &k.Toggle,
-		&k.Insert, &k.Append, &k.Apply, &k.Clear, &k.Cancel, &k.Quit, &k.Retry, &k.ListClear,
+		&k.Search, &k.Apply, &k.Clear, &k.Cancel, &k.Quit, &k.Retry, &k.ListClear,
 		&k.Typing.Submit, &k.Typing.Leave, &k.Typing.Up, &k.Typing.Down,
 	}
 	list := []*key.Binding{
@@ -369,7 +371,7 @@ func (m Model) FullHelp() [][]key.Binding {
 			}
 		}
 		if m.types() {
-			on = append(on, &k.Insert, &k.Append)
+			on = append(on, &k.Search)
 		}
 		if m.canClear() {
 			on = append(on, &k.Clear)

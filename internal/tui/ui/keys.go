@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -74,6 +75,26 @@ func (c Context) Of(action string) []string {
 // of the bubbles to be filled from: a name with a dot, such as
 // "global.select", is another context's.
 func Lookup(keys config.Keymap, ctx string) keymap.Lookup { return In(keys, ctx) }
+
+// FinderKeys returns the key map of a file finder. It moves with the keys
+// of the pickers but those that open it from outside (global.find_file),
+// which must not also move in it.
+func FinderKeys(keys config.Keymap) finder.KeyMap {
+	return finder.NewKeyMap(noOpener{In(keys, "finder")})
+}
+
+// noOpener is a lookup of the finder that drops from its movement the keys
+// that open a finder.
+type noOpener struct{ Context }
+
+func (n noOpener) Of(action string) []string {
+	ks := n.Context.Of(action)
+	if !strings.HasPrefix(action, "picker.") {
+		return ks
+	}
+	open := n.Context.Of("global.find_file")
+	return slices.DeleteFunc(slices.Clone(ks), func(k string) bool { return slices.Contains(open, k) })
+}
 
 // Scope implements keymap.Scoped: the name of the context.
 func (c Context) Scope() string { return c.name }

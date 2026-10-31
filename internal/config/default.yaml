@@ -259,7 +259,7 @@ files:
     warn_size: 2MiB
   finder:
     # Show the content of the selected file beside the paths, where the
-    # finder is at least 100 columns wide. Tab shows or hides it either
+    # finder is at least 100 columns wide. Ctrl+o shows or hides it either
     # way.
     preview: true
   # How the preview shows a markdown file, such as a README: rendered, as
@@ -1415,10 +1415,8 @@ keys:
     right: [l, right]
     # Flip a toggle, open the dropdown of a field, or check an item.
     toggle: [space]
-    # Start typing in a text field or the query line, with the cursor at
-    # the start or at the end.
-    insert: [i]
-    append: [a]
+    # Start typing in a text field or the query line.
+    search: [/]
     # Clear the field in focus. Backspace is the global back key.
     clear: [delete]
 
@@ -1499,17 +1497,14 @@ keys:
     # Move the cursor between the title and the description.
     next_field: [tab]
     prev_field: [shift+tab]
-  # The file finder.
+  # The file finder. It moves with the keys of picker.
   finder:
-    up: [up, ctrl+p]
-    down: [down, ctrl+n]
-    page_up: [pgup]
-    page_down: [pgdown]
     choose: [enter]
     cancel: [esc]
-    # Show the file under the cursor in the tree, and preview it.
+    # Show the file under the cursor in the tree.
     reveal: [ctrl+t]
-    preview: [tab]
+    # Show or hide the preview of the file under the cursor.
+    preview: [ctrl+o]
   # A picker whose filter has the keys, and a dropdown's list. While the
   # filter of a filter form's dropdown types, its up and down are those of
   # filter_query.

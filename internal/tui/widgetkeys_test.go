@@ -44,6 +44,10 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 			if !strings.Contains(name, ".") {
 				action = tt.ctx + "." + name
 			}
+			// The finder moves with the keys of the picker.
+			if tt.ctx == "finder" && slices.Contains([]string{"up", "down", "page_up", "page_down"}, name) {
+				action = "picker." + name
+			}
 			if !slices.Contains(keys.Actions(), action) {
 				t.Errorf("%s names %s, which the default keys don't have", tt.ctx, action)
 			}

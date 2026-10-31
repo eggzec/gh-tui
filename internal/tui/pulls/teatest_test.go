@@ -194,14 +194,14 @@ func TestProgramSwitchesTabsAndFilters(t *testing.T) {
 	wait("Retry GraphQL requests")
 
 	// ] shows the merged tab two tabs on, and tab moves to the query line,
-	// which takes an author once insert mode starts.
+	// which takes an author once / starts typing.
 	tm.Type("]]f")
 	waitModal("opened")
 	// Reading the output up to the form drops the rows of the merged tab
 	// drawn before it, which the filtered list has too.
 	wait("Assignee")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	tm.Type("a")
+	tm.Type("/")
 	tm.Type(" author:hubot")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	select {

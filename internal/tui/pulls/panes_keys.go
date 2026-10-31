@@ -102,7 +102,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		cancel:   modal.Binding("global.back", "back"),
 		composer: composer.NewKeyMap(ui.Lookup(keys, "composer")),
 		find:     modal.Binding("global.find_file", "find file"),
-		finder:   finder.NewKeyMap(ui.Lookup(keys, "finder")),
+		finder:   ui.FinderKeys(keys),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
 		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),

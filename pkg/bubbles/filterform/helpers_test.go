@@ -23,8 +23,7 @@ func testKeys(tb testing.TB) KeyMap {
 		"left":                         {"h", "left"},
 		"right":                        {"l", "right"},
 		"toggle":                       {"space"},
-		"insert":                       {"i"},
-		"append":                       {"a"},
+		"search":                       {"/"},
 		"clear":                        {"delete"},
 		"global.next_tab":              {"]"},
 		"global.prev_tab":              {"["},
@@ -85,9 +84,7 @@ var (
 	prevTab  = tea.KeyPressMsg{Code: '[', Text: "["}
 	tab      = tea.KeyPressMsg{Code: tea.KeyTab}
 	shiftTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
-	keyI     = tea.KeyPressMsg{Code: 'i', Text: "i"}
 	keySlash = tea.KeyPressMsg{Code: '/', Text: "/"}
-	keyA     = tea.KeyPressMsg{Code: 'a', Text: "a"}
 	keyJ     = tea.KeyPressMsg{Code: 'j', Text: "j"}
 	keyK     = tea.KeyPressMsg{Code: 'k', Text: "k"}
 	keyH     = tea.KeyPressMsg{Code: 'h', Text: "h"}

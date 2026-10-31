@@ -111,7 +111,7 @@ func TestUpdate(t *testing.T) {
 			wantQuery: prDefaults, wantTab: SortTab, wantRow: sortByRow,
 		},
 		{
-			name: "tab goes to the query line, where ] is typed", keys: step{nextTab, tab, keyA},
+			name: "tab goes to the query line, where ] is typed", keys: step{nextTab, tab, keySlash},
 			typed: " ]", after: step{esc}, wantQuery: prDefaults + " ]", wantTab: SortTab, wantRow: sortRows,
 		},
 		{
@@ -145,12 +145,12 @@ func TestUpdate(t *testing.T) {
 			wantQuery: strings.Replace(prDefaults, "author:@me ", "", 1), wantRow: rowAuthor,
 		},
 		{
-			name: "a edits a text from its end", keys: append(keys(down, rowBase), keyA, bksp, bksp, bksp, bksp),
+			name: "a edits a text from its end", keys: append(keys(down, rowBase), keySlash, bksp, bksp, bksp, bksp),
 			typed: "release 1.0", after: step{esc},
 			wantQuery: strings.Replace(prDefaults, "base:main", `base:"release 1.0"`, 1), wantRow: rowBase,
 		},
 		{
-			name: "esc keeps a text", keys: append(keys(down, rowBase), keyA),
+			name: "esc keeps a text", keys: append(keys(down, rowBase), keySlash),
 			typed: "-x", after: step{esc},
 			wantQuery: strings.Replace(prDefaults, "base:main", "base:main-x", 1), wantRow: rowBase,
 		},
@@ -170,11 +170,11 @@ func TestUpdate(t *testing.T) {
 			wantQuery: prDefaults, wantRow: rowAuthor,
 		},
 		{
-			name: "tab goes to the query line, where i types", keys: step{tab, keyA},
+			name: "tab goes to the query line, where i types", keys: step{tab, keySlash},
 			typed: " fix x r", after: step{esc}, wantQuery: prDefaults + " fix x r", wantRow: rowQuery,
 		},
 		{
-			name: "the query line sets the fields as it is typed", query: "is:open", keys: step{tab, keyA, ctrlU},
+			name: "the query line sets the fields as it is typed", query: "is:open", keys: step{tab, keySlash, ctrlU},
 			typed: "is:closed label:docs", after: step{esc, tab},
 			wantQuery: "is:closed label:docs sort:updated-desc", wantRow: rowState,
 		},
@@ -209,7 +209,7 @@ func TestUpdate(t *testing.T) {
 // normalized once insert mode ends.
 func TestQueryLineKeepsTyping(t *testing.T) {
 	m := open(t, prSpec(nil), WithQuery(""))
-	m, _ = press(t, m, tab, keyA, ctrlU)
+	m, _ = press(t, m, tab, keySlash, ctrlU)
 	m = typeText(t, m, "label:  is:closed  ")
 	if got := m.query.Value(); got != "label:  is:closed  " {
 		t.Errorf("query line = %q, want what was typed", got)
@@ -471,7 +471,7 @@ func TestApplyAndCancel(t *testing.T) {
 		{name: "q cancels", keys: []tea.Msg{right, keyQ}, want: CancelMsg{}},
 		{name: "esc on the query line cancels", keys: []tea.Msg{right, tab, esc}, want: CancelMsg{}},
 		{name: "esc closes the picker first", keys: []tea.Msg{right, down, down, down, space, esc, esc}, want: CancelMsg{}},
-		{name: "esc leaves insert first", keys: []tea.Msg{right, tab, keyA, esc, esc}, want: CancelMsg{}},
+		{name: "esc leaves insert first", keys: []tea.Msg{right, tab, keySlash, esc, esc}, want: CancelMsg{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -639,7 +639,7 @@ func TestPanes(t *testing.T) {
 		}
 		m, _ = press(t, m, keyG)
 	}
-	m, _ = press(t, m, tab, keyA)
+	m, _ = press(t, m, tab, keySlash)
 	if !m.Capturing() {
 		t.Fatal("a on the query line does not start typing")
 	}
@@ -710,19 +710,16 @@ func TestPrevNextChange(t *testing.T) {
 	}
 }
 
-// i starts typing with the cursor at the start and a at the end, in a text
-// field and on the query line, and the help line says INSERT.
-func TestInsertAndAppend(t *testing.T) {
+// / starts typing with the cursor at the end, in a text field and on the
+// query line, and the help line says INSERT.
+func TestSearchStartsTyping(t *testing.T) {
 	tests := []struct {
-		name  string
-		row   int
-		start tea.Msg
-		want  int
+		name string
+		row  int
+		want int
 	}{
-		{name: "i in a field", row: rowBase, start: keyI, want: 0},
-		{name: "a in a field", row: rowBase, start: keyA, want: len("main")},
-		{name: "i on the query", row: rowQuery, start: keyI, want: 0},
-		{name: "a on the query", row: rowQuery, start: keyA, want: len(prDefaults)},
+		{name: "in a field", row: rowBase, want: len("main")},
+		{name: "on the query", row: rowQuery, want: len(prDefaults)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -731,7 +728,7 @@ func TestInsertAndAppend(t *testing.T) {
 			if strings.Contains(ansi.Strip(m.View()), "INSERT") {
 				t.Fatal("INSERT shows before insert mode")
 			}
-			m, _ = press(t, m, tt.start)
+			m, _ = press(t, m, keySlash)
 			if m.mode != insertMode || !m.Capturing() {
 				t.Fatalf("mode = %v, capturing = %v; want insert mode", m.mode, m.Capturing())
 			}
@@ -748,10 +745,7 @@ func TestInsertAndAppend(t *testing.T) {
 				t.Errorf("the view doesn't say INSERT:\n%s", v)
 			}
 			if tt.row == rowBase {
-				want := "xymain"
-				if tt.start == keyA {
-					want = "mainxy"
-				}
+				want := "mainxy"
 				if got, _ := m.Value("base"); got.Text() != want {
 					t.Errorf("base = %q, want %q", got.Text(), want)
 				}
@@ -762,7 +756,7 @@ func TestInsertAndAppend(t *testing.T) {
 	for _, row := range []int{rowState, rowAuthor, rowLabels, rowDrafts} {
 		m := open(t, prSpec(nil))
 		m, _ = press(t, m, keys(down, row)...)
-		m, _ = press(t, m, keyI, keyA)
+		m, _ = press(t, m, keySlash)
 		if m.mode != rowsMode || m.Query() != prDefaults {
 			t.Errorf("row %d: mode %v, query %q; want the rows and the defaults", row, m.mode, m.Query())
 		}
@@ -774,7 +768,7 @@ func TestInsertAndAppend(t *testing.T) {
 func TestEscLeavesInsertKeepingText(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, _ = press(t, m, keyA)
+	m, _ = press(t, m, keySlash)
 	m = typeText(t, m, "-x  ")
 	m, sent := press(t, m, esc)
 	if len(sent) > 0 || m.mode != rowsMode || m.Capturing() {
@@ -783,7 +777,7 @@ func TestEscLeavesInsertKeepingText(t *testing.T) {
 	if v, _ := m.Value("base"); v.Text() != "main-x" {
 		t.Errorf("base = %q, want the text kept and trimmed", v.Text())
 	}
-	m, _ = press(t, m, tab, keyA)
+	m, _ = press(t, m, tab, keySlash)
 	m = typeText(t, m, " fix")
 	m, sent = press(t, m, esc)
 	if len(sent) > 0 || m.mode != rowsMode {
@@ -803,7 +797,7 @@ func TestEnterInInsertApplies(t *testing.T) {
 	for _, row := range []int{rowBase, rowQuery} {
 		m := open(t, prSpec(nil))
 		m, _ = press(t, m, rowKeys(m, row)...)
-		m, _ = press(t, m, keyA)
+		m, _ = press(t, m, keySlash)
 		m = typeText(t, m, " fix")
 		m, sent := press(t, m, enter)
 		if len(sent) != 1 || m.mode != rowsMode {
@@ -852,7 +846,7 @@ func TestQuitCloses(t *testing.T) {
 		t.Fatalf("sent %v, want a CancelMsg", sent)
 	}
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, sent = press(t, m, keyA, keyQ)
+	m, sent = press(t, m, keySlash, keyQ)
 	if len(sent) > 0 {
 		t.Fatalf("sent %v, want q typed in insert mode", sent)
 	}
@@ -884,7 +878,7 @@ func TestCapturing(t *testing.T) {
 	if m.Capturing() {
 		t.Error("the query line captures keys outside insert mode")
 	}
-	m, _ = press(t, m, keyI)
+	m, _ = press(t, m, keySlash)
 	if !m.Capturing() {
 		t.Error("insert mode doesn't capture keys")
 	}
@@ -911,7 +905,7 @@ func TestPasteOnlyInInsert(t *testing.T) {
 	if v, _ := m.Value("base"); v.Text() != "main" {
 		t.Errorf("base = %q, want the paste ignored in the rows", v.Text())
 	}
-	m, _ = press(t, m, keyA, tea.PasteMsg{Content: "zzz"})
+	m, _ = press(t, m, keySlash, tea.PasteMsg{Content: "zzz"})
 	if v, _ := m.Value("base"); v.Text() != "mainzzz" {
 		t.Errorf("base = %q, want the paste typed", v.Text())
 	}
@@ -927,17 +921,17 @@ func TestSetQueryClosesEditor(t *testing.T) {
 	if got := m.query.Value(); got != "is:closed sort:updated-desc" {
 		t.Errorf("query line = %q", got)
 	}
-	m, _ = press(t, m, tab, keyA)
+	m, _ = press(t, m, tab, keySlash)
 	m.SetQuery("is:open")
 	if m.mode != rowsMode || m.Capturing() {
 		t.Error("SetQuery left insert mode")
 	}
-	m, _ = press(t, m, keyI)
+	m, _ = press(t, m, keySlash)
 	m.Reset()
 	if m.mode != rowsMode {
 		t.Error("Reset left insert mode")
 	}
-	m, _ = press(t, m, keyI)
+	m, _ = press(t, m, keySlash)
 	m.SetTab(SortTab)
 	if m.mode != rowsMode {
 		t.Error("SetTab left insert mode")

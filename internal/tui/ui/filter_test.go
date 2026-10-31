@@ -251,7 +251,7 @@ func TestFilterModalKeyLayers(t *testing.T) {
 	if !strings.Contains(ansi.Strip(m.View()), "esc close") {
 		t.Errorf("View() = %q, want the form's own help line", ansi.Strip(m.View()))
 	}
-	m.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
 	if layers := m.KeyLayers(); !layers[0].Typing || len(layers[0].Short) != 0 {
 		t.Errorf("layer in insert mode = %+v, want typing and no short help", layers[0])
 	}
@@ -354,8 +354,8 @@ func TestFilterModalHelpASCII(t *testing.T) {
 		{"labels list open", []string{"esc", "esc", "j", "space"}, "j/k move"},
 		{"labels filter", []string{"/"}, "up/down move"},
 		{"toggle", []string{"esc", "esc", "j"}, "space toggle"},
-		{"text", []string{"j"}, "i insert"},
-		{"insert", []string{"i"}, "INSERT"},
+		{"text", []string{"j"}, "/ edit"},
+		{"insert", []string{"/"}, "INSERT"},
 		{"sort tab", []string{"esc", "]"}, "enter apply"},
 	}
 	for _, width := range []int{100, 40} {
