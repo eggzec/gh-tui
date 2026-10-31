@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
@@ -206,7 +207,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 	if l == nil || s.page.focus != listPane {
 		return ui.Filter{}, false
 	}
-	return ui.Filter{Spec: ownerui.Spec(s.cachedRepos(l), l.Filter()), Query: l.toggle.Edited(l.sortToggle.Edited(l.Filter().Query())), Subject: tabTitles[s.page.tab]}, true
+	return ui.Filter{Spec: repolist.Spec(s.cachedRepos(l), l.Filter()), Query: l.toggle.Edited(l.sortToggle.Edited(l.Filter().Query())), Subject: tabTitles[s.page.tab]}, true
 }
 
 // ApplyFilter implements ui.Filterable. The default sort is left out of
@@ -216,7 +217,7 @@ func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 		l.toggle.On()
 		l.sortToggle.On()
 	}
-	cmd := s.setFilter(ownerui.WithoutDefaultSort(msg.Query))
+	cmd := s.setFilter(repolist.WithoutDefaultSort(msg.Query))
 	s.render()
 	return cmd
 }
@@ -228,7 +229,7 @@ func (s *Section) setFilter(query string) tea.Cmd {
 	if l == nil || query == l.Filter().Query() {
 		return nil
 	}
-	f := ownerui.ParseFilter(query)
+	f := repolist.ParseFilter(query)
 	l.SetFilter(&f)
 	l.Feed.SetEmptyText(s.reposEmpty(l))
 	if !l.on {

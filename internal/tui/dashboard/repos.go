@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
@@ -33,7 +34,7 @@ type owner struct {
 
 // emptyText is what the list of o says when it has no repository, with
 // clearKey, the key that clears the filter.
-func (o *owner) emptyText(f *ownerui.Filter, clearKey string) string {
+func (o *owner) emptyText(f *repolist.Filter, clearKey string) string {
 	switch {
 	case f.Active():
 		return ui.NoMatch("repositories", clearKey)
