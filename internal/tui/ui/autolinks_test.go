@@ -64,6 +64,42 @@ func TestAutolinksNilLinksNothing(t *testing.T) {
 }
 
 // Serial: it switches the process-wide links setting.
+func TestSeenNotesAsksOnceAndNotWithLinksOff(t *testing.T) {
+	f := &fakeLinks{}
+	s := NewAutolinks(f, "github.com").Seen("o/r")
+	fn := s.Func()
+	fn(markdown.RefIssue, "#1")
+	fn(markdown.RefUser, "@a")
+	fn(markdown.RefIssue, "#1")
+	if len(f.verified) != 0 {
+		t.Fatalf("rendering called Verify: %v", f.verified)
+	}
+	cmd := s.Ask(context.Background())
+	if cmd == nil {
+		t.Fatal("no command for the references seen")
+	}
+	cmd()
+	if len(f.verified) != 1 || len(f.verified[0]) != 2 {
+		t.Fatalf("asked %v, want one call of two candidates", f.verified)
+	}
+	fn(markdown.RefIssue, "#1")
+	if s.Ask(context.Background()) != nil {
+		t.Error("a reference was asked about twice")
+	}
+
+	termtext.SetLinks(false)
+	defer termtext.SetLinks(true)
+	fn(markdown.RefIssue, "#9")
+	if s.Ask(context.Background()) != nil {
+		t.Error("links off still asks")
+	}
+	var none *Seen
+	if none.Func() != nil || none.Ask(context.Background()) != nil {
+		t.Error("a nil Seen links or asks")
+	}
+}
+
+// Serial: it switches the process-wide links setting.
 func TestAutolinksVerifyAsksOncePerBodyUntilSynced(t *testing.T) {
 	f := &fakeLinks{}
 	a := NewAutolinks(f, "github.com")

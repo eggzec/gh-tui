@@ -108,8 +108,31 @@ func (s *Section) readmeRender(p *page, src string) pager.Render {
 		pics := s.readmePictures(p)
 		p.side.pics = pics != nil
 		s.sc.md.SetPictures(pics)
+		s.sc.md.SetAutolink(s.autolinks.Func(s.readmeRepo(p)))
 		return s.sc.md.Render(src, width)
 	}
+}
+
+// readmeRepo is the repository whose issues and commits the README of p
+// names, as "owner/name". A user's profile README has none, so only its
+// @login references link.
+func (s *Section) readmeRepo(p *page) string {
+	if p.header.value.Kind == core.OwnerUser {
+		return ""
+	}
+	r := p.side.readme.value.Source
+	if r == (core.RepoRef{}) {
+		return ""
+	}
+	return r.String()
+}
+
+// verifyReadme asks GitHub about the references of the README of p.
+func (s *Section) verifyReadme(p *page) tea.Cmd {
+	if !p.side.readme.ok {
+		return nil
+	}
+	return s.autolinks.Verify(s.ctx, s.readmeRepo(p), p.side.readme.value.Markdown)
 }
 
 // readmePictures returns what draws the images of the README of p alone

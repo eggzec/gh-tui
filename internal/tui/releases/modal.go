@@ -39,6 +39,14 @@ type options struct {
 	voice *ui.Voice
 	// icons draw the modal and mark what failed to load.
 	icons ui.Icons
+	// links confirms the references of the release's notes.
+	links *ui.Autolinks
+}
+
+// WithAutolinks links the references (#N, @login, hashes) of the release's
+// notes that links confirmed. Without it, they stay text.
+func WithAutolinks(links *ui.Autolinks) Option {
+	return func(o *options) { o.links = links }
 }
 
 // WithNow sets the clock that ages are measured against. The default is
@@ -97,6 +105,7 @@ type Modal struct {
 	// rel is the release once loaded is set, and err why the last read
 	// failed.
 	rel    core.Release
+	links  *ui.Autolinks
 	loaded bool
 	err    error
 
@@ -158,6 +167,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		cancel: cancel,
 		voice:  *o.voice,
 		icons:  o.icons,
+		links:  o.links,
 	}
 	// The voice and the thread's copies of it read the icons of the modal
 	// itself, not of the options, which go out of use.
@@ -178,6 +188,9 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
+	if f := o.links.Func(repo.String()); f != nil {
+		m.thread.SetAutolink(f)
+	}
 	r, cached := svc.CachedGet(repo, id)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "release", "repo", repo.String(), "id", id, "cached", cached)
 	if cached {
@@ -235,7 +248,7 @@ func (m *Modal) receive(msg releaseMsg) tea.Cmd {
 
 // show sets the document of the thread from the release.
 func (m *Modal) show() tea.Cmd {
-	return m.thread.SetDocument(m.header(m.width), m.rel.Body)
+	return tea.Batch(m.thread.SetDocument(m.header(m.width), m.rel.Body), m.links.Verify(m.ctx, m.repo.String(), m.rel.Body))
 }
 
 // Title implements ui.Modal.
@@ -312,6 +325,11 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 		return m.receive(msg)
 	case ui.OnlineMsg:
 		return m.online()
+	case ui.SyncMsg:
+		if m.links.Synced(msg) {
+			m.thread.SetAutolink(m.links.Func(m.repo.String()))
+		}
+		return nil
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)

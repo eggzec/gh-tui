@@ -244,10 +244,11 @@ func (s *Section) sideLoaded(msg sideMsg) tea.Cmd {
 	}
 	m := msg.take()
 	s.setSide(p)
+	verify := s.verifyReadme(p)
 	if !m.stale {
-		return nil
+		return verify
 	}
-	return msg.again()
+	return tea.Batch(verify, msg.again())
 }
 
 // againSide reads again, past what was kept, each read of the side of p
@@ -464,6 +465,12 @@ func (s *Section) sideSelected() (ui.Selection, bool) {
 // the revalidator found it changed on GitHub.
 func (s *Section) synced(msg ui.SyncMsg) tea.Cmd {
 	p := s.page
+	if s.autolinks.Synced(msg) {
+		if p != nil && p.side.pager != nil && p.side.readme.ok {
+			p.side.pager.Rerender()
+		}
+		return nil
+	}
 	if msg.Err != nil || p == nil || !p.header.ok || msg.Key != owners.SyncKey(p.header.value.Profile.Login) {
 		return nil
 	}
