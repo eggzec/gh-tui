@@ -155,8 +155,10 @@ func TestViewerOverlayClosing(t *testing.T) {
 	if _, ok := m.Act(ui.ActDismiss); ok || m.top() == nil {
 		t.Error("dismiss was taken from a picker")
 	}
-	if _, ok := m.Act(ui.ActBack); !ok || m.top() == nil {
-		t.Error("back closed a picker, or reached the app")
+	// Back is the picker's even when the app could pop a modal under it,
+	// so the modal takes it and the picker closes itself.
+	if _, ok := m.Act(ui.ActBack); !ok {
+		t.Error("back was left to the app while a picker is open")
 	}
 	if _, ok := m.Act(ui.ActMaximize); ok {
 		t.Error("maximize was taken by a picker")

@@ -126,7 +126,7 @@ func TestLabelsFooter(t *testing.T) {
 	for _, b := range shown {
 		hints = append(hints, b.Help().Key+" "+b.Help().Desc)
 	}
-	want := []string{"j/k move", "/ search", "space toggle", "↵ apply", "esc cancel"}
+	want := []string{"j/k move", "/ search", "space toggle", "↵ apply", "esc close"}
 	if !slices.Equal(hints, want) {
 		t.Errorf("footer hints are %q, want %q", hints, want)
 	}
@@ -291,9 +291,7 @@ func TestLabelsEscAndBackCloseWithoutApplying(t *testing.T) {
 	press(t, h, "L")
 	press(t, h, "down")
 	press(t, h, "space")
-	if _, ok := m.Act(ui.ActBack); !ok {
-		t.Error("back reached the app while the picker was open")
-	}
+	press(t, h, "backspace")
 	if m.top() != nil {
 		t.Error("back left the picker open")
 	}

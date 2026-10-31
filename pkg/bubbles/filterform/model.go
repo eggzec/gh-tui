@@ -225,6 +225,22 @@ func (m Model) Capturing() bool {
 	return m.mode == listMode && m.picking && m.pick.Typing()
 }
 
+// Listing reports whether a dropdown is open, or waits for its options, so
+// that its own keys act, back among them.
+func (m Model) Listing() bool { return m.focused && m.mode == listMode }
+
+// CloseList closes the open dropdown without applying what was ticked in it,
+// as the key that closes it does. It reports whether one was open.
+func (m *Model) CloseList() bool {
+	if !m.Listing() {
+		return false
+	}
+	m.fields = slices.Clone(m.fields)
+	m.closeEditor(false)
+	m.render()
+	return true
+}
+
 // Loading reports whether any field is loading its options.
 func (m Model) Loading() bool {
 	return slices.ContainsFunc(m.fields, func(f field) bool { return f.state == loading })

@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -11,10 +12,12 @@ var _ ui.Actor = (*panesModal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal from anywhere. With
 // an overlay open, the keys are its: back and dismiss close a viewer, clearing
-// what is transient first, and reach any other overlay as keys, which close
-// themselves, as they do an overlay that types; the owner key waits. The
-// maximize key flips a viewer. Without an overlay, dismiss closes the modal
-// and the owner key shows the page of the author. Every other intent is the app's to refuse while the modal is open.
+// what is transient first. Back is passed into a picker, which closes itself,
+// since the app would pop the modal under this one; an overlay that types
+// takes its keys as text. The owner key waits. The maximize key flips a
+// viewer. Without an overlay, dismiss closes the modal and the owner key shows
+// the page of the author. Every other intent is the app's to refuse while the
+// modal is open.
 func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	if action == ui.ActQuit {
 		return m.close(), true
@@ -45,13 +48,21 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	case ui.ActBack:
 		if viewer {
 			m.pop()
-		} else if c, ok := o.(interface{ cancel() }); ok {
-			// The app's back must not act while the picker is open, so the
-			// picker is told, since the key never reaches it.
+			return nil, true
+		}
+		if c, ok := o.(interface{ cancel() }); ok {
+			// The app's back must not act while the overlay is open, so it is
+			// told, since the key never reaches it.
 			c.cancel()
 			m.settle()
+			return nil, true
 		}
-		return nil, true
+		// A picker closes itself on back. The press is passed in, since the
+		// app would otherwise pop the modal under this one, and the key
+		// never reaches the picker.
+		cmd := o.update(keymap.ActionPress("picker_normal.back"))
+		m.settle()
+		return cmd, true
 	case ui.ActDismiss:
 		if !viewer {
 			return nil, false

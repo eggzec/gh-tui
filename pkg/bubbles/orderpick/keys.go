@@ -29,8 +29,8 @@ type KeyMap struct {
 	Remove key.Binding `keymap:"remove" help:"remove"`
 	// Picker holds the keys of the left pane. Its Choose sends a ChosenMsg
 	// from either pane, and its Cancel a CancelMsg, after it has cleared the
-	// query of the left pane. Its scope keys and Normal.Back are unused: the
-	// panes have no scopes, and the parent calls Cancel on the back key.
+	// query of the left pane. Its scope keys are unused: the panes have no
+	// scopes. Normal.Back cancels from both panes.
 	Picker picker.KeyMap `keymap:"picker"`
 }
 
@@ -47,7 +47,6 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 func withState(k KeyMap) KeyMap {
 	k.Picker.NextScope.SetEnabled(false)
 	k.Picker.PrevScope.SetEnabled(false)
-	k.Picker.Normal.Back.SetEnabled(false)
 	return k
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
-	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // convChoice returns the choice of group g in the filter of m.
@@ -80,7 +79,7 @@ func TestConvFilterCancel(t *testing.T) {
 	}
 }
 
-// The back key never reaches the checklist, so the modal must close it.
+// The back key reaches the checklist, which closes without applying.
 func TestConvFilterBack(t *testing.T) {
 	t.Parallel()
 	h, m := convModal(t, convService())
@@ -89,9 +88,7 @@ func TestConvFilterBack(t *testing.T) {
 	press(t, h, "f")
 	press(t, h, "down")
 	press(t, h, "space")
-	if _, ok := m.Act(ui.ActBack); !ok {
-		t.Error("back reached the app while the filter was open")
-	}
+	press(t, h, "backspace")
 
 	if m.top() != nil {
 		t.Error("back left the filter open")

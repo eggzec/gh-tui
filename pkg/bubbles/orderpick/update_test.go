@@ -184,14 +184,24 @@ func TestEscClearsTheQueryThenCancels(t *testing.T) {
 	}
 }
 
-func TestBackIsLeftToTheParent(t *testing.T) {
+func TestBackCancelsFromBothPanes(t *testing.T) {
 	m := open(t)
-	m, sent := press(t, m, bksp)
+	want := CancelMsg{ID: m.ID()}
+	m, sent := press(t, m, letter('/'), letter('t'), bksp)
 	if len(sent) != 0 {
-		t.Errorf("backspace sent %v, want nothing", sent)
+		t.Errorf("backspace while typing sent %v, want nothing", sent)
 	}
-	if msg := m.Cancel()(); msg != (CancelMsg{ID: m.ID()}) {
-		t.Errorf("Cancel sent %v", msg)
+	m, sent = press(t, m, esc)
+	if len(sent) != 0 || m.left.Typing() {
+		t.Fatalf("esc sent %v, typing %v", sent, m.left.Typing())
+	}
+	m, sent = press(t, m, bksp)
+	if len(sent) != 1 || sent[0] != want {
+		t.Errorf("backspace in the left pane sent %v, want %v", sent, want)
+	}
+	_, sent = press(t, m, tab, bksp)
+	if len(sent) != 1 || sent[0] != want {
+		t.Errorf("backspace in the right pane sent %v, want %v", sent, want)
 	}
 }
 

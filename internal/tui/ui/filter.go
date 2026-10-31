@@ -166,7 +166,7 @@ type FilterModal struct {
 	icons  Icons
 	// section and subject are what the title names.
 	section, subject string
-	// back is off: the modal has no step before it.
+	// back closes the modal without applying, outside the form's typing.
 	back key.Binding
 }
 
@@ -274,7 +274,6 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 	// Focusing the rows, where the form starts, needs no command.
 	_ = m.form.Focus()
 	m.rows = len(f.Spec.Fields)
-	m.back.SetEnabled(false)
 	return m
 }
 
@@ -344,8 +343,9 @@ func (m *FilterModal) KeyLayers() []keyhelp.Layer {
 	}[m.form.CapturedBy()]
 	l := ContextHelp(ctx, m.form, m.form.Capturing())
 	l.Short = nil
-	if ctx == "filter" && m.back.Help().Key != "" {
-		// Where the form types, backspace deletes.
+	if ctx == "filter" && !m.form.Listing() && m.back.Help().Key != "" {
+		// Where the form types, backspace deletes. In a dropdown the picker's
+		// own back closes it.
 		l.Bindings = append(l.Bindings, m.back)
 	}
 	return []keyhelp.Layer{l}
@@ -367,10 +367,20 @@ func (m *FilterModal) Query() string { return m.form.Query() }
 var _ Actor = (*FilterModal)(nil)
 
 // Act implements Actor. The quit key closes the modal without applying
-// what the form holds; every other intent is the app's to refuse while it
-// is open.
+// what the form holds, and so does back at the rows of the form. Back closes
+// only the dropdown that is open, and is the form's own text while it types;
+// every other intent is the app's to refuse while it is open.
 func (m *FilterModal) Act(action string) (tea.Cmd, bool) {
-	if action == ActQuit {
+	switch {
+	case action == ActQuit:
+		return CloseModal(m), true
+	case action == ActBack && m.form.Capturing():
+		return nil, false
+	case action == ActBack && m.form.CloseList():
+		// Back closes the dropdown only, as esc does; the app would pop the
+		// modal under this one if the key were left to it.
+		return nil, true
+	case action == ActBack:
 		return CloseModal(m), true
 	}
 	return nil, false

@@ -420,6 +420,32 @@ func TestFilterModalGrowsForThePicker(t *testing.T) {
 	}
 }
 
+// TestFilterModalBack checks that back, which the app leaves to the modal,
+// closes the dropdown alone while one is open, and the modal at the rows of
+// the form.
+func TestFilterModalBack(t *testing.T) {
+	t.Parallel()
+	m := NewFilterModal(t.Context(), "Issues", &fakeFilterable{}, Filter{Spec: labelsSpec(), Subject: "o/r"})
+	p, _ := config.Default().Palette(true)
+	m.SetTheme(NewTheme(p, true))
+	m.SetSize(100, 30)
+	send(m, "j", "j", "space")
+	if !m.form.Listing() {
+		t.Fatal("space didn't open the dropdown")
+	}
+	cmd, ok := m.Act(ActBack)
+	if !ok || cmd != nil || m.form.Listing() {
+		t.Errorf("back with a dropdown open: taken %v, cmd %v, listing %v", ok, cmd != nil, m.form.Listing())
+	}
+	cmd, ok = m.Act(ActBack)
+	if !ok || cmd == nil {
+		t.Fatalf("back at the rows: taken %v, cmd %v", ok, cmd != nil)
+	}
+	if _, closes := cmd().(CloseModalMsg); !closes {
+		t.Errorf("back at the rows sent %T, want the modal to close", cmd())
+	}
+}
+
 // space in a Person's list marks the person it chose, as a Labels list
 // marks what it checked.
 func TestFilterModalMarksThePerson(t *testing.T) {

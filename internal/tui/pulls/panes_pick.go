@@ -155,10 +155,6 @@ func (o *labelsOverlay) closed() bool { return o.done }
 // typing says that the search takes the keys as text.
 func (o *labelsOverlay) typing() bool { return o.p.Typing() }
 
-// cancel closes the picker without applying it, as backspace does: the back key
-// never reaches the picker, so the modal tells the overlay.
-func (o *labelsOverlay) cancel() { o.done = true }
-
 func (o *labelsOverlay) layers() []keyhelp.Layer {
 	ctx := "picker_normal"
 	if o.p.Typing() {
@@ -180,9 +176,7 @@ func (h labelsHelp) ShortHelp() []key.Binding {
 	toggle.SetHelp(toggle.Help().Key, "toggle")
 	apply := k.Choose
 	apply.SetHelp(apply.Help().Key, "apply")
-	cancel := k.Cancel
-	cancel.SetHelp(cancel.Help().Key, "cancel")
-	return []key.Binding{moving(k.Normal.Down, k.Normal.Up), k.Normal.Search, toggle, apply, cancel}
+	return []key.Binding{moving(k.Normal.Down, k.Normal.Up), k.Normal.Search, toggle, apply, k.Cancel}
 }
 
 // moving is the one hint for the keys that move, named by the first key of

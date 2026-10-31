@@ -68,7 +68,7 @@ func TestHelpByState(t *testing.T) {
 // The unused keys of the picker stay disabled, so no key is taken twice.
 func TestUnusedKeysAreDisabled(t *testing.T) {
 	k := testKeys(t)
-	for _, b := range []key.Binding{k.Picker.NextScope, k.Picker.PrevScope, k.Picker.Normal.Back} {
+	for _, b := range []key.Binding{k.Picker.NextScope, k.Picker.PrevScope} {
 		if b.Enabled() {
 			t.Errorf("%v is enabled", b.Help())
 		}

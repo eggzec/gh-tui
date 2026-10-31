@@ -6,19 +6,19 @@
 │                                                                                  ││                                  │
 │  • Pages expire with their TTL                                                   ││                                  │
 │  •  --no-disk  turns it off                                                      ││                                  │
-│                                                                                  ││                                  │
-╰────────────────────────────────────╭─ Show ─────────────────────────────────────╮╯│ ─────                            │
-╭─ 2 Conversation ───────────────────│ ▌ [x] comments  1                          │╮│ Update U                         │
-│ ▌ bob                             │   [x] reviews  1                           ││╰──────────────────────────────────╯
-│  ╰─  dee ● b.go:7  Why?           │   [x] pushes  0                            ││╭─ 4 Involved ─────────────────────╮
-│     ╰─ bob  Because.               │   [x] labels  0                            │││ ▌Author octocat                  │
-│                                    │   [x] people  0                            │││  ▾ Reviewers 0                   │
-│  ann  Looks good.                  │   [x] state  0                             ││╰──────────────────────────────────╯
-│                                    │   [x] branch  0                            ││╭─ 5 Development ──────────────────╮
-│                                    │   [x] references  0                        │││ Not shown yet.                   │
-│                                    │   [x] milestones  0                        ││╰──────────────────────────────────╯
-│                                    ╰────────────────────────────────────────────╯│╭─ 6 Files ────────────────────────╮
-│                                                                                  ││ ▌Commits                        │
+│                                    ╭─ Show ─────────────────────────────────────╮││                                  │
+╰────────────────────────────────────│ › Search…                                  │╯│ ─────                            │
+╭─ 2 Conversation ───────────────────│                                  9 results │╮│ Update U                         │
+│ ▌ bob                             │ ▌ [x] comments  1                          ││╰──────────────────────────────────╯
+│  ╰─  dee ● b.go:7  Why?           │   [x] reviews  1                           ││╭─ 4 Involved ─────────────────────╮
+│     ╰─ bob  Because.               │   [x] pushes  0                            │││ ▌Author octocat                  │
+│                                    │   [x] labels  0                            │││  ▾ Reviewers 0                   │
+│  ann  Looks good.                  │   [x] people  0                            ││╰──────────────────────────────────╯
+│                                    │   [x] state  0                             ││╭─ 5 Development ──────────────────╮
+│                                    │   [x] branch  0                            │││ Not shown yet.                   │
+│                                    │   [x] references  0                        ││╰──────────────────────────────────╯
+│                                    │   [x] milestones  0                        ││╭─ 6 Files ────────────────────────╮
+│                                    ╰────────────────────────────────────────────╯││ ▌Commits                        │
 │                                                                                  ││  ─────────────────────────────── │
 │                                                                                  ││  Files                           │
 │                                                                                  ││                                  │
@@ -27,4 +27,4 @@
 │                                                                                  ││                                  │
 │                                                                                  ││                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────╯
-k/↑ up · j/↓ down · space toggle · ↵ apply · esc close                                                                  
+k/↑ up · j/↓ down · / search · space toggle · ↵ apply · esc close                                                       

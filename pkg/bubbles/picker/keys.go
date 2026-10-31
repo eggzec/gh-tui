@@ -16,7 +16,7 @@ type KeyMap struct {
 	PageUp   key.Binding `keymap:"page_up" help:"page up"`
 	PageDown key.Binding `keymap:"page_down" help:"page down"`
 	// Choose sends a ChosenMsg with the selected item.
-	Choose key.Binding `keymap:"choose" help:"open"`
+	Choose key.Binding `keymap:"choose" help:"choose"`
 	// Cancel sends a CancelMsg.
 	Cancel key.Binding `keymap:"cancel" help:"close"`
 	// NextScope and PrevScope cycle through the scopes. The picker enables
@@ -50,7 +50,7 @@ type NormalKeyMap struct {
 	Toggle key.Binding `keymap:"toggle" help:"toggle"`
 	// Back sends a CancelMsg, like Cancel, but never clears a kept query
 	// first.
-	Back key.Binding `keymap:"back" help:"cancel"`
+	Back key.Binding `keymap:"back" help:"back"`
 }
 
 // NewKeyMap returns the key bindings that look gives for the actions
