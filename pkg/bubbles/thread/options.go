@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"charm.land/glamour/v2/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Option configures a thread in [New].
@@ -19,6 +21,7 @@ type settings struct {
 	maxChunks     int
 	emptyText     string
 	errorText     func(error) (text, hint string)
+	autolink      markdown.Autolink
 }
 
 // DefaultMaxChunks is how many comment chunks a thread keeps rendered unless
@@ -87,6 +90,14 @@ func WithMaxChunks(n int) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithAutolink makes the references of the texts links, those that f says
+// exist. See [markdown.Autolink]; f must answer without I/O.
+func WithAutolink(f markdown.Autolink) Option {
+	return func(s *settings) {
+		s.autolink = f
 	}
 }
 
