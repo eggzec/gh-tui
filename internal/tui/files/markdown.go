@@ -60,6 +60,11 @@ type markdownView struct {
 	icons ui.Icons
 	// md renders the files, and is nil until the first one is.
 	md *markdown.Renderer
+	// links confirms the references the files name, seen notes those drawn,
+	// and pg shows the render.
+	links *ui.Autolinks
+	seen  *ui.Seen
+	pg    *pager.Model
 
 	// images draws the pictures, at most as tall as height, the rows of
 	// the pager above its status line, allows.
@@ -195,6 +200,7 @@ func (v *markdownView) render(name, src string) pager.Render {
 			v.md.SetHint(rawHint)
 			v.md.SetRelativePictures(true)
 			v.md.SetLinks(v.link)
+			v.md.SetAutolink(v.seen.Func())
 		}
 		if name != v.file {
 			v.reset()
@@ -338,6 +344,34 @@ func (v *markdownView) remember(p string, f found) {
 // the last call named and no cached directory held, each in its own read,
 // up to maxBusy at once; the rest wait for those to end.
 func (v *markdownView) lookUp() tea.Cmd {
+	return tea.Batch(v.lookImages(), v.seen.Ask(v.ctx))
+}
+
+// setLinks links the references that links confirms in what v renders into
+// pg, and asks about the ones it draws.
+func (v *markdownView) setLinks(links *ui.Autolinks, pg *pager.Model) {
+	v.pg = pg
+	v.seen = links.Seen(v.repo.String())
+	v.links = links
+	if v.md != nil {
+		v.md.SetAutolink(v.seen.Func())
+	}
+}
+
+// synced draws the file again once links learned answers.
+func (v *markdownView) synced(msg ui.SyncMsg) tea.Cmd {
+	if !v.links.Synced(msg) || v.md == nil {
+		return nil
+	}
+	v.md.SetAutolink(v.seen.Func())
+	if v.pg != nil {
+		v.pg.Rerender()
+	}
+	return v.seen.Ask(v.ctx)
+}
+
+// lookImages finds the image files that the renders named.
+func (v *markdownView) lookImages() tea.Cmd {
 	n := min(len(v.pending), maxBusy-v.looking)
 	if n <= 0 {
 		return nil

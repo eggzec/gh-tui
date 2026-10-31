@@ -73,6 +73,12 @@ func WithImages(i *ui.Images) Option {
 	return func(s *Section) { s.images = i }
 }
 
+// WithAutolinks links the references (#N, @login, hashes) that links
+// confirmed in the markdown files the previews render.
+func WithAutolinks(links *ui.Autolinks) Option {
+	return func(s *Section) { s.links = links }
+}
+
 // WithMarkdown sets how the previews show markdown files, as the config's
 // files.markdown says: config.MarkdownRendered or config.MarkdownRaw.
 // Without it, they show them as the config's default says.

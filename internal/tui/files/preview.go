@@ -369,6 +369,11 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 			return cmd
 		}
 		return nil
+	case ui.SyncMsg:
+		if !p.loaded {
+			return nil
+		}
+		return p.md.synced(msg)
 	case blobMsg:
 		if msg.id != p.pager.ID() {
 			return nil

@@ -251,10 +251,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// The gates and the words of what went wrong follow what the token
 	// may do, and point to the command that grants it more.
 	voice.Token = ui.NewToken(access, cfg.Keys)
+	links := ui.NewAutolinks(autolinkSvc, webHost)
 	fileOpts := []files.Option{
 		files.WithIcons(icons), files.WithFinderPreview(cfg.Files.Finder.Preview), files.WithMarkdown(cfg.Files.Markdown),
 		files.WithHost(webHost), files.WithVoice(voice), files.WithEditor(cfg.Editor),
 		files.WithPrefetch(cfg.Prefetch, cfg.Files.Preview.MaxSize), files.WithSlots(slots), files.WithImages(pics),
+		files.WithAutolinks(links),
 	}
 	var (
 		commitWatch pulls.CommitWatch
@@ -271,7 +273,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	})
 	// The issues show the links of an item in a step of their modals.
 	refOpts := []refsui.Option{refsui.WithVoice(voice), refsui.WithHost(webHost), refsui.WithPageSize(size.References)}
-	links := ui.NewAutolinks(autolinkSvc, webHost)
 	var (
 		pullOpts = []pulls.Option{
 			pulls.WithAutolinks(links),
