@@ -38,7 +38,20 @@ func (m *panesModal) linksSynced(msg ui.SyncMsg) {
 	if m.links().Synced(msg) {
 		m.desc.links++
 		m.desc.version++
+		if m.conv.started {
+			m.conv.md.SetAutolink(m.conv.seen.Func())
+			m.restyleConv()
+		}
 	}
+}
+
+// convAsk returns the command that asks about the references the
+// conversation drew since the last update, or nil.
+func (m *panesModal) convAsk() tea.Cmd {
+	if !m.conv.started {
+		return nil
+	}
+	return m.conv.seen.Ask(m.ctx)
 }
 
 // askLinks notes that body was drawn, so that its references are asked about.

@@ -53,6 +53,8 @@ type convPane struct {
 	dates ui.Dates
 	now   func() time.Time
 	md    *markdown.Renderer
+	// seen notes the references the rows drew, to ask about them.
+	seen *ui.Seen
 	// want is a place that a jump asked for, which the timeline may not have
 	// read yet.
 	want *convWant
@@ -116,6 +118,8 @@ func (m *panesModal) buildConv() tea.Cmd {
 	c.md = markdown.New(m.theme.Thread(m.icons).Markdown)
 	c.md.SetGlyphs(m.icons.Markdown)
 	c.md.SetLinkColor(m.theme.LinkColor())
+	c.seen = m.links().Seen(m.repo.String())
+	c.md.SetAutolink(c.seen.Func())
 	opts := []conv.Option{
 		conv.WithOptions(m.convOptions()),
 		conv.WithTreeKeys(m.keys.tree),
