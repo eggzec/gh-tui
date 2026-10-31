@@ -65,6 +65,8 @@ type Section struct {
 	rawMarkdown bool
 	// images draws the image files the preview opens, where they are drawn.
 	images *ui.Images
+	// links confirms the references the markdown files name.
+	links *ui.Autolinks
 
 	// finder finds a file of the listing of src, once opened, and
 	// findPreview is whether it shows the content of the selected file
@@ -384,6 +386,7 @@ func (s *Section) open(e core.TreeEntry, over ui.Modal) tea.Cmd {
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
 	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
+	p.md.setLinks(s.links, &p.pager)
 	// The load starts only once the modal is open, and not at all if the open
 	// is refused.
 	return ui.OpenModalLoading(p, over, p.load())
@@ -444,6 +447,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
 	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
 	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
+	p.md.setLinks(s.links, &p.pager)
 	p.find, p.line = msg.Find, msg.Line
 	return ui.OpenModalLoading(p, nil, p.load())
 }
