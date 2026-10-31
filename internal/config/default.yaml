@@ -95,8 +95,9 @@ images:
   trusted_hosts: []
 
 # Clickable links (OSC 8) around repositories, files, titles and the like.
-# auto writes them unless the TERM variable is dumb or empty; on always
-# writes them; off writes the plain text only.
+# auto writes them unless the TERM variable is dumb or empty; on Windows it
+# ignores TERM and writes them only where WT_SESSION is set (Windows
+# Terminal). on always writes them; off writes the plain text only.
 links: auto
 
 cache:
