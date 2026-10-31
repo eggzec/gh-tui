@@ -10,7 +10,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -29,7 +28,7 @@ type owner struct {
 	started bool
 	// Table lists the owner's repositories, filtered by the pane's
 	// filter.
-	ownerui.Table
+	repolist.Table
 }
 
 // emptyText is what the list of o says when it has no repository, with

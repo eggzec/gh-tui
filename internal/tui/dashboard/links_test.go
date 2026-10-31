@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -39,10 +38,10 @@ func TestRepoLinks(t *testing.T) {
 		s := newSection(t, newFake(), nil, 140, 40, WithHost(host))
 		r := core.Repo{Ref: core.RepoRef{Owner: "o", Name: "r"}, Description: "A repository"}
 		want := ui.WebURL(host, "o/r")
-		var m ownerui.Measure
+		var m repolist.Measure
 		m.Add(r, s.icons)
 		for _, width := range []int{100, 40, 20} {
-			c := ownerui.LayoutCols(width, m, "*", 4)
+			c := repolist.LayoutCols(width, m, "*", 4)
 			checkLinks(t, host+" row", []string{s.renderRepo(c, r, true, true)}, want, width)
 			card := s.card(repolist.Card{Repo: r}, true, width)
 			checkLinks(t, host+" card", card[:1], want, width)

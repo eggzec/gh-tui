@@ -8,7 +8,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -30,7 +29,7 @@ type repoList struct {
 
 // tableTab is a tab that lists repositories in the columns of a table.
 type tableTab struct {
-	ownerui.Table
+	repolist.Table
 	// on is set once the feed has fetched its first page.
 	on bool
 }

@@ -256,8 +256,8 @@ func (s *Section) avatarShown() bool {
 }
 
 // drawer draws the profile and the pinned cards in the dashboard's styles.
-func (s *Section) drawer() ownerui.Drawer {
-	return ownerui.Drawer{Styles: &s.st.shared, Icons: &s.icons, Links: &s.links, URL: s.repoURL, Lang: s.langPaint}
+func (s *Section) drawer() repolist.Drawer {
+	return repolist.Drawer{Styles: &s.st.shared, Icons: &s.icons, Links: &s.links, URL: s.repoURL, Lang: s.langPaint}
 }
 
 // profile renders the lines above the panes: who the viewer is, and how
@@ -346,7 +346,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 		}
 		return []string{" " + st.shared.Muted.Render(ui.None("pinned repositories")+" Pin them on your GitHub profile to see them here.")}
 	}
-	return s.drawer().CardLines(c, w, h, s.card)
+	return c.Lines(w, h, s.card)
 }
 
 // card renders a pinned repository in w cells, marked when selected.

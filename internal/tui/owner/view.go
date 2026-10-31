@@ -348,8 +348,8 @@ func (s *Section) avatarShown() bool {
 
 // drawer draws the profile, the pinned cards and the rows in the page's
 // styles.
-func (s *Section) drawer() ownerui.Drawer {
-	return ownerui.Drawer{
+func (s *Section) drawer() repolist.Drawer {
+	return repolist.Drawer{
 		Styles: &s.st.shared, Icons: &s.icons, Links: &s.links, URL: s.repoURL,
 		Lang: func(r core.Repo) ui.Paint { return s.langPaint(r.Language, r.LanguageColor) },
 	}
@@ -500,7 +500,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 		}
 		return []string{" " + st.Muted.Render(ui.None("pinned repositories"))}
 	}
-	return s.drawer().CardLines(c, w, h, s.card)
+	return c.Lines(w, h, s.card)
 }
 
 // card renders a pinned repository in w cells, marked when selected.
