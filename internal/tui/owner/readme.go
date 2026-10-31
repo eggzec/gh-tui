@@ -175,7 +175,7 @@ func (s *Section) readmeStale(p *page) bool {
 // and the sponsors after it.
 func (s *Section) readmeSource(p *page) string {
 	r := p.side.readme.value
-	login := ownerui.CleanLine(p.header.value.Profile.Login)
+	login := ui.CleanLine(p.header.value.Profile.Login)
 	var b strings.Builder
 	switch {
 	case r.Source != (core.RepoRef{}):
@@ -212,7 +212,7 @@ func sponsorsLine(page core.Page[core.Person]) string {
 	}
 	names := make([]string, 0, min(len(page.Items), maxSponsors))
 	for _, p := range page.Items[:min(len(page.Items), maxSponsors)] {
-		if l := ownerui.CleanLine(p.Login); l != "" {
+		if l := ui.CleanLine(p.Login); l != "" {
 			names = append(names, "@"+escape(l))
 		}
 	}
@@ -292,9 +292,9 @@ func (s *Section) readmeTitle(p *page, short bool) string {
 		return "README"
 	}
 	if p.header.value.Kind == core.OwnerOrg {
-		return ownerui.CleanLine(r.value.Source.Name) + "/profile/README.md"
+		return ui.CleanLine(r.value.Source.Name) + "/profile/README.md"
 	}
-	return ownerui.CleanLine(r.value.Source.Name) + "/README.md"
+	return ui.CleanLine(r.value.Source.Name) + "/README.md"
 }
 
 // readmeBody renders the README pane of the page on view in w by h cells.

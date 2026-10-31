@@ -136,7 +136,7 @@ func (s *Section) compose() {
 	case s.onePane():
 		lines = append(lines, s.frames[s.page.focus]...)
 		if s.zoomed() {
-			lines = append(lines, ownerui.Fit(s.strip(), s.width))
+			lines = append(lines, ui.Fit(s.strip(), s.width))
 		}
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
@@ -411,17 +411,17 @@ func (s *Section) nameLine(o core.Owner) string {
 	st := &s.st.shared
 	p := o.Profile
 	var b strings.Builder
-	st.Name.Write(&b, ownerui.CleanLine(cmp.Or(p.Name, p.Login)))
+	st.Name.Write(&b, ui.CleanLine(cmp.Or(p.Name, p.Login)))
 	b.WriteByte(' ')
-	st.Login.Write(&b, "@"+ownerui.CleanLine(p.Login))
+	st.Login.Write(&b, "@"+ui.CleanLine(p.Login))
 	parts := make([]string, 0, 3)
 	if o.Verified {
 		parts = append(parts, st.Accent.Render("verified"))
 	}
-	if t := ownerui.CleanLine(o.Pronouns); t != "" {
+	if t := ui.CleanLine(o.Pronouns); t != "" {
 		parts = append(parts, st.Muted.Render(t))
 	}
-	if t := ownerui.CleanLine(p.Bio); t != "" {
+	if t := ui.CleanLine(p.Bio); t != "" {
 		parts = append(parts, st.Text.Render(t))
 	}
 	for _, part := range parts {
@@ -441,13 +441,13 @@ func (s *Section) facts(o core.Owner) string {
 	parts := make([]string, 0, 8)
 	muted := func(texts ...string) {
 		for _, t := range texts {
-			if t = ownerui.CleanLine(t); t != "" {
+			if t = ui.CleanLine(t); t != "" {
 				parts = append(parts, st.Muted.Render(t))
 			}
 		}
 	}
 	count := func(n int, one, many string) {
-		parts = append(parts, st.Text.Render(ownerui.Count(n))+st.Muted.Render(ownerui.Plural(n, one, many)))
+		parts = append(parts, st.Text.Render(ui.Count(n))+st.Muted.Render(ui.Plural(n, one, many)))
 	}
 	if o.Kind == core.OwnerOrg {
 		muted(p.Location, site(p.Website), o.Email)
@@ -466,7 +466,7 @@ func (s *Section) facts(o core.Owner) string {
 	if o.Viewer.FollowsViewer {
 		parts = append(parts, st.Accent.Render("follows you"))
 	}
-	if m := ownerui.CleanLine(p.Status.Message); m != "" || p.Status.Busy {
+	if m := ui.CleanLine(p.Status.Message); m != "" || p.Status.Busy {
 		if p.Status.Busy {
 			m = strings.TrimSpace("busy " + m)
 		}
@@ -560,7 +560,7 @@ func (s *Section) tabsLine(w int) string {
 	if ansi.StringWidth(line) > w {
 		line = s.tabs(tabs, shortTabs)
 	}
-	return ownerui.Spread(line, right, w, s.icons.Ellipsis)
+	return ui.SpreadDrop(line, right, w, s.icons.Ellipsis)
 }
 
 // tabs renders tabs by their titles, with their counts once the header
@@ -625,7 +625,7 @@ func (s *Section) tabCount(t tab) string {
 		n = l.feed().Len()
 	case membersTab:
 		if !o.Viewer.Member {
-			return ownerui.Count(o.Members) + " public"
+			return ui.Count(o.Members) + " public"
 		}
 		n = o.Members
 	case teamsTab:
@@ -635,7 +635,7 @@ func (s *Section) tabCount(t tab) string {
 		n = o.Teams
 	default:
 	}
-	return ownerui.Count(n)
+	return ui.Count(n)
 }
 
 // failure renders err, which stopped action, in lines of w cells. The

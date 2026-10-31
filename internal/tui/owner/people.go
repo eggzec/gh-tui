@@ -9,7 +9,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -149,7 +148,7 @@ func (l *peopleList) remeasure(*Section) bool {
 	for i := range n {
 		if p, ok := l.Feed.LoadedItem(i); ok {
 			login = max(login, ansi.StringWidth(p.Login))
-			name = max(name, ansi.StringWidth(ownerui.CleanLine(p.Name)))
+			name = max(name, ansi.StringWidth(ui.CleanLine(p.Name)))
 		}
 	}
 	l.seen = n
@@ -180,13 +179,13 @@ func (l *peopleList) header(s *Section) string {
 func (s *Section) personRow(c peopleCols, p core.Person, look int, roles bool) string {
 	st := &s.st.shared.Rows[look]
 	login := st.Title
-	last := ownerui.CleanLine(p.Bio)
+	last := ui.CleanLine(p.Bio)
 	if roles {
 		last = roleName(p.Role)
 	}
 	r := s.newRow()
 	r.cell(p.Login, c.login, false, login, s.profileURL(p.Login))
-	r.cell(ownerui.CleanLine(p.Name), c.name, false, st.Muted, "")
+	r.cell(ui.CleanLine(p.Name), c.name, false, st.Muted, "")
 	r.cell(last, c.last, false, st.Subtle, "")
 	return r.String()
 }
