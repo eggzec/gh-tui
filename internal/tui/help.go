@@ -162,7 +162,7 @@ func (m *Model) innerLayers() (layers []keyhelp.Layer, modal bool) {
 	}
 	app := m.keys.state(m).layers(m)
 	// The help key comes before them all.
-	isHelp := func(b key.Binding) bool { return sameBinding(b, m.keys.Help) }
+	isHelp := func(b key.Binding) bool { return keyhelp.SameBinding(b, m.keys.Help) }
 	for i := range app {
 		app[i].Bindings = slices.DeleteFunc(app[i].Bindings, isHelp)
 		app[i].Short = slices.DeleteFunc(app[i].Short, isHelp)
