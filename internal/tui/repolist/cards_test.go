@@ -1,4 +1,4 @@
-package ownerui
+package repolist
 
 import (
 	"testing"

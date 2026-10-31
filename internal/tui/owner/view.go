@@ -23,7 +23,7 @@ import (
 // frame names the others. The root decides narrow (ui.wide), so the two
 // pages change layout at the same size.
 const (
-	pinnedHeight = ownerui.CardHeight + 2
+	pinnedHeight = repolist.CardHeight + 2
 )
 
 // box is the outer size of a pane, frame included.
@@ -500,11 +500,11 @@ func (s *Section) pinnedBody(w, h int) []string {
 		}
 		return []string{" " + st.Muted.Render(ui.None("pinned repositories"))}
 	}
-	return c.Lines(w, h, s.card)
+	return s.drawer().CardLines(c, w, h, s.card)
 }
 
 // card renders a pinned repository in w cells, marked when selected.
-func (s *Section) card(c ownerui.Card, selected bool, w int) [ownerui.CardHeight]string {
+func (s *Section) card(c repolist.Card, selected bool, w int) [repolist.CardHeight]string {
 	gutter := "  "
 	if selected {
 		gutter = s.st.shared.Blurred

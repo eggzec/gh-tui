@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
@@ -43,7 +44,7 @@ func TestRepoLinks(t *testing.T) {
 		for _, width := range []int{100, 40, 20} {
 			c := ownerui.LayoutCols(width, m, "*", 4)
 			checkLinks(t, host+" row", []string{s.renderRepo(c, r, true, true)}, want, width)
-			card := s.card(ownerui.Card{Repo: r}, true, width)
+			card := s.card(repolist.Card{Repo: r}, true, width)
 			checkLinks(t, host+" card", card[:1], want, width)
 		}
 	}

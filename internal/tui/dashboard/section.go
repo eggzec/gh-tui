@@ -18,7 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
@@ -244,7 +244,7 @@ type Section struct {
 	notes    read[core.Page[core.Notification]]
 	hereRepo read[core.Repo]
 
-	pinned ownerui.Cards
+	pinned repolist.Cards
 	repos  repoTabs
 	tasks  workList
 	// threads are the unread notifications in their pane.

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -22,24 +23,24 @@ type Drawer struct {
 	Lang func(core.Repo) Paint
 }
 
-// Lines renders the rows of cards on view in w cells, each card drawn by
+// CardLines renders the rows of cards on view in w cells, each card drawn by
 // draw in the width it gets.
-func (c *Cards) Lines(w, h int, draw func(c Card, selected bool, w int) [CardHeight]string) []string {
+func (Drawer) CardLines(c *repolist.Cards, w, h int, draw func(c repolist.Card, selected bool, w int) [repolist.CardHeight]string) []string {
 	lines := make([]string, 0, h)
 	for row := c.Top; row < c.Top+c.Rows && row*c.Cols < len(c.Items); row++ {
 		if row > c.Top {
 			lines = append(lines, "")
 		}
-		var rowLines [CardHeight]strings.Builder
+		var rowLines [repolist.CardHeight]strings.Builder
 		for col := range c.Cols {
 			i := row*c.Cols + col
 			if i >= len(c.Items) {
 				break
 			}
 			card := draw(c.Items[i], i == c.Sel, c.CardWidth(w, col))
-			for l := range CardHeight {
+			for l := range repolist.CardHeight {
 				if col > 0 {
-					rowLines[l].WriteString(strings.Repeat(" ", CardGap))
+					rowLines[l].WriteString(strings.Repeat(" ", repolist.CardGap))
 				}
 				rowLines[l].WriteString(card[l])
 			}
@@ -53,11 +54,11 @@ func (c *Cards) Lines(w, h int, draw func(c Card, selected bool, w int) [CardHei
 
 // Card renders a pinned repository in w cells after gutter: its name, two
 // lines of its description, and its language and stars.
-func (d Drawer) Card(c Card, gutter string, w int) [CardHeight]string {
+func (d Drawer) Card(c repolist.Card, gutter string, w int) [repolist.CardHeight]string {
 	st := d.Styles
 	inner := max(w-2, 0)
 	r := c.Repo
-	var out [CardHeight]string
+	var out [repolist.CardHeight]string
 	out[0] = gutter + d.Links.Link(d.URL(r), st.Name.Render(Truncate(r.Ref.String(), inner, d.Icons.Ellipsis)))
 	desc := Wrap(CleanLine(r.Description), inner, 2, d.Icons.Ellipsis)
 	if len(desc) == 0 && c.Here && r.Description == "" {
