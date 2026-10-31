@@ -346,7 +346,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
 		Owner: owner.New(ctx, ownerSvc, cfg.Keys,
 			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
-			owner.WithHost(webHost), owner.WithDefaultTab(cfg.Owner.DefaultTab),
+			owner.WithHost(webHost), owner.WithAutolinks(links), owner.WithDefaultTab(cfg.Owner.DefaultTab),
 			owner.WithCalendar(cfg.Dashboard.CalendarGlyph, cfg.Dashboard.ContributionDays()),
 			owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(cfg.Prefetch), owner.WithSlots(slots),
 			// goto opens the dashboard for this login, not its page.
@@ -390,6 +390,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithRelease(func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
 			o := []releases.Option{
 				releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), releases.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
+				releases.WithAutolinks(links),
 			}
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
 		}),

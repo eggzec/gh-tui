@@ -87,6 +87,12 @@ func WithAvatars(a *ui.Images) Option {
 	return func(s *Section) { s.avatars = a }
 }
 
+// WithAutolinks links the references (#N, @login, hashes) that links
+// confirmed in the README. Without it, they stay text.
+func WithAutolinks(links *ui.Autolinks) Option {
+	return func(s *Section) { s.autolinks = links }
+}
+
 // WithHost sets the web host of the user's GitHub, with its port if it has
 // one, whose pages the section opens. It defaults to github.com.
 func WithHost(host string) Option {
@@ -145,6 +151,8 @@ type Section struct {
 	// links keeps the links of the names, which are drawn again on every
 	// change.
 	links termtext.Links
+	// autolinks confirms the references the README names.
+	autolinks *ui.Autolinks
 	// defaultTab is the tab of the list pane each page opens on.
 	defaultTab tab
 	// sc is what the panes beside the list share across the pages.
