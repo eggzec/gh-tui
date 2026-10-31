@@ -302,7 +302,11 @@ func (r *Renderer) relink(line string) string {
 		}
 		line = rest
 		if n := int(c - linkOpen); n < len(r.urls) {
-			b.WriteString(termtext.Link(r.urls[n], underlined(inner)))
+			text := underlined(inner)
+			if r.linkFg != "" {
+				text = recolor(text, r.linkFg)
+			}
+			b.WriteString(termtext.Link(r.urls[n], text))
 		} else {
 			b.WriteString(inner)
 		}

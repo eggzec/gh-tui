@@ -160,6 +160,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		md:        markdown.New(s.styles.Markdown),
 		folds:     &folds{},
 	}
+	m.md.SetLinkColor(s.styles.MarkdownLink)
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.width, m.height = max(s.width, 0), max(s.height, 0)
 	m.vp.SetWidth(m.width)
@@ -297,6 +298,7 @@ func (m *Model[T]) SetStyles(s Styles) {
 	m.styles = s
 	m.md.SetStyle(m.markdownStyle())
 	m.md.SetGlyphs(s.MarkdownGlyphs)
+	m.md.SetLinkColor(s.MarkdownLink)
 	m.spin.Style = s.Spinner
 	m.spin.Spinner = spinner.Dot
 	if len(s.SpinnerFrames.Frames) > 0 {

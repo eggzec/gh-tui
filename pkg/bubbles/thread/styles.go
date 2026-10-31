@@ -1,6 +1,8 @@
 package thread
 
 import (
+	"image/color"
+
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/glamour/v2/ansi"
 	"charm.land/lipgloss/v2"
@@ -46,6 +48,9 @@ type Styles struct {
 	// MarkdownGlyphs are what the markdown draws of its own, such as its
 	// bullets and quote bars. The zero value draws the defaults.
 	MarkdownGlyphs markdown.Glyphs
+	// MarkdownLink is the colour of the text of a link in the markdown. Nil
+	// keeps the colour of the style.
+	MarkdownLink color.Color
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal.
