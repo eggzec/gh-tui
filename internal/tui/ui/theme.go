@@ -146,6 +146,7 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	s.Mark = s.Mark.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Placeholder = s.Placeholder.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Stale = t.Subtle
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))

@@ -8,6 +8,32 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
+// Loading reports whether the feed has nothing to show yet: no item, no
+// end and no error.
+func (m Model[T]) Loading() bool {
+	return m.Len() == 0 && !m.Done() && m.Err() == nil
+}
+
+// Dimmed returns the lines of View with their styling removed and drawn
+// with Styles.Stale, for a parent that keeps them on screen while new
+// items load. It is nil when the feed has no item.
+func (m Model[T]) Dimmed() []string {
+	if m.Len() == 0 {
+		return nil
+	}
+	view := m.View()
+	if view == "" {
+		return nil
+	}
+	lines := strings.Split(ansi.Strip(view), "\n")
+	for i, l := range lines {
+		if l != "" {
+			lines[i] = m.styles.Stale.Render(l)
+		}
+	}
+	return lines
+}
+
 // View renders the visible rows in exactly Height lines of Width cells.
 func (m Model[T]) View() string {
 	if m.width <= 0 || m.height <= 0 {
