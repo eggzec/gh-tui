@@ -33,6 +33,10 @@ type descPane struct {
 	// version counts the changes of what the tree shows that its own key
 	// presses and the images make, which the drawn panes depend on.
 	version int
+	// links counts the answers of the autolinks that the rows draw, and ask is
+	// the body drawn since the last update, to ask about its references.
+	links int
+	ask   string
 }
 
 // descKey is what the rows of the description depend on.
@@ -42,6 +46,7 @@ type descKey struct {
 	gen     int
 	picRows int
 	pics    int
+	links   int
 }
 
 // position returns the line of the cursor, from 1, and the lines the tree
@@ -99,7 +104,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 
 // sync makes the rows again if what they depend on changed, and sizes the tree.
 func (d *descPane) sync(m *panesModal, body string, width, height int) {
-	k := descKey{body, width, m.gen, m.pics.PictureRows(m.height), d.pics}
+	k := descKey{body, width, m.gen, m.pics.PictureRows(m.height), d.pics, d.links}
 	if !d.made {
 		d.tree = foldtree.New(foldtree.WithKeyMap(m.keys.desc))
 	}
@@ -112,6 +117,8 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 		d.md.SetGlyphs(m.icons.Markdown)
 		d.md.SetLinkColor(m.theme.LinkColor())
 	}
+	d.md.SetAutolink(m.links().Func(m.repo.String()))
+	d.askLinks(body)
 	set := config.IconsNerd
 	if m.icons.Ellipsis == "..." {
 		set = config.IconsASCII
