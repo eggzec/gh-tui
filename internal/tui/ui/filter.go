@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
@@ -77,6 +78,17 @@ func OrderByTime(title string, value any) orderpick.Item {
 // OrderByName returns an order item by a name: A to Z, or flipped Z to A.
 func OrderByName(title string, value any) orderpick.Item {
 	return orderpick.Item{Value: value, Title: title, AscLabel: labelAtoZ, DescLabel: labelZtoA}
+}
+
+// OrderLevels returns the levels the user chose in an order modal, as the
+// feed reads them.
+func OrderLevels(choices []orderpick.Choice) []feed.Level {
+	levels := make([]feed.Level, len(choices))
+	for i, c := range choices {
+		name, _ := c.Value.(string)
+		levels[i] = feed.Level{Name: name, Desc: c.Desc}
+	}
+	return levels
 }
 
 // SearchField is the first row of a list's filter: the plain words of the

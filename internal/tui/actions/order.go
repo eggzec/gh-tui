@@ -1,7 +1,7 @@
 package actions
 
 import (
-	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -64,68 +64,28 @@ func sortItems() []orderpick.Item {
 	return append(groupItems(), ui.OrderByTime("Created", createdField))
 }
 
+// orderFields are the fields the levels name: those of the groups, and the
+// time a run was created.
+func orderFields() []feed.Field[core.Run] {
+	fields := make([]feed.Field[core.Run], 0, len(groupFields)+1)
+	for _, f := range groupFields {
+		fields = append(fields, feed.Field[core.Run]{Name: f.name, Key: f.key})
+	}
+	return append(fields, feed.Field[core.Run]{Name: createdField, Time: createdAt})
+}
+
+func createdAt(r core.Run) time.Time { return r.CreatedAt }
+
 // groupsOf returns the groups of the levels, outermost first.
 func groupsOf(levels []orderpick.Choice) []feed.Group[core.Run] {
-	var out []feed.Group[core.Run]
-	for _, c := range levels {
-		name, _ := c.Value.(string)
-		for _, f := range groupFields {
-			if f.name == name {
-				out = append(out, feed.Group[core.Run]{Key: f.key, Desc: c.Desc})
-			}
-		}
-	}
-	return out
+	return feed.Groups(orderFields(), ui.OrderLevels(levels))
 }
 
 // sortLess returns the order of the levels: each level's field in turn, a
 // run without a value after those with one, and the newest first among those
 // the levels tie.
 func sortLess(levels []orderpick.Choice) func(a, b core.Run) int {
-	type level struct {
-		field groupField
-		desc  bool
-		time  bool
-	}
-	var ls []level
-	for _, c := range levels {
-		name, _ := c.Value.(string)
-		if name == createdField {
-			ls = append(ls, level{desc: c.Desc, time: true})
-			continue
-		}
-		for _, f := range groupFields {
-			if f.name == name {
-				ls = append(ls, level{field: f, desc: c.Desc})
-			}
-		}
-	}
-	return func(a, b core.Run) int {
-		for _, l := range ls {
-			var d int
-			if l.time {
-				d = b.CreatedAt.Compare(a.CreatedAt)
-			} else {
-				ka, kb := l.field.key(a), l.field.key(b)
-				switch {
-				case ka == kb:
-				case ka == "":
-					return 1
-				case kb == "":
-					return -1
-				default:
-					d = strings.Compare(ka, kb)
-				}
-			}
-			if l.desc {
-				d = -d
-			}
-			if d != 0 {
-				return d
-			}
-		}
-		return b.CreatedAt.Compare(a.CreatedAt)
-	}
+	return feed.Less(orderFields(), ui.OrderLevels(levels), createdAt)
 }
 
 // groupModal returns the modal that picks the levels the runs are grouped by.

@@ -10,15 +10,17 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
-// GroupField is a way to group the rows of a list: what a row is filed under,
-// and the words that head the group.
+// GroupField is a way to group the rows of a list: the feed's field, and the
+// words the modal lists it by.
 type GroupField[T any] struct {
-	Name  string
-	Label string
-	// Key is the group a row is in, "" for none.
-	Key func(T) string
-	// Head words the group of a key; nil heads it with the key.
-	Head func(key string) string
+	feed.Field[T]
+	Title string
+}
+
+func groupField[T any](name, title string, key func(T) string) GroupField[T] {
+	f := GroupField[T]{Title: title}
+	f.Name, f.Key = name, key
+	return f
 }
 
 // Grouping is the grouping of a list: the fields it offers, the levels in
@@ -36,24 +38,18 @@ func (g *Grouping[T]) Groups() []feed.Group[T] {
 	if g.Off {
 		return nil
 	}
-	var out []feed.Group[T]
-	for _, c := range g.Levels {
-		name, _ := c.Value.(string)
-		for _, f := range g.Fields {
-			if f.Name != name {
-				continue
-			}
-			out = append(out, feed.Group[T]{Key: f.Key, Label: f.Head, Desc: c.Desc})
-		}
+	fields := make([]feed.Field[T], len(g.Fields))
+	for i, f := range g.Fields {
+		fields[i] = f.Field
 	}
-	return out
+	return feed.Groups(fields, OrderLevels(g.Levels))
 }
 
 // Items returns the fields the modal offers.
 func (g *Grouping[T]) Items() []orderpick.Item {
 	items := make([]orderpick.Item, len(g.Fields))
 	for i, f := range g.Fields {
-		items[i] = OrderByName(f.Label, f.Name)
+		items[i] = OrderByName(f.Title, f.Name)
 	}
 	return items
 }
@@ -101,26 +97,26 @@ func GroupOffChip(names []string, sep string) string {
 // modal lists them.
 func RepoGroupFields() []GroupField[core.Repo] {
 	return []GroupField[core.Repo]{
-		{Name: "owner", Label: "Owner", Key: func(r core.Repo) string { return r.Ref.Owner }},
-		{Name: "language", Label: "Language", Key: func(r core.Repo) string {
+		groupField("owner", "Owner", func(r core.Repo) string { return r.Ref.Owner }),
+		groupField("language", "Language", func(r core.Repo) string {
 			if r.Language == "" {
 				return "none"
 			}
 			return r.Language
-		}},
-		{Name: "visibility", Label: "Visibility", Key: func(r core.Repo) string {
+		}),
+		groupField("visibility", "Visibility", func(r core.Repo) string {
 			if r.Private {
 				return "private"
 			}
 			return "public"
-		}},
-		{Name: "kind", Label: "Kind", Key: RepoKind},
-		{Name: "role", Label: "Role", Key: func(r core.Repo) string {
+		}),
+		groupField("kind", "Kind", RepoKind),
+		groupField("role", "Role", func(r core.Repo) string {
 			if r.Caps.Permission == "" {
 				return "unknown"
 			}
 			return strings.ToLower(string(r.Caps.Permission))
-		}},
+		}),
 	}
 }
 
@@ -146,10 +142,8 @@ func HitGroupFields() []GroupField[core.SearchHit] {
 	repo := RepoGroupFields()
 	out := make([]GroupField[core.SearchHit], len(repo))
 	for i, f := range repo {
-		out[i] = GroupField[core.SearchHit]{
-			Name: f.Name, Label: f.Label, Head: f.Head,
-			Key: func(h core.SearchHit) string { return f.Key(h.Repo) },
-		}
+		out[i] = groupField(f.Name, f.Title, func(h core.SearchHit) string { return f.Key(h.Repo) })
+		out[i].Label = f.Label
 	}
 	return out
 }
