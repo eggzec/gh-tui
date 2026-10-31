@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -144,7 +143,7 @@ func (s *Section) compose() {
 		if s.hasPane(calendarPane) {
 			right = append(slices.Clip(right), s.frames[calendarPane]...)
 		}
-		lines = ownerui.Beside(lines, s.frames[listPane], right)
+		lines = ui.Beside(lines, s.frames[listPane], right)
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
@@ -491,7 +490,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 	if len(c.Items) == 0 {
 		switch {
 		case p.header.err != nil && !p.header.ok:
-			return ownerui.Indent(s.failure("load the pins of "+p.login, p.header.err, w-1))
+			return ui.Indent(s.failure("load the pins of "+p.login, p.header.err, w-1))
 		case !p.header.ok:
 			return []string{" " + st.Muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
 		}
@@ -524,7 +523,7 @@ func (s *Section) listBody(w, h int) []string {
 	l := p.list()
 	switch {
 	case l == nil && p.header.err != nil:
-		return append(lines, ownerui.Indent(s.failure("load the "+s.tabWord()+" of "+p.login, p.header.err, w-1))...)
+		return append(lines, ui.Indent(s.failure("load the "+s.tabWord()+" of "+p.login, p.header.err, w-1))...)
 	case l == nil:
 		return append(lines, " "+st.Muted.Render("Loading "+s.tabWord()+s.icons.Ellipsis))
 	}

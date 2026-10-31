@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -135,8 +134,8 @@ func (s *Section) compose() {
 		lines = append(lines, s.strip())
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
-		lines = ownerui.Beside(lines, s.frames[reposPane], s.frames[workPane])
-		lines = ownerui.Beside(lines, s.frames[calendarPane], s.frames[inboxPane])
+		lines = ui.Beside(lines, s.frames[reposPane], s.frames[workPane])
+		lines = ui.Beside(lines, s.frames[calendarPane], s.frames[inboxPane])
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
@@ -340,7 +339,7 @@ func (s *Section) pinnedBody(w, h int) []string {
 	if len(c.Items) == 0 {
 		switch {
 		case s.header.err != nil && !s.header.ok:
-			return ownerui.Indent(s.failure("load your pins", s.header.err, w-1))
+			return ui.Indent(s.failure("load your pins", s.header.err, w-1))
 		case !s.header.ok:
 			return []string{" " + st.shared.Muted.Render("Loading pinned repositories"+s.icons.Ellipsis)}
 		}
@@ -433,7 +432,7 @@ func (s *Section) workBody(w, h int) []string {
 	st, l := &s.st, &s.tasks
 	switch {
 	case !s.work.ok && s.work.err != nil:
-		return ownerui.Indent(s.failure("load your work", s.work.err, w-1))
+		return ui.Indent(s.failure("load your work", s.work.err, w-1))
 	case !s.work.ok:
 		return []string{" " + st.shared.Muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
@@ -443,7 +442,7 @@ func (s *Section) workBody(w, h int) []string {
 	t := l.current()
 	if t.refused {
 		// GitHub refused this list's search and answered the others.
-		return append(lines, ownerui.Indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
+		return append(lines, ui.Indent(s.failure(workLists[l.cur].action, core.ErrForbidden, w-1))...)
 	}
 	if t.items > 0 {
 		lines = append(lines, st.shared.Muted.Render(l.header()))
@@ -453,7 +452,7 @@ func (s *Section) workBody(w, h int) []string {
 	var status []string
 	switch {
 	case t.err != nil:
-		status = ownerui.Indent(s.failure("load more of the list (down retries)", t.err, w-1))
+		status = ui.Indent(s.failure("load more of the list (down retries)", t.err, w-1))
 	case t.loading:
 		status = []string{"   " + st.shared.Muted.Render("Loading more"+s.icons.Ellipsis)}
 	}
@@ -562,7 +561,7 @@ func (s *Section) inboxBody(w, h int) []string {
 	case s.inbox == nil:
 		return []string{" " + st.shared.Muted.Render("Notifications aren't available.")}
 	case !s.notes.ok && s.notes.err != nil:
-		return ownerui.Indent(s.failure("load your notifications", s.notes.err, w-1))
+		return ui.Indent(s.failure("load your notifications", s.notes.err, w-1))
 	case !s.notes.ok:
 		return []string{" " + st.shared.Muted.Render("Loading notifications"+s.icons.Ellipsis)}
 	}
@@ -647,7 +646,7 @@ func (s *Section) say(action string, err error) (text, hint string) {
 // calendarBody centers the calendar in w cells.
 func (s *Section) calendarBody(w int) []string {
 	if !s.contribs.ok && s.contribs.err != nil {
-		return ownerui.Indent(s.failure("load your contributions", s.contribs.err, w-1))
+		return ui.Indent(s.failure("load your contributions", s.contribs.err, w-1))
 	}
 	view := s.cal.View()
 	if view == "" {

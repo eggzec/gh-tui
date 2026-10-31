@@ -3,7 +3,7 @@ package search
 import (
 	"strings"
 
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -56,7 +56,7 @@ func (s *Section) panes() []string {
 	}
 	switch {
 	case s.split():
-		return ownerui.Beside(nil, results(), preview(s.width-listWidth))
+		return ui.Beside(nil, results(), preview(s.width-listWidth))
 	case s.preview:
 		return preview(s.width)
 	default:
