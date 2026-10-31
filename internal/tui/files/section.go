@@ -13,8 +13,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -94,9 +92,9 @@ type Section struct {
 	// theme.
 	icons     ui.Icons
 	fileIcons *fileIcons
-	// blank is the rendered state shown before a repository is selected,
-	// and hint what it tells the user to do.
-	blank string
+	// blank is the tree with no rows that draws the state shown before a
+	// repository is selected, and hint what it tells the user to do.
+	blank tree.Model
 	hint  string
 }
 
@@ -128,6 +126,11 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
 		s.hint = "Press " + k + " to search for one."
 	}
+	s.blank = tree.New(func(context.Context, tree.Node) ([]tree.Node, error) { return nil, nil },
+		tree.WithStyles(s.styles),
+		tree.WithSize(s.width, s.height),
+		tree.WithEmpty("No repository selected", s.hint),
+	)
 	if s.repo != (core.RepoRef{}) {
 		s.newTree(s.repo, "")
 	}
@@ -456,7 +459,7 @@ func (s *Section) selected() core.TreeEntry {
 // View renders the tree, or what to do before a repository is selected.
 func (s *Section) View() string {
 	if s.tree == nil {
-		return s.blank
+		return s.blank.View()
 	}
 	return s.tree.View()
 }
@@ -467,7 +470,7 @@ func (s *Section) SetSize(width, height int) {
 	if s.tree != nil {
 		s.tree.SetSize(s.width, s.height)
 	}
-	s.renderBlank()
+	s.blank.SetSize(s.width, s.height)
 }
 
 // SetTheme styles the tree and its icons.
@@ -480,7 +483,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 		s.tree.SetStyles(s.styles)
 		s.tree.SetIcons(s.fileIcons.node)
 	}
-	s.renderBlank()
+	s.blank.SetStyles(s.styles)
 }
 
 // Focus makes the section react to keys.
@@ -517,25 +520,4 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 // or empty for the head of the default branch.
 func (s *Section) Ref() string {
 	return s.ref
-}
-
-// renderBlank renders the state shown before a repository is selected,
-// wrapped to fit a narrow pane.
-func (s *Section) renderBlank() {
-	if s.width <= 0 || s.height <= 0 {
-		s.blank = ""
-		return
-	}
-	center := lipgloss.NewStyle().Width(s.width).Align(lipgloss.Center)
-	text := lipgloss.JoinVertical(lipgloss.Left,
-		center.Inherit(s.theme.Title).Render("No repository selected"),
-		"",
-		center.Inherit(s.theme.Muted).Render(s.hint),
-	)
-	lines := strings.Split(lipgloss.Place(s.width, s.height, lipgloss.Center, lipgloss.Center, text), "\n")
-	lines = lines[:min(len(lines), s.height)]
-	for i, l := range lines {
-		lines[i] = ansi.Truncate(l, s.width, "")
-	}
-	s.blank = strings.Join(lines, "\n")
 }

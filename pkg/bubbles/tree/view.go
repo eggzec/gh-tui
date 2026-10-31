@@ -3,6 +3,7 @@ package tree
 import (
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -12,6 +13,9 @@ import (
 func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
+	}
+	if m.emptyTitle != "" && len(m.rows) == 0 && m.nodes[""].err == nil {
+		return m.placeEmpty()
 	}
 	w := lineWriter{width: m.width, height: m.height, ellipsis: m.styles.ErrorEllipsis, cut: m.styles.Ellipsis}
 	// Rows carry styles, so leave room for escape sequences.
@@ -29,6 +33,23 @@ func (m Model) View() string {
 		}
 	}
 	return w.b.String()
+}
+
+// placeEmpty centres the title and hint of [WithEmpty], each wrapped to
+// the width, and cuts every line to fit.
+func (m Model) placeEmpty() string {
+	center := lipgloss.NewStyle().Width(m.width).Align(lipgloss.Center)
+	text := lipgloss.JoinVertical(lipgloss.Left,
+		center.Inherit(m.styles.EmptyTitle).Render(m.emptyTitle),
+		"",
+		center.Inherit(m.styles.Empty).Render(m.emptyHint),
+	)
+	lines := strings.Split(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, text), "\n")
+	lines = lines[:min(len(lines), m.height)]
+	for i, l := range lines {
+		lines[i] = ansi.Truncate(l, m.width, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) writeRow(w *lineWriter, i int) {

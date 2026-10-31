@@ -59,6 +59,18 @@ func TestView(t *testing.T) {
 			t.Helper()
 			return load(t, newFiles(), WithSize(40, 3), WithEmptyText("This repository is empty."))
 		}},
+		{"empty title centred", func(*testing.T) Model {
+			return newModel(newFiles().children, WithSize(80, 9),
+				WithEmpty("No repository selected", "Press S to search for one."))
+		}},
+		{"empty title narrow", func(*testing.T) Model {
+			return newModel(newFiles().children, WithSize(30, 9),
+				WithEmpty("No repository selected", "Search for a repository to browse its files."))
+		}},
+		{"empty title one line", func(*testing.T) Model {
+			return newModel(newFiles().children, WithSize(30, 1),
+				WithEmpty("No repository selected", "Press S to search for one."))
+		}},
 		{"truncated at 80 columns", func(t *testing.T) Model {
 			t.Helper()
 			f := newFiles(long+"/"+long+"/"+long+".go", "short.go")
