@@ -16,8 +16,8 @@ import (
 // AutolinkService is what the views call of the service that verifies the
 // references (#N, @login, hashes) that bodies name.
 type AutolinkService interface {
-	Cached(host, repo string, cands []autolinks.Candidate) []autolinks.Result
-	Verify(ctx context.Context, host, repo string, cands []autolinks.Candidate) []autolinks.Result
+	Cached(repo string, cands []autolinks.Candidate) []autolinks.Result
+	Verify(ctx context.Context, repo string, cands []autolinks.Candidate) []autolinks.Result
 }
 
 // Autolinks links the references of the bodies on view that GitHub confirmed.
@@ -45,7 +45,7 @@ func (a *Autolinks) Func(repo string) markdown.Autolink {
 	}
 	return func(kind markdown.RefKind, ref string) (string, bool) {
 		c := autolinks.Candidate{Kind: verifiedKind(kind), Ref: ref}
-		r := a.svc.Cached(a.host, repo, []autolinks.Candidate{c})
+		r := a.svc.Cached(repo, []autolinks.Candidate{c})
 		if len(r) == 0 {
 			return "", false
 		}
@@ -93,7 +93,7 @@ func (a *Autolinks) Verify(ctx context.Context, repo, body string) tea.Cmd {
 		cands[i] = autolinks.Candidate{Kind: verifiedKind(r.Kind), Ref: r.Ref}
 	}
 	return func() tea.Msg {
-		a.svc.Verify(ctx, a.host, repo, cands)
+		a.svc.Verify(ctx, repo, cands)
 		return nil
 	}
 }

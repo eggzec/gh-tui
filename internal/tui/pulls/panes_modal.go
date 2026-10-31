@@ -292,6 +292,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	if sync, ok := msg.(ui.SyncMsg); ok {
 		syncCmd = tea.Batch(m.merge.synced(m, sync), m.refreshFindings(sync))
 		m.refreshLog(sync)
+		m.linksSynced(sync)
 	}
 	// Whatever the message changed, a new range of commits is read, and the log
 	// of the job shown.
@@ -304,7 +305,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		arm := m.arm
 		m.arm = nil
-		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff())
+		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff(), m.linksAsk())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:

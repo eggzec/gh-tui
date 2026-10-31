@@ -271,8 +271,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	})
 	// The issues show the links of an item in a step of their modals.
 	refOpts := []refsui.Option{refsui.WithVoice(voice), refsui.WithHost(webHost), refsui.WithPageSize(size.References)}
+	links := ui.NewAutolinks(autolinkSvc, webHost)
 	var (
 		pullOpts = []pulls.Option{
+			pulls.WithAutolinks(links),
 			pulls.WithVoice(voice), pulls.WithIcons(icons), pulls.WithDates(dates), pulls.WithAvatars(pics), pulls.WithFacets(facetSvc),
 			pulls.WithChecks(actionSvc), pulls.WithCommitChecks(actionSvc), pulls.WithCommitChecksWatch(commitWatch), pulls.WithRunFollow(runFollow), pulls.WithCodeOwners(pullSvc), pulls.WithDevelopment(pullSvc), pulls.WithBlobs(fileSvc), pulls.WithRepos(repoSvc), pulls.WithViewer(pulls.Viewer(viewer)),
 			pulls.WithPrefetch(cfg.Prefetch), pulls.WithSlots(slots), pulls.WithConversation(cfg),
@@ -281,7 +283,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(pics), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
-			issues.WithAutolinks(ui.NewAutolinks(autolinkSvc, webHost)),
+			issues.WithAutolinks(links),
 		}
 	)
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {

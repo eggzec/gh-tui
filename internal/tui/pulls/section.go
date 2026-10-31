@@ -164,7 +164,9 @@ type Section struct {
 	keys keyMap
 	// rawKeys are the configured keys, for the steps of the modal.
 	rawKeys config.Keymap
-	now     func() time.Time
+	// autolinks confirms the references in the description of the modal.
+	autolinks *ui.Autolinks
+	now       func() time.Time
 	// checks reads the checks of the modal's panes, and those read ahead.
 	// Without checks, the modal has no such panes.
 	checks ChecksService
