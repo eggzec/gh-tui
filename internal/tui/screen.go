@@ -203,7 +203,7 @@ func (m *Model) foot(p *pane) (strip string, width int) {
 			cur = i
 		}
 	}
-	return ownerui.Foot(keys, [][]string{titles}, cur, ownerui.NewPaint(m.st.focusTitle), ownerui.NewPaint(m.theme.Subtle), p.width-5)
+	return ownerui.Foot(keys, [][]string{titles}, cur, ui.NewPaint(m.st.focusTitle), ui.NewPaint(m.theme.Subtle), p.width-5)
 }
 
 func (m *Model) drawFrames() {

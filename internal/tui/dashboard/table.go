@@ -14,14 +14,14 @@ func (s *Section) renderRepo(c ownerui.Cols, r core.Repo, selected, focused bool
 
 // langPaint returns the paint of the language glyph of r, built once per
 // language and theme.
-func (s *Section) langPaint(r core.Repo) ownerui.Paint {
+func (s *Section) langPaint(r core.Repo) ui.Paint {
 	k := r.Language + "\x00" + r.LanguageColor
 	if p, ok := s.st.langs[k]; ok {
 		return p
 	}
-	p := ownerui.NewPaint(s.theme.Language(r.Language, r.LanguageColor))
+	p := ui.NewPaint(s.theme.Language(r.Language, r.LanguageColor))
 	if s.st.langs == nil {
-		s.st.langs = map[string]ownerui.Paint{}
+		s.st.langs = map[string]ui.Paint{}
 	}
 	s.st.langs[k] = p
 	return p

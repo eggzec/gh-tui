@@ -1,11 +1,9 @@
-package ownerui
+package ui
 
 import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-
-	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // Paint is a style rendered once into the sequences around its text, so
@@ -57,13 +55,13 @@ type RowPaints struct {
 }
 
 // NewRowPaints returns the paints of a row in each of its looks.
-func NewRowPaints(t ui.Theme) [ui.NumLooks]RowPaints {
-	var rows [ui.NumLooks]RowPaints
+func NewRowPaints(t Theme) [NumLooks]RowPaints {
+	var rows [NumLooks]RowPaints
 	for look := range rows {
-		selected := look != ui.LookPlain
+		selected := look != LookPlain
 		cell := func(s lipgloss.Style) Paint { return NewPaint(t.Cell(s, selected)) }
 		rows[look] = RowPaints{
-			Title:  cell(t.RowTitle(selected, look == ui.LookFocused)),
+			Title:  cell(t.RowTitle(selected, look == LookFocused)),
 			Text:   cell(t.Text),
 			Muted:  cell(t.Muted),
 			Subtle: cell(t.Subtle),
@@ -73,11 +71,11 @@ func NewRowPaints(t ui.Theme) [ui.NumLooks]RowPaints {
 	return rows
 }
 
-// Styles are the paints of the profile, the cards and the table.
-type Styles struct {
+// ListStyles are the paints of the profile, the cards and the table.
+type ListStyles struct {
 	Name, Login, Text, Muted, Subtle, Accent Paint
 	// Rows are the paints of the cells of the rows of lists, by look.
-	Rows [ui.NumLooks]RowPaints
+	Rows [NumLooks]RowPaints
 	// Cursor and Blurred mark the selected card, while its pane is focused
 	// and while it isn't.
 	Cursor, Blurred string

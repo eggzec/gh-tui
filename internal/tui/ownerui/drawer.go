@@ -13,14 +13,14 @@ import (
 // Every field must be set: Card, RepoFacts and Row call URL and Lang
 // without checking them.
 type Drawer struct {
-	Styles *Styles
+	Styles *ui.ListStyles
 	Icons  *ui.Icons
 	// Links keeps the links of the names of the cards and rows.
 	Links *termtext.Links
 	// URL is the web page of a repository, and Lang the paint of the glyph
 	// of its language. Neither may be nil.
 	URL  func(core.Repo) string
-	Lang func(core.Repo) Paint
+	Lang func(core.Repo) ui.Paint
 }
 
 // CardLines renders the rows of cards on view in w cells, each card drawn by

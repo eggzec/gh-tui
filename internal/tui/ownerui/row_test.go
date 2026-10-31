@@ -15,9 +15,9 @@ import (
 
 func rowDrawer(icons ui.Icons) Drawer {
 	return Drawer{
-		Styles: &Styles{}, Icons: &icons, Links: &termtext.Links{},
+		Styles: &ui.ListStyles{}, Icons: &icons, Links: &termtext.Links{},
 		URL:  func(core.Repo) string { return "" },
-		Lang: func(core.Repo) Paint { return Paint{} },
+		Lang: func(core.Repo) ui.Paint { return ui.Paint{} },
 	}
 }
 
