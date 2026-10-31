@@ -14,10 +14,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
-// DefaultSort is the sort: qualifier of the order GitHub lists
-// repositories in, which a filter's query leaves out.
-const DefaultSort = "sort:updated-desc"
-
 // Filter is the filter of a table of repositories, read from its query.
 // It runs over the repositories read of an owner, so it costs no request
 // of its own. Its fields hold what the query says, so the zero value keeps
@@ -285,5 +281,5 @@ func (f *Filter) Query() string { return f.query }
 // WithoutDefaultSort returns query without the default sort, so that it
 // alone filters nothing.
 func WithoutDefaultSort(query string) string {
-	return ui.Without(query, func(t filterform.Token) bool { return strings.EqualFold(t.Raw, DefaultSort) })
+	return ui.Without(query, func(t filterform.Token) bool { return strings.EqualFold(t.Raw, ui.DefaultSort) })
 }

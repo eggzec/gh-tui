@@ -71,10 +71,6 @@ var tabCycle = func() ui.Cycle[core.State] {
 	return c
 }()
 
-// defaultSort is the order of a list without a sort, which the query
-// leaves out.
-const defaultSort = "sort:updated-desc"
-
 // spec returns the fields of the filter of the pull requests of repo.
 func (s *Section) spec() filterform.Spec {
 	states := make([]filterform.Item, len(tabs))
@@ -171,7 +167,7 @@ func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 	s.sortToggle.On()
 	state := core.State(msg.Values["state"].Text())
 	query := ui.Without(msg.Query, func(t filterform.Token) bool {
-		if strings.EqualFold(t.Raw, defaultSort) {
+		if strings.EqualFold(t.Raw, ui.DefaultSort) {
 			return true
 		}
 		return strings.EqualFold(t.Qualifier, "is") && isState(t.Value)

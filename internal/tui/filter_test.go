@@ -214,9 +214,9 @@ func TestPaneTitleChips(t *testing.T) {
 	}
 }
 
-func sortModal(t *testing.T, m *Model) *ui.SortModal {
+func sortModal(t *testing.T, m *Model) *ui.OrderModal {
 	t.Helper()
-	mod, ok := m.modals.Top().(*ui.SortModal)
+	mod, ok := m.modals.Top().(*ui.OrderModal)
 	if !ok {
 		t.Fatalf("modal = %T, want the sort modal", m.modals.Top())
 	}

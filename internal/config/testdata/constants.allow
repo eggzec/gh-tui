@@ -131,9 +131,7 @@ internal/tui/cmdhistory.go:historyWait  keep: a mechanism, how long saving the c
 internal/tui/online.go:onlineGap  keep: a safety mechanism, how seldom a flapping connection wakes the failed panes
 internal/tui/terminal.go:terminalWait  keep: a probe timeout, how long the terminal may take to say its version
 internal/browser/browser.go:grace  keep: a mechanism, how long opening the browser listens for its opener to fail at once
-internal/tui/repolist/filter.go:DefaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
-internal/tui/issues/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
-internal/tui/pulls/filter.go:defaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
+internal/tui/ui/order.go:DefaultSort  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/pulls/panes_merge.go:updateSettle  keep: a safety mechanism, how long a read waits for GitHub to show a new head
 internal/tui/notifications/filter.go:defaultQuery  keep: what clear_filter puts back; set in the filter modal, not the config
 internal/tui/prpanes/conv/rows.go:defaultWidth  keep: a layout measure, the width of rows drawn before the pane has a size
