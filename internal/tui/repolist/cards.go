@@ -2,6 +2,7 @@ package repolist
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
 )
@@ -131,4 +132,33 @@ func (c *Cards) Pages() (at, of int) {
 		return 0, 0
 	}
 	return c.Top + 1, of
+}
+
+// Lines renders the rows of cards on view in w cells, each card drawn by
+// draw in the width it gets.
+func (c *Cards) Lines(w, h int, draw func(c Card, selected bool, w int) [CardHeight]string) []string {
+	lines := make([]string, 0, h)
+	for row := c.Top; row < c.Top+c.Rows && row*c.Cols < len(c.Items); row++ {
+		if row > c.Top {
+			lines = append(lines, "")
+		}
+		var rowLines [CardHeight]strings.Builder
+		for col := range c.Cols {
+			i := row*c.Cols + col
+			if i >= len(c.Items) {
+				break
+			}
+			card := draw(c.Items[i], i == c.Sel, c.CardWidth(w, col))
+			for l := range CardHeight {
+				if col > 0 {
+					rowLines[l].WriteString(strings.Repeat(" ", CardGap))
+				}
+				rowLines[l].WriteString(card[l])
+			}
+		}
+		for l := range rowLines {
+			lines = append(lines, rowLines[l].String())
+		}
+	}
+	return lines
 }
