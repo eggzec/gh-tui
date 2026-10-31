@@ -97,6 +97,8 @@ type Section struct {
 	scanned   int
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
+	// autolinks confirms the references in the bodies of the modal.
+	autolinks *ui.Autolinks
 
 	// Rendered when what they show changes, so View only joins them. off
 	// is shown in place of the list when repo has no issues.

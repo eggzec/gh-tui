@@ -216,9 +216,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		actionssvc.WithStore(entries), actionssvc.WithAccess(access), actionssvc.WithRunPageSize(size.Runs))
 	refSvc := refssvc.New(client, refssvc.WithTTL(ttl.References), refssvc.WithCapacity(mem.Entries), refssvc.WithStore(entries),
 		refssvc.WithPageSize(size.References), refssvc.WithHost(client.WebHost()))
-	// Nothing shows its answers yet: the views that link what a text names
-	// take this service when they read it.
-	_ = autolinkssvc.New(client, autolinkssvc.WithTTL(ttl.Autolinks), autolinkssvc.WithCapacity(mem.Entries), autolinkssvc.WithHost(client.WebHost()))
+	// The views that link what a text names take this service, and read
+	// again when it publishes what it learned.
+	autolinkSvc := autolinkssvc.New(client, autolinkssvc.WithTTL(ttl.Autolinks), autolinkssvc.WithCapacity(mem.Entries), autolinkssvc.WithHost(client.WebHost()),
+		autolinkssvc.WithPublish(engine.Publish))
 	releaseSvc := releasesvc.New(client, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries))
 	searchSvc := searchsvc.New(client, searchsvc.WithTTL(ttl.Search), searchsvc.WithCodeTTL(ttl.CodeSearch), searchsvc.WithCapacity(mem.Entries),
 		searchsvc.WithPageSize(size.Search))
@@ -280,6 +281,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(pics), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
+			issues.WithAutolinks(ui.NewAutolinks(autolinkSvc, webHost)),
 		}
 	)
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {

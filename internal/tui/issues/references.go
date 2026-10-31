@@ -26,6 +26,12 @@ func WithReferences(svc refs.Service, opts ...refs.Option) Option {
 	return func(s *Section) { s.refs, s.refsOpts = svc, opts }
 }
 
+// WithAutolinks links the references (#N, @login, hashes) that links
+// confirmed in the bodies of the modal.
+func WithAutolinks(links *ui.Autolinks) Option {
+	return func(s *Section) { s.autolinks = links }
+}
+
 // ShowReferences implements ui.Referencing. It reports whether the modal
 // has the step to show, which it doesn't without a service for the links.
 func (m *detailModal) ShowReferences() (tea.Cmd, bool) {

@@ -45,6 +45,10 @@ type detailModal struct {
 	svc  Service
 	keys keyMap
 	now  func() time.Time
+	// links confirms the references of the bodies, and rendered holds the
+	// bodies drawn since the last update, to ask about them.
+	links    *ui.Autolinks
+	rendered []string
 	// sendCtx bounds the changes, which go on after the modal closes.
 	sendCtx context.Context
 
@@ -120,6 +124,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		svc:     s.svc,
 		keys:    s.keys.forModal(s.rawKeys),
 		now:     s.now,
+		links:   s.autolinks,
 		sendCtx: s.ctx,
 		repo:    repo,
 		number:  number,
@@ -164,6 +169,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		thread.WithKeyMap(s.keys.thread),
 		thread.WithStyles(s.theme.Thread(s.icons)),
 		thread.WithFocused(true),
+		thread.WithAutolink(s.autolinks.Func(repo.String())),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
 	m.thread.SetCutHint(ui.OpenHint(s.icons, s.keys.Open))
@@ -314,6 +320,20 @@ func (m *detailModal) composed() string {
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
 func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
+	cmd := m.update(msg)
+	// What rendered since names references that may be links.
+	var verify []tea.Cmd
+	for _, body := range m.rendered {
+		verify = append(verify, m.links.Verify(m.ctx, m.repo.String(), body))
+	}
+	m.rendered = nil
+	if len(verify) == 0 {
+		return cmd
+	}
+	return tea.Batch(append(verify, cmd)...)
+}
+
+func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
@@ -334,6 +354,10 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	case issueMsg:
 		return m.gotIssue(msg)
 	case ui.SyncMsg:
+		if m.links.Synced(msg) {
+			m.thread.SetAutolink(m.links.Func(m.repo.String()))
+			return nil
+		}
 		if msg.Err != nil || msg.Key != issuesvc.SyncKey(m.repo) {
 			return nil
 		}
@@ -589,6 +613,7 @@ func (m *detailModal) reload() tea.Cmd {
 // show sets the document of the thread from the issue.
 func (m *detailModal) show() tea.Cmd {
 	m.bodies.SetDocument(m.issue.ID, m.issue.Body)
+	m.rendered = append(m.rendered, m.issue.Body)
 	return m.thread.SetDocument(m.header(m.issue), m.issue.Body)
 }
 
@@ -671,6 +696,7 @@ func (m *detailModal) renderComment(c core.Comment, width int) string {
 		// GitHub has no HTML of a comment it hasn't taken yet.
 		m.bodies.Add(c.ID, c.Body)
 	}
+	m.rendered = append(m.rendered, c.Body)
 	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {
 		b.WriteByte('\n')
 		b.WriteString(markdown.Indent(body, "  "))

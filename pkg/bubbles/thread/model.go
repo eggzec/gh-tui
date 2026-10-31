@@ -161,6 +161,7 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 		folds:     &folds{},
 	}
 	m.md.SetLinkColor(s.styles.MarkdownLink)
+	m.md.SetAutolink(s.autolink)
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.width, m.height = max(s.width, 0), max(s.height, 0)
 	m.vp.SetWidth(m.width)
@@ -311,6 +312,13 @@ func (m *Model[T]) SetStyles(s Styles) {
 		pointer:         s.Key.Render(termtext.Cells(s.Pointer, 1)),
 	}
 	m.rerender(a)
+}
+
+// SetAutolink sets which references of the texts are links, and renders
+// them again, for when what f knows changed.
+func (m *Model[T]) SetAutolink(f markdown.Autolink) {
+	m.md.SetAutolink(f)
+	m.rerender(m.anchor())
 }
 
 // SetCutHint sets what a body or comment too long to show in full offers
