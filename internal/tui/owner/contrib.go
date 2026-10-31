@@ -6,7 +6,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -97,7 +96,7 @@ func (s *Section) calendarBody(w int) []string {
 	r := p.side.contribs
 	switch {
 	case !r.ok && r.err != nil:
-		return ownerui.Indent(s.failure("load the contributions of "+p.login, r.err, w-1))
+		return ui.Indent(s.failure("load the contributions of "+p.login, r.err, w-1))
 	case !r.ok:
 		return []string{" " + st.Muted.Render("Loading contributions"+s.icons.Ellipsis)}
 	}

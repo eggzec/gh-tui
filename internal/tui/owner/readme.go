@@ -10,7 +10,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -303,10 +302,10 @@ func (s *Section) readmeBody(w, h int) []string {
 	r := p.side.readme
 	switch {
 	case !r.ok && r.err != nil:
-		return ownerui.Indent(s.failure("load the README of "+p.login, r.err, w-1))
+		return ui.Indent(s.failure("load the README of "+p.login, r.err, w-1))
 	case !p.header.ok && p.header.err != nil:
 		// The README is read once the header says whose it is.
-		return ownerui.Indent(s.failure("load the README of "+p.login, p.header.err, w-1))
+		return ui.Indent(s.failure("load the README of "+p.login, p.header.err, w-1))
 	case !r.ok || p.side.pager == nil:
 		return []string{" " + st.Muted.Render("Loading the README"+s.icons.Ellipsis)}
 	}
@@ -317,7 +316,7 @@ func (s *Section) readmeBody(w, h int) []string {
 	// The last line is the pager's status line, which the frame's title
 	// stands for.
 	lines := strings.Split(pg.View(), "\n")
-	return ownerui.Indent(lines[:len(lines)-1])
+	return ui.Indent(lines[:len(lines)-1])
 }
 
 // pressReadme passes msg to the pager of the README while its pane has
