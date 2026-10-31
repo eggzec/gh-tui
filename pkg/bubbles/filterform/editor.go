@@ -145,8 +145,10 @@ func (m *Model) pressList(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return nil
 	case keymap.Matches(msg, k.List.Normal.Toggle) && m.kind() == Multi:
-		m.checkHighlighted(true)
-		return nil
+		// The picker flips the tick; the form reads what is ticked.
+		cmd := m.typeIn(msg)
+		m.readTicks()
+		return cmd
 	case keymap.Matches(msg, k.ListClear):
 		m.clearList()
 		return nil
@@ -171,6 +173,11 @@ func (m *Model) chooseHighlighted() tea.Cmd {
 	text := login(m.pick.Query().Text)
 	if m.kind() == Person && text != "" && (m.pick.Loading() || m.pick.Err() != nil) {
 		m.chooseText(text)
+		return nil
+	}
+	if m.kind() == Multi {
+		m.readTicks()
+		m.closeEditor(true)
 		return nil
 	}
 	if it, ok := m.pick.Selected(); ok {
@@ -205,7 +212,7 @@ func (m *Model) chosen(it picker.Item) tea.Cmd {
 		m.chooseText(login(value))
 		return nil
 	case listMulti:
-		return m.chosenMulti(value)
+		m.readTicks()
 	}
 	m.closeEditor(true)
 	return nil
@@ -219,57 +226,27 @@ func (m *Model) chooseText(text string) {
 	m.closeEditor(true)
 }
 
-// chosenMulti handles enter in a checklist's list, which closes it and
-// doesn't leave the highlighted item out: it checks it, unless it is
-// checked, or space just acted on it, so that unchecking an item and
-// pressing enter doesn't check it again. Enter in the search never gets
-// here: it keeps the query and returns to the list.
-func (m *Model) chosenMulti(value string) tea.Cmd {
-	if value != m.toggled {
-		m.checkHighlighted(false)
+// readTicks sets the checklist's value to the items the picker has ticked,
+// after the values it has that are no option, which the picker can't show.
+func (m *Model) readTicks() {
+	options := m.items(m.row)
+	var list []string
+	for _, v := range m.state.values[m.row].list {
+		if !slices.ContainsFunc(options, func(it Item) bool { return it.Value == v }) {
+			list = append(list, v)
+		}
 	}
-	m.closeEditor(true)
-	return nil
-}
-
-// checkHighlighted checks the highlighted item of a checklist, or with
-// flip unchecks it if it is checked.
-func (m *Model) checkHighlighted(flip bool) {
-	it, ok := m.pick.Selected()
-	value, isString := it.Value.(string)
-	if !ok || !isString {
-		return
-	}
-	list := m.state.values[m.row].list
-	switch j := slices.Index(list, value); {
-	case j < 0:
-		list = append(slices.Clone(list), value)
-	case flip:
-		list = slices.Delete(slices.Clone(list), j, j+1)
-	default:
-		return
+	for _, it := range m.pick.Ticked() {
+		if v, ok := it.Value.(string); ok {
+			list = append(list, v)
+		}
 	}
 	m.setValue(m.row, Value{list: list})
-	m.pick.SetMarked(anys(list))
-	m.toggled = value
-}
-
-// doneWord is what enter does in a checklist, for the help line: it adds
-// the highlighted item if it isn't checked and space didn't just act on it,
-// and closes the list.
-func (m *Model) doneWord() string {
-	it, ok := m.pick.Selected()
-	value, isString := it.Value.(string)
-	if ok && isString && value != m.toggled && !slices.Contains(m.state.values[m.row].list, value) {
-		return "add & apply"
-	}
-	return "apply"
 }
 
 // clearList handles the clear key in a dropdown. A list chooses its empty
 // option and closes, where it has one; a checklist unchecks every item and
-// stays open, and enter then closes it without adding the highlighted item,
-// as it does after space.
+// stays open.
 func (m *Model) clearList() {
 	if !m.canClear() {
 		return
@@ -277,8 +254,6 @@ func (m *Model) clearList() {
 	multi := m.kind() == Multi
 	m.remove()
 	if multi {
-		it, _ := m.pick.Selected()
-		m.toggled, _ = it.Value.(string)
 		m.pick.SetMarked(nil)
 		return
 	}
@@ -405,6 +380,7 @@ func (m *Model) openPicker(kind listKind) tea.Cmd {
 	on, off := g.On, g.Off
 	if kind == listMulti {
 		on, off = boxOn, boxOff
+		opts = append(opts, picker.WithTicks())
 	}
 	opts = append(opts, picker.WithMarks(on, off))
 	markW := max(ansi.StringWidth(on), ansi.StringWidth(off))
@@ -431,7 +407,6 @@ func (m *Model) openPicker(kind listKind) tea.Cmd {
 		}))
 	}
 	m.pick = picker.New(search, opts...)
-	m.toggled = ""
 	m.pick.SetMarked(marked)
 	if current != nil {
 		m.pick.Select(current)

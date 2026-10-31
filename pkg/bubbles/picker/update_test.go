@@ -3,6 +3,7 @@ package picker
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -665,7 +666,7 @@ func TestEnterKeepsTheQuery(t *testing.T) {
 	// j moves in the narrowed list instead of typing, and enter chooses.
 	m, _ = press(t, m, letter('j'))
 	m, sent = press(t, m, enter)
-	if len(sent) != 1 || sent[0] != (ChosenMsg{ID: m.ID(), Item: fix}) {
+	if len(sent) != 1 || !reflect.DeepEqual(sent[0], ChosenMsg{ID: m.ID(), Item: fix}) {
 		t.Errorf("enter in the list sent %v, want the second result chosen", sent)
 	}
 }
@@ -1012,7 +1013,7 @@ func TestTypedItem(t *testing.T) {
 		m, _ = press(t, m, letter('G'))
 		_, sent := press(t, m, enter)
 		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "crash"`, Value: "typed:crash"}}
-		if len(sent) != 1 || sent[0] != want {
+		if len(sent) != 1 || !reflect.DeepEqual(sent[0], want) {
 			t.Errorf("sent %v, want %v", sent, want)
 		}
 	})
@@ -1022,7 +1023,7 @@ func TestTypedItem(t *testing.T) {
 		m, _ = press(t, m, enter)
 		_, sent := press(t, m, enter)
 		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "newlabel"`, Value: "typed:newlabel"}}
-		if len(sent) != 1 || sent[0] != want {
+		if len(sent) != 1 || !reflect.DeepEqual(sent[0], want) {
 			t.Errorf("sent %v, want %v", sent, want)
 		}
 	})
@@ -1083,7 +1084,7 @@ func TestTypedItem(t *testing.T) {
 			}
 			m, sent := press(t, m, enter)
 			want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "c"`, Value: "typed:c"}}
-			if len(sent) != 1 || sent[0] != want {
+			if len(sent) != 1 || !reflect.DeepEqual(sent[0], want) {
 				t.Errorf("debounce %v: sent %v, want %v", debounce, sent, want)
 			}
 		}
@@ -1094,7 +1095,7 @@ func TestTypedItem(t *testing.T) {
 		m, _ = press(t, m, down, down, enter)
 		_, sent := press(t, m, enter)
 		want := ChosenMsg{ID: m.ID(), Item: Item{Title: `use "crash"`, Value: "typed:crash"}}
-		if len(sent) != 1 || sent[0] != want {
+		if len(sent) != 1 || !reflect.DeepEqual(sent[0], want) {
 			t.Errorf("sent %v, want %v", sent, want)
 		}
 	})

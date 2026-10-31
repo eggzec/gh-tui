@@ -44,9 +44,8 @@ type NormalKeyMap struct {
 	// Search focuses the input, with the cursor at the end of the query. It
 	// is disabled when the picker has no filter line.
 	Search key.Binding `keymap:"search" help:"search"`
-	// Toggle is for the parent, which checks the item under the cursor: the
-	// picker never acts on it. It is here so that the help and the hints
-	// come from one place.
+	// Toggle ticks or unticks the row under the cursor in a picker made with
+	// WithMarks, in normal mode; it does nothing in another.
 	Toggle key.Binding `keymap:"toggle" help:"toggle"`
 	// Back sends a CancelMsg, like Cancel, but never clears a kept query
 	// first.

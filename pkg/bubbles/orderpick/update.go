@@ -42,7 +42,7 @@ func (m Model) pressLeft(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		case keymap.Matches(msg, k.Picker.Normal.Back):
 			return m, m.Cancel()
 		case keymap.Matches(msg, k.Picker.Normal.Toggle):
-			m.tick()
+			m.tick(msg)
 			return m, nil
 		}
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
@@ -49,6 +48,7 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 		picker.WithModes(true),
 		picker.WithFilterLine(true),
 		picker.WithMarks(kindOn, kindOff),
+		picker.WithTicks(),
 		picker.WithKeyMap(m.keys.pick),
 		picker.WithStyles(st),
 	)
@@ -64,12 +64,9 @@ type filterOverlay struct {
 	m    *panesModal
 	p    picker.Model
 	rows int
-	// on is which kinds are ticked, and touched says that one was ticked or
-	// unticked, which makes enter apply what is there rather than tick the
-	// highlighted kind first.
-	on      [conv.NumGroups]bool
-	touched bool
-	done    bool
+	// on is which kinds are ticked, read from the picker when enter applies.
+	on   [conv.NumGroups]bool
+	done bool
 }
 
 func (o *filterOverlay) title() string           { return "Show" }
@@ -80,6 +77,10 @@ func (o *filterOverlay) items() int   { return o.rows }
 func (o *filterOverlay) text() int    { return 0 }
 func (o *filterOverlay) clear() bool  { return false }
 func (o *filterOverlay) closed() bool { return o.done }
+
+// typing reports whether the filter line takes the keys, so back is not
+// offered to it.
+func (o *filterOverlay) typing() bool { return o.p.Typing() }
 
 func (o *filterOverlay) layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextHelp("picker_normal", filterHelp{&o.p}, false)}
@@ -107,42 +108,23 @@ func (o *filterOverlay) view(w, h int) string {
 	return o.p.View()
 }
 
-// toggle ticks or unticks the highlighted kind.
-func (o *filterOverlay) toggle() {
-	it, ok := o.p.Selected()
-	if !ok {
-		return
-	}
-	g, ok := it.Value.(conv.Group)
-	if !ok {
-		return
-	}
-	o.touched = true
-	o.on[g] = !o.on[g]
-	var marked []any
-	for i, on := range o.on {
-		if on {
-			marked = append(marked, conv.Group(i))
-		}
-	}
-	o.p.SetMarked(marked)
-}
-
 func (o *filterOverlay) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if keymap.Matches(msg, o.p.KeyMap().Normal.Toggle) {
-			o.toggle()
-			return nil
-		}
 	case picker.ChosenMsg:
 		if msg.ID != o.p.ID() {
 			return nil
 		}
-		if !o.touched {
-			o.toggle()
-		}
 		o.done = true
+		// Nothing ticked applies nothing.
+		if len(msg.Ticked) == 0 {
+			return nil
+		}
+		o.on = [conv.NumGroups]bool{}
+		for _, it := range msg.Ticked {
+			if g, ok := it.Value.(conv.Group); ok {
+				o.on[g] = true
+			}
+		}
 		c := &o.m.conv
 		c.model.SetShown(o.on)
 		o.m.refreshConv()

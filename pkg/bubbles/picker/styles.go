@@ -52,6 +52,10 @@ type Styles struct {
 	Match lipgloss.Style
 	// Detail styles the text after the title.
 	Detail lipgloss.Style
+	// Locked styles the title of a locked item, and LockGlyph follows it.
+	// The default glyph is "⚷".
+	Locked    lipgloss.Style
+	LockGlyph string
 	// Empty styles the text shown when nothing matches.
 	Empty lipgloss.Style
 	// Error styles a failed search.
@@ -103,6 +107,8 @@ func DefaultStyles(isDark bool) Styles {
 		SelectedTitle:  lipgloss.NewStyle().Foreground(text).Bold(true),
 		Match:          lipgloss.NewStyle().Foreground(accent).Bold(true),
 		Detail:         lipgloss.NewStyle().Foreground(subtle),
+		Locked:         lipgloss.NewStyle().Foreground(subtle),
+		LockGlyph:      "⚷",
 		Empty:          lipgloss.NewStyle().Foreground(muted),
 		Error:          lipgloss.NewStyle().Foreground(errColor),
 		ErrorGlyph:     "✗",

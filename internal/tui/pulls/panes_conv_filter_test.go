@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
@@ -101,25 +100,30 @@ func TestConvFilterBack(t *testing.T) {
 	}
 }
 
-func TestConvFilterEnterTicksHighlighted(t *testing.T) {
+func TestConvFilterEnterAppliesTheTicks(t *testing.T) {
 	t.Parallel()
 	h, m := convModal(t, convService())
 
 	press(t, h, "f")
 	press(t, h, "down")
+	press(t, h, "space")
 	press(t, h, "enter")
 
+	if m.top() != nil {
+		t.Error("enter left the filter open")
+	}
 	if convChoice(t, m, conv.GroupReviews).On {
-		t.Error("enter didn't untick the highlighted kind")
+		t.Error("enter kept the kind that was unticked")
 	}
 	if !convChoice(t, m, conv.GroupComments).On {
-		t.Error("enter unticked a kind that wasn't highlighted")
+		t.Error("enter unticked a kind that wasn't toggled")
 	}
 }
 
-func TestConvFilterNothingShown(t *testing.T) {
+func TestConvFilterEnterWithNothingTickedChangesNothing(t *testing.T) {
 	t.Parallel()
 	h, m := convModal(t, convService())
+	before := m.conv.model.Choices()
 
 	press(t, h, "f")
 	for range conv.NumGroups {
@@ -128,11 +132,14 @@ func TestConvFilterNothingShown(t *testing.T) {
 	}
 	press(t, h, "enter")
 
-	if n, _ := m.conv.model.Shown(); n != 0 {
-		t.Fatalf("%d items shown with every kind unticked", n)
+	if m.top() != nil {
+		t.Error("enter left the filter open")
 	}
-	if got := ansi.Strip(modalScreen(t, h)); !strings.Contains(got, "(f changes it)") {
-		t.Errorf("the empty conversation doesn't name the filter key:\n%s", got)
+	after := m.conv.model.Choices()
+	for i := range before {
+		if before[i] != after[i] {
+			t.Errorf("enter changed %v to %v", before[i], after[i])
+		}
 	}
 }
 

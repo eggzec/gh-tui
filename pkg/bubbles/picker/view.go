@@ -226,7 +226,13 @@ func (m Model) rowLine(r row, w int) string {
 		}
 		b.WriteString(markStyle.Render(mark + " "))
 	}
+	if res.Locked {
+		title = m.styles.Locked
+	}
 	b.WriteString(highlight(res.title, res.matches, title, m.styles.Match))
+	if res.Locked {
+		b.WriteString(m.styles.Locked.Render(" " + m.styles.LockGlyph))
+	}
 	if res.detail != "" {
 		b.WriteString("  ")
 		b.WriteString(m.styles.Detail.Render(res.detail))

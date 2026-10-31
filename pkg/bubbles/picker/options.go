@@ -29,6 +29,7 @@ type settings struct {
 	focused       bool
 	modes         bool
 	marked        bool
+	ticks         bool
 	first         bool
 	markOn        string
 	markOff       string
@@ -165,6 +166,17 @@ func WithMarks(on, off string) Option {
 		s.marked = true
 		s.markOn = on + strings.Repeat(" ", w-ansi.StringWidth(on))
 		s.markOff = off + strings.Repeat(" ", w-ansi.StringWidth(off))
+	}
+}
+
+// WithTicks makes the marks a checklist, with [WithMarks]: the toggle key
+// flips the mark of the selected row, and choosing sends exactly the ticked
+// rows as [ChosenMsg].Ticked, even none. Without it the marks only show a
+// state the parent sets, such as the one choice of a list, and the toggle key
+// does nothing.
+func WithTicks() Option {
+	return func(s *settings) {
+		s.ticks = true
 	}
 }
 

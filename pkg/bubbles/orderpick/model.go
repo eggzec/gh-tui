@@ -83,6 +83,7 @@ func New(opts ...Option) Model {
 		picker.WithModes(true),
 		picker.WithFilterLine(true),
 		picker.WithMarks(s.markOn, s.markOff),
+		picker.WithTicks(),
 		picker.WithKeyMap(s.keys.Picker),
 	)
 	m.SetStyles(s.styles)
@@ -191,15 +192,21 @@ func (m *Model) setPane(p Pane) tea.Cmd {
 
 // tick moves the item under the cursor of the left pane to the end of the
 // right pane. The cursor moves to what takes its place, or to what is above it
-// when it was the last.
-func (m *Model) tick() {
-	it, ok := m.left.Selected()
-	if !ok {
+// when it was the last. The left picker ticks the row on the toggle key msg,
+// and the row moves on as soon as it is ticked.
+func (m *Model) tick(msg tea.KeyPressMsg) {
+	if _, ok := m.left.Selected(); !ok {
 		return
 	}
 	next, hasNext := m.left.Following()
 	prev, hasPrev := m.left.Preceding()
-	index := it.Value.(int)
+	m.left, _ = m.left.Update(msg)
+	ticked := m.left.Ticked()
+	m.left.SetMarked(nil)
+	if len(ticked) == 0 {
+		return
+	}
+	index := ticked[len(ticked)-1].Value.(int)
 	if m.single {
 		m.chosen = nil
 	}

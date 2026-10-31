@@ -1,6 +1,8 @@
 package picker
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -61,6 +63,12 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		if m.modes && m.typing {
 			m.leaveTyping()
 			return nil
+		}
+		// A picker with ticks applies exactly the ticked rows, even none.
+		if m.marked && m.ticks {
+			it, _ := m.Selected()
+			m.stop()
+			return send(ChosenMsg{ID: m.id, Item: it, Ticked: m.Ticked()})
 		}
 		it, ok := m.chosen()
 		if !ok {
@@ -138,6 +146,12 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, n.Bottom):
 		m.sel = len(m.results) - 1
 		m.scroll()
+	case keymap.Matches(msg, n.Toggle):
+		if !m.marked || !m.ticks {
+			return nil
+		}
+		m.toggle()
+		return nil
 	case keymap.Matches(msg, n.Search):
 		return m.enterTyping()
 	case keymap.Matches(msg, n.Back):
@@ -202,6 +216,16 @@ func (m *Model) receive(msg resultMsg) {
 		m.show(nil)
 	} else {
 		m.show(searched(msg.items, msg.text))
+		if m.marked && m.ticks {
+			// A new slice, since copies of the model share the old one.
+			seen := slices.Clone(m.seen)
+			for _, it := range msg.items {
+				if !slices.ContainsFunc(seen, func(o Item) bool { return equal(o.Value, it.Value) }) {
+					seen = append(seen, it)
+				}
+			}
+			m.seen = seen
+		}
 	}
 	m.render()
 }

@@ -2,10 +2,14 @@ package picker
 
 import tea "charm.land/bubbletea/v2"
 
-// ChosenMsg reports that the user picked Item in the picker with ID.
+// ChosenMsg reports that the user picked Item in the picker with ID. A picker
+// made with [WithMarks] sends it on enter with exactly the ticked rows in
+// Ticked, in the order they were listed, and Item is the selected row, or
+// zero when none is.
 type ChosenMsg struct {
-	ID   int64
-	Item Item
+	ID     int64
+	Item   Item
+	Ticked []Item
 }
 
 // CancelMsg reports that the user closed the picker with ID.

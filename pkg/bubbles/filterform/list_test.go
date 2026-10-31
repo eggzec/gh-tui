@@ -95,12 +95,13 @@ func TestChecklistToggleLive(t *testing.T) {
 	}
 }
 
-// Enter closes the checklist and never leaves the highlighted item out.
+// Enter closes the checklist and applies exactly what is ticked.
 func TestChecklistEnterDone(t *testing.T) {
 	f := &fakeLoader{}
 	m := open(t, prSpec(f.load))
-	// Space on bug unchecks it, then down to docs and enter adds docs.
-	m, _ = press(t, m, down, down, down, space, space, keyJ, keyJ, enter)
+	// Space on bug unchecks it, then down to docs, space ticks it, and enter
+	// closes.
+	m, _ = press(t, m, down, down, down, space, space, keyJ, keyJ, space, enter)
 	if v, _ := m.Value("labels"); !slices.Equal(v.List(), []string{"enhancement", "docs"}) || m.mode != rowsMode {
 		t.Errorf("labels = %q, mode %v; want docs added and the list closed", v.List(), m.mode)
 	}
