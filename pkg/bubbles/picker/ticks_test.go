@@ -1,6 +1,7 @@
 package picker
 
 import (
+	"context"
 	"reflect"
 	"slices"
 	"strings"
@@ -64,6 +65,18 @@ func TestTicksPersistAcrossSearches(t *testing.T) {
 	}
 	if got := tickedTitles(m); !slices.Equal(got, []string{ghTUI.Title}) {
 		t.Errorf("ticked %q, want the hidden row still ticked", got)
+	}
+}
+
+func TestKnownItemsAreTickedBeforeAnySearchAnswers(t *testing.T) {
+	search := func(ctx context.Context, _ Query) ([]Item, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	m := New(search, WithMarks("[x]", "[ ]"), WithTicks(), WithModes(true), WithKnown([]Item{ghTUI}))
+	m.SetMarked([]any{ghTUI.Value})
+	if got := tickedTitles(m); !slices.Equal(got, []string{ghTUI.Title}) {
+		t.Errorf("ticked %q before any answer, want the known item", got)
 	}
 }
 

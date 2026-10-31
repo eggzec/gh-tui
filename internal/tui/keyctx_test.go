@@ -976,6 +976,7 @@ var idleRows = map[string]string{
 	"actions_log expand":               "the log opens with every section open, so there is none to expand",
 	"pull_files collapse":              "the commits start folded and the cursor starts on them",
 	"pull_files all commits":           "every commit starts selected",
+	"pull_involved edit":               "the cursor starts on the author, and the key acts on the assignees only",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does

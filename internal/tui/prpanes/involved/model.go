@@ -1,6 +1,8 @@
 package involved
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
@@ -79,6 +81,13 @@ func (m Model) Selected() (Person, bool) {
 
 // SelectedID returns the ID of the row under the cursor, as [Rows] names it.
 func (m Model) SelectedID() (string, bool) { return m.tree.Selected() }
+
+// OnAssignees reports whether the cursor is on the Assignees group or on one
+// of its rows.
+func (m Model) OnAssignees() bool {
+	id, ok := m.tree.Selected()
+	return ok && (id == idAssignees || id == idEmptyAssignees || strings.HasPrefix(id, "assignee:"))
+}
 
 // View returns the rows drawn in the size of the tree.
 func (m Model) View() string { return m.tree.View() }

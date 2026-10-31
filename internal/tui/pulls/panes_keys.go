@@ -78,6 +78,8 @@ type panesKeys struct {
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
 	rerequest key.Binding
+	// edit changes the people of the group under the cursor: the assignees.
+	edit key.Binding
 	// diff is the keys of the diff of a file.
 	diff diffKeys
 	// appCheck is the keys of the page of a check run of an App.
@@ -116,6 +118,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		convDelete:  ui.In(keys, ctxConversation).Binding("delete", "delete"),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
+		edit:      ui.In(keys, ctxInvolved).Binding("edit", "edit"),
 		diff:      newDiffKeys(keys),
 		appCheck:  newAppCheckKeys(keys),
 

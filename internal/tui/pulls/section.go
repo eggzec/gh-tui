@@ -111,6 +111,7 @@ type Service interface {
 	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
 	reviewRequester
 	labelEditor
+	assigneeEditor
 	viewedService
 	convEditor
 }
