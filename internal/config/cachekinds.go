@@ -62,6 +62,10 @@ type TTL struct {
 	People time.Duration `yaml:"people"`
 	// Readme covers profile READMEs, which have ETags.
 	Readme time.Duration `yaml:"readme"`
+	// Autolinks covers whether the #123, @login and commit hashes of a text
+	// exist, which decides if they are linked. Each answer has an ETag, so
+	// checking it again is free; a miss is checked again sooner.
+	Autolinks time.Duration `yaml:"autolinks"`
 }
 
 // Memory is what the process keeps in memory.

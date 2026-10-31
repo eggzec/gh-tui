@@ -150,7 +150,7 @@ func TestLoadMergesOverDefaults(t *testing.T) {
 						Files: 7 * time.Minute, History: 8 * time.Minute, Compare: time.Minute,
 						Actions: 9 * time.Minute, ActionsRunning: 20 * time.Second, Filters: 10 * time.Minute,
 						Search: 40 * time.Second, CodeSearch: 2 * time.Minute, Releases: 3 * time.Hour, References: 6 * time.Minute,
-						Profile: 4 * time.Hour, Contributions: 12 * time.Hour, People: 2 * time.Hour, Readme: 3 * time.Hour,
+						Profile: 4 * time.Hour, Contributions: 12 * time.Hour, People: 2 * time.Hour, Readme: 3 * time.Hour, Autolinks: 5 * time.Hour,
 					},
 					Memory: Memory{Entries: 512, Files: 16 * MiB, Trees: 24 * MiB, Diffs: 8 * MiB, Logs: 128 * MiB},
 					Disk: Disk{
