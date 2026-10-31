@@ -47,7 +47,7 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 		picker.WithItems(items),
 		picker.WithGroupHeaders(false),
 		picker.WithModes(true),
-		picker.WithFilterLine(false),
+		picker.WithFilterLine(true),
 		picker.WithMarks(kindOn, kindOff),
 		picker.WithKeyMap(m.keys.pick),
 		picker.WithStyles(st),
@@ -75,10 +75,8 @@ type filterOverlay struct {
 func (o *filterOverlay) title() string           { return "Show" }
 func (o *filterOverlay) kind() panes.OverlayKind { return panes.Picker }
 
-// items is what the placement takes as a picker's rows, which it gives the
-// two lines of a filter line besides: this one has none, so those are two
-// rows less than it needs.
-func (o *filterOverlay) items() int   { return max(o.rows-2, 0) }
+// items is what the placement takes as a picker's rows.
+func (o *filterOverlay) items() int   { return o.rows }
 func (o *filterOverlay) text() int    { return 0 }
 func (o *filterOverlay) clear() bool  { return false }
 func (o *filterOverlay) closed() bool { return o.done }
@@ -86,10 +84,6 @@ func (o *filterOverlay) closed() bool { return o.done }
 func (o *filterOverlay) layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextHelp("picker_normal", filterHelp{&o.p}, false)}
 }
-
-// cancel closes the checklist without applying it, as esc does: the back key
-// never reaches the picker, so the modal tells the overlay.
-func (o *filterOverlay) cancel() { o.done = true }
 
 // filterHelp is the picker's help with a footer that says what the keys do
 // here: space ticks a kind, which the picker's own footer leaves out, and
@@ -102,7 +96,7 @@ func (h filterHelp) ShortHelp() []key.Binding {
 	toggle.SetHelp(toggle.Help().Key, "toggle")
 	apply := k.Choose
 	apply.SetHelp(apply.Help().Key, "apply")
-	return []key.Binding{k.Normal.Up, k.Normal.Down, toggle, apply, k.Cancel}
+	return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Search, toggle, apply, k.Cancel}
 }
 
 func (h filterHelp) FullHelp() [][]key.Binding { return h.p.FullHelp() }

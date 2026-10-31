@@ -46,4 +46,4 @@ Picker (types)
   bottom | G end | G/end | off
   search | / | / | off
   toggle | space | space | off
-  cancel | backspace | backspace | off
+  back | backspace | backspace | off

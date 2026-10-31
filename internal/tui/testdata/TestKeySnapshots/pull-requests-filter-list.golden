@@ -52,5 +52,4 @@ Filter
   bottom | G end | G/end | on
   search | / | / | on
   toggle | space | space | off
-  cancel | backspace | backspace | on
-  back | backspace | backspace | off
+  back | backspace | backspace | on

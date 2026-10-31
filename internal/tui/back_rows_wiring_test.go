@@ -186,6 +186,39 @@ func TestSearchPullIssueReturn(t *testing.T) {
 	}
 }
 
+// TestPullPickerBackKeepsTheModalOverAnother checks, with the real modals,
+// that backspace closes only the labels picker, without applying, of a pull
+// request held over another modal, and does not pop the pull request.
+func TestPullPickerBackKeepsTheModalOverAnother(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		driveKeys(t, m, m.key(press("S")))
+		search := m.modals.Top()
+		if search == nil {
+			t.Fatal("S opened nothing")
+		}
+		driveKeys(t, m, func() tea.Msg { return ui.OpenPullMsg{Repo: testRepo, Number: 1, Over: search} })
+		pull := m.modals.Top()
+		if pull == nil || pull == search {
+			t.Fatalf("the pull request didn't open over the search: %v", pull)
+		}
+		driveKeys(t, m, m.key(press("L")))
+		if !strings.Contains(onScreen(m), "Labels") {
+			t.Fatalf("L didn't open the labels picker:\n%s", onScreen(m))
+		}
+		driveKeys(t, m, m.key(press("j")))
+		driveKeys(t, m, m.key(press(" ")))
+		driveKeys(t, m, m.key(press("backspace")))
+		if m.modals.Top() != pull {
+			t.Fatalf("backspace left %v, want the pull request on top", m.modals.Top())
+		}
+		if strings.Contains(onScreen(m), "Labels") {
+			t.Errorf("backspace left the labels picker open:\n%s", onScreen(m))
+		}
+	})
+}
+
 // recordDrafts records the drafts saved, by key.
 type recordDrafts struct {
 	mu    sync.Mutex

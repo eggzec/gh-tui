@@ -4,7 +4,6 @@ global
   quit | ctrl+c | ^c | on
   command | : | : | on
   maximize | Z | Z | on
-  back | backspace | backspace | on
   dashboard | 0 | 0 | off
   notifications | I | I | off
   this repo | . | . | off
@@ -53,5 +52,5 @@ Filter
   bottom | G end | G/end | off
   search | / | / | off
   toggle | space | space | off
-  cancel | backspace | backspace | off
   back | backspace | backspace | off
+  back | backspace | backspace | on

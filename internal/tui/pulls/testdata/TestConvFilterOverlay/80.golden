@@ -1,5 +1,7 @@
  #142 Add a disk layer to the cache so cold starts are fast · cache enhancement
 ╭─ Show ───────────────────────────────────────────────────────────────────────╮
+│ › Search…                                                                    │
+│                                                                    9 results │
 │ ▌ [x] comments  1                                                            │
 │   [x] reviews  1                                                             │
 │   [x] pushes  0                                                              │
@@ -24,7 +26,5 @@
 │                                                                              │
 │                                                                              │
 │                                                                              │
-│                                                                              │
-│                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-k/↑ up · j/↓ down · space toggle · ↵ apply · esc close                          
+k/↑ up · j/↓ down · / search · space toggle · ↵ apply · esc close               

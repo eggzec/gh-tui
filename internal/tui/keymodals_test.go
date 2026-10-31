@@ -91,7 +91,6 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 		{"actions runs", []string{"repo.actions"}},
 		{"preview", []string{"files.down", "global.select"}},
 		{"config pager", []string{"global.command", typed("config"), "command_line.run"}},
-		{"filter", []string{"global.pane_2", "pulls.filter"}},
 		{"token prompt", []string{"global.command", typed("auth"), "command_line.run"}},
 	}
 	for _, tt := range tops {

@@ -39,6 +39,8 @@ func (m Model) pressLeft(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			return m, m.confirm()
 		case keymap.Matches(msg, k.Picker.Cancel) && m.left.Query().Text == "":
 			return m, m.Cancel()
+		case keymap.Matches(msg, k.Picker.Normal.Back):
+			return m, m.Cancel()
 		case keymap.Matches(msg, k.Picker.Normal.Toggle):
 			m.tick()
 			return m, nil
@@ -59,7 +61,7 @@ func (m Model) pressRight(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m, cmd
 	case keymap.Matches(msg, k.Picker.Choose):
 		return m, m.confirm()
-	case keymap.Matches(msg, k.Picker.Cancel):
+	case keymap.Matches(msg, k.Picker.Cancel, n.Back):
 		return m, m.Cancel()
 	case keymap.Matches(msg, k.MoveDown):
 		m.shift(1)
