@@ -53,8 +53,9 @@ type Config struct {
 	// terminals show.
 	Images Images `yaml:"images" when:"startup" why:"the terminal is asked whether it shows images at startup" scope:"global"`
 	// Links is LinksAuto, which writes clickable links (OSC 8) unless TERM
-	// is dumb or empty, LinksOn, which always does, or LinksOff, which
-	// writes the plain text only.
+	// is dumb or empty (on Windows TERM is ignored and only WT_SESSION
+	// counts), LinksOn, which always does, or LinksOff, which writes the
+	// plain text only.
 	Links    string   `yaml:"links" when:"startup" why:"the links are switched on or off once, at startup" scope:"global"`
 	Auth     Auth     `yaml:"auth" when:"startup" why:"the token's checks start with the app"`
 	GitHub   GitHub   `yaml:"github" when:"startup" why:"the connection to GitHub is set up at startup"`
