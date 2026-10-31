@@ -57,7 +57,7 @@ func (m *Measure) Add(r core.Repo, icons ui.Icons) { m.add(r, icons, false) }
 func (m *Measure) add(r core.Repo, icons ui.Icons, full bool) {
 	m.name = max(m.name, ansi.StringWidth(repoName(r, full)))
 	m.flags = max(m.flags, len(icons.Flags(r)))
-	m.stars = max(m.stars, len(Count(r.Stars)))
+	m.stars = max(m.stars, len(ui.Count(r.Stars)))
 }
 
 // LayoutCols fits the columns of repositories measured by m in width
@@ -144,13 +144,13 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 	}
 	if c.name > 0 {
 		gap()
-		name := Truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
+		name := truncate(repoName(r, c.full), c.name, d.Icons.Ellipsis)
 		b.WriteString(d.Links.Link(d.URL(r), st.Title.Render(name)))
 		b.WriteString(strings.Repeat(" ", max(c.name-ansi.StringWidth(name), 0)))
 	}
 	if c.desc > 0 {
 		gap()
-		desc := termtext.TruncateMiddle(CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
+		desc := termtext.TruncateMiddle(ui.CleanLine(r.Description), c.desc, d.Icons.Ellipsis)
 		st.Muted.Write(&b, desc)
 		b.WriteString(strings.Repeat(" ", max(c.desc-ansi.StringWidth(desc), 0)))
 	}
@@ -170,7 +170,7 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 	}
 	if c.stars > 0 {
 		gap()
-		n := Count(r.Stars)
+		n := ui.Count(r.Stars)
 		b.WriteString(strings.Repeat(" ", max(c.stars-len(n), 0)))
 		st.Muted.Write(&b, n)
 	}

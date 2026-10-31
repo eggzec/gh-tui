@@ -10,7 +10,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 )
@@ -125,8 +124,8 @@ func (l *teamList) remeasure(*Section) bool {
 	name, members, secret := l.name, l.members, l.secret
 	for i := range n {
 		if t, ok := l.Feed.LoadedItem(i); ok {
-			name = max(name, ansi.StringWidth(ownerui.CleanLine(t.Name)))
-			members = max(members, len(ownerui.Count(t.Members)))
+			name = max(name, ansi.StringWidth(ui.CleanLine(t.Name)))
+			members = max(members, len(ui.Count(t.Members)))
 			secret = secret || t.Secret
 		}
 	}
@@ -161,10 +160,10 @@ func (s *Section) teamRow(c teamCols, t core.Team, look int) string {
 		flag = s.icons.Private
 	}
 	r := s.newRow()
-	r.cell(ownerui.CleanLine(t.Name), c.name, false, name, t.URL)
+	r.cell(ui.CleanLine(t.Name), c.name, false, name, t.URL)
 	r.cell(flag, c.flag, false, st.Subtle, "")
-	r.cell(ownerui.Count(t.Members), c.members, true, st.Muted, "")
-	r.cell(ownerui.CleanLine(t.Description), c.desc, false, st.Muted, "")
+	r.cell(ui.Count(t.Members), c.members, true, st.Muted, "")
+	r.cell(ui.CleanLine(t.Description), c.desc, false, st.Muted, "")
 	return r.String()
 }
 

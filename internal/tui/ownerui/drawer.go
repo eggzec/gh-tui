@@ -59,8 +59,8 @@ func (d Drawer) Card(c repolist.Card, gutter string, w int) [repolist.CardHeight
 	inner := max(w-2, 0)
 	r := c.Repo
 	var out [repolist.CardHeight]string
-	out[0] = gutter + d.Links.Link(d.URL(r), st.Name.Render(Truncate(r.Ref.String(), inner, d.Icons.Ellipsis)))
-	desc := Wrap(CleanLine(r.Description), inner, 2, d.Icons.Ellipsis)
+	out[0] = gutter + d.Links.Link(d.URL(r), st.Name.Render(truncate(r.Ref.String(), inner, d.Icons.Ellipsis)))
+	desc := wrap(ui.CleanLine(r.Description), inner, 2, d.Icons.Ellipsis)
 	if len(desc) == 0 && c.Here && r.Description == "" {
 		desc = []string{"The repository of this directory."}
 	}
@@ -76,7 +76,7 @@ func (d Drawer) Card(c repolist.Card, gutter string, w int) [repolist.CardHeight
 	}
 	out[3] = gutter + termtext.Truncate(facts, inner, d.Icons.Ellipsis)
 	for i := range out {
-		out[i] = Fit(out[i], w)
+		out[i] = ui.Fit(out[i], w)
 	}
 	return out
 }
@@ -88,7 +88,7 @@ func (d Drawer) RepoFacts(r core.Repo, w int) string {
 	if r.Language != "" {
 		parts = append(parts, d.Lang(r).Render(d.Icons.Language(r.Language))+" "+st.Text.Render(r.Language))
 	}
-	parts = append(parts, st.Muted.Render(d.Icons.Star+" "+Count(r.Stars)))
+	parts = append(parts, st.Muted.Render(d.Icons.Star+" "+ui.Count(r.Stars)))
 	if flags := d.Icons.Flags(r); len(flags) > 0 {
 		parts = append(parts, st.Subtle.Render(strings.Join(flags, " ")))
 	}

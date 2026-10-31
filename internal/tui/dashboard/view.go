@@ -417,7 +417,7 @@ func (s *Section) tabsLine(w int) string {
 		b.WriteString("  ")
 		used += lw
 	}
-	return ownerui.Spread(b.String(), right, w, s.icons.Ellipsis)
+	return ui.SpreadDrop(b.String(), right, w, s.icons.Ellipsis)
 }
 
 func tabsWidth(tabs []*owner) int {
@@ -537,7 +537,7 @@ func (s *Section) workItem(r *workRow, selected, focused bool) string {
 	b.WriteString(s.links.Link(hit.Issue.URL, rp.Muted.Render(ref)))
 	b.WriteString(strings.Repeat(" ", max(l.refW-ansi.StringWidth(ref), 0)))
 	if tw := l.title(); tw > 0 {
-		title := termtext.Truncate(ownerui.CleanLine(hit.Issue.Title), tw, s.icons.Ellipsis)
+		title := termtext.Truncate(ui.CleanLine(hit.Issue.Title), tw, s.icons.Ellipsis)
 		b.WriteByte(' ')
 		b.WriteString(s.links.Link(hit.Issue.URL, titleStyle.Render(title)))
 		b.WriteString(strings.Repeat(" ", max(tw-ansi.StringWidth(title), 0)))
@@ -592,7 +592,7 @@ func (s *Section) inboxBody(w, h int) []string {
 		age := s.dates.Short(nt.UpdatedAt, s.now())
 		room := max(w-4-s.dates.Width()-1, 0)
 		repo := termtext.Truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)
-		title := termtext.Truncate(ownerui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
+		title := termtext.Truncate(ui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
 		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
 		// The repository and the title link to the thread's page.
 		link := s.links.Link(nt.Subject.WebURL, rp.Muted.Render(repo)+"  "+rp.Title.Render(title))

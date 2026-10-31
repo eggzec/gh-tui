@@ -30,7 +30,7 @@ func ProfileHeight(avatar bool) int {
 func BlankProfile(w, n int) []string {
 	lines := make([]string, n)
 	for i := range lines {
-		lines[i] = Fit("", w)
+		lines[i] = ui.Fit("", w)
 	}
 	return lines
 }
@@ -39,9 +39,9 @@ func BlankProfile(w, n int) []string {
 // of p.
 func (d Drawer) NameLine(p core.Profile) string {
 	st := d.Styles
-	line := st.Name.Render(CleanLine(cmp.Or(p.Name, p.Login))) + " " + st.Login.Render("@"+CleanLine(p.Login))
+	line := st.Name.Render(ui.CleanLine(cmp.Or(p.Name, p.Login))) + " " + st.Login.Render("@"+ui.CleanLine(p.Login))
 	if p.Bio != "" {
-		line += st.Subtle.Render(d.Icons.Separator) + st.Text.Render(CleanLine(p.Bio))
+		line += st.Subtle.Render(d.Icons.Separator) + st.Text.Render(ui.CleanLine(p.Bio))
 	}
 	return line
 }
@@ -52,15 +52,15 @@ func (d Drawer) Facts(p core.Profile) string {
 	st := d.Styles
 	parts := make([]string, 0, 6)
 	for _, t := range []string{p.Company, p.Location} {
-		if t = CleanLine(t); t != "" {
+		if t = ui.CleanLine(t); t != "" {
 			parts = append(parts, st.Muted.Render(t))
 		}
 	}
 	parts = append(parts,
-		st.Text.Render(Count(p.Followers))+st.Muted.Render(Plural(p.Followers, " follower", " followers")),
-		st.Text.Render(Count(p.Following))+st.Muted.Render(" following"),
+		st.Text.Render(ui.Count(p.Followers))+st.Muted.Render(ui.Plural(p.Followers, " follower", " followers")),
+		st.Text.Render(ui.Count(p.Following))+st.Muted.Render(" following"),
 	)
-	if m := CleanLine(p.Status.Message); m != "" || p.Status.Busy {
+	if m := ui.CleanLine(p.Status.Message); m != "" || p.Status.Busy {
 		status := m
 		if p.Status.Busy {
 			status = strings.TrimSpace("busy " + status)
@@ -76,9 +76,9 @@ func (d Drawer) Facts(p core.Profile) string {
 // their color. Lines that don't fit end in an ellipsis.
 func (d Drawer) Profile(box []string, first, second, right string, w, n int) []string {
 	tail := d.Icons.Ellipsis
-	lines := []string{Spread(" "+first, "", w, tail), Spread(" "+second, right+" ", w, tail)}
+	lines := []string{ui.SpreadDrop(" "+first, "", w, tail), ui.SpreadDrop(" "+second, right+" ", w, tail)}
 	for len(lines) < n {
-		lines = append(lines, Fit("", w))
+		lines = append(lines, ui.Fit("", w))
 	}
 	for i := range box {
 		lines[i] = " " + box[i] + lines[i]
