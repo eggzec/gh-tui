@@ -42,8 +42,7 @@ var modalPriorities = map[reflect.Type]modals.Priority{
 	reflect.TypeFor[*textModal]():     modals.PriorityDetail,
 
 	reflect.TypeFor[*ui.FilterModal](): modals.PriorityShape,
-	reflect.TypeFor[*ui.SortModal]():   modals.PriorityShape,
-	reflect.TypeFor[*ui.GroupModal]():  modals.PriorityShape,
+	reflect.TypeFor[*ui.OrderModal]():  modals.PriorityShape,
 
 	reflect.TypeFor[*pulls.MergeDialog](): modals.PriorityForm,
 

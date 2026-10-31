@@ -71,10 +71,6 @@ var tabCycle = func() ui.Cycle[core.StateFilter] {
 	return c
 }()
 
-// defaultSort is the order of a list without a sort, which the query
-// leaves out.
-const defaultSort = "sort:updated-desc"
-
 // noMilestone is the value of the milestone field for issues without one.
 const noMilestone = "no:milestone"
 
@@ -223,7 +219,7 @@ func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 		state = core.FilterAll
 	}
 	query := ui.Without(msg.Query, func(t filterform.Token) bool {
-		if strings.EqualFold(t.Raw, defaultSort) {
+		if strings.EqualFold(t.Raw, ui.DefaultSort) {
 			return true
 		}
 		return strings.EqualFold(t.Qualifier, "is") && (strings.EqualFold(t.Value, "open") || strings.EqualFold(t.Value, "closed"))

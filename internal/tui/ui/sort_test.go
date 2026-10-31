@@ -11,7 +11,7 @@ import (
 
 // sortFixture opens the sort modal of a list that sorts by update time or
 // comments, with query typed in its filter.
-func sortFixture(t *testing.T, query string) (*SortModal, *fakeFilterable) {
+func sortFixture(t *testing.T, query string) (*OrderModal, *fakeFilterable) {
 	t.Helper()
 	d := config.Default()
 	target := &fakeFilterable{}
@@ -25,7 +25,7 @@ func sortFixture(t *testing.T, query string) (*SortModal, *fakeFilterable) {
 }
 
 // sendSort gives the modal the keys, and what the commands they start send.
-func sendSort(m *SortModal, keys ...string) {
+func sendSort(m *OrderModal, keys ...string) {
 	for _, k := range keys {
 		for _, msg := range drain(m.Update(keyOf(k))) {
 			m.Update(msg)

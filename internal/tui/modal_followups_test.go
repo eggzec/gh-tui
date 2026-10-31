@@ -51,7 +51,7 @@ func openedTitle(t *testing.T, m *Model) string {
 	switch mod := m.modals.Top().(type) {
 	case *ui.FilterModal:
 		return mod.Title()
-	case *ui.SortModal:
+	case *ui.OrderModal:
 		return mod.Title()
 	default:
 		t.Fatalf("modal = %T, want the filter or sort modal", mod)

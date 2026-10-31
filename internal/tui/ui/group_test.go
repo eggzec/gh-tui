@@ -13,7 +13,7 @@ import (
 
 // groupFixture opens the group modal over two fields, with chosen in force,
 // and returns what apply was given.
-func groupFixture(chosen ...orderpick.Choice) (m *GroupModal, applied *[][]orderpick.Choice) {
+func groupFixture(chosen ...orderpick.Choice) (m *OrderModal, applied *[][]orderpick.Choice) {
 	d := config.Default()
 	applied = new([][]orderpick.Choice)
 	fields := []orderpick.Item{{Value: "type", Title: "Type"}, {Value: "reason", Title: "Reason"}}
@@ -25,7 +25,7 @@ func groupFixture(chosen ...orderpick.Choice) (m *GroupModal, applied *[][]order
 	return m, applied
 }
 
-func sendGroup(m *GroupModal, keys ...string) {
+func sendGroup(m *OrderModal, keys ...string) {
 	for _, k := range keys {
 		for _, msg := range drain(m.Update(keyOf(k))) {
 			m.Update(msg)
