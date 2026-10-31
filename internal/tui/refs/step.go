@@ -190,7 +190,7 @@ func New(ctx context.Context, svc Service, self core.Target, pull bool, keys con
 		// The titles are what the rows are for: the state at the right gives
 		// way to them.
 		tree.WithMinName(minName),
-		tree.WithEmptyText("No link matches the filter."),
+		tree.WithEmptyText(ui.None("links")),
 		tree.WithErrorText(ui.ErrorText("load the mentions", self.String(), s.voice)),
 	)
 	// Assume a dark terminal until the parent sets the theme.
@@ -215,7 +215,12 @@ func (s *Step) ID() int64 { return s.id }
 
 // SetIcons takes the icon set ic, which the theme set after draws with. The
 // step's voice points to it.
-func (s *Step) SetIcons(ic ui.Icons) { s.opts.icons = ic }
+func (s *Step) SetIcons(ic ui.Icons) {
+	s.opts.icons = ic
+	if s.filter != "" {
+		s.emptyText()
+	}
+}
 
 // CloseMsg asks the parent to close the modal the step with ID is in, which
 // the dismiss key sends once there is no filter left to clear.

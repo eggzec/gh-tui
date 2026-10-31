@@ -291,7 +291,7 @@ func TestRefsFilterAcrossGroups(t *testing.T) {
 	has(t, s, "Written here (2 of 5)", "#187 Keep GraphQL", "cli/go-gh#412", "Mentioned in (1 of the first 4 of 47)", "#239 Read the viewer's")
 	lacks(t, s, "Closes", "#233", "#240")
 	h.typed("x")
-	has(t, s, "No link matches")
+	has(t, s, "No links match the filters. Press esc to clear them.")
 	lacks(t, s, "Written here")
 
 	// Words match anywhere in a row, in any order: the number, the title,
@@ -302,7 +302,7 @@ func TestRefsFilterAcrossGroups(t *testing.T) {
 		if got := h.take(); len(got) != 0 {
 			t.Fatalf("typing %q sent %v", q, got)
 		}
-		if strings.Contains(text(s), "No link matches") {
+		if strings.Contains(text(s), "No links match the filters.") {
 			t.Errorf("nothing matches %q:\n%s", q, strings.Join(lines(s), "\n"))
 		}
 	}

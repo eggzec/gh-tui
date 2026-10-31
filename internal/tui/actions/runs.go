@@ -198,7 +198,7 @@ func (m *Modal) emptyText() string {
 	if formFiltered(m.filter) {
 		return ui.NoMatch("workflow runs", ui.KeyOf(m.opts.icons, m.keys.ClearFilter))
 	}
-	return ui.Press("No workflow runs match the filters.", ui.KeyOf(m.opts.icons, m.keys.Filter), "change them")
+	return ui.NoMatch("workflow runs", "")
 }
 
 // current returns r as the cache last had it after a change or a poll,

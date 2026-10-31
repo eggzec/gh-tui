@@ -69,7 +69,7 @@ func (g *commits) show(m *Modal, branch string) tea.Cmd {
 			graph.WithContext(m.ctx),
 			graph.WithKeyMap(m.keys.Graph),
 			graph.WithFocused(m.focus == graphPane),
-			graph.WithEmptyText("No commits on this branch."),
+			graph.WithEmptyText(ui.None("commits")),
 			graph.WithErrorText(ui.ErrorText("load the history", m.repo.String(), *m.opts.voice)),
 		)
 		return nil

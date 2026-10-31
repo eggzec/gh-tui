@@ -63,9 +63,9 @@ func (s *Section) newPeopleList(t tab, login string, roles bool) *peopleList {
 		orgsTab: owners.Orgs, membersTab: owners.Members,
 	}
 	empty := map[tab]string{
-		followersTab: "No followers.",
-		followingTab: "Not following anyone.",
-		orgsTab:      "No public organizations.",
+		followersTab: ui.None("followers"),
+		followingTab: ui.None("followed users"),
+		orgsTab:      ui.None("public organizations"),
 		membersTab:   membersEmpty(login, roles),
 	}
 	l := &peopleList{q: owners.PeopleQuery{Login: login, List: lists[t]}, roles: roles}
