@@ -145,6 +145,7 @@ func New(search Search, opts ...Option) Model {
 		spin:     spinner.New(spinner.WithSpinner(spinner.Dot)),
 	}
 	m.pool, m.items = results(m.items), nil
+	m.seen, m.known = m.known, nil
 	m.keys = m.withState(m.keys)
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	m.SetStyles(m.styles)

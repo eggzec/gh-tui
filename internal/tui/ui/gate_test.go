@@ -109,6 +109,11 @@ func TestGate(t *testing.T) {
 			name: "read can't label where GitHub doesn't say", caps: caps(core.PermissionRead), action: ActLabel, it: unsaid,
 			why: "Labeling needs triage access to charmbracelet/bubbletea.",
 		},
+		{name: "triage assigns", caps: caps(core.PermissionTriage), action: ActAssign, it: theirs},
+		{
+			name: "read can't assign", caps: caps(core.PermissionRead), action: ActAssign, it: theirs,
+			why: "Assigning needs triage access to charmbracelet/bubbletea.",
+		},
 		{
 			name: "read can't re-run", caps: caps(core.PermissionRead), action: ActRerun,
 			why: "Re-running needs write access to charmbracelet/bubbletea.",

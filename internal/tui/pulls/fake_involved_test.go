@@ -61,9 +61,9 @@ func involvedDetail(d core.PullRequestDetail) core.PullRequestDetail {
 
 // openedInvolved returns the modal of the first pull request with the
 // involved pane focused and its people loaded.
-func openedInvolved(t *testing.T, svc *involvedService) *panesModal {
+func openedInvolved(t *testing.T, svc *involvedService, opts ...Option) *panesModal {
 	t.Helper()
-	h := started(t, svc, 160, 30)
+	h := started(t, svc, 160, 30, opts...)
 	press(t, h, "enter")
 	m := h.modal()
 	if m == nil {

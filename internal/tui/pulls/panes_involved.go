@@ -109,6 +109,12 @@ func (m *panesModal) involvedPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if keymap.Matches(msg, m.keys.rerequest) {
 		return m.rerequest(), true
 	}
+	if keymap.Matches(msg, m.keys.edit) {
+		if !m.inv.tree.OnAssignees() {
+			return nil, true
+		}
+		return m.openAssignees(), true
+	}
 	var cmd tea.Cmd
 	m.inv.tree, cmd = m.inv.tree.Update(msg)
 	m.inv.ver++
@@ -179,6 +185,6 @@ func (m *panesModal) focusPerson(msg involved.FocusPersonMsg) tea.Cmd {
 func (m *panesModal) involvedLayer() keyhelp.Layer {
 	k := m.inv.tree.KeyMap()
 	// The tree's mark key is no key of this pane.
-	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Enter, m.keys.rerequest}
+	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Enter, m.keys.rerequest, m.keys.edit}
 	return ui.ContextLayer(ctxInvolved, all, k.ShortHelp())
 }

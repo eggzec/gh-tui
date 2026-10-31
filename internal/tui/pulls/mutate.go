@@ -146,7 +146,7 @@ func (k keyMap) change(svc Service, g ui.Gate, how mergeAs, d core.PullRequestDe
 			what:     "convert " + n + " to draft",
 			start:    func() *optimistic.Op { return svc.ConvertToDraft(repo, number) },
 		}, true, nil
-	case ui.ActComment, ui.ActLabel, ui.ActRerun, ui.ActCancelRun, ui.ActMarkRead, ui.ActStar, ui.ActResolve:
+	case ui.ActComment, ui.ActLabel, ui.ActAssign, ui.ActRerun, ui.ActCancelRun, ui.ActMarkRead, ui.ActStar, ui.ActResolve:
 	}
 	return change{}, false, nil
 }

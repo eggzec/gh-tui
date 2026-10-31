@@ -16,6 +16,7 @@ type Option func(*settings)
 type settings struct {
 	parent        context.Context
 	items         []Item
+	known         []Item
 	local         bool
 	scopes        []string
 	debounce      time.Duration
@@ -55,6 +56,17 @@ func defaultSettings() settings {
 func WithItems(items []Item) Option {
 	return func(s *settings) {
 		s.items, s.local = items, true
+	}
+}
+
+// WithKnown tells a picker that searches about items it can tick before any
+// search has answered, or after one failed. [Model.Ticked] counts them, so
+// choosing at once keeps a tick the user never saw listed. A search that
+// lists an item of the same Value replaces the known one. The picker keeps a
+// copy.
+func WithKnown(items []Item) Option {
+	return func(s *settings) {
+		s.known = slices.Clone(items)
 	}
 }
 

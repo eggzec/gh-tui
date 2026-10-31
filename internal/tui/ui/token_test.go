@@ -83,6 +83,10 @@ func TestGateToken(t *testing.T) {
 			why: "Labeling needs the repo scope · :auth to grant it",
 		},
 		{
+			name: "no scope can't assign", access: classic(), action: ActAssign,
+			why: "Assigning needs the repo scope · :auth to grant it",
+		},
+		{
 			name: "public_repo can't re-run", access: classic("public_repo"), action: ActRerun, caps: admin(false),
 			why: "Re-running needs the repo scope · :auth to grant it",
 		},

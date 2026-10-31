@@ -37,6 +37,8 @@ const (
 	// the author of the pull request, so the thread says whether the viewer
 	// may, and the Gate decides by the token and the repository.
 	ActResolve
+	// ActAssign changes who a pull request or issue is assigned to.
+	ActAssign
 )
 
 // Gate decides what the viewer may do in one repository, from what GitHub
@@ -103,6 +105,8 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 		gerund = "Commenting"
 	case ActLabel:
 		gerund = "Labeling"
+	case ActAssign:
+		gerund = "Assigning"
 	case ActResolve:
 		gerund = "Changing a thread"
 	default:
@@ -170,6 +174,10 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 		}
 		if !c.CanTriage() {
 			return false, "Labeling needs triage access to " + repo + "."
+		}
+	case ActAssign:
+		if !c.CanTriage() {
+			return false, "Assigning needs triage access to " + repo + "."
 		}
 	case ActRerun:
 		if !c.CanWrite() {
