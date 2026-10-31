@@ -221,7 +221,7 @@ func (m *Modal) Init() tea.Cmd {
 
 // Title names the repository.
 func (m *Modal) Title() string {
-	return Title + m.opts.icons.Separator + m.repo.String()
+	return ui.Title(ui.TitleSpec{Name: Title, Chips: []string{m.repo.String()}, Sep: m.opts.icons.Separator})
 }
 
 // Tabs returns the names of the tabs, which the app shows in the top edge

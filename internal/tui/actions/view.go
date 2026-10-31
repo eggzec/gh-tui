@@ -282,22 +282,19 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	if p == m.focus && !m.notes {
 		st = m.st.focusTitle
 	}
-	var text, detail string
+	spec := ui.TitleSpec{
+		Width: w, Sep: m.st.ic.Separator, Ellipsis: m.st.ic.Ellipsis,
+		NameStyle: st.Render, ChipStyle: m.st.Subtle.Render, SepStyle: m.st.Subtle.Render}
 	if p == runsPane {
-		text = "Runs"
+		spec.Name = "Runs"
 		if f := m.filterText(); f != "" {
-			detail = strings.TrimSpace(detail + m.st.ic.Separator + f)
+			spec.Chips = append(spec.Chips, f)
 		}
 		if kept, off := m.toggle.Kept(); off {
-			off := ui.QueryChips(m.st.ic, ui.ChipSpec{Filter: ansi.Strip(queryOf(kept, m.workflows.items)), SortOn: true})
-			detail = strings.TrimSpace(detail + m.st.ic.Separator + strings.Join(off, m.st.ic.Separator))
+			spec.Chips = append(spec.Chips, ui.QueryChips(m.st.ic, ui.ChipSpec{Filter: ansi.Strip(queryOf(kept, m.workflows.items)), SortOn: true})...)
 		}
 	}
-	line := st.Render(text)
-	if room := w - ansi.StringWidth(text) - 1; detail != "" && room > 1 {
-		line += " " + m.st.Subtle.Render(termtext.Truncate(detail, room, m.st.ic.Ellipsis))
-	}
-	return ui.Fit(line, w)
+	return ui.Title(spec)
 }
 
 // prompt renders the confirmation or the notice on the last line, if

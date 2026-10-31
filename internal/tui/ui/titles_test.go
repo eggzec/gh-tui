@@ -7,6 +7,21 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+func TestTitleSepStyle(t *testing.T) {
+	t.Parallel()
+	mark := func(p string) func(...string) string {
+		return func(s ...string) string { return p + strings.Join(s, "") + ">" }
+	}
+	s := TitleSpec{Name: "N", Chips: []string{"a"}, Count: "3", Sep: "|", SepStyle: mark("<s:")}
+	if got, want := Title(s), "N<s:|>a<s:|>3"; got != want {
+		t.Errorf("without width: %q, want %q", got, want)
+	}
+	s.Width = 10
+	if got := Title(s); !strings.Contains(got, "N<s:|>a") {
+		t.Errorf("with width: %q lacks the styled separator", got)
+	}
+}
+
 func TestTitle(t *testing.T) {
 	t.Parallel()
 	sp := func(n int) string { return strings.Repeat(" ", n) }
