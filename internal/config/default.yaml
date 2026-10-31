@@ -1018,7 +1018,7 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
-    # Narrow the branches by typing a part of a name.
+    # Open the list that picks the branches to show.
     filter: [f]
     base: [b]
   # History: the commit graph. Show the files at the commit under the
