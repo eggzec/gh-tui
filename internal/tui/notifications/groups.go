@@ -1,6 +1,8 @@
 package notifications
 
 import (
+	"time"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -65,22 +67,24 @@ func stateHead(key string) string {
 
 // groupsOf returns the groups of the levels, outermost first.
 func (s *Section) groupsOf(levels []orderpick.Choice) []feed.Group[core.Notification] {
-	var out []feed.Group[core.Notification]
-	for _, c := range levels {
-		name, _ := c.Value.(string)
-		for _, f := range groupFields {
-			if f.name != name {
-				continue
-			}
-			out = append(out, feed.Group[core.Notification]{
-				Key:   func(n core.Notification) string { return f.key(s, n) },
-				Label: f.head,
-				Desc:  c.Desc,
-			})
-		}
-	}
-	return out
+	return feed.Groups(s.fields(), ui.OrderLevels(levels))
 }
+
+// fields are the fields the levels name: those of the groups, which read the
+// section's state, and the time of the update.
+func (s *Section) fields() []feed.Field[core.Notification] {
+	fields := make([]feed.Field[core.Notification], 0, len(groupFields)+1)
+	for _, f := range groupFields {
+		fields = append(fields, feed.Field[core.Notification]{
+			Name:  f.name,
+			Key:   func(n core.Notification) string { return f.key(s, n) },
+			Label: f.head,
+		})
+	}
+	return append(fields, feed.Field[core.Notification]{Name: updatedField, Time: updatedAt})
+}
+
+func updatedAt(n core.Notification) time.Time { return n.UpdatedAt }
 
 // groupItems are the fields the modal offers.
 func groupItems() []orderpick.Item {

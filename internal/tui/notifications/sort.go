@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
@@ -25,50 +26,7 @@ func sortItems() []orderpick.Item {
 // thread without a value after those with one, and the newest update first
 // among those the levels tie.
 func (s *Section) sortLess(levels []orderpick.Choice) func(a, b core.Notification) int {
-	type level struct {
-		field groupField
-		desc  bool
-		time  bool
-	}
-	var ls []level
-	for _, c := range levels {
-		name, _ := c.Value.(string)
-		if name == updatedField {
-			ls = append(ls, level{desc: c.Desc, time: true})
-			continue
-		}
-		for _, f := range groupFields {
-			if f.name == name {
-				ls = append(ls, level{field: f, desc: c.Desc})
-			}
-		}
-	}
-	return func(a, b core.Notification) int {
-		for _, l := range ls {
-			var d int
-			if l.time {
-				d = b.UpdatedAt.Compare(a.UpdatedAt)
-			} else {
-				ka, kb := l.field.key(s, a), l.field.key(s, b)
-				switch {
-				case ka == kb:
-				case ka == "":
-					return 1
-				case kb == "":
-					return -1
-				default:
-					d = strings.Compare(ka, kb)
-				}
-			}
-			if l.desc {
-				d = -d
-			}
-			if d != 0 {
-				return d
-			}
-		}
-		return b.UpdatedAt.Compare(a.UpdatedAt)
-	}
+	return feed.Less(s.fields(), ui.OrderLevels(levels), updatedAt)
 }
 
 // sortModal returns the modal that picks the fields the list is sorted by.
