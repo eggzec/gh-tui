@@ -212,7 +212,7 @@ func TestTypingContextsRefusePrintableKeys(t *testing.T) {
 		{"normal mode's insert, which the search replaced", "keys:\n  picker_normal:\n    insert: [i]\n", "line 3: keys.picker_normal.insert: removed, use keys.picker_normal.search"},
 		{"normal mode's append, which the search replaced", "keys:\n  picker_normal:\n    append: [a]\n", "line 3: keys.picker_normal.append: removed, use keys.picker_normal.search"},
 		{"toggle in normal mode of a picker", "keys:\n  picker_normal:\n    toggle: [space]\n", ""},
-		{"a ctrl key", "keys:\n  finder:\n    reveal: [ctrl+o]\n", ""},
+		{"a ctrl key", "keys:\n  finder:\n    reveal: [ctrl+y]\n", ""},
 		{"an alt key", "keys:\n  finder:\n    reveal: [alt+o]\n", ""},
 		{"a context that types nothing", "keys:\n  confirm:\n    \"yes\": [Y]\n", ""},
 		{"normal mode of a picker", "keys:\n  picker_normal:\n    search: [I]\n", ""},
@@ -278,7 +278,7 @@ func TestKeysOfWidgetsAreChecked(t *testing.T) {
 	for _, tt := range []struct{ name, file, want string }{
 		{"global key against the filter form", "keys:\n  global:\n    zoom: [delete]\n", "line 3: keys.global.zoom: delete is also keys.filter.clear: unbind or rebind them there"},
 		{"form key against global", "keys:\n  filter:\n    toggle: [r]\n", "line 3: keys.filter.toggle: r is already keys.global.refresh"},
-		{"one key on two actions of the form", "keys:\n  filter:\n    insert: [a]\n    append: [a]\n", "keys.filter: a is both append and insert"},
+		{"one key on two actions of the form", "keys:\n  filter:\n    search: [a]\n    clear: [a]\n", "keys.filter: a is both clear and search"},
 		{"unknown action of a widget", "keys:\n  finder:\n    browse: [ctrl+o]\n", "line 3: keys.finder.browse: unknown action"},
 		{"ctrl+c in the command line", "keys:\n  command_line:\n    cancel: [ctrl+c]\n", "line 3: keys.command_line.cancel: ctrl+c always quits and can't be bound"},
 	} {

@@ -27,7 +27,7 @@ var navigation = []string{
 	// are typed in.
 	"quit", "command",
 	// The keys that edit a filter form and a search query.
-	"insert", "append", "toggle", "clear",
+	"insert", "toggle", "clear",
 }
 
 // Navigation returns the names of the actions that have no command, such

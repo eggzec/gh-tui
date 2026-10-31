@@ -101,10 +101,8 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.choose(1)
 	case keymap.Matches(msg, k.Toggle):
 		return m.toggle()
-	case keymap.Matches(msg, k.Insert):
-		return m.insert(false)
-	case keymap.Matches(msg, k.Append):
-		return m.insert(true)
+	case keymap.Matches(msg, k.Search):
+		return m.insert()
 	case keymap.Matches(msg, k.Clear):
 		m.remove()
 	}
@@ -188,9 +186,8 @@ func (m *Model) togglePane() {
 }
 
 // insert starts insert mode on a Text field or the query line, with the
-// cursor at the start, or at the end if end is set. Other rows have
-// nothing to type.
-func (m *Model) insert(end bool) tea.Cmd {
+// cursor at the end. Other rows have nothing to type.
+func (m *Model) insert() tea.Cmd {
 	if !m.types() {
 		return nil
 	}
@@ -207,11 +204,7 @@ func (m *Model) insert(end bool) tea.Cmd {
 		in.SetValue(m.before.text)
 		cmd = in.Focus()
 	}
-	if end {
-		in.CursorEnd()
-	} else {
-		in.CursorStart()
-	}
+	in.CursorEnd()
 	return cmd
 }
 

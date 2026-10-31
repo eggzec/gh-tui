@@ -195,14 +195,14 @@ func TestSecondWordsFieldIsRefused(t *testing.T) {
 // reach the row.
 func TestSearchFieldRoundTrip(t *testing.T) {
 	m := open(t, wordsSpec(), WithQuery("is:open"))
-	m, _ = press(t, m, keyI)
+	m, _ = press(t, m, keySlash)
 	m = typeText(t, m, `fix "two words"`)
 	m, _ = press(t, m, enter)
 	if got, want := m.Query(), `fix "two words" is:open`; got != want {
 		t.Errorf("Query after the row edit = %q, want %q", got, want)
 	}
 
-	m, _ = press(t, m, tab, keyA, ctrlU)
+	m, _ = press(t, m, tab, keySlash, ctrlU)
 	m = typeText(t, m, "other words")
 	if v, _ := m.Value("search"); v.Text() != "other words" {
 		t.Errorf("search after the line edit = %q, want %q", v.Text(), "other words")

@@ -1254,7 +1254,7 @@ func keyContexts() []keyContext {
 		{name: "pull requests: sort", repo: true, steps: []string{"global.pane_2", "pulls.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "pull requests: filter list", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.down", "filter.toggle"}, context: "filter", want: "global, filter"},
 		{name: "pull requests: filter list typing", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.down", "filter.down", "filter.toggle", "picker_normal.search"}, context: "picker", want: "always, picker (types)"},
-		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.insert"}, context: "filter_query", want: "always, filter_query (types)"},
+		{name: "pull requests: filter insert", repo: true, steps: []string{"global.pane_2", "pulls.filter", "filter.bottom", "filter.search"}, context: "filter_query", want: "always, filter_query (types)"},
 		{name: "pull requests: merge", repo: true, steps: []string{"global.pane_2", "pulls.merge"}, context: "merge_dialog", want: "always, merge_dialog (types)"},
 		{name: "pull request", repo: true, steps: []string{"global.pane_2", "global.select"}, context: "pull_conversation", want: "global, pull_modal, pull_conversation"},
 		{name: "pull request: description", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_1", "pull_description.expand"}, context: "pull_description", want: "global, pull_modal, pull_description"},

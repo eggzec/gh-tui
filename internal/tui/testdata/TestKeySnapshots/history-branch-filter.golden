@@ -18,8 +18,7 @@ Filter
   previous | h left | h/← | on
   next | l right | l/→ | on
   list | space | space | on
-  insert | i | i | off
-  append | a | a | off
+  search | / | / | off
   clear | delete | delete | off
   apply | enter | ↵ | on
   close | esc | esc | on

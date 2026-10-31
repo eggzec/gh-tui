@@ -76,8 +76,8 @@ func TestEscStepsBackThenCloses(t *testing.T) {
 	}{
 		{name: "from the filters", keys: []tea.Msg{down, space, esc}},
 		{name: "from the sort", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{prevTab, down, space, esc, nextTab}},
-		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{tab, keyI, esc}},
-		{name: "from a text", keys: append(keys(down, rowBase), keyI, esc)},
+		{name: "from the query line", opts: []Option{WithTab(SortTab)}, keys: []tea.Msg{tab, keySlash, esc}},
+		{name: "from a text", keys: append(keys(down, rowBase), keySlash, esc)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestEscStepsBackThenCloses(t *testing.T) {
 func TestSetTabClosesTheEditor(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, _ = press(t, m, keyA)
+	m, _ = press(t, m, keySlash)
 	m = typeText(t, m, "-x")
 	m.SetTab(SortTab)
 	if m.mode != rowsMode || m.Capturing() || m.Tab() != SortTab || m.row != sortByRow {
@@ -111,7 +111,7 @@ func TestSetTabClosesTheEditor(t *testing.T) {
 	if v, _ := m.Value("base"); v.Text() != "main-x" {
 		t.Errorf("base = %q, want what was typed kept", v.Text())
 	}
-	m, _ = press(t, m, tab, keyI)
+	m, _ = press(t, m, tab, keySlash)
 	m.SetTab(FiltersTab)
 	if m.Capturing() || m.Tab() != FiltersTab || m.row != rowState {
 		t.Errorf("capturing %v, tab %v, row %d; want the filters' first row", m.Capturing(), m.Tab(), m.row)
@@ -122,7 +122,7 @@ func TestSetTabClosesTheEditor(t *testing.T) {
 func TestTabKeysAreTypedInInputs(t *testing.T) {
 	m := open(t, prSpec(nil))
 	m, _ = press(t, m, keys(down, rowBase)...)
-	m, _ = press(t, m, keyA, nextTab, prevTab, esc)
+	m, _ = press(t, m, keySlash, nextTab, prevTab, esc)
 	if v, _ := m.Value("base"); v.Text() != "main][" || m.Tab() != FiltersTab {
 		t.Errorf("base = %q on %v, want main][ on the filters", v.Text(), m.Tab())
 	}

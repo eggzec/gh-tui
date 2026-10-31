@@ -90,7 +90,7 @@ type finderKeys struct {
 // newFinderKeys returns the keys of the finder, from the context finder.
 func newFinderKeys(keys config.Keymap) finderKeys {
 	look := ui.Lookup(keys, "finder")
-	k := finderKeys{find: finder.NewKeyMap(look)}
+	k := finderKeys{find: ui.FinderKeys(keys)}
 	keymap.Fill(&k, look)
 	return k
 }
