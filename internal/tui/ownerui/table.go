@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -197,7 +198,7 @@ type Table struct {
 
 	// filter is the filter of the table, which the feed's reads use in
 	// their commands.
-	filter atomic.Pointer[Filter]
+	filter atomic.Pointer[repolist.Filter]
 
 	// FullNames names the repositories by owner and name, for a list of
 	// repositories of several owners, such as those a user starred.
@@ -218,11 +219,11 @@ func (t *Table) Cols() Cols { return t.cols }
 
 // keepAll is what Filter returns when none was set. Nothing changes a
 // filter once it is made, so every table may share it.
-var keepAll = &Filter{}
+var keepAll = &repolist.Filter{}
 
 // Filter returns the filter in force, which keeps everything when none
 // was set.
-func (t *Table) Filter() *Filter {
+func (t *Table) Filter() *repolist.Filter {
 	if f := t.filter.Load(); f != nil {
 		return f
 	}
@@ -230,7 +231,7 @@ func (t *Table) Filter() *Filter {
 }
 
 // SetFilter puts f in force for the reads that follow.
-func (t *Table) SetFilter(f *Filter) { t.filter.Store(f) }
+func (t *Table) SetFilter(f *repolist.Filter) { t.filter.Store(f) }
 
 // Remeasure measures the repositories read since it last did, and reports
 // whether the columns need laying out again.

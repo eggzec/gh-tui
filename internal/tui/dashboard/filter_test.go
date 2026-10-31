@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -71,7 +71,7 @@ func TestFilterLists(t *testing.T) {
 		t.Errorf("the filter read %v, want the two pages the list hadn't", got)
 	}
 	o := s.repos.current()
-	pf := ownerui.ParseFilter("is:private language:go")
+	pf := repolist.ParseFilter("is:private language:go")
 	want := pf.Apply(repos("octocat", 250))
 	slices.SortStableFunc(want, func(a, b core.Repo) int { return b.Stars - a.Stars })
 	if o.Feed.Len() != len(want) || len(want) == 0 {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
@@ -20,11 +20,11 @@ func (t *repoTabs) read(o *owner) []core.Repo {
 }
 
 // filter returns the filter in force.
-func (t *repoTabs) filter() *ownerui.Filter { return t.current().Filter() }
+func (t *repoTabs) filter() *repolist.Filter { return t.current().Filter() }
 
 // spec returns the fields of the filter of the repositories, offering the
 // languages of the tab on view.
-func (t *repoTabs) spec() filterform.Spec { return ownerui.Spec(t.read(t.current()), t.filter()) }
+func (t *repoTabs) spec() filterform.Spec { return repolist.Spec(t.read(t.current()), t.filter()) }
 
 // setFilter filters every tab with the filter of query, unless it does
 // already, and lists them again.
@@ -32,7 +32,7 @@ func (t *repoTabs) setFilter(query string) tea.Cmd {
 	if query == t.filter().Query() {
 		return nil
 	}
-	f := ownerui.ParseFilter(query)
+	f := repolist.ParseFilter(query)
 	// The reads ahead of the list as it was filtered stop.
 	t.s.aheadRepos.Reset(t.s.ctx)
 	cmds := make([]tea.Cmd, 0, len(t.tabs))
@@ -59,7 +59,7 @@ func (s *Section) Filter() (ui.Filter, bool) {
 func (s *Section) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 	s.repos.toggle.On()
 	s.repos.sortToggle.On()
-	cmd := s.repos.setFilter(ownerui.WithoutDefaultSort(msg.Query))
+	cmd := s.repos.setFilter(repolist.WithoutDefaultSort(msg.Query))
 	s.render()
 	return cmd
 }

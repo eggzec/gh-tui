@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -318,7 +319,7 @@ func (s *Section) paneLabel(p paneID) string {
 			kept, off := l.toggle.Kept()
 			spec = ui.ChipSpec{FilterOn: !off, SortOn: !l.sortToggle.Off()}
 			if off {
-				f := ownerui.ParseFilter(kept)
+				f := repolist.ParseFilter(kept)
 				spec.Filter = f.Chips(s.icons)
 			} else {
 				spec.Filter = l.Filter().Chips(s.icons)
