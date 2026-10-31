@@ -52,6 +52,7 @@ cache:
     contributions: 12h
     people: 2h
     readme: 3h
+    autolinks: 5h
   memory:
     entries: 512
     files: 16MiB

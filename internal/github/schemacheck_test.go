@@ -195,6 +195,9 @@ var restCalls = []restCall{
 	{Func: "LatestRelease", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/latest", Decode: restRelease{}},
 	{Func: "OrgFollowers", Method: http.MethodGet, Path: "/users/{username}", Decode: restFollowers{}},
 	{Func: "GetUserProfile", Method: http.MethodGet, Path: "/users/{username}", Decode: restProfile{}},
+	{Func: "verify", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}", Decode: restVerifyIssue{}},
+	{Func: "verify", Method: http.MethodGet, Path: "/users/{username}", Decode: restVerifyUser{}},
+	{Func: "verify", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restVerifyCommit{}},
 	{Func: "ListTeamMembers", Method: http.MethodGet, Path: "/orgs/{org}/teams/{team_slug}/members", Query: []string{"per_page"}, Decode: []restTeamMember{}},
 }
 

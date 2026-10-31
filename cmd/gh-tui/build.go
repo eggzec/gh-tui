@@ -23,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	accesssvc "github.com/eggzec/gh-tui/internal/service/access"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	autolinkssvc "github.com/eggzec/gh-tui/internal/service/autolinks"
 	dashsvc "github.com/eggzec/gh-tui/internal/service/dashboard"
 	facetsvc "github.com/eggzec/gh-tui/internal/service/facets"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
@@ -215,6 +216,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		actionssvc.WithStore(entries), actionssvc.WithAccess(access), actionssvc.WithRunPageSize(size.Runs))
 	refSvc := refssvc.New(client, refssvc.WithTTL(ttl.References), refssvc.WithCapacity(mem.Entries), refssvc.WithStore(entries),
 		refssvc.WithPageSize(size.References), refssvc.WithHost(client.WebHost()))
+	// Nothing shows its answers yet: the views that link what a text names
+	// take this service when they read it.
+	_ = autolinkssvc.New(client, autolinkssvc.WithTTL(ttl.Autolinks), autolinkssvc.WithCapacity(mem.Entries), autolinkssvc.WithHost(client.WebHost()))
 	releaseSvc := releasesvc.New(client, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries))
 	searchSvc := searchsvc.New(client, searchsvc.WithTTL(ttl.Search), searchsvc.WithCodeTTL(ttl.CodeSearch), searchsvc.WithCapacity(mem.Entries),
 		searchsvc.WithPageSize(size.Search))

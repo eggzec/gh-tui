@@ -155,6 +155,11 @@ cache:
     # The profile READMEs of user and organization pages. Each has an
     # ETag, so checking it again is free.
     readme: 1h
+    # Whether the #123, @login and commit hashes of a text exist, which
+    # decides if they are linked. Each answer has an ETag, so checking it
+    # again is free. One that doesn't exist is checked again after a tenth
+    # of this.
+    autolinks: 1h
   # What gh-tui keeps in memory. These may only be set at the top level,
   # not for one host or profile.
   memory:
