@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 func TestDigits(t *testing.T) {
@@ -26,7 +28,7 @@ func TestDigits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, w := Digits(tt.keys, tt.cur, Paint{}, Paint{})
+			got, w := Digits(tt.keys, tt.cur, ui.Paint{}, ui.Paint{})
 			if got != tt.want || w != tt.wantWidth {
 				t.Errorf("Digits = %q, %d; want %q, %d", got, w, tt.want, tt.wantWidth)
 			}
@@ -53,7 +55,7 @@ func TestFoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, w := Foot(keys, tiers, 1, Paint{}, Paint{}, tt.maxW)
+			got, w := Foot(keys, tiers, 1, ui.Paint{}, ui.Paint{}, tt.maxW)
 			if got != tt.want || w != ansi.StringWidth(tt.want) {
 				t.Errorf("Foot = %q, %d; want %q", got, w, tt.want)
 			}

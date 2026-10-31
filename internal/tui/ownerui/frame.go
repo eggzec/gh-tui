@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // Digits is the strip of pane keys for the bottom edge of a frame, like the
@@ -11,7 +13,7 @@ import (
 // cur in brackets and painted on, the others off. A pane with no key ("")
 // is left out, and when pane cur has no key, no key is in brackets. It returns the strip and its width, or "" when no pane has a
 // key.
-func Digits(keys []string, cur int, on, off Paint) (strip string, width int) {
+func Digits(keys []string, cur int, on, off ui.Paint) (strip string, width int) {
 	return strip1(keys, nil, cur, on, off)
 }
 
@@ -20,7 +22,7 @@ func Digits(keys []string, cur int, on, off Paint) (strip string, width int) {
 // zoomed pane. It tries each of tiers, a list of titles by pane, from the
 // first, and keeps the first strip no wider than maxW; when none fits, it is
 // the keys alone, as Digits makes them.
-func Foot(keys []string, tiers [][]string, cur int, on, off Paint, maxW int) (strip string, width int) {
+func Foot(keys []string, tiers [][]string, cur int, on, off ui.Paint, maxW int) (strip string, width int) {
 	for _, titles := range tiers {
 		if s, w := strip1(keys, titles, cur, on, off); w <= maxW {
 			return s, w
@@ -31,7 +33,7 @@ func Foot(keys []string, tiers [][]string, cur int, on, off Paint, maxW int) (st
 
 // strip1 writes one strip: each key, with the title of its pane after it
 // when titles has one, the one of pane cur in brackets.
-func strip1(keys, titles []string, cur int, on, off Paint) (strip string, width int) {
+func strip1(keys, titles []string, cur int, on, off ui.Paint) (strip string, width int) {
 	var b strings.Builder
 	n := 0
 	sep := " "

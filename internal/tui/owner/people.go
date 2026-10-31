@@ -248,7 +248,7 @@ func (s *Section) newRow() *row {
 // cell adds plain text, cut to w cells and padded to them, on the left or
 // on the right, in paint, and linked to the address link if it isn't "".
 // A width of 0 adds nothing.
-func (r *row) cell(text string, w int, right bool, paint ownerui.Paint, link string) {
+func (r *row) cell(text string, w int, right bool, paint ui.Paint, link string) {
 	if w <= 0 {
 		return
 	}
