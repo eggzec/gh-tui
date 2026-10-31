@@ -246,13 +246,13 @@ func (s *Section) paneExtras(p paneID) string {
 
 // profileHeight is how many lines the profile takes.
 func (s *Section) profileHeight() int {
-	return ownerui.ProfileHeight(s.avatarShown())
+	return repolist.ProfileHeight(s.avatarShown())
 }
 
 // avatarShown reports whether the profile shows the viewer's avatar:
 // where avatars are drawn, on a dashboard wide enough.
 func (s *Section) avatarShown() bool {
-	return s.avatars.Shown() && s.width >= ownerui.MinAvatarWidth
+	return s.avatars.Shown() && s.width >= repolist.MinAvatarWidth
 }
 
 // drawer draws the profile and the pinned cards in the dashboard's styles.
@@ -266,7 +266,7 @@ func (s *Section) profile() []string {
 	st, w := &s.st, s.width
 	n := s.profileHeight()
 	if w <= 2 {
-		return ownerui.BlankProfile(w, n)
+		return repolist.BlankProfile(w, n)
 	}
 	avatar := ""
 	if s.header.ok {
