@@ -43,6 +43,28 @@ type Layer struct {
 	Short []key.Binding
 }
 
+// SameBinding reports whether a and b are the same binding, in the same
+// state: enabled alike, with the same help and keys.
+func SameBinding(a, b key.Binding) bool {
+	return a.Enabled() == b.Enabled() && a.Help() == b.Help() && slices.Equal(a.Keys(), b.Keys())
+}
+
+// Equal reports whether l and o hold the same bindings, in the same state,
+// so that the hints they give are the same. It compares Source, Typing,
+// Bindings and Short, and not Context or Actions.
+func (l Layer) Equal(o Layer) bool {
+	return l.Source == o.Source && l.Typing == o.Typing &&
+		slices.EqualFunc(l.Bindings, o.Bindings, SameBinding) && slices.EqualFunc(l.Short, o.Short, SameBinding)
+}
+
+// Clone returns a copy of l whose Bindings and Short its maker can't change,
+// as a section may keep its bindings and change them later.
+func (l Layer) Clone() Layer {
+	l.Bindings = slices.Clone(l.Bindings)
+	l.Short = slices.Clone(l.Short)
+	return l
+}
+
 // FromHelp returns the layer of km: its full help, flattened, and its
 // short help.
 func FromHelp(source string, km help.KeyMap, typing bool) Layer {

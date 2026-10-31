@@ -84,10 +84,14 @@ func (m *Model) bar() string {
 // the keys, so that is done again only when the keys changed.
 func (m *Model) refreshBar() {
 	layers := m.keyLayers()
-	if sameLayers(layers, m.layers) {
+	if slices.EqualFunc(layers, m.layers, keyhelp.Layer.Equal) {
 		return
 	}
-	m.layers = cloneLayers(layers)
+	// A section may keep its bindings and change them later, so keep copies.
+	m.layers = make([]keyhelp.Layer, len(layers))
+	for i, l := range layers {
+		m.layers[i] = l.Clone()
+	}
 	m.drawHints()
 }
 
@@ -109,11 +113,10 @@ func (m *Model) drawHints() {
 	left := make([]statusbar.Item, 0, len(short))
 	for i, b := range short {
 		rank := rankHint
-		if i == 0 && sameBinding(b, help) {
+		if i == 0 && keyhelp.SameBinding(b, help) {
 			rank = rankHelp
 		}
-		form := m.bst.key.Render(b.Help().Key) + " " + m.bst.desc.Render(b.Help().Desc)
-		left = append(left, statusbar.Item{Forms: []string{form}, Rank: rank})
+		left = append(left, statusbar.Hint(b.Help().Key, b.Help().Desc, m.bst.key, m.bst.desc, rank))
 	}
 	m.hints = left
 	m.status.SetItems(m.hints, m.stats)
@@ -303,7 +306,7 @@ func (m *Model) ratesItem() statusbar.Item {
 		if share(q) < core.LowQuotaShare {
 			v = st.low
 		}
-		parts = append(parts, st.label.Render(quotaName(q.Resource)+" ")+v.Render(grouped(q.Remaining)+"/"+grouped(q.Limit)))
+		parts = append(parts, statusbar.Pair(quotaName(q.Resource), grouped(q.Remaining)+"/"+grouped(q.Limit), st.label, v))
 		if q.Reset.After(m.rate.At) && (reset.IsZero() || q.Reset.Before(reset)) {
 			reset = q.Reset
 		}
@@ -312,7 +315,7 @@ func (m *Model) ratesItem() statusbar.Item {
 		held += q.Held
 	}
 	if !reset.IsZero() {
-		parts = append(parts, st.label.Render("resets ")+st.value.Render(ui.Clock(reset, m.rate.At)))
+		parts = append(parts, statusbar.Pair("resets", ui.Clock(reset, m.rate.At), st.label, st.value))
 	}
 	if held > 0 {
 		parts = append(parts, st.warn.Render(strconv.Itoa(held)+" held"))
@@ -327,7 +330,7 @@ func (m *Model) ratesItem() statusbar.Item {
 		// What is left isn't all spent.
 		pct = "<1%"
 	}
-	compact := st.label.Render(quotaName(tight.Resource)+" ") + v.Render(pct)
+	compact := statusbar.Pair(quotaName(tight.Resource), pct, st.label, v)
 	return statusbar.Item{Forms: []string{strings.Join(parts, sep), compact}, Rank: rankRates}
 }
 
@@ -365,30 +368,4 @@ func grouped(n int) string {
 		b.WriteRune(r)
 	}
 	return b.String()
-}
-
-// sameBinding reports whether a and b are the same binding, in the same
-// state.
-func sameBinding(a, b key.Binding) bool {
-	return a.Enabled() == b.Enabled() && a.Help() == b.Help() && slices.Equal(a.Keys(), b.Keys())
-}
-
-// sameLayers reports whether a and b hold the same bindings, in the same
-// state, so that the hints they give are the same.
-func sameLayers(a, b []keyhelp.Layer) bool {
-	return slices.EqualFunc(a, b, func(x, y keyhelp.Layer) bool {
-		return x.Source == y.Source && x.Typing == y.Typing &&
-			slices.EqualFunc(x.Bindings, y.Bindings, sameBinding) && slices.EqualFunc(x.Short, y.Short, sameBinding)
-	})
-}
-
-// cloneLayers returns a copy of layers that what made them can't change,
-// as a section may keep its bindings and change them later.
-func cloneLayers(layers []keyhelp.Layer) []keyhelp.Layer {
-	out := slices.Clone(layers)
-	for i := range out {
-		out[i].Bindings = slices.Clone(out[i].Bindings)
-		out[i].Short = slices.Clone(out[i].Short)
-	}
-	return out
 }
