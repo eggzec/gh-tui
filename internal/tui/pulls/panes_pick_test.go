@@ -96,7 +96,7 @@ func TestLabelsOpenFromPanes(t *testing.T) {
 		t.Run(paneName(focus), func(t *testing.T) {
 			t.Parallel()
 			h, m := labeling(t, newFakeService())
-			m.focus = focus
+			m.nav.SetFocus(focus)
 			press(t, h, "L")
 			labelsOverlayOf(t, m)
 		})

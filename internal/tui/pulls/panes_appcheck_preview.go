@@ -50,7 +50,7 @@ func (p *mergePane) checkOf(id string) (core.CommitCheck, bool) {
 // shows, when it is shown and the modal can read annotations.
 func (m *panesModal) hoveredCheck() (core.CommitCheck, bool) {
 	p := m.merge
-	if p == nil || m.checks == nil || m.focus != paneMerge || m.closed {
+	if p == nil || m.checks == nil || m.nav.Focus() != paneMerge || m.closed {
 		return core.CommitCheck{}, false
 	}
 	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {

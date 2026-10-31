@@ -14,7 +14,7 @@ func descPanes(t *testing.T, title, body string) (*panesModal, *fakeService) {
 	t.Helper()
 	m, svc := reviewPanes(t)
 	m.detail.Title, m.detail.Body = title, body
-	m.focus = paneDescription
+	m.nav.SetFocus(paneDescription)
 	m.View()
 	return m, svc
 }

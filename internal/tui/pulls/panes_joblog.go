@@ -110,7 +110,7 @@ func (p *mergePane) jobOf(id string) (core.CommitCheck, bool) {
 // shown and the modal can read logs.
 func (m *panesModal) hoveredJob() (core.CommitCheck, bool) {
 	p := m.merge
-	if p == nil || m.checks == nil || m.focus != paneMerge || m.closed {
+	if p == nil || m.checks == nil || m.nav.Focus() != paneMerge || m.closed {
 		return core.CommitCheck{}, false
 	}
 	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {

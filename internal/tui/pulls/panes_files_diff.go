@@ -42,7 +42,7 @@ func (pv *filesDiff) drop() {
 // filesDiffFocused reports that the diff beside the tree has the keys.
 func (m *panesModal) filesDiffFocused() bool {
 	pv := &m.files.pv
-	return pv.on && m.focus == paneFiles && m.sub[paneFiles-1] == panes.Preview && m.top() == nil
+	return pv.on && m.nav.Focus() == paneFiles && m.nav.Sub(paneFiles) == panes.Preview && m.top() == nil
 }
 
 // syncFilesDiff makes the diff beside the tree the diff of the file the tree

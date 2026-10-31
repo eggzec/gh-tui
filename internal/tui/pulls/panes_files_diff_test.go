@@ -132,8 +132,8 @@ func TestFilesDiffTabFocusesIt(t *testing.T) {
 	hoverFile(t, h, m)
 	path := m.files.pv.path
 	press(t, h, "tab")
-	if m.sub[paneFiles-1] != panes.Preview || !m.files.pv.o.d.Focused() {
-		t.Fatalf("tab left box %v, diff focused %v", m.sub[paneFiles-1], m.files.pv.o.d.Focused())
+	if m.nav.Sub(paneFiles) != panes.Preview || !m.files.pv.o.d.Focused() {
+		t.Fatalf("tab left box %v, diff focused %v", m.nav.Sub(paneFiles), m.files.pv.o.d.Focused())
 	}
 	at := m.files.pv.o.d.Cursor()
 	press(t, h, "j")
@@ -144,8 +144,8 @@ func TestFilesDiffTabFocusesIt(t *testing.T) {
 		t.Errorf("j changed the file to %q", m.files.pv.path)
 	}
 	press(t, h, "tab")
-	if m.sub[paneFiles-1] != panes.List || m.files.pv.o.d.Focused() {
-		t.Errorf("tab left box %v, diff focused %v", m.sub[paneFiles-1], m.files.pv.o.d.Focused())
+	if m.nav.Sub(paneFiles) != panes.List || m.files.pv.o.d.Focused() {
+		t.Errorf("tab left box %v, diff focused %v", m.nav.Sub(paneFiles), m.files.pv.o.d.Focused())
 	}
 }
 

@@ -138,8 +138,8 @@ func TestConvPaneCachedFirst(t *testing.T) {
 func TestConvPaneKeysMoveCursor(t *testing.T) {
 	t.Parallel()
 	_, m := convModal(t, convService())
-	if m.focus != paneConversation {
-		t.Fatalf("the modal focuses %v, want Conversation", m.focus)
+	if m.nav.Focus() != paneConversation {
+		t.Fatalf("the modal focuses %v, want Conversation", m.nav.Focus())
 	}
 	before, v := ansi.Strip(m.View()), m.conv.version
 	m.Update(keyMsg("down"))
@@ -147,7 +147,7 @@ func TestConvPaneKeysMoveCursor(t *testing.T) {
 		t.Errorf("down didn't change the frame (version %d, was %d)", m.conv.version, v)
 	}
 
-	m.focus = paneDescription
+	m.nav.SetFocus(paneDescription)
 	m.syncConvFocus()
 	v = m.conv.version
 	m.Update(keyMsg("down"))
@@ -161,15 +161,15 @@ func TestConvPaneModalKeysWin(t *testing.T) {
 	_, m := convModal(t, convService())
 
 	m.press(keyMsg("3"))
-	if m.focus != paneMerge {
-		t.Errorf("3 focused %v, want Merge", m.focus)
+	if m.nav.Focus() != paneMerge {
+		t.Errorf("3 focused %v, want Merge", m.nav.Focus())
 	}
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	m.press(keyMsg("tab"))
-	if m.focus == paneConversation {
+	if m.nav.Focus() == paneConversation {
 		t.Error("tab stayed on the conversation")
 	}
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	m.press(keyMsg("z"))
 	if !m.zoom.Zoomed() {
 		t.Error("z didn't zoom the conversation")

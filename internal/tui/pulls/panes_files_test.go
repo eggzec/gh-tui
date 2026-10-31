@@ -57,7 +57,7 @@ func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)
 	if !m.files.loaded {
 		tb.Fatalf("the commits were not read: %+v", m.files)
 	}
-	m.focus = paneFiles
+	m.nav.SetFocus(paneFiles)
 	modalScreen(tb, h)
 	return h, m, svc
 }
@@ -241,10 +241,10 @@ func TestFilesPaneChecksWithoutService(t *testing.T) {
 func TestShowCommit(t *testing.T) {
 	t.Parallel()
 	h, m, _ := commitPanes(t, sampleCommits(nil))
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	m.showCommit("ccc3333")
-	if m.focus != paneFiles {
-		t.Errorf("focus = %v, want the Files pane", m.focus)
+	if m.nav.Focus() != paneFiles {
+		t.Errorf("focus = %v, want the Files pane", m.nav.Focus())
 	}
 	if m.files.rng != (files.Range{First: 2, Last: 2}) {
 		t.Errorf("range = %+v, want only the commit", m.files.rng)

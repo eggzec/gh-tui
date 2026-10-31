@@ -50,7 +50,7 @@ func enterPanes(t *testing.T, threads []core.Thread) (*host, *panesModal, *fakeS
 // the diff it opened and the messages that came.
 func enterThread(t *testing.T, h *host, m *panesModal, th core.Thread, kind string) (o *diffOverlay, msgs []tea.Msg) {
 	t.Helper()
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	seq, found := m.files.seq, m.found
 	cmd := m.Update(conv.EnterMsg{ID: "x", Kind: kind, Thread: &th, Comment: &th.Comments[0]})
 	// The reads that the cmd brings sync the viewed marks, which bumps the draw

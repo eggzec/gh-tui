@@ -139,8 +139,7 @@ func (m *panesModal) chooseFile(path string) {
 	m.found = path
 	// The pane is drawn again to select it, even when it had the focus.
 	m.files.seq++
-	m.focus = paneFiles
-	m.resetSub()
+	m.nav.SetFocus(paneFiles)
 }
 
 // openFound shows the file the finder chose in the Files pane, and its diff

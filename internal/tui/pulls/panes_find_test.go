@@ -48,7 +48,7 @@ func changedSample() []core.CommitFile {
 func TestFindChoosesAChangedFile(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	press(t, h, "ctrl+p")
 	o := finderTop(m)
 	if o == nil {
@@ -65,15 +65,15 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 	if finderTop(m) != nil || len(m.overlays) != 1 {
 		t.Error("choosing a file left the finder open")
 	}
-	if m.focus != paneFiles || m.found != "internal/config/default.yaml" {
-		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.focus, m.found)
+	if m.nav.Focus() != paneFiles || m.found != "internal/config/default.yaml" {
+		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.nav.Focus(), m.found)
 	}
 }
 
 func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.focus = paneConversation
+	m.nav.SetFocus(paneConversation)
 	press(t, h, "ctrl+p")
 	if finderTop(m) == nil {
 		t.Fatal("the find key opened no finder")
@@ -82,8 +82,8 @@ func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	if m.top() != nil || m.closed || h.modal() != m {
 		t.Errorf("esc left open %v, modal closed %v, want only the finder closed", m.top() != nil, m.closed)
 	}
-	if m.focus != paneConversation || m.found != "" {
-		t.Errorf("focus %v and found %q after esc, want them as before", m.focus, m.found)
+	if m.nav.Focus() != paneConversation || m.found != "" {
+		t.Errorf("focus %v and found %q after esc, want them as before", m.nav.Focus(), m.found)
 	}
 }
 
