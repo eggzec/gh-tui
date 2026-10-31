@@ -17,8 +17,9 @@ type userSearchResults struct {
 
 // userSearchHit is the REST shape of an account in user search results.
 type userSearchHit struct {
-	Login string `json:"login"`
-	Type  string `json:"type"`
+	Login   string `json:"login"`
+	Type    string `json:"type"`
+	HTMLURL string `json:"html_url"`
 }
 
 func (h userSearchHit) core() core.SearchUser {
@@ -26,7 +27,7 @@ func (h userSearchHit) core() core.SearchUser {
 	if h.Type == "Organization" {
 		kind = core.OwnerOrg
 	}
-	return core.SearchUser{Login: h.Login, Kind: kind}
+	return core.SearchUser{Login: h.Login, Kind: kind, URL: h.HTMLURL}
 }
 
 // SearchUsers returns a page of the accounts that match query, best match

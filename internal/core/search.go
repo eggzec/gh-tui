@@ -46,6 +46,8 @@ type SearchCommit struct {
 	// when the author has no account.
 	Author string
 	Date   time.Time
+	// URL is the commit's page on GitHub.
+	URL string
 }
 
 // SearchUser is an account that matches a user or organization search.
@@ -53,6 +55,8 @@ type SearchUser struct {
 	Login string
 	// Kind is OwnerUser or OwnerOrg.
 	Kind OwnerKind
+	// URL is the account's page on GitHub.
+	URL string
 }
 
 // SearchHit is one search result: a repository, an issue or pull request,
