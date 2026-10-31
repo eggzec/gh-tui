@@ -2,7 +2,6 @@ package conv
 
 import (
 	"context"
-	"strings"
 	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
@@ -11,7 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // minWidth is the narrowest conversation that is drawn; a narrower one is
@@ -321,13 +319,13 @@ func (m Model) kept() bool {
 // View draws the conversation in exactly the width and height it has.
 func (m Model) View() string {
 	if m.width < minWidth || m.height <= 0 {
-		return fit(nil, m.width, m.height)
+		return foldtree.Fit(nil, m.width, m.height)
 	}
 	v := m.views[m.cur]
 	// Rows that can't be built from what one source read, such as threads
 	// without their reviews, leave the error to say what is missing.
 	if !m.ready() || (len(v.rows) == 0 && m.failed()) {
-		return fit(m.placeholder(), m.width, m.height)
+		return foldtree.Fit(m.placeholder(), m.width, m.height)
 	}
 	return v.tree.View()
 }
@@ -342,20 +340,4 @@ func (m Model) placeholder() []string {
 		}
 	}
 	return []string{m.opts.Styles.dim.Render("loading")}
-}
-
-// fit returns lines as a block of exactly width cells and height lines.
-func fit(lines []string, width, height int) string {
-	if height <= 0 {
-		return ""
-	}
-	out := make([]string, height)
-	for i := range out {
-		var l string
-		if i < len(lines) {
-			l = lines[i]
-		}
-		out[i] = termtext.Fit(l, width, "")
-	}
-	return strings.Join(out, "\n")
 }

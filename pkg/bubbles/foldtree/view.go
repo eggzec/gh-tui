@@ -9,6 +9,25 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
+// Fit returns lines as a block of exactly width cells and height lines:
+// each line is cut or padded to width, and missing lines are blank. It is
+// for what stands in the tree's place, such as a loading or error line. It
+// returns "" when height is not positive.
+func Fit(lines []string, width, height int) string {
+	if height <= 0 {
+		return ""
+	}
+	out := make([]string, height)
+	for i := range out {
+		var l string
+		if i < len(lines) {
+			l = lines[i]
+		}
+		out[i] = termtext.Fit(l, width, "")
+	}
+	return strings.Join(out, "\n")
+}
+
 // View draws the window of the tree: exactly Height lines of Width cells.
 func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
