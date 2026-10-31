@@ -408,12 +408,18 @@ func (s *Section) hitURL(hit core.SearchHit) string {
 		return s.repoURL(hit.Repo)
 	}
 	if hit.Kind == core.SearchUsers {
+		if hit.User.URL != "" {
+			return hit.User.URL
+		}
 		return ui.WebURL(s.host, hit.User.Login)
 	}
 	if hit.Kind == core.SearchTopics {
 		return ui.WebURL(s.host, "topics/"+hit.Topic.Name)
 	}
 	if hit.Kind == core.SearchCommits {
+		if hit.Commit.URL != "" {
+			return hit.Commit.URL
+		}
 		return ui.WebURL(s.host, hit.Commit.Repo.String()+"/commit/"+hit.Commit.SHA)
 	}
 	return hit.Issue.URL

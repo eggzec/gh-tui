@@ -19,8 +19,9 @@ type commitSearchResults struct {
 
 // commitSearchHit is the REST shape of a commit in commit search results.
 type commitSearchHit struct {
-	SHA    string `json:"sha"`
-	Commit struct {
+	SHA     string `json:"sha"`
+	HTMLURL string `json:"html_url"`
+	Commit  struct {
 		Message string `json:"message"`
 		Author  struct {
 			Name string    `json:"name"`
@@ -49,6 +50,7 @@ func (h commitSearchHit) core() core.SearchCommit {
 		Subject: termtext.OneLine(subject),
 		Author:  termtext.OneLine(author),
 		Date:    h.Commit.Author.Date,
+		URL:     h.HTMLURL,
 	}
 }
 
