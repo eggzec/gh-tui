@@ -224,17 +224,18 @@ func (s *Section) countLabel() string {
 
 // resultsLabel names the results on view.
 func (s *Section) resultsLabel() string {
-	label := kindTitles[s.kind]
+	spec := ui.TitleSpec{Name: kindTitles[s.kind], Sep: s.icons.Separator}
 	if s.text == "" {
-		return label
+		return ui.Title(spec)
 	}
 	if _, ok := s.staleView(); ok {
-		return label + " " + s.spin.View()
+		spec.Name += " " + s.spin.View()
+		return ui.Title(spec)
 	}
 	if chip := s.grouping.Chip(s.icons.Separator); s.kind == core.SearchRepos && chip != "" {
-		label += s.icons.Separator + chip
+		spec.Chips = []string{chip}
 	}
-	return label
+	return ui.Title(spec)
 }
 
 // wait is how long until code search resumes, such as "42s" or "1m 5s".

@@ -1363,6 +1363,14 @@ func TestClearFilterIsTheRunsKey(t *testing.T) {
 	}
 }
 
+func TestRunsTitleDimsTheSeparator(t *testing.T) {
+	m, _ := newModal(t, newFake(), wideW, wideH, WithFilter(core.RunFilter{Branch: "main"}))
+	got := m.paneTitle(runsPane, 80)
+	if want := m.st.Subtle.Render(m.st.ic.Separator); !strings.Contains(got, want) {
+		t.Errorf("the title %q lacks the dim separator %q", got, want)
+	}
+}
+
 // Alt+f lists the runs without the filter of the form and brings it back,
 // keeping the tab and the commit; F clears the kept filter and ends the
 // switch, and with no filter there is nothing to switch.

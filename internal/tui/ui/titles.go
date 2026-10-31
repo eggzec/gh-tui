@@ -41,6 +41,8 @@ type TitleSpec struct {
 	// part plain; a lipgloss style's Render fits. The key is styled with
 	// the name.
 	NameStyle, ChipStyle, CountStyle func(...string) string
+	// SepStyle styles each Sep written between parts; nil leaves it plain.
+	SepStyle func(...string) string
 }
 
 // Title builds a pane or modal title. When it does not fit Width it drops
@@ -57,6 +59,7 @@ func Title(s TitleSpec) string {
 	if s.Count != "" {
 		count = style(s.CountStyle, s.Count)
 	}
+	sep := style(s.SepStyle, s.Sep)
 	build := func(chips int, key bool) string {
 		name := s.Name
 		if key && s.Key != "" {
@@ -65,7 +68,7 @@ func Title(s TitleSpec) string {
 		var line strings.Builder
 		line.WriteString(style(s.NameStyle, name))
 		for _, c := range s.Chips[:chips] {
-			line.WriteString(s.Sep)
+			line.WriteString(sep)
 			line.WriteString(style(s.ChipStyle, c))
 		}
 		return line.String()
@@ -73,7 +76,7 @@ func Title(s TitleSpec) string {
 	if s.Width <= 0 {
 		line := build(len(s.Chips), true)
 		if count != "" {
-			line += s.Sep + count
+			line += sep + count
 		}
 		return line
 	}

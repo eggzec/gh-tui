@@ -104,7 +104,7 @@ func (l *logModal) Title() string {
 	if n := len(l.attempts); n > 1 {
 		name = fmt.Sprintf("%d/%d attempt %d  %s", l.at+1, n, l.attempts[l.at].attempt, name)
 	}
-	return name + l.parent.opts.icons.Separator + l.parent.repo.String()
+	return ui.Title(ui.TitleSpec{Name: name, Chips: []string{l.parent.repo.String()}, Sep: l.parent.opts.icons.Separator})
 }
 
 // SetSize sizes the log.
