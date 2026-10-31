@@ -350,11 +350,6 @@ func (m *Model[T]) Activate() (tea.Cmd, bool) {
 	return nil, false
 }
 
-// moreText reads the row of the items not loaded.
-func (m Model[T]) moreText() string {
-	return "more not loaded"
-}
-
 // members returns the items the groups cover, in the order of the feed: those
 // the quick filter keeps, or every loaded one without it.
 func (m Model[T]) members() []int {

@@ -243,6 +243,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		feed.WithMarkKeys(s.keys.mark),
 		feed.WithPromptKeys(s.keys.search),
 		feed.WithErrorText(ui.ErrorText("load the notifications", "", s.voice)),
+		feed.WithMoreText("More notifications are available."),
 	)
 	s.SetTheme(ui.NewTheme(defaultPalette(), true))
 	return s
@@ -255,8 +256,8 @@ const maxPages = 50
 // list reads the notifications for the feed, and keeps the threads the
 // filter does. The inbox is small, so it follows every page from the cursor
 // and gives them as one: the list is complete and its count exact. Past
-// maxPages it gives the cursor of the rest, which the feed shows as more not
-// loaded. While the token may not read notifications, it reads nothing.
+// maxPages it gives the cursor of the rest, which the feed shows as a hint
+// that more are available. While the token may not read notifications, it reads nothing.
 func (s *Section) list(ctx context.Context, q notifications.ListQuery, again bool) (core.Page[core.Notification], error) {
 	// The section says why in place of the list, so the refusal isn't a
 	// failure of the list.
