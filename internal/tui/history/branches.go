@@ -396,7 +396,7 @@ func (m *Modal) branchStatus(w int) []string {
 	case b.loading:
 		s = m.spin.View() + m.st.muted.Render("Loading"+m.st.ic.Ellipsis)
 	case b.loaded && len(b.items) == 0:
-		s = m.st.muted.Render("No branches.")
+		s = m.st.muted.Render(ui.None("branches"))
 	default:
 		return nil
 	}

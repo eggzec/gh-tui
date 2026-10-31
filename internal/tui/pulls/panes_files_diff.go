@@ -217,7 +217,7 @@ func (m *panesModal) filesPreview(panes.Box) string {
 	case !f.read.done:
 		return m.theme.Subtle.Render("Loading the files" + m.icons.Ellipsis)
 	case !pv.on && len(pv.order) == 0 && pv.src != nil:
-		return m.theme.Subtle.Render("No files in this range.")
+		return m.theme.Subtle.Render(ui.None("files in this range"))
 	case !pv.on:
 		return m.theme.Subtle.Render("Loading the diff" + m.icons.Ellipsis)
 	}

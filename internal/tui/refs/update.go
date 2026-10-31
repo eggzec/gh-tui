@@ -334,9 +334,11 @@ func (s *Step) setFilter(text string) tea.Cmd {
 	s.filter = text
 	var cmd tea.Cmd
 	if text == "" {
+		s.tree.SetEmptyText(ui.None("links"))
 		s.tree.SetFilter(nil)
 		s.asked = false
 	} else {
+		s.emptyText()
 		s.tree.SetFilter(matcher(text))
 		if s.refs.Mentioned > 0 && !s.asked {
 			// Once per filter, so that a read that fails isn't tried again
@@ -348,6 +350,12 @@ func (s *Step) setFilter(text string) tea.Cmd {
 	s.headings()
 	s.layout()
 	return cmd
+}
+
+// emptyText words the tree's empty list for the filter in force, with the
+// key that clears it.
+func (s *Step) emptyText() {
+	s.tree.SetEmptyText(ui.NoMatch("links", ui.KeyOf(s.opts.icons, s.keys.Dismiss)))
 }
 
 // matcher returns what tells whether a row holds every word of text,

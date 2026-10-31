@@ -153,7 +153,7 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 		tree.WithStyles(s.styles),
 		tree.WithSize(s.width, s.height),
 		tree.WithFocused(s.focused),
-		tree.WithEmptyText("This repository is empty."),
+		tree.WithEmptyText(ui.None("files")),
 		tree.WithIcons(s.fileIcons.node),
 		tree.WithErrorText(ui.ErrorText("load the files", repo.String(), v)),
 	)
