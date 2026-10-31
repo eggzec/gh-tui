@@ -37,6 +37,8 @@ type Styles struct {
 	// default, spinner.Dot. As many frames as the default has keep the
 	// spinner drawing when they change while it spins.
 	SpinnerFrames spinner.Spinner
+	// Stale styles the rows kept while new ones load.
+	Stale lipgloss.Style
 	// Loading styles the text of the loading row.
 	Loading lipgloss.Style
 	// Empty styles the text shown when there are no items.
@@ -90,6 +92,7 @@ func DefaultStyles(isDark bool) Styles {
 		MarkGlyph:      "◆",
 		Placeholder:    lipgloss.NewStyle().Foreground(subtle),
 		Spinner:        lipgloss.NewStyle().Foreground(accent),
+		Stale:          lipgloss.NewStyle().Foreground(subtle),
 		Loading:        lipgloss.NewStyle().Foreground(muted),
 		Empty:          lipgloss.NewStyle().Foreground(muted),
 		Error:          lipgloss.NewStyle().Foreground(errColor),

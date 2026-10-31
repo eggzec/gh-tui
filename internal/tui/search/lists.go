@@ -5,11 +5,9 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -318,27 +316,16 @@ func (s *Section) leaveOthers() {
 // keepStale keeps the results of kind k on view, if any, to show dimmed
 // until those of the query that replaces them arrive.
 func (s *Section) keepStale(k core.SearchKind) {
-	var view string
+	var lines []string
 	switch {
-	case k == core.SearchCode && s.code != nil && s.code.feed.Len() > 0:
-		view = s.code.feed.View()
-	case k != core.SearchCode && s.hits[k] != nil && s.hits[k].feed.Len() > 0:
-		view = s.hits[k].feed.View()
+	case k == core.SearchCode && s.code != nil:
+		lines = s.code.feed.Dimmed()
+	case k != core.SearchCode && s.hits[k] != nil:
+		lines = s.hits[k].feed.Dimmed()
 	}
-	if view == "" {
-		return
+	if len(lines) > 0 {
+		s.stale[k] = lines
 	}
-	lines := strings.Split(ansi.Strip(view), "\n")
-	for i, l := range lines {
-		lines[i] = s.st.subtle.render(l)
-	}
-	s.stale[k] = lines
-}
-
-// loading reports whether f has nothing to show yet: no result, no end
-// and no error.
-func loading[T any](f *feed.Model[T]) bool {
-	return f.Len() == 0 && !f.Done() && f.Err() == nil
 }
 
 // staleView returns the dimmed results of the query before, while those
@@ -348,11 +335,11 @@ func (s *Section) staleView() ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	if l, ok := s.visibleHits(); ok && !loading(&l.feed) {
+	if l, ok := s.visibleHits(); ok && !l.feed.Loading() {
 		delete(s.stale, s.kind)
 		return nil, false
 	}
-	if l, ok := s.visibleCode(); ok && !loading(&l.feed) {
+	if l, ok := s.visibleCode(); ok && !l.feed.Loading() {
 		delete(s.stale, s.kind)
 		return nil, false
 	}
