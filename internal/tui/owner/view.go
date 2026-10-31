@@ -337,13 +337,13 @@ func (s *Section) paneLabel(p paneID) string {
 
 // profileHeight is how many lines the profile takes.
 func (s *Section) profileHeight() int {
-	return ownerui.ProfileHeight(s.avatarShown())
+	return repolist.ProfileHeight(s.avatarShown())
 }
 
 // avatarShown reports whether the profile shows the avatar of the account:
 // where avatars are drawn, on a page wide enough.
 func (s *Section) avatarShown() bool {
-	return s.avatars.Shown() && s.width >= ownerui.MinAvatarWidth
+	return s.avatars.Shown() && s.width >= repolist.MinAvatarWidth
 }
 
 // drawer draws the profile, the pinned cards and the rows in the page's
@@ -361,7 +361,7 @@ func (s *Section) profile() []string {
 	w, n := s.width, s.profileHeight()
 	p := s.page
 	if w <= 2 || p == nil {
-		return ownerui.BlankProfile(w, n)
+		return repolist.BlankProfile(w, n)
 	}
 	h := p.header
 	var box []string
