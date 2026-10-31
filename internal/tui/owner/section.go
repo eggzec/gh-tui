@@ -16,7 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
+	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -200,7 +200,7 @@ type page struct {
 	// earlier one are dropped.
 	gen    int
 	header read[core.Owner]
-	pinned ownerui.Cards
+	pinned repolist.Cards
 	// lists are the lists of the tabs, made once the header says whether
 	// the account is a user or an organization, and read once their tab
 	// is on view.
