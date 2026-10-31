@@ -42,6 +42,8 @@ type Styles struct {
 	Loading lipgloss.Style
 	// Empty styles the text shown when there are no nodes.
 	Empty lipgloss.Style
+	// EmptyTitle styles the title of [WithEmpty]; its hint takes Empty.
+	EmptyTitle lipgloss.Style
 	// Error styles the message of a failed load.
 	Error lipgloss.Style
 	// ErrorGlyph starts the message of a failed load. The default is "✗".

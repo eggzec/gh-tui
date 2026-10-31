@@ -19,6 +19,8 @@ type settings struct {
 	width       int
 	height      int
 	emptyText   string
+	emptyTitle  string
+	emptyHint   string
 	errorText   func(error) (text, hint string)
 	keyMap      KeyMap
 	styles      Styles
@@ -75,6 +77,17 @@ func WithSize(width, height int) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithEmpty sets a title and a hint for a tree that has no nodes, shown
+// centred in the tree's size: the title, a blank line and the hint. It is
+// for a tree that has nothing to load, such as one made before its source
+// is chosen, so it shows in place of the loading line too, though not of an
+// error. While the title is not empty it wins over [WithEmptyText].
+func WithEmpty(title, hint string) Option {
+	return func(s *settings) {
+		s.emptyTitle, s.emptyHint = title, hint
 	}
 }
 

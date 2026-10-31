@@ -193,6 +193,7 @@ func (t Theme) Tree(ic Icons) tree.Styles {
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.EmptyTitle = t.Title
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
 	return s
