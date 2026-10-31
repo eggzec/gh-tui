@@ -191,6 +191,7 @@ func (v *markdownView) render(name, src string) pager.Render {
 		if v.md == nil {
 			v.md = markdown.New(v.theme.Thread(v.icons).Markdown)
 			v.md.SetGlyphs(v.icons.Markdown)
+			v.md.SetLinkColor(v.theme.LinkColor())
 			v.md.SetHint(rawHint)
 			v.md.SetRelativePictures(true)
 			v.md.SetLinks(v.link)

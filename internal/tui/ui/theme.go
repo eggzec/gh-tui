@@ -159,6 +159,9 @@ func (t Theme) Feed(ic Icons) feed.Styles {
 	return s
 }
 
+// LinkColor is the colour of the text of a link in a body.
+func (t Theme) LinkColor() color.Color { return lipgloss.Color(t.Palette.Accent) }
+
 // Thread returns the styles of a document with comments.
 func (t Theme) Thread(ic Icons) thread.Styles {
 	s := thread.DefaultStyles(t.Dark)
@@ -167,6 +170,7 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.Pointer, s.Ellipsis = ic.Crumb, ic.Ellipsis
 	s.MarkdownGlyphs = ic.Markdown
+	s.MarkdownLink = t.LinkColor()
 	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))

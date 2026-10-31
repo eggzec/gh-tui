@@ -73,6 +73,10 @@ type Renderer struct {
 	resolve func(addr string) string
 	urls    []string
 	linking bool
+	// autolink says which references of a text are links, and linkFg is
+	// the sequence that sets the colour of the text of a link, or "".
+	autolink Autolink
+	linkFg   string
 }
 
 // Pictures returns the lines that draw the image at url in at most width
@@ -92,6 +96,8 @@ type rendered struct {
 	text  string
 	heads []Head
 	slots []slot
+	// answers is what the Autolink said of the references of the text.
+	answers []answer
 }
 
 // slot is an image that stands alone on its lines, the room it had, and
@@ -268,8 +274,12 @@ func (r *Renderer) get(src string, width int, open []int) rendered {
 
 // drawn reports whether out shows its images as Pictures would draw them
 // now, so a render whose image arrived since, or changed, is made again:
-// the lines of each image are part of what the render is kept under.
+// the lines of each image are part of what the render is kept under. The
+// same goes for its references, which the Autolink answers as it did.
 func (r *Renderer) drawn(out rendered) bool {
+	if !r.answered(out.answers) {
+		return false
+	}
 	for _, s := range out.slots {
 		if r.pictures == nil || !slices.Equal(r.pictures(s.url, s.width), s.lines) {
 			return false
@@ -344,6 +354,18 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	r.urls = r.urls[:0]
 	b := newBudget()
 	var parts []part
+	var answers []answer
+	var link func(string, bool) string
+	if r.autolink != nil && termtext.LinksOn() {
+		var st refScan
+		link = func(line string, text bool) string {
+			if !text {
+				st = refScan{}
+				return line
+			}
+			return r.linkRefs(line, &st, &answers)
+		}
+	}
 	text := prepare(src, open, r.hint, g, width, func(i int, blk Block, shown bool) string {
 		// The marks are indented as the fence is, so they stay in the
 		// block's list item.
@@ -370,7 +392,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 		}
 		parts = append(parts, part{lines: lines})
 		return blk.fence + "\n" + indent + r.mark(len(parts)-1) + "\n" + blk.fence
-	}, r.picture(pics, &parts), r.relative)
+	}, r.picture(pics, &parts), r.relative, link)
 	lines, err := r.lines(text, width)
 	var sp spliced
 	if err == nil && len(parts) > 0 {
@@ -379,12 +401,12 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			lines = sp.lines
 		} else {
 			sp = spliced{}
-			lines, err = r.lines(prepare(src, open, r.hint, g, width, r.plain, nil, false), width)
+			lines, err = r.lines(prepare(src, open, r.hint, g, width, r.plain, nil, false, nil), width)
 		}
 	}
 	if err != nil {
 		// Showing the source beats showing nothing.
-		text = prepare(src, open, r.hint, g, width, r.plain, nil, false)
+		text = prepare(src, open, r.hint, g, width, r.plain, nil, false, nil)
 		lines = strings.Split(unspan(xansi.Wrap(text, width, "")), "\n")
 		sp = spliced{}
 	}
@@ -409,7 +431,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 			lines[i] = strings.Replace(lines[i], r.rowMark(row.n), row.text, 1)
 		}
 	}
-	return rendered{text: strings.Join(lines, "\n"), heads: heads, slots: sp.slots}, !b.busy
+	return rendered{text: strings.Join(lines, "\n"), heads: heads, slots: sp.slots, answers: answers}, !b.busy
 }
 
 // picture returns what prepare shows an image alone on its line as: a

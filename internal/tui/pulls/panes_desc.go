@@ -110,6 +110,7 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 	if d.md == nil || d.built.gen != m.gen {
 		d.md = markdown.New(m.theme.Thread(m.icons).Markdown)
 		d.md.SetGlyphs(m.icons.Markdown)
+		d.md.SetLinkColor(m.theme.LinkColor())
 	}
 	set := config.IconsNerd
 	if m.icons.Ellipsis == "..." {

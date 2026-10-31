@@ -27,14 +27,20 @@ const tabWidth = 4
 // relative address too if relative is set. A source cut at maxLines ends
 // with a note that offers hint, such as how to see the rest, if it isn't
 // empty. What it adds of its own, such as the mark of a collapsed
-// section, it draws with g.
-func prepare(src string, open []int, hint string, g Glyphs, width int, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool) string {
+// section, it draws with g. A non-nil link is passed each line as it comes,
+// and what it returns takes its place.
+func prepare(src string, open []int, hint string, g Glyphs, width int, show func(i int, b Block, open bool) string, pic func(alt, url string) string, relative bool, link func(line string, text bool) string) string {
 	type out struct {
 		line string
 		text bool
 	}
 	var outs []out
-	scan(src, hint, g, width, func(line string, text bool) { outs = append(outs, out{line, text}) }, func(i int, b Block) {
+	scan(src, hint, g, width, func(line string, text bool) {
+		if link != nil {
+			line = link(line, text)
+		}
+		outs = append(outs, out{line, text})
+	}, func(i int, b Block) {
 		outs = append(outs, out{show(i, b, b.Collapsed == "" || slices.Contains(open, i)), false})
 	})
 	lines := make([]string, len(outs))
