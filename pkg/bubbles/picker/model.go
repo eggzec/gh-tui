@@ -38,6 +38,10 @@ type Item struct {
 	// Value is the parent's own data, such as the repository the item
 	// stands for. The picker hands it back in ChosenMsg.
 	Value any
+	// Locked makes the row of a picker made with [WithMarks] unchangeable: it
+	// is drawn dimmed with a lock, the toggle key skips it, and it keeps the
+	// tick it started with.
+	Locked bool
 }
 
 // Query is what the user asked for.
@@ -87,6 +91,9 @@ type Model struct {
 	typing bool
 	// marks are the values the marked rows stand for.
 	marks []any
+	// seen are the items every search listed, so a tick outlives a search
+	// that hides its row.
+	seen []Item
 
 	loading bool
 	err     error
@@ -300,6 +307,61 @@ func (m *Model) SetMarked(values []any) {
 		m.scroll()
 	}
 	m.render()
+}
+
+// Ticked returns the items whose rows are ticked, in the order the items
+// were listed, whether or not the current query shows them. A picker that
+// searches looks in every row any of its searches listed, so a tick stays
+// when a later search hides its row. A picker made without [WithMarks] has
+// none.
+func (m Model) Ticked() []Item {
+	if !m.marked {
+		return nil
+	}
+	var out []Item
+	add := func(it Item) {
+		if m.isMarked(it.Value) && !slices.ContainsFunc(out, func(o Item) bool { return equal(o.Value, it.Value) }) {
+			out = append(out, it)
+		}
+	}
+	if m.local {
+		for i := range m.pool {
+			add(m.pool[i].Item)
+		}
+		return out
+	}
+	for _, it := range m.seen {
+		add(it)
+	}
+	for i := range m.listed {
+		add(m.listed[i].Item)
+	}
+	return out
+}
+
+// toggle flips the tick of the selected row, unless it is locked. A picker
+// that lists the ticked first moves the selection to the row that follows, as
+// the toggled row changes sides.
+func (m *Model) toggle() {
+	it, ok := m.Selected()
+	if !ok || it.Locked || m.sel >= len(m.listed) {
+		return
+	}
+	next, hasNext := m.Following()
+	var marks []any
+	if m.isMarked(it.Value) {
+		for _, v := range m.marks {
+			if !equal(v, it.Value) {
+				marks = append(marks, v)
+			}
+		}
+	} else {
+		marks = append(slices.Clone(m.marks), it.Value)
+	}
+	m.SetMarked(marks)
+	if m.markedFirst() && hasNext {
+		m.Select(next.Value)
+	}
 }
 
 // Title returns name with the number of marked values after it, such as

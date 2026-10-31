@@ -112,6 +112,7 @@ func (m *panesModal) showLabels(known []core.Label) {
 		picker.WithModes(true),
 		picker.WithFilterLine(true),
 		picker.WithMarks(kindOn, kindOff),
+		picker.WithTicks(),
 		picker.WithMarkedFirst(true),
 		picker.WithDetailMatch(true),
 		picker.WithTitleStyle(func(it picker.Item, base lipgloss.Style) lipgloss.Style {
@@ -227,25 +228,6 @@ func (o *labelsOverlay) marks() []any {
 	return marked
 }
 
-// toggle ticks or unticks the highlighted label, and leaves the highlight on
-// the one that was below it, since the label moves to the other group.
-func (o *labelsOverlay) toggle() {
-	it, ok := o.p.Selected()
-	if !ok {
-		return
-	}
-	name, ok := it.Value.(string)
-	if !ok {
-		return
-	}
-	next, hasNext := o.p.Following()
-	o.on[name] = !o.on[name]
-	o.p.SetMarked(o.marks())
-	if hasNext {
-		o.p.Select(next.Value)
-	}
-}
-
 // apply sends the difference between the ticks and the labels the pull request
 // had, if there is one.
 func (o *labelsOverlay) apply() tea.Cmd {
@@ -269,14 +251,15 @@ func (o *labelsOverlay) apply() tea.Cmd {
 
 func (o *labelsOverlay) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if !o.p.Typing() && keymap.Matches(msg, o.p.KeyMap().Normal.Toggle) {
-			o.toggle()
-			return nil
-		}
 	case picker.ChosenMsg:
 		if msg.ID != o.p.ID() {
 			return nil
+		}
+		o.on = map[string]bool{}
+		for _, it := range msg.Ticked {
+			if name, ok := it.Value.(string); ok {
+				o.on[name] = true
+			}
 		}
 		o.done = true
 		return o.apply()

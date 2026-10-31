@@ -281,7 +281,7 @@ func (m *Model) listHints() []hint {
 	}
 	choose := relabel(k.List.Choose, "pick")
 	if multi {
-		choose = relabel(k.List.Choose, m.doneWord())
+		choose = relabel(k.List.Choose, "apply")
 	}
 	return append(out, h(choose, rankKeep), h(relabel(k.List.Cancel, "cancel"), rankKeep))
 }

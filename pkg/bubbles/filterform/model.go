@@ -78,15 +78,13 @@ type Model struct {
 	// keep the text. picking is whether the dropdown's picker is open,
 	// rather than waiting for its options.
 	// dropItems and dropWidth are the number of options it opened with and
-	// the width they want, and toggled the value of the checklist item
-	// that space or enter acted on last, so that enter doesn't undo it.
+	// the width they want.
 	mode      mode
 	before    Value
 	picking   bool
 	pick      picker.Model
 	dropItems int
 	dropWidth int
-	toggled   string
 
 	text  textinput.Model
 	query textinput.Model

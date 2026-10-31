@@ -229,10 +229,10 @@ func TestMultiEditor(t *testing.T) {
 		keys []tea.Msg
 		want []string
 	}{
-		{name: "enter adds the highlighted item", keys: []tea.Msg{down, down, enter}, want: []string{"bug", "enhancement", "docs"}},
+		{name: "enter doesn't add the highlighted item", keys: []tea.Msg{down, down, enter}, want: []string{"bug", "enhancement"}},
 		{name: "enter doesn't remove a chosen item", keys: []tea.Msg{enter}, want: []string{"bug", "enhancement"}},
 		{name: "enter after space keeps the item space unchecked", keys: []tea.Msg{space, enter}, want: []string{"enhancement"}},
-		{name: "enter adds the item below the one space checked", keys: []tea.Msg{space, down, down, enter}, want: []string{"enhancement", "docs"}},
+		{name: "enter doesn't add the item below the one space unchecked", keys: []tea.Msg{space, down, down, enter}, want: []string{"enhancement"}},
 		{
 			name: "space chooses several and enter only closes",
 			keys: []tea.Msg{down, down, space, down, space, up, enter},
@@ -242,7 +242,7 @@ func TestMultiEditor(t *testing.T) {
 		{name: "enter keeps what space checked", keys: []tea.Msg{down, down, space, enter}, want: []string{"bug", "enhancement", "docs"}},
 		{name: "esc undoes a clear", keys: []tea.Msg{del, esc}, want: []string{"bug", "enhancement"}},
 		{name: "enter after a clear adds nothing", keys: []tea.Msg{del, enter}, want: nil},
-		{name: "enter after a clear and a move adds the item", keys: []tea.Msg{del, keyJ, enter}, want: []string{"enhancement"}},
+		{name: "enter after a clear and a move adds nothing", keys: []tea.Msg{del, keyJ, enter}, want: nil},
 		{name: "esc leaves the highlighted item", keys: []tea.Msg{down, down, esc}, want: []string{"bug", "enhancement"}},
 	}
 	for _, tt := range tests {

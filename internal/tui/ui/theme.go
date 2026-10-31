@@ -424,7 +424,7 @@ func (t Theme) Picker(ic Icons) picker.Styles {
 	s.ErrorGlyph = ic.Error
 	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
 	s.PromptGlyph, s.CursorGlyph, s.Ellipsis = ic.Crumb, ic.Cursor, ic.Ellipsis
-	s.RuleGlyph = ic.Border.Top
+	s.RuleGlyph, s.LockGlyph = ic.Border.Top, ic.Lock
 	fg, accent := lipgloss.Color(t.Palette.Foreground), lipgloss.Color(t.Palette.Accent)
 	muted, subtle := lipgloss.Color(t.Palette.Muted), lipgloss.Color(t.Palette.Subtle)
 	s.Frame = s.Frame.Border(ic.Border).BorderForeground(lipgloss.Color(t.Palette.Border))
