@@ -15,7 +15,7 @@ import (
 func previewPanes(t *testing.T, row *string) *panesModal {
 	t.Helper()
 	m := sizedPanes(t, 160, 30)
-	m.focus = paneMerge
+	m.nav.SetFocus(paneMerge)
 	m.zoom.SetZoom(true)
 	m.slots[paneMerge-1].hovered = func(*panesModal) (string, string, bool) {
 		return *row, "row " + *row, *row != ""
@@ -36,7 +36,7 @@ func previewPanes(t *testing.T, row *string) *panesModal {
 func TestPreviewSubFocus(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
-	m.focus = paneMerge
+	m.nav.SetFocus(paneMerge)
 	m.zoom.SetZoom(true)
 	for i, want := range []panes.Role{panes.Preview, panes.List, panes.Preview, panes.List} {
 		key := "tab"
@@ -44,23 +44,23 @@ func TestPreviewSubFocus(t *testing.T) {
 			key = "shift+tab"
 		}
 		m.press(keyMsg(key))
-		if m.focus != paneMerge || m.sub[paneMerge-1] != want {
-			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.focus, m.sub[paneMerge-1], want)
+		if m.nav.Focus() != paneMerge || m.nav.Sub(paneMerge) != want {
+			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.nav.Focus(), m.nav.Sub(paneMerge), want)
 		}
 	}
 	m.press(keyMsg("tab"))
 	m.press(keyMsg("4"))
-	if m.focus != paneInvolved || m.sub[paneMerge-1] != panes.List || m.sub[paneInvolved-1] != panes.List {
-		t.Errorf("4 left focus %v, boxes %v", m.focus, m.sub)
+	if m.nav.Focus() != paneInvolved || m.nav.Sub(paneMerge) != panes.List || m.nav.Sub(paneInvolved) != panes.List {
+		t.Errorf("4 left focus %v, boxes %v", m.nav.Focus(), m.nav)
 	}
 	m.press(keyMsg("tab"))
-	if m.sub[paneInvolved-1] != panes.Preview {
-		t.Fatalf("tab left box %v, want Preview", m.sub[paneInvolved-1])
+	if m.nav.Sub(paneInvolved) != panes.Preview {
+		t.Fatalf("tab left box %v, want Preview", m.nav.Sub(paneInvolved))
 	}
 	m.press(keyMsg("z"))
 	m.press(keyMsg("z"))
-	if m.sub[paneInvolved-1] != panes.List {
-		t.Errorf("unzooming left box %v, want List", m.sub[paneInvolved-1])
+	if m.nav.Sub(paneInvolved) != panes.List {
+		t.Errorf("unzooming left box %v, want List", m.nav.Sub(paneInvolved))
 	}
 }
 

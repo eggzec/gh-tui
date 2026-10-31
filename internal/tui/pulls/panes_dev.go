@@ -184,7 +184,7 @@ func (m *panesModal) hoveredDev() (id, title string, ok bool) {
 // A preview the service has cached needs no read.
 func (m *panesModal) loadPreview() tea.Cmd {
 	p := m.dev
-	if p == nil || m.focus != paneDevelopment {
+	if p == nil || m.nav.Focus() != paneDevelopment {
 		return nil
 	}
 	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
@@ -319,7 +319,7 @@ func (m *panesModal) devContent(b panes.Box) panes.Content {
 	}
 	in := b.Rect.Inner()
 	m.dev.model.SetSize(in.W, in.H)
-	if m.focus == b.Pane && m.sub[b.Pane-1] == panes.List {
+	if m.nav.Focus() == b.Pane && m.nav.Sub(b.Pane) == panes.List {
 		m.dev.model.Focus()
 	} else {
 		m.dev.model.Blur()

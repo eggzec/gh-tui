@@ -20,7 +20,7 @@ func described(t *testing.T, body string) *panesModal {
 	t.Helper()
 	m := openedPanes(t, 160)
 	m.detail.Body = body
-	m.focus = paneDescription
+	m.nav.SetFocus(paneDescription)
 	m.View()
 	return m
 }
@@ -40,7 +40,7 @@ func TestDescriptionView(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			m := described(t, goldenBody)
-			m.focus = focus
+			m.nav.SetFocus(focus)
 			golden.RequireEqual(t, m.View())
 		})
 	}
@@ -187,7 +187,7 @@ func TestDescriptionImages(t *testing.T) {
 			m := openedPanes(t, 160)
 			m.pics = uitest.Avatars(src, on)
 			m.detail.Body = withImage
-			m.focus = paneDescription
+			m.nav.SetFocus(paneDescription)
 			m.View()
 			uitest.LoadAvatars(t, m.pics)
 			m.Update(ui.ImagesMsg{})

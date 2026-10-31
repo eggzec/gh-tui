@@ -194,8 +194,8 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	l := m.layout()
 	// Pressing the digit of the focused pane does nothing, so help doesn't
 	// list it.
-	k.pane[m.focus-1].SetEnabled(false)
-	steps := m.canStep(l)
+	k.pane[m.nav.Focus()-1].SetEnabled(false)
+	steps := m.nav.CanStep(l)
 	k.next.SetEnabled(k.next.Enabled() && steps)
 	k.prev.SetEnabled(k.prev.Enabled() && steps)
 	k.zoom.SetEnabled(k.zoom.Enabled() && m.zoom.CanZoom())

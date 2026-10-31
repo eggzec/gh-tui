@@ -57,11 +57,10 @@ type panesModal struct {
 	detail core.PullRequestDetail
 	loaded bool
 
-	// focus is the focused pane, zoom whether it fills the area, and sub
-	// which of its list and preview has the focus, per pane.
-	focus panes.Pane
-	zoom  panes.Zoom
-	sub   [paneCount]panes.Role
+	// nav is the focused pane and which of its list and preview has the
+	// focus, and zoom whether the pane fills the area.
+	nav  panes.Nav
+	zoom panes.Zoom
 	// narrow is whether the terminal is narrow, which the app says. The
 	// zoom is forced then, and while the modal's own area is under
 	// wideMin.
@@ -168,7 +167,6 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		repo:   repo,
 		number: number,
 		other:  showRepo || !s.hasRepo || !repo.Same(s.repo),
-		focus:  paneConversation,
 		slots:  slots,
 		id:     panesIDs.Add(1),
 
@@ -187,13 +185,14 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		token:   s.voice.Token,
 		sendCtx: s.ctx,
 	}
+	m.nav.SetFocus(paneConversation)
 	m.files = newFilesPane(m.keys.files)
 	if s.checks != nil {
 		m.checks = s.checks
 		m.files.loader = checktree.NewLoader(checkReader{s.checks}, repo)
 	}
 	if onChecks {
-		m.focus = paneMerge
+		m.nav.SetFocus(paneMerge)
 	}
 	findVoice := s.voice
 	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
@@ -368,8 +367,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			m.syncConvFocus()
 			m.follow()
 		case conv.KindCI:
-			m.focus = paneMerge
-			m.resetSub()
+			m.nav.SetFocus(paneMerge)
 			m.syncConvFocus()
 		}
 		return nil
@@ -501,21 +499,20 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	l := m.layout()
 	switch p, isDigit := k.digit(msg); {
 	case keymap.Matches(msg, k.next):
-		m.step(l, 1)
+		m.nav.Step(l, 1)
 	case keymap.Matches(msg, k.prev):
-		m.step(l, -1)
+		m.nav.Step(l, -1)
 	case isDigit:
-		m.focus = p
-		m.resetSub()
+		m.nav.SetFocus(p)
 	case keymap.Matches(msg, k.zoom):
 		if m.zoom.CanZoom() {
 			m.zoom.Toggle()
-			m.resetSub()
+			m.nav.Reset()
 		}
 	case m.zoom.User() && m.zoom.CanZoom() && keymap.Matches(msg, k.cancel):
 		// Backspace undoes the user's zoom; a forced one stays.
 		m.zoom.SetZoom(false)
-		m.resetSub()
+		m.nav.Reset()
 	case keymap.Matches(msg, k.back):
 		return m.close()
 	case keymap.Matches(msg, k.review):
@@ -526,13 +523,13 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openLabels()
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
-	case m.inPreview(l):
-		if press := m.slots[m.focus-1].pressPreview; press != nil {
+	case m.nav.InPreview(l):
+		if press := m.slots[m.nav.Focus()-1].pressPreview; press != nil {
 			return press(m, msg)
 		}
 		m.scrollPreview(l, msg)
 	default:
-		if press := m.slots[m.focus-1].press; press != nil {
+		if press := m.slots[m.nav.Focus()-1].press; press != nil {
 			cmd, _ := press(m, msg)
 			return cmd
 		}
@@ -540,26 +537,18 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// resetSub gives the list of every pane the focus, as a change of pane or of
-// the zoom does.
-func (m *panesModal) resetSub() {
-	for i := range m.sub {
-		m.sub[i] = panes.List
-	}
-}
-
 // scrollPreview scrolls the focused pane's preview, which has the focus in l,
 // as far as its text goes. The offset stays with the row shown.
 func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
-	b, ok := l.Box(m.focus, panes.Preview)
-	s := m.slots[m.focus-1]
+	b, ok := l.Box(m.nav.Focus(), panes.Preview)
+	s := m.slots[m.nav.Focus()-1]
 	if !ok || s.preview == nil {
 		return
 	}
 	rows := b.Rect.Inner().H
 	last := max(0, strings.Count(s.preview(m, b), "\n")+1-rows)
 	k := m.keys.scroll
-	pk := previewKey{m.focus, m.hover[m.focus-1].id}
+	pk := previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id}
 	off := m.previews[pk]
 	switch {
 	case keymap.Matches(msg, k.Up):
@@ -590,7 +579,7 @@ func (m *panesModal) layout() panes.Layout {
 	if m.hasStrip() {
 		h--
 	}
-	return prLayout(m.width, h, m.focus, m.zoom.Zoomed(), m.devRows())
+	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows())
 }
 
 // hasStrip reports whether the pane strip has a row of its own under the
@@ -600,50 +589,12 @@ func (m *panesModal) hasStrip() bool {
 	return showsOne(m.width, m.zoom.Zoomed()) && m.height >= 4
 }
 
-// inPreview reports whether the preview of the focused pane is shown in l
-// and has the focus.
-func (m *panesModal) inPreview(l panes.Layout) bool {
-	if m.sub[m.focus-1] != panes.Preview {
-		return false
-	}
-	_, ok := l.Box(m.focus, panes.Preview)
-	return ok
-}
-
-// canStep reports whether the keys that move the focus do anything: they
-// move between the panes, or between the list and the preview of a zoomed
-// pane that has one.
-func (m *panesModal) canStep(l panes.Layout) bool {
-	if !l.Zoomed {
-		return true
-	}
-	_, ok := l.Box(m.focus, panes.Preview)
-	return ok
-}
-
-// step moves the focus by delta panes, wrapping, or between the list and the
-// preview of a zoomed pane.
-func (m *panesModal) step(l panes.Layout, delta int) {
-	switch {
-	case !l.Zoomed:
-		m.focus = panes.Pane((int(m.focus)-1+delta+paneCount)%paneCount + 1)
-		m.resetSub()
-	case m.canStep(l):
-		i := m.focus - 1
-		if m.sub[i] == panes.Preview {
-			m.sub[i] = panes.List
-		} else {
-			m.sub[i] = panes.Preview
-		}
-	}
-}
-
 // context returns the context of the keys of what has the focus in l.
 func (m *panesModal) context(l panes.Layout) string {
-	if m.inPreview(l) {
+	if m.nav.InPreview(l) {
 		return ctxPreview
 	}
-	return m.slots[m.focus-1].context
+	return m.slots[m.nav.Focus()-1].context
 }
 
 // close closes the modal, and stops its reads.

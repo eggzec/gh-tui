@@ -33,9 +33,8 @@ type drawnPanes struct {
 // drawKey is everything the drawn panes depend on.
 type drawKey struct {
 	width, height int
-	focus         panes.Pane
+	nav           panes.Nav
 	zoom          bool
-	sub           [paneCount]panes.Role
 	gen           int
 	files         int
 	updated       int64
@@ -105,7 +104,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.focus, l.Zoomed, m.sub, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.focus-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano()}
+	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
@@ -146,7 +145,7 @@ func (m *panesModal) titleForms(title string, b panes.Box) []string {
 // strip is the row of pane names under the zoomed boxes, in the longest form
 // that fits the width, and blank when none does.
 func (m *panesModal) strip() string {
-	for _, f := range m.frames.StripForms(paneDefs, m.focus) {
+	for _, f := range m.frames.StripForms(paneDefs, m.nav.Focus()) {
 		if ansi.StringWidth(f) <= m.width {
 			return sealed(f, m.width)
 		}
@@ -245,9 +244,9 @@ func (m *panesModal) footer(l panes.Layout) string {
 	case !l.Zoomed:
 		parts = append(parts, hint(hintKeys(k.next, k.jump), "focus"))
 	default:
-		if m.canStep(l) {
+		if m.nav.CanStep(l) {
 			what := "preview"
-			if m.inPreview(l) {
+			if m.nav.InPreview(l) {
 				what = "list"
 			}
 			parts = append(parts, hint(hintKeys(k.next), what))

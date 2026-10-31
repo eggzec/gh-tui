@@ -95,7 +95,7 @@ func (m *panesModal) follow() {
 
 // offset is how far the preview of the focused pane is scrolled.
 func (m *panesModal) offset() int {
-	return m.previews[previewKey{m.focus, m.hover[m.focus-1].id}]
+	return m.previews[previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id}]
 }
 
 // previewContent frames the preview in box b: its pane's body, scrolled to

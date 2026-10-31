@@ -105,8 +105,8 @@ func TestPullModalNameAloneOnTopEdge(t *testing.T) {
 		t.Fatal("a 100 column area isn't zoomed")
 	}
 	top, _, _ := strings.Cut(ansi.Strip(m.panes(l)), "\n")
-	name := paneName(m.focus)
-	if !strings.Contains(top, name) || strings.Contains(top, paneTitle(m.focus)) {
+	name := paneName(m.nav.Focus())
+	if !strings.Contains(top, name) || strings.Contains(top, paneTitle(m.nav.Focus())) {
 		t.Errorf("top edge %q should name %q without its digit", top, name)
 	}
 }
@@ -124,28 +124,33 @@ func TestPanesPress(t *testing.T) {
 	t.Run("tab wraps", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
-		start := m.focus
-		m.focus = paneFiles
+		start := m.nav.Focus()
+		m.nav.SetFocus(paneFiles)
 		m.press(keyMsg("tab"))
-		if m.focus != paneDescription {
-			t.Errorf("tab from Files focused %v, want Description", m.focus)
+		if m.nav.Focus() != paneDescription {
+			t.Errorf("tab from Files focused %v, want Description", m.nav.Focus())
 		}
-		m.focus = start
+		m.nav.SetFocus(start)
 		for range paneCount {
 			m.press(keyMsg("tab"))
 		}
-		if m.focus != start {
-			t.Errorf("%d tabs focused %v, want %v again", paneCount, m.focus, start)
+		if m.nav.Focus() != start {
+			t.Errorf("%d tabs focused %v, want %v again", paneCount, m.nav.Focus(), start)
 		}
 	})
 
 	t.Run("digit resets the box", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
-		m.sub[paneMerge-1] = panes.Preview
+		m.nav.SetFocus(paneMerge)
+		m.zoom.SetZoom(true)
+		m.nav.Step(m.layout(), 1)
+		if m.nav.Sub(paneMerge) != panes.Preview {
+			t.Fatalf("Step left box %v, want Preview", m.nav.Sub(paneMerge))
+		}
 		m.press(keyMsg("3"))
-		if m.focus != paneMerge || m.sub[paneMerge-1] != panes.List {
-			t.Errorf("3 left focus %v and box %v, want Merge and List", m.focus, m.sub[paneMerge-1])
+		if m.nav.Focus() != paneMerge || m.nav.Sub(paneMerge) != panes.List {
+			t.Errorf("3 left focus %v and box %v, want Merge and List", m.nav.Focus(), m.nav.Sub(paneMerge))
 		}
 	})
 
@@ -156,10 +161,10 @@ func TestPanesPress(t *testing.T) {
 		if !m.zoom.Zoomed() {
 			t.Error("z at 160 columns didn't zoom the pane")
 		}
-		focus := m.focus
+		focus := m.nav.Focus()
 		m.press(keyMsg("tab"))
-		if m.focus != focus || m.sub[focus-1] != panes.List {
-			t.Errorf("tab on a zoomed pane with no preview moved to %v, box %v", m.focus, m.sub[focus-1])
+		if m.nav.Focus() != focus || m.nav.Sub(focus) != panes.List {
+			t.Errorf("tab on a zoomed pane with no preview moved to %v, box %v", m.nav.Focus(), m.nav.Sub(focus))
 		}
 		m.press(keyMsg("z"))
 		if m.zoom.Zoomed() {

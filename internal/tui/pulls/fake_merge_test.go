@@ -63,7 +63,7 @@ func mergePanes(t *testing.T, edit func(*core.PullRequestDetail)) (*panesModal, 
 	if edit != nil {
 		edit(&m.detail)
 	}
-	m.focus = paneMerge
+	m.nav.SetFocus(paneMerge)
 	m.merge.restyle(m)
 	m.merge.refresh(m)
 	m.View()
@@ -336,8 +336,8 @@ func TestMergePaneEnterOnChangesRequestedFocusesTheConversation(t *testing.T) {
 		t.Fatal("the fixture's verdict doesn't block")
 	}
 	enter(t, m)
-	if m.focus != paneConversation {
-		t.Errorf("focus %v, want the conversation", m.focus)
+	if m.nav.Focus() != paneConversation {
+		t.Errorf("focus %v, want the conversation", m.nav.Focus())
 	}
 }
 
@@ -369,7 +369,7 @@ func TestMergePaneModalKeysWin(t *testing.T) {
 	t.Parallel()
 	m, _ := mergePanes(t, behindEdit)
 	m.Update(keyMsg("tab"))
-	if m.focus == paneMerge {
+	if m.nav.Focus() == paneMerge {
 		t.Error("tab didn't leave the Merge pane")
 	}
 }

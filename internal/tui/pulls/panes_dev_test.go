@@ -33,7 +33,7 @@ func openedDev(t *testing.T, f *fakeDev) *host {
 	h := started(t, newFakeService(), 120, 30, WithDevelopment(f))
 	press(t, h, "enter")
 	press(t, h, "5")
-	if m := h.modal(); m == nil || m.focus != paneDevelopment {
+	if m := h.modal(); m == nil || m.nav.Focus() != paneDevelopment {
 		t.Fatalf("Development pane not focused: %+v", m)
 	}
 	return h
@@ -148,7 +148,7 @@ func TestDevelopmentBackKeepsState(t *testing.T) {
 	press(t, h, "z")
 	press(t, h, "down")
 	press(t, h, "down")
-	zoom, focus := m.zoom.Zoomed(), m.focus
+	zoom, focus := m.zoom.Zoomed(), m.nav.Focus()
 	it, _ := m.dev.model.Selected()
 	at := it.Ref.Target
 	got := opened[ui.OpenIssueMsg](press(t, h, "enter"))
@@ -156,8 +156,8 @@ func TestDevelopmentBackKeepsState(t *testing.T) {
 		t.Fatalf("the issue didn't open over the modal: %+v", got)
 	}
 	// The modal is kept as it was, for the back key to return to.
-	if m.zoom.Zoomed() != zoom || m.focus != focus {
-		t.Fatalf("zoom, focus = %v, %v; want %v, %v", m.zoom.Zoomed(), m.focus, zoom, focus)
+	if m.zoom.Zoomed() != zoom || m.nav.Focus() != focus {
+		t.Fatalf("zoom, focus = %v, %v; want %v, %v", m.zoom.Zoomed(), m.nav.Focus(), zoom, focus)
 	}
 	if now, _ := m.dev.model.Selected(); now.Ref.Target != at {
 		t.Fatalf("cursor moved from %+v to %+v", at, now.Ref.Target)
@@ -169,7 +169,7 @@ func TestDevelopmentKeysFallThrough(t *testing.T) {
 	h := openedDev(t, &fakeDev{links: devLinks()})
 	m := h.modal()
 	press(t, h, "tab")
-	if m.focus == paneDevelopment {
+	if m.nav.Focus() == paneDevelopment {
 		t.Fatal("tab didn't leave the pane")
 	}
 	press(t, h, "5")
@@ -178,8 +178,8 @@ func TestDevelopmentKeysFallThrough(t *testing.T) {
 		t.Fatal("z didn't zoom")
 	}
 	press(t, h, "2")
-	if m.focus != paneConversation {
-		t.Fatalf("2 focused %v", m.focus)
+	if m.nav.Focus() != paneConversation {
+		t.Fatalf("2 focused %v", m.nav.Focus())
 	}
 }
 
