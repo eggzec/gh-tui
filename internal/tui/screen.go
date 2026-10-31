@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/ownerui"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -135,6 +135,8 @@ type styles struct {
 	// base marks a base other than the head of the default branch.
 	base       lipgloss.Style
 	dot, badge lipgloss.Style
+	// strip draws the strip of panes in the bottom edge of a zoomed pane.
+	strip panes.Styles
 }
 
 func newStyles(t ui.Theme) styles {
@@ -149,6 +151,7 @@ func newStyles(t ui.Theme) styles {
 		base:       t.Accent,
 		dot:        t.Accent,
 		badge:      t.Muted,
+		strip:      panes.DefaultStyles(t.Dark),
 	}
 }
 
@@ -194,16 +197,23 @@ func (m *Model) drawFrame(p *pane) {
 // the one of p in brackets, for the bottom edge of the zoomed pane, and its
 // width.
 func (m *Model) foot(p *pane) (strip string, width int) {
-	keys := make([]string, len(m.panes))
-	titles := make([]string, len(m.panes))
-	cur := -1
+	defs := make([]panes.Def, len(m.panes))
+	cur := panes.Pane(0)
 	for i, q := range m.panes {
-		keys[i], titles[i] = q.key, q.label
+		defs[i] = panes.Def{Name: q.label, Short: q.label}
 		if q == p {
-			cur = i
+			cur = panes.Pane(i + 1)
 		}
 	}
-	return ownerui.Foot(keys, [][]string{titles}, cur, ui.NewPaint(m.st.focusTitle), ui.NewPaint(m.theme.Subtle), p.width-5)
+	frames := m.st.strip
+	frames.Separator = m.icons.Separator
+	forms := frames.StripForms(defs, cur)
+	for _, f := range forms {
+		if w := ansi.StringWidth(f); w <= p.width-5 {
+			return f, w
+		}
+	}
+	return "", 0
 }
 
 func (m *Model) drawFrames() {

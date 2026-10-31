@@ -33,9 +33,7 @@ func (s *Section) layout() {
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
-		if s.zoomed() {
-			rest = max(rest-1, 0) // the strip of panes
-		}
+		rest = max(rest-1, 0) // the strip of panes
 		for i := range b {
 			b[i] = box{s.width, rest}
 		}
@@ -134,9 +132,7 @@ func (s *Section) compose() {
 	case s.page == nil:
 	case s.onePane():
 		lines = append(lines, s.frames[s.page.focus]...)
-		if s.zoomed() {
-			lines = append(lines, ui.Fit(s.strip(), s.width))
-		}
+		lines = append(lines, ui.Fit(s.strip(), s.width))
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
 		right := s.frames[readmePane]
@@ -195,112 +191,52 @@ func (s *Section) tabWord() string {
 }
 
 // labelForms are the forms of the top edge of pane p, a box w cells wide,
-// from the longest. In the narrow layout the one frame names every pane,
-// the focused one in full.
+// from the longest.
 func (s *Section) labelForms(p paneID, w int) []string {
-	if !s.onePane() || s.zoomed() {
-		text := s.paneLabel(p)
-		if text == "" {
-			return nil
-		}
-		forms := []string{text}
-		if room := w - 5; room > 0 && ansi.StringWidth(text) > room {
-			forms = append(forms, termtext.Truncate(text, room, s.icons.Ellipsis))
-		}
-		return forms
+	text := s.paneLabel(p)
+	if text == "" {
+		return nil
 	}
-	// The other panes go by their titles, then by shorter ones, then by
-	// their keys alone.
-	forms := make([]string, 0, 3)
-	for tier := range 3 {
-		parts := make([]string, 0, numPanes)
-		cur := -1
-		for i := range numPanes {
-			if !s.hasPane(i) {
-				continue
-			}
-			part := s.paneLabel(i)
-			if i != p {
-				name := ""
-				if tier < 2 {
-					name = s.title(i, tier == 1)
-				}
-				part = strings.TrimSpace(s.keyLabel(i) + " " + name)
-			} else {
-				cur = len(parts)
-			}
-			if part != "" {
-				parts = append(parts, part)
-			}
-		}
-		forms = append(forms, s.strung(parts, cur))
+	forms := []string{text}
+	if room := w - 5; room > 0 && ansi.StringWidth(text) > room {
+		forms = append(forms, termtext.Truncate(text, room, s.icons.Ellipsis))
 	}
 	return forms
 }
 
-// strung joins parts as a strip, the one at cur accented and the others dim.
-func (s *Section) strung(parts []string, cur int) string {
-	f := &s.st.frames
-	styled := make([]string, len(parts))
-	for i, part := range parts {
-		if i == cur {
-			styled[i] = f.StripCurrent.Render(part)
-		} else {
-			styled[i] = f.StripOther.Render(part)
-		}
-	}
-	return strings.Join(styled, f.StripSep.Render(f.Separator))
-}
-
-// keyLabel is the key that focuses pane p, or "" when it has none.
+// keyLabel is the number that focuses pane p, or "" when it has none.
 func (s *Section) keyLabel(p paneID) string {
-	b := s.keys.Panes[p]
-	if !b.Enabled() {
+	if !s.hasPane(p) || !s.keys.Panes[p].Enabled() {
 		return ""
 	}
-	return b.Help().Key
+	return strconv.Itoa(int(p) + 1)
 }
 
-// strip is the row of pane keys under the zoomed pane, as in the pull
-// request modal. The focused pane's key is in brackets. Other layouts have
-// none: the panes show their names alone, or the narrow layout names every
-// pane in the top edge.
+// strip is the row of pane names under the one pane that shows, in the
+// longest form that fits the width. The panes are numbered by place, as in
+// every pane strip.
 func (s *Section) strip() string {
-	var row string
-	for tier := range 3 {
-		parts := make([]string, 0, numPanes)
-		cur := -1
-		for i := range numPanes {
-			if !s.hasPane(i) {
-				continue
-			}
-			key := s.keyLabel(i)
-			if i == s.page.focus && key != "" {
-				key = "[" + key + "]"
-			}
-			name := ""
-			if tier < 2 {
-				name = s.title(i, tier == 1)
-			}
-			if i == s.page.focus {
-				cur = len(parts)
-			}
-			parts = append(parts, strings.TrimSpace(key+" "+name))
-		}
-		row = s.strung(parts, cur)
-		if ansi.StringWidth(row) <= s.width {
-			return row
+	defs := make([]panes.Def, 0, numPanes)
+	for p := range numPanes {
+		if s.hasPane(p) {
+			defs = append(defs, panes.Def{Name: s.title(p, false), Short: s.title(p, true)})
 		}
 	}
-	return ansi.Truncate(row, s.width, "")
+	forms := s.st.frames.StripForms(defs, panes.Pane(s.page.focus+1))
+	for _, f := range forms {
+		if ansi.StringWidth(f) <= s.width {
+			return f
+		}
+	}
+	return ansi.Truncate(forms[len(forms)-1], s.width, "")
 }
 
-// paneLabel is the label of pane p, with its key before it, such as
-// "[2] Repositories · go". The zoomed pane has its keys in its bottom edge
-// instead, so its label is the name alone.
+// paneLabel is the label of pane p, with its number before it, such as
+// "[2] Repositories · go". A page that shows one pane has the numbers in the
+// strip under it instead, so its label is the name alone.
 func (s *Section) paneLabel(p paneID) string {
 	text := s.title(p, false)
-	if k := s.keyLabel(p); k != "" && !s.zoomed() {
+	if k := s.keyLabel(p); k != "" && !s.onePane() {
 		text = "[" + k + "] " + text
 	}
 	switch p {
