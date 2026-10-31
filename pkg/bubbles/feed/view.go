@@ -68,7 +68,7 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 			m.writeHead(w, l, m.gutter(selected, false), indent)
 			return
 		case l.more:
-			w.line(m.gutter(selected, false), m.styles.Hint.Render(m.moreText()))
+			w.line(m.gutter(selected, false), m.styles.Hint.Render(m.moreText))
 			w.blank(m.itemHeight - 1)
 			return
 		case l.child:

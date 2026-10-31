@@ -22,9 +22,11 @@ type settings struct {
 	itemHeight int
 	emptyText  string
 	errorText  func(error) (text, hint string)
-	keyMap     KeyMap
-	markKeys   MarkKeys
-	styles     Styles
+	// moreText is what the row of the items not loaded reads.
+	moreText string
+	keyMap   KeyMap
+	markKeys MarkKeys
+	styles   Styles
 	// promptKeys are the keys of the prompt of a find or filter.
 	promptKeys cmdline.KeyMap
 	focused    bool
@@ -91,6 +93,7 @@ func defaultSettings() settings {
 		parent:     context.Background(),
 		itemHeight: 1,
 		emptyText:  "Nothing to show.",
+		moreText:   "more not loaded",
 		keyMap:     NewKeyMap(unbound),
 		promptKeys: cmdline.NewKeyMap(unbound),
 		styles:     DefaultStyles(true),
@@ -149,6 +152,14 @@ func WithItemHeight(n int) Option {
 func WithEmptyText(text string) Option {
 	return func(s *settings) {
 		s.emptyText = text
+	}
+}
+
+// WithMoreText sets what the row of the items not loaded reads, in a feed
+// with groups. It gives no count, since the feed doesn't know one.
+func WithMoreText(text string) Option {
+	return func(s *settings) {
+		s.moreText = text
 	}
 }
 
