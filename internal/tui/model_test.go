@@ -280,7 +280,7 @@ func TestNarrowShowsTheFocusedPaneAlone(t *testing.T) {
 		}
 	}
 	s := onScreen(m)
-	if !strings.Contains(s, "[1] Files") || strings.Contains(s, "Pull requests content") {
+	if !strings.Contains(s, "1 Files · 2 Pull requests · 3 Issues") || strings.Contains(s, "Pull requests content") {
 		t.Errorf("narrow screen should show only the files:\n%s", s)
 	}
 	run(m, m.key(press("tab")))
@@ -524,7 +524,7 @@ func TestZoomMovesDigitsToBottomEdge(t *testing.T) {
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 14})
 	run(m, m.key(press("2")))
-	if s := onScreen(m); !strings.Contains(s, "[2] Pull requests") {
+	if s := onScreen(m); !strings.Contains(s, "1 Files · 2 Pull requests · 3 Issues") {
 		t.Errorf("a pane should show its key before its name:\n%s", s)
 	}
 	run(m, m.key(press("z")))
@@ -538,14 +538,14 @@ func TestZoomMovesDigitsToBottomEdge(t *testing.T) {
 			bottom = l
 		}
 	}
-	if !strings.Contains(top, "Pull requests") || strings.Contains(top, "[2]") {
+	if !strings.Contains(top, "Pull requests") || strings.Contains(top, "2 Pull") {
 		t.Errorf("a zoomed pane should show its name alone in the top edge: %q", top)
 	}
-	if !strings.Contains(bottom, "[2] Pull requests") {
+	if !strings.Contains(bottom, "1 Files · 2 Pull requests · 3 Issues") {
 		t.Errorf("a zoomed pane should show the keys of the panes in the bottom edge: %q", bottom)
 	}
 	run(m, m.key(press("z")))
-	if s := onScreen(m); !strings.Contains(s, "[2] Pull requests") {
+	if s := onScreen(m); !strings.Contains(s, "1 Files · 2 Pull requests · 3 Issues") {
 		t.Errorf("a pane unzoomed should show its key before its name again:\n%s", s)
 	}
 }
@@ -1113,7 +1113,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 	if pulls.width != 78 || !pulls.focused {
 		t.Errorf("a lone pane should fill the screen and have focus: %dx%d", pulls.width, pulls.height)
 	}
-	if s := onScreen(m); !strings.Contains(s, "[1] Pull requests") {
+	if s := onScreen(m); !strings.Contains(s, "1 Pull requests") {
 		t.Errorf("screen lacks the lone pane:\n%s", s)
 	}
 	run(m, m.key(press("I")))
