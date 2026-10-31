@@ -53,6 +53,72 @@ func (a *Autolinks) Func(repo string) markdown.Autolink {
 	}
 }
 
+// Seen collects the references that the renderer of a view asked about, so
+// that a view whose bodies are drawn by others, such as the rows of a tree,
+// can ask GitHub about what it showed.
+type Seen struct {
+	a    *Autolinks
+	repo string
+
+	mu   sync.Mutex
+	cand []autolinks.Candidate
+}
+
+// Seen returns a collector for the bodies of repo, or nil if links are not
+// served. A nil collector gives no function and asks nothing.
+func (a *Autolinks) Seen(repo string) *Seen {
+	if a == nil || a.svc == nil {
+		return nil
+	}
+	return &Seen{a: a, repo: repo}
+}
+
+// Func returns the function for the renderer: it links as [Autolinks.Func]
+// does and notes each reference it is asked about.
+func (s *Seen) Func() markdown.Autolink {
+	if s == nil {
+		return nil
+	}
+	link := s.a.Func(s.repo)
+	return func(kind markdown.RefKind, ref string) (string, bool) {
+		s.mu.Lock()
+		s.cand = append(s.cand, autolinks.Candidate{Kind: verifiedKind(kind), Ref: ref})
+		s.mu.Unlock()
+		return link(kind, ref)
+	}
+}
+
+// Ask returns the command that asks about the references noted since the
+// last call and not asked about since the last answer came, or nil.
+func (s *Seen) Ask(ctx context.Context) tea.Cmd {
+	if s == nil || !termtext.LinksOn() {
+		return nil
+	}
+	s.mu.Lock()
+	noted := s.cand
+	s.cand = nil
+	s.mu.Unlock()
+	var cands []autolinks.Candidate
+	s.a.mu.Lock()
+	for _, c := range noted {
+		h := fnv.New64a()
+		_, _ = h.Write([]byte(s.repo + "\x00" + string(c.Kind) + "\x00" + c.Ref))
+		k := h.Sum64()
+		if !s.a.asked[k] {
+			s.a.asked[k] = true
+			cands = append(cands, c)
+		}
+	}
+	s.a.mu.Unlock()
+	if len(cands) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		s.a.svc.Verify(ctx, s.repo, cands)
+		return nil
+	}
+}
+
 func verifiedKind(k markdown.RefKind) core.VerifiedKind {
 	switch k {
 	case markdown.RefUser:

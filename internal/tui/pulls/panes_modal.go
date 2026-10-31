@@ -305,7 +305,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		}
 		arm := m.arm
 		m.arm = nil
-		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff(), m.linksAsk())
+		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff(), m.linksAsk(), m.convAsk())
 	}()
 	switch msg := msg.(type) {
 	case panesDetailMsg:
