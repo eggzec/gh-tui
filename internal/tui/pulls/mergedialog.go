@@ -90,6 +90,9 @@ const (
 	focusMethod = iota
 	focusTitle
 	focusBody
+	// focusBypass is the row that turns the bypass on, shown only for a
+	// pull request that the viewer may merge past its rules.
+	focusBypass
 )
 
 // mergeBodyLines is how many lines the body of the message takes.
@@ -112,6 +115,8 @@ type mergeDialog struct {
 	filled [2]string
 	loaded bool
 	note   string
+	// bypass is set when the user chose to merge past the rules.
+	bypass bool
 	// done is set once the dialog merged or closed.
 	done          bool
 	theme         ui.Theme
@@ -121,13 +126,18 @@ type mergeDialog struct {
 
 // newMergeDialog returns the dialog that asks for the merge of a.
 func newMergeDialog(a mergeAsk, keys mergeDialogKeys) *mergeDialog {
-	d := &mergeDialog{ask: a, keys: keys, methods: a.c.methods, icons: a.icons}
+	d := &mergeDialog{ask: a, keys: keys, methods: a.c.methods, icons: a.icons, bypass: a.c.of.bypass}
 	for i, m := range d.methods {
 		if m == a.c.of.method {
 			d.method = i
 		}
 	}
-	if !d.choosable() {
+	switch {
+	case a.c.of.blocked:
+		// Nothing merges until the user decides on this row; the same keys
+		// that pick a method turn it on.
+		d.focus = focusBypass
+	case !d.choosable():
 		// The method row takes no cursor, so the title does.
 		d.focus = focusTitle
 		d.keys.PrevMethod.SetEnabled(false)
@@ -170,6 +180,9 @@ func (d *mergeDialog) Title() string {
 	t := "Merge #" + strconv.Itoa(d.ask.c.of.number)
 	if d.ask.c.of.kind == mergeAuto {
 		t += " when ready"
+	}
+	if d.bypass {
+		t += ", bypassing checks"
 	}
 	return t
 }
@@ -301,6 +314,11 @@ func (d *mergeDialog) press(k tea.KeyPressMsg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	switch d.focus {
+	case focusBypass:
+		if key.Matches(k, d.keys.NextMethod) || key.Matches(k, d.keys.PrevMethod) {
+			d.bypass = !d.bypass
+			d.note = ""
+		}
 	case focusMethod:
 		switch {
 		case key.Matches(k, d.keys.NextMethod):
@@ -330,6 +348,9 @@ func (d *mergeDialog) move(delta int) tea.Cmd {
 	var stops []int
 	if d.choosable() {
 		stops = append(stops, focusMethod)
+	}
+	if d.ask.c.of.blocked {
+		stops = append(stops, focusBypass)
 	}
 	if d.hasMessage() {
 		stops = append(stops, focusTitle, focusBody)
@@ -370,6 +391,13 @@ func (d *mergeDialog) cancel() tea.Cmd {
 func (d *mergeDialog) submit() tea.Cmd {
 	a := d.ask
 	c := a.c
+	if c.of.blocked && !d.bypass {
+		// A plain merge of a blocked pull request would go past its rules
+		// without the user having said so.
+		d.note = "Can't merge: " + c.unmet + ". Turn on Bypass checks to merge anyway."
+		return nil
+	}
+	c.of.bypass = d.bypass
 	c.of.method = d.current()
 	c.msg = d.message()
 	run := a.keys.confirmed(a.svc, c, a.key, a.now, a.send, a.again)
@@ -413,6 +441,9 @@ func (d *mergeDialog) View() string {
 		return ""
 	}
 	lines := []string{ansi.Truncate(d.methodRow(), d.width, d.icons.OrUnicode().Ellipsis)}
+	if d.ask.c.of.blocked {
+		lines = append(lines, ansi.Truncate(d.bypassRow(), d.width, d.icons.OrUnicode().Ellipsis))
+	}
 	status := d.note
 	switch {
 	case !d.loaded:
@@ -460,6 +491,21 @@ func (d *mergeDialog) methodRow() string {
 	return mark + "Method " + strings.Join(parts, " ")
 }
 
+// bypassRow shows whether the merge goes past the rules that hold the pull
+// request, and says which, so that turning it on is a decision made knowing
+// what is skipped.
+func (d *mergeDialog) bypassRow() string {
+	mark := "  "
+	if d.focus == focusBypass {
+		mark = d.theme.Accent.Render("> ")
+	}
+	if d.bypass {
+		return mark + "Bypass checks " + d.theme.Accent.Bold(true).Render("[on]") +
+			d.theme.Muted.Render(" merges although "+d.ask.c.unmet)
+	}
+	return mark + "Bypass checks " + d.theme.Muted.Render("[off] "+d.ask.c.unmet)
+}
+
 // methodName names method m as the dialog shows it.
 func methodName(m core.MergeMethod) string {
 	switch m {
@@ -477,13 +523,21 @@ func methodName(m core.MergeMethod) string {
 func (d *mergeDialog) SetSize(width, height int) {
 	d.width, d.height = max(width, 0), max(height, 0)
 	d.title.SetSize(d.width, prompt.SingleLineHeight)
-	d.body.SetSize(d.width, max(d.height-2-prompt.SingleLineHeight, 3))
+	d.body.SetSize(d.width, max(d.height-2-d.extraRows()-prompt.SingleLineHeight, 3))
+}
+
+// extraRows is the rows the bypass takes, when it is offered.
+func (d *mergeDialog) extraRows() int {
+	if d.ask.c.of.blocked {
+		return 1
+	}
+	return 0
 }
 
 // Fit implements ui.Fitter: as wide as a commit message reads well, and as
 // high as the rows need.
 func (d *mergeDialog) Fit(maxWidth, maxHeight int) (width, height int) {
-	return min(maxWidth, 76), min(maxHeight, 2+prompt.SingleLineHeight+mergeBodyLines)
+	return min(maxWidth, 76), min(maxHeight, 2+d.extraRows()+prompt.SingleLineHeight+mergeBodyLines)
 }
 
 // SetTheme implements ui.Modal.
@@ -502,7 +556,7 @@ func (d *mergeDialog) Commands() []string { return nil }
 // while the cursor is on them and the editor's while it is in the body.
 func (d *mergeDialog) KeyLayers() []keyhelp.Layer {
 	k := d.keys
-	onMethod := d.focus == focusMethod && len(d.methods) > 1
+	onMethod := d.focus == focusMethod && len(d.methods) > 1 || d.focus == focusBypass
 	k.PrevMethod.SetEnabled(k.PrevMethod.Enabled() && onMethod)
 	k.NextMethod.SetEnabled(k.NextMethod.Enabled() && onMethod)
 	k.Edit.SetEnabled(k.Edit.Enabled() && d.focus == focusBody)

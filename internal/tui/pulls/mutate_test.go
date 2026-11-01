@@ -148,7 +148,7 @@ func dialogOf(h *host) *mergeDialog {
 // method row, y and n stand for its submit and cancel keys, so that the
 // tests of the questions share their answers.
 func (h *host) key(k string) tea.KeyPressMsg {
-	if d := dialogOf(h); d != nil && d.focus == focusMethod {
+	if d := dialogOf(h); d != nil && (d.focus == focusMethod || d.focus == focusBypass) {
 		switch k {
 		case "y":
 			k = "ctrl+s"
