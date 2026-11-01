@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -491,34 +492,28 @@ func (s *Section) tabsLine(w int) string {
 	if p.header.ok {
 		tabs = tabsOf(p.header.value.Kind)
 	}
-	line := s.tabs(tabs, tabTitles)
-	if ansi.StringWidth(line) > w {
-		line = s.tabs(tabs, shortTabs)
-	}
-	return ui.SpreadDrop(line, right, w, s.icons.Ellipsis)
+	return ui.SpreadDrop(" "+s.tabs(tabs, w-1), right, w, s.icons.Ellipsis)
 }
 
-// tabs renders tabs by their titles, with their counts once the header
-// says them.
-func (s *Section) tabs(tabs []tab, titles [numTabs]string) string {
-	p, st := s.page, &s.st.shared
-	var b strings.Builder
-	b.WriteByte(' ')
+// tabs renders tabs within w columns, by their titles with their counts once
+// the header says them, or by shorter forms where they don't fit.
+func (s *Section) tabs(tabs []tab, w int) string {
+	items := make([]tabrow.Item, len(tabs))
+	cur := 0
 	for i, t := range tabs {
-		if i > 0 {
-			b.WriteString("  ")
+		items[i] = tabrow.Item{
+			Label: s.tabTitle(t, tabTitles),
+			Short: s.tabTitle(t, shortTabs),
+			Count: s.tabCount(t),
 		}
-		label := s.tabTitle(t, titles)
-		if count := s.tabCount(t); count != "" {
-			label += " " + count
-		}
-		if t == p.tab {
-			s.st.tab.Write(&b, label)
-		} else {
-			st.Muted.Write(&b, label)
+		if t == s.page.tab {
+			cur = i
 		}
 	}
-	return b.String()
+	row := tabrow.New(tabrow.WithStyles(s.st.row))
+	row.SetItems(items, cur)
+	row.SetWidth(w)
+	return row.View()
 }
 
 // language renders the language of the repository under the cursor of l,

@@ -147,6 +147,7 @@ pkg/bubbles/feed/options.go:DefaultMaxChunks  keep: a bubble's own default, a me
 pkg/bubbles/thread/options.go:DefaultMaxChunks  keep: a bubble's own default, a memory bound
 pkg/bubbles/finder/options.go:DefaultSyncLimit  keep: a bubble's own default, a bound on work in a frame
 pkg/bubbles/graph/options.go:DefaultMaxLanes  keep: a bubble's own default, a layout measure
+pkg/bubbles/tabrow/model.go:DefaultSeparator  keep: a bubble's own default, a glyph between tabs
 pkg/bubbles/logview/options.go:DefaultTabWidth  keep: a bubble's own default, as terminals set tabs
 pkg/bubbles/diff/options.go:DefaultTabWidth  keep: a bubble's own default, a layout measure
 pkg/bubbles/pager/options.go:DefaultTabWidth  keep: a bubble's own default, a layout measure
