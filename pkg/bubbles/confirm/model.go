@@ -42,6 +42,9 @@ func New(a Ask, opts ...Option) Model {
 // Ask returns what the model asks.
 func (m Model) Ask() Ask { return m.ask }
 
+// KeyMap returns the keys that answer.
+func (m Model) KeyMap() KeyMap { return m.keys }
+
 // SetKeyMap sets the keys that answer.
 func (m *Model) SetKeyMap(k KeyMap) { m.keys = k }
 

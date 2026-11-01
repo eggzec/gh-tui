@@ -83,7 +83,6 @@ func OverLastLines(view string, lines []string) string {
 // and closes it; no closes it as if nothing happened.
 type ConfirmModal struct {
 	ask   confirm.Model
-	keys  confirm.KeyMap
 	icons Icons
 	// answered is set once the user answered, so that a second yes, such
 	// as a repeated key, arriving before the modal closes does nothing.
@@ -99,7 +98,7 @@ type ConfirmModal struct {
 // NewConfirmModal returns the modal that asks c, answered with keys, cut
 // with the ellipsis of ic where it must be.
 func NewConfirmModal(c confirm.Ask, keys confirm.KeyMap, ic Icons) *ConfirmModal {
-	return &ConfirmModal{ask: confirm.New(c, confirm.WithKeyMap(keys), confirm.WithStyles(confirm.Styles{})), keys: keys, icons: ic}
+	return &ConfirmModal{ask: confirm.New(c, confirm.WithKeyMap(keys), confirm.WithStyles(confirm.Styles{})), icons: ic}
 }
 
 // OpenConfirm opens the modal that asks c, and arms it once it is open.
@@ -163,7 +162,7 @@ func (m *ConfirmModal) Commands() []string { return nil }
 
 // KeyLayers implements Keyed: the keys that answer the question.
 func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{ConfirmLayer(m.keys)}
+	return []keyhelp.Layer{ConfirmLayer(m.ask.KeyMap())}
 }
 
 func (m *ConfirmModal) render() {
