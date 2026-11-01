@@ -148,7 +148,7 @@ func TestStaleUserReadIsDropped(t *testing.T) {
 	t.Run("query changed", func(t *testing.T) {
 		t.Parallel()
 		s, held := heldSection(t, teaUser(), core.SearchUsers, opt)
-		press(t, s, "i")
+		press(t, s, "/")
 		press(t, s, "backspace")
 		// The new query's own reads stay out, so only the old read can fill the preview.
 		drive(t, s, s.Update(keyPress("enter")), func(m tea.Msg) bool { _, ok := m.(previewReadMsg); return ok })
@@ -174,7 +174,7 @@ func TestStaleCommitReadIsDropped(t *testing.T) {
 	t.Run("query changed", func(t *testing.T) {
 		t.Parallel()
 		s, held := heldSection(t, teaCommit(), core.SearchCommits, opt)
-		press(t, s, "i")
+		press(t, s, "/")
 		press(t, s, "backspace")
 		// The new query's own reads stay out, so only the old read can fill the preview.
 		drive(t, s, s.Update(keyPress("enter")), func(m tea.Msg) bool { _, ok := m.(previewReadMsg); return ok })

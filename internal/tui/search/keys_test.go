@@ -23,7 +23,7 @@ func TestKeyMapComplete(t *testing.T) {
 // its keys don't take, and the page's own keys come before the list's.
 // Each row checks the binding the key reaches, and then what the key does.
 func TestKeyLayersOrder(t *testing.T) {
-	typing, results := []string{"i"}, []string{"i", "t", "e", "a", "enter"}
+	typing, results := []string{"/"}, []string{"/", "t", "e", "a", "enter"}
 	tests := []struct {
 		to   []string
 		key  string
@@ -32,7 +32,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	}{
 		// The page opens on the query, which takes no text yet.
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "" && !s.typing }},
-		{nil, "i", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
+		{nil, "/", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
 		{nil, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues }},
 		{nil, "[", "Search: previous kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchTopics }},
 		{nil, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
@@ -45,11 +45,11 @@ func TestKeyLayersOrder(t *testing.T) {
 		{typing, "1", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "1" && s.typing }},
 		{typing, "tab", "Query: complete", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
 		{typing, "esc", "Query: results", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
-		{[]string{"i", "t"}, "enter", "Query: search", func(s, _ *Section, _ []tea.Msg) bool {
+		{[]string{"/", "t"}, "enter", "Query: search", func(s, _ *Section, _ []tea.Msg) bool {
 			return s.area == resultsArea && s.text == "t" && !s.typing
 		}},
 		// In the results, the page's keys come first and the list's after.
-		{results, "i", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.input.Value() == "tea" }},
+		{results, "/", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.input.Value() == "tea" }},
 		{results, "1", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchRepos }},
 		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.preview && !s.typing }},
 		{results, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues && s.area == resultsArea }},
@@ -153,7 +153,7 @@ func TestScrollOtherNeedsResultsFocus(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
-	press(t, s, "i")
+	press(t, s, "/")
 	before := selectedHit(s)
 	press(t, s, "J")
 	if got := s.input.Value(); got != "teaJ" {

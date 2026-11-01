@@ -27,7 +27,6 @@ var listFindCases = []listFindCase{
 	{name: "pull requests", text: "e"},
 	{name: "issues", text: "e"},
 	{name: "issues", zoom: true, text: "e"},
-	{name: "search: results", text: "e"},
 	{name: "owner: repositories", text: "gh"},
 	{name: "actions: runs", text: "e"},
 }

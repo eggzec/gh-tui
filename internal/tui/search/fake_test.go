@@ -492,7 +492,7 @@ func press(tb testing.TB, s *Section, keys ...string) []tea.Msg {
 func typeOnly(tb testing.TB, s *Section, text string) {
 	tb.Helper()
 	if !s.typing {
-		press(tb, s, "i")
+		press(tb, s, "/")
 	}
 	for _, r := range text {
 		press(tb, s, string(r))

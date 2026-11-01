@@ -109,7 +109,7 @@ func TestRepoKeyOverSearchClosesFirst(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
+		pressKeys(t, m, "S", "/", "k", "e", "y", "enter")
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -132,7 +132,7 @@ func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
+		pressKeys(t, m, "S", "/", "k", "e", "y", "enter")
 		pressKeys(t, m, "@")
 		if m.searchHost() != nil || m.modals.Top() != nil {
 			t.Errorf("@ left the search open: top modal %v", m.modals.Top())
@@ -153,7 +153,7 @@ func TestSearchKeyOverTheSearchChangesNothing(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "k", "e", "y", "enter")
+		pressKeys(t, m, "S", "/", "k", "e", "y", "enter")
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results", got)
 		}
@@ -207,7 +207,7 @@ func TestBackspaceOnTheSearchPage(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "k", "e", "y", "backspace")
+		pressKeys(t, m, "S", "/", "k", "e", "y", "backspace")
 		if m.searchHost() == nil || m.srch.section.(*searchpage.Section).Typed() != "ke" {
 			t.Fatalf("backspace while typing: screen %d, query %q, want the page with ke", m.screen, m.srch.section.(*searchpage.Section).Typed())
 		}
@@ -229,7 +229,7 @@ func TestRepoKeyOnTheQueryDoesNothing(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		m := newKeysApp(t, false)
-		pressKeys(t, m, "S", "i", "k", "e", "y", "esc", "1")
+		pressKeys(t, m, "S", "/", "k", "e", "y", "esc", "1")
 		if got := focusOf(m); got != `search: results "key"` {
 			t.Fatalf("the keys reach %s, want the results (a digit picks the kind)", got)
 		}

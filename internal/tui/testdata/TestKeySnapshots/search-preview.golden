@@ -11,7 +11,7 @@ global
   help | ? | ? | on
 
 Search
-  type | i | i | on
+  type | / | / | on
   next kind | ] | ] | on
   previous kind | [ | [ | on
   next | tab | tab | on
@@ -41,7 +41,7 @@ Preview
   smart case | i | i | off
   ignore case | I | I | off
   cancel | esc | esc | off
-  search | / | / | on
+  search |  |  | off
   filter | & | & | on
   search | enter | ↵ | off
   cancel | esc | esc | off

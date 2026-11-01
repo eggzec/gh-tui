@@ -320,7 +320,7 @@ func TestFirstMatch(t *testing.T) {
 }
 
 // The page opens on the query in normal mode: letters are not typed, and
-// i starts typing.
+// / starts typing.
 func TestOpensInNormalMode(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
 	if s.Capturing() || s.area != inputArea {
@@ -330,9 +330,9 @@ func TestOpensInNormalMode(t *testing.T) {
 	if s.input.Value() != "" {
 		t.Errorf("the query is %q after letters in normal mode, want it empty", s.input.Value())
 	}
-	press(t, s, "i")
+	press(t, s, "/")
 	if !s.Capturing() || s.area != inputArea {
-		t.Fatal("i should start typing in the query")
+		t.Fatal("/ should start typing in the query")
 	}
 	typeText(t, s, "tea")
 	if s.input.Value() != "tea" {
@@ -344,7 +344,7 @@ func TestOpensInNormalMode(t *testing.T) {
 // the query; from the results, esc goes nowhere.
 func TestEscLeavesTypingForTheResults(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
-	press(t, s, "i", "t", "tab")
+	press(t, s, "/", "t", "tab")
 	if !s.Capturing() || s.area != inputArea || s.input.Value() != "t" {
 		t.Errorf("tab while typing left the query: capturing %v, area %d, text %q", s.Capturing(), s.area, s.input.Value())
 	}
@@ -372,7 +372,7 @@ func TestDigitsMovePanes(t *testing.T) {
 	if s.area != inputArea || s.kind != core.SearchIssues {
 		t.Error("9 names no kind and should do nothing")
 	}
-	press(t, s, "i", "2")
+	press(t, s, "/", "2")
 	if s.input.Value() != "2" || s.area != inputArea {
 		t.Errorf("typing 2 gave %q in area %d, want it typed", s.input.Value(), s.area)
 	}
@@ -443,7 +443,7 @@ func TestStart(t *testing.T) {
 	typeText(t, s, "lipgloss")
 	press(t, s, "esc", "enter")
 	s.Focus()
-	press(t, s, "i")
+	press(t, s, "/")
 	for range len("lipgloss") {
 		press(t, s, "backspace")
 	}
@@ -477,7 +477,7 @@ func TestStartFailure(t *testing.T) {
 			s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) { return nil, tt.err }))
 			termtexttest.AssertClean(t, s.View(), 120)
 			view := screen(s)
-			if !strings.Contains(view, tt.want) || !strings.Contains(view, "Press i to search GitHub.") {
+			if !strings.Contains(view, tt.want) || !strings.Contains(view, "Press / to search GitHub.") {
 				t.Errorf("the page should say %q:\n%s", tt.want, view)
 			}
 			for _, leak := range []string{"github", "list repos", "GET", "403", "404", "decode"} {
@@ -564,7 +564,7 @@ func TestKeepsTitlesWhileLoading(t *testing.T) {
 	if before < 1 {
 		t.Fatalf("the first row isn't on view:\n%s", loaded)
 	}
-	s.Update(keyPress("i"))
+	s.Update(keyPress("/"))
 	s.Update(keyPress("-"))
 	s.Update(keyPress("enter"))
 	if _, ok := s.staleView(); !ok {
@@ -629,7 +629,7 @@ func TestSearch(t *testing.T) {
 func TestFreshStartsEmptyAndFocused(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
-	for _, k := range []string{"i", "t", "e", "a"} {
+	for _, k := range []string{"/", "t", "e", "a"} {
 		run(t, s, s.Update(keyPress(k)))
 	}
 	run(t, s, s.Update(keyPress("enter")))
@@ -644,7 +644,7 @@ func TestFreshStartsEmptyAndFocused(t *testing.T) {
 	if s.Capturing() || s.area != inputArea {
 		t.Errorf("after Fresh the query should have the focus, in normal mode: capturing %v, area %d", s.Capturing(), s.area)
 	}
-	for _, k := range []string{"i", "g", "o"} {
+	for _, k := range []string{"/", "g", "o"} {
 		run(t, s, s.Update(keyPress(k)))
 	}
 	if got := s.input.Value(); got != "go" {
@@ -727,11 +727,11 @@ func TestEnterLabel(t *testing.T) {
 // that starts typing.
 func TestStartHintWhileTyping(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30, WithStart(func(context.Context) ([]core.Repo, error) { return nil, nil }))
-	if !strings.Contains(flat(s), "Press i to search") {
+	if !strings.Contains(flat(s), "Press / to search") {
 		t.Errorf("the start should name the key:\n%s", screen(s))
 	}
-	press(t, s, "i")
-	if v := flat(s); strings.Contains(v, "Press i") || !strings.Contains(v, "Type to search") {
+	press(t, s, "/")
+	if v := flat(s); strings.Contains(v, "Press /") || !strings.Contains(v, "Type to search") {
 		t.Errorf("while typing the start should say to type:\n%s", screen(s))
 	}
 }

@@ -116,7 +116,7 @@ func TestTabCompletesValue(t *testing.T) {
 	s.SetValues(fakeValues{repos: []string{"octo/hello"}})
 	s.Focus()
 	// Issues take repo:, which repositories do not.
-	press(t, s, "2", "i")
+	press(t, s, "2", "/")
 	typeOnly(t, s, "tea repo:oc")
 	press(t, s, "tab")
 	if got := s.input.Value(); got != "tea repo:octo/hello" {
@@ -128,7 +128,7 @@ func TestTabCompletesInQuery(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	s.Focus()
-	press(t, s, "i")
+	press(t, s, "/")
 	typeOnly(t, s, "tea is:")
 	press(t, s, "tab")
 	if got := s.input.Value(); got != "tea is:public" {
@@ -161,7 +161,7 @@ func TestCompleteRowFits80(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 80, 22)
 	s.Focus()
-	press(t, s, "i")
+	press(t, s, "/")
 	typeOnly(t, s, "s")
 	view := s.View()
 	lines := strings.Split(view, "\n")

@@ -46,7 +46,7 @@ func BenchmarkUpdate(b *testing.B) {
 // BenchmarkType types and erases a query, which searches for nothing.
 func BenchmarkType(b *testing.B) {
 	s := newSection(b, newFake(), 140, 38)
-	press(b, s, "i")
+	press(b, s, "/")
 	keys := []tea.Msg{keyPress("t"), keyPress("e"), keyPress("a"), keyPress("backspace"), keyPress("backspace"), keyPress("backspace")}
 	b.ReportAllocs()
 	i := 0
