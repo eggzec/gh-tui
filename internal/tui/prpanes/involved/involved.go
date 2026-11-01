@@ -151,6 +151,13 @@ func compose(d Data) people {
 	return p
 }
 
+// Reviewers returns the people and teams asked for a review and those who gave
+// one, as the pane lists them.
+func Reviewers(r core.Reviewers, author string) []Person {
+	out, _ := reviewers(r, author)
+	return out
+}
+
 // reviewers returns the people and teams who were asked for a review, and
 // those who gave one, and how many more there are than it can show. The
 // author never is one: GitHub lists their replies in review threads as

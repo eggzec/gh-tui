@@ -150,6 +150,9 @@ func (m *Model) pressNormal(msg tea.KeyPressMsg) tea.Cmd {
 		if !m.marked || !m.ticks {
 			return nil
 		}
+		if it, ok := m.Selected(); ok && it.Locked && m.sel < len(m.listed) {
+			return send(LockedMsg{ID: m.id, Item: it})
+		}
 		m.toggle()
 		return nil
 	case keymap.Matches(msg, n.Search):

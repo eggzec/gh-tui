@@ -340,6 +340,15 @@ func (m Model) Ticked() []Item {
 	return out
 }
 
+// LockedMsg tells the parent that the user tried to change the tick of a
+// locked row, which stays as it is. The parent may say why, such as in a toast.
+type LockedMsg struct {
+	// ID is the ID of the picker that sent it.
+	ID int64
+	// Item is the locked row.
+	Item Item
+}
+
 // toggle flips the tick of the selected row, unless it is locked. A picker
 // that lists the ticked first moves the selection to the row that follows, as
 // the toggled row changes sides.

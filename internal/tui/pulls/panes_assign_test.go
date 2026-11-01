@@ -259,25 +259,6 @@ func TestAssigneesEscAndBackDoNotApply(t *testing.T) {
 	}
 }
 
-func TestAssigneesKeyOnlyOnAssignees(t *testing.T) {
-	t.Parallel()
-	svc := &involvedService{fakeService: newFakeService()}
-	m := openedInvolved(t, svc)
-	m.Update(ui.CapsMsg{Repo: repo, Caps: writeCaps})
-	if !moveTo(m, "rita") {
-		t.Fatal("no row for rita")
-	}
-	run(m, m.Update(keyMsg("e")))
-	if m.top() != nil {
-		t.Errorf("e on a reviewer opened %T", m.top())
-	}
-	if !moveTo(m, "bob") {
-		t.Fatal("no row for bob")
-	}
-	run(m, m.Update(keyMsg("e")))
-	assigneesOverlayOf(t, m)
-}
-
 func TestAssigneesRefusedWithoutTriage(t *testing.T) {
 	t.Parallel()
 	svc := &involvedService{fakeService: newFakeService()}

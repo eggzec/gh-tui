@@ -110,10 +110,13 @@ func (m *panesModal) involvedPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.rerequest(), true
 	}
 	if keymap.Matches(msg, m.keys.edit) {
-		if !m.inv.tree.OnAssignees() {
-			return nil, true
+		switch {
+		case m.inv.tree.OnAssignees():
+			return m.openAssignees(), true
+		case m.inv.tree.OnReviewers():
+			return m.openReviewers(), true
 		}
-		return m.openAssignees(), true
+		return nil, true
 	}
 	var cmd tea.Cmd
 	m.inv.tree, cmd = m.inv.tree.Update(msg)

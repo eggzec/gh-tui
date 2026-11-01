@@ -135,6 +135,37 @@ func TestLockedRowKeepsItsTick(t *testing.T) {
 	}
 }
 
+func TestToggleOfALockedRowSendsLockedMsg(t *testing.T) {
+	locked := ghTUI
+	locked.Locked = true
+	tests := []struct {
+		name  string
+		items []Item
+		want  bool
+	}{
+		{"locked row", []Item{locked, dotfiles}, true},
+		{"plain row", []Item{ghTUI, dotfiles}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tickPicker(t, tt.items)
+			_, sent := press(t, m, space)
+			var got *LockedMsg
+			for _, msg := range sent {
+				if l, ok := msg.(LockedMsg); ok {
+					got = &l
+				}
+			}
+			if (got != nil) != tt.want {
+				t.Fatalf("LockedMsg sent = %v, want %v (sent %v)", got != nil, tt.want, sent)
+			}
+			if got != nil && (got.ID != m.ID() || got.Item.Title != locked.Title) {
+				t.Errorf("LockedMsg = %+v, want the locked row of picker %d", got, m.ID())
+			}
+		})
+	}
+}
+
 func TestToggleDoesNothingWithoutMarks(t *testing.T) {
 	m := open(t, nil, WithItems(catalog), WithModes(true))
 	m, sent := press(t, m, space)

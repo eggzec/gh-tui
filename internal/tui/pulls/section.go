@@ -109,7 +109,7 @@ type Service interface {
 	// by author to the conversation.
 	EditPull(repo core.RepoRef, number int, title, body string) *optimistic.Op
 	Comment(repo core.RepoRef, number int, body, author string) *optimistic.Op
-	reviewRequester
+	reviewerEditor
 	labelEditor
 	assigneeEditor
 	viewedService

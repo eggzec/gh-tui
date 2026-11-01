@@ -1291,7 +1291,7 @@ keys:
   # The modal of a pull request: the people on it. Expand and collapse fold
   # the groups; enter on a person shows their latest comment. Re-request asks a
   # reviewer who has already reviewed for another review. Edit opens the picker
-  # of the assignees, from the Assignees group or one of its rows.
+  # of the assignees or of the reviewers, from the group or one of its rows.
   pull_involved:
     up: [up, k]
     down: [down, j]

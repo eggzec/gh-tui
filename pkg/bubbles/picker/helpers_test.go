@@ -129,7 +129,7 @@ func run(tb testing.TB, m Model, cmd tea.Cmd) (after Model, sent []tea.Msg) {
 		case nil, spinner.TickMsg:
 		case tea.BatchMsg:
 			queue = append(queue, msg...)
-		case ChosenMsg, CancelMsg:
+		case ChosenMsg, CancelMsg, LockedMsg:
 			sent = append(sent, msg)
 		default:
 			var next tea.Cmd

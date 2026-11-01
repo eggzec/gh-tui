@@ -39,6 +39,8 @@ const (
 	ActResolve
 	// ActAssign changes who a pull request or issue is assigned to.
 	ActAssign
+	// ActReview changes who is asked to review a pull request.
+	ActReview
 )
 
 // Gate decides what the viewer may do in one repository, from what GitHub
@@ -107,6 +109,8 @@ func (g Gate) need(a Action) (need core.Need, gerund string) {
 		gerund = "Labeling"
 	case ActAssign:
 		gerund = "Assigning"
+	case ActReview:
+		gerund = "Requesting a review"
 	case ActResolve:
 		gerund = "Changing a thread"
 	default:
@@ -178,6 +182,11 @@ func (g Gate) allowRepo(a Action, it *core.Issue) (ok bool, why string) {
 	case ActAssign:
 		if !c.CanTriage() {
 			return false, "Assigning needs triage access to " + repo + "."
+		}
+	case ActReview:
+		// The author may ask for reviews of their own pull request.
+		if !c.CanTriage() && !g.authored(it) {
+			return false, "Requesting a review needs triage access to " + repo + "."
 		}
 	case ActRerun:
 		if !c.CanWrite() {
