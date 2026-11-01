@@ -940,6 +940,7 @@ var foldedContexts = map[string]string{"picker_normal": "picker"}
 // moves in. Each is listed by its context and label, with the reason.
 var idleRows = map[string]string{
 	"global notifications": "the modal that shows the notifications is not there yet",
+	"global menu":          "a view with no item selected, such as the calendar, has no menu to open",
 
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",

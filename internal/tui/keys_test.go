@@ -82,8 +82,8 @@ func TestKeyLayersOrder(t *testing.T) {
 
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
-	if got := winner(m, "x"); got != "Preview: close" {
-		t.Errorf("x reaches %q with a modal open, want the modal", got)
+	if got := winner(m, "Z"); got != "Preview: close" {
+		t.Errorf("Z reaches %q with a modal open, want the modal", got)
 	}
 	if got := winner(m, "?"); got != "always: help" {
 		t.Errorf("? reaches %q with a modal open, want the help", got)

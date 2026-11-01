@@ -25,7 +25,7 @@ type collideKeys struct{}
 
 func (collideKeys) ShortHelp() []key.Binding {
 	return []key.Binding{
-		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "close")),
+		key.NewBinding(key.WithKeys("Z"), key.WithHelp("Z", "close")),
 		key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "find")),
 	}
 }
@@ -58,10 +58,10 @@ func TestHelpOverModal(t *testing.T) {
 	if !slices.Contains(shownDescs(m), "close") || slices.Contains(shownDescs(m), "search") {
 		t.Errorf("the help lists %q, want the modal's keys and not the app's", shownDescs(m))
 	}
-	for _, k := range []string{"x", "q"} {
+	for _, k := range []string{"Z", "q"} {
 		run(m, m.key(press(k)))
 	}
-	if len(mod.keys()) != 0 || m.keyhelp.Query() != "xq" {
+	if len(mod.keys()) != 0 || m.keyhelp.Query() != "Zq" {
 		t.Errorf("the modal got %q and the query is %q, want the query to get the keys", mod.keys(), m.keyhelp.Query())
 	}
 	run(m, m.key(press("esc")))
@@ -72,8 +72,8 @@ func TestHelpOverModal(t *testing.T) {
 	if m.helpOpen() || m.modals.Top() != mod {
 		t.Fatalf("esc on an empty query should close the help alone: help open %v", m.helpOpen())
 	}
-	run(m, m.key(press("x")))
-	if !slices.Equal(mod.keys(), []string{"x"}) {
+	run(m, m.key(press("Z")))
+	if !slices.Equal(mod.keys(), []string{"Z"}) {
 		t.Errorf("once the help closed the modal got %q, want x", mod.keys())
 	}
 }
@@ -336,7 +336,7 @@ func quits(cmd tea.Cmd) bool {
 func TestCtrlCAlwaysQuits(t *testing.T) {
 	t.Parallel()
 	cfg := config.Default()
-	cfg.Keys.Set(config.ActionQuit, []string{"x"})
+	cfg.Keys.Set(config.ActionQuit, []string{"Z"})
 	files := &fakeSection{title: "Files"}
 	m := New(t.Context(), cfg, Layout{Files: files}, WithRepo(testRepo))
 	rankFakes(m)
@@ -352,7 +352,7 @@ func TestCtrlCAlwaysQuits(t *testing.T) {
 		}
 	}
 	files.capturing = false
-	if !quits(m.key(press("x"))) {
+	if !quits(m.key(press("Z"))) {
 		t.Error("the key bound to quit didn't quit")
 	}
 
@@ -383,8 +383,8 @@ func TestHelpClosesForNewModal(t *testing.T) {
 	if m.helpOpen() || m.modals.Top() != mod {
 		t.Fatalf("help open %v, modal open %v; want the modal alone", m.helpOpen(), m.modals.Top() == mod)
 	}
-	run(m, m.key(press("x")))
-	if !slices.Equal(mod.keys(), []string{"x"}) {
+	run(m, m.key(press("Z")))
+	if !slices.Equal(mod.keys(), []string{"Z"}) {
 		t.Errorf("the modal got %q, want x", mod.keys())
 	}
 }

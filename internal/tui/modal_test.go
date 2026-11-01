@@ -66,10 +66,10 @@ func TestModalTakesEveryKey(t *testing.T) {
 		t.Fatalf("modal opened without theme or size: themed %v, %dx%d", mod.themed, mod.width, mod.height)
 	}
 
-	for _, k := range []string{"q", "tab", "x"} {
+	for _, k := range []string{"q", "tab", "Z"} {
 		run(m, m.key(press(k)))
 	}
-	if got := mod.keys(); !slices.Equal(got, []string{"q", "tab", "x"}) {
+	if got := mod.keys(); !slices.Equal(got, []string{"q", "tab", "Z"}) {
 		t.Errorf("modal got keys %v, want all three", got)
 	}
 	if fakes[0].got(func(msg tea.Msg) bool { _, ok := msg.(tea.KeyPressMsg); return ok }) {
@@ -93,7 +93,7 @@ func TestModalGetsOtherMessages(t *testing.T) {
 	m, _ := newTestApp(t)
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
-	run(m, func() tea.Msg { return ui.DoneMsg{What: "x"} })
+	run(m, func() tea.Msg { return ui.DoneMsg{What: "Z"} })
 	if !slices.ContainsFunc(mod.msgs, func(msg tea.Msg) bool { _, ok := msg.(ui.DoneMsg); return ok }) {
 		t.Error("the modal missed a message sent to everyone")
 	}
@@ -213,8 +213,8 @@ func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 	if m.modals.Top() != second {
 		t.Fatal("the second modal isn't open")
 	}
-	run(m, func() tea.Msg { return ui.DoneMsg{What: "x"} })
-	run(m, m.key(press("x")))
+	run(m, func() tea.Msg { return ui.DoneMsg{What: "Z"} })
+	run(m, m.key(press("Z")))
 	if len(first.msgs) != 0 {
 		t.Errorf("the replaced modal still got %d messages", len(first.msgs))
 	}
@@ -234,8 +234,8 @@ func TestOpeningAModalReplacesTheOpenOne(t *testing.T) {
 	// Closing again is harmless.
 	run(m, ui.CloseModal(second))
 
-	run(m, m.key(press("x")))
-	if !fakes[0].got(func(msg tea.Msg) bool { k, ok := msg.(tea.KeyPressMsg); return ok && k.String() == "x" }) {
+	run(m, m.key(press("Z")))
+	if !fakes[0].got(func(msg tea.Msg) bool { k, ok := msg.(tea.KeyPressMsg); return ok && k.String() == "Z" }) {
 		t.Error("keys didn't go back to the section after the modal closed")
 	}
 }
