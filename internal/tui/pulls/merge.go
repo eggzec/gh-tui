@@ -35,6 +35,11 @@ type mergePlan struct {
 	// checks.
 	Review bool
 	Cant   string
+	// Bypass is set when Cant stands only in rules that the viewer may merge
+	// past, and Unmet says which rules, as a phrase. GitHub merges past them
+	// for such a viewer with the plain merge, so the dialog asks first.
+	Bypass bool
+	Unmet  string
 }
 
 // planMerge decides what the merge key does to d. What the detail hasn't
@@ -69,7 +74,11 @@ func planMerge(d core.PullRequestDetail) mergePlan {
 	if pending {
 		hard = append(hard, "checks are still running")
 	}
-	return mergePlan{Cant: "Can't merge: " + strings.Join(hard, ", ") + "."}
+	unmetRules := strings.Join(hard, ", ")
+	// Only a pull request held by its rules may be merged past them: not one
+	// with conflicts, behind its base or a draft.
+	bypass := m.CanMergeAsAdmin && m.Status == core.MergeBlocked && m.Mergeable != core.MergeableConflicting
+	return mergePlan{Cant: "Can't merge: " + unmetRules + ".", Bypass: bypass, Unmet: unmetRules}
 }
 
 // decided reports whether m says whether the pull request may merge: its
@@ -166,7 +175,12 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 		return change{}, false, ui.Notify(toast.Warning, "Mark "+n+" ready for review before merging it.")
 	}
 	plan := planMerge(d)
-	if plan.Cant != "" {
+	blocked := plan.Cant != "" && plan.Bypass
+	switch {
+	case blocked:
+		// Asked for in the dialog, which merges only with the bypass on.
+		plan.Kind = mergeNow
+	case plan.Cant != "":
 		return change{}, false, ui.Notify(toast.Warning, plan.Cant)
 	}
 	repo, number, head := g.Repo, pr.Number, pr.HeadSHA
@@ -174,11 +188,12 @@ func (k keyMap) mergeChange(svc Service, g ui.Gate, how mergeAs, d core.PullRequ
 	m, _ := caps.MergeMethod(how.method)
 	chooses := plan.Kind == mergeNow || plan.Kind == mergeAuto
 	of.kind, of.base, of.head = plan.Kind, pr.BaseRef, head
+	of.blocked, of.bypass = blocked, blocked && how.bypass
 	if chooses {
 		of.method = m
 	}
 	// A merge queue merges as it is set up, whatever the method.
-	c = change{of: of, msg: how.msg, chooses: chooses, queued: plan.Kind == mergeAuto && d.Merge.Queue.Enabled}
+	c = change{of: of, msg: how.msg, chooses: chooses, queued: plan.Kind == mergeAuto && d.Merge.Queue.Enabled, unmet: plan.Unmet}
 	switch plan.Kind {
 	case mergeNow:
 		c.note = mergeNote(pr, "")

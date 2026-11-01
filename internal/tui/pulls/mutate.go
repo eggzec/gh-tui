@@ -62,7 +62,10 @@ type change struct {
 	// queued says that a merge queue merges as it is set up, so the method
 	// is shown but not the user's to pick.
 	queued bool
-	start  func() *optimistic.Op
+	// unmet says which rules keep a blocked pull request from merging, which
+	// the dialog names when the user may merge past them (of.blocked).
+	unmet string
+	start func() *optimistic.Op
 	// methods are those the user may pick from, when chooses is set.
 	methods []core.MergeMethod
 }
@@ -73,6 +76,9 @@ type change struct {
 type mergeAs struct {
 	method core.MergeMethod
 	msg    core.MergeMessage
+	// bypass is the user's yes to merging past the rules that hold the pull
+	// request, which a plain merge does for a viewer who may.
+	bypass bool
 }
 
 // changeOf says what a change is: its action on pull request number of
@@ -90,12 +96,18 @@ type changeOf struct {
 	head string
 	// ready is set when the draft toggle marks a draft ready.
 	ready bool
+	// blocked is set when rules hold the pull request that the viewer may
+	// merge past, and bypass when the user said to. A merge asked for on one
+	// footing is never sent on the other, since a plain merge of a blocked
+	// pull request goes past its rules.
+	blocked, bypass bool
 }
 
 // same reports whether c and d are one change.
 func (c changeOf) same(d changeOf) bool {
 	return c.repo.Same(d.repo) && c.number == d.number && c.action == d.action &&
-		c.kind == d.kind && c.method == d.method && c.base == d.base && c.head == d.head && c.ready == d.ready
+		c.kind == d.kind && c.method == d.method && c.base == d.base && c.head == d.head && c.ready == d.ready &&
+		c.blocked == d.blocked && c.bypass == d.bypass
 }
 
 // change returns the change that msg asks of d, and ok when there is one.
@@ -177,10 +189,10 @@ func (k keyMap) confirmed(svc Service, asked change, msg tea.KeyPressMsg,
 		if found {
 			// A merge asks again for the method it was asked with, which
 			// the user may have changed.
-			c, ok, warn = k.change(svc, g, mergeAs{asked.of.method, asked.msg}, d, msg)
+			c, ok, warn = k.change(svc, g, mergeAs{asked.of.method, asked.msg, asked.of.bypass}, d, msg)
 		}
 		switch {
-		case ok && c.of.same(asked.of):
+		case ok && c.of.same(asked.of) && (!c.of.blocked || c.of.bypass):
 			return send(c, c.start())
 		case warn != nil:
 			return warn

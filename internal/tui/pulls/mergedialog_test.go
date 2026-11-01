@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -248,6 +250,83 @@ func TestMergeDialogSaysTheBase(t *testing.T) {
 			t.Errorf("the dialog doesn't name the base and what it waits for:\n%s", got)
 		}
 	})
+}
+
+// blockedByReview stands #142 as held by a review it lacks, which an
+// administrator may merge past.
+func blockedByReview(t *testing.T, admin bool) (*fakeService, *host, *mergeDialog) {
+	t.Helper()
+	svc := newFakeService()
+	svc.mergeTexts = map[int]core.MergeTexts{142: mergeTexts}
+	stand(svc, core.MergeInfo{Status: core.MergeBlocked, CanMergeAsAdmin: admin}, core.ReviewRequired, core.ChecksSuccess)
+	h, _ := asking(t, svc, writeCaps, "M")
+	dlg := dialogOf(h)
+	if dlg != nil {
+		drain(t, h, dlg.Init())
+	}
+	return svc, h, dlg
+}
+
+func TestMergeDialogOffersTheBypassOnlyToWhoMay(t *testing.T) {
+	t.Parallel()
+	t.Run("admin", func(t *testing.T) {
+		t.Parallel()
+		_, _, dlg := blockedByReview(t, true)
+		if dlg == nil {
+			t.Fatal("no dialog opened for a blocked pull request the viewer may merge as admin")
+		}
+		if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Bypass checks [off] a review is required") {
+			t.Errorf("the dialog doesn't offer the bypass:\n%s", got)
+		}
+	})
+	t.Run("not admin", func(t *testing.T) {
+		t.Parallel()
+		_, _, dlg := blockedByReview(t, false)
+		if dlg != nil {
+			t.Errorf("a dialog opened for a pull request the viewer can't merge:\n%s", dlg.View())
+		}
+	})
+	t.Run("clean", func(t *testing.T) {
+		t.Parallel()
+		_, dlg := merging(t, newFakeService(), &memDrafts{})
+		if got := dlg.View(); strings.Contains(got, "Bypass") {
+			t.Errorf("the dialog offers a bypass for a pull request that may merge:\n%s", got)
+		}
+	})
+}
+
+func TestMergeDialogBypassTogglesAndConfirms(t *testing.T) {
+	t.Parallel()
+	svc, h, dlg := blockedByReview(t, true)
+	if dlg.focus != focusBypass {
+		t.Fatalf("the cursor is on row %d, want the bypass row", dlg.focus)
+	}
+	// Without the bypass on, the merge isn't sent and the dialog says why.
+	press(t, h, "y")
+	if got := svc.changes(); len(got) != 0 {
+		t.Fatalf("changes = %q before the bypass was turned on, want none", got)
+	}
+	if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Turn on Bypass checks") {
+		t.Errorf("the dialog doesn't say to turn the bypass on:\n%s", got)
+	}
+	press(t, h, "right")
+	if got := ansi.Strip(dlg.View()); !strings.Contains(got, "[on] merges although a review is required") {
+		t.Errorf("the dialog doesn't say that checks are bypassed:\n%s", got)
+	}
+	if got, want := dlg.Title(), "Merge #142, bypassing checks"; got != want {
+		t.Errorf("title = %q, want %q", got, want)
+	}
+	// Off again, and on, with the other key.
+	press(t, h, "left")
+	if dlg.bypass {
+		t.Fatal("left didn't turn the bypass off")
+	}
+	press(t, h, "left")
+	press(t, h, "y")
+	got := svc.changes()
+	if len(got) != 1 || !strings.HasPrefix(got[0], "merge squash ") {
+		t.Errorf("changes = %q, want one squash merge:\n%s", got, ansi.Strip(question(h)))
+	}
 }
 
 func TestMergeNote(t *testing.T) {
