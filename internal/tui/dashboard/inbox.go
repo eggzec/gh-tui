@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	tuinotes "github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -65,6 +66,63 @@ func (l *inboxList) scroll(h int) {
 // setInbox shows the inbox that notes holds.
 func (s *Section) setInbox() {
 	s.threads.set(s.notes.value)
+	if s.reader != nil {
+		s.states = s.reader.CachedStates(s.threads.rows)
+		s.wantStates = true
+	}
+}
+
+// statesMsg carries the states a read of the subjects of the threads
+// answered.
+type statesMsg struct {
+	states map[core.SubjectRef]core.SubjectState
+}
+
+// readStates reads the state of what the threads are about, once they
+// changed, which the rows show.
+func (s *Section) readStates() tea.Cmd {
+	if !s.wantStates || s.reader == nil {
+		return nil
+	}
+	s.wantStates = false
+	if len(s.threads.rows) == 0 {
+		return nil
+	}
+	rows, reader, ctx := slices.Clone(s.threads.rows), s.reader, s.ctx
+	return func() tea.Msg {
+		states, err := reader.States(ctx, rows)
+		if err != nil || len(states) == 0 {
+			return nil
+		}
+		return statesMsg{states}
+	}
+}
+
+// subjectState is the state of what thread n is about, if it is known.
+func (s *Section) subjectState(n *core.Notification) (core.SubjectState, bool) {
+	st, ok := s.states[core.SubjectRef{Repo: n.Repo, Number: n.Subject.Number, Type: n.Subject.Type}]
+	return st, ok
+}
+
+// markThread asks whether to mark the thread under the cursor read, or done,
+// with the keys and the question the notifications list has.
+func (s *Section) markThread(done bool) tea.Cmd {
+	if s.marker == nil {
+		return nil
+	}
+	if cmd, refused := (ui.Gate{Token: s.voice.Token, Icons: s.icons}).Refuse(ui.ActMarkRead, nil); refused {
+		return cmd
+	}
+	run := func(n core.Notification) tea.Cmd {
+		op, what := s.marker.MarkRead(n.ID), "mark read"
+		if done {
+			op, what = s.marker.MarkDone(n.ID), "mark done"
+		}
+		// The change shows at once in the cache the pane reads.
+		s.readInboxCache()
+		return ui.Do(s.ctx, ui.NotificationsTitle, op, what)
+	}
+	return tuinotes.ConfirmThread(s.threads.selected, done, run, s.keys.confirm, s.icons)
 }
 
 // openThread opens what the thread under the cursor is about, and marks it

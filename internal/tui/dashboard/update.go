@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"maps"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -33,6 +35,9 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		}
 		s.renderPane(reposPane)
 		s.compose()
+	}
+	if read := s.readStates(); read != nil {
+		cmd = tea.Batch(cmd, read)
 	}
 	if ahead := s.readAhead(); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
@@ -83,6 +88,13 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, false
 		}
 		s.readInboxCache()
+		return nil, true
+	case statesMsg:
+		s.states = maps.Clone(s.states)
+		if s.states == nil {
+			s.states = map[core.SubjectRef]core.SubjectState{}
+		}
+		maps.Copy(s.states, msg.states)
 		return nil, true
 	case ui.BulkDoneMsg:
 		// So does marking several at once.
@@ -266,6 +278,10 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			if n, ok := l.selected(); ok {
 				return ui.Open(n.Subject.WebURL), true
 			}
+		case keymap.Matches(msg, k.InboxRead):
+			return s.markThread(false), true
+		case keymap.Matches(msg, k.InboxDone):
+			return s.markThread(true), true
 		default:
 			return nil, false
 		}

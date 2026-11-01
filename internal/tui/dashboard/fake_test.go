@@ -299,6 +299,8 @@ type fakeInbox struct {
 	lists   int
 	// marked are the threads marked read.
 	marked []string
+	// dones are the threads marked done.
+	dones []string
 	// err, when set, fails every list.
 	err error
 	// expired marks the page read past its TTL.
@@ -319,6 +321,21 @@ func (f *fakeInbox) MarkRead(id string) *optimistic.Op {
 	}
 	f.threads = ts
 	return optimistic.New(func(context.Context) error { return nil }, func() {})
+}
+
+// MarkDone marks thread id done at once, which drops it from the inbox.
+func (f *fakeInbox) MarkDone(id string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.dones = append(f.dones, id)
+	f.threads = slices.DeleteFunc(slices.Clone(f.threads), func(n core.Notification) bool { return n.ID == id })
+	return optimistic.New(func(context.Context) error { return nil }, func() {})
+}
+
+func (f *fakeInbox) doneMarks() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.dones)
 }
 
 func (f *fakeInbox) marks() []string {
@@ -528,6 +545,9 @@ func run(tb testing.TB, s *Section, cmd tea.Cmd) []tea.Msg {
 			queue = append(queue, msg...)
 		case ui.OpenMsg, ui.NotifyMsg, ui.RepoMsg, ui.OpenPullMsg, ui.OpenIssueMsg, ui.ShowMsg,
 			ui.OpenReleaseMsg, ui.OpenCommitMsg, ui.OpenActionsMsg, ui.OpenFilterMsg, ui.OpenSortMsg:
+			app = append(app, msg)
+		case ui.OpenModalMsg:
+			// The app opens the question over the section.
 			app = append(app, msg)
 		case ui.DoneMsg:
 			app = append(app, msg)

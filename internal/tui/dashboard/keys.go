@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -63,6 +64,8 @@ type KeyMap struct {
 	WorkDown  key.Binding `keymap:"dashboard_work.down" help:"down"`
 	InboxUp   key.Binding `keymap:"dashboard_inbox.up" help:"up"`
 	InboxDown key.Binding `keymap:"dashboard_inbox.down" help:"down"`
+	InboxRead key.Binding `keymap:"dashboard_inbox.read" help:"read"`
+	InboxDone key.Binding `keymap:"dashboard_inbox.done" help:"done"`
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -76,6 +79,8 @@ type KeyMap struct {
 	order orderpick.KeyMap
 	// cal moves through the days of the contributions.
 	cal calendar.KeyMap
+	// confirm answers the question that marking a thread asks.
+	confirm confirm.KeyMap
 }
 
 // The contexts of the keys of the dashboard: the screen, and a pane each.
@@ -119,6 +124,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.search = ui.SearchPromptKeys(keys)
 	k.order = ui.OrderPickKeys(keys)
 	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
+	k.confirm = confirm.NewKeyMap(ui.Lookup(keys, "confirm"))
 	return k
 }
 
@@ -145,7 +151,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
-		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown},
+		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown, k.InboxRead, k.InboxDone},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -192,7 +198,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	case workPane:
 		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
 	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open, k.InboxRead, k.InboxDone}
 	case calendarPane, numPanes:
 	}
 	return nil
@@ -208,7 +214,7 @@ func (k KeyMap) paneShort(p paneID) []key.Binding {
 	case workPane:
 		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList, k.Open}
 	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open, k.InboxRead, k.InboxDone}
 	case calendarPane, numPanes:
 	}
 	return nil

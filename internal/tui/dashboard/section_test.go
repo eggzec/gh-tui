@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -733,7 +734,7 @@ func TestInbox(t *testing.T) {
 	}
 	// The thread read leaves the unread ones, and the cursor stays on the
 	// first row.
-	if v := screen(s); !strings.Contains(v, "2 unread") || !strings.Contains(v, "▌ ● hello-world") {
+	if v := screen(s); !strings.Contains(v, "2 unread") || !regexp.MustCompile(`▌ ● .*oct…/hello-world#2`).MatchString(v) {
 		t.Errorf("after opening the first thread the pane shows:\n%s", v)
 	}
 	app = press(t, s, "down", "o")

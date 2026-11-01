@@ -697,6 +697,10 @@ keys:
   dashboard_inbox:
     up: [up, k]
     down: [down, j]
+    # Mark the notification read, as in the notifications list.
+    read: [U]
+    # Mark the notification done, as in the notifications list.
+    done: [D]
 
   # The repository screen, on any of its panes.
   repo:

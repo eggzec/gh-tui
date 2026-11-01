@@ -196,6 +196,10 @@ type mark struct {
 // the question, so it asks now again, and makes the change only if it is
 // still the one asked of the same threads.
 func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
+	return askMark(now, s.keys.confirm, s.icons)
+}
+
+func askMark(now func() (mark, bool), keys confirm.KeyMap, icons ui.Icons) tea.Cmd {
 	m, ok := now()
 	if !ok {
 		return nil
@@ -205,7 +209,33 @@ func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
 		return again.ask, ok && again.ids == m.ids, nil
 	})
 	c.Default = m.ask.Default
-	return ui.OpenConfirm(c, s.keys.confirm, s.icons)
+	return ui.OpenConfirm(c, keys, icons)
+}
+
+// ConfirmThread asks whether to mark the thread that now returns read, or
+// done, and runs run with it on yes. Reading is not asked of a thread that
+// is read. It is the question of the list's own keys, so the dashboard's
+// inbox asks the same.
+func ConfirmThread(now func() (core.Notification, bool), done bool, run func(core.Notification) tea.Cmd, keys confirm.KeyMap, icons ui.Icons) tea.Cmd {
+	return askMark(func() (mark, bool) {
+		n, ok := now()
+		if !ok || !done && !n.Unread {
+			return mark{}, false
+		}
+		return threadMark(n, done, func() tea.Cmd { return run(n) }), true
+	}, keys, icons)
+}
+
+// threadMark is the question of marking n read, or done, which run answers.
+func threadMark(n core.Notification, done bool, run func() tea.Cmd) mark {
+	m := mark{name: threadName(n), ids: n.ID}
+	if done {
+		m.ask = confirm.Ask{Question: "Mark " + m.name + " as done?", Run: run}
+		return m
+	}
+	// Reading it again is one key away.
+	m.ask = confirm.Ask{Question: "Mark " + m.name + " as read?", Default: true, Run: run}
+	return m
 }
 
 // markRead marks the unread thread under the cursor read.
@@ -214,15 +244,7 @@ func (s *Section) markRead() (mark, bool) {
 	if !ok || !n.Unread {
 		return mark{}, false
 	}
-	return mark{
-		ask: confirm.Ask{
-			Question: "Mark " + threadName(n) + " as read?",
-			// Reading it again is one key away.
-			Default: true,
-			Run:     func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") },
-		},
-		name: threadName(n), ids: n.ID,
-	}, true
+	return threadMark(n, false, func() tea.Cmd { return s.do(s.svc.MarkRead(n.ID), "mark read") }), true
 }
 
 // markDone marks the thread under the cursor done, which drops it from
@@ -232,13 +254,7 @@ func (s *Section) markDone() (mark, bool) {
 	if !ok {
 		return mark{}, false
 	}
-	return mark{
-		ask: confirm.Ask{
-			Question: "Mark " + threadName(n) + " as done?",
-			Run:      func() tea.Cmd { return s.do(s.svc.MarkDone(n.ID), "mark done") },
-		},
-		name: threadName(n), ids: n.ID,
-	}, true
+	return threadMark(n, true, func() tea.Cmd { return s.do(s.svc.MarkDone(n.ID), "mark done") }), true
 }
 
 // markAllRead marks every thread read, loaded or not, that was updated
