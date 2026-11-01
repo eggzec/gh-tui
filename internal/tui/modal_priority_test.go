@@ -97,6 +97,7 @@ func TestEveryRealModalIsRanked(t *testing.T) {
 		"tui.textModal":       25,
 		"ui.FilterModal":      30,
 		"ui.OrderModal":       30,
+		"tui.menuModal":       30,
 		"pulls.mergeDialog":   40,
 		"ui.ConfirmModal":     50,
 		"tui.authModal":       60,
@@ -112,8 +113,8 @@ func TestEveryRealModalIsRanked(t *testing.T) {
 	if !maps.Equal(got, want) {
 		t.Errorf("table:\n got  %v\n want %v", got, want)
 	}
-	if n := len(modalPriorities); n != 16 {
-		t.Errorf("the table ranks %d types, want 16", n)
+	if n := len(modalPriorities); n != 17 {
+		t.Errorf("the table ranks %d types, want 17", n)
 	}
 
 	found := modalTypes(t)

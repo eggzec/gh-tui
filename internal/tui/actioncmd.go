@@ -29,12 +29,13 @@ import (
 func (m *Model) focusChain() []string {
 	inner, _ := m.innerLayers()
 	chain := []string{config.ContextGlobal}
-	for _, l := range inner {
-		c, ok := config.LookupContext(l.Context)
-		if !ok || c.Reach == config.ReachCapture || slices.Contains(chain, l.Context) {
+	for i := range inner {
+		ctx := inner[i].Context
+		c, ok := config.LookupContext(ctx)
+		if !ok || c.Reach == config.ReachCapture || slices.Contains(chain, ctx) {
 			continue
 		}
-		chain = append(chain, l.Context)
+		chain = append(chain, ctx)
 	}
 	slices.Reverse(chain)
 	return chain
@@ -298,8 +299,9 @@ func (m *Model) actionNames(ctx string) []string {
 // such as "merge" for pulls.merge, which a candidate says beside its name.
 func (m *Model) actionHelp() map[string]string {
 	out := map[string]string{}
-	for _, l := range m.layersNow() {
-		for _, b := range l.Bindings {
+	layers := m.layersNow()
+	for i := range layers {
+		for _, b := range layers[i].Bindings {
 			for _, a := range keymap.Actions(b) {
 				if _, ok := out[a]; !ok && b.Help().Desc != "" {
 					out[a] = b.Help().Desc

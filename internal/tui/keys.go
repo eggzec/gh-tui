@@ -39,6 +39,8 @@ type KeyMap struct {
 	FindFile key.Binding
 	// Command opens the command line in place of the status bar.
 	Command key.Binding
+	// Menu opens the menu of the actions of the selected item.
+	Menu key.Binding
 	// form holds the keys of the filter modal's form.
 	form filterform.KeyMap
 	// order holds the keys of the sort modal's ordered picker.
@@ -93,6 +95,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ForkSwitch:    ui.Binding(keys, config.ActionForkSwitch, "fork/parent"),
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
+		Menu:          ui.Binding(keys, config.ActionMenu, "menu"),
 		form:          ui.FilterFormKeys(keys, "filter"),
 		order:         ui.OrderPickKeys(keys),
 		confirm:       confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
@@ -144,7 +147,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // app matches them, and repoKeys those of the repository screen only.
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
-		k.Command, k.Quit, k.Help, k.Search, k.FindFile,
+		k.Command, k.Menu, k.Quit, k.Help, k.Search, k.FindFile,
 		k.Zoom, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}

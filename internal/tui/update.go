@@ -148,6 +148,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotoOwnerMsg:
 		cmd := m.gotOwner(msg)
 		return m, cmd
+	case menuRunMsg:
+		cmd := m.runMenu(msg)
+		return m, cmd
 	case ui.OwnerMsg:
 		cmd := m.gotoOwner(core.Target{Owner: msg.Login})
 		return m, cmd
@@ -367,6 +370,8 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, m.keys.Command):
 		return m.openLine()
+	case keymap.Matches(msg, m.keys.Menu):
+		return m.openMenu()
 	case keymap.Matches(msg, m.keys.Quit):
 		return m.quitNow()
 	case keymap.Matches(msg, m.keys.Search):

@@ -74,6 +74,11 @@ func Off(l keyhelp.Layer) keyhelp.Layer {
 	for i := range l.Bindings {
 		l.Bindings[i].SetEnabled(false)
 	}
+	menu := slices.Clone(l.MenuItems())
+	for i := range menu {
+		menu[i].SetEnabled(false)
+	}
+	l.SetMenu(menu)
 	return l
 }
 

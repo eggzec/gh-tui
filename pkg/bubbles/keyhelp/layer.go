@@ -41,6 +41,31 @@ type Layer struct {
 	// Short holds the bindings worth a hint, as help.KeyMap's ShortHelp
 	// does.
 	Short []key.Binding
+	// Menu holds the bindings the context menu offers on the item the layer
+	// acts on, in the order it lists them. Each is also one of Bindings, so
+	// a disabled one is hidden from the menu.
+	//
+	// It is a pointer so that a Layer stays small enough to range over by
+	// value; use [Layer.MenuItems] and [Layer.SetMenu].
+	Menu *[]key.Binding
+}
+
+// MenuItems returns the bindings of the context menu, or nil for a layer
+// that offers none.
+func (l *Layer) MenuItems() []key.Binding {
+	if l.Menu == nil {
+		return nil
+	}
+	return *l.Menu
+}
+
+// SetMenu sets the bindings of the context menu.
+func (l *Layer) SetMenu(items []key.Binding) {
+	if len(items) == 0 {
+		l.Menu = nil
+		return
+	}
+	l.Menu = &items
 }
 
 // SameBinding reports whether a and b are the same binding, in the same
@@ -62,6 +87,7 @@ func (l Layer) Equal(o Layer) bool {
 func (l Layer) Clone() Layer {
 	l.Bindings = slices.Clone(l.Bindings)
 	l.Short = slices.Clone(l.Short)
+	l.SetMenu(slices.Clone(l.MenuItems()))
 	return l
 }
 

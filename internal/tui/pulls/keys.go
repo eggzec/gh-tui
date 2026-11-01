@@ -11,12 +11,13 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 // keyMap holds the keys of the list and of the bubbles it shows. The section
 // matches its own keys first, so the feed gets only the keys it leaves.
 type keyMap struct {
-	Select key.Binding
+	Select key.Binding `menu:"item"`
 	// Filter and Sort open the filter modal on its Filters and Sort tabs,
 	// which the app does, so the section only keeps them from the feed and
 	// shows them in help.
@@ -31,14 +32,14 @@ type keyMap struct {
 	NextTab key.Binding
 	PrevTab key.Binding
 	Refresh key.Binding
-	Open    key.Binding
+	Open    key.Binding `menu:"item"`
 
-	Merge       key.Binding
-	Close       key.Binding
-	Reopen      key.Binding
-	ToggleDraft key.Binding
+	Merge       key.Binding `menu:"item"`
+	Close       key.Binding `menu:"item"`
+	Reopen      key.Binding `menu:"item"`
+	ToggleDraft key.Binding `menu:"item"`
 	// Checks shows the checks of a pull request, in its modal.
-	Checks key.Binding
+	Checks key.Binding `menu:"item"`
 
 	// confirm answers the question that merge, close and reopen ask.
 	confirm confirm.KeyMap
@@ -106,6 +107,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.onList(s)
 	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
+	own.SetMenu(keymap.Menu(k))
 	if !s.hasRepo || s.feed == nil {
 		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}
