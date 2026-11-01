@@ -103,7 +103,7 @@ func (s *Section) readmeRender(p *page, src string) pager.Render {
 			s.sc.md = markdown.New(s.theme.Thread(s.icons).Markdown)
 			s.sc.md.SetGlyphs(s.icons.Markdown)
 		}
-		p.side.drew = false
+		p.side.askedPics = false
 		pics := s.readmePictures(p)
 		p.side.pics = pics != nil
 		s.sc.md.SetPictures(pics)
@@ -152,7 +152,7 @@ func (s *Section) readmePictures(p *page) markdown.Pictures {
 		return nil
 	}
 	return func(addr string, width int) []string {
-		p.side.drew = true
+		p.side.askedPics = true
 		if u, err := url.Parse(addr); err != nil || strings.EqualFold(path.Ext(u.Path), ".svg") {
 			return nil
 		}
@@ -166,7 +166,7 @@ func (s *Section) readmePictures(p *page) markdown.Pictures {
 // every image of the app that arrives.
 func (s *Section) readmeStale(p *page) bool {
 	_, h := s.inside(readmePane)
-	return p.side.drew || (s.avatars.PictureRows(h) > 0) != p.side.pics
+	return p.side.askedPics || (s.avatars.PictureRows(h) > 0) != p.side.pics
 }
 
 // readmeSource is the markdown the README pane of p shows: the README
