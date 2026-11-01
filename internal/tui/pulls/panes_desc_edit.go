@@ -81,6 +81,15 @@ func (m *panesModal) quoteDescription() tea.Cmd {
 	if body == "" {
 		return ui.Notify(toast.Info, "There is no description to quote.")
 	}
+	return m.openComment(quote(body))
+}
+
+// openComment opens the composer of a new comment on the pull request, which
+// starts with text.
+func (m *panesModal) openComment(text string) tea.Cmd {
+	if !m.loaded {
+		return ui.Notify(toast.Info, checking(m.icons, m.number))
+	}
 	if cmd, refused := m.gate().Refuse(ui.ActComment, &m.detail.Issue); refused {
 		return cmd
 	}
@@ -93,7 +102,7 @@ func (m *panesModal) quoteDescription() tea.Cmd {
 		composer.WithSize(m.width, m.areaHeight()),
 		m.drafts(),
 	)
-	c.SetValue(quote(body))
+	c.SetValue(text)
 	o := &composerOverlay{m: m, comp: c, head: "Comment on " + num, submit: (*panesModal).postComment}
 	m.open(o)
 	return tea.Batch(o.comp.Init(), o.comp.Focus())

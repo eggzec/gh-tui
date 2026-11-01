@@ -163,10 +163,14 @@ func (m Model) Discard() tea.Cmd {
 	}
 }
 
-// saveDraft keeps text as the draft under key in d, if there is one.
+// saveDraft keeps text as the draft under key in d, if there is one. Blank
+// text keeps no draft, and drops one kept earlier.
 func saveDraft(d Drafts, draftKey, text string) error {
 	if d == nil {
 		return nil
+	}
+	if strings.TrimSpace(text) == "" {
+		return d.Delete(draftKey)
 	}
 	return d.Save(draftKey, text)
 }

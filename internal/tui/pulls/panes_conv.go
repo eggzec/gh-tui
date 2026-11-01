@@ -307,6 +307,8 @@ func (m *panesModal) convPress(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return m.resolveConv(), true
 	case keymap.Matches(msg, m.keys.convDelete):
 		return m.deleteConv(), true
+	case keymap.Matches(msg, m.keys.convComment):
+		return m.openComment(""), true
 	}
 	t := m.keys.tree
 	var mine bool
