@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -387,44 +388,15 @@ func (s *Section) tabsLine(w int) string {
 	if r, ok := t.selected(); ok && r.Language != "" {
 		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.shared.Muted.Render(r.Language)
 	}
-	room := max(w-ansi.StringWidth(right)-2, 0)
-	// Scroll the tabs so the one on view fits, with the ones before it
-	// when there is room.
-	start := 0
-	for start < t.cur && tabsWidth(t.tabs[start:t.cur+1]) > room-2 {
-		start++
+	room := max(w-ansi.StringWidth(right)-3, 0)
+	items := make([]tabrow.Item, len(t.tabs))
+	for i, o := range t.tabs {
+		items[i] = tabrow.Item{Label: o.label}
 	}
-	var b strings.Builder
-	b.WriteByte(' ')
-	used := 1
-	if start > 0 {
-		st.shared.Subtle.Write(&b, s.icons.Before+" ")
-		used += 2
-	}
-	for i := start; i < len(t.tabs); i++ {
-		label := t.tabs[i].label
-		lw := ansi.StringWidth(label) + 2
-		if used+lw > room {
-			st.shared.Subtle.Write(&b, s.icons.Crumb)
-			break
-		}
-		if i == t.cur {
-			st.focusTitle.Write(&b, label)
-		} else {
-			st.shared.Muted.Write(&b, label)
-		}
-		b.WriteString("  ")
-		used += lw
-	}
-	return ui.SpreadDrop(b.String(), right, w, s.icons.Ellipsis)
-}
-
-func tabsWidth(tabs []*owner) int {
-	n := 0
-	for _, o := range tabs {
-		n += ansi.StringWidth(o.label) + 2
-	}
-	return n
+	row := tabrow.New(tabrow.WithStyles(st.row), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
+	row.SetItems(items, t.cur)
+	row.SetWidth(room)
+	return ui.SpreadDrop(" "+row.View(), right, w, s.icons.Ellipsis)
 }
 
 // workBody renders the tabs of the lists of work above the one on view.

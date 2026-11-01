@@ -3,6 +3,7 @@ package owner
 import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 )
 
 // styles are the page's own, built once per theme.
@@ -10,8 +11,8 @@ type styles struct {
 	// frames draws the boxes and the strip of panes.
 	frames  panes.Styles
 	warning ui.Paint
-	// tab marks the tab on view in the list's tab line.
-	tab ui.Paint
+	// row styles the tab row.
+	row tabrow.Styles
 	// langs color the glyphs of languages, by name and color, as they are
 	// met.
 	langs map[string]ui.Paint
@@ -29,7 +30,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		langs:   map[string]ui.Paint{},
 		frames:  frames,
 		warning: ui.NewPaint(t.Warning),
-		tab:     ui.NewPaint(t.Accent.Bold(true)),
+		row:     tabrow.Styles{Current: t.Accent.Bold(true), Other: t.Muted, Marker: t.Subtle},
 		shared: ui.ListStyles{
 			Name:    ui.NewPaint(t.Title),
 			Login:   ui.NewPaint(t.Muted),

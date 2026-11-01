@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 )
 
 // styles are the dashboard's own, built once per theme.
@@ -13,6 +14,8 @@ type styles struct {
 	frames panes.Styles
 	// focusTitle is the current tab of a pane.
 	focusTitle ui.Paint
+	// row styles the tab row of the owners.
+	row tabrow.Styles
 
 	success, warning ui.Paint
 	// states color the glyphs of the states of issues and pull requests,
@@ -49,6 +52,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		langs:      map[string]ui.Paint{},
 		frames:     frames,
 		focusTitle: ui.NewPaint(t.Accent.Bold(true)),
+		row:        tabrow.Styles{Current: t.Accent.Bold(true), Other: t.Muted, Marker: t.Subtle},
 		success:    ui.NewPaint(t.Success),
 		warning:    ui.NewPaint(t.Warning),
 		shared: ui.ListStyles{
