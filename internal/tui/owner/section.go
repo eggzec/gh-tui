@@ -142,6 +142,8 @@ type Section struct {
 	now   func() time.Time
 	voice ui.Voice
 	icons ui.Icons
+	// drew is the generation of the autolinks the README was drawn with.
+	drew uint64
 	// dates tell when the repositories were updated.
 	dates ui.Dates
 	// host is the web host of the user's GitHub, for the links it opens.

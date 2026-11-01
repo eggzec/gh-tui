@@ -465,7 +465,7 @@ func (s *Section) sideSelected() (ui.Selection, bool) {
 // the revalidator found it changed on GitHub.
 func (s *Section) synced(msg ui.SyncMsg) tea.Cmd {
 	p := s.page
-	if s.autolinks.Synced(msg) {
+	if s.autolinks.Synced(msg, &s.drew) {
 		if p != nil && p.side.pager != nil && p.side.readme.ok {
 			p.side.pager.Rerender()
 		}

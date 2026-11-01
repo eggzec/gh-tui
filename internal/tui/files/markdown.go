@@ -65,6 +65,8 @@ type markdownView struct {
 	links *ui.Autolinks
 	seen  *ui.Seen
 	pg    *pager.Model
+	// linksDrew is the generation of the autolinks the render was drawn with.
+	linksDrew uint64
 
 	// images draws the pictures, at most as tall as height, the rows of
 	// the pager above its status line, allows.
@@ -360,7 +362,7 @@ func (v *markdownView) setLinks(links *ui.Autolinks, pg *pager.Model) {
 
 // synced draws the file again once links learned answers.
 func (v *markdownView) synced(msg ui.SyncMsg) tea.Cmd {
-	if !v.links.Synced(msg) || v.md == nil {
+	if !v.links.Synced(msg, &v.linksDrew) || v.md == nil {
 		return nil
 	}
 	v.md.SetAutolink(v.seen.Func())
