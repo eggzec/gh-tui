@@ -6,9 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 )
 
 func hintBinding(desc string, keys ...string) key.Binding {
@@ -89,9 +87,4 @@ func TestHintsRelabelled(t *testing.T) {
 	if got, want := descs(h.ShortHelp()), []string{"reset filters"}; !slices.Equal(got, want) {
 		t.Errorf("ShortHelp = %q, want %q", got, want)
 	}
-}
-
-func TestConfirmKeysComplete(t *testing.T) {
-	keytest.Complete(t, NewConfirmKeys(config.Default().Keys))
-	keytest.NoConflicts(t, NewConfirmKeys(config.Default().Keys))
 }

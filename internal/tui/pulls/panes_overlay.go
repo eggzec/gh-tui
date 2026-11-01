@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -109,7 +110,7 @@ func (m *panesModal) pressOverlay(msg tea.Msg) tea.Cmd {
 }
 
 // ask opens the question c over the panes.
-func (m *panesModal) ask(c ui.Confirm) {
+func (m *panesModal) ask(c confirm.Ask) {
 	m.open(&confirmOverlay{m: m, c: c})
 	m.arm = ui.Arm()
 }
@@ -189,7 +190,7 @@ func (m *panesModal) overlayFooter() string {
 // no, and enter with its default once it is armed.
 type confirmOverlay struct {
 	m     *panesModal
-	c     ui.Confirm
+	c     confirm.Ask
 	done  bool
 	armed bool
 }
@@ -205,7 +206,7 @@ func (o *confirmOverlay) view(w, _ int) string    { return o.c.Line(o.m.cst, o.m
 // layers are the keys that answer, and the quit key, which closes the whole
 // modal: the question takes every key, so the app never sees that one.
 func (o *confirmOverlay) layers() []keyhelp.Layer {
-	l := o.m.keys.confirm.Layer()
+	l := ui.ConfirmLayer(o.m.keys.confirm)
 	l.Bindings = append(l.Bindings, o.m.keys.quit)
 	l.Short = append(l.Short, o.m.keys.quit)
 	return []keyhelp.Layer{l}

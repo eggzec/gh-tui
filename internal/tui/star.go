@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -55,7 +56,7 @@ func (m *Model) starGate(repo core.RepoRef, r core.Repo) ui.Gate {
 // repo.star or the star command does.
 func (m *Model) star() tea.Cmd {
 	repo := m.repo
-	now := func() (c ui.Confirm, ok bool, refusal tea.Cmd) {
+	now := func() (c confirm.Ask, ok bool, refusal tea.Cmd) {
 		r, known := m.starrer.CachedGet(repo)
 		if !known {
 			// Which of the two it is isn't known until the repository
@@ -72,7 +73,7 @@ func (m *Model) star() tea.Cmd {
 			verb, send = "Unstar", m.starrer.Unstar
 		}
 		starred := !r.Starred
-		return ui.Confirm{
+		return confirm.Ask{
 			Question: verb + " " + repo.String() + "?",
 			// Either one is undone by the other.
 			Default: true,

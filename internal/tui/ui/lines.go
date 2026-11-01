@@ -23,20 +23,6 @@ func Fit(s string, w int) string {
 	return ansi.Truncate(s, w, "")
 }
 
-// PadLines returns exactly h of lines, which are w cells wide already:
-// the lines past h are left out, and blank ones fill the rest.
-func PadLines(lines []string, w, h int) []string {
-	h = max(h, 0)
-	if len(lines) >= h {
-		return lines[:h]
-	}
-	blank := strings.Repeat(" ", w)
-	for len(lines) < h {
-		lines = append(lines, blank)
-	}
-	return lines
-}
-
 // FitLines returns exactly h lines of exactly w cells: lines cut or padded.
 func FitLines(lines []string, w, h int) []string {
 	out := make([]string, max(h, 0))
@@ -57,22 +43,6 @@ func Wrap(s string, w int) []string {
 		lines[i] = Fit(l, w)
 	}
 	return lines
-}
-
-// Spread puts left and right on a line of w cells, with right against the
-// edge. Left is cut to leave right whole, while right fits, and ends in
-// tail, an ellipsis, where it is cut.
-func Spread(left, right string, w int, tail string) string {
-	rw := ansi.StringWidth(right)
-	if rw == 0 {
-		return Fit(left, w)
-	}
-	if rw+2 > w {
-		return Fit(left, w)
-	}
-	room := w - rw - 1
-	left = termtext.Truncate(left, room, tail)
-	return left + strings.Repeat(" ", w-ansi.StringWidth(left)-rw) + right
 }
 
 // FirstLine cuts s at its first line.

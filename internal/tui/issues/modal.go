@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -89,11 +90,11 @@ type detailModal struct {
 	composing composing
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
-	ask *ui.Confirm
+	ask *confirm.Ask
 	// armed is set once the question is armed: until then enter answers
 	// nothing.
 	armed     bool
-	confirmSt ui.ConfirmStyles
+	confirmSt confirm.Styles
 
 	width, height int
 	theme         ui.Theme
@@ -299,7 +300,7 @@ func (m *detailModal) View() string {
 	}
 	// The question lines up with the issue, two cells in. Over a prompt,
 	// it takes the place of the prompt's keys, which wait for the answer.
-	lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, ui.ConfirmLines))
+	lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, confirm.MaxLines))
 	for i, l := range lines {
 		lines[i] = ansi.Truncate("  "+l, m.width, "")
 	}
@@ -560,7 +561,7 @@ func (m *detailModal) setState(state core.State) tea.Cmd {
 
 // asks puts c on the last line, to be armed once the app hands the modal the
 // message that arms it.
-func (m *detailModal) asks(c ui.Confirm) tea.Cmd {
+func (m *detailModal) asks(c confirm.Ask) tea.Cmd {
 	m.ask = &c
 	m.armed = false
 	return ui.Arm()

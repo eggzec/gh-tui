@@ -9,12 +9,13 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 )
 
 // change is a change to a run, asked as a question: target tells which
 // run or job it changes, and name names it in a note.
 type change struct {
-	ask          ui.Confirm
+	ask          confirm.Ask
 	target, name string
 }
 
@@ -31,7 +32,7 @@ func (m *Modal) asks(now func() (c change, notice string, refusal tea.Cmd)) tea.
 		}
 		return refusal
 	}
-	ask := ui.Recheck(c.ask.Question, c.name, func() (ui.Confirm, bool, tea.Cmd) {
+	ask := ui.Recheck(c.ask.Question, c.name, func() (confirm.Ask, bool, tea.Cmd) {
 		again, _, refusal := now()
 		return again.ask, again.ask.Question != "" && again.target == c.target, refusal
 	})
@@ -63,7 +64,7 @@ func (m *Modal) rerunFailed() (change, string, tea.Cmd) {
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	return change{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Re-run " + jobs + " of " + name + "?",
 			Run:      m.send("re-run the failed jobs of "+name, func() *optimistic.Op { return svc.RerunFailedJobs(repo, id) }),
 		},
@@ -83,7 +84,7 @@ func (m *Modal) rerunAll() (change, string, tea.Cmd) {
 	name := jobview.RunName(r)
 	svc, repo, id := m.svc, m.repo, r.ID
 	return change{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Re-run all jobs of " + name + "?",
 			Run:      m.send("re-run "+name, func() *optimistic.Op { return svc.RerunRun(repo, id) }),
 		},
@@ -110,7 +111,7 @@ func (m *Modal) rerunJob() (change, string, tea.Cmd) {
 	name, job := jobview.RunName(r), ui.OneLine(j.Name)
 	svc, repo, runID, jobID := m.svc, m.repo, r.ID, j.ID
 	return change{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Re-run " + job + " of " + name + "?",
 			Run:      m.send("re-run "+job, func() *optimistic.Op { return svc.RerunJob(repo, runID, jobID) }),
 		},
@@ -133,7 +134,7 @@ func (m *Modal) cancelRun() (change, string, tea.Cmd) {
 	}
 	svc, repo, id := m.svc, m.repo, r.ID
 	return change{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Cancel " + name + "?",
 			Run:      m.send("cancel "+name, func() *optimistic.Op { return svc.CancelRun(repo, id) }),
 		},

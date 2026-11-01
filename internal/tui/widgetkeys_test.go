@@ -8,9 +8,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
-	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -37,7 +37,7 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 		{"finder", finder.KeyMap{}},
 		{"picker", picker.KeyMap{}},
 		{"filter", filterform.KeyMap{}},
-		{"confirm", ui.ConfirmKeys{}},
+		{"confirm", confirm.KeyMap{}},
 	} {
 		for _, name := range keymap.Names(tt.km) {
 			action := name

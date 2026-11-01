@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -44,14 +45,14 @@ func stateVerb(g ui.Gate, it core.Issue, state core.State) (verb string, ok bool
 // refusal says why when g refuses it.
 func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 	now func() (core.Issue, ui.Gate, bool), send func(op *optimistic.Op, what string) tea.Cmd,
-) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+) (c confirm.Ask, ok bool, refusal tea.Cmd) {
 	verb, ok, refusal := stateVerb(g, it, state)
 	if !ok {
-		return ui.Confirm{}, false, refusal
+		return confirm.Ask{}, false, refusal
 	}
 	repo, number := g.Repo, it.Number
 	n := "#" + strconv.Itoa(number)
-	return ui.Confirm{
+	return confirm.Ask{
 		Question: verb + " issue " + n + "?",
 		Run: func() tea.Cmd {
 			it, g, found := now()

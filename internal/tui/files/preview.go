@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
@@ -66,7 +67,7 @@ type preview struct {
 	// confirm answers the question whether to load a file over the warning
 	// limit, and limit is the limit the user agreed to for this file, 0 until
 	// then.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	limit   int64
 }
 
@@ -101,7 +102,7 @@ func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	back := ui.In(keys, "preview").Binding("global.back", "back")
 	back.SetEnabled(false)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw, confirm: ui.NewConfirmKeys(keys)}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw, confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm"))}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
 	p.md.setFiles(ctx, svc, host, repo, ref, images)
@@ -229,7 +230,7 @@ func (p *preview) show(b core.Blob, err error) tea.Cmd {
 // askLoad asks whether to load the file although it is over the warning
 // limit. Yes reads it again with the hard limit, for this file only.
 func (p *preview) askLoad(question string) tea.Cmd {
-	c := ui.Confirm{Question: question, Run: func() tea.Cmd {
+	c := confirm.Ask{Question: question, Run: func() tea.Cmd {
 		p.limit = math.MaxInt64
 		return p.load()
 	}}

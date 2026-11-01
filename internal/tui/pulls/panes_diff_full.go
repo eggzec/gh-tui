@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -116,7 +117,7 @@ func (o *diffOverlay) askFull(path, question string) tea.Cmd {
 		return nil
 	}
 	o.full.reading[path] = false
-	c := ui.Confirm{Question: question, Run: func() tea.Cmd {
+	c := confirm.Ask{Question: question, Run: func() tea.Cmd {
 		if o.done || o.full.reading[path] {
 			return nil
 		}

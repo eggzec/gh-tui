@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
@@ -40,7 +41,7 @@ type keyMap struct {
 	Checks key.Binding
 
 	// confirm answers the question that merge, close and reopen ask.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	// mergeDialog are the keys of the dialog of a merge whose method is a
 	// choice.
 	mergeDialog mergeDialogKeys
@@ -77,7 +78,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:      list.Binding("reopen", "reopen PR"),
 		ToggleDraft: list.Binding("draft", "convert to draft"),
 		Checks:      list.Binding("checks", "checks"),
-		confirm:     ui.NewConfirmKeys(keys),
+		confirm:     confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		mergeDialog: newMergeDialogKeys(keys),
 		feed:        feed.NewKeyMap(list),
 		mark:        feed.NewMarkKeys(list),

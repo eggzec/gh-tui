@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -61,7 +62,7 @@ func TestConfirmOverlayKeepsThePanes(t *testing.T) {
 	m.zoom.SetZoom(true)
 	m.nav.Step(m.layout(), 1)
 	yes := 0
-	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
+	m.ask(confirm.Ask{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
 
 	for _, k := range []string{"tab", "shift+tab", "3", "z", "enter", "j"} {
 		m.Update(keyMsg(k))
@@ -79,7 +80,7 @@ func TestConfirmOverlayKeepsThePanes(t *testing.T) {
 	if m.nav.Focus() != paneMerge || !m.zoom.Zoomed() || m.nav.Sub(paneMerge) != panes.Preview {
 		t.Errorf("after the question: focus %v zoom %v sub %v", m.nav.Focus(), m.zoom.Zoomed(), m.nav)
 	}
-	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
+	m.ask(confirm.Ask{Question: "Close #1?", Run: func() tea.Cmd { yes++; return nil }})
 	m.Update(keyMsg("y"))
 	if yes != 1 || m.top() != nil {
 		t.Errorf("y ran the change %d times, open %v", yes, m.top() != nil)
@@ -92,7 +93,7 @@ func TestConfirmQuitClosesTheModal(t *testing.T) {
 	t.Parallel()
 	m := sizedPanes(t, 160, 40)
 	ran := false
-	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { ran = true; return nil }})
+	m.ask(confirm.Ask{Question: "Close #1?", Run: func() tea.Cmd { ran = true; return nil }})
 	m.Update(keyMsg("q"))
 	if !m.closed || ran {
 		t.Errorf("q under a question: modal closed %v, change ran %v", m.closed, ran)
@@ -106,7 +107,7 @@ func TestOverlayLayers(t *testing.T) {
 	if n := len(m.KeyLayers()); n < 2 {
 		t.Fatalf("the modal has %d layers", n)
 	}
-	m.ask(ui.Confirm{Question: "Merge?"})
+	m.ask(confirm.Ask{Question: "Merge?"})
 	got := m.KeyLayers()
 	if len(got) != 1 || got[0].Context != "confirm" {
 		t.Errorf("layers under a question: %d, first %q; want the confirm's alone", len(got), got[0].Context)
@@ -204,7 +205,7 @@ func TestOverlayPlacement(t *testing.T) {
 		}{
 			{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}},
 			{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5, InsetMin: wideMin}},
-			{"Confirm", func(m *panesModal) { m.ask(ui.Confirm{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
+			{"Confirm", func(m *panesModal) { m.ask(confirm.Ask{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
 		} {
 			w, h := size[0], size[1]
 			m := sizedPanes(t, w, h)
@@ -236,7 +237,7 @@ func TestOverlayPlacement(t *testing.T) {
 func TestOverlayFooter(t *testing.T) {
 	t.Parallel()
 	m := sizedPanes(t, 120, 30)
-	m.ask(ui.Confirm{Question: "Merge?"})
+	m.ask(confirm.Ask{Question: "Merge?"})
 	lines := strings.Split(ansi.Strip(m.View()), "\n")
 	last := lines[len(lines)-1]
 	if !strings.Contains(last, "yes") || !strings.Contains(last, "no") || strings.Contains(last, "zoom") || strings.Contains(last, "focus") {

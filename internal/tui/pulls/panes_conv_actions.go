@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -80,7 +81,7 @@ func (m *panesModal) resolveConv() tea.Cmd {
 	case !resolved && !t.ViewerCanUnresolve:
 		return ui.Notify(toast.Info, "you can't reopen this thread")
 	}
-	m.ask(ui.Confirm{Question: verb + " thread " + where + "?", Run: func() tea.Cmd {
+	m.ask(confirm.Ask{Question: verb + " thread " + where + "?", Run: func() tea.Cmd {
 		op := m.svc.ResolveThread(m.repo, m.number, id, resolved)
 		send := m.sendConvOp(op, "update thread "+where, done)
 		return tea.Batch(m.recacheConv(), send)
@@ -138,7 +139,7 @@ func (m *panesModal) deleteConv() tea.Cmd {
 	default:
 		return ui.Notify(toast.Info, "select your comment or reply to delete")
 	}
-	m.ask(ui.Confirm{Question: question, Run: run})
+	m.ask(confirm.Ask{Question: question, Run: run})
 	return nil
 }
 

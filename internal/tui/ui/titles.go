@@ -90,12 +90,12 @@ func Title(s TitleSpec) string {
 	}
 	for n := len(s.Chips); n >= 0; n-- {
 		if l := build(n, true); fits(l) {
-			return Spread(l, count, s.Width, s.Ellipsis)
+			return termtext.Spread(l, count, s.Width, s.Ellipsis)
 		}
 	}
 	l := build(0, false)
 	if cw == 0 {
 		return Fit(termtext.Truncate(l, s.Width, s.Ellipsis), s.Width)
 	}
-	return Spread(l, count, s.Width, s.Ellipsis)
+	return termtext.Spread(l, count, s.Width, s.Ellipsis)
 }

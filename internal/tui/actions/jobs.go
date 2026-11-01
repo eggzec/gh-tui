@@ -417,7 +417,7 @@ func (m *Modal) spreadWhole(left, right string, w int) string {
 	if ansi.StringWidth(left)+1+ansi.StringWidth(right) > w {
 		return ui.Fit(left, w)
 	}
-	return ui.Spread(left, right, w, m.opts.icons.Ellipsis)
+	return termtext.Spread(left, right, w, m.opts.icons.Ellipsis)
 }
 
 // rowGutter renders the mark of the row under the cursor, or its blank.

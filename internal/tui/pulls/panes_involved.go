@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -138,7 +139,7 @@ func (m *panesModal) rerequest() tea.Cmd {
 	case !p.State.Reviewed():
 		return nil
 	}
-	m.ask(ui.Confirm{Question: "Re-request review from " + p.Name + "?", Run: func() tea.Cmd { return m.sendRerequest(p) }})
+	m.ask(confirm.Ask{Question: "Re-request review from " + p.Name + "?", Run: func() tea.Cmd { return m.sendRerequest(p) }})
 	return nil
 }
 

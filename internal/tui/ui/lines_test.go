@@ -3,8 +3,6 @@ package ui
 import (
 	"testing"
 	"time"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 func TestDuration(t *testing.T) {
@@ -31,9 +29,6 @@ func TestSpan(t *testing.T) {
 }
 
 func TestLines(t *testing.T) {
-	if got := Spread("left side", "right", 12, "…"); ansi.StringWidth(got) != 12 || got != "left … right" {
-		t.Errorf("Spread = %q", got)
-	}
 	if got := Fit("abcdef", 3); got != "abc" {
 		t.Errorf("Fit = %q", got)
 	}

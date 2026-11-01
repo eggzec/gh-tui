@@ -29,6 +29,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
@@ -118,7 +119,7 @@ type Modal struct {
 
 	// ask is the confirmation on the last line, and notice a line that
 	// tells why a key did nothing, until the next key.
-	ask *ui.Confirm
+	ask *confirm.Ask
 	// armed is set once the question is armed: until then enter answers
 	// nothing.
 	armed  bool
@@ -283,7 +284,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k := m.keys
 	switch {
 	case m.ask != nil:
-		return []keyhelp.Layer{k.Confirm.Layer()}
+		return []keyhelp.Layer{ui.ConfirmLayer(k.Confirm)}
 	case m.focus == runsPane && m.runs.Capturing():
 		// The prompt of the runs' find or filter takes every key.
 		list, _ := ui.FeedLayer(m.runs)

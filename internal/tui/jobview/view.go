@@ -5,6 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // View renders the job in exactly the size of the last SetSize: its log
@@ -29,7 +30,7 @@ func (m Model) lines() []string {
 	default:
 		lines = append(lines, strings.Split(m.view.View(), "\n")...)
 	}
-	return ui.PadLines(lines, w, h)
+	return termtext.PadLines(lines, w, h)
 }
 
 // notice is the line above the log, if any: that only its end was read.
@@ -79,7 +80,7 @@ func (m Model) stepLines(w, h int) []string {
 			status = core.RunQueued
 		}
 		state := ui.RunStateOf(status, s.Conclusion)
-		lines = append(lines, ui.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w, m.opts.icons.Ellipsis))
+		lines = append(lines, termtext.Spread(st.Glyphs[state]+" "+st.Text.Render(ui.OneLine(s.Name)), st.Took(status, s.Conclusion, s.StartedAt, s.CompletedAt, now), w, m.opts.icons.Ellipsis))
 	}
 	return ui.FitLines(lines, w, h)
 }

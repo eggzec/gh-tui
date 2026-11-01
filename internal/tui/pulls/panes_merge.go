@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -482,7 +483,7 @@ func (m *panesModal) updateBranch() tea.Cmd {
 		return ui.Notify(toast.Info, "The branch can't be updated yet.")
 	}
 	head, base := d.HeadRef, d.BaseRef
-	m.ask(ui.Confirm{Question: "Update branch with " + base + "?", Run: func() tea.Cmd {
+	m.ask(confirm.Ask{Question: "Update branch with " + base + "?", Run: func() tea.Cmd {
 		op := ui.About(core.Target{Repo: m.repo, Number: m.number}.String(), up.UpdateBranch(m.repo, m.number, d.HeadSHA))
 		return m.sendChange(op, mergeSentMsg{
 			what: "update the branch of #" + strconv.Itoa(m.number), done: "Updated " + head + " with " + base,
@@ -498,7 +499,7 @@ func (m *panesModal) markReady() tea.Cmd {
 		return nil
 	}
 	num := "#" + strconv.Itoa(m.number)
-	m.ask(ui.Confirm{Question: "Mark " + num + " ready for review?", Run: func() tea.Cmd {
+	m.ask(confirm.Ask{Question: "Mark " + num + " ready for review?", Run: func() tea.Cmd {
 		op := ui.About(core.Target{Repo: m.repo, Number: m.number}.String(), m.svc.MarkReady(m.repo, m.number))
 		// The change is in the cache already, so the draft row goes at once.
 		send := m.sendChange(op, mergeSentMsg{what: "mark " + num + " ready for review", done: "Marked " + num + " ready for review."})

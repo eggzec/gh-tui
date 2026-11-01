@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 )
 
 const convHead = "abc123"
@@ -216,7 +217,7 @@ func TestConvPaneKeepsPagesWhileOverlayOpen(t *testing.T) {
 	svc := convService()
 	svc.getErr = errors.New("boom")
 	h, m := convModal(t, svc)
-	m.ask(ui.Confirm{Question: "Close #1?", Run: func() tea.Cmd { return nil }})
+	m.ask(confirm.Ask{Question: "Close #1?", Run: func() tea.Cmd { return nil }})
 	if m.top() == nil {
 		t.Fatal("the question didn't open")
 	}

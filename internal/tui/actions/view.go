@@ -53,7 +53,7 @@ func (m *Modal) framed() []string {
 		}
 		return c
 	})
-	lines := ui.PadLines(strings.Split(out, "\n"), aw, ah)
+	lines := termtext.PadLines(strings.Split(out, "\n"), aw, ah)
 	if m.hasStrip() {
 		lines = append(lines, m.strip())
 	}
@@ -170,7 +170,7 @@ func (m *Modal) runsBox(w, h int) []string {
 	if m.runs.Height() > 0 {
 		lines = append(lines, strings.Split(m.runs.View(), "\n")...)
 	}
-	return ui.PadLines(lines, w, h)
+	return termtext.PadLines(lines, w, h)
 }
 
 // notesLines renders the annotations box: the facts of the run, and what
