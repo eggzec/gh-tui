@@ -62,6 +62,24 @@ func TestChordCompletes(t *testing.T) {
 	}
 }
 
+func TestChordSurvivesALoneModifier(t *testing.T) {
+	t.Parallel()
+	m, files, _ := chordApp(t, true)
+	run(m, m.key(press("g")))
+	// A terminal that reports every key as an escape code sends the shift
+	// held for a capital before the key itself.
+	for _, code := range []rune{tea.KeyLeftShift, tea.KeyCapsLock, tea.KeyIsoLevel5Shift} {
+		_, cmd := m.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModShift})
+		run(m, cmd)
+		_, cmd = m.Update(tea.KeyReleaseMsg{Code: code})
+		run(m, cmd)
+	}
+	run(m, m.key(press("g")))
+	if !files.got(isActionPress("files.top")) || files.got(isKey("g")) {
+		t.Errorf("g, shift, g reached the section as %v, want the press of files.top alone", files.msgs)
+	}
+}
+
 func TestChordTimeoutCountsTheKeyAlone(t *testing.T) {
 	t.Parallel()
 	m, files, waits := chordApp(t, true)

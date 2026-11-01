@@ -22,6 +22,9 @@ import (
 // modal. The open modal waits out what of it resized it, and the images
 // that what it drew asks for are fetched after it.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if isModifierKey(msg) {
+		return m, nil
+	}
 	_, cmd := m.update(msg)
 	if m.modals.Refit() {
 		m.resized = true
@@ -34,6 +37,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = tea.Batch(cmd, load)
 	}
 	return m, cmd
+}
+
+// isModifierKey reports whether msg is a press or release of a modifier or
+// lock key on its own, which a terminal reports once it sends every key as
+// an escape code. No key of ours is one, and one in the middle of a chord
+// would cancel it.
+func isModifierKey(msg tea.Msg) bool {
+	var code rune
+	switch k := msg.(type) {
+	case tea.KeyPressMsg:
+		code = k.Code
+	case tea.KeyReleaseMsg:
+		code = k.Code
+	default:
+		return false
+	}
+	return code == tea.KeyCapsLock || code == tea.KeyScrollLock || code == tea.KeyNumLock ||
+		code >= tea.KeyLeftShift && code <= tea.KeyIsoLevel5Shift
 }
 
 func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
