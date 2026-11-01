@@ -217,7 +217,7 @@ func TestBlurredIgnoresKeys(t *testing.T) {
 }
 
 func TestNoKeyMapBindsNothing(t *testing.T) {
-	m := New(WithFocused(true), WithRows(files()))
+	m := New(Source{}, WithFocused(true), WithRows(files()))
 	m, msgs := keys(t, m, "j", "l", "h", "enter", "space", "*", "G")
 	if selected(m) != "Files" || len(msgs) != 0 || m.Len() != len(files()) {
 		t.Errorf("a tree with no keys reacted: on %q, %v", selected(m), msgs)
@@ -322,13 +322,13 @@ func TestModelsDoNotShareFolds(t *testing.T) {
 
 func TestReveal(t *testing.T) {
 	m := newTree([]Node{fold("a", 0), fold("b", 1), leaf("c", 2), leaf("d", 0)}, WithSize(20, 2))
-	if !m.Reveal("c") {
+	if ok, _ := m.Reveal("c"); !ok {
 		t.Fatal("Reveal(c) = false")
 	}
 	if selected(m) != "c" || m.Folded("a") || m.Folded("b") {
 		t.Errorf("cursor on %q, a folded %v, b folded %v", selected(m), m.Folded("a"), m.Folded("b"))
 	}
-	if m.Reveal("nope") {
+	if ok, _ := m.Reveal("nope"); ok {
 		t.Error("Reveal of a row that is not there = true")
 	}
 }

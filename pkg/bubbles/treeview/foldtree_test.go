@@ -32,7 +32,7 @@ var testKeyMap = NewKeyMap(keytest.Table(testKeys))
 
 // newTree makes a focused tree with the keys of a pane, as the app does.
 func newTree(rows []Node, opts ...Option) Model {
-	return New(append([]Option{WithKeyMap(testKeyMap), WithFocused(true), WithRows(rows)}, opts...)...)
+	return New(Source{}, append([]Option{WithKeyMap(testKeyMap), WithFocused(true), WithRows(rows)}, opts...)...)
 }
 
 // press makes the key press of a key name the tests use.

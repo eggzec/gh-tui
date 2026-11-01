@@ -36,6 +36,10 @@ internal/watch/options.go:DefaultMinInterval  keep: a bound, the engine's own fl
 # Bubbles.
 pkg/bubbles/panes/layout.go:DefaultListWidth  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via Spec.ListWidth
 pkg/bubbles/panes/layout.go:DefaultSplitMin  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via Spec.SplitMin
+pkg/bubbles/treeview/lazy.go:DefaultExpandAllNodes  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via an option
+pkg/bubbles/treeview/lazy.go:DefaultExpandAllDepth  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via an option
+pkg/bubbles/treeview/lazy.go:DefaultMaxLoads  keep: a bubble-level fallback, pkg/bubbles cannot read config; callers override via an option
+pkg/bubbles/treeview/lazy.go:spinInterval  keep: an animation rate, not a setting
 
 # Caches.
 internal/cache/disk/collect.go:tmpMaxAge  keep: a safety mechanism, when a temporary file counts as abandoned

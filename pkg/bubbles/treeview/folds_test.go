@@ -62,7 +62,7 @@ func TestRevealStaysOffASkipRow(t *testing.T) {
 	rule := leaf("rule", 0)
 	rule.Skip = true
 	m := newTree([]Node{leaf("a", 0), rule, leaf("b", 0)}, WithSize(10, 4))
-	if !m.Reveal("rule") {
+	if ok, _ := m.Reveal("rule"); !ok {
 		t.Fatal("Reveal(rule) = false")
 	}
 	if got := selected(m); got == "rule" {

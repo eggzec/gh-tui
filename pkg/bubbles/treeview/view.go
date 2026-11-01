@@ -32,7 +32,7 @@ func Fit(lines []string, width, height int) string {
 // and each folded as its Closed says, for hosts that only show a tree. It
 // returns "" when there are no rows or no width.
 func Render(rows []Node, width int, s Styles) string {
-	m := New(WithStyles(s))
+	m := New(Source{}, WithStyles(s))
 	m.bare = true
 	m.SetRows(rows)
 	m.SetSize(width, m.starts[len(m.vis)])
@@ -49,7 +49,7 @@ func (m Model) View() string {
 		lines = append(lines, m.pinned(p))
 	}
 	if len(m.vis) == 0 {
-		lines = append(lines, m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width)))
+		lines = append(lines, m.empty())
 	}
 	i := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > m.off })
 	for ; i < len(m.vis) && len(lines) < m.height; i++ {
@@ -64,6 +64,26 @@ func (m Model) View() string {
 		lines[i] = m.pad(l, m.width)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// empty is the line shown in place of the rows: the spinner while the top
+// level loads, its error if it failed, else the empty text.
+func (m Model) empty() string {
+	if _, ok := m.lz.busy[""]; ok {
+		return m.spinner() + m.styles.Empty.Render(m.cut(m.styles.LoadingText, max(m.width-2, 0)))
+	}
+	if err := m.lz.failed[""]; err != nil {
+		return m.styles.Error.Render(m.cut(m.errLine(err), m.width))
+	}
+	return m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width))
+}
+
+// spinner is the current frame and a space, or two spaces with no frames.
+func (m Model) spinner() string {
+	if len(m.look.spin) == 0 {
+		return "  "
+	}
+	return m.look.spin[m.lz.frame%len(m.look.spin)] + " "
 }
 
 // render returns line k of the row at place i of vis. The cursor row of a
@@ -124,7 +144,10 @@ func (m Model) head(r Node, i int) string {
 	// siblings line up. An inline row hangs off the body of its parent,
 	// which has none.
 	if m.slot && !r.Inline {
+		_, busy := m.lz.busy[r.ID]
 		switch {
+		case busy:
+			arrow = m.spinner()
 		case !m.foldAt(i):
 			arrow = "  "
 		case m.shut(m.vis[i]):
@@ -162,11 +185,23 @@ func (m Model) head(r Node, i int) string {
 // marker goes.
 func (m Model) fit(r Node, i, room int) string {
 	text := r.Lines[0]
-	if r.Marker == "" || !m.shut(m.vis[i]) {
+	if m.icon != nil {
+		if ic := m.icon(r); ic != "" {
+			text = ic + " " + text
+		}
+	}
+	var mark string
+	var mw int
+	if err := m.lz.failed[r.ID]; err != nil {
+		e := m.errLine(err)
+		mark = "  " + m.styles.Error.Render(e)
+		mw = 2 + ansi.StringWidth(e)
+	} else if r.Marker != "" && m.shut(m.vis[i]) {
+		mark = "  " + m.styles.Marker.Render(r.Marker)
+		mw = 2 + ansi.StringWidth(r.Marker)
+	} else {
 		return m.cut(text, room)
 	}
-	mark := "  " + m.styles.Marker.Render(r.Marker)
-	mw := 2 + ansi.StringWidth(r.Marker)
 	switch {
 	case ansi.StringWidth(text)+mw <= room:
 		return text + mark
