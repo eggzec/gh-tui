@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -399,7 +400,7 @@ func (m *Model) frame(mod ui.Modal) string {
 	b := m.icons.Border
 	var tabs string
 	if t, ok := mod.(ui.Tabbed); ok {
-		tabs = m.tabs(t)
+		tabs = m.tabs(t, w)
 	}
 	tw := lipgloss.Width(tabs)
 	titleWidth := max(w-4, 0)
@@ -438,23 +439,25 @@ func (m *Model) frameStyle() lipgloss.Style {
 
 // tabs renders the tabs of t for the top edge of a frame: the one shown in
 // the title's style, the others muted.
-func (m *Model) tabs(t ui.Tabbed) string {
+func (m *Model) tabs(t ui.Tabbed, w int) string {
 	names, active := t.Tabs()
 	if len(names) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.WriteString(" ")
+	items := make([]tabrow.Item, len(names))
 	for i, name := range names {
-		if i > 0 {
-			b.WriteString(m.theme.Subtle.Render(m.icons.Separator))
-		}
-		st := m.theme.Muted
-		if i == active {
-			st = m.theme.Title
-		}
-		b.WriteString(st.Render(name))
+		items[i] = tabrow.Item{Label: name}
 	}
-	b.WriteString(" ")
-	return b.String()
+	row := tabrow.New(
+		tabrow.WithStyles(tabrow.Styles{Current: m.theme.Title, Other: m.theme.Muted, Marker: m.theme.Subtle}),
+		tabrow.WithSeparator(m.icons.Separator),
+	)
+	row.SetItems(items, active)
+	// Leave the title its least room and a space on either side of the row.
+	row.SetWidth(max(w-6-minTitleWidth-2, 0))
+	v := row.View()
+	if v == "" {
+		return ""
+	}
+	return " " + v + " "
 }

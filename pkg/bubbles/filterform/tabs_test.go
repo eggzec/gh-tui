@@ -2,10 +2,12 @@ package filterform
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestTabs(t *testing.T) {
@@ -38,6 +40,38 @@ func TestTabs(t *testing.T) {
 				t.Errorf("Tabs = %q, want %q", m.Tabs(), tt.wantTabs)
 			}
 		})
+	}
+}
+
+// The tab line shows the names, or what the shared row falls back to, and
+// is as wide as asked.
+func TestTabLine(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 40, want: "Filters"},
+		{width: 16, want: "Filters"},
+		{width: 14, want: "Filters Sort"},
+		{width: 10, want: "[1] 2"},
+		{width: 8, want: "1"},
+		{width: 3, want: "["},
+	}
+	for _, tt := range tests {
+		t.Run(strconv.Itoa(tt.width), func(t *testing.T) {
+			m := newKeyed(t, prSpec(nil), WithSize(tt.width, 12))
+			line := m.tabLine(tt.width)
+			if got := ansi.StringWidth(line); got != tt.width {
+				t.Errorf("width = %d, want %d: %q", got, tt.width, line)
+			}
+			if !strings.Contains(ansi.Strip(line), tt.want) {
+				t.Errorf("line = %q, want it to hold %q", ansi.Strip(line), tt.want)
+			}
+		})
+	}
+	m := newKeyed(t, prSpec(nil), WithSize(40, 12), WithTab(SortTab))
+	if line := ansi.Strip(m.tabLine(40)); !strings.Contains(line, "Filters") || !strings.Contains(line, "Sort") {
+		t.Errorf("line = %q, want both names", line)
 	}
 }
 
