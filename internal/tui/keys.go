@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -44,7 +45,7 @@ type KeyMap struct {
 	order orderpick.KeyMap
 	// confirm holds the keys of the question the root asks, such as the one
 	// to star a repository.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	// Notifications opens the notifications modal over what is open, and
 	// Dashboard switches between the screen on view and the dashboard.
 	Notifications key.Binding
@@ -94,7 +95,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		form:          ui.FilterFormKeys(keys, "filter"),
 		order:         ui.OrderPickKeys(keys),
-		confirm:       ui.NewConfirmKeys(keys),
+		confirm:       confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		Notifications: ui.Binding(keys, config.ActionNotifications, "notifications"),
 		Dashboard:     ui.Binding(keys, config.ActionDashboard, "dashboard"),
 		Owner:         ui.Binding(keys, config.ActionOwner, "owner page"),

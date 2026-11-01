@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
@@ -186,7 +187,7 @@ func (s *Section) gate() ui.Gate {
 // mark is a change to threads of the inbox, asked as a question: name
 // names them in a note, and ids tells which they are.
 type mark struct {
-	ask       ui.Confirm
+	ask       confirm.Ask
 	name, ids string
 }
 
@@ -199,7 +200,7 @@ func (s *Section) ask(now func() (mark, bool)) tea.Cmd {
 	if !ok {
 		return nil
 	}
-	c := ui.Recheck(m.ask.Question, m.name, func() (ui.Confirm, bool, tea.Cmd) {
+	c := ui.Recheck(m.ask.Question, m.name, func() (confirm.Ask, bool, tea.Cmd) {
 		again, ok := now()
 		return again.ask, ok && again.ids == m.ids, nil
 	})
@@ -214,7 +215,7 @@ func (s *Section) markRead() (mark, bool) {
 		return mark{}, false
 	}
 	return mark{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Mark " + threadName(n) + " as read?",
 			// Reading it again is one key away.
 			Default: true,
@@ -232,7 +233,7 @@ func (s *Section) markDone() (mark, bool) {
 		return mark{}, false
 	}
 	return mark{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Mark " + threadName(n) + " as done?",
 			Run:      func() tea.Cmd { return s.do(s.svc.MarkDone(n.ID), "mark done") },
 		},
@@ -265,7 +266,7 @@ func (s *Section) markAllRead() (mark, bool) {
 	}
 	ids.WriteString(newest.Format(time.RFC3339Nano))
 	return mark{
-		ask: ui.Confirm{
+		ask: confirm.Ask{
 			Question: "Mark all notifications as read?",
 			Run:      func() tea.Cmd { return s.do(s.svc.MarkAllRead(newest), "mark all read") },
 		},

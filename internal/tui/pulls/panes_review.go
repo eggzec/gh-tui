@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -112,18 +113,18 @@ func (m *panesModal) submitReview(o *composerOverlay) tea.Cmd {
 	if why != "" {
 		return ui.Notify(toast.Info, why)
 	}
-	m.ask(ui.Recheck(p.question(), "the review", func() (ui.Confirm, bool, tea.Cmd) {
+	m.ask(ui.Recheck(p.question(), "the review", func() (confirm.Ask, bool, tea.Cmd) {
 		if m.closed || m.sending {
-			return ui.Confirm{}, false, nil
+			return confirm.Ask{}, false, nil
 		}
 		p, why := m.reviewWithDrafts(o)
 		if why != "" {
-			return ui.Confirm{}, false, ui.Notify(toast.Info, why)
+			return confirm.Ask{}, false, ui.Notify(toast.Info, why)
 		}
 		if cmd, refused := m.gate().Refuse(ui.ActComment, &m.detail.Issue); refused {
-			return ui.Confirm{}, false, cmd
+			return confirm.Ask{}, false, cmd
 		}
-		return ui.Confirm{Question: p.question(), Run: func() tea.Cmd { return m.sendReview(p) }}, true, nil
+		return confirm.Ask{Question: p.question(), Run: func() tea.Cmd { return m.sendReview(p) }}, true, nil
 	}))
 	return nil
 }

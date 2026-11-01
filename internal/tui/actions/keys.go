@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -57,7 +58,7 @@ type KeyMap struct {
 	// once the user confirms.
 	RerunFailed, Rerun, RerunJob, Cancel key.Binding
 	// Confirm answers the confirmation.
-	Confirm ui.ConfirmKeys
+	Confirm confirm.KeyMap
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -102,7 +103,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		RerunJob:     modal.Binding("rerun_job", "rerun job"),
 		Zoom:         modal.Binding("global.zoom", "zoom"),
 		Cancel:       modal.Binding("cancel", "cancel run"),
-		Confirm:      ui.NewConfirmKeys(keys),
+		Confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		form:         ui.FilterFormKeys(keys, "filter"),
 		// The modal's own keys come before those of the lists and the log.
 		Next: modal.Binding("global.next_pane", "pane"),

@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -226,8 +227,8 @@ type resendMsg struct {
 func (k keyMap) ask(svc Service, c change, msg tea.KeyPressMsg,
 	now func() (core.PullRequestDetail, ui.Gate, bool), send func(c change, op *optimistic.Op) tea.Cmd,
 	again *rereader,
-) ui.Confirm {
-	return ui.Confirm{Question: c.question, Run: k.confirmed(svc, c, msg, now, send, again)}
+) confirm.Ask {
+	return confirm.Ask{Question: c.question, Run: k.confirmed(svc, c, msg, now, send, again)}
 }
 
 // mutate starts the change that msg asks of the selected pull request, if

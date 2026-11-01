@@ -20,6 +20,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // mergeDialogKeys are the keys of the dialog that merges a pull request.
@@ -426,7 +427,7 @@ func (d *mergeDialog) View() string {
 		lines = append(lines, strings.Split(d.title.View(), "\n")...)
 		lines = append(lines, strings.Split(d.body.View(), "\n")...)
 	}
-	return strings.Join(ui.PadLines(lines, d.width, d.height), "\n")
+	return strings.Join(termtext.PadLines(lines, d.width, d.height), "\n")
 }
 
 // methodRow names the methods, the one picked in the accent, and marks the

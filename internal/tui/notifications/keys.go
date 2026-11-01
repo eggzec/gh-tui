@@ -6,6 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
@@ -38,7 +39,7 @@ type KeyMap struct {
 	// order are the keys of the picker of the levels.
 	order orderpick.KeyMap
 	// confirm answers the question that marking all read asks.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	// feed is the navigation of the list, which gets the keys above
 	// only if the section leaves them.
 	feed feed.KeyMap
@@ -70,7 +71,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ToggleSort:   screen.Binding("sort_toggle", "sort on/off"),
 		Refresh:      screen.Binding("global.refresh", "refresh"),
 		order:        ui.OrderPickKeys(keys),
-		confirm:      ui.NewConfirmKeys(keys),
+		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		// The section matches these keys first, so the list gets only the
 		// keys it leaves it. Refresh retries what failed, so the list's error
 		// row names its keys.

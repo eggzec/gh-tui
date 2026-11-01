@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -138,7 +139,7 @@ type panesModal struct {
 	// dim styles the panes behind an overlay, and cst the question of a
 	// confirm.
 	dim lipgloss.Style
-	cst ui.ConfirmStyles
+	cst confirm.Styles
 	// gen counts the changes of theme and icons, which the drawn panes
 	// depend on.
 	gen   int

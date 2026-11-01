@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -76,7 +76,7 @@ func TestConfirmKeepsPreviewScroll(t *testing.T) {
 	if got := m.offset(); got != 2 {
 		t.Fatalf("two j: offset %d, want 2", got)
 	}
-	m.ask(ui.Confirm{Question: "Close #1?"})
+	m.ask(confirm.Ask{Question: "Close #1?"})
 	for _, k := range []string{"j", "k", "G", "ctrl+d"} {
 		m.Update(keyMsg(k))
 	}

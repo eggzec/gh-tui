@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -36,7 +37,7 @@ type panesKeys struct {
 	owner key.Binding
 	// confirm answers a question that an overlay asks, and quit closes the
 	// modal from under it, which takes every key.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	quit    key.Binding
 	// scroll moves through the preview of a zoomed pane, and the cursor of the
 	// verdicts.
@@ -122,7 +123,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		diff:      newDiffKeys(keys),
 		appCheck:  newAppCheckKeys(keys),
 
-		confirm: ui.NewConfirmKeys(keys),
+		confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
 		desc:    foldtree.NewKeyMap(ui.Lookup(keys, ctxDescription)),

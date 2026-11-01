@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
 
@@ -133,9 +134,9 @@ func (m *detailModal) submitComment(typed string) tea.Cmd {
 	if !ok {
 		return refusal
 	}
-	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (ui.Confirm, bool, tea.Cmd) {
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
 		if m.composing != composeComment || strings.TrimSpace(m.prompt.Value()) != body {
-			return ui.Confirm{}, false, nil
+			return confirm.Ask{}, false, nil
 		}
 		return m.comment(body)
 	})
@@ -147,16 +148,16 @@ func (m *detailModal) submitComment(typed string) tea.Cmd {
 // refusal then says. Its run closes the prompt, and the service shows the
 // comment in the cache at once, as sending, so the thread reloads to show
 // it.
-func (m *detailModal) comment(body string) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+func (m *detailModal) comment(body string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
 	if body == "" || !m.loaded {
-		return ui.Confirm{}, false, nil
+		return confirm.Ask{}, false, nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActComment, &m.issue); refused {
-		return ui.Confirm{}, false, cmd
+		return confirm.Ask{}, false, cmd
 	}
 	n := m.number
 	num := "#" + strconv.Itoa(n)
-	return ui.Confirm{
+	return confirm.Ask{
 		Question: "Post this comment on " + num + "?",
 		Run: func() tea.Cmd {
 			m.closePrompt()
@@ -182,13 +183,13 @@ func (m *detailModal) submitLabels(typed string) tea.Cmd {
 	// Label names may hold ", ", so two changes can read the same: the
 	// yes compares what they add and remove too.
 	added, removed := labelDiff(m.issue.Labels, typed)
-	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (ui.Confirm, bool, tea.Cmd) {
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
 		if m.composing != composeLabels || m.prompt.Value() != typed {
-			return ui.Confirm{}, false, nil
+			return confirm.Ask{}, false, nil
 		}
 		a, r := labelDiff(m.issue.Labels, typed)
 		if !sameNames(a, added) || !sameNames(r, removed) {
-			return ui.Confirm{}, false, nil
+			return confirm.Ask{}, false, nil
 		}
 		return m.labels(typed)
 	})
@@ -201,20 +202,20 @@ func (m *detailModal) submitLabels(typed string) tea.Cmd {
 // closes the prompt, adds the new labels in one change and removes each
 // dropped one. The changes go one after another, so each answer from
 // GitHub, which holds every label, includes the changes before it.
-func (m *detailModal) labels(typed string) (c ui.Confirm, ok bool, refusal tea.Cmd) {
+func (m *detailModal) labels(typed string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
 	if !m.loaded {
-		return ui.Confirm{}, false, nil
+		return confirm.Ask{}, false, nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActLabel, &m.issue); refused {
-		return ui.Confirm{}, false, cmd
+		return confirm.Ask{}, false, cmd
 	}
 	added, removed := labelDiff(m.issue.Labels, typed)
 	if len(added) == 0 && len(removed) == 0 {
-		return ui.Confirm{}, false, nil
+		return confirm.Ask{}, false, nil
 	}
 	n := m.number
 	num := "#" + strconv.Itoa(n)
-	return ui.Confirm{
+	return confirm.Ask{
 		Question: labelQuestion(num, added, removed),
 		Run: func() tea.Cmd {
 			m.closePrompt()

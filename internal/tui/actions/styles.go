@@ -4,6 +4,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 )
 
 // styles are the modal's own, built once per theme.
@@ -24,7 +25,7 @@ type styles struct {
 	// row holds the styles of the cells of a run row in each of its looks.
 	row [ui.NumLooks]ui.RunStyles
 	// confirm styles the confirmation.
-	confirm ui.ConfirmStyles
+	confirm confirm.Styles
 }
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {

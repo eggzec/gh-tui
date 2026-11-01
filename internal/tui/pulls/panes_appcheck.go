@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/diff"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -252,7 +253,7 @@ func (o *appCheckOverlay) rerequest() tea.Cmd {
 	if c.SuiteID == 0 {
 		return ui.Notify(toast.Info, c.Name+" has no check suite to re-request")
 	}
-	m.ask(ui.Confirm{Question: "Re-request check suite?", Run: func() tea.Cmd {
+	m.ask(confirm.Ask{Question: "Re-request check suite?", Run: func() tea.Cmd {
 		op := ui.About(m.repo.String()+" "+c.Name, m.checks.RerequestSuite(m.repo, c.SuiteID))
 		send := m.sendChange(op, mergeSentMsg{what: "re-request the checks of " + c.Name, done: "Re-requested the checks of " + c.Name})
 		var reload tea.Cmd

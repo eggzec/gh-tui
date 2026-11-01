@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // ctxDescEdit is the context of the keys of the editor of the title and the
@@ -177,7 +178,7 @@ func (o *descEditOverlay) view(w, h int) string {
 	o.titleF.SetSize(w, prompt.SingleLineHeight)
 	o.bodyF.SetSize(w, max(h-prompt.SingleLineHeight, descEditBodyMin))
 	lines := append(strings.Split(o.titleF.View(), "\n"), strings.Split(o.bodyF.View(), "\n")...)
-	return strings.Join(ui.PadLines(lines, w, h), "\n")
+	return strings.Join(termtext.PadLines(lines, w, h), "\n")
 }
 
 func (o *descEditOverlay) update(msg tea.Msg) tea.Cmd {

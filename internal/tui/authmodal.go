@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/access"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -43,7 +44,7 @@ type authModal struct {
 
 	close   key.Binding
 	back    key.Binding
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	// armed is set once the arm message came, so that an enter held from
 	// before the question shows answers nothing.
 	armed bool
@@ -53,7 +54,7 @@ type authModal struct {
 	icons ui.Icons
 	errs  ui.ErrorStyles
 	st    authStyles
-	cst   ui.ConfirmStyles
+	cst   confirm.Styles
 	links termtext.Links
 
 	width, height int
@@ -80,7 +81,7 @@ func newAuthModal(keys config.Keymap, account string, a core.Access, p access.Pl
 		gh:       lookGH(),
 		close:    ui.Binding(keys, config.ActionDismiss, "close"),
 		back:     ui.Binding(keys, config.ActionBack, "back"),
-		confirm:  ui.NewConfirmKeys(keys),
+		confirm:  confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		voice:    v,
 		icons:    ui.NewIcons(config.Default().UI.Icons),
 	}
@@ -122,7 +123,7 @@ func (m *authModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	if m.asks() {
-		c := ui.Confirm{Run: func() tea.Cmd { return m.run(m.plan.Cmd, m.access) }}
+		c := confirm.Ask{Run: func() tea.Cmd { return m.run(m.plan.Cmd, m.access) }}
 		cmd, done := m.confirm.Answer(c, k, m.armed)
 		if !done {
 			return nil
@@ -170,7 +171,7 @@ func (m *authModal) Commands() []string { return nil }
 // the app's work in it, such as the key that maximizes it.
 func (m *authModal) KeyLayers() []keyhelp.Layer {
 	if m.asks() {
-		return []keyhelp.Layer{m.confirm.Layer()}
+		return []keyhelp.Layer{ui.ConfirmLayer(m.confirm)}
 	}
 	return []keyhelp.Layer{{Source: "token", Context: "text", Bindings: []key.Binding{m.close, m.back}, Short: []key.Binding{m.close}}}
 }
@@ -226,8 +227,8 @@ func (m *authModal) lines(w int) []string {
 		lines = append(lines, m.links.Link(u, st.text.Render(termtext.Truncate(u, w, ic.Ellipsis))))
 	}
 	if m.asks() {
-		q := ui.Confirm{Question: "Run " + commandLine(m.plan.Cmd, m.gh) + "?"}
-		lines = append(lines, q.Lines(m.cst, m.confirm, w, ui.ConfirmLines)...)
+		q := confirm.Ask{Question: "Run " + commandLine(m.plan.Cmd, m.gh) + "?"}
+		lines = append(lines, q.Lines(m.cst, m.confirm, w, confirm.MaxLines)...)
 	}
 	return lines
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -46,7 +47,7 @@ type keyMap struct {
 	References key.Binding
 
 	// confirm answers the question that close and reopen ask.
-	confirm ui.ConfirmKeys
+	confirm confirm.KeyMap
 	// prompt finishes the comment and labels prompts of the modal.
 	prompt prompt.KeyMap
 	feed   feed.KeyMap
@@ -88,7 +89,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
 		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
-		confirm:      ui.NewConfirmKeys(keys),
+		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
@@ -176,7 +177,7 @@ func (k keyMap) onList(s *Section) keyMap {
 func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
-		return []keyhelp.Layer{m.keys.confirm.Layer()}
+		return []keyhelp.Layer{ui.ConfirmLayer(m.keys.confirm)}
 	case m.composing != composeNone:
 		return []keyhelp.Layer{ui.ContextHelp("prompt", m.prompt, true)}
 	case m.refs != nil:

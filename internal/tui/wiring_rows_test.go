@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 )
 
 // topType is the type of the open modal, for a test that opens real modals.
@@ -152,7 +153,7 @@ func TestConfirmOverModalsReturn(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := keysAfter(t, true, steps...)
 				under := m.modals.Top()
-				ask := ui.NewConfirmModal(ui.Confirm{Question: "Sure?"}, ui.NewConfirmKeys(m.cfg.Keys), ui.Icons{})
+				ask := ui.NewConfirmModal(confirm.Ask{Question: "Sure?"}, confirm.NewKeyMap(ui.Lookup(m.cfg.Keys, "confirm")), ui.Icons{})
 				driveKeys(t, m, ui.OpenModal(ask))
 				if m.modals.Top() != ask {
 					t.Fatalf("the confirm didn't open over %v: %v", topType(m), steps)

@@ -17,6 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/access"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
@@ -294,7 +295,7 @@ func TestMaximizeIsTypedInInputs(t *testing.T) {
 	})
 	t.Run("a question", func(t *testing.T) {
 		m, _ := newTestApp(t)
-		run(m, ui.OpenModal(ui.NewConfirmModal(ui.Confirm{Question: "Close it?"}, ui.NewConfirmKeys(config.Default().Keys), ui.NewIcons(config.IconsASCII))))
+		run(m, ui.OpenModal(ui.NewConfirmModal(confirm.Ask{Question: "Close it?"}, confirm.NewKeyMap(ui.Lookup(config.Default().Keys, "confirm")), ui.NewIcons(config.IconsASCII))))
 		send(m, "Z")
 		if m.modals.Maximized() {
 			t.Error("Z maximized the question")
