@@ -20,7 +20,24 @@ const (
 	composeNone composing = iota
 	composeComment
 	composeLabels
+	composeEdit
 )
+
+// composeWith opens the prompt on what, filled with text.
+func (m *detailModal) composeWith(what composing, a ui.Action, text string) tea.Cmd {
+	if !m.loaded {
+		return nil
+	}
+	if cmd, refused := m.gate().Refuse(a, &m.issue); refused {
+		return cmd
+	}
+	m.prompt = prompt.New(prompt.WithStyles(m.theme.Prompt(m.icons)), prompt.WithKeyMap(m.keys.prompt),
+		prompt.WithTitle("Edit comment"), prompt.WithValue(text))
+	m.composing = what
+	m.layout()
+	m.paneFocus(false)
+	return m.prompt.Focus()
+}
 
 // Heights of the comment prompt, which takes a third of the modal within
 // these bounds.
@@ -61,7 +78,7 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 	m.prompt = prompt.New(opts...)
 	m.composing = what
 	m.layout()
-	m.thread.Blur()
+	m.paneFocus(false)
 	return m.prompt.Focus()
 }
 
@@ -79,7 +96,7 @@ func (m *detailModal) closePrompt() {
 	m.composing = composeNone
 	m.prompt.Blur()
 	m.layout()
-	m.thread.Focus()
+	m.paneFocus(true)
 }
 
 // layout shares the height of the modal between the thread and the prompt,
@@ -88,7 +105,7 @@ func (m *detailModal) layout() {
 	h := m.height
 	ph := 0
 	switch m.composing {
-	case composeComment:
+	case composeComment, composeEdit:
 		ph = min(max(h/3, minCommentHeight), maxCommentHeight, h)
 	case composeLabels:
 		ph = min(prompt.SingleLineHeight, h)
@@ -97,7 +114,7 @@ func (m *detailModal) layout() {
 	if ph > 0 {
 		m.prompt.SetSize(m.width, ph)
 	}
-	m.thread.SetSize(m.width, h-ph)
+	m.paneSize(m.width, h-ph)
 }
 
 // promptDone handles what the prompt reports, if it is this modal's. A
@@ -120,6 +137,9 @@ func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 		}
 		if m.composing == composeComment {
 			return m.submitComment(msg.Value)
+		}
+		if m.composing == composeEdit {
+			return m.submitEdit(msg.Value)
 		}
 		return m.submitLabels(msg.Value)
 	}
@@ -162,7 +182,7 @@ func (m *detailModal) comment(body string) (c confirm.Ask, ok bool, refusal tea.
 		Run: func() tea.Cmd {
 			m.closePrompt()
 			op := m.svc.Comment(m.repo, n, body)
-			return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
+			return tea.Batch(m.reload(), m.paneReload(), m.changed(),
 				m.send(op, "comment on "+num))
 		},
 	}, true, nil

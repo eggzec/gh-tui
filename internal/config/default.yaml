@@ -971,6 +971,8 @@ keys:
     reopen: [O]
     comment: [c]
     labels: [L]
+    # Edit the comment under the cursor, if it is yours.
+    edit_comment: [E]
     # Show the issues and pull requests linked to it, and those that mention
     # it.
     references: ["#"]

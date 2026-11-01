@@ -73,6 +73,8 @@ type detailModal struct {
 	failed error
 
 	thread thread.Model[core.Comment]
+	// cv, when set, draws the conversation in place of the thread.
+	cv *convHost
 	// newRefs makes the References step, which refs is while it shows in
 	// place of the thread; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -176,6 +178,9 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	)
 	m.thread.SetCutHint(ui.OpenHint(s.icons, s.keys.Open))
 	m.drawPictures()
+	if tl, ok := svc.(timeliner); ok {
+		m.cv = &convHost{tl: tl}
+	}
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.issue, m.loaded = cached, true
@@ -190,16 +195,20 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.get(), caps))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.paneInit(), m.get(), caps))
 	}
 	// What is cached shows at once, and is read again behind it.
 	cp, primed := svc.CachedComments(q)
+	primed = primed && m.cv == nil
 	if primed {
 		m.thread.SetFirst(cp.Items, cp.Next)
 	}
 	loads := []tea.Cmd{m.show(), m.get(), caps}
+	if m.cv != nil {
+		loads = append(loads, m.buildConv())
+	}
 	if primed {
-		loads = append(loads, m.thread.Reload())
+		loads = append(loads, m.paneReload())
 	}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
@@ -311,12 +320,12 @@ func (m *detailModal) View() string {
 // composed renders the thread, and the prompt under it while one is open.
 func (m *detailModal) composed() string {
 	if m.composing == composeNone {
-		return m.thread.View()
+		return m.paneView()
 	}
-	if m.thread.Height() == 0 {
+	if m.paneHeight() == 0 {
 		return m.prompt.View()
 	}
-	return m.thread.View() + "\n" + m.prompt.View()
+	return m.paneView() + "\n" + m.prompt.View()
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
@@ -363,7 +372,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if msg.Err != nil || msg.Key != issuesvc.SyncKey(m.repo) {
 			return nil
 		}
-		return tea.Batch(m.thread.Reload(), m.get())
+		return tea.Batch(m.paneReload(), m.get())
 	case refs.CloseMsg:
 		// The step has nothing left to clear: the modal closes.
 		if m.refs != nil && msg.ID == m.refs.ID() {
@@ -381,7 +390,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if m.refs != nil {
 			step = m.refs.Update(msg)
 		}
-		return tea.Batch(m.thread.Reload(), m.get(), step)
+		return tea.Batch(m.paneReload(), m.get(), step)
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
@@ -403,7 +412,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if msg.From != ui.IssuesTitle {
 			return nil
 		}
-		return tea.Batch(m.reload(), m.thread.Reload())
+		return tea.Batch(m.reload(), m.paneReload())
+	case editedMsg:
+		return m.gotEdited(msg)
 	case prompt.SubmitMsg, prompt.CancelMsg:
 		return m.promptDone(msg)
 	case tea.PasteMsg:
@@ -423,7 +434,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
+	cmd = m.paneUpdate(msg)
 	if m.refs != nil {
 		cmd = tea.Batch(cmd, m.refs.Update(msg))
 	}
@@ -458,13 +469,15 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.compose(composeComment, ui.ActComment)
 	case keymap.Matches(msg, k.Label):
 		return m.compose(composeLabels, ui.ActLabel)
+	case keymap.Matches(msg, k.Edit) && m.cv != nil:
+		return m.editComment()
 	case keymap.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
 	case keymap.Matches(msg, k.Reopen):
 		return m.setState(core.StateOpen)
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
-		return tea.Batch(m.thread.Reload(), m.get())
+		return tea.Batch(m.paneReload(), m.get())
 	case keymap.Matches(msg, k.Open):
 		if m.issue.URL != "" {
 			return ui.Open(m.issue.URL)
@@ -472,7 +485,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
+	cmd = m.paneUpdate(msg)
 	return cmd
 }
 
@@ -616,6 +629,11 @@ func (m *detailModal) reload() tea.Cmd {
 func (m *detailModal) show() tea.Cmd {
 	m.bodies.SetDocument(m.issue.ID, m.issue.Body)
 	m.rendered = append(m.rendered, m.issue.Body)
+	if m.cv != nil {
+		m.cv.head = m.header(m.issue)
+		m.layout()
+		return nil
+	}
 	return m.thread.SetDocument(m.header(m.issue), m.issue.Body)
 }
 

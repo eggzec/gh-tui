@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
+	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -42,6 +43,8 @@ type keyMap struct {
 	Reopen  key.Binding
 	Comment key.Binding
 	Label   key.Binding
+	// Edit edits the viewer's comment under the conversation's cursor.
+	Edit key.Binding
 	// References shows the issues and pull requests linked to the issue, in
 	// a step of its modal. The list has no such key.
 	References key.Binding
@@ -56,6 +59,7 @@ type keyMap struct {
 	// search are the keys of the prompt of the list's find and filter.
 	search cmdline.KeyMap
 	thread thread.KeyMap
+	tree   foldtree.KeyMap
 	// owner shows the author's page from the modal. The list leaves the
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
@@ -88,8 +92,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:       list.Binding("reopen", "reopen issue"),
 		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
 		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
+		Edit:         ui.In(keys, ctxModal).Binding("edit_comment", "edit comment"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
-		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
+		confirm:     confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
@@ -102,6 +107,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 	tk := thread.NewKeyMap(ui.In(keys, ctxModal))
 	tk.Retry = retry(k.Refresh)
 	k.thread = tk
+	k.tree = treeKeys(keys)
 	return k
 }
 
@@ -130,7 +136,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
+		{k.Back, k.Comment, k.Label, k.Edit, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
@@ -165,7 +171,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.Edit, &k.References} {
 		b.SetEnabled(false)
 	}
 	return k
