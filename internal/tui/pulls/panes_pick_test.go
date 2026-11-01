@@ -120,7 +120,7 @@ func TestLabelsFooter(t *testing.T) {
 	t.Parallel()
 	h, m := labeling(t, newFakeService())
 	press(t, h, "L")
-	help := labelsHelp{&labelsOverlayOf(t, m).p}
+	help := labelsHelp{p: &labelsOverlayOf(t, m).p}
 	shown := help.ShortHelp()
 	hints := make([]string, 0, len(shown))
 	for _, b := range shown {
