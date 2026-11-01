@@ -101,7 +101,9 @@ func (m *menuModal) Update(msg tea.Msg) tea.Cmd {
 		}
 		action, _ := msg.Item.Value.(string)
 		run := menuRunMsg{action: action, sel: m.sel, had: m.had}
-		return tea.Batch(ui.LeaveModal(m), func() tea.Msg { return run })
+		// In order: a batch may deliver the run while the menu is still on
+		// top, where the pressed action would be lost.
+		return tea.Sequence(ui.LeaveModal(m), func() tea.Msg { return run })
 	case picker.CancelMsg:
 		if msg.ID != m.pick.ID() {
 			return nil

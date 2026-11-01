@@ -17,7 +17,7 @@ import (
 // keyMap holds the keys of the list and of the bubbles it shows. The section
 // matches its own keys first, so the feed gets only the keys it leaves.
 type keyMap struct {
-	Select key.Binding `menu:"item"`
+	Select key.Binding
 	// Filter and Sort open the filter modal on its Filters and Sort tabs,
 	// which the app does, so the section only keeps them from the feed and
 	// shows them in help.

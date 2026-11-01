@@ -2,12 +2,15 @@ package tui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 func TestMenuEntriesSkipUnmarkedAndUnknown(t *testing.T) {
@@ -47,12 +50,44 @@ func TestMenuChoosingClosesThenPresses(t *testing.T) {
 	if _, ok := m.modals.Top().(*menuModal); !ok {
 		t.Fatalf("top modal = %T, want the menu", m.modals.Top())
 	}
+	// Move off the first entry, which opens the browser, to "merge".
+	driveKeys(t, m, m.key(press("down")))
 	driveKeys(t, m, m.key(press("enter")))
-	if _, ok := m.modals.Top().(*menuModal); ok {
+	top := m.modals.Top()
+	if _, ok := top.(*menuModal); ok {
 		t.Fatal("the menu is still open after choosing an entry")
 	}
-	if m.modals.Top() == nil {
-		t.Error("choosing the first entry pressed nothing: no modal opened")
+	if top == nil {
+		t.Fatal("choosing merge pressed nothing: no modal opened")
+	}
+	if got := top.Title(); !strings.HasPrefix(got, "Merge #") {
+		t.Errorf("modal after choosing merge = %T %q, want the merge dialog", top, got)
+	}
+}
+
+func TestMenuChoosingSequencesTheClose(t *testing.T) {
+	t.Parallel()
+	m := keysAfter(t, true, "global.pane_2")
+	driveKeys(t, m, m.openMenu())
+	menu, ok := m.modals.Top().(*menuModal)
+	if !ok {
+		t.Fatalf("top modal = %T, want the menu", m.modals.Top())
+	}
+	item, _ := menu.pick.Selected()
+	cmd := menu.Update(picker.ChosenMsg{ID: menu.pick.ID(), Item: item})
+	if cmd == nil {
+		t.Fatal("choosing returned no command")
+	}
+	msg := cmd()
+	if _, batch := msg.(tea.BatchMsg); batch {
+		t.Fatal("choosing returned a batch, which runs the close and the press in no order")
+	}
+	cmds, ok := cmdsOf(msg)
+	if !ok || len(cmds) != 2 {
+		t.Fatalf("choosing returned %T, want a sequence of the close and the press", msg)
+	}
+	if _, ok := cmds[1]().(menuRunMsg); !ok {
+		t.Errorf("the second step is not the press of the action")
 	}
 }
 

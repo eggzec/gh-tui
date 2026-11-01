@@ -65,8 +65,14 @@ func (m *Model) View() tea.View {
 	v.AltScreen = true
 	v.ReportFocus = true
 	// Terminals send the Menu key only as an escape code of the kitty
-	// protocol.
-	v.KeyboardEnhancements = tea.KeyboardEnhancements{ReportAllKeysAsEscapeCodes: true}
+	// protocol. With every key an escape code the terminal sends the
+	// unshifted code, so a shifted symbol (? : ! @) decodes as its base key
+	// unless the alternate keys (flag 4) and the associated text come too.
+	v.KeyboardEnhancements = tea.KeyboardEnhancements{
+		ReportAllKeysAsEscapeCodes: true,
+		ReportAlternateKeys:        true,
+		ReportAssociatedText:       true,
+	}
 	v.WindowTitle = "gh-tui"
 	return v
 }
