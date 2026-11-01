@@ -984,6 +984,11 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
+    # Open a fold, close one, or open every fold (or close them all when all
+    # are open).
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
 
   # The links of a pull request or an issue: what it closes or is closed by,
   # what its texts write, and what mentions it, in groups that fold. Enter

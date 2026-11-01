@@ -60,7 +60,7 @@ func (l convLookup) Of(action string) []string {
 
 // treeKeys returns the keys of the conversation's tree.
 func treeKeys(keys config.Keymap) foldtree.KeyMap {
-	return foldtree.NewKeyMap(convLookup{Context: ui.In(keys, "conversation"), keys: keys})
+	return foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxModal), keys: keys})
 }
 
 // buildConv makes the conversation and returns its first reads.
