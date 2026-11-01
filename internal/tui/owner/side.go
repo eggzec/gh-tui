@@ -46,10 +46,10 @@ type side struct {
 	shown string
 	// member is whether the README was last asked for as a member's.
 	member bool
-	// drew reports whether the last render of the README asked for
+	// askedPics reports whether the last render of the README asked for
 	// pictures, and pics whether it drew pictures at all, so that only
 	// images that may change it render it again.
-	drew, pics bool
+	askedPics, pics bool
 }
 
 // sideRead is a read of the side: what the section knows of it, and the
