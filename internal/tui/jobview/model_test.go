@@ -72,7 +72,7 @@ func TestStates(t *testing.T) {
 		state State
 		text  string
 	}{
-		{"running", running(), nil, Pending, "Logs arrive in ~2 MB blocks while the job runs · o to watch live on GitHub ✓ Set up job 2s ◐ Run golangci-lint 1m 18s ○ Complete job queued"},
+		{"running", running(), nil, Pending, "Logs arrive in ~2 MB blocks while the job runs. ✓ Set up job 2s ◐ Run golangci-lint 1m 18s ○ Complete job queued"},
 		{"not yet", failed(), fmt.Errorf("log: %w", core.ErrLogPending), Pending, "The job hasn't started yet."},
 		{"expired", failed(), fmt.Errorf("log: %w", core.ErrLogExpired), Expired, "GitHub no longer keeps this log. ✓ Set up job 2s ✗ Run go test ./... 2m 58s"},
 		{"failed", failed(), errBoom, Failed, "✗ Something went wrong"},
@@ -91,20 +91,6 @@ func TestStates(t *testing.T) {
 			}
 			assertFits(t, m.View(), 80, 12)
 		})
-	}
-}
-
-// The pending text points to GitHub only while the key that opens it
-// works.
-func TestPendingWithoutOpen(t *testing.T) {
-	k := testKeys()
-	k.Open.SetEnabled(false)
-	m := New(t.Context(), newFake(), repo, k, WithClock(func() time.Time { return testNow }))
-	m.SetTheme(testTheme())
-	m.SetSize(80, 12)
-	run(&m, m.Show(running(), false, Hints{}))
-	if s := text(&m); !strings.Contains(s, "Logs arrive in ~2 MB blocks while the job runs.") || strings.Contains(s, "live") {
-		t.Errorf("the pending text names a key that doesn't work:\n%s", s)
 	}
 }
 
@@ -180,7 +166,7 @@ func TestTruncatedNotice(t *testing.T) {
 	f.logs[failedJob] = lg
 	m := newView(t, f, 80, 12)
 	run(m, m.Show(failed(), false, Hints{}))
-	if s := text(m); !strings.Contains(s, "Only the end of this log: it is too large to read whole. o opens it on GitHub.") {
+	if s := text(m); !strings.Contains(s, "Only the end of this log: it is too large to read whole.") {
 		t.Errorf("a truncated log doesn't say so:\n%s", s)
 	}
 	assertFits(t, m.View(), 80, 12)

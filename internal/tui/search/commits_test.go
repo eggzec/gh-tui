@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -47,7 +49,7 @@ func TestCommitRow(t *testing.T) {
 	var row string
 	for line := range strings.Lines(s.View()) {
 		if strings.Contains(line, "tea brewing fix") {
-			row = line
+			row = ansi.Strip(line)
 		}
 	}
 	if !strings.Contains(row, s.icons.Glyph(ui.GlyphCommit)) || !strings.Contains(row, "0123456") || strings.Contains(row, "0123456789") {

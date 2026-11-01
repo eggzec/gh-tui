@@ -241,11 +241,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.svc.Invalidate(s.repo)
 		s.ahead.Resume()
 		return s.list.Reload()
-	case keymap.Matches(msg, k.Open):
-		if it, ok := s.list.Selected(); ok && it.URL != "" {
-			return ui.Open(it.URL)
-		}
-		return nil
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter()
 	case keymap.Matches(msg, k.Sort):

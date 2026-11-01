@@ -31,8 +31,6 @@ const (
 	ActionHelp    = "global.help"
 	ActionRefresh = "global.refresh"
 	ActionSearch  = "global.search"
-	// ActionOpen opens what is selected in the browser.
-	ActionOpen = "global.open"
 	// ActionNextPane and ActionPrevPane cycle the focus through the panes
 	// of the screen, or of a modal with panes.
 	ActionNextPane = "global.next_pane"

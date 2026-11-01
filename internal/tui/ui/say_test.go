@@ -27,7 +27,6 @@ func testVoice() Voice {
 	keys := config.Default().Keys
 	return Voice{
 		Retry: Binding(keys, config.ActionRefresh, "retry"),
-		Open:  Binding(keys, config.ActionOpen, "open"),
 		Log:   testLog,
 		Loc:   time.FixedZone("test", 2*60*60),
 		Now:   func() time.Time { return reset.Add(-10 * time.Minute) },
@@ -110,12 +109,12 @@ var sayCases = []sayCase{
 	},
 	{
 		name: "forbidden", p: &core.Problem{Kind: core.Forbidden, Action: "load the files", Subject: "eggzec/x", Reason: "Resource not accessible by integration"},
-		text: "You don't have access to eggzec/x", hint: "o to open on GitHub",
+		text:  "You don't have access to eggzec/x",
 		toast: "Couldn't load the files: you don't have access to eggzec/x.",
 	},
 	{
 		name: "forbidden without a subject", p: &core.Problem{Kind: core.Forbidden, Action: "load the files"},
-		text: "You don't have access to this", hint: "o to open on GitHub",
+		text: "You don't have access to this",
 	},
 	{
 		name: "forbidden by SSO",
@@ -151,22 +150,22 @@ var sayCases = []sayCase{
 	},
 	{
 		name: "rejected", p: &core.Problem{Kind: core.Rejected, Action: "merge #5", Reason: "Pull Request is not mergeable"},
-		text: "Pull Request is not mergeable", hint: "o to open on GitHub",
+		text:  "Pull Request is not mergeable",
 		toast: "Couldn't merge #5: Pull Request is not mergeable.",
 	},
 	{
 		name: "rejected with a dirty reason", p: &core.Problem{Kind: core.Rejected, Action: "merge #5", Reason: "\x1b[31mBase\u200b branch\x1b[0m was\n\tmod\u202eified\u202c.\r\n  Review\u2066 and\u2069 try\x07 again" + invisible + "."},
-		text: "Base branch was modified. Review and try again.", hint: "o to open on GitHub",
+		text:  "Base branch was modified. Review and try again.",
 		toast: "Couldn't merge #5: Base branch was modified. Review and try again.",
 	},
 	{
 		name: "rejected without a reason", p: &core.Problem{Kind: core.Rejected, Action: "merge #5"},
-		text: "GitHub refused this", hint: "o to open on GitHub",
+		text:  "GitHub refused this",
 		toast: "Couldn't merge #5: GitHub refused this.",
 	},
 	{
 		name: "unsupported", p: &core.Problem{Kind: core.Unsupported, Action: "open o/r", Reason: "Field 'x' doesn't exist on type 'Repository'"},
-		text: "This GitHub Enterprise version doesn't support this", hint: "o to open on GitHub",
+		text:  "This GitHub Enterprise version doesn't support this",
 		toast: "Couldn't open o/r: this GitHub Enterprise version doesn't support this.",
 	},
 	{
@@ -292,9 +291,9 @@ func TestErrorText(t *testing.T) {
 		text, hint    string
 	}{
 		{"offline", "eggzec/x", fmt.Errorf("list files: %w", core.ErrOffline), "Can't reach GitHub", "r to retry"},
-		{"forbidden names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to eggzec/x", "o to open on GitHub"},
-		{"forbidden names the repository of an item", "eggzec/x#5", fmt.Errorf("merge #5: %w", core.ErrForbidden), "You don't have access to eggzec/x", "o to open on GitHub"},
-		{"forbidden without a subject", "", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to this", "o to open on GitHub"},
+		{"forbidden names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to eggzec/x", ""},
+		{"forbidden names the repository of an item", "eggzec/x#5", fmt.Errorf("merge #5: %w", core.ErrForbidden), "You don't have access to eggzec/x", ""},
+		{"forbidden without a subject", "", fmt.Errorf("list files: %w", core.ErrForbidden), "You don't have access to this", ""},
 		{"not found names the subject", "eggzec/x", fmt.Errorf("list files: %w", core.ErrNotFound), "eggzec/x doesn't exist or is private.", ""},
 		{"the error's own subject wins", "eggzec/x", &core.NoNumberError{Repo: x, Number: 5, Err: core.ErrNotFound}, "eggzec/x#5 doesn't exist or is private.", ""},
 		{"canceled", "eggzec/x", context.Canceled, "", ""},
@@ -329,10 +328,10 @@ func TestNewVoice(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	v := NewVoice(config.Default().Keys, filepath.Join(home, "gh-tui.log"))
-	if v.Retry.Help().Key != "r" || v.Open.Help().Key != "o" || v.Log != filepath.Join("~", "gh-tui.log") {
-		t.Errorf("NewVoice = retry %q, open %q, log %q", v.Retry.Help().Key, v.Open.Help().Key, v.Log)
+	if v.Retry.Help().Key != "r" || v.Log != filepath.Join("~", "gh-tui.log") {
+		t.Errorf("NewVoice = retry %q, log %q", v.Retry.Help().Key, v.Log)
 	}
-	if v := NewVoice(nil, ""); v.Log != "" || v.Retry.Enabled() || v.Open.Enabled() {
+	if v := NewVoice(nil, ""); v.Log != "" || v.Retry.Enabled() {
 		t.Errorf("NewVoice without keys or a log = %+v", v)
 	}
 }

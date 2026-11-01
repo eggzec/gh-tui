@@ -97,7 +97,7 @@ func TestCodePreviewSaysWhyAFileIsNotShown(t *testing.T) {
 	}{
 		"binary":                {blob: core.Blob{Binary: true}, want: "Binary file, not shown"},
 		"too large":             {err: &core.TooLargeError{Size: 5 << 20, Limit: 1 << 20}, want: "files.preview.max_size"},
-		"over the warning size": {err: &core.TooLargeError{Size: 5 << 20, Limit: 1 << 20, Warn: true}, want: "(files.preview.warn_size). · o opens it in"},
+		"over the warning size": {err: &core.TooLargeError{Size: 5 << 20, Limit: 1 << 20, Warn: true}, want: "(files.preview.warn_size)."},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

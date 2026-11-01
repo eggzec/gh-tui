@@ -189,7 +189,6 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		thread.WithEmptyText(ui.None("assets")),
 		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
 	)
-	m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
 	if f := o.links.Func(repo.String()); f != nil {
 		m.thread.SetAutolink(f)
 	}
@@ -316,7 +315,6 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons, &m.voice)
-		m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)

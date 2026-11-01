@@ -229,7 +229,7 @@ func TestCodeErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("search code: github: GET /search/code: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("search code: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("search code: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this"},
 		{"internal", errors.New("search code: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
@@ -279,14 +279,12 @@ func TestOpen(t *testing.T) {
 		want []tea.Msg
 	}{
 		{"repository", []string{"esc", "enter"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
-		{"repository in the browser", []string{"esc", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea"}}},
 		{"issue", []string{"esc", "]", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
 		{"pull request", []string{"esc", "]", "]", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
 		{"pull request on its checks", []string{"esc", "]", "]", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
 		{"no checks for an issue", []string{"esc", "]", "C"}, nil},
 		// The file opens over the page, on what matched.
 		{"file", []string{"esc", "]", "]", "]", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
-		{"file in the browser", []string{"esc", "]", "]", "]", "o"}, []tea.Msg{ui.OpenMsg{URL: "https://github.com/charmbracelet/bubbletea/blob/main/tea.go"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -21,11 +21,10 @@ type KeyMap struct {
 	Tree tree.KeyMap
 	// Filter opens the prompt of the quick filter.
 	Filter key.Binding
-	// Open opens the item under the cursor on GitHub, Refresh reads the
-	// links again, Back steps back to the conversation, and Dismiss clears
+	// Refresh reads the links again, Back steps back to the conversation, and Dismiss clears
 	// the filter and then closes the modal. They are intents of the keys
 	// that work everywhere, which the step implements.
-	Open, Refresh, Back, Dismiss key.Binding
+	Refresh, Back, Dismiss key.Binding
 	// prompt are the keys of the filter's prompt.
 	prompt promptKeys
 }
@@ -35,7 +34,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	return KeyMap{
 		Tree:    tree.NewKeyMap(ui.Lookup(keys, Context)),
 		Filter:  in.Binding("quick_filter", "filter"),
-		Open:    in.Binding("global.open", "open in browser"),
 		Refresh: in.Binding("global.refresh", "refresh"),
 		Back:    in.Binding("global.back", "back"),
 		Dismiss: in.Binding("global.dismiss", "close"),
@@ -78,7 +76,7 @@ func (s *Step) KeyLayers() []keyhelp.Layer {
 	}
 	t := k.Tree
 	bindings := []key.Binding{
-		k.Filter, k.Open, k.Refresh, t.Up, t.Down, t.PageUp, t.PageDown, t.HalfPageUp, t.HalfPageDown, t.Home, t.End,
+		k.Filter, k.Refresh, t.Up, t.Down, t.PageUp, t.PageDown, t.HalfPageUp, t.HalfPageDown, t.Home, t.End,
 		t.Expand, t.Collapse, t.ToggleAll, t.Open, k.Back, k.Dismiss,
 	}
 	short := []key.Binding{t.Open, t.Expand, t.Collapse, t.ToggleAll, k.Filter, k.Back, k.Dismiss}

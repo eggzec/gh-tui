@@ -296,8 +296,6 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case keymap.Matches(msg, s.keys.Refresh):
 		return s.refresh(), true
-	case keymap.Matches(msg, s.keys.Open):
-		return ui.Open(webURL(s.host, s.repo, s.ref, s.selected())), true
 	case s.ref != "" && keymap.Matches(msg, s.keys.ResetBase):
 		return ui.ResetBase(s.repo), true
 	}
@@ -371,9 +369,6 @@ func (s *Section) preview(n tree.Node) tea.Cmd {
 	}
 	if e.Submodule() {
 		text := e.Path + " is a submodule, with its files in another repository."
-		if k := s.keys.Open.Help().Key; k != "" {
-			text += " Press " + k + " to open it in the browser."
-		}
 		return ui.Notify(toast.Info, text)
 	}
 	return s.open(e, nil)
@@ -385,7 +380,7 @@ func (s *Section) open(e core.TreeEntry, over ui.Modal) tea.Cmd {
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
-	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
+	p := newPreview(s.ctx, s.svc, s.host, s.repo, s.ref, e, s.rawKeys, s.voice, s.editor, s.icons, s.images, s.rawMarkdown)
 	p.md.setLinks(s.links, &p.pager)
 	// The load starts only once the modal is open, and not at all if the open
 	// is refused.
@@ -446,7 +441,7 @@ func (s *Section) previewFile(msg ui.OpenFileMsg) tea.Cmd {
 	}
 	e := core.TreeEntry{Path: msg.Path, Name: path.Base(msg.Path), Type: core.EntryBlob, Mode: "100644", SHA: msg.SHA}
 	raw := s.rawMarkdown || msg.Find != "" || msg.Line > 0
-	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.keys.Open, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
+	p := newPreview(s.ctx, s.svc, s.host, msg.Repo, msg.Ref, e, s.rawKeys, s.voice, s.editor, s.icons, s.images, raw)
 	p.md.setLinks(s.links, &p.pager)
 	p.find, p.line = msg.Find, msg.Line
 	return ui.OpenModalLoading(p, nil, p.load())

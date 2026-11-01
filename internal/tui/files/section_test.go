@@ -304,8 +304,6 @@ func TestRetry(t *testing.T) {
 // The tree and the finder say what went wrong the way the user should
 // read it, without the error's chain, request or status code.
 func TestErrorWords(t *testing.T) {
-	// The finder names no key that doesn't work there: o types into its
-	// query.
 	tests := []struct {
 		name         string
 		err          error
@@ -314,7 +312,7 @@ func TestErrorWords(t *testing.T) {
 		{"offline", fmt.Errorf("list files: github: GET /repos/eggzec/gh-tui/git/trees/HEAD: %w", core.ErrOffline),
 			"Can't reach GitHub · →/l to retry", "Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("list files: github: 403 Forbidden: %w", core.ErrForbidden),
-			"You don't have access to eggzec/gh-tui · o to open on GitHub", "You don't have access to eggzec/gh-tui"},
+			"You don't have access to eggzec/gh-tui", "You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("list files: github: decode: unexpected EOF"),
 			"Something went wrong. Details are in the log", "Something went wrong. Details are in the log"},
 	}
@@ -330,29 +328,6 @@ func TestErrorWords(t *testing.T) {
 			fm := findIn(t, newHost(s))
 			if got := ansi.Strip(fm.find.View()); !strings.Contains(got, errMark+" "+tt.finder) || strings.Contains(got, "github") || strings.Contains(got, "to open") {
 				t.Errorf("finder = %q, want %q", got, tt.finder)
-			}
-		})
-	}
-}
-
-func TestOpenInBrowser(t *testing.T) {
-	tests := []struct {
-		name string
-		keys []string
-		want string
-	}{
-		{"directory", nil, "https://github.com/eggzec/gh-tui/tree/HEAD/cmd"},
-		{"submodule", []string{"down", "down"}, "https://github.com/eggzec/gh-tui/tree/HEAD/vendor-lib"},
-		{"file", []string{"G"}, "https://github.com/eggzec/gh-tui/blob/HEAD/README%20with%20spaces.md"},
-		{"nested file", []string{"l", "down", "l", "down"}, "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := loaded(t, sampleFake(), 40, 12)
-			keys(s, tt.keys...)
-			got := keys(s, "o")
-			if want := []tea.Msg{ui.OpenMsg{URL: tt.want}}; !slices.Equal(got, want) {
-				t.Errorf("o sent %#v, want %#v", got, want)
 			}
 		})
 	}
@@ -386,9 +361,6 @@ func TestBase(t *testing.T) {
 	}
 	if s.Ref() != old || !helpHas(s, "back to head") {
 		t.Errorf("Ref() = %q and help without the reset key, want the base and its key", s.Ref())
-	}
-	if got := keys(s, "o"); !slices.Equal(got, []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/" + old + "/old.go"}}) {
-		t.Errorf("o sent %#v, want the file at the base", got)
 	}
 
 	// The same base again, or a base of another repository, lists nothing.

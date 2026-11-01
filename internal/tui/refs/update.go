@@ -229,8 +229,6 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 		return s.setFilter("")
 	case keymap.Matches(msg, k.Refresh):
 		return tea.Batch(s.refresh(), s.tree.Retry())
-	case keymap.Matches(msg, k.Open):
-		return s.openInBrowser()
 	}
 	if !s.loaded {
 		return nil
@@ -262,31 +260,12 @@ func (s *Step) pick(n tree.Node) tea.Cmd {
 func (s *Step) openItem(r core.Reference) tea.Cmd {
 	if r.Problem != "" {
 		text := "Can't read " + r.Target.String() + ": " + r.Problem + "."
-		if h := s.keys.Open.Help().Key; h != "" {
-			text += " " + h + " opens it in the browser."
-		}
 		return ui.Notify(toast.Warning, text)
 	}
 	if r.Target.Kind == core.KindPull {
 		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: s.opts.ret} }
 	}
 	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: s.opts.ret} }
-}
-
-// openInBrowser opens the item under the cursor on GitHub. An item that
-// can't be read has no address of its own, so it goes to where a link to
-// an issue goes, which GitHub redirects to a pull request.
-func (s *Step) openInBrowser() tea.Cmd {
-	n, ok := s.tree.Selected()
-	v, item := n.Value.(itemValue)
-	if !ok || !item {
-		return nil
-	}
-	if v.ref.URL != "" {
-		return ui.Open(v.ref.URL)
-	}
-	t := v.ref.Target
-	return ui.Open(core.WebScheme(s.opts.host) + "://" + s.opts.host + "/" + t.Repo.String() + "/issues/" + strconv.Itoa(t.Number))
 }
 
 // openPrompt opens the prompt of the filter on the filter in force, if

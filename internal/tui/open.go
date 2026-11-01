@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -16,11 +15,10 @@ import (
 // openCommand opens what arg names on GitHub, in the browser: a
 // repository, an issue or pull request, the profile of a user or an
 // organization, or a link to any page of a repository or profile on the
-// user's host. Without arg it opens what is selected,
-// as the open key does.
+// user's host. Without arg it says what to name.
 func (m *Model) openCommand(arg string) tea.Cmd {
 	if arg == "" {
-		return m.pressAction(config.ActionOpen)
+		return m.toast.Push(toast.Warning, "Name what to open, such as open owner/name or open .")
 	}
 	if strings.TrimSpace(arg) == "." {
 		here, why := m.hereRepo()

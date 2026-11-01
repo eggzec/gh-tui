@@ -460,10 +460,6 @@ func TestOpenRepository(t *testing.T) {
 	if !slices.Contains(app, tea.Msg(want)) {
 		t.Errorf("enter sent %v, want %v", app, want)
 	}
-	app = press(t, s, "o")
-	if !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: "https://github.com/octocat/repo-001"})) {
-		t.Errorf("o sent %v, want the repository in the browser", app)
-	}
 }
 
 func TestPinned(t *testing.T) {
@@ -479,10 +475,6 @@ func TestPinned(t *testing.T) {
 	app := press(t, s, "right", "enter")
 	if !slices.Contains(app, tea.Msg(ui.RepoMsg{Repo: core.RepoRef{Owner: "octocat", Name: "spoon-knife"}})) {
 		t.Errorf("enter on the second card sent %v", app)
-	}
-	app = press(t, s, "o")
-	if !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: "https://github.com/octocat/spoon-knife"})) {
-		t.Errorf("o on the second card sent %v", app)
 	}
 	// The app's repository key opens what a pane has selected, so the
 	// dashboard takes no key of its own for the repository here.
@@ -524,10 +516,6 @@ func TestWork(t *testing.T) {
 	app = press(t, s, "]", "]", "enter")
 	if !slices.Contains(app, tea.Msg(ui.OpenIssueMsg{Repo: here, Number: 40})) {
 		t.Errorf("enter on the assigned issue sent %v", app)
-	}
-	app = press(t, s, "o")
-	if !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: "https://github.com/octocat/hello-world/issues/40"})) {
-		t.Errorf("o sent %v", app)
 	}
 }
 
@@ -736,13 +724,6 @@ func TestInbox(t *testing.T) {
 	// first row.
 	if v := screen(s); !strings.Contains(v, "2 unread") || !regexp.MustCompile(`▌ ● .*oct…/hello-world#2`).MatchString(v) {
 		t.Errorf("after opening the first thread the pane shows:\n%s", v)
-	}
-	app = press(t, s, "down", "o")
-	if !slices.Equal(app, []tea.Msg{ui.OpenMsg{URL: "https://github.com/cli/cli/pull/3"}}) {
-		t.Errorf("o on the second thread sent %v, want it opened in the browser", app)
-	}
-	if len(in.marks()) != 1 {
-		t.Error("o marked a thread read")
 	}
 
 	// A poll that finds a change updates the count from the cache.
@@ -987,7 +968,7 @@ func TestReposErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("list repos: github: GET /user/repos: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("list repos: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this"},
 		{"internal", errors.New("list repos: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

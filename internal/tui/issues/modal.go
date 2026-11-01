@@ -174,7 +174,6 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		thread.WithAutolink(s.autolinks.Func(repo.String())),
 		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
 	)
-	m.thread.SetCutHint(ui.OpenHint(s.icons, s.keys.Open))
 	m.drawPictures()
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
@@ -346,7 +345,6 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons)
-		m.thread.SetCutHint(ui.OpenHint(m.icons, m.keys.Open))
 		if m.refs != nil {
 			m.refs.SetIcons(m.icons)
 		}
@@ -465,11 +463,6 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.thread.Reload(), m.get())
-	case keymap.Matches(msg, k.Open):
-		if m.issue.URL != "" {
-			return ui.Open(m.issue.URL)
-		}
-		return nil
 	}
 	var cmd tea.Cmd
 	m.thread, cmd = m.thread.Update(msg)

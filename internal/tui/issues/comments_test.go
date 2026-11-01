@@ -194,11 +194,8 @@ func TestDiagramKeys(t *testing.T) {
 			help = append(help, b.Help().Key+" "+b.Help().Desc)
 		}
 	}
-	if !slices.Contains(help, "↵ diagram code") || !slices.Contains(help, "o browser") {
-		t.Errorf("the help doesn't offer the diagram's code and the issue: %q", help)
-	}
-	if o, ok := has[ui.OpenMsg](press(t, h, "o")); !ok || o.URL != "https://github.com/eggzec/gh-tui/issues/999" {
-		t.Errorf("open sent %+v, want the issue", o)
+	if !slices.Contains(help, "↵ diagram code") {
+		t.Errorf("the help doesn't offer the diagram's code: %q", help)
 	}
 	press(t, h, "enter")
 	if v := ansi.Strip(m.View()); !strings.Contains(v, "A[issue] --> B[modal]") {

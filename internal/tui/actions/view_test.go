@@ -132,7 +132,7 @@ func TestViewMoreJobs(t *testing.T) {
 		m, h := newModal(t, f, wideW, wideH)
 		h.toJobs(t)
 		s := paneText(m)
-		if got := strings.Contains(s, "First 4 jobs · o shows all"); got != more {
+		if got := strings.Contains(s, "First 4 jobs"); got != more {
 			t.Errorf("more jobs %v: the pane says so %v:\n%s", more, got, s)
 		}
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -40,7 +39,6 @@ type preview struct {
 	// ref is the base the file was listed at, for its page on GitHub.
 	ref   string
 	entry core.TreeEntry
-	open  key.Binding
 	// back is off: the preview has no step before it, and takes the key so
 	// that it does nothing.
 	back  key.Binding
@@ -93,16 +91,16 @@ type blobMsg struct {
 // error glyph of ic. It draws an image file with images, where the
 // terminal shows them, and shows a markdown file rendered unless raw is
 // set. Its load runs under ctx until it closes.
-func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, open key.Binding, keys config.Keymap, v ui.Voice, editor string, ic ui.Icons, images *ui.Images, raw bool) *preview {
+func newPreview(ctx context.Context, svc Service, host string, repo core.RepoRef, ref string, e core.TreeEntry, keys config.Keymap, v ui.Voice, editor string, ic ui.Icons, images *ui.Images, raw bool) *preview {
 	ctx, cancel := context.WithCancel(ctx)
-	// The preview loads the file once, and opens it on GitHub with open.
-	v.Retry, v.Open = key.Binding{}, open
+	// The preview loads the file once.
+	v.Retry = key.Binding{}
 	pg := pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(keys, "preview"))),
 		pager.WithErrorText(fileErrorText(repo, v)), pager.WithEditor(editor), pager.WithResizeRest(resizeRest),
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
 	back := ui.In(keys, "preview").Binding("global.back", "back")
 	back.SetEnabled(false)
-	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, open: open, back: back, pager: pg, icons: ic, raw: raw, confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm"))}
+	p := &preview{ctx: ctx, cancel: cancel, svc: svc, host: host, repo: repo, ref: ref, entry: e, back: back, pager: pg, icons: ic, raw: raw, confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm"))}
 	p.md.icons = ic
 	p.pager.SetReserve(p.md.extra)
 	p.md.setFiles(ctx, svc, host, repo, ref, images)
@@ -248,7 +246,7 @@ func (p *preview) draw() tea.Cmd {
 		}
 		return nil
 	}
-	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
+	cmd, ok := fill(&p.pager, p.entry, p.img.blob, p.failed, p.icons, p.rendering())
 	p.message = !ok
 	cmd = tea.Batch(cmd, p.md.lookUp())
 	if ok {
@@ -289,7 +287,7 @@ func (p *preview) SetRaw(raw bool) tea.Cmd {
 	}
 	p.raw = raw
 	query := p.pager.Query()
-	cmd, _ := fill(&p.pager, p.entry, p.img.blob, nil, p.open, p.icons, p.rendering())
+	cmd, _ := fill(&p.pager, p.entry, p.img.blob, nil, p.icons, p.rendering())
 	return tea.Batch(cmd, p.pager.SetSearch(query), p.md.lookUp())
 }
 
@@ -308,19 +306,18 @@ func (p *preview) Selected() (ui.Selection, bool) {
 }
 
 // fill puts the content of the file of e in pg, or why it isn't shown,
-// naming open as the key that opens it in the browser instead, in the
-// words of ic. A markdown file shows rendered by md, unless md is nil. It
-// reports whether it put the content, and returns the command that
+// in the words of ic. A markdown file shows rendered by md, unless md is
+// nil. It reports whether it put the content, and returns the command that
 // highlights it.
-func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Binding, ic ui.Icons, md *markdownView) (tea.Cmd, bool) {
+func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, ic ui.Icons, md *markdownView) (tea.Cmd, bool) {
 	name := e.Path
 	switch {
 	case errors.Is(err, core.ErrTooLarge):
-		pg.SetMessage(name, ui.TooLargeText(name, err)+browserHint(open, ic))
+		pg.SetMessage(name, ui.TooLargeText(name, err))
 	case err != nil:
 		pg.SetError(name, err)
 	case b.Binary:
-		pg.SetMessage(name, "Binary file, not shown"+browserHint(open, ic))
+		pg.SetMessage(name, "Binary file, not shown")
 	case e.Symlink():
 		// The blob of a link holds its target.
 		pg.SetMessage(name, "Symbolic link "+ic.Arrow+" "+string(b.Content))
@@ -332,15 +329,6 @@ func fill(pg *pager.Model, e core.TreeEntry, b core.Blob, err error, open key.Bi
 		return pg.SetContent(name, string(b.Content)), true
 	}
 	return nil, false
-}
-
-// browserHint names open, the key that opens a file in the browser, in the
-// words of ic.
-func browserHint(open key.Binding, ic ui.Icons) string {
-	if k := open.Help().Key; k != "" && open.Enabled() {
-		return ic.Separator + ic.Key(k) + " opens it in the browser"
-	}
-	return ""
 }
 
 // Title returns the path of the file.
@@ -355,8 +343,7 @@ func (p *preview) Link() string {
 }
 
 // Update takes the preview's content and passes the rest to the pager. The
-// open key opens the file in the browser unless the pager's search input
-// takes it. The close key closes the preview at once while the search
+// close key closes the preview at once while the search
 // shown is the one it opened with, which the user didn't ask for.
 func (p *preview) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
@@ -366,7 +353,7 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		if p.message {
 			// The message is drawn in the icons' words; a message has no
 			// place worth keeping, unlike the text of a file.
-			cmd, _ := fill(&p.pager, p.entry, p.img.blob, p.failed, p.open, p.icons, p.rendering())
+			cmd, _ := fill(&p.pager, p.entry, p.img.blob, p.failed, p.icons, p.rendering())
 			return cmd
 		}
 		return nil
@@ -421,10 +408,6 @@ func (p *preview) Update(msg tea.Msg) tea.Cmd {
 		}
 		p.failed = nil
 		return p.load()
-	case tea.KeyPressMsg:
-		if !p.pager.Capturing() && keymap.Matches(msg, p.open) {
-			return ui.Open(webURL(p.host, p.repo, p.ref, p.entry))
-		}
 	}
 	var cmd tea.Cmd
 	p.pager, cmd = p.pager.Update(msg)
@@ -465,10 +448,10 @@ func (p *preview) SetTheme(t ui.Theme) {
 	p.pager.Rerender()
 }
 
-// KeyLayers implements ui.Keyed: the open key, with the pager's keys, or
-// while the pager takes every key, those of its search or option.
+// KeyLayers implements ui.Keyed: the pager's keys, or while the pager takes
+// every key, those of its search or option.
 func (p *preview) KeyLayers() []keyhelp.Layer {
-	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.open, p.back)}
+	return []keyhelp.Layer{ui.PagerLayer("preview", &p.pager, p.back)}
 }
 
 var _ ui.Actor = (*preview)(nil)

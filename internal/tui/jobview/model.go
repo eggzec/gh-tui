@@ -49,22 +49,13 @@ type KeyMap struct {
 	// LogContext names the context of keys that the log is, in the parent's
 	// modal, for help.
 	LogContext string
-	// Open opens the job on GitHub, which the notices name.
-	Open key.Binding
-}
-
-// own returns the keys of the view itself.
-func (k KeyMap) own() []key.Binding {
-	return []key.Binding{k.Open}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding { return nil }
 
-// FullHelp implements help.KeyMap: the keys of the view and the log.
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return append([][]key.Binding{k.own()}, k.Log.FullHelp()...)
-}
+// FullHelp implements help.KeyMap: the keys of the log.
+func (k KeyMap) FullHelp() [][]key.Binding { return k.Log.FullHelp() }
 
 // State is what the view shows.
 type State int
@@ -265,9 +256,7 @@ func (m Model) KeyLayers() []keyhelp.Layer { return []keyhelp.Layer{m.Layer()} }
 // and then those of the log, once it shows. It is a layer of the context of
 // the log, or of a search of the log while that takes every key.
 func (m Model) Layer() keyhelp.Layer {
-	k := m.keys.state()
-	ctx := k.LogContext
-	own := keyhelp.Layer{Bindings: k.own()}
+	ctx := m.keys.LogContext
 	log := keyhelp.FromHelp("", m.view, m.view.Searching())
 	limit := func(bs []key.Binding) {
 		for i, b := range bs {
@@ -285,13 +274,7 @@ func (m Model) Layer() keyhelp.Layer {
 		// So does the name of an option, but it types nothing.
 		ctx = "log_option"
 	}
-	return ui.MergeLayers(ctx, own, log)
-}
-
-// state returns k without the open key, which the parent handles.
-func (k KeyMap) state() KeyMap {
-	k.Open.SetEnabled(false)
-	return k
+	return ui.MergeLayers(ctx, log)
 }
 
 // State is what the view shows.

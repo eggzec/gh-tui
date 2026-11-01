@@ -204,8 +204,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return ui.NothingToSwitch()
 		}
 		return cmd
-	case keymap.Matches(msg, k.Open):
-		return m.open()
 	case keymap.Matches(msg, k.ViewFile):
 		return m.viewWorkflow()
 	case keymap.Matches(msg, k.RerunFailed):
@@ -433,18 +431,4 @@ func (m *Modal) online() tea.Cmd {
 		}
 	}
 	return tea.Batch(cmds...)
-}
-
-// open opens the run, or the job of the jobs, on GitHub. A group has no
-// page, so the run opens from it.
-func (m *Modal) open() tea.Cmd {
-	if m.onJobRow() {
-		if j, ok := m.cursorJob(); ok && j.URL != "" {
-			return ui.Open(j.URL)
-		}
-	}
-	if m.hasRun && m.run.URL != "" {
-		return ui.Open(m.run.URL)
-	}
-	return nil
 }

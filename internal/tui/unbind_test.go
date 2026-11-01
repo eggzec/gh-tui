@@ -132,7 +132,7 @@ func TestUnbindAllElse(t *testing.T) {
 func TestUnboundCommands(t *testing.T) {
 	t.Parallel()
 	for command, action := range map[string]string{
-		"help": config.ActionHelp, "refresh": config.ActionRefresh, "open": config.ActionOpen,
+		"help": config.ActionHelp, "refresh": config.ActionRefresh,
 	} {
 		t.Run(command, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

@@ -69,8 +69,6 @@ type authStyles struct {
 func newAuthModal(keys config.Keymap, account string, a core.Access, p access.Plan, tok *ui.Token, run func([]string, core.Access) tea.Cmd) *authModal {
 	v := ui.NewVoice(keys, "")
 	v.Token = tok
-	// Nothing the modal tells of has a page to open.
-	v.Open.SetEnabled(false)
 	m := &authModal{
 		account:  account,
 		access:   a,

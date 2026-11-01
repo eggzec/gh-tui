@@ -600,7 +600,6 @@ func (s *Section) failure(action string, err error, w int) []string {
 // rather than stay blank.
 func (s *Section) say(action string, err error) (text, hint string) {
 	v := s.voice
-	v.Open.SetEnabled(false)
 	text, hint = ui.ErrorText(action, "", v)(err)
 	if k := v.Retry; text == "" && hint == "" && k.Enabled() && k.Help().Key != "" {
 		hint = s.icons.Key(k.Help().Key) + " to retry"

@@ -144,7 +144,7 @@ func TestKeyValidation(t *testing.T) {
 		{"pane against global", "keys:\n  actions_runs:\n    filter: [r]\n", "line 3: keys.actions_runs.filter: r is already keys.global.refresh"},
 		{"screen against global", "keys:\n  actions:\n    rerun_failed: [r]\n", "line 3: keys.actions.rerun_failed: r is already keys.global.refresh"},
 		{"screen key against its panes", "keys:\n  actions:\n    cancel: [J]\n", "keys.actions: J is both cancel and rerun_job"},
-		{"screen against global", "keys:\n  repo:\n    history: [o]\n", "line 3: keys.repo.history: o is already keys.global.open"},
+		{"screen against global", "keys:\n  repo:\n    history: [r]\n", "line 3: keys.repo.history: r is already keys.global.refresh"},
 		{"pane against its screen", "keys:\n  actions_runs:\n    filter: [X]\n", "line 3: keys.actions_runs.filter: X is already keys.actions.cancel, which works in every pane of the Actions modal"},
 		{"pane of a screen against its screen", "keys:\n  pulls:\n    merge: [B]\n", "line 3: keys.pulls.merge: B is already keys.repo.history, which works in every pane of the Repository screen"},
 	} {

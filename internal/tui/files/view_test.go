@@ -5,8 +5,6 @@ import (
 	"testing"
 	"unicode"
 
-	"charm.land/bubbles/v2/key"
-
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
@@ -139,8 +137,7 @@ func TestViewIconsFitNarrowWidths(t *testing.T) {
 func TestViewASCII(t *testing.T) {
 	ic := ui.NewIcons(config.IconsASCII)
 	s := loaded(t, sampleFake(), 40, 10, WithIcons(ic))
-	open := key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open"))
-	for _, v := range []string{ansi.Strip(s.View()), browserHint(open, ic)} {
+	for _, v := range []string{ansi.Strip(s.View())} {
 		if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 			t.Errorf("%q isn't ASCII", v)
 		}

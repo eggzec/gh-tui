@@ -175,8 +175,8 @@ func (l *teamList) selection(*Section) (ui.Selection, bool) {
 	return ui.Selection{What: "team", URL: t.URL}, true
 }
 
-// enter does nothing: there is no page of a team here, and o opens it
-// in the browser.
+// enter does nothing: there is no page of a team here, and its name is a
+// link to it.
 func (l *teamList) enter(*Section) tea.Cmd { return nil }
 
 // membersOnlyText is what the Teams tab says to someone outside the

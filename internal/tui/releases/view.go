@@ -55,8 +55,7 @@ func (m *Modal) View() string {
 // lines that fill the size.
 func (m *Modal) errorView() string {
 	v := m.voice
-	v.Retry, v.Open = m.keys.Refresh, m.keys.Open
-	v.Open.SetEnabled(v.Open.Enabled() && m.Link() != "")
+	v.Retry = m.keys.Refresh
 	// Access is granted by repository, so a refusal names it; the release
 	// that isn't read yet has no name to give otherwise.
 	subject := ""

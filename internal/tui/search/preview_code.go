@@ -79,11 +79,11 @@ func (s *Section) codeBody(h core.CodeHit) previewBody {
 	case errors.Is(e.err, core.ErrTooLarge):
 		b.key += " large"
 		b.text, b.find = nil, ""
-		b.message = ui.TooLargeText(h.Path, e.err) + s.browserHint()
+		b.message = ui.TooLargeText(h.Path, e.err)
 	case errors.Is(e.err, errBinary):
 		b.key += " binary"
 		b.text, b.find = nil, ""
-		b.message = "Binary file, not shown" + s.browserHint()
+		b.message = "Binary file, not shown"
 	case e.err != nil:
 		b.key += " failed"
 		b.text = func() string { return own() + "\nCould not load the file: " + e.err.Error() + "\n" }
@@ -93,14 +93,6 @@ func (s *Section) codeBody(h core.CodeHit) previewBody {
 		b.line = firstMatchLine(e.text, s.text)
 	}
 	return b
-}
-
-// browserHint names the key that opens the hit in the browser.
-func (s *Section) browserHint() string {
-	if k := s.keys.Open.Help().Key; k != "" && s.keys.Open.Enabled() {
-		return s.icons.Separator + s.icons.Key(k) + " opens it in the browser"
-	}
-	return ""
 }
 
 // firstMatchLine returns the number of the first line of text that holds query,

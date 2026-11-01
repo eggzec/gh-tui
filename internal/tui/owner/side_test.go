@@ -200,10 +200,6 @@ func TestReadmeKeys(t *testing.T) {
 	if s.page.side.pager.View() == before {
 		t.Error("ctrl+d didn't scroll the README")
 	}
-	msg, ok := has[ui.OpenMsg](press(t, s, "o"))
-	if !ok || msg.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" {
-		t.Errorf("o sent %v, want the README", msg)
-	}
 	if sel, ok := s.Selected(); !ok || sel.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" || sel.Path != "README.md" {
 		t.Errorf("selected %+v, want the README", sel)
 	}

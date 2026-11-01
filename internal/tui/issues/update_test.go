@@ -194,15 +194,6 @@ func TestRefreshRetriesAFailedPage(t *testing.T) {
 	}
 }
 
-func TestOpenInBrowser(t *testing.T) {
-	s := started(t, newFakeService(sampleIssues(12)), 80, 20)
-	msgs := press(t, s, "down", "o")
-	open, ok := has[ui.OpenMsg](msgs)
-	if !ok || open.URL != "https://github.com/eggzec/gh-tui/issues/999" {
-		t.Errorf("o sent %v, want to open issue 999", msgs)
-	}
-}
-
 func TestListQueryLeavesPageSizeToService(t *testing.T) {
 	svc := newFakeService(sampleIssues(80))
 	s := started(t, svc, 80, 40)
@@ -227,7 +218,7 @@ func TestErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("list issues: github: GET /repos/o/r/issues: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list issues: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("list issues: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("list issues: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

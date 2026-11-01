@@ -196,7 +196,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		m.nav.SetFocus(paneMerge)
 	}
 	findVoice := s.voice
-	findVoice.Retry, findVoice.Open = key.Binding{}, key.Binding{}
+	findVoice.Retry = key.Binding{}
 	m.findErr = ui.ErrorText("list the changed files", core.Target{Repo: repo, Number: number}.String(), findVoice)
 	m.inv = newInvolved(m.keys.inv)
 	m.SetTheme(s.theme)

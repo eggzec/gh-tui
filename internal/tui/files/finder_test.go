@@ -602,7 +602,7 @@ func TestPreviewErrorWords(t *testing.T) {
 		{"offline", fmt.Errorf("get blob: github: GET /repos/eggzec/gh-tui/git/blobs/b: %w", core.ErrOffline),
 			errMark + " Can't reach GitHub", errMark + " Can't reach GitHub"},
 		{"forbidden", fmt.Errorf("get blob: github: 403 Forbidden: %w", core.ErrForbidden),
-			errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub", errMark + " You don't have access to eggzec/gh-tui"},
+			errMark + " You don't have access to eggzec/gh-tui", errMark + " You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("get blob: github: decode: unexpected EOF"),
 			errMark + " Something went wrong. Details are in the log", errMark + " Something went wrong. Details are in the log"},
 	}

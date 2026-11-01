@@ -41,8 +41,6 @@ type KeyMap struct {
 	// key of each, and ResetBase at the head of the default branch again.
 	UseAsBase, graphBase, filesBase key.Binding
 	ResetBase                       key.Binding
-	// Open opens the branch, commit or file on GitHub.
-	Open key.Binding
 	// Retry reads again what failed to load.
 	Retry key.Binding
 	// Branches and Files move through the branches and the files of a
@@ -77,7 +75,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		graphBase: graphCtx.Binding("base", "use as base"),
 		filesBase: files.Binding("base", "use as base"),
 		ResetBase: modal.Binding("reset_base", "back to head"),
-		Open:      modal.Binding("global.open", "browser"),
 		Retry:     modal.Binding("global.refresh", "retry"),
 		Branches:  feed.NewKeyMap(branches),
 		Files:     graph.NewKeyMap(files),
@@ -133,13 +130,13 @@ func paneContext(p pane, patch bool) string {
 
 // own returns the keys of the modal itself, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Jump, k.Open, k.ResetBase, k.Zoom, k.Dismiss, k.Back, k.UseAsBase, k.Select, k.Filter, k.Retry}
+	return []key.Binding{k.Next, k.Prev, k.Jump, k.ResetBase, k.Zoom, k.Dismiss, k.Back, k.UseAsBase, k.Select, k.Filter, k.Retry}
 }
 
 // screen returns the keys of the modal that work in every pane, and the
 // keys of the pane that has the focus, in the order the modal matches them.
 func (k KeyMap) screen() []key.Binding {
-	return []key.Binding{k.Next, k.Prev, k.Jump, k.Open, k.ResetBase, k.Zoom, k.Dismiss, k.Back, k.Retry}
+	return []key.Binding{k.Next, k.Prev, k.Jump, k.ResetBase, k.Zoom, k.Dismiss, k.Back, k.Retry}
 }
 
 // pane returns the keys of the focused pane that the modal matches, with
@@ -154,7 +151,7 @@ func (k KeyMap) pane(p pane) (keys, short []key.Binding) {
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.UseAsBase, k.Open, k.Retry, k.Next, k.Zoom, k.Dismiss}
+	return []key.Binding{k.Select, k.Filter, k.UseAsBase, k.Retry, k.Next, k.Zoom, k.Dismiss}
 }
 
 // FullHelp implements help.KeyMap.

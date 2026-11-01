@@ -44,7 +44,7 @@ func TestPreview(t *testing.T) {
 	}{
 		{"text", rowAgents, "AGENTS.md", "Guidance for anyone."},
 		{"too large", rowReadme, "README with spaces.md", "README with spaces.md is 2.9 KiB, over the 1000 B limit"},
-		{"binary", rowGoMod, "go.mod", "Binary file, not shown · o opens it in the browser"},
+		{"binary", rowGoMod, "go.mod", "Binary file, not shown"},
 		{"symlink", rowLink, "CLAUDE.md", "Symbolic link → AGENTS.md"},
 		{"error", rowGitignore, ".gitignore", errMark + " Something went wrong"},
 	}
@@ -69,8 +69,7 @@ func TestPreview(t *testing.T) {
 	}
 }
 
-// A message in the preview, such as a link's arrow or the key that opens a
-// file in the browser, is drawn again when the icons change, and the text
+// A message in the preview, such as a link's arrow, is drawn again when the icons change, and the text
 // of a file isn't.
 func TestPreviewSettingsIcons(t *testing.T) {
 	ascii := ui.NewIcons(config.IconsASCII)
@@ -84,8 +83,6 @@ func TestPreviewSettingsIcons(t *testing.T) {
 		want string
 	}{
 		{"symlink", rowLink, "Symbolic link " + ascii.Arrow + " AGENTS.md"},
-		{"binary", rowGoMod, "Binary file, not shown" + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
-		{"too large", rowReadme, "(files.preview.max_size)." + ascii.Separator + ascii.Key("o") + " opens it in the browser"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,23 +184,14 @@ func TestPreviewSubmodule(t *testing.T) {
 		t.Errorf("a submodule opened %v and read %v, want neither", h.top(), f.blobReads)
 	}
 	want := ui.NotifyMsg{Level: toast.Info,
-		Text: "vendor-lib is a submodule, with its files in another repository. Press o to open it in the browser."}
+		Text: "vendor-lib is a submodule, with its files in another repository."}
 	if !slices.Equal(h.got, []tea.Msg{want}) {
 		t.Errorf("messages = %#v, want %#v", h.got, want)
 	}
 }
 
-func TestPreviewOpenInBrowser(t *testing.T) {
-	h := openRow(t, sampleFake(), rowReadme)
-	h.got = nil
-	h.keys("o")
-	want := ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/README%20with%20spaces.md"}
-	if !slices.Equal(h.got, []tea.Msg{want}) {
-		t.Errorf("o sent %#v, want %#v", h.got, want)
-	}
-
-	// While the search input is open, o is typed into it.
-	h = openRow(t, sampleFake(), rowAgents)
+func TestPreviewSearchTypesO(t *testing.T) {
+	h := openRow(t, sampleFake(), rowAgents)
 	h.got = nil
 	h.keys("/", "o")
 	if len(h.got) != 0 || !strings.Contains(h.modal(), "/o") {
@@ -224,21 +212,15 @@ func TestPreviewClose(t *testing.T) {
 	if p.ctx.Err() == nil {
 		t.Error("closing didn't cancel the preview's loads")
 	}
-	// The tree has the keys again.
-	h.got = nil
-	h.keys("o")
-	if want := (ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/AGENTS.md"}); !slices.Equal(h.got, []tea.Msg{want}) {
-		t.Errorf("o sent %#v, want %#v", h.got, want)
-	}
 }
 
 func TestPreviewIgnoresOtherResults(t *testing.T) {
 	f := sampleFake()
 	e := f.trees[treeKey(ghTUI, "")].Entries[rowAgents]
-	p := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	p := newPreview(t.Context(), f, "", ghTUI, "", e, config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
 	p.SetSize(40, 4)
 	_ = p.load()
-	other := newPreview(t.Context(), f, "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	other := newPreview(t.Context(), f, "", ghTUI, "", e, config.Default().Keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
 	_ = p.Update(blobMsg{id: other.pager.ID(), err: errNoTree})
 	if cmd := p.Update(pager.CloseMsg{ID: other.pager.ID()}); cmd != nil {
 		t.Error("the close of another pager closed the preview")
@@ -254,12 +236,8 @@ func TestPreviewHelp(t *testing.T) {
 		return slices.ContainsFunc(bs, func(b key.Binding) bool { return b.Help().Key == k })
 	}
 	short := func() []key.Binding { return ui.Hints{Layers: h.top().KeyLayers()}.ShortHelp() }
-	if short := short(); !has(short, "o") || !has(short, "q/esc") {
-		t.Errorf("help lists %v, want the pager keys and o", short)
-	}
-	h.keys("/")
-	if has(short(), "o") {
-		t.Error("help lists o while the search input takes it")
+	if short := short(); has(short, "o") || !has(short, "q/esc") {
+		t.Errorf("help lists %v, want the pager keys and no o", short)
 	}
 }
 
@@ -273,10 +251,6 @@ func TestPreviewFileOfAnotherSection(t *testing.T) {
 	}
 	if got := h.modal(); !strings.Contains(got, "Guidance for anyone.") {
 		t.Errorf("preview = %q, want the file", got)
-	}
-	h.press(press("o"))
-	if !slices.Contains(h.got, tea.Msg(ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/AGENTS.md"})) {
-		t.Errorf("o sent %v, want the file on GitHub", h.got)
 	}
 }
 
@@ -344,10 +318,6 @@ func TestPreviewFileAtACommitOnALine(t *testing.T) {
 	if !slices.Equal(refs, []string{"c0ffee", cmdSHA, ghTUISHA}) {
 		t.Errorf("read trees %v, want the commit and each directory on the way", refs)
 	}
-	h.press(press("o"))
-	if !slices.Contains(h.got, tea.Msg(ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/c0ffee/cmd/gh-tui/main.go"})) {
-		t.Errorf("o sent %v, want the file at the commit", h.got)
-	}
 	h.got = nil
 	h.keys("esc")
 	if len(h.got) == 0 || h.got[0] != (ui.CloseModalMsg{Modal: p}) || p.ctx.Err() == nil {
@@ -374,7 +344,7 @@ func TestPreviewKeysFollowTheConfig(t *testing.T) {
 	keys := config.Default().Keys
 	keys.Set("preview.page_down", []string{"x"})
 	e := sampleFake().trees[treeKey(ghTUI, "")].Entries[rowAgents]
-	p := newPreview(t.Context(), sampleFake(), "", ghTUI, "", e, key.NewBinding(key.WithKeys("o")), keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
+	p := newPreview(t.Context(), sampleFake(), "", ghTUI, "", e, keys, ui.Voice{}, "", ui.NewIcons(""), nil, false)
 	p.SetSize(40, 6)
 	_ = p.pager.SetContent("long.txt", strings.Repeat("line\n", 100))
 	status := func() string {

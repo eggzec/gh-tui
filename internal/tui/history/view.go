@@ -245,9 +245,6 @@ func (m *Modal) commitLines(w, h int) []string {
 		lines = append(lines, header[:g.header-1]...)
 		ic := m.st.ic
 		more := ic.Ellipsis + " " + strconv.Itoa(g.cut) + " more lines"
-		if k := m.keys.Open.Help().Key; k != "" {
-			more += ic.Separator + ic.Key(k) + " opens it on GitHub"
-		}
 		lines = append(lines, fit(m.st.subtle.Render(termtext.Truncate(more, w, ic.Ellipsis)), w))
 	} else {
 		lines = append(lines, header...)
@@ -267,8 +264,7 @@ func (m *Modal) fileLines(w, h int) []string {
 	c := &m.commit
 	switch {
 	case c.err != nil:
-		// The open key opens the commit, which is what failed.
-		return m.errorLines("load the commit", m.commitName(), c.err, true, "", w)
+		return m.errorLines("load the commit", m.commitName(), c.err, "", w)
 	case !c.loaded:
 		return []string{fit(m.spin.View()+m.st.muted.Render("Loading the changes"+m.st.ic.Ellipsis), w)}
 	case len(c.files) == 0:
@@ -282,14 +278,11 @@ func (m *Modal) fileLines(w, h int) []string {
 	if len(lines) < h {
 		switch {
 		case c.filesErr != nil:
-			lines = append(lines, m.errorLines("load more files", m.commitName(), c.filesErr, false, m.st.noGutter, w)...)
+			lines = append(lines, m.errorLines("load more files", m.commitName(), c.filesErr, m.st.noGutter, w)...)
 		case c.filesLoading:
 			lines = append(lines, fit(m.st.noGutter+m.spin.View()+m.st.muted.Render("Loading more files"+m.st.ic.Ellipsis), w))
 		case c.next == "" && c.truncated:
 			text := "GitHub lists " + strconv.Itoa(core.MaxCommitFiles) + " files at most."
-			if k := m.keys.Open.Help().Key; k != "" {
-				text += " " + m.st.ic.Key(k) + " shows them all."
-			}
 			lines = append(lines, wrap(m.st.subtle.Render(text), w, m.st.noGutter)...)
 		}
 	}
@@ -297,13 +290,10 @@ func (m *Modal) fileLines(w, h int) []string {
 }
 
 // errorLines renders err, which stopped action on subject, in lines of w
-// cells after indent. The retry key reads it again, and the open key opens
-// on GitHub only what failed, when open is set; elsewhere it opens the row
-// under the cursor, so no hint names it.
-func (m *Modal) errorLines(action, subject string, err error, open bool, indent string, w int) []string {
+// cells after indent. The retry key reads it again.
+func (m *Modal) errorLines(action, subject string, err error, indent string, w int) []string {
 	v := *m.opts.voice
-	v.Retry, v.Open = m.keys.Retry, m.keys.Open
-	v.Open.SetEnabled(open && v.Open.Enabled())
+	v.Retry = m.keys.Retry
 	text, hint := ui.ErrorText(action, subject, v)(err)
 	lines := ui.ErrorLine(m.errs, text, hint, max(w-ansi.StringWidth(indent), 1))
 	for i, l := range lines {

@@ -53,9 +53,6 @@ func TestUnboundBinding(t *testing.T) {
 	if b.Enabled() || len(b.Keys()) != 0 || b.Help().Key != "" || b.Help().Desc != "refresh" {
 		t.Errorf("Binding = enabled %v, keys %q, help %+v", b.Enabled(), b.Keys(), b.Help())
 	}
-	if hint := OpenHint(Icons{}, b); hint != "" {
-		t.Errorf("OpenHint = %q, want none", hint)
-	}
 	if y := Yield(b, key.NewBinding(key.WithKeys("r"), key.WithDisabled())); y.Enabled() || len(y.Keys()) != 0 {
 		t.Errorf("Yield = %q, want it unbound", y.Keys())
 	}

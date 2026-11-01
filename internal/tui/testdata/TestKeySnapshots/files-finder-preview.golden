@@ -12,7 +12,6 @@ global
   help | ? | ? | on
 
 File
-  open | o | o | on
   back | backspace | backspace | off
   up | up k | ↑/k | on
   down | down j | ↓/j | on

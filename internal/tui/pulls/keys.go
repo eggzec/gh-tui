@@ -32,7 +32,6 @@ type keyMap struct {
 	NextTab key.Binding
 	PrevTab key.Binding
 	Refresh key.Binding
-	Open    key.Binding `menu:"item"`
 
 	Merge       key.Binding `menu:"item"`
 	Close       key.Binding `menu:"item"`
@@ -72,7 +71,6 @@ func newKeyMap(keys config.Keymap) keyMap {
 		NextTab:      list.Binding("global.next_tab", "next state"),
 		PrevTab:      list.Binding("global.prev_tab", "previous state"),
 		Refresh:      list.Binding("global.refresh", "refresh"),
-		Open:         list.Binding("global.open", "open in browser"),
 
 		Merge:       list.Binding("merge", "merge"),
 		Close:       list.Binding("close", "close PR"),
@@ -89,7 +87,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.Merge, k.Close, k.Reopen, k.Checks, k.Open}
+	return []key.Binding{k.Select, k.Filter, k.ClearFilter, k.NextTab, k.Merge, k.Close, k.Reopen, k.Checks}
 }
 
 // FullHelp implements help.KeyMap: the changes, which the section matches
@@ -97,7 +95,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Merge, k.Close, k.Reopen, k.ToggleDraft},
-		{k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Refresh, k.Open, k.Filter, k.Sort, k.ToggleSort},
+		{k.Select, k.Checks, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Refresh, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
 

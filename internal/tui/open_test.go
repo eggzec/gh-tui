@@ -4,8 +4,6 @@ import (
 	"os/exec"
 	"slices"
 	"testing"
-
-	"github.com/eggzec/gh-tui/internal/config"
 )
 
 // browser records the links the app opens, in place of the browser.
@@ -109,18 +107,17 @@ func TestOpenCommandRefuses(t *testing.T) {
 	}
 }
 
-// TestOpenCommandPressesTheKey checks that open alone opens what is
-// selected as the open key does, where the key goes.
-func TestOpenCommandPressesTheKey(t *testing.T) {
+// TestOpenCommandWithoutTarget checks that open alone opens nothing and
+// says what to name.
+func TestOpenCommandWithoutTarget(t *testing.T) {
 	t.Parallel()
 	b := &browser{}
-	m, fakes := newGotoApp(t, newGotoRepos(), WithBrowser(b.open), WithRepo(testRepo))
-	drive(m, m.key(press("3")))
+	m, _ := newGotoApp(t, newGotoRepos(), WithBrowser(b.open), WithRepo(testRepo))
 	runCommand(t, m, "open")
-	if !fakes[2].got(isActionPress(config.ActionOpen)) || fakes[0].got(isActionPress(config.ActionOpen)) {
-		t.Error("open didn't reach the focused pane alone")
-	}
 	if len(b.urls) != 0 {
-		t.Errorf("opened %q, want what the pane asks for alone", b.urls)
+		t.Errorf("opened %q, want nothing", b.urls)
+	}
+	if toasted(m) == "" {
+		t.Error("no toast says what to name")
 	}
 }

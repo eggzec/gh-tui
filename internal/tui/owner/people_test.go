@@ -170,10 +170,6 @@ func TestEnterOnTabs(t *testing.T) {
 	if sel, ok := s.Selected(); !ok || sel.What != "user" || sel.URL != "https://github.com/person-01" {
 		t.Errorf("selected %+v, want the follower", sel)
 	}
-	open, ok := has[ui.OpenMsg](press(t, s, "o"))
-	if !ok || open.URL != "https://github.com/person-01" {
-		t.Errorf("o on a follower sent %v, want the profile", open)
-	}
 	owner, ok = has[ui.OwnerMsg](press(t, s, "]", "]", "enter"))
 	if !ok || owner.Login != "github" {
 		t.Errorf("enter on an organization sent %v, want github's page", owner)
@@ -185,10 +181,6 @@ func TestEnterOnTabs(t *testing.T) {
 	}
 	if s.keys.state(s).Select.Enabled() {
 		t.Error("enter shows as enabled on a team")
-	}
-	open, ok = has[ui.OpenMsg](press(t, s, "o"))
-	if !ok || open.URL != "https://github.com/orgs/github/teams/security" {
-		t.Errorf("o on a team sent %v, want it in the browser", open)
 	}
 	if sel, ok := s.Selected(); !ok || sel.What != "team" {
 		t.Errorf("selected %+v, want the team", sel)
@@ -238,34 +230,6 @@ func TestTeamsRefused(t *testing.T) {
 	press(t, s, "]", "]")
 	if v := s.View(); strings.Contains(v, membersOnlyText("github")) || !strings.Contains(v, "requires SSO") {
 		t.Errorf("SSO on the teams doesn't say so:\n%s", v)
-	}
-}
-
-// o with nothing under the cursor, as when the list failed or is empty,
-// opens the tab on GitHub.
-func TestOpenTabWithoutSelection(t *testing.T) {
-	svc := newFake()
-	svc.fail["people"] = errors.New("boom")
-	svc.fail["teams"] = errors.New("boom")
-	s := newSection(t, svc, "octocat", 120, 40)
-	tests := []struct {
-		login string
-		keys  []string
-		want  string
-	}{
-		{"octocat", []string{"]", "]"}, "https://github.com/octocat?tab=followers"},
-		{"octocat", []string{"["}, "https://github.com/octocat"},
-		{"github", []string{"]"}, "https://github.com/orgs/github/people"},
-		{"github", []string{"]", "]"}, "https://github.com/orgs/github/teams"},
-	}
-	for _, tt := range tests {
-		run(t, s, s.Update(ui.OwnerMsg{Login: tt.login}))
-		s.page.tab = reposTab
-		press(t, s, tt.keys...)
-		msg, ok := has[ui.OpenMsg](press(t, s, "o"))
-		if !ok || msg.URL != tt.want {
-			t.Errorf("o on %s after %q sent %v, want %s", tt.login, tt.keys, msg, tt.want)
-		}
 	}
 }
 

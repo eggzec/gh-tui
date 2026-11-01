@@ -203,8 +203,7 @@ func TestRefsSelfNeverShows(t *testing.T) {
 }
 
 // An item that can't be read has its row, which says why; enter says it in
-// a toast and does not try to open it, and the open key goes to the page
-// of the host the session talks to.
+// a toast and does not try to open it.
 func TestRefsUnreadable(t *testing.T) {
 	s, h := newStep(t, newFake(), wideW, wideH)
 	has(t, s, "? octo/secret#9 can't be read: not found, or private")
@@ -214,38 +213,9 @@ func TestRefsUnreadable(t *testing.T) {
 	}
 	h.keys("enter")
 	got := h.take()
-	want := ui.NotifyMsg{Level: toast.Warning, Text: "Can't read octo/secret#9: not found, or private. o opens it in the browser."}
+	want := ui.NotifyMsg{Level: toast.Warning, Text: "Can't read octo/secret#9: not found, or private."}
 	if len(got) != 1 || got[0] != want {
 		t.Errorf("enter sent %v, want %v", got, want)
-	}
-	h.keys("o")
-	if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: "https://github.com/octo/secret/issues/9"}) {
-		t.Errorf("o sent %v", got)
-	}
-}
-
-// The open key goes to the pages of the host of the session, and the
-// address of an item that can't be read, with the scheme the host serves.
-func TestRefsOpenUsesTheHost(t *testing.T) {
-	for _, tt := range []struct{ host, want string }{
-		{"ghe.example.com", "https://ghe.example.com/octo/secret/issues/9"},
-		{"github.localhost", "http://github.localhost/octo/secret/issues/9"},
-	} {
-		_, h := newStep(t, newFake(), wideW, wideH, WithHost(tt.host))
-		h.keys("j", "j", "j", "j", "j", "j", "j", "o")
-		if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: tt.want}) {
-			t.Errorf("host %s: o sent %v, want %s", tt.host, got, tt.want)
-		}
-	}
-	// An item that was read opens at its own address, and a group at none.
-	_, h := newStep(t, newFake(), wideW, wideH)
-	h.keys("o")
-	if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: "https://github.com/octo/gh-tui/issues/198"}) {
-		t.Errorf("o on an item sent %v", got)
-	}
-	h.keys("k", "o")
-	if got := h.take(); len(got) != 0 {
-		t.Errorf("o on a group sent %v", got)
 	}
 }
 

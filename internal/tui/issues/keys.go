@@ -37,7 +37,6 @@ type keyMap struct {
 	NextTab key.Binding
 	PrevTab key.Binding
 	Refresh key.Binding
-	Open    key.Binding
 	Close   key.Binding
 	Reopen  key.Binding
 	Comment key.Binding
@@ -83,7 +82,6 @@ func newKeyMap(keys config.Keymap) keyMap {
 		NextTab:      list.Binding("global.next_tab", "next state"),
 		PrevTab:      list.Binding("global.prev_tab", "previous state"),
 		Refresh:      list.Binding("global.refresh", "refresh"),
-		Open:         list.Binding("global.open", "browser"),
 		Close:        list.Binding("close", "close issue"),
 		Reopen:       list.Binding("reopen", "reopen issue"),
 		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
@@ -123,14 +121,14 @@ func retry(refresh key.Binding) key.Binding {
 
 // ShortHelp implements help.KeyMap.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Back, k.Filter, k.ClearFilter, k.NextTab, k.Comment, k.Label, k.Close, k.Reopen, k.Open}
+	return []key.Binding{k.Select, k.Back, k.Filter, k.ClearFilter, k.NextTab, k.Comment, k.Label, k.Close, k.Reopen}
 }
 
 // FullHelp implements help.KeyMap: the keys the modal matches, and then
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh, k.Open},
+		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }

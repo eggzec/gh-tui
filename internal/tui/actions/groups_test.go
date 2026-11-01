@@ -306,12 +306,6 @@ func TestJobGroupsFold(t *testing.T) {
 	if rows := jobsPaneRows(m); rows[8] != "▸ Clang-Tidy 4 ✓" {
 		t.Errorf("after enter again Test isn't folded:\n%s", strings.Join(rows, "\n"))
 	}
-	// A group has no page of its own, so the browser opens the run.
-	h.take()
-	h.keys("o")
-	if got := h.take(); len(got) != 1 || got[0] != (ui.OpenMsg{URL: m.run.URL}) {
-		t.Errorf("o on a group sends %v, want the run's page", got)
-	}
 }
 
 // A group isn't re-run as the one job it shows.
@@ -369,7 +363,7 @@ func TestJobGroupsSurvivePolls(t *testing.T) {
 		"▸ Deploy to nightly 2 ◷",
 		"○ Upload Extensions queued",
 		"▸ Python 2 ✓",
-		fmt.Sprintf("First %d jobs · o shows all", len(jobs)),
+		fmt.Sprintf("First %d jobs", len(jobs)),
 	}
 	if got := jobsPaneRows(m); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("after the poll:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

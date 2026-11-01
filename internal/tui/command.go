@@ -65,7 +65,7 @@ var commands = []command{
 	{name: ui.CommandCopy, detail: "copy the url, ref, sha or path of what is selected", args: true, over: overNamed, run: (*Model).copyCommand, complete: completeCopy},
 	{name: "goto", detail: "open a repository, issue, pull request, profile or link", args: true, run: (*Model).gotoCommand, complete: (*Model).completeTarget},
 	{name: "images", detail: "show whether images are drawn here, and why", over: overAny, run: (*Model).imagesCommand},
-	{name: "open", detail: "open on GitHub what follows, or what is selected", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
+	{name: "open", detail: "open a repository, issue, pull request, profile or link on GitHub", args: true, over: overAny, run: (*Model).openCommand, complete: (*Model).completeTarget},
 	{name: "q", detail: "quit", quits: true, over: overAny, run: func(*Model, string) tea.Cmd { return tea.Quit }},
 	{name: ui.CommandNextFile, detail: "go to the next file of the diff, or document", over: overNamed, run: stepCommand(1, "pull_diff.next_file")},
 	{name: ui.CommandPrevFile, detail: "go to the previous file of the diff, or document", over: overNamed, run: stepCommand(-1, "pull_diff.prev_file")},

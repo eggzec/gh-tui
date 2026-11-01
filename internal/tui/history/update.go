@@ -134,8 +134,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case m.keys.focusOf(msg) >= 0:
 		m.setFocus(m.keys.focusOf(msg))
 		return m.focused()
-	case keymap.Matches(msg, m.keys.Open):
-		return m.open()
 	case keymap.Matches(msg, m.keys.ResetBase):
 		if m.base.Ref == "" {
 			return nil
@@ -269,30 +267,6 @@ func (m *Modal) useBase(base ui.BaseMsg) tea.Cmd {
 	return tea.Sequence(m.close(),
 		func() tea.Msg { return base },
 		func() tea.Msg { return ui.ShowMsg{Title: ui.FilesTitle} })
-}
-
-// open opens what the focused pane shows on GitHub.
-func (m *Modal) open() tea.Cmd {
-	switch m.focus {
-	case branchPane:
-		if br, ok := m.branches.feed.Selected(); ok {
-			return ui.Open(m.branchURL(br.Name))
-		}
-	case graphPane:
-		if c, ok := m.selectedCommit(); ok {
-			return ui.Open(m.commitURL(c))
-		}
-	default:
-		c := &m.commit
-		switch {
-		case !c.has:
-		case c.loaded && c.cursor < len(c.files):
-			return ui.Open(m.fileURL(c.c, c.files[c.cursor].Path))
-		default:
-			return ui.Open(m.commitURL(c.c))
-		}
-	}
-	return nil
 }
 
 // online reads again, now that GitHub answers again, what failed for want

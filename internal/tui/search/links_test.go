@@ -42,6 +42,22 @@ func TestRepoLinks(t *testing.T) {
 	}
 }
 
+// A commit, a user and a topic each link their row to a page, since there
+// is no key that opens them.
+func TestOtherKindLinks(t *testing.T) {
+	s := newSection(t, newFake(), 140, 38, WithHost("github.com"))
+	hits := map[string]core.SearchHit{
+		"commit": {Kind: core.SearchCommits, Commit: core.SearchCommit{Repo: core.RepoRef{Owner: "o", Name: "r"}, SHA: "abcdef1234567", Subject: "Fix it"}},
+		"user":   {Kind: core.SearchUsers, User: core.SearchUser{Login: "octocat"}},
+		"topic":  {Kind: core.SearchTopics, Topic: core.SearchTopic{Name: "tea"}},
+	}
+	for name, hit := range hits {
+		if links := uitest.Links(t, s.renderHit(hit, false, 140)); len(links) == 0 {
+			t.Errorf("%s row has no link", name)
+		}
+	}
+}
+
 // A link cut short by the width keeps no open link or colour: the cut text
 // is closed, at every width.
 func TestTruncatedLinkClosed(t *testing.T) {

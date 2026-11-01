@@ -18,7 +18,6 @@ Issue
   close issue | X | X | on
   reopen issue | O | O | off
   refresh | r | r | on
-  browser | o | o | on
   open | enter | ↵ | off
   next state | ] | ] | off
   previous state | [ | [ | off

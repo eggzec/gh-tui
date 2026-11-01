@@ -145,11 +145,6 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return cmd, true
 		}
 		return s.open(), true
-	case keymap.Matches(msg, k.Open):
-		if n, ok := s.feed.Selected(); ok {
-			return ui.Open(n.Subject.WebURL), true
-		}
-		return nil, true
 	case keymap.Matches(msg, k.MarkRead, k.MarkDone):
 		if cmd, refused := s.gate().Refuse(ui.ActMarkRead, nil); refused {
 			return cmd, true

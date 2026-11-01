@@ -379,32 +379,6 @@ func TestResetBase(t *testing.T) {
 	}
 }
 
-func TestOpenInBrowser(t *testing.T) {
-	commitURL := "https://github.com/charmbracelet/bubbletea/commit/" + main1
-	tests := []struct {
-		name string
-		keys []string
-		want string
-	}{
-		{"branch", []string{"backspace", "j"}, "https://github.com/charmbracelet/bubbletea/tree/fix/tabs"},
-		{"commit", []string{"j"}, commitURL},
-		// GitHub anchors the diff of a file by the SHA-256 of its path.
-		{"file", []string{"j", "enter", "j"}, commitURL + "#diff-485d4740c371755eea1953e67aea510eb174767a0ba9b7e6d6a7e1d2f15e775e"},
-		{"patch", []string{"j", "enter", "j", "enter"}, commitURL + "#diff-485d4740c371755eea1953e67aea510eb174767a0ba9b7e6d6a7e1d2f15e775e"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, h := newModal(t, newFake(), 108, 30)
-			h.keys(tt.keys...)
-			h.take()
-			h.keys("o")
-			if got := h.take(); !slices.Equal(got, []tea.Msg{ui.OpenMsg{URL: tt.want}}) {
-				t.Errorf("o sent %#v, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestShowBranch(t *testing.T) {
 	f := newFake()
 	m, h := newModal(t, f, 108, 30)
@@ -599,8 +573,7 @@ func TestErrorsAndRetry(t *testing.T) {
 }
 
 // The branches and the commit say what went wrong the way the user should
-// read it, without the error's chain, request or status code. The open key
-// opens the commit, but not the page of branches or of files that failed.
+// read it, without the error's chain, request or status code.
 func TestPaneErrorWords(t *testing.T) {
 	commit := "charmbracelet/bubbletea@" + short(main0)
 	tests := []struct {
@@ -614,8 +587,8 @@ func TestPaneErrorWords(t *testing.T) {
 		},
 		{
 			"forbidden", fmt.Errorf("get commit: github: 403 Forbidden: %w", core.ErrForbidden),
-			errMark + " You don't have access to charmbra… · o to open on GitHub",
-			errMark + " You don't have access to " + commit + " · o to open on GitHub",
+			errMark + " You don't have access to charmbracelet/bubbletea",
+			errMark + " You don't have access to " + commit,
 			errMark + " You don't have access to " + commit,
 		},
 		{
@@ -639,7 +612,7 @@ func TestPaneErrorWords(t *testing.T) {
 		if !strings.Contains(s+" ", strings.ReplaceAll(want, " · ", " ")+" ") {
 			t.Errorf("pane %d = %q, want %q", p, s, want)
 		}
-		for _, hint := range []string{"to retry", "open on GitHub"} {
+		for _, hint := range []string{"to retry"} {
 			if strings.Contains(s, hint) != strings.Contains(want, hint) {
 				t.Errorf("pane %d = %q, want %q", p, s, want)
 			}
@@ -680,7 +653,7 @@ func TestGraphErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("list commits: github: GET /repos/o/r/commits: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list commits: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/bubbl… · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("list commits: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/bubbletea"},
 		{"internal", errors.New("list commits: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
@@ -727,7 +700,7 @@ func TestPatchNotices(t *testing.T) {
 		file core.CommitFile
 		want string
 	}{
-		{"too large", core.CommitFile{Path: "big.go", Status: core.FileModified, Additions: 9000, PatchTruncated: true}, "This diff is too large to show here. Press o to see it on GitHub."},
+		{"too large", core.CommitFile{Path: "big.go", Status: core.FileModified, Additions: 9000, PatchTruncated: true}, "This diff is too large to show here."},
 		{"binary", core.CommitFile{Path: "logo.png", Status: core.FileAdded}, "No diff to show: the file is binary, or empty."},
 		{"renamed", core.CommitFile{Path: "new.go", PreviousPath: "old.go", Status: core.FileRenamed}, "Renamed from old.go, with no changes."},
 	}
@@ -768,14 +741,7 @@ func TestIgnoresOtherModals(t *testing.T) {
 
 // On an Enterprise host, links go to its pages.
 func TestOpenInBrowserOnHost(t *testing.T) {
-	m, h := newModal(t, newFake(), 108, 30, WithHost("ghe.example.com:8443"))
-	h.keys("backspace", "j")
-	h.take()
-	h.keys("o")
-	want := ui.OpenMsg{URL: "https://ghe.example.com:8443/charmbracelet/bubbletea/tree/fix/tabs"}
-	if got := h.take(); !slices.Equal(got, []tea.Msg{want}) {
-		t.Errorf("o sent %#v, want %#v", got, want)
-	}
+	m, _ := newModal(t, newFake(), 108, 30, WithHost("ghe.example.com:8443"))
 	if got, want := m.commitURL(core.Commit{SHA: "abc"}), "https://ghe.example.com:8443/charmbracelet/bubbletea/commit/abc"; got != want {
 		t.Errorf("commitURL of a commit without a URL = %q, want %q", got, want)
 	}

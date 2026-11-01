@@ -134,16 +134,6 @@ func Yield(b, held key.Binding) key.Binding {
 	return keymap.Derive(y, b)
 }
 
-// OpenHint returns the hint that open, the key that opens something on
-// GitHub, does so, such as "o to open on GitHub", with the key named as ic
-// names it, or "" when it has no key.
-func OpenHint(ic Icons, open key.Binding) string {
-	if !open.Enabled() || open.Help().Key == "" {
-		return ""
-	}
-	return ic.Key(open.Help().Key) + " to open on GitHub"
-}
-
 // Jump returns the binding that stands for the enabled keys of panes in
 // help, such as "1-5 focus pane", or a disabled one while none has a key.
 // Keys that don't run on, one after the other, as a config that unbinds

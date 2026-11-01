@@ -351,9 +351,6 @@ func (m *Modal) noJobsText(run core.Run) string {
 	default:
 		return "This run has no jobs yet."
 	}
-	if k := m.keys.Open.Help().Key; k != "" {
-		text += m.st.ic.Separator + m.st.ic.Key(k) + " opens it on GitHub"
-	}
 	return text
 }
 
@@ -372,9 +369,6 @@ func (m *Modal) renderJob(run core.Run, k int, selected bool, w int) string {
 	}
 	if k >= len(j.lines) {
 		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
-		if key := m.keys.Open.Help().Key; key != "" {
-			text += st.ic.Separator + st.ic.Key(key) + " shows all"
-		}
 		return ui.Fit(strings.Repeat(" ", jobsIndent)+st.Subtle.Render(termtext.Truncate(text, w-jobsIndent, st.ic.Ellipsis)), w)
 	}
 	row := &st.row[ui.Look(selected, m.inRuns())]
@@ -433,10 +427,10 @@ func (m *Modal) rowGutter(cursor, focused bool) string {
 
 // errorLines renders err, which stopped action on object, in lines of w
 // cells. Access is granted by repository, so a refusal names it rather than
-// object. The refresh key reads it again, and the open key opens the run.
+// object. The refresh key reads it again.
 func (m *Modal) errorLines(action, object string, err error, w int) []string {
 	v := *m.opts.voice
-	v.Retry, v.Open = m.keys.Refresh, m.keys.Open
+	v.Retry = m.keys.Refresh
 	if errors.Is(err, core.ErrForbidden) {
 		object = m.repo.String()
 	}

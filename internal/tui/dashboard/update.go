@@ -173,10 +173,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 				s.aheadPinned.Opened(it.Repo.Ref)
 				return selectRepo(it.Repo.Ref), true
 			}
-		case keymap.Matches(msg, k.Open):
-			if it, ok := c.Selected(); ok {
-				return ui.Open(s.repoURL(it.Repo)), true
-			}
 		default:
 			return nil, false
 		}
@@ -226,11 +222,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 				return selectRepo(r.Ref), true
 			}
 			return nil, true
-		case keymap.Matches(msg, k.Open):
-			if r, ok := t.selected(); ok {
-				return ui.Open(s.repoURL(r)), true
-			}
-			return nil, true
 		}
 	case workPane:
 		w := &s.tasks
@@ -257,10 +248,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			if hit, ok := w.selected(); ok && hit.Kind == core.SearchPulls {
 				return s.openHit(hit, true), true
 			}
-		case keymap.Matches(msg, k.Open):
-			if hit, ok := w.selected(); ok {
-				return ui.Open(hit.Issue.URL), true
-			}
 		default:
 			return nil, false
 		}
@@ -274,10 +261,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			l.move(1)
 		case keymap.Matches(msg, k.Select):
 			return s.openThread(), true
-		case keymap.Matches(msg, k.Open):
-			if n, ok := l.selected(); ok {
-				return ui.Open(n.Subject.WebURL), true
-			}
 		case keymap.Matches(msg, k.InboxRead):
 			return s.markThread(false), true
 		case keymap.Matches(msg, k.InboxDone):
