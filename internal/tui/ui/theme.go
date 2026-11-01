@@ -24,6 +24,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Theme is the user's palette turned into styles, for the bubbles and for
@@ -48,6 +49,9 @@ type Theme struct {
 	// pane keeps Row and drops the accent.
 	Row  lipgloss.Style
 	Pick lipgloss.Style
+
+	// guides is how the trees draw their levels.
+	guides treeview.GuideMode
 }
 
 // NewTheme returns the theme for palette p on a dark or light terminal.
@@ -67,6 +71,16 @@ func NewTheme(p config.Palette, dark bool) Theme {
 		Row:     lipgloss.NewStyle().Bold(true),
 		Pick:    fg(lipgloss.Color(p.Accent)).Bold(true),
 	}
+}
+
+// WithTreeGuides returns t with the trees drawing their levels as mode
+// says, one of config.GuidesConnectors and config.GuidesIndent.
+func (t Theme) WithTreeGuides(mode string) Theme {
+	t.guides = treeview.Connectors
+	if mode == config.GuidesIndent {
+		t.guides = treeview.Indent
+	}
+	return t
 }
 
 // Cell returns the style of a cell of a row: s, made bold when the row is
@@ -201,6 +215,26 @@ func (t Theme) Tree(ic Icons) tree.Styles {
 	s.EmptyTitle = t.Title
 	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
+	return s
+}
+
+// TreeView returns the styles of a treeview, for every pane that shows a
+// tree. The guides are those of [Theme.WithTreeGuides].
+func (t Theme) TreeView(ic Icons) treeview.Styles {
+	s := treeview.DefaultStyles(t.Dark)
+	s.Guides = t.guides
+	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph = ic.Cursor, ic.Unfolded, ic.Folded
+	s.Ellipsis = ic.Ellipsis
+	if ic.Set() == config.IconsASCII {
+		s.Branch, s.Last, s.Line = "|- ", "`- ", "|  "
+	}
+	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
+	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
+	s.Arrow = s.Arrow.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Marker = s.Marker.Foreground(lipgloss.Color(t.Palette.Muted))
+	s.Right = s.Right.Foreground(lipgloss.Color(t.Palette.Subtle))
+	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	return s
 }
 

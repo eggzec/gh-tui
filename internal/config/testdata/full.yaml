@@ -123,6 +123,7 @@ owner:
 
 ui:
   icons: unicode
+  tree_guides: indent
   toast:
     info: 6s
   chord_wait: 250ms
