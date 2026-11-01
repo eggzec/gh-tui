@@ -20,7 +20,7 @@ func TestKindStripDigits(t *testing.T) {
 	if s.kind != core.SearchIssues || s.area != resultsArea {
 		t.Fatalf("after 2: kind %v, area %v, want issues in the results", s.kind, s.area)
 	}
-	press(t, s, "i")
+	press(t, s, "/")
 	press(t, s, "esc")
 	press(t, s, "2")
 	if s.kind != core.SearchIssues || s.area != resultsArea {

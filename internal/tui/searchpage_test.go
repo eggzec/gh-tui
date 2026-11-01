@@ -61,7 +61,7 @@ func TestSearchKeyInTheModalFocusesTheQuery(t *testing.T) {
 	t.Parallel()
 	m, _ := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
-	run(m, m.key(press("i")))
+	run(m, m.key(press("/")))
 	if got := focusOf(m); got != `search: typing ""` {
 		t.Errorf("S in the modal left the focus at %s, want the query typing", got)
 	}
@@ -71,7 +71,7 @@ func TestSearchModalCapturesKeys(t *testing.T) {
 	t.Parallel()
 	m, _ := newSearchApp(t, testRepo)
 	run(m, m.key(press("S")))
-	run(m, m.key(press("i")))
+	run(m, m.key(press("/")))
 	for _, k := range []string{"q", "n", "0"} {
 		drive(m, m.key(press(k)))
 		if m.searchHost() == nil {
@@ -153,7 +153,7 @@ func TestPreviewFromSearch(t *testing.T) {
 			if m.modals.Top() != search || m.searchHost() == nil {
 				t.Fatalf("modal %v after the %s closed, want the search back", m.modals.Top(), tt.name)
 			}
-			run(m, m.key(press("i")))
+			run(m, m.key(press("/")))
 			if got := focusOf(m); got != `search: typing ""` {
 				t.Errorf("the search came back with the focus at %s, want the query typing", got)
 			}

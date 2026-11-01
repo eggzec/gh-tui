@@ -12,7 +12,7 @@ global
   help | ? | ? | on
 
 Search
-  type | i | i | on
+  type | / | / | on
   next kind | ] | ] | on
   previous kind | [ | [ | on
   next | tab | tab | on
@@ -39,7 +39,7 @@ Results
   first | g g home | gg/home | on
   last | G end | G/end | on
   retry | r | r | off
-  search | / | / | on
+  search |  |  | off
   quick filter | & | & | on
   next match | n | n | off
   prev match | N | N | off

@@ -848,12 +848,13 @@ keys:
     done: [D]
 
   # The search modal, on any of its panes. It opens on the query in normal
-  # mode, where these keys and the global ones work. The digits 1 to 7 show
-  # the kind of results with that number (global pane_1 to pane_6 and
-  # kind_7 here), and the digit of the kind on view focuses the results.
+  # mode, where these keys and the global ones work, and only insert starts
+  # typing. The digits 1 to 7 show the kind of results with that number
+  # (global pane_1 to pane_6 and kind_7 here), and the digit of the kind on
+  # view focuses the results.
   search_modal:
     # Start typing in the query.
-    insert: [i]
+    insert: [/]
     # Scroll the pane that has not the focus: the preview from the results,
     # and the results from the preview.
     scroll_other_down: [J]
@@ -874,9 +875,9 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
-    # Search the rows of the list for text, show only the rows that hold
-    # it, and step between the rows a search found.
-    find: [/]
+    # The find has no key here, since / starts typing the query. The rows
+    # can still be filtered, and stepped between.
+    find: []
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
@@ -902,7 +903,8 @@ keys:
     top: ["g g", home]
     bottom: [G, end]
     option: ["-"]
-    find: [/]
+    # No find here, since / starts typing the query.
+    find: []
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]

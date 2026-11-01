@@ -149,7 +149,7 @@ func TestCommandKeyOpensTheLine(t *testing.T) {
 		}, open: true},
 		{name: "search box focused", app: searchApp, prep: func(m *Model, _ []*fakeSection) {
 			drive(m, m.key(press("S")))
-			drive(m, m.key(press("i")))
+			drive(m, m.key(press("/")))
 		}},
 		{name: "section capturing", prep: func(_ *Model, fakes []*fakeSection) {
 			fakes[0].capturing = true

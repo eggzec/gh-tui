@@ -102,7 +102,7 @@ func TestOthersReadOnSubmit(t *testing.T) {
 		svc := newFake()
 		s := newSection(t, svc, 120, 30)
 		p := newPump(s)
-		for _, k := range []string{"i", "t", "e", "a"} {
+		for _, k := range []string{"/", "t", "e", "a"} {
 			p.key(t, k)
 			p.wait(t, time.Second)
 		}
@@ -145,7 +145,7 @@ func TestLeavingCancelsOthers(t *testing.T) {
 		svc.hold = make(chan struct{})
 		s := newSection(t, svc, 120, 30)
 		p := newPump(s)
-		for _, k := range []string{"i", "t", "e", "a", "enter"} {
+		for _, k := range []string{"/", "t", "e", "a", "enter"} {
 			p.key(t, k)
 		}
 		ctxs := svc.prefetched()

@@ -160,17 +160,17 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "Search: next kind", `search: query ""`},
 		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "Search: previous kind", `search: query ""`},
 
-		{"search typing: tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "tab", "Query: complete", `search: typing "key"`},
-		{"search typing: shift+tab", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "Query: previous completion", `search: typing "key"`},
-		{"search typing: ]", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "]", "nothing", `search: typing "key]"`},
-		{"search typing: [", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
-		{"search typing: esc", false, []string{"S", "i", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},
+		{"search typing: tab", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "tab", "Query: complete", `search: typing "key"`},
+		{"search typing: shift+tab", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "Query: previous completion", `search: typing "key"`},
+		{"search typing: ]", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "]", "nothing", `search: typing "key]"`},
+		{"search typing: [", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "[", "nothing", `search: typing "key["`},
+		{"search typing: esc", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "esc", "Query: results", `search: results "key"`},
 
 		// Tab moves on to the preview beside the results, which is part of the results' area.
-		{"search results: tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: preview "key"`},
-		{"search results: shift+tab", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: preview "key"`},
-		{"search results: ]", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
-		{"search results: [", false, []string{"S", "i", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
+		{"search results: tab", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: preview "key"`},
+		{"search results: shift+tab", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: preview "key"`},
+		{"search results: ]", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
+		{"search results: [", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

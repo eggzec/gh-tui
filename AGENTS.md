@@ -106,7 +106,9 @@ Rules:
 
 Search is an overlay modal, opened with `S` from anywhere. From inside
 another modal, `S` opens the search over it, and esc returns; on the
-search itself it only refocuses the query. A query runs only on
+search itself it only refocuses the query. The query takes no keys until
+`/` starts typing, and the find of the results and preview has no key
+there. A query runs only on
 submit (enter), never while typing. The frame has two panes, Results and
 Preview. A type strip above the results picks the kind with the digits 1
 to 7: repositories, issues, pull requests, code, users and organizations,
