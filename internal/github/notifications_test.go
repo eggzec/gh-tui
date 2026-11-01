@@ -131,7 +131,7 @@ var wantNotifications = []core.Notification{
 		Subject: core.Subject{
 			Title:  "How do you theme huh forms?",
 			Type:   core.SubjectDiscussion,
-			WebURL: "https://github.com/charmbracelet/huh/discussions?discussions_q=How+do+you+theme+huh+forms%3F",
+			WebURL: "https://github.com/charmbracelet/huh",
 		},
 		Reason:    "subscribed",
 		Unread:    true,
@@ -143,7 +143,7 @@ var wantNotifications = []core.Notification{
 		Subject: core.Subject{
 			Title:  "CI workflow run failed for main branch",
 			Type:   core.SubjectCheckSuite,
-			WebURL: "https://github.com/eggzec/gh-tui/actions",
+			WebURL: "https://github.com/eggzec/gh-tui",
 		},
 		Reason:    "ci_activity",
 		Unread:    true,
@@ -313,15 +313,15 @@ func TestParseSubject(t *testing.T) {
 		{"commit", "https://api.github.com/repos/o/r/commits/abc123", core.SubjectCommit, core.Subject{WebURL: repo + "/commit/abc123", SHA: "abc123"}},
 		{"release", "https://api.github.com/repos/o/r/releases/991", core.SubjectRelease, core.Subject{WebURL: repo + "/releases", ReleaseID: 991}},
 		{"discussion with a URL", "https://api.github.com/repos/o/r/discussions/12", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions/12", Number: 12}},
-		{"discussion", "", core.SubjectDiscussion, core.Subject{WebURL: repo + "/discussions?discussions_q=a+%26+b"}},
+		{"discussion without a URL", "", core.SubjectDiscussion, core.Subject{WebURL: repo}},
 		{"check suite with a URL", "https://api.github.com/repos/o/r/check-suites/55", core.SubjectCheckSuite, core.Subject{WebURL: repo + "/actions", CheckSuiteID: 55}},
-		{"check suite", "", core.SubjectCheckSuite, core.Subject{WebURL: repo + "/actions"}},
+		{"check suite", "", core.SubjectCheckSuite, core.Subject{WebURL: repo}},
 		{"unknown", "", "RepositoryVulnerabilityAlert", core.Subject{WebURL: repo}},
 		{"enterprise", "https://ghe.example.com/api/v3/repos/o/r/pulls/3", core.SubjectPullRequest, core.Subject{WebURL: repo + "/pull/3", Number: 3}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseSubject(repo, tt.apiURL, tt.typ, "a & b"); got != tt.want {
+			if got := parseSubject(repo, tt.apiURL); got != tt.want {
 				t.Errorf("parseSubject(%q) = %+v, want %+v", tt.apiURL, got, tt.want)
 			}
 		})
@@ -345,10 +345,10 @@ func TestListNotificationsSubjects(t *testing.T) {
 	want := []core.Subject{
 		{Type: core.SubjectIssue, Number: 238, WebURL: slk + "/issues/238"},
 		{Type: core.SubjectPullRequest, Number: 239, WebURL: slk + "/pull/239"},
-		{Type: core.SubjectCheckSuite, WebURL: "https://github.com/acme/widgets/actions"},
+		{Type: core.SubjectCheckSuite, WebURL: "https://github.com/acme/widgets"},
 		{Type: core.SubjectRelease, ReleaseID: 368759772, WebURL: glow + "/releases"},
 		{Type: core.SubjectCommit, SHA: "7f75d0e5296c2c4baafc5109cf2b1de3491c2cf5", WebURL: glow + "/commit/7f75d0e5296c2c4baafc5109cf2b1de3491c2cf5"},
-		{Type: core.SubjectDiscussion, WebURL: glow + "/discussions?discussions_q=Themes+%26+styles+for+glow%3F"},
+		{Type: core.SubjectDiscussion, WebURL: glow},
 	}
 	if len(page.Items) != len(want) {
 		t.Fatalf("got %d notifications, want %d", len(page.Items), len(want))

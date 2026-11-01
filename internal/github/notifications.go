@@ -39,7 +39,7 @@ type notification struct {
 
 func (n notification) core() core.Notification {
 	typ := core.SubjectType(n.Subject.Type)
-	sub := parseSubject(n.Repository.HTMLURL, n.Subject.URL, typ, n.Subject.Title)
+	sub := parseSubject(n.Repository.HTMLURL, n.Subject.URL)
 	sub.Title, sub.Type, sub.URL = n.Subject.Title, typ, n.Subject.URL
 	return core.Notification{
 		ID:        n.ID,
@@ -55,7 +55,7 @@ func (n notification) core() core.Notification {
 // https://api.github.com/repos/o/r/pulls/42, names, and its page under the
 // repository's web URL. Building on the repository's URL keeps the right
 // host on GitHub Enterprise Server.
-func parseSubject(repoURL, apiURL string, typ core.SubjectType, title string) core.Subject {
+func parseSubject(repoURL, apiURL string) core.Subject {
 	// After "/repos/": owner, name, kind and ID.
 	if _, rest, ok := strings.Cut(apiURL, "/repos/"); ok {
 		if parts := strings.SplitN(rest, "/", 4); len(parts) == 4 {
@@ -83,15 +83,9 @@ func parseSubject(repoURL, apiURL string, typ core.SubjectType, title string) co
 			}
 		}
 	}
-	switch typ {
-	case core.SubjectDiscussion:
-		// GitHub gives a discussion no URL, so its title finds it.
-		return core.Subject{WebURL: repoURL + "/discussions?discussions_q=" + url.QueryEscape(title)}
-	case core.SubjectCheckSuite:
-		return core.Subject{WebURL: repoURL + "/actions"}
-	default:
-		return core.Subject{WebURL: repoURL}
-	}
+	// A subject with no URL, or one this doesn't know, opens the
+	// repository's page.
+	return core.Subject{WebURL: repoURL}
 }
 
 // ListNotifications returns a page of up to perPage of the user's
