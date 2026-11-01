@@ -530,7 +530,7 @@ func (m *Model) applyTheme(dark bool) {
 		// A loaded config is validated, so this only guards a zero Config.
 		p, _ = config.Default().Palette(dark)
 	}
-	m.theme = ui.NewTheme(p, dark)
+	m.theme = ui.NewTheme(p, dark).WithTreeGuides(m.cfg.UI.TreeGuides)
 	m.icons = ui.NewIcons(m.cfg.UI.Icons)
 	m.voice.Icons = &m.icons
 	m.st = newStyles(m.theme)

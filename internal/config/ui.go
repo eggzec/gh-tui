@@ -17,7 +17,10 @@ type UI struct {
 	// states of issues and pull requests: IconsNerd, which needs a Nerd
 	// Font and marks the types of files too, IconsUnicode or IconsASCII.
 	Icons string `yaml:"icons" scope:"global"`
-	Toast Toast  `yaml:"toast"`
+	// TreeGuides is how the trees draw their levels: GuidesConnectors hangs
+	// children off their parent with lines, GuidesIndent only indents them.
+	TreeGuides string `yaml:"tree_guides"`
+	Toast      Toast  `yaml:"toast"`
 	// ChordWait is how long a key that starts a sequence of keys, such as
 	// the first g of "g g", waits for the next before it counts alone.
 	ChordWait time.Duration `yaml:"chord_wait"`
@@ -73,8 +76,17 @@ const (
 	IconsASCII   = "ascii"
 )
 
+// Guide modes of [UI.TreeGuides].
+const (
+	GuidesConnectors = "connectors"
+	GuidesIndent     = "indent"
+)
+
 func (u UI) validate() error {
 	var errs []error
+	if !slices.Contains([]string{GuidesConnectors, GuidesIndent}, u.TreeGuides) {
+		errs = append(errs, fmt.Errorf("ui.tree_guides: must be %s or %s, got %q", GuidesConnectors, GuidesIndent, u.TreeGuides))
+	}
 	if !slices.Contains([]string{IconsNerd, IconsUnicode, IconsASCII}, u.Icons) {
 		errs = append(errs, fmt.Errorf("ui.icons: must be %s, %s or %s, got %q", IconsNerd, IconsUnicode, IconsASCII, u.Icons))
 	}
