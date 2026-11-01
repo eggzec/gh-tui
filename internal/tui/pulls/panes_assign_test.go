@@ -133,6 +133,16 @@ func (failingFacets) People(context.Context, facets.PeopleQuery) ([]core.User, e
 	return nil, errors.New("offline")
 }
 
+// pickyFacets is a fake whose People fails for the text zzz only.
+type pickyFacets struct{ fakeFacets }
+
+func (f pickyFacets) People(ctx context.Context, q facets.PeopleQuery) ([]core.User, error) {
+	if q.Text == "zzz" {
+		return nil, errors.New("offline")
+	}
+	return f.fakeFacets.People(ctx, q)
+}
+
 // Enter before the first search answers, or after it failed, keeps the
 // assignees, as the picker lists none of them yet.
 func TestAssigneesEnterWithoutAnswerSendsNothing(t *testing.T) {
@@ -222,11 +232,31 @@ func TestAssigneesWithFacets(t *testing.T) {
 				t.Fatal("esc closed the picker instead of clearing the query")
 			}
 		}, "assignees +octocat"},
+		{"untick survives re-query", func(t *testing.T, m *panesModal) {
+			t.Helper()
+			tick(t, m, "bob")
+			settle(m, m.Update(keyMsg("/")))
+			for _, r := range "oct" {
+				settle(m, m.Update(keyMsg(string(r))))
+			}
+			settle(m, m.Update(keyMsg("enter")))
+			tick(t, m, "octocat")
+		}, "assignees +octocat -bob"},
+		{"failed re-query keeps ticks", func(t *testing.T, m *panesModal) {
+			t.Helper()
+			tick(t, m, "hubot")
+			settle(m, m.Update(keyMsg("/")))
+			for _, r := range "zzz" {
+				settle(m, m.Update(keyMsg(string(r))))
+			}
+			settle(m, m.Update(keyMsg("enter")))
+			assigneesOverlayOf(t, m)
+		}, "assignees +hubot"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			svc, m := assigning(t, WithFacets(fakeFacets{}))
+			svc, m := assigning(t, WithFacets(pickyFacets{}))
 			tt.do(t, m)
 			settle(m, m.Update(keyMsg("enter")))
 			if m.top() != nil {
