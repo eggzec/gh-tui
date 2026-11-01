@@ -2,9 +2,7 @@ package history
 
 import (
 	"context"
-	"net/url"
 	"slices"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -339,19 +337,15 @@ func (m *Modal) showFile() tea.Cmd {
 	}
 	c.shown = c.cursor
 	f := c.files[c.cursor]
-	hint := ""
-	if k := m.keys.Open.Help().Key; k != "" {
-		hint = " Press " + k + " to see it on GitHub."
-	}
 	switch {
 	case f.Patch != "":
 		return c.pager.SetContentSyntax(f.Path, "diff", f.Patch)
 	case f.PatchTruncated:
-		c.pager.SetMessage(f.Path, "This diff is too large to show here."+hint)
+		c.pager.SetMessage(f.Path, "This diff is too large to show here.")
 	case (f.Status == core.FileRenamed || f.Status == core.FileCopied) && f.Additions+f.Deletions == 0:
 		c.pager.SetMessage(f.Path, "Renamed from "+f.PreviousPath+", with no changes.")
 	default:
-		c.pager.SetMessage(f.Path, "No diff to show: the file is binary, or empty."+hint)
+		c.pager.SetMessage(f.Path, "No diff to show: the file is binary, or empty.")
 	}
 	return nil
 }
@@ -367,18 +361,4 @@ func commitURL(host string, repo core.RepoRef, c core.Commit) string {
 		return c.URL
 	}
 	return ui.WebURL(host, repo.String()+"/commit/"+c.SHA)
-}
-
-// fileURL is the diff of file on the page of commit c.
-func (m *Modal) fileURL(c core.Commit, file string) string {
-	return m.commitURL(c) + "#" + ui.DiffAnchor(file)
-}
-
-// branchURL is the page of a branch on GitHub.
-func (m *Modal) branchURL(name string) string {
-	segs := strings.Split(name, "/")
-	for i, s := range segs {
-		segs[i] = url.PathEscape(s)
-	}
-	return ui.WebURL(m.opts.host, m.repo.String()+"/tree/"+strings.Join(segs, "/"))
 }

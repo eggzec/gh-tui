@@ -74,8 +74,7 @@ func TestMenuChoosingClosesThenPresses(t *testing.T) {
 	if _, ok := m.modals.Top().(*menuModal); !ok {
 		t.Fatalf("top modal = %T, want the menu", m.modals.Top())
 	}
-	// Move off the first entry, which opens the browser, to "merge".
-	driveKeys(t, m, m.key(press("down")))
+	// The first entry is "merge".
 	driveKeys(t, m, m.key(press("enter")))
 	top := m.modals.Top()
 	if _, ok := top.(*menuModal); ok {

@@ -267,7 +267,7 @@ func NewFilterModal(ctx context.Context, section string, target Filterable, f Fi
 		// The form loads the options again with its retry key, and has no
 		// key that opens GitHub.
 		v := *o.voice
-		v.Retry, v.Open, v.Icons = o.keys.Retry, key.Binding{}, &m.icons
+		v.Retry, v.Icons = o.keys.Retry, &m.icons
 		formOpts = append(formOpts, filterform.WithErrorText(ErrorText("load the options", f.Subject, v)))
 	}
 	m.form = filterform.New(f.Spec, formOpts...)

@@ -13,7 +13,6 @@ global
 
 Notifications
   open & read | enter | ↵ | on
-  open | o | o | on
   read | U | U | on
   done | D | D | on
   read all |  |  | off

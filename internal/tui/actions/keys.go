@@ -48,8 +48,6 @@ type KeyMap struct {
 	GroupBy, ToggleGroups, Sort, ToggleSort key.Binding
 	// order are the keys of the picker of the levels.
 	order orderpick.KeyMap
-	// Open opens the run or the job on GitHub.
-	Open key.Binding
 	// ViewFile previews the workflow file of the run, at the commit it ran on.
 	ViewFile key.Binding
 	// Refresh reads the runs again, or what failed to load.
@@ -95,7 +93,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Sort:         runs.Binding("sort", "sort"),
 		ToggleSort:   runs.Binding("sort_toggle", "sort on/off"),
 		order:        ui.OrderPickKeys(keys),
-		Open:         modal.Binding("global.open", "browser"),
 		ViewFile:     modal.Binding("view_workflow", "view workflow file"),
 		Refresh:      modal.Binding("global.refresh", "refresh"),
 		RerunFailed:  modal.Binding("rerun_failed", "rerun failed"),
@@ -135,7 +132,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.Open, k.ViewFile,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.ViewFile,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }
@@ -148,7 +145,7 @@ func (k KeyMap) pane(rerun key.Binding) []key.Binding {
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Select, k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob, k.Open}
+	return []key.Binding{k.Select, k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.RerunJob}
 }
 
 // FullHelp implements help.KeyMap.
@@ -164,7 +161,7 @@ func relabel(b key.Binding, desc string) key.Binding {
 
 // job returns the keys of the log overlay's job view.
 func (k KeyMap) job() jobview.KeyMap {
-	return jobview.KeyMap{Log: k.Log, LogContext: ctxLog, Open: k.Open}
+	return jobview.KeyMap{Log: k.Log, LogContext: ctxLog}
 }
 
 // paneTitles names the panes in help.

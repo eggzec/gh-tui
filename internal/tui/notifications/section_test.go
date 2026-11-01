@@ -56,12 +56,6 @@ func TestUpdate(t *testing.T) {
 			wantRows: []string{"1", "2", "3", "4", "5", "6", "7"},
 		},
 		{
-			name:     "open doesn't mark read",
-			keys:     []string{"down", "o"},
-			wantOpen: []string{url("2")},
-			wantRows: []string{"1", "2", "3", "6"},
-		},
-		{
 			name:      "mark read",
 			keys:      []string{"down", "U", "y"},
 			wantDone:  []string{"mark read"},
@@ -383,9 +377,6 @@ func TestRunNotificationOpensTheActions(t *testing.T) {
 	n := thread("9", "charmbracelet/bubbletea", core.SubjectCheckSuite, "ci workflow run failed for feat/x branch", "ci_activity", true, time.Minute)
 	s := newSection(t, newFake(n), 120, 20)
 	want := ui.OpenActionsMsg{Repo: n.Repo, Filter: core.RunFilter{Branch: "feat/x", Status: "failure"}}
-	if app := press(t, s, "o"); !slices.Contains(app, tea.Msg(ui.OpenMsg{URL: n.Subject.WebURL})) {
-		t.Errorf("o sent %v, want the browser", app)
-	}
 	if app := press(t, s, "enter"); !slices.Contains(app, tea.Msg(want)) {
 		t.Errorf("enter sent %v, want %v", app, want)
 	}
@@ -649,7 +640,7 @@ func TestErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("list notifications: github: GET /repos/o/r/notifications: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list notifications: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("list notifications: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this"},
 		{"internal", errors.New("list notifications: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

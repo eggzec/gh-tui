@@ -282,7 +282,7 @@ func (s *Section) syncPreview() tea.Cmd {
 // still do, and the pager reads the rest.
 func (s *Section) pressPreview(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
-	if !s.pv.Capturing() && (keymap.Matches(msg, k.Select) || keymap.Matches(msg, k.Open) || keymap.Matches(msg, k.Refresh)) {
+	if !s.pv.Capturing() && (keymap.Matches(msg, k.Select) || keymap.Matches(msg, k.Refresh)) {
 		return s.pressResults(msg)
 	}
 	var cmd tea.Cmd
@@ -292,5 +292,5 @@ func (s *Section) pressPreview(msg tea.KeyPressMsg) tea.Cmd {
 
 // previewLayer returns the keys of the preview.
 func (s *Section) previewLayer() keyhelp.Layer {
-	return ui.PagerLayer("search_preview", &s.pv, s.keys.Select, s.keys.Open, s.keys.Refresh)
+	return ui.PagerLayer("search_preview", &s.pv, s.keys.Select, s.keys.Refresh)
 }

@@ -291,7 +291,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{list}
 	}
 	k = k.state(m)
-	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Cancel, k.RerunFailed, k.Rerun, k.Open})
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Cancel, k.RerunFailed, k.Rerun})
 	if m.notes {
 		return []keyhelp.Layer{screen}
 	}
@@ -365,7 +365,6 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	// A key that re-run shares with refresh says why it can't re-run
 	// rather than refresh.
 	k.Refresh = ui.Yield(k.Refresh, k.RerunFailed)
-	k.Open.SetEnabled(k.Open.Enabled() && m.hasRun)
 	k.ViewFile.SetEnabled(k.ViewFile.Enabled() && m.hasRun)
 	// Only a question takes the answers.
 	k.Confirm.Yes.SetEnabled(false)

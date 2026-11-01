@@ -584,8 +584,6 @@ keys:
     # screen it does nothing.
     # It never unzooms a pane: the zoom key does.
     dismiss: [esc]
-    # Open what is under the cursor in the browser.
-    open: [o]
     # Show the page of the person or organization behind what is selected:
     # the author of a pull request or issue, the owner of a repository or
     # of what is in it, such as a file or a notification, or an

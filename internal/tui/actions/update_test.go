@@ -525,8 +525,8 @@ func TestErrorWords(t *testing.T) {
 		{"offline", fmt.Errorf("list runs: github: GET /repos/o/r/actions/runs: %w", core.ErrOffline),
 			"✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry", "✗ Can't reach GitHub · r to retry"},
 		{"forbidden", fmt.Errorf("list runs: github: 403 Forbidden: %w", core.ErrForbidden),
-			"✗ You don't have access to charmbracelet/bubbletea · o to open on GitHub",
-			"✗ You don't have access to charmbracelet/bubbletea o to open on GitHub",
+			"✗ You don't have access to charmbracelet/bubbletea",
+			"✗ You don't have access to charmbracelet/bubbletea",
 			"✗ You don't have access to charmbracelet/bubbletea"},
 		{"not found", fmt.Errorf("list runs: github: 404 Not Found: %w", core.ErrNotFound),
 			"✗ charmbracelet/bubbletea doesn't exist or is private.", "✗ charmbracelet/bubbletea doesn't exist or is private.",
@@ -627,7 +627,7 @@ func TestPendingLogShowsTheSteps(t *testing.T) {
 		t.Fatal("enter on the running job didn't open its log")
 	}
 	s := logText(h.log)
-	for _, want := range []string{"Logs arrive in ~2 MB blocks while the job runs · o to watch live on GitHub", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
+	for _, want := range []string{"Logs arrive in ~2 MB blocks while the job runs", "✓ Set up job 2s", "◐ Run golangci-lint 1m 18s", "○ Post Run actions/checkout@v4 queued"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the log of a running job lacks %q:\n%s", want, s)
 		}
@@ -1129,19 +1129,6 @@ func TestSyncKeyReloadsTheRuns(t *testing.T) {
 	}
 }
 
-func TestOpenInTheBrowser(t *testing.T) {
-	m, h := newModal(t, newFake(), wideW, wideH)
-	h.keys("o")
-	h.toJobRow(t, ubuntuName)
-	job, _ := m.cursorJob()
-	h.keys("o")
-	got := h.take()
-	want := []tea.Msg{ui.OpenMsg{URL: m.run.URL}, ui.OpenMsg{URL: job.URL}}
-	if !slices.Equal(got, want) {
-		t.Errorf("o sent %v, want %v", got, want)
-	}
-}
-
 func TestErrorsAreInline(t *testing.T) {
 	f := newFake()
 	f.jobsErr = errors.New("jobs boom")
@@ -1210,13 +1197,13 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 		do   func()
 		want string
 	}{
-		{"start", keys(), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
-		{"tab", keys("tab"), "tab pane, R rerun failed, E rerun all, o browser"},
-		{"back", keys("backspace"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"start", keys(), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all"},
+		{"tab", keys("tab"), "tab pane, R rerun failed, E rerun all"},
+		{"back", keys("backspace"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all"},
 		// The run in progress can be cancelled, not run again.
-		{"running run", keys("j"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, X cancel run, o browser"},
-		{"unfolded run", keys("k", "enter"), "↵ fold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
-		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↵ log, J rerun job, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all, o browser"},
+		{"running run", keys("j"), "↵ unfold, ↑/k up, ↓/j down, f filter, tab pane, X cancel run"},
+		{"unfolded run", keys("k", "enter"), "↵ fold, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all"},
+		{"failed job", func() { h.toJobRow(t, ubuntuName) }, "↵ log, J rerun job, ↑/k up, ↓/j down, f filter, tab pane, R rerun failed, E rerun all"},
 		// The log is an overlay with the keys of its own.
 		{"log", keys("enter"), "↵ fold, * all, - option: S N, x timestamps, e next error, / search"},
 		// The steps of a job in progress don't fold, and have no keys to show.
@@ -1451,8 +1438,8 @@ func TestRunsWithoutJobsSayWhy(t *testing.T) {
 		conclusion core.Conclusion
 		want       string
 	}{
-		{core.ConclusionActionRequired, "Waiting for a maintainer to approve this run · o opens it on GitHub"},
-		{core.ConclusionStartupFailure, "This run failed to start, often for an error in its workflow file · o opens it on GitHub"},
+		{core.ConclusionActionRequired, "Waiting for a maintainer to approve this run"},
+		{core.ConclusionStartupFailure, "This run failed to start, often for an error in its workflow file"},
 		{core.ConclusionSkipped, "This run was skipped, so none of its jobs ran."},
 		{core.ConclusionNone, "This run has no jobs yet."},
 	}

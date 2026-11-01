@@ -36,8 +36,6 @@ type KeyMap struct {
 	// Select searches from the query, and opens the result under the
 	// cursor.
 	Select key.Binding
-	// Open opens the result under the cursor in the browser.
-	Open key.Binding
 	// Checks opens the pull request under the cursor on its checks.
 	Checks key.Binding
 	// Filter and Sort open the filter of the kind on view on its Filters
@@ -102,7 +100,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		NextTab: page.Binding("global.next_tab", "next kind"),
 		PrevTab: page.Binding("global.prev_tab", "previous kind"),
 		Select:  page.Binding("global.select", "open"),
-		Open:    page.Binding("global.open", "browser"),
 		Checks:  results.Binding("checks", "checks"),
 		Filter:  results.Binding("filter", "filter"),
 		Sort:    results.Binding("sort", "sort"),
@@ -140,14 +137,14 @@ func newKeyMap(keys config.Keymap) KeyMap {
 func (k KeyMap) own() []key.Binding {
 	return []key.Binding{
 		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
-		k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
+		k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
 		k.ScrollOtherDown, k.ScrollOtherUp,
 	}
 }
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Insert, k.Select, k.Checks, k.Open, k.Filter, k.Sort, k.NextTab, k.Next}
+	return []key.Binding{k.Insert, k.Select, k.Checks, k.Filter, k.Sort, k.NextTab, k.Next}
 }
 
 // FullHelp implements help.KeyMap.
@@ -192,8 +189,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		moves = []key.Binding{k.feed.Up, k.feed.Down}
 	}
 	own := keyhelp.Layer{
-		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Open, k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}),
-		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Open, k.Filter, k.Sort}),
+		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}),
+		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Filter, k.Sort}),
 	}
 	page := ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next})
 	if s.text == "" {

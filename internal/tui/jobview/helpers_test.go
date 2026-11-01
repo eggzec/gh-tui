@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -165,7 +164,6 @@ func testKeys() KeyMap {
 	return KeyMap{
 		Log:        logview.NewKeyMap(ui.In(config.Default().Keys, "actions_log")),
 		LogContext: "actions_log",
-		Open:       key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser")),
 	}
 }
 

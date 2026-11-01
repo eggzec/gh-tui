@@ -26,9 +26,7 @@ type KeyMap struct {
 	Zoom key.Binding
 	// Select opens what is under the cursor: a repository, a pull request
 	// or issue, or what a notification is about.
-	Select key.Binding
-	// Open opens what is under the cursor in the browser.
-	Open    key.Binding
+	Select  key.Binding
 	Refresh key.Binding
 	// Filter and Sort open the filter of the repositories on its Filters
 	// and Sort tabs, and ClearFilter clears it.
@@ -96,7 +94,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Prev:         screen.Binding("global.prev_pane", "previous pane"),
 		Zoom:         screen.Binding("global.zoom", "zoom"),
 		Select:       screen.Binding("global.select", "open"),
-		Open:         screen.Binding("global.open", "browser"),
 		Refresh:      screen.Binding("global.refresh", "refresh"),
 		Filter:       repos.Binding("filter", "filter"),
 		Sort:         repos.Binding("sort", "sort"),
@@ -141,7 +138,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.NextList, k.Open,
+		k.Up, k.Down, k.Left, k.Right, k.Select, k.Checks, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.NextList,
 		k.Next, k.Jump, k.Zoom, k.Refresh,
 	}
 }
@@ -150,7 +147,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // dashboard matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
 		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown, k.InboxRead, k.InboxDone},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
@@ -192,13 +189,13 @@ func (s *Section) Capturing() bool {
 func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	switch p {
 	case pinnedPane:
-		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
+		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select}
 	case reposPane:
-		return []key.Binding{k.Select, k.Open, k.NextOwner, k.PrevOwner, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
+		return []key.Binding{k.Select, k.NextOwner, k.PrevOwner, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
 	case workPane:
-		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Open, k.Checks, k.NextList, k.PrevList}
+		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList, k.PrevList}
 	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open, k.InboxRead, k.InboxDone}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.InboxRead, k.InboxDone}
 	case calendarPane, numPanes:
 	}
 	return nil
@@ -208,13 +205,13 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 func (k KeyMap) paneShort(p paneID) []key.Binding {
 	switch p {
 	case pinnedPane:
-		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select, k.Open}
+		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select}
 	case reposPane:
-		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextOwner, k.Open}
+		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextOwner}
 	case workPane:
-		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList, k.Open}
+		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList}
 	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.Open, k.InboxRead, k.InboxDone}
+		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.InboxRead, k.InboxDone}
 	case calendarPane, numPanes:
 	}
 	return nil

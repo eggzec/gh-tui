@@ -3,7 +3,6 @@ package releases
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
@@ -13,12 +12,6 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, k.Dismiss):
 		return m.close()
-	case keymap.Matches(msg, k.Open):
-		url := m.Link()
-		if url == "" {
-			return nil
-		}
-		return ui.Open(url)
 	case keymap.Matches(msg, k.Refresh):
 		if !m.failed() {
 			return nil

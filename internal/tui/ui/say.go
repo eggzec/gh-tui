@@ -34,9 +34,9 @@ const restart = ", then restart gh-tui"
 // the live keymap, the log file it points to, and the clock and zone it
 // tells times by.
 type Voice struct {
-	// Retry reads again, and Open opens what failed on GitHub. A hint
-	// names a key only while its binding is enabled.
-	Retry, Open key.Binding
+	// Retry reads again. A hint names a key only while its binding is
+	// enabled.
+	Retry key.Binding
 	// Log is the log file as ShortPath shows it, or "" when nothing is
 	// logged.
 	Log string
@@ -65,12 +65,11 @@ func (v Voice) icons() Icons {
 }
 
 // NewVoice returns the voice of the configured keys, whose refresh key
-// retries and whose open key opens on GitHub, pointing to the log file at
+// retries, pointing to the log file at
 // log, or to none if log is "".
 func NewVoice(keys config.Keymap, log string) Voice {
 	v := Voice{
 		Retry: Binding(keys, config.ActionRefresh, "retry"),
-		Open:  Binding(keys, config.ActionOpen, "open"),
 	}
 	if log != "" {
 		v.Log = ShortPath(log)
@@ -157,7 +156,6 @@ func say(p *core.Problem, v Voice) (text, hint string, named bool) {
 // words says p, at any length.
 func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 	retry := keyHint(v.icons(), v.Retry, "retry")
-	open := keyHint(v.icons(), v.Open, "open on GitHub")
 	subject := clean(p.Subject)
 	switch p.Kind {
 	case core.Canceled:
@@ -183,7 +181,7 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		// Access is granted per repository, so what is refused is named
 		// by its repository, such as "eggzec/x" for "eggzec/x#5".
 		repo, _, _ := strings.Cut(subject, "#")
-		return "You don't have access to " + cmp.Or(repo, "this"), open, false
+		return "You don't have access to " + cmp.Or(repo, "this"), "", false
 	case core.NotFound:
 		text := "This doesn't exist or is private."
 		if subject != "" {
@@ -197,11 +195,11 @@ func words(p *core.Problem, v Voice) (text, hint string, named bool) {
 		return text, "", subject != ""
 	case core.Rejected:
 		if reason := clean(p.Reason); reason != "" {
-			return reason, open, true
+			return reason, "", true
 		}
-		return "GitHub refused this", open, false
+		return "GitHub refused this", "", false
 	case core.Unsupported:
-		return "This GitHub Enterprise version doesn't support this", open, false
+		return "This GitHub Enterprise version doesn't support this", "", false
 	default:
 		if v.Log == "" {
 			return "Something went wrong", retry, false

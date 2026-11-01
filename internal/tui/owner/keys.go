@@ -28,10 +28,8 @@ type KeyMap struct {
 	Zoom key.Binding
 	// Select opens what is under the cursor: a repository on the
 	// repository screen, a person or an organization on their page, and a
-	// team, which has no page here, in the browser.
-	Select key.Binding
-	// Open opens what is under the cursor in the browser.
-	Open    key.Binding
+	// team, which has no page here, is a link.
+	Select  key.Binding
 	Refresh key.Binding
 	// Filter and Sort open the filter of the repositories on its Filters
 	// and Sort tabs, and ClearFilter clears it.
@@ -82,7 +80,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		PrevTab:      list.Binding("global.prev_tab", "previous tab"),
 		Zoom:         page.Binding("global.zoom", "zoom"),
 		Select:       page.Binding("global.select", "open"),
-		Open:         page.Binding("global.open", "browser"),
 		Refresh:      page.Binding("global.refresh", "refresh"),
 		Filter:       list.Binding("filter", "filter"),
 		Sort:         list.Binding("sort", "sort"),
@@ -122,7 +119,7 @@ func (k KeyMap) pane(msg tea.KeyPressMsg) paneID {
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Up, k.Down, k.Left, k.Right, k.Select, k.Filter, k.Sort, k.ClearFilter, k.Open,
+		k.Up, k.Down, k.Left, k.Right, k.Select, k.Filter, k.Sort, k.ClearFilter,
 		k.NextTab, k.Next, k.Jump, k.Zoom, k.Refresh,
 	}
 }
@@ -131,7 +128,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 // matches first, and then its own.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
+		{k.Left, k.Right, k.Up, k.Down, k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -179,11 +176,11 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) paneKeys(p paneID) []key.Binding {
 	switch p {
 	case pinnedPane:
-		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select, k.Open}
+		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select}
 	case listPane:
-		return []key.Binding{k.Select, k.Open, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
+		return []key.Binding{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
 	case readmePane:
-		return []key.Binding{k.Open}
+		return nil
 	case calendarPane, numPanes:
 	}
 	return nil
@@ -193,11 +190,11 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 func (k KeyMap) paneShort(p paneID) []key.Binding {
 	switch p {
 	case pinnedPane:
-		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select, k.Open}
+		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select}
 	case listPane:
-		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.Open, k.NextTab}
+		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab}
 	case readmePane:
-		return []key.Binding{k.Open}
+		return nil
 	case calendarPane, numPanes:
 	}
 	return nil
@@ -211,7 +208,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.page != nil {
 		focus = s.page.focus
 	}
-	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.Open, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort, &k.ToggleSort, &k.GroupBy, &k.ToggleGroups} {
+	for _, b := range []*key.Binding{&k.Left, &k.Right, &k.Up, &k.Down, &k.Select, &k.NextTab, &k.PrevTab, &k.ClearFilter, &k.ToggleFilter, &k.Filter, &k.Sort, &k.ToggleSort, &k.GroupBy, &k.ToggleGroups} {
 		b.SetEnabled(b.Enabled() && s.page != nil)
 	}
 	if focus == listPane {
@@ -230,8 +227,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.NextTab.SetEnabled(k.NextTab.Enabled() && tabs)
 		k.PrevTab.SetEnabled(k.PrevTab.Enabled() && tabs)
 		if l := s.page.list(); l != nil {
-			// A team has no page here, so only the open key opens one;
-			// with nothing under the cursor, that opens the tab on GitHub.
+			// A team has no page here, so select does nothing on one.
 			_, team := l.(*teamList)
 			_, ok := l.selection(s)
 			k.Select.SetEnabled(k.Select.Enabled() && ok && !team)

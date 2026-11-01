@@ -134,12 +134,6 @@ func TestModalKeys(t *testing.T) {
 				t.Errorf("comment pages read = %d, want 2", got)
 			}
 		}},
-		{"open in browser opens the issue", "o", func(t *testing.T, _ *host, _ *fakeService, msgs []ui.OpenMsg) {
-			t.Helper()
-			if len(msgs) != 1 || msgs[0].URL != "https://github.com/eggzec/gh-tui/issues/999" {
-				t.Errorf("opened %v, want issue 999", msgs)
-			}
-		}},
 		{"the filter key scrolls instead", "f", func(t *testing.T, h *host, _ *fakeService, _ []ui.OpenMsg) {
 			t.Helper()
 			if h.tab != core.FilterOpen || h.modal() == nil {
@@ -432,7 +426,7 @@ func TestCommentsErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("issue comments: github: GET /repos/eggzec/gh-tui/issues/999/comments: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("issue comments: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

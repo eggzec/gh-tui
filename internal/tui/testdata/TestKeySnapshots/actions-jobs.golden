@@ -17,7 +17,6 @@ Actions
   previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 | 1/2 | on
   zoom | z | z | off
-  browser | o | o | on
   view workflow file | v | v | on
   rerun failed | R | R | on
   rerun all |  |  | off

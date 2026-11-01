@@ -98,17 +98,6 @@ func TestUpdateList(t *testing.T) {
 				}
 			},
 		},
-		{
-			name: "open in browser opens the selected pull request",
-			keys: []string{"down", "o"},
-			check: func(t *testing.T, _ *host, _ *fakeService, msgs []any) {
-				t.Helper()
-				want := ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/pull/135"}
-				if !slices.Contains(msgs, any(want)) {
-					t.Errorf("messages %v, want %v", msgs, want)
-				}
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -310,7 +299,7 @@ func TestErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("list pulls: github: GET /repos/o/r/pulls: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("list pulls: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("list pulls: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui"},
 		{"internal", errors.New("list pulls: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {

@@ -2,7 +2,6 @@ package files
 
 import (
 	"bytes"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -117,8 +116,7 @@ func TestProgram(t *testing.T) {
 	tm.Send(ui.RepoMsg{Repo: ghTUI})
 	waitFor("AGENTS.md")
 
-	// Expand cmd and cmd/gh-tui, preview main.go, then open it in the
-	// browser.
+	// Expand cmd and cmd/gh-tui, then preview main.go.
 	tm.Send(press("l"))
 	waitFor("gh-tui")
 	tm.Send(press("down"))
@@ -127,15 +125,11 @@ func TestProgram(t *testing.T) {
 	tm.Send(press("down"))
 	tm.Send(press("enter"))
 	waitFor("hello")
-	tm.Send(press("o"))
+	_ = tm.Quit()
 
 	final, _ := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
 	if final.modal == nil || final.modal.Title() != "cmd/gh-tui/main.go" {
 		t.Errorf("modal = %v, want the preview of main.go", final.modal)
-	}
-	want := []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}}
-	if !slices.Equal(final.got, want) {
-		t.Errorf("messages = %#v, want %#v", final.got, want)
 	}
 }
 
@@ -169,12 +163,11 @@ func TestProgramFinder(t *testing.T) {
 	tm.Send(press("esc"))
 	waitFor("ghmain")
 	tm.Send(press("ctrl+t"))
-	// The tree shows the file once cmd and cmd/gh-tui are expanded, and
-	// only then may o open it.
+	// The tree shows the file once cmd and cmd/gh-tui are expanded.
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return strings.Count(ansi.Strip(string(b)), ui.NewIcons(config.Default().UI.Icons).Unfolded) >= 2
 	}, teatest.WithDuration(5*time.Second))
-	tm.Send(press("o"))
+	_ = tm.Quit()
 
 	final, _ := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*app)
 	if final.modal != nil {
@@ -182,9 +175,5 @@ func TestProgramFinder(t *testing.T) {
 	}
 	if got := final.section.selected().Path; got != "cmd/gh-tui/main.go" {
 		t.Errorf("tree cursor on %q", got)
-	}
-	want := []tea.Msg{ui.OpenMsg{URL: "https://github.com/eggzec/gh-tui/blob/HEAD/cmd/gh-tui/main.go"}}
-	if !slices.Equal(final.got, want) {
-		t.Errorf("messages = %#v, want %#v", final.got, want)
 	}
 }

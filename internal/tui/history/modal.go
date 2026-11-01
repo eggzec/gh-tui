@@ -231,7 +231,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.PagerLayer("history_patch", &m.commit.pager)}
 	}
 	k := m.keys.state(m)
-	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Open, k.Retry, k.Next, k.Zoom, k.Dismiss})
+	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Retry, k.Next, k.Zoom, k.Dismiss})
 	ctx := paneContext(m.focus, patch)
 	keys, short := k.pane(m.focus)
 	own := keyhelp.Layer{Bindings: keys, Short: short}

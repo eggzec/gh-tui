@@ -12,7 +12,6 @@ global
 
 Linked items
   filter | & | & | on
-  open in browser | o | o | on
   refresh | r | r | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on

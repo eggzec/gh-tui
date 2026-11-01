@@ -5,7 +5,6 @@ always
   help | ? | ? | off
 
 Search (types)
-  browser | o | o | off
   up | up k | ↑/k | off
   down | down j | ↓/j | off
   page up | b ctrl+b pgup | b/^b/pgup | off

@@ -50,7 +50,7 @@ func TestPrivate(t *testing.T) {
 		"future.proxy_url":    true,
 		"sync.poll.lists":     false,
 		"auth.check":          false,
-		"keys.global.open":    false,
+		"keys.global.refresh": false,
 		"themes.mine.dark.fg": false,
 	} {
 		if got := private(key); got != want {

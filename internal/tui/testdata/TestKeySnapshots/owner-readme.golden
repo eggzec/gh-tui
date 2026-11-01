@@ -23,7 +23,6 @@ Profile
   refresh | r | r | on
 
 README
-  browser | o | o | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on

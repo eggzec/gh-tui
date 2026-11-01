@@ -10,7 +10,6 @@ import (
 
 // KeyMap holds the keys of the section. It implements help.KeyMap.
 type KeyMap struct {
-	Open    key.Binding
 	Refresh key.Binding
 	// ResetBase shows the head of the default branch again, once the
 	// files show another base.
@@ -28,7 +27,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	// A preview opens a file, and a directory folds.
 	tk.Open = files.Binding("global.select", "preview")
 	return KeyMap{
-		Open:      files.Binding("global.open", "open"),
 		Refresh:   files.Binding("global.refresh", "refresh"),
 		ResetBase: files.Binding("reset_base", "back to head"),
 		Tree:      tk,
@@ -38,12 +36,12 @@ func newKeyMap(keys config.Keymap) KeyMap {
 // own returns the keys of the section itself, in the order it matches
 // them.
 func (k KeyMap) own() []key.Binding {
-	return []key.Binding{k.Refresh, k.Open, k.ResetBase}
+	return []key.Binding{k.Refresh, k.ResetBase}
 }
 
 // ShortHelp returns the bindings for the short help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Expand, k.Tree.Collapse, k.Tree.ToggleAll, k.Tree.Open, k.Open, k.Refresh, k.ResetBase}
+	return []key.Binding{k.Tree.Up, k.Tree.Down, k.Tree.Expand, k.Tree.Collapse, k.Tree.ToggleAll, k.Tree.Open, k.Refresh, k.ResetBase}
 }
 
 // FullHelp returns the bindings for the full help view.

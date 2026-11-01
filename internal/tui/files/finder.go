@@ -149,15 +149,12 @@ func (s *Section) newFinder() *finderModal {
 	f.ahead.Reset(ctx)
 	src := s.src
 	host, repo, ref := s.host, s.repo, s.ref
-	// The finder lists the files again only when it opens again, and o
-	// types into its query.
+	// The finder lists the files again only when it opens again.
 	v := s.voice
-	v.Retry, v.Open = key.Binding{}, key.Binding{}
-	// The preview loads a file again only when it is chosen again, and
-	// the finder has no key that opens it on GitHub, since it types: the
-	// file's link does, and so does the tree, where reveal shows it.
+	v.Retry = key.Binding{}
+	// The preview loads a file again only when it is chosen again.
 	pv := s.voice
-	pv.Retry, pv.Open = key.Binding{}, key.Binding{}
+	pv.Retry = key.Binding{}
 	f.pager = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(s.rawKeys, "preview"))),
 		pager.WithErrorText(fileErrorText(repo, pv)), pager.WithResizeRest(resizeRest),
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
@@ -428,7 +425,7 @@ func (f *finderModal) showFile(e core.TreeEntry, b core.Blob, err error) tea.Cmd
 		f.pager.SetMessage(e.Path, text)
 		return nil
 	}
-	cmd, _ := fill(&f.pager, e, b, err, key.Binding{}, f.s.icons, f.rendering())
+	cmd, _ := fill(&f.pager, e, b, err, f.s.icons, f.rendering())
 	return tea.Batch(cmd, f.md.lookUp())
 }
 
@@ -447,7 +444,7 @@ func (f *finderModal) redraw() tea.Cmd {
 	if !f.img.redraw(&f.pager) {
 		return nil
 	}
-	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, key.Binding{}, f.s.icons, f.rendering())
+	cmd, _ := fill(&f.pager, f.img.entry, f.img.blob, f.img.err, f.s.icons, f.rendering())
 	return cmd
 }
 

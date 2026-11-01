@@ -388,13 +388,11 @@ func (s *Section) startLines(w, h int) []string {
 }
 
 // startError renders why the repositories offered before the user types
-// failed to load, after a blank line, as notice does. They load once, and
-// the open key opens a recent search or repository, so no hint names a
-// key.
+// failed to load, after a blank line, as notice does. They load once, so
+// no hint names a key.
 func (s *Section) startError(err error, w int) []string {
 	v := s.voice
 	v.Retry.SetEnabled(false)
-	v.Open.SetEnabled(false)
 	text, hint := ui.ErrorText("load your repositories", "", v)(err)
 	lines := ui.ErrorLine(s.errs, text, hint, max(w-2, 1))
 	for i := range lines {
@@ -426,14 +424,14 @@ func (s *Section) renderHit(hit core.SearchHit, selected bool, width int) string
 			glyph = s.icons.Org
 		}
 		return s.spread(st.muted.render(termtext.Cells(glyph, 1))+" "+
-			st.title.render(s.truncate(hit.User.Login, max(width-2, 0))), "", width)
+			s.links.Link(s.userURL(hit.User), st.title.render(s.truncate(hit.User.Login, max(width-2, 0)))), "", width)
 	}
 	if hit.Kind == core.SearchCommits {
 		return s.commitRow(hit.Commit, st, width)
 	}
 	if hit.Kind == core.SearchTopics {
 		return s.spread(st.muted.render(termtext.Cells(s.icons.Glyph(ui.GlyphLabelEvent), 1))+" "+
-			st.title.render(s.truncate(hit.Topic.Name, max(width-2, 0))), "", width)
+			s.links.Link(s.topicURL(hit.Topic), st.title.render(s.truncate(hit.Topic.Name, max(width-2, 0)))), "", width)
 	}
 	is := &hit.Issue
 	repo, num := is.Repo.String(), "#"+strconv.Itoa(is.Number)
@@ -468,8 +466,9 @@ func (s *Section) commitRow(c core.SearchCommit, st *cells, width int) string {
 	if repo != "" {
 		room = max(room-ansi.StringWidth(repo)-1, 0)
 	}
-	head := st.muted.render(termtext.Cells(s.icons.Glyph(ui.GlyphCommit), 1)+" "+sha) + " " +
-		st.title.render(s.truncate(cleanLine(c.Subject), room))
+	head := st.muted.render(termtext.Cells(s.icons.Glyph(ui.GlyphCommit), 1)) + " " +
+		s.links.Link(s.commitURL(c), st.muted.render(sha)+" "+
+			st.title.render(s.truncate(cleanLine(c.Subject), room)))
 	return s.spread(head, repo, width)
 }
 

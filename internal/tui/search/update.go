@@ -194,8 +194,6 @@ func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, k.Select):
 		return s.open(false)
-	case keymap.Matches(msg, k.Open):
-		return s.open(true)
 	case keymap.Matches(msg, k.Checks):
 		return s.openChecks()
 	case keymap.Matches(msg, k.Refresh):
@@ -408,21 +406,33 @@ func (s *Section) hitURL(hit core.SearchHit) string {
 		return s.repoURL(hit.Repo)
 	}
 	if hit.Kind == core.SearchUsers {
-		if hit.User.URL != "" {
-			return hit.User.URL
-		}
-		return ui.WebURL(s.host, hit.User.Login)
+		return s.userURL(hit.User)
 	}
 	if hit.Kind == core.SearchTopics {
-		return ui.WebURL(s.host, "topics/"+hit.Topic.Name)
+		return s.topicURL(hit.Topic)
 	}
 	if hit.Kind == core.SearchCommits {
-		if hit.Commit.URL != "" {
-			return hit.Commit.URL
-		}
-		return ui.WebURL(s.host, hit.Commit.Repo.String()+"/commit/"+hit.Commit.SHA)
+		return s.commitURL(hit.Commit)
 	}
 	return hit.Issue.URL
+}
+
+func (s *Section) userURL(u core.SearchUser) string {
+	if u.URL != "" {
+		return u.URL
+	}
+	return ui.WebURL(s.host, u.Login)
+}
+
+func (s *Section) topicURL(t core.SearchTopic) string {
+	return ui.WebURL(s.host, "topics/"+t.Name)
+}
+
+func (s *Section) commitURL(c core.SearchCommit) string {
+	if c.URL != "" {
+		return c.URL
+	}
+	return ui.WebURL(s.host, c.Repo.String()+"/commit/"+c.SHA)
 }
 
 func (s *Section) repoURL(r core.Repo) string {

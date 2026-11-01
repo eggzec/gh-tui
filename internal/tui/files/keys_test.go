@@ -39,7 +39,7 @@ func TestKeyLayersOrder(t *testing.T) {
 	if !ok {
 		t.Fatalf("enter opened %T, want a preview", h.top())
 	}
-	for k, want := range map[string]string{"o": "File: open", "/": "File: search"} {
+	for k, want := range map[string]string{"o": "nothing", "/": "File: search"} {
 		if got := winner(p.KeyLayers(), k); got != want {
 			t.Errorf("%s reaches %q in the preview, want %q", k, got, want)
 		}

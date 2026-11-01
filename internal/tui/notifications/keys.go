@@ -15,7 +15,6 @@ import (
 // KeyMap holds the keys of the section. It implements help.KeyMap.
 type KeyMap struct {
 	Select   key.Binding
-	Open     key.Binding
 	MarkRead key.Binding
 	MarkDone key.Binding
 	// MarkAllRead is for help, which lists the read all command by it.
@@ -56,7 +55,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	screen := ui.In(keys, ctxScreen)
 	k := KeyMap{
 		Select:   screen.Binding("global.select", "open & read"),
-		Open:     screen.Binding("global.open", "open"),
 		MarkRead: screen.Binding("read", "read"),
 		MarkDone: screen.Binding("done", "done"),
 		// Reading everything is the read command with all, which has no
@@ -83,7 +81,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 }
 
 func (k KeyMap) bindings() []key.Binding {
-	return []key.Binding{k.Select, k.Open, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Refresh}
+	return []key.Binding{k.Select, k.MarkRead, k.MarkDone, k.MarkAllRead, k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Refresh}
 }
 
 // ShortHelp implements help.KeyMap.

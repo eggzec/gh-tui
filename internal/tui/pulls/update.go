@@ -153,11 +153,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.svc.Invalidate(s.repo)
 		s.ahead.Resume()
 		return s.feed.Reload()
-	case keymap.Matches(msg, k.Open):
-		if pr, ok := s.feed.Selected(); ok && pr.URL != "" {
-			return ui.Open(pr.URL)
-		}
-		return nil
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter()
 	case keymap.Matches(msg, k.Sort):

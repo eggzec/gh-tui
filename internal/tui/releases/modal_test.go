@@ -229,7 +229,7 @@ func TestErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), "u", errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "u", errMark + " You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "u", errMark + " You don't have access to charmbracelet/glow"},
 		{"forbidden without a page", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), "", errMark + " You don't have access to charmbracelet/glow"},
 		{"not found", fmt.Errorf("get release: github: 404 Not Found: %w", core.ErrNotFound), "u", errMark + " This doesn't exist or is private."},
 		{"internal", fmt.Errorf("get release: github: decode: %s", termtexttest.Hostile), "u", errMark + " Something went wrong · r to retry"},
@@ -281,14 +281,7 @@ func TestViewFailed(t *testing.T) {
 
 func TestKeys(t *testing.T) {
 	m := newModal(&fakeService{}, 100, 30)
-	// Before the release is read, o opens the page it was opened with.
-	if msgs := run(t, m, press(m, "o")); len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: "https://github.com/charmbracelet/glow/releases"}) {
-		t.Errorf("o before the read = %v", msgs)
-	}
 	run(t, m, m.Init())
-	if msgs := run(t, m, press(m, "o")); len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: v3.URL}) {
-		t.Errorf("o = %v, want the release opened on GitHub", msgs)
-	}
 	msgs := run(t, m, press(m, "esc"))
 	if len(msgs) != 1 || msgs[0] != (ui.CloseModalMsg{Modal: m}) {
 		t.Errorf("esc = %v, want the modal closed", msgs)
@@ -380,9 +373,6 @@ func TestDiagram(t *testing.T) {
 	if !strings.Contains(ansi.Strip(m.View()), "tag --> release") {
 		t.Errorf("select didn't show the code:\n%s", ansi.Strip(m.View()))
 	}
-	if msgs := run(t, m, press(m, "o")); len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: v3.URL}) {
-		t.Errorf("o = %v, want the release opened on GitHub", msgs)
-	}
 }
 
 // changedThenFails serves v3 with fewer files once, as if one was removed,
@@ -414,7 +404,7 @@ func TestFilesErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("get release: github: GET /repos/charmbracelet/glow/releases/1: %w", core.ErrOffline), errMark + " Can't reach GitHub"},
-		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/glow · o to open on GitHub"},
+		{"forbidden", fmt.Errorf("get release: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to charmbracelet/glow"},
 		{"internal", errors.New("get release: github: decode: unexpected EOF"), errMark + " Something went wrong. Details are in the log"},
 	}
 	for _, tt := range tests {
