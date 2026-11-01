@@ -37,17 +37,27 @@ type NoMarkMsg struct {
 	ID string
 }
 
-// Init returns nil: a tree has nothing to start.
-func (m Model) Init() tea.Cmd { return nil }
+// Init returns the command that loads the top level, or nil when the source
+// has it at once or never loads.
+func (m Model) Init() tea.Cmd { return m.lz.boot }
 
-// Update handles keys while the tree is focused.
+// Update handles the results of loads and, while the tree is focused, keys.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	press, ok := msg.(tea.KeyPressMsg)
-	if !ok || !m.focused || len(m.vis) == 0 {
-		return m, nil
+	switch msg := msg.(type) {
+	case childrenMsg:
+		cmd := m.receive(msg)
+		return m, cmd
+	case tickMsg:
+		cmd := m.onTick(msg)
+		return m, cmd
+	case tea.KeyPressMsg:
+		if !m.focused || len(m.vis) == 0 {
+			return m, nil
+		}
+		cmd := m.press(msg)
+		return m, cmd
 	}
-	cmd := m.press(press)
-	return m, cmd
+	return m, nil
 }
 
 func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
@@ -72,11 +82,11 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keyMap.End):
 		m.setCur(m.selectable(len(m.vis)-1, -1))
 	case keymap.Matches(msg, m.keyMap.Expand):
-		m.expand()
+		cmd = m.expand()
 	case keymap.Matches(msg, m.keyMap.Collapse):
 		m.collapse()
 	case keymap.Matches(msg, m.keyMap.ToggleAll):
-		m.toggleAll()
+		cmd = m.toggleAll()
 	case keymap.Matches(msg, m.keyMap.Open):
 		cmd = m.report()
 	case keymap.Matches(msg, m.keyMap.Mark):
@@ -153,23 +163,30 @@ func (m *Model) jump(lines int) {
 	m.bottom = m.cur != prev
 }
 
-// expand opens a closed fold, or moves to the first child of an open one.
-func (m *Model) expand() {
+// expand opens a closed fold and loads its children if they are not there, or
+// moves to the first child of an open one. A fold whose load failed loads
+// again.
+func (m *Model) expand() tea.Cmd {
 	r := m.row(m.cur)
 	if !m.foldAt(m.cur) {
-		return
+		return nil
 	}
+	ri := m.vis[m.cur]
 	if m.closed[r.ID] {
 		m.closed = withKey(m.closed, r.ID, false)
 		m.reflow()
-		return
+		return m.fetch(ri)
+	}
+	if m.wantsLoad(ri) {
+		return m.fetch(ri)
 	}
 	for j := m.cur + 1; j < len(m.vis) && m.row(j).Depth > r.Depth; j++ {
 		if !m.row(j).Skip {
 			m.setCur(j)
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 // collapse closes an open fold, or moves to the nearest ancestor the cursor
@@ -197,7 +214,9 @@ func (m *Model) collapse() {
 
 // toggleAll opens every fold when a fold that shows is closed, else closes
 // every fold.
-func (m *Model) toggleAll() {
+// Opening loads what the branches below have not loaded, within the limits of
+// the tree.
+func (m *Model) toggleAll() tea.Cmd {
 	folds, shut := false, false
 	for i := range m.vis {
 		if m.foldAt(i) {
@@ -206,14 +225,19 @@ func (m *Model) toggleAll() {
 		}
 	}
 	if !folds {
-		return
+		return nil
 	}
+	if shut {
+		return m.expandAll()
+	}
+	m.lz.bulk = bulk{}
 	closed := make(map[string]bool, len(m.closed))
 	for id := range m.closed {
-		closed[id] = !shut
+		closed[id] = true
 	}
 	m.closed = closed
 	m.reflow()
+	return nil
 }
 
 // report sends the row under the cursor as an OpenMsg. It never changes a

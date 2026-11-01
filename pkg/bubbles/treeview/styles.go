@@ -62,6 +62,15 @@ type Styles struct {
 	// that text.
 	Empty     lipgloss.Style
 	EmptyText string
+	// Error styles the text of a failed load, shown after the row that
+	// failed, or in place of the rows when the top level failed.
+	Error lipgloss.Style
+	// Spinner styles the frames of SpinnerFrames, each cut or padded to one
+	// cell, shown in place of the arrow of a row that loads. LoadingText is
+	// shown beside the spinner while the top level loads.
+	Spinner       lipgloss.Style
+	SpinnerFrames []string
+	LoadingText   string
 }
 
 // DefaultStyles returns the default styles for a light or dark terminal.
@@ -91,6 +100,10 @@ func DefaultStyles(isDark bool) Styles {
 		Ellipsis:      "…",
 		Empty:         lipgloss.NewStyle().Foreground(dim),
 		EmptyText:     "Nothing to show.",
+		Error:         lipgloss.NewStyle().Foreground(ld(lipgloss.Color("#c0392b"), lipgloss.Color("#e06c75"))),
+		Spinner:       lipgloss.NewStyle().Foreground(accent),
+		SpinnerFrames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+		LoadingText:   "Loading…",
 	}
 }
 
@@ -101,6 +114,7 @@ type look struct {
 	cursor, blurred          string
 	open, closed             string
 	bg, pin                  string
+	spin                     []string
 	// level is the cells of one level of guides.
 	level int
 }
@@ -127,6 +141,9 @@ func newLook(s Styles) look {
 		bg:      background(s.CursorRow),
 		pin:     background(s.Pinned),
 		level:   guideWidth,
+	}
+	for _, f := range s.SpinnerFrames {
+		l.spin = append(l.spin, s.Spinner.Render(termtext.Cells(f, 1)))
 	}
 	if s.Guides == Indent {
 		l.level = s.IndentWidth

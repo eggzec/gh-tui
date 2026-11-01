@@ -10,15 +10,15 @@
 package treeview
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // tabWidth is the stop that tabs in the text of a row expand to, so a tab
@@ -103,6 +103,15 @@ type Model struct {
 	height  int
 	focused bool
 
+	src      Source
+	ctx      context.Context
+	lz       lazy
+	icon     func(Node) string
+	errText  func(error) string
+	maxNodes int
+	maxDepth int
+	maxLoads int
+
 	rows   []Node
 	closed map[string]bool
 	// folds tells for each of rows whether it folds, and slot whether any
@@ -137,19 +146,28 @@ type Model struct {
 	bottom bool
 }
 
-// New returns a tree with no rows. It starts blurred and takes no key until
-// [WithKeyMap] gives it keys.
-func New(opts ...Option) Model {
+// New returns a tree of the rows src gives. Rows that src has at once show
+// in the tree it returns; the others load when [Model.Init]'s command runs,
+// and a branch loads its children when it is opened. It starts blurred and
+// takes no key until [WithKeyMap] gives it keys.
+func New(src Source, opts ...Option) Model {
 	m := Model{
-		id:     int(nextID.Add(1)),
-		keyMap: NewKeyMap(unbound),
-		closed: map[string]bool{},
+		id:       int(nextID.Add(1)),
+		keyMap:   NewKeyMap(unbound),
+		closed:   map[string]bool{},
+		src:      src,
+		ctx:      context.Background(),
+		errText:  func(err error) string { return err.Error() },
+		maxNodes: DefaultExpandAllNodes,
+		maxDepth: DefaultExpandAllDepth,
+		maxLoads: DefaultMaxLoads,
 	}
 	m.setStyles(DefaultStyles(true))
 	for _, o := range opts {
 		o(&m)
 	}
 	m.reflow()
+	m.lz.boot = m.startLoad("", false)
 	return m
 }
 
@@ -212,24 +230,19 @@ func (m Model) Folded(id string) bool { return m.closed[id] }
 // wherever that row went; if the row is gone it goes to the row now where it
 // was, and if it is hidden by a closed fold, to that fold. The folds keep the
 // state the user left them in. The tree keeps its own copy of rows.
-func (m *Model) SetRows(rows []Node) {
-	next := make([]Node, len(rows))
-	folds := make([]bool, len(rows))
+func (m *Model) SetRows(rows []Node) { m.install(normal(rows, 0)) }
+
+// install makes next, which is already cleaned, the rows, and works out which
+// fold and in what state.
+func (m *Model) install(next []Node) {
+	folds := make([]bool, len(next))
 	closed := make(map[string]bool, len(m.closed))
 	slot := false
-	for i := range rows {
-		r := &next[i]
-		*r = rows[i]
-		r.Depth = max(r.Depth, 0)
-		if len(r.Lines) == 0 && r.Name != "" {
-			r.Lines = []string{termtext.Link(r.Link, r.Name)}
-		}
-		r.Lines = tidy(r.Lines)
-	}
 	for i := range next {
 		r := &next[i]
 		child := i+1 < len(next) && next[i+1].Depth > r.Depth
-		if !r.Branch && !child && len(r.Lines) < 2 {
+		branch := r.Branch && (!m.lz.loaded[r.ID] || child)
+		if !branch && !child && len(r.Lines) < 2 {
 			continue
 		}
 		folds[i], slot = true, true
@@ -240,12 +253,36 @@ func (m *Model) SetRows(rows []Node) {
 		closed[r.ID] = c
 	}
 	m.rows, m.folds, m.slot, m.closed = next, folds, slot, closed
+	if len(m.lz.loaded) > 0 {
+		present := make(map[string]bool, len(next))
+		for i := range next {
+			present[next[i].ID] = true
+		}
+		kept := make(map[string]bool, len(m.lz.loaded))
+		for id := range m.lz.loaded {
+			if id == "" || present[id] {
+				kept[id] = true
+			}
+		}
+		m.lz.loaded = kept
+	}
+	if len(m.lz.busy) > 0 {
+		present := make(map[string]bool, len(next))
+		for i := range next {
+			present[next[i].ID] = true
+		}
+		for id := range m.lz.busy {
+			if id != "" && !present[id] {
+				m.cancel(id)
+			}
+		}
+	}
 	m.reflow()
 }
 
-// Reveal opens the folds above the row with the given ID, puts the cursor on
+// reveal opens the folds above the row with the given ID, puts the cursor on
 // it and scrolls to it. It reports whether there is such a row.
-func (m *Model) Reveal(id string) bool {
+func (m *Model) reveal(id string) bool {
 	r := m.rowIndex(id)
 	if r < 0 {
 		return false
@@ -265,14 +302,19 @@ func (m *Model) Reveal(id string) bool {
 
 // SetFolded opens the fold with the given ID, or closes it when closed is
 // true, and keeps the cursor on its row, or on the fold that now hides it. It
-// does nothing when there is no such fold.
-func (m *Model) SetFolded(id string, closed bool) {
+// does nothing when there is no such fold. Opening a branch that was never
+// loaded returns the command that loads it.
+func (m *Model) SetFolded(id string, closed bool) tea.Cmd {
 	r := m.rowIndex(id)
 	if r < 0 || !m.folds[r] || m.closed[id] == closed {
-		return
+		return nil
 	}
 	m.closed = withKey(m.closed, id, closed)
 	m.reflow()
+	if closed {
+		return nil
+	}
+	return m.fetch(r)
 }
 
 // open opens the closed folds above row r.
@@ -362,7 +404,10 @@ func (m Model) visIndex(id string) int {
 func (m Model) row(i int) Node { return m.rows[m.vis[i]] }
 
 // shut reports whether row r of rows is a fold that hides what follows it.
-func (m Model) shut(r int) bool { return m.folds[r] && m.closed[m.rows[r].ID] }
+// A filter holds every fold open.
+func (m Model) shut(r int) bool {
+	return m.folds[r] && m.closed[m.rows[r].ID] && m.lz.filter == ""
+}
 
 // foldAt reports whether the row at place i of vis folds.
 func (m Model) foldAt(i int) bool { return m.folds[m.vis[i]] }
@@ -385,7 +430,11 @@ func (m Model) lines(i int) int { return m.starts[i+1] - m.starts[i] }
 // puts the cursor back on its row and in view.
 func (m *Model) reflow() {
 	vis := make([]int, 0, len(m.rows))
+	hit := m.filterHits()
 	for i := 0; i < len(m.rows); i++ {
+		if len(hit) > 0 && !hit[i] {
+			continue
+		}
 		vis = append(vis, i)
 		if m.shut(i) {
 			d := m.rows[i].Depth
