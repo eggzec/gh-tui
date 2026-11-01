@@ -122,7 +122,7 @@ func WithAccess(access Access) Option {
 // core.Notification they hold. Bump it when the type changes shape.
 const (
 	kind   = "notifications"
-	schema = 3
+	schema = 4
 )
 
 // New returns a service that reads and writes notifications through api.
