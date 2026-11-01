@@ -37,6 +37,8 @@ type convHost struct {
 	head  string
 	// editing is the node id of the comment the prompt edits.
 	editing string
+	// built is set once model holds a conversation; its zero value must not run.
+	built bool
 }
 
 // editedMsg reports a comment edit.
@@ -67,7 +69,9 @@ func (m *detailModal) buildConv() tea.Cmd {
 	if h == nil {
 		return nil
 	}
-	h.model.Close()
+	if h.built {
+		h.model.Close()
+	}
 	repo, number := m.repo, m.number
 	src := conv.Source{
 		Timeline: func(ctx context.Context, cursor string) (core.Page[core.TimelineItem], error) {
@@ -89,6 +93,7 @@ func (m *detailModal) buildConv() tea.Cmd {
 	h.md.SetGlyphs(m.icons.Markdown)
 	h.md.SetLinkColor(m.theme.LinkColor())
 	voice := ui.Voice{Icons: &m.icons}
+	h.built = true
 	h.model = conv.New(src,
 		conv.WithOptions(conv.Options{
 			Styles: conv.NewStyles(m.theme, m.icons, m.icons.Set()),
@@ -133,6 +138,9 @@ func (m *detailModal) paneReload() tea.Cmd {
 func (m *detailModal) paneUpdate(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	if m.cv != nil {
+		if !m.cv.built {
+			return nil
+		}
 		m.cv.model, cmd = m.cv.model.Update(msg)
 		return cmd
 	}
@@ -142,17 +150,21 @@ func (m *detailModal) paneUpdate(msg tea.Msg) tea.Cmd {
 
 func (m *detailModal) paneSize(w, h int) {
 	if m.cv != nil {
-		m.cv.model.SetSize(w, max(h-m.cvHeaderLines(), 0))
+		if m.cv.built {
+			m.cv.model.SetSize(w, max(h-m.cvHeaderLines(), 0))
+		}
 		return
 	}
 	m.thread.SetSize(w, h)
 }
 
+func (m *detailModal) cvOn() bool { return m.cv != nil && m.cv.built }
+
 func (m *detailModal) paneFocus(on bool) {
 	switch {
-	case m.cv != nil && on:
+	case m.cvOn() && on:
 		m.cv.model.Focus()
-	case m.cv != nil:
+	case m.cvOn():
 		m.cv.model.Blur()
 	case on:
 		m.thread.Focus()
@@ -165,7 +177,10 @@ func (m *detailModal) paneView() string {
 	if m.cv == nil {
 		return m.thread.View()
 	}
-	v := m.cv.model.View()
+	v := ""
+	if m.cv.built {
+		v = m.cv.model.View()
+	}
 	if m.cv.head == "" {
 		return v
 	}
