@@ -8,9 +8,9 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
@@ -21,10 +21,10 @@ const ctxDescription = "pull_description"
 // tree, with the details blocks as folds. Its rows are made again only when
 // the body, the width or the look changes; the first draw makes them.
 type descPane struct {
-	tree foldtree.Model
+	tree treeview.Model
 	md   *markdown.Renderer
 	// rows are the rows in the tree, which the scroll position is counted from.
-	rows []foldtree.Row
+	rows []treeview.Node
 	// built is what the rows were made from, and made says there are rows.
 	built descKey
 	made  bool
@@ -54,15 +54,19 @@ type descKey struct {
 // position returns the line of the cursor, from 1, and the lines the tree
 // shows with its closed folds hidden.
 func (d *descPane) position() (at, total int) {
-	sel, _ := d.tree.Selected()
+	var sel string
+	if n, ok := d.tree.Selected(); ok {
+		sel = n.ID
+	}
 	hide := -1
-	for _, r := range d.rows {
+	for i := range d.rows {
+		r := &d.rows[i]
 		if hide >= 0 && r.Depth > hide {
 			continue
 		}
 		hide = -1
 		n := len(r.Lines)
-		if r.Fold && d.tree.Folded(r.ID) {
+		if r.Branch && d.tree.Folded(r.ID) {
 			n, hide = 1, r.Depth
 		}
 		if r.ID == sel {
@@ -108,7 +112,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 func (d *descPane) sync(m *panesModal, body string, width, height int) {
 	k := descKey{body, width, m.gen, m.pics.PictureRows(m.height), d.pics, d.links}
 	if !d.made {
-		d.tree = foldtree.New(foldtree.WithKeyMap(m.keys.desc))
+		d.tree = treeview.New(treeview.Source{}, treeview.WithKeyMap(m.keys.desc))
 	}
 	d.tree.SetSize(width, height)
 	if d.made && d.built == k {
@@ -127,7 +131,7 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 	}
 	// Images draw as the app's images setting says: none while it is off.
 	d.md.SetPictures(m.pics.Pictures(k.picRows, nil))
-	d.tree.SetStyles(desc.Tree(foldtree.DefaultStyles(m.theme.Dark), m.icons))
+	d.tree.SetStyles(m.theme.TreeView(m.icons))
 	d.rows = desc.Rows(body, desc.Options{Width: width, Styles: desc.NewStyles(m.theme, m.icons, set), MD: d.md})
 	d.tree.SetRows(d.rows)
 	d.built, d.made = k, true

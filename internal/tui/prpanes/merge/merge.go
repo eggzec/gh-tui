@@ -21,7 +21,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -124,10 +124,10 @@ func Count(d Data) int {
 // Rows returns the rows of the blockers in their fixed order, which are open
 // folds where they fold, and what enter on each of them asks for. There are no
 // rows when nothing blocks. The rows share nothing with d.
-func Rows(d Data, o Options) ([]foldtree.Row, checktree.Targets) {
+func Rows(d Data, o Options) ([]treeview.Node, checktree.Targets) {
 	st := &o.Styles
 	targets := checktree.Targets{}
-	var rows []foldtree.Row
+	var rows []treeview.Node
 
 	if checksBlock(d) {
 		co := checktree.Options{Mode: checktree.Merge, Now: o.Now, Width: o.Width}

@@ -10,7 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"
@@ -72,9 +72,9 @@ func commit(runs []core.CommitCheck, statuses ...core.StatusContext) core.Commit
 }
 
 // text draws rows in a tree of width and height, without colors or links.
-func text(tb testing.TB, rows []foldtree.Row, width, height int) string {
+func text(tb testing.TB, rows []treeview.Node, width, height int) string {
 	tb.Helper()
-	m := foldtree.New(foldtree.WithSize(width, height), foldtree.WithRows(rows))
+	m := treeview.New(treeview.Source{}, treeview.WithSize(width, height), treeview.WithRows(rows))
 	lines := strings.Split(ansi.Strip(m.View()), "\n")
 	for i, l := range lines {
 		lines[i] = strings.TrimRight(l, " ")
@@ -83,8 +83,8 @@ func text(tb testing.TB, rows []foldtree.Row, width, height int) string {
 }
 
 // drawn draws rows in a tree of width and height, with its colors and links.
-func drawn(rows []foldtree.Row, width, height int) string {
-	m := foldtree.New(foldtree.WithSize(width, height), foldtree.WithRows(rows))
+func drawn(rows []treeview.Node, width, height int) string {
+	m := treeview.New(treeview.Source{}, treeview.WithSize(width, height), treeview.WithRows(rows))
 	return m.View()
 }
 
@@ -93,19 +93,20 @@ func text1(s string) string { return ansi.Strip(s) }
 func ansiStrip(s string) string { return ansi.Strip(s) }
 
 // ids returns the IDs of rows.
-func ids(rows []foldtree.Row) []string {
+func ids(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.ID)
+	for i := range rows {
+		out = append(out, rows[i].ID)
 	}
 	return out
 }
 
 // first returns the plain first line of each of rows, with its depth as
 // dots.
-func first(rows []foldtree.Row) []string {
+func first(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
+	for i := range rows {
+		r := &rows[i]
 		out = append(out, strings.Repeat(".", r.Depth)+ansi.Strip(r.Lines[0])+" | "+ansi.Strip(r.Right))
 	}
 	return out

@@ -11,7 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
@@ -40,24 +40,25 @@ var lexMu sync.Mutex
 
 // rowsOf returns the rows of body, drawn by Rows with no other test
 // highlighting.
-func rowsOf(body string, o Options) []foldtree.Row {
+func rowsOf(body string, o Options) []treeview.Node {
 	lexMu.Lock()
 	defer lexMu.Unlock()
 	return Rows(body, o)
 }
 
 // tree returns the tree of rows in width cells and height lines.
-func tree(rows []foldtree.Row, width, height int) foldtree.Model {
-	return foldtree.New(
-		foldtree.WithSize(width, height),
-		foldtree.WithStyles(Tree(foldtree.DefaultStyles(true), ui.NewIcons(config.IconsNerd))),
-		foldtree.WithRows(rows),
+func tree(rows []treeview.Node, width, height int) treeview.Model {
+	return treeview.New(
+		treeview.Source{},
+		treeview.WithSize(width, height),
+		treeview.WithStyles(treeview.DefaultStyles(true)),
+		treeview.WithRows(rows),
 	)
 }
 
 // text draws rows as the pane does, without colors or links, with every fold
 // opened when all is set.
-func text(rows []foldtree.Row, width int, all bool) string {
+func text(rows []treeview.Node, width int, all bool) string {
 	m := tree(rows, width, 400)
 	if all {
 		openAll(&m, rows)
@@ -69,23 +70,23 @@ func text(rows []foldtree.Row, width int, all bool) string {
 	return strings.TrimRight(strings.Join(lines, "\n"), "\n") + "\n"
 }
 
-func openAll(m *foldtree.Model, rows []foldtree.Row) {
-	for _, r := range rows {
-		if r.Fold {
-			m.SetFolded(r.ID, false)
+func openAll(m *treeview.Model, rows []treeview.Node) {
+	for i := range rows {
+		if rows[i].Branch {
+			m.SetFolded(rows[i].ID, false)
 		}
 	}
 }
 
-func byID(rows []foldtree.Row) map[string]foldtree.Row {
-	m := make(map[string]foldtree.Row, len(rows))
-	for _, r := range rows {
-		m[r.ID] = r
+func byID(rows []treeview.Node) map[string]treeview.Node {
+	m := make(map[string]treeview.Node, len(rows))
+	for i := range rows {
+		m[rows[i].ID] = rows[i]
 	}
 	return m
 }
 
-func plain(r foldtree.Row) string { return ansi.Strip(strings.Join(r.Lines, "\n")) }
+func plain(r treeview.Node) string { return ansi.Strip(strings.Join(r.Lines, "\n")) }
 
 func TestCounts(t *testing.T) {
 	t.Parallel()
@@ -119,27 +120,8 @@ func TestCounts(t *testing.T) {
 	if got := plain(rows["d0"]); got != "Outer" {
 		t.Errorf("summary = %q", got)
 	}
-	if !rows["d0"].Closed || !rows["d0"].Fold {
+	if !rows["d0"].Closed || !rows["d0"].Branch {
 		t.Error("a block is not a closed fold by default")
-	}
-}
-
-func TestTreeBar(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		set     string
-		wantBar bool
-	}{
-		{config.IconsASCII, false},
-		{config.IconsUnicode, true},
-		{config.IconsNerd, true},
-	} {
-		st := Tree(foldtree.DefaultStyles(true), ui.NewIcons(tc.set))
-		for _, g := range []string{st.Branch, st.Line} {
-			if got := strings.HasPrefix(g, "│"); got != tc.wantBar {
-				t.Errorf("%s: guide %q starts with │ = %v, want %v", tc.set, g, got, tc.wantBar)
-			}
-		}
 	}
 }
 
@@ -178,7 +160,7 @@ func TestFenceIsText(t *testing.T) {
 	t.Parallel()
 	rows := rowsOf("```html\n<details>\n<summary>S</summary>\n```", opts(80))
 	for _, r := range rows {
-		if r.Fold {
+		if r.Branch {
 			t.Errorf("%s folds, from a tag in a fence", r.ID)
 		}
 	}
@@ -234,9 +216,9 @@ func TestDiagram(t *testing.T) {
 	t.Parallel()
 	body := "before\n\n```mermaid\ngraph TD\n  A-->B\n```\n\nafter"
 	rows := rowsOf(body, opts(80))
-	var d foldtree.Row
+	var d treeview.Node
 	for _, r := range rows {
-		if r.Fold {
+		if r.Branch {
 			d = r
 		}
 	}

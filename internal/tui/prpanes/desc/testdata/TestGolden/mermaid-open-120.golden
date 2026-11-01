@@ -1,6 +1,6 @@
-▌The flow:
-   ◆ sequence diagram · 3 lines · View diagram ↗
+▌  The flow:
+ ▾   ◆ sequence diagram · 3 lines · View diagram ↗
    ▏   sequenceDiagram
    ▏     A->>B: hello
    ▏     B-->>A: hi
- After the flow.
+   After the flow.

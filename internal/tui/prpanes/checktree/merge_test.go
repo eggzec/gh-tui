@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 func mergeOpts() Options {
@@ -29,7 +29,7 @@ func TestMergeAllPassing(t *testing.T) {
 	if rows, _ := Rows(c, mergeOpts(), st); len(rows) != 0 {
 		t.Errorf("rows of passing checks = %v, want none", first(rows))
 	}
-	if n := ChecksNode(c, mergeOpts(), st); n.ID != "" || n.Fold {
+	if n := ChecksNode(c, mergeOpts(), st); n.ID != "" || n.Branch {
 		t.Errorf("node of passing checks = %+v, want none", n)
 	}
 }
@@ -73,10 +73,10 @@ func TestChecksNode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			n := ChecksNode(tt.c, mergeOpts(), styles(config.IconsASCII))
-			if got := first([]foldtree.Row{n})[0]; !strings.HasPrefix(got, tt.want) {
+			if got := first([]treeview.Node{n})[0]; !strings.HasPrefix(got, tt.want) {
 				t.Errorf("node = %q, want %q", got, tt.want)
 			}
-			if !n.Fold || !n.Arrow || n.Closed || n.ID != "c1/checks" {
+			if !n.Branch || n.Closed || n.ID != "c1/checks" {
 				t.Errorf("node = %+v, want an open fold with id c1/checks", n)
 			}
 		})
@@ -87,6 +87,6 @@ func TestMergeGolden(t *testing.T) {
 	t.Parallel()
 	st := styles(config.IconsASCII)
 	rows, _ := Rows(mixed(), Options{Mode: Merge, Depth: 1, Now: now, Prefix: "c1/"}, st)
-	rows = append([]foldtree.Row{ChecksNode(mixed(), mergeOpts(), st)}, rows...)
+	rows = append([]treeview.Node{ChecksNode(mixed(), mergeOpts(), st)}, rows...)
 	golden.RequireEqual(t, text(t, rows, 80, 24))
 }

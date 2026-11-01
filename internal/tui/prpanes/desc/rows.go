@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -43,16 +43,6 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	return s
 }
 
-// Tree returns base with the guides the description draws: a dim bar beside
-// the content of an open block, and a corner ending it. The bar is the left
-// border of the icons ic.
-func Tree(base foldtree.Styles, ic ui.Icons) foldtree.Styles {
-	base.Branch = ic.Border.Left + "  "
-	base.Line = ic.Border.Left + "  "
-	base.Last = "╰─ "
-	return base
-}
-
 // Options say how rows are drawn.
 type Options struct {
 	// Width is the cells of the tree the rows are drawn in.
@@ -72,7 +62,7 @@ type Options struct {
 // details block and for each diagram, whose lines the fold holds, and, after
 // the content of an open block, an empty row that ends it. A block's content
 // is one level deeper than its summary.
-func Rows(body string, o Options) []foldtree.Row {
+func Rows(body string, o Options) []treeview.Node {
 	if o.Width <= 1 {
 		return nil
 	}
@@ -87,7 +77,7 @@ type builder struct {
 
 // nodes returns the rows of nodes in the block id at depth, and the number of
 // lines they come to with every block open, not counting the ends of blocks.
-func (b *builder) nodes(nodes []Node, id string, depth int) (rows []foldtree.Row, total int) {
+func (b *builder) nodes(nodes []Node, id string, depth int) (rows []treeview.Node, total int) {
 	for i, n := range nodes {
 		if n.Block == nil {
 			got, lines := b.text(n.Text, fmt.Sprintf("%s/%d", id, i), depth)
@@ -98,7 +88,7 @@ func (b *builder) nodes(nodes []Node, id string, depth int) (rows []foldtree.Row
 		kids, lines := b.nodes(n.Block.Nodes, n.Block.ID, depth+1)
 		rows = append(rows, b.head(n.Block, lines, depth))
 		rows = append(rows, kids...)
-		rows = append(rows, foldtree.Row{
+		rows = append(rows, treeview.Node{
 			ID: n.Block.ID + "/end", Depth: depth + 1, Lines: []string{""}, Skip: true,
 		})
 		total += lines + 1
@@ -107,7 +97,7 @@ func (b *builder) nodes(nodes []Node, id string, depth int) (rows []foldtree.Row
 }
 
 // head returns the row of the summary of block, which hides lines lines.
-func (b *builder) head(block *Block, lines, depth int) foldtree.Row {
+func (b *builder) head(block *Block, lines, depth int) treeview.Node {
 	title := block.Summary
 	if title == "" {
 		title = untitled
@@ -116,19 +106,19 @@ func (b *builder) head(block *Block, lines, depth int) foldtree.Row {
 	if lines == 1 {
 		noun = "line"
 	}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:     block.ID,
 		Depth:  depth,
 		Lines:  []string{b.o.Styles.bold.Render(title)},
 		Marker: fmt.Sprintf("%s %d %s", b.o.Styles.Fold, lines, noun),
-		Fold:   true,
+		Branch: true,
 		Closed: !b.o.Open[block.ID],
 	}
 }
 
 // text returns the rows of the markdown src at depth, whose IDs start with
 // prefix, and how many lines they come to with every diagram open.
-func (b *builder) text(src, prefix string, depth int) (rows []foldtree.Row, total int) {
+func (b *builder) text(src, prefix string, depth int) (rows []treeview.Node, total int) {
 	room := markdown.Room(b.o.Width-1, guide*depth)
 	if room == 0 {
 		return nil, 0
@@ -162,7 +152,7 @@ func (b *builder) text(src, prefix string, depth int) (rows []foldtree.Row, tota
 	}
 	line := func(from, to int) {
 		for ; from < to; from++ {
-			rows = append(rows, foldtree.Row{
+			rows = append(rows, treeview.Node{
 				ID: fmt.Sprintf("%s.%d", prefix, from), Depth: depth, Lines: lines[from : from+1 : from+1],
 			})
 		}
@@ -180,8 +170,8 @@ func (b *builder) text(src, prefix string, depth int) (rows []foldtree.Row, tota
 		}
 		line(at, to)
 		id := fmt.Sprintf("%s.m%d", prefix, h.Block)
-		rows = append(rows, foldtree.Row{
-			ID: id, Depth: depth, Lines: lines[h.Line:h.End:h.End], Fold: true, Closed: !b.o.Open[id],
+		rows = append(rows, treeview.Node{
+			ID: id, Depth: depth, Lines: lines[h.Line:h.End:h.End], Branch: true, Closed: !b.o.Open[id],
 		})
 		at = h.End
 		for at < len(lines) && blank(at) {
@@ -189,8 +179,8 @@ func (b *builder) text(src, prefix string, depth int) (rows []foldtree.Row, tota
 		}
 	}
 	line(at, len(lines))
-	for _, r := range rows {
-		total += len(r.Lines)
+	for i := range rows {
+		total += len(rows[i].Lines)
 	}
 	return rows, total
 }

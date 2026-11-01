@@ -6,7 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Styles are what the rows and lines are drawn with. Build them once, with
@@ -21,7 +21,7 @@ type Styles struct {
 	// Files draws the changed files that an owner owns.
 	Files files.Styles
 
-	tree     foldtree.Styles
+	tree     treeview.Styles
 	warn, ok lipgloss.Style
 	glyphs   ui.GlyphStyles
 	dim      lipgloss.Style
@@ -44,7 +44,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		top = "-"
 	}
 	// The tree of an owner's files has no cursor, so its column stays blank.
-	tree := foldtree.DefaultStyles(t.Dark)
+	tree := t.TreeView(ic)
 	tree.CursorGlyph = " "
 	return Styles{
 		Checks:    ck,
@@ -66,6 +66,6 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 }
 
 // row returns the row of a blocker, which enter does something of its own on.
-func (s *Styles) row(id string, g ui.Glyph, line string) foldtree.Row {
-	return foldtree.Row{ID: id, Lines: []string{s.glyphs.Render(g) + " " + line}, Action: true}
+func (s *Styles) row(id string, g ui.Glyph, line string) treeview.Node {
+	return treeview.Node{ID: id, Lines: []string{s.glyphs.Render(g) + " " + line}, Action: true}
 }

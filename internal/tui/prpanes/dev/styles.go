@@ -6,7 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Glyphs are the marks that the rows draw besides the state of an item.
@@ -35,7 +35,7 @@ func newGlyphs(ic ui.Icons) Glyphs {
 type Styles struct {
 	Glyphs Glyphs
 	// Tree styles the tree that holds the rows.
-	Tree foldtree.Styles
+	Tree treeview.Styles
 
 	icons  ui.Icons
 	states [ui.NumStates]lipgloss.Style
@@ -50,7 +50,7 @@ type Styles struct {
 func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 	s := Styles{
 		Glyphs: newGlyphs(ic),
-		Tree:   foldtree.DefaultStyles(t.Dark),
+		Tree:   t.TreeView(ic),
 		icons:  ic,
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,

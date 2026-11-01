@@ -5,14 +5,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Model is the tree of the people. It holds no keys of its own: the key map of
 // its tree does, and enter on a person comes back as a [FocusPersonMsg].
 type Model struct {
-	tree   foldtree.Model
-	folds  map[string]bool
+	tree   treeview.Model
 	people map[string]Person
 	// commenters is whether the group of the commenters started closed, so
 	// that a conversation that arrives later can still decide it, unless the
@@ -20,9 +19,9 @@ type Model struct {
 	commenters bool
 }
 
-// New returns a model with no rows, made with the options of a foldtree.
-func New(opts ...foldtree.Option) Model {
-	return Model{tree: foldtree.New(opts...)}
+// New returns a model with no rows, made with the options of a treeview.
+func New(opts ...treeview.Option) Model {
+	return Model{tree: treeview.New(treeview.Source{}, opts...)}
 }
 
 // SetData sets what the pane shows. The cursor and the folds stay with the IDs
@@ -30,12 +29,6 @@ func New(opts ...foldtree.Option) Model {
 // folds it.
 func (m *Model) SetData(d Data, o Options) {
 	rows, who := build(d, o)
-	m.folds = map[string]bool{}
-	for _, r := range rows {
-		if r.Fold {
-			m.folds[r.ID] = true
-		}
-	}
 	m.people = who
 	was := m.commenters
 	m.commenters = DefaultFolds(d)[idCommenters]
@@ -49,7 +42,7 @@ func (m *Model) SetData(d Data, o Options) {
 // Update handles keys while the tree is focused, and turns the enter that its
 // tree reports into the message of the row.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	enter, ok := msg.(foldtree.EnterMsg)
+	enter, ok := msg.(treeview.OpenMsg)
 	if !ok {
 		var cmd tea.Cmd
 		m.tree, cmd = m.tree.Update(msg)
@@ -62,16 +55,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		focus := FocusPersonMsg{Login: p.Login, Team: p.Team, Name: p.Name}
 		return m, func() tea.Msg { return focus }
 	}
-	if m.folds[enter.ID] {
-		m.tree.SetFolded(enter.ID, !m.tree.Folded(enter.ID))
-	}
 	return m, nil
 }
 
 // Selected returns the person or team under the cursor, and false on a row
 // that stands for none.
 func (m Model) Selected() (Person, bool) {
-	id, ok := m.tree.Selected()
+	n, ok := m.tree.Selected()
+	id := n.ID
 	if !ok {
 		return Person{}, false
 	}
@@ -80,19 +71,24 @@ func (m Model) Selected() (Person, bool) {
 }
 
 // SelectedID returns the ID of the row under the cursor, as [Rows] names it.
-func (m Model) SelectedID() (string, bool) { return m.tree.Selected() }
+func (m Model) SelectedID() (string, bool) {
+	n, ok := m.tree.Selected()
+	return n.ID, ok
+}
 
 // OnAssignees reports whether the cursor is on the Assignees group or on one
 // of its rows.
 func (m Model) OnAssignees() bool {
-	id, ok := m.tree.Selected()
+	n, ok := m.tree.Selected()
+	id := n.ID
 	return ok && (id == idAssignees || id == idEmptyAssignees || strings.HasPrefix(id, "assignee:"))
 }
 
 // OnReviewers reports whether the cursor is on the Reviewers group or on one
 // of its rows.
 func (m Model) OnReviewers() bool {
-	id, ok := m.tree.Selected()
+	n, ok := m.tree.Selected()
+	id := n.ID
 	return ok && (id == idReviewers || id == idEmptyReviewers || strings.HasPrefix(id, "reviewer:"))
 }
 
@@ -106,13 +102,13 @@ func (m Model) ID() int { return m.tree.ID() }
 func (m *Model) SetSize(width, height int) { m.tree.SetSize(width, height) }
 
 // SetKeyMap sets the key bindings of the tree.
-func (m *Model) SetKeyMap(k foldtree.KeyMap) { m.tree.SetKeyMap(k) }
+func (m *Model) SetKeyMap(k treeview.KeyMap) { m.tree.SetKeyMap(k) }
 
 // KeyMap returns the key bindings of the tree.
-func (m Model) KeyMap() foldtree.KeyMap { return m.tree.KeyMap() }
+func (m Model) KeyMap() treeview.KeyMap { return m.tree.KeyMap() }
 
 // SetStyles sets the styles of the tree.
-func (m *Model) SetStyles(s foldtree.Styles) { m.tree.SetStyles(s) }
+func (m *Model) SetStyles(s treeview.Styles) { m.tree.SetStyles(s) }
 
 // Focus makes the tree take keys, and Blur makes it ignore them.
 func (m *Model) Focus() { m.tree.Focus() }

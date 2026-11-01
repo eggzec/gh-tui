@@ -17,9 +17,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // updaterService is a fake service that can update a branch, which the shared
@@ -75,7 +75,7 @@ func mergePanes(t *testing.T, edit func(*core.PullRequestDetail)) (*panesModal, 
 func enter(t *testing.T, m *panesModal) {
 	t.Helper()
 	cmd := m.Update(keymap.ActionPress("global.select"))
-	msg, ok := find[foldtree.EnterMsg](cmd)
+	msg, ok := find[treeview.OpenMsg](cmd)
 	if !ok {
 		t.Fatal("enter chose no row")
 	}

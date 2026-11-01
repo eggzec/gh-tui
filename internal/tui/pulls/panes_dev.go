@@ -11,9 +11,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // devPane is the Development pane of a modal: the tree of what the pull
@@ -348,7 +348,7 @@ func (m *panesModal) pressDev(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // in place of the modal, which the back key returns to. A link that can't be
 // read says why instead. The rows of a group, of more and of none do nothing
 // here: the tree folds a group itself.
-func (m *panesModal) enterDev(msg foldtree.EnterMsg) tea.Cmd {
+func (m *panesModal) enterDev(msg treeview.OpenMsg) tea.Cmd {
 	if m.dev == nil || msg.Tree != m.dev.model.ID() {
 		return nil
 	}

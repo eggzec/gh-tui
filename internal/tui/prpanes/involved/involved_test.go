@@ -13,8 +13,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 var t0 = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
@@ -70,7 +70,7 @@ func everything() Data {
 
 func frame(d Data, o Options, width int) string {
 	rows := Rows(d, o)
-	tree := foldtree.New(foldtree.WithSize(width, len(rows)), foldtree.WithRows(rows))
+	tree := treeview.New(treeview.Source{}, treeview.WithSize(width, len(rows)), treeview.WithRows(rows))
 	lines := strings.Split(tree.View(), "\n")
 	for i, l := range lines {
 		lines[i] = strings.TrimRight(l, " ")
@@ -222,13 +222,13 @@ func TestEmptyRowsHaveNoAction(t *testing.T) {
 
 func TestEnter(t *testing.T) {
 	t.Parallel()
-	m := New(foldtree.WithSize(80, 30), foldtree.WithKeyMap(foldtree.NewKeyMap(keytest.Table(map[string][]string{
+	m := New(treeview.WithSize(80, 30), treeview.WithKeyMap(treeview.NewKeyMap(keytest.Table(map[string][]string{
 		"up": {"up"}, "down": {"down"}, "global.select": {"enter"},
-	}))), foldtree.WithFocused(true))
+	}))), treeview.WithFocused(true))
 	m.SetData(everything(), Options{Styles: styles(t, true)})
 	enter := func(id string) tea.Msg {
 		var cmd tea.Cmd
-		m, cmd = m.Update(foldtree.EnterMsg{Tree: m.ID(), ID: id})
+		m, cmd = m.Update(treeview.OpenMsg{Tree: m.ID(), ID: id})
 		if cmd == nil {
 			return nil
 		}
@@ -243,12 +243,8 @@ func TestEnter(t *testing.T) {
 	if m.Folded("group:reviewers") {
 		t.Fatal("reviewers start closed")
 	}
-	if msg := enter("group:reviewers"); msg != nil || !m.Folded("group:reviewers") {
-		t.Errorf("enter on a header: msg %v, closed %v", msg, m.Folded("group:reviewers"))
-	}
-	enter("group:reviewers")
-	if m.Folded("group:reviewers") {
-		t.Error("enter again did not open the group")
+	if msg := enter("group:reviewers"); msg != nil || m.Folded("group:reviewers") {
+		t.Errorf("enter on a header: msg %v, closed %v; want no message and the fold kept", msg, m.Folded("group:reviewers"))
 	}
 	if p, ok := m.Selected(); !ok || p.Login != "ann" {
 		t.Errorf("selected = %+v, %v; want the author", p, ok)
@@ -257,7 +253,7 @@ func TestEnter(t *testing.T) {
 
 func TestCommentersFollowTheDefaultUntilFolded(t *testing.T) {
 	t.Parallel()
-	m := New(foldtree.WithSize(80, 30))
+	m := New(treeview.WithSize(80, 30))
 	o := Options{Styles: styles(t, true)}
 	m.SetData(Data{Author: user("ann", "Ann")}, o)
 	m.SetData(everything(), o)

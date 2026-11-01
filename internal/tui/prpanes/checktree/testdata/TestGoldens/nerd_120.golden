@@ -1,18 +1,18 @@
 ▌▾   CI #12                                                                                                     failed
- ├─  lint                                                                                                passed · 1m 5s
+ ├─    lint                                                                                              passed · 1m 5s
  ├─ ▾  test                                                                                              2 of 3 failing
- │  ├─  linux                                                                                            failed · 1m 5s
- │  ├─  osx                                                                                              passed · 1m 5s
- │  ╰─  windows                                                                                          failed · 1m 5s
+ │  ├─    linux                                                                                          failed · 1m 5s
+ │  ├─    osx                                                                                            passed · 1m 5s
+ │  ╰─    windows                                                                                        failed · 1m 5s
  ╰─ ▾  build                                                                                             2 of 2 running
-    ├─  docs                                                                                              running · 12s
-    ╰─  site                                                                                              running · 12s
+    ├─    docs                                                                                            running · 12s
+    ╰─    site                                                                                            running · 12s
  ▾   Deploy #7                                                                                                  passed
- ╰─  deploy                                                                                              passed · 1m 5s
+ ╰─    deploy                                                                                            passed · 1m 5s
  ▾   Codecov                                                                                                    failed
- ├─  coverage                                                                                       3 findings · failed
- ╰─  patch                                                                                                 passed · 30s
+ ├─    coverage                                                                                     3 findings · failed
+ ╰─    patch                                                                                               passed · 30s
  ▾  Other checks                                                                                                 passed
- ╰─  legacy                                                                                                passed · 30s
-   ci/other                                                                                           ci/other pending
-   ci/old                                                                                               ci/old success
+ ╰─    legacy                                                                                              passed · 30s
+     ci/other                                                                                         ci/other pending
+     ci/old                                                                                             ci/old success

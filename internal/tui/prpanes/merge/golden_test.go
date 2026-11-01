@@ -8,14 +8,14 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // frame draws the pane as the modal does, with its styling: the branch line,
 // the rows in a tree as high as they are, the rule and the actions line.
 func frame(d Data, o Options) string {
 	rows, _ := Rows(d, o)
-	tree := foldtree.New(foldtree.WithSize(o.Width, max(len(rows), 1)), foldtree.WithRows(rows))
+	tree := treeview.New(treeview.Source{}, treeview.WithSize(o.Width, max(len(rows), 1)), treeview.WithRows(rows))
 	body := strings.Split(tree.View(), "\n")
 	lines := make([]string, 0, len(body)+3)
 	lines = append(lines, Branch(d, o))

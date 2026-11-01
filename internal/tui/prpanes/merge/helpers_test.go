@@ -9,7 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"
@@ -110,19 +110,19 @@ func everything() Data {
 func plain(s string) string { return ansi.Strip(s) }
 
 // ids returns the IDs of rows.
-func ids(rows []foldtree.Row) []string {
+func ids(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.ID)
+	for i := range rows {
+		out = append(out, rows[i].ID)
 	}
 	return out
 }
 
 // first returns the plain first line of each of rows.
-func first(rows []foldtree.Row) []string {
+func first(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, plain(r.Lines[0]))
+	for i := range rows {
+		out = append(out, plain(rows[i].Lines[0]))
 	}
 	return out
 }

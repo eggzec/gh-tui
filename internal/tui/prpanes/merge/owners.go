@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // OwnersState says how far the read of the code owners has come.
@@ -118,7 +119,7 @@ func ownersPreview(d Data, o Options) Preview {
 				fs = append(fs, f)
 			}
 		}
-		out = append(out, st.treeLines(files.Tree(fs, 0, fo), o.Width)...)
+		out = append(out, st.treeLines(nodesOf(files.Tree(fs, 0, fo)), o.Width)...)
 	}
 	p.Body = strings.Join(out, "\n")
 	return p
@@ -248,18 +249,14 @@ func (s *Styles) dimWrap(text string, width int) string {
 
 // treeLines draws rows, which are one line each, as a tree that nothing has
 // the cursor in, in width cells.
-func (s *Styles) treeLines(rows []foldtree.Row, width int) []string {
+func (s *Styles) treeLines(rows []treeview.Node, width int) []string {
 	if len(rows) == 0 {
 		return nil
 	}
 	if width <= 0 {
 		width = widest(rows)
 	}
-	m := foldtree.New()
-	m.SetStyles(s.tree)
-	m.SetRows(rows)
-	m.SetSize(width, len(rows))
-	lines := strings.Split(m.View(), "\n")
+	lines := strings.Split(treeview.Render(rows, width, s.tree), "\n")
 	for i, l := range lines {
 		lines[i] = strings.TrimRight(l, " ")
 		if ansi.StringWidth(lines[i]) == 0 {
@@ -269,12 +266,26 @@ func (s *Styles) treeLines(rows []foldtree.Row, width int) []string {
 	return lines
 }
 
+// nodesOf returns the rows of a foldtree as the rows of a treeview, for the
+// file rows that the files pane still builds as a foldtree.
+func nodesOf(rows []foldtree.Row) []treeview.Node {
+	out := make([]treeview.Node, len(rows))
+	for i, r := range rows {
+		out[i] = treeview.Node{
+			ID: r.ID, Depth: r.Depth, Lines: r.Lines, Marker: r.Marker, Right: r.Right,
+			Branch: r.Fold, Closed: r.Closed, Action: r.Action, Skip: r.Skip, Kind: r.Kind, Inline: r.Inline,
+		}
+	}
+	return out
+}
+
 // widest is the width that cuts none of rows, for a tree where the host has
 // no limit. Each level takes four cells for its guides, cursor and arrow, and
 // two more are left for the marker's gap.
-func widest(rows []foldtree.Row) int {
+func widest(rows []treeview.Node) int {
 	w := 0
-	for _, r := range rows {
+	for j := range rows {
+		r := &rows[j]
 		for i, l := range r.Lines {
 			n := (r.Depth+1)*4 + ansi.StringWidth(l)
 			if i == 0 {

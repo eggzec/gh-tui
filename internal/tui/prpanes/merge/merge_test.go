@@ -10,8 +10,8 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 func TestBlockerOrder(t *testing.T) {
@@ -29,11 +29,11 @@ func TestBlockerOrder(t *testing.T) {
 		if !r.Action {
 			t.Errorf("row %q has no action", r.ID)
 		}
-		if r.Fold || r.Skip {
+		if r.Branch || r.Skip {
 			t.Errorf("row %q folds or is skipped: %+v", r.ID, r)
 		}
 	}
-	if !rows[0].Fold || rows[0].Action {
+	if !rows[0].Branch || rows[0].Action {
 		t.Errorf("checks node = %+v, want a fold that toggles", rows[0])
 	}
 	wantText := []string{
@@ -224,7 +224,7 @@ func TestIDsSurviveARefresh(t *testing.T) {
 			t.Errorf("id %q is not in both refreshes: %q, %q", id, ids(a), ids(b))
 		}
 	}
-	for _, rows := range [][]foldtree.Row{a, b} {
+	for _, rows := range [][]treeview.Node{a, b} {
 		seen := map[string]bool{}
 		for _, r := range rows {
 			if seen[r.ID] {
@@ -236,19 +236,23 @@ func TestIDsSurviveARefresh(t *testing.T) {
 }
 
 // keys binds what the tests press.
-var keys = foldtree.NewKeyMap(keymap.Func(func(action string) []string {
+var keys = treeview.NewKeyMap(keymap.Func(func(action string) []string {
 	switch action {
 	case "down":
 		return []string{"j"}
 	case "global.select":
 		return []string{"enter"}
+	case "collapse":
+		return []string{"left"}
+	case "expand":
+		return []string{"right"}
 	}
 	return nil
 }))
 
 func newModel(tb testing.TB, d Data) Model {
 	tb.Helper()
-	m := New(foldtree.WithSize(100, 30), foldtree.WithKeyMap(keys), foldtree.WithFocused(true))
+	m := New(treeview.WithSize(100, 30), treeview.WithKeyMap(keys), treeview.WithFocused(true))
 	rows, targets := Rows(d, opts(tb, 100))
 	m.SetRows(rows, targets)
 	return m
@@ -295,9 +299,9 @@ func TestEnter(t *testing.T) {
 			if got != w {
 				t.Errorf("enter on %q = %v, want %v", r.ID, got, w)
 			}
-		case r.Fold:
-			if got != nil || !m.Folded(r.ID) {
-				t.Errorf("enter on fold %q = %v, folded = %v, want a toggle", r.ID, got, m.Folded(r.ID))
+		case r.Branch:
+			if got != nil || m.Folded(r.ID) {
+				t.Errorf("enter on fold %q = %v, folded = %v, want nothing and the fold kept", r.ID, got, m.Folded(r.ID))
 			}
 		default:
 			if got != targets[r.ID] {
@@ -316,7 +320,7 @@ func TestEnter(t *testing.T) {
 func TestEnterOfAnotherTreeIsIgnored(t *testing.T) {
 	t.Parallel()
 	m := newModel(t, everything())
-	if _, cmd := m.Update(foldtree.EnterMsg{Tree: m.ID() + 1000, ID: "draft"}); cmd != nil {
+	if _, cmd := m.Update(treeview.OpenMsg{Tree: m.ID() + 1000, ID: "draft"}); cmd != nil {
 		t.Error("enter of another tree gave a command")
 	}
 }
@@ -325,9 +329,9 @@ func TestFoldsAndCursorSurviveARefresh(t *testing.T) {
 	t.Parallel()
 	d := everything()
 	m := newModel(t, d)
-	m, _ = enter(m)
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	if !m.Folded("checks") {
-		t.Fatal("enter on the checks node did not fold it")
+		t.Fatal("left on the checks node did not fold it")
 	}
 	m, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	sel, _ := m.Selected()
@@ -361,7 +365,7 @@ func TestHostileInputStaysInsideTheWidth(t *testing.T) {
 	for _, width := range []int{20, 40, 54, 80} {
 		o := opts(t, width)
 		rows, _ := Rows(d, o)
-		tree := foldtree.New(foldtree.WithSize(width, 50), foldtree.WithRows(rows))
+		tree := treeview.New(treeview.Source{}, treeview.WithSize(width, 50), treeview.WithRows(rows))
 		lines := append([]string{Branch(d, o), Actions(d, o), Rule(o)}, strings.Split(tree.View(), "\n")...)
 		for _, l := range lines {
 			if w := ansi.StringWidth(l); w > width {

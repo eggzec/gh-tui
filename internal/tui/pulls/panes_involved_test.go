@@ -58,8 +58,8 @@ func TestInvolvedEnter(t *testing.T) {
 		m.Update(keyMsg("j"))
 		was := m.inv.tree.Folded("group:reviewers")
 		run(m, m.Update(keyMsg("enter")))
-		if m.inv.tree.Folded("group:reviewers") == was {
-			t.Error("enter on the header didn't toggle the fold")
+		if m.inv.tree.Folded("group:reviewers") != was {
+			t.Error("enter on the header changed the fold")
 		}
 	})
 }

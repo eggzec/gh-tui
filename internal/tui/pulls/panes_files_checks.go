@@ -44,7 +44,7 @@ func (m *panesModal) filesRows(width int, folded bool) []foldtree.Row {
 				Width:  width,
 			}, f.checkStyles)
 			maps.Copy(targets, t)
-			return rows
+			return checktree.FoldRows(rows)
 		}
 	}
 	f.targets = targets

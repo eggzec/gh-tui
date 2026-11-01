@@ -19,9 +19,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // panesIDs numbers the modals, so that each takes the detail it asked for
@@ -447,7 +447,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return msg.o.update(msg)
 	default:
 		// Several panes have a tree, and each enter carries the ID of its tree.
-		if enter, ok := msg.(foldtree.EnterMsg); ok {
+		if enter, ok := msg.(treeview.OpenMsg); ok {
 			if enter.Tree == m.inv.tree.ID() {
 				return m.involvedEnter(enter)
 			}

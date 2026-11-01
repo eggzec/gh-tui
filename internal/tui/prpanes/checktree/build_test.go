@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
@@ -53,7 +53,7 @@ func TestRowsRightParts(t *testing.T) {
 	rows, _ := Rows(mixed(), opts(), styles(config.IconsASCII))
 	byID := map[string]string{}
 	for _, r := range rows {
-		byID[r.ID] = strings.TrimLeft(first([]foldtree.Row{r})[0], ".")
+		byID[r.ID] = strings.TrimLeft(first([]treeview.Node{r})[0], ".")
 	}
 	for id, want := range map[string]string{
 		"c1/run/1":         "x > CI #12 | failed",
@@ -85,7 +85,7 @@ func TestGroupsEqualCoreGroupJobs(t *testing.T) {
 	rows, _ := Rows(commit(runs), opts(), styles(config.IconsASCII))
 	var folds, leaves int
 	for _, r := range rows[1:] {
-		if r.Fold {
+		if r.Branch {
 			folds++
 		} else {
 			leaves++

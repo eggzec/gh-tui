@@ -1,10 +1,10 @@
 ▌▾ Closes 3
- ├─  #12 Crash on empty input
- │  ├─ blocked by  #9 Parser rewrite
- │  ╰─ +2 more
- ├─  acme/lib#7 Shared helper is slow
- ╰─ +1 more
+ ├─ ▾  #12 Crash on empty input
+ │  ├─   blocked by  #9 Parser rewrite
+ │  ╰─   +2 more
+ ├─    acme/lib#7 Shared helper is slow
+ ╰─   +1 more
  ▾ Linked PRs 2
- ├─  #30 Follow-up cleanup
- ├─  #31 Merged sibling
- ╰─ more on GitHub
+ ├─    #30 Follow-up cleanup
+ ├─    #31 Merged sibling
+ ╰─   more on GitHub

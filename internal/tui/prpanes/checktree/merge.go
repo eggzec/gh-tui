@@ -4,14 +4,14 @@ import (
 	"strconv"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // ChecksNode returns the row that heads the checks of c in the merge pane: how
 // many fail, and how many still run, with the rows of [Rows] in [Merge] mode
 // under it. It returns the zero row when nothing fails or runs, and then the
 // caller shows no node.
-func ChecksNode(c core.CommitChecks, o Options, st Styles) foldtree.Row {
+func ChecksNode(c core.CommitChecks, o Options, st Styles) treeview.Node {
 	var failing, running int
 	count := func(s core.CheckState) {
 		switch s {
@@ -39,7 +39,7 @@ func ChecksNode(c core.CommitChecks, o Options, st Styles) foldtree.Row {
 	case running > 0:
 		text = b.line(st.icon(core.CheckPending), "Checks running") + b.dim(" "+strconv.Itoa(running))
 	default:
-		return foldtree.Row{}
+		return treeview.Node{}
 	}
 	return b.fold(o.Prefix+"checks", o.Depth, text, "")
 }
