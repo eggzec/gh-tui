@@ -161,6 +161,7 @@ pkg/bubbles/tree/options.go:DefaultExpandAllNodes  keep: a bubble's own default,
 pkg/bubbles/tree/options.go:DefaultMaxLoads  keep: a bubble's own default, a bound on loads at once
 pkg/bubbles/tree/options.go:DefaultMinName  keep: a bubble's own default, a layout measure
 pkg/bubbles/tree/options.go:DefaultScrollOff  keep: a bubble's own default, a layout measure
-pkg/markdown/code.go:renderLexLimit  keep: a bound on highlighting
+pkg/bubbles/treeview/model.go:defaultIndent  keep: a bubble's own default, a layout measure
+pkg/markdown/code.go:renderLexLimit keep: a bound on highlighting
 pkg/syntax/lex.go:Limit  keep: a bound on highlighting
 pkg/syntax/lex.go:Wait  keep: a bound on highlighting

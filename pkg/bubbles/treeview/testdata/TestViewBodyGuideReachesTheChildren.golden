@@ -1,0 +1,14 @@
+▌▾ head               
+▌│  body one          
+▌│  body two          
+ ├─   first child     
+ ╰─ ▾ second child    
+    │  child body     
+    │  a long child b…
+    ├─   grandchild   
+    ╰─   last grandch…
+ ▾ other              
+ │  other body        
+ ╰─   only child      
+                      
+                      
