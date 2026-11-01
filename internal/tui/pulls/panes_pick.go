@@ -191,7 +191,11 @@ type tickOverlay[K comparable] struct {
 	change func(on, was map[K]bool) tea.Cmd
 	// locked, when set, answers an attempt to change a locked row.
 	locked func(picker.Item) tea.Cmd
-	done   bool
+	// flat is a short list that keeps its order: no rule between the ticked
+	// and the others, each move named in the footer, and the keys of the
+	// search not offered while typing.
+	flat bool
+	done bool
 }
 
 func (o *tickOverlay[K]) title() string           { return o.p.Title(o.heading) }
@@ -199,7 +203,12 @@ func (o *tickOverlay[K]) kind() panes.OverlayKind { return panes.Picker }
 
 // items is the rows of the picker and the rule between the ticked and the
 // others.
-func (o *tickOverlay[K]) items() int   { return o.rows + 1 }
+func (o *tickOverlay[K]) items() int {
+	if o.flat {
+		return o.rows
+	}
+	return o.rows + 1
+}
 func (o *tickOverlay[K]) text() int    { return 0 }
 func (o *tickOverlay[K]) clear() bool  { return false }
 func (o *tickOverlay[K]) closed() bool { return o.done }
@@ -209,18 +218,21 @@ func (o *tickOverlay[K]) typing() bool { return o.p.Typing() }
 
 func (o *tickOverlay[K]) layers() []keyhelp.Layer {
 	ctx := "picker_normal"
-	if o.p.Typing() {
+	if o.p.Typing() && !o.flat {
 		ctx = "picker"
 	}
-	return []keyhelp.Layer{ui.ContextHelp(ctx, labelsHelp{&o.p}, false)}
+	return []keyhelp.Layer{ui.ContextHelp(ctx, labelsHelp{&o.p, o.flat}, false)}
 }
 
 // labelsHelp is the picker's help with a footer that says what the keys do
 // here: space ticks a label and enter applies the ticks.
-type labelsHelp struct{ p *picker.Model }
+type labelsHelp struct {
+	p    *picker.Model
+	flat bool
+}
 
 func (h labelsHelp) ShortHelp() []key.Binding {
-	if h.p.Typing() {
+	if h.p.Typing() && !h.flat {
 		return h.p.ShortHelp()
 	}
 	k := h.p.KeyMap()
@@ -228,6 +240,9 @@ func (h labelsHelp) ShortHelp() []key.Binding {
 	toggle.SetHelp(toggle.Help().Key, "toggle")
 	apply := k.Choose
 	apply.SetHelp(apply.Help().Key, "apply")
+	if h.flat {
+		return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Search, toggle, apply, k.Cancel}
+	}
 	return []key.Binding{moving(k.Normal.Down, k.Normal.Up), k.Normal.Search, toggle, apply, k.Cancel}
 }
 
