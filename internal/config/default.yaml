@@ -553,6 +553,9 @@ keys:
     # Open the command line at the bottom of the screen, where commands
     # such as goto are typed. As in vim.
     command: [":"]
+    # Open the menu of what the selected item can do, with the key each
+    # action has. Terminals that report every key send it as the Menu key.
+    menu: [menu]
     refresh: [r]
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.

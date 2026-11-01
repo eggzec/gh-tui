@@ -64,6 +64,9 @@ func (m *Model) View() tea.View {
 	v := tea.NewView(screen)
 	v.AltScreen = true
 	v.ReportFocus = true
+	// Terminals send the Menu key only as an escape code of the kitty
+	// protocol.
+	v.KeyboardEnhancements = tea.KeyboardEnhancements{ReportAllKeysAsEscapeCodes: true}
 	v.WindowTitle = "gh-tui"
 	return v
 }

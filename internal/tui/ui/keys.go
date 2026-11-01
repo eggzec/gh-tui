@@ -204,10 +204,14 @@ func ContextHelp(ctx string, km help.KeyMap, typing bool) keyhelp.Layer {
 // would of layers of their own.
 func MergeLayers(ctx string, layers ...keyhelp.Layer) keyhelp.Layer {
 	out := ContextLayer(ctx, nil, nil)
-	for _, l := range layers {
+	var menu []key.Binding
+	for i := range layers {
+		l := &layers[i]
 		out.Bindings = append(out.Bindings, l.Bindings...)
 		out.Typing = out.Typing || l.Typing
+		menu = append(menu, l.MenuItems()...)
 	}
+	out.SetMenu(menu)
 	for _, l := range slices.Backward(layers) {
 		out.Short = append(out.Short, l.Short...)
 	}

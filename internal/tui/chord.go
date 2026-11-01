@@ -74,8 +74,8 @@ func (m *Model) startsChord(msg tea.KeyPressMsg) bool {
 		return false
 	}
 	name := msg.String()
-	for _, l := range layers {
-		for _, b := range l.Bindings {
+	for i := range layers {
+		for _, b := range layers[i].Bindings {
 			if !b.Enabled() {
 				continue
 			}

@@ -69,6 +69,8 @@ const (
 	// ActionCommand opens the command line at the bottom of the screen,
 	// where commands such as goto are typed.
 	ActionCommand = "global.command"
+	// ActionMenu opens the menu of the actions of the selected item.
+	ActionMenu = "global.menu"
 	// ActionSelect opens or chooses what is under the cursor, and
 	// ActionDismiss clears what is transient and then closes what is
 	// open.
