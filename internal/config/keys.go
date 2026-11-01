@@ -433,6 +433,14 @@ func placeClashes(err error, sets func(path string) bool) error {
 // that does two things, and those that the app would match before the
 // action it belongs to, between global, a screen or modal, and its panes.
 // Unknown contexts and actions are left to validate.
+// inModal reports whether c is a modal, or a pane of one.
+func inModal(c Context) bool {
+	if c.Reach == ReachPane {
+		c, _ = LookupContext(c.Parent)
+	}
+	return c.Modal
+}
+
 func (k Keymap) clashes() []error {
 	known := actions()
 	// bound returns the actions of ctx that are known, by key.
@@ -494,7 +502,9 @@ func (k Keymap) clashes() []error {
 		for _, key := range slices.Sorted(maps.Keys(keys)) {
 			for _, name := range keys[key] {
 				inner := "keys." + c.Name + "." + name
-				if g, ok := global[key]; ok {
+				// A modal takes its keys before the menu key is read, so
+				// the global menu may share a key with what a modal binds.
+				if g, ok := global[key]; ok && (g[0] != "menu" || !inModal(c)) {
 					add(key, "keys.global."+g[0], "", inner)
 				}
 				if o, ok := outer[key]; ok {

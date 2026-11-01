@@ -554,8 +554,10 @@ keys:
     # such as goto are typed. As in vim.
     command: [":"]
     # Open the menu of what the selected item can do, with the key each
-    # action has. Terminals that report every key send it as the Menu key.
-    menu: [menu]
+    # action has. x does the same, for keyboards with no Menu key; it works
+    # on a list only, since a modal, the command line and an input take it
+    # first.
+    menu: [menu, x]
     refresh: [r]
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.
@@ -707,7 +709,7 @@ keys:
     star: []
     # Go to the repository this one is a fork of, or, on a repository you
     # have forked, to your fork.
-    fork_switch: [x]
+    fork_switch: [U]
   # Repository: the file tree.
   files:
     up: [up, k]

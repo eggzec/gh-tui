@@ -3,7 +3,7 @@
 global
   help | ? | ? | on
   command | : | : | on
-  menu | menu | menu | on
+  menu | menu x | menu/x | on
   quit | q ctrl+c | q | on
   search | S | S | on
   find file | ctrl+p | ^p | on
@@ -23,7 +23,7 @@ Repository
   history | B | B | on
   actions | A | A | on
   star |  |  | off
-  fork/parent | x | x | off
+  fork/parent | U | U | off
 
 Pull requests
   merge | M | M | on

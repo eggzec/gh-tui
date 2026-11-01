@@ -78,7 +78,7 @@ func (s *fakeSection) got(match func(tea.Msg) bool) bool {
 type sectionKeys struct{}
 
 func (sectionKeys) ShortHelp() []key.Binding {
-	return []key.Binding{key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "close"))}
+	return []key.Binding{key.NewBinding(key.WithKeys("Z"), key.WithHelp("Z", "close"))}
 }
 func (k sectionKeys) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
@@ -445,7 +445,7 @@ type backKeys struct{}
 
 func (backKeys) ShortHelp() []key.Binding {
 	return []key.Binding{
-		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "close")),
+		key.NewBinding(key.WithKeys("Z"), key.WithHelp("Z", "close")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	}
 }
@@ -481,7 +481,7 @@ func TestZoomHelp(t *testing.T) {
 	}
 	check("unzoomed", []string{"esc back"}, []string{"z zoom", "esc back"}, "z unzoom")
 	run(m, m.key(press("z")))
-	check("zoomed", []string{"z unzoom", "esc back", "x close"}, []string{"z unzoom", "esc back"}, "esc unzoom", "z zoom")
+	check("zoomed", []string{"z unzoom", "esc back", "Z close"}, []string{"z unzoom", "esc back"}, "esc unzoom", "z zoom")
 	m.Update(tea.WindowSizeMsg{Width: 60, Height: 24})
 	check("at 60 columns", []string{"esc back"}, []string{"esc back"}, "z unzoom", "z zoom")
 }
@@ -694,8 +694,8 @@ func TestRepoScreenStartsEveryPane(t *testing.T) {
 func TestKeysGoToTheFocusedPaneOnly(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
-	run(m, m.key(press("x")))
-	if !fakes[0].got(isKey("x")) || fakes[1].got(isKey("x")) || fakes[3].got(isKey("x")) {
+	run(m, m.key(press("Z")))
+	if !fakes[0].got(isKey("Z")) || fakes[1].got(isKey("Z")) || fakes[3].got(isKey("Z")) {
 		t.Error("x should reach only the focused pane")
 	}
 }
@@ -1087,14 +1087,14 @@ func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
 	s := onScreen(m)
-	for _, want := range []string{"x close", "S search", "I notifications", "? help", "q quit"} {
+	for _, want := range []string{"Z close", "S search", "I notifications", "? help", "q quit"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("the bar lacks %q:\n%s", want, s)
 		}
 	}
 	height := fakes[0].height
 	rows := helpRows(t, m)
-	for _, want := range []string{"tab next pane", "1 2 3 focus pane", "x close", "? help"} {
+	for _, want := range []string{"tab next pane", "1 2 3 focus pane", "Z close", "? help"} {
 		if !slices.Contains(rows, want) {
 			t.Errorf("the help lacks %q: %q", want, rows)
 		}
@@ -1126,7 +1126,7 @@ func TestMissingSectionsAreLeftOut(t *testing.T) {
 	rankFakes(empty)
 	empty.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(empty, empty.Init())
-	run(empty, empty.key(press("x")))
+	run(empty, empty.key(press("Z")))
 	if h := lipgloss.Height(empty.View().Content); h != 24 {
 		t.Errorf("empty app is %d lines high, want 24", h)
 	}

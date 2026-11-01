@@ -43,6 +43,30 @@ func TestMenuEntriesOfThePullsList(t *testing.T) {
 	}
 }
 
+func TestMenuXKeyOpensOnAListOnly(t *testing.T) {
+	t.Parallel()
+	m := keysAfter(t, true, "global.pane_2")
+	driveKeys(t, m, m.key(press("x")))
+	menu, ok := m.modals.Top().(*menuModal)
+	if !ok {
+		t.Fatalf("top modal = %T after x on a list, want the menu", m.modals.Top())
+	}
+
+	// In a modal, x is the modal's key: it opens nothing over it.
+	driveKeys(t, m, m.key(press("x")))
+	if m.modals.Top() != menu {
+		t.Errorf("top modal = %T after x in a modal, want the same menu", m.modals.Top())
+	}
+
+	// In the command line, x is typed.
+	n := keysAfter(t, true, "global.pane_2")
+	driveKeys(t, n, n.openLine())
+	driveKeys(t, n, n.key(press("x")))
+	if n.modals.Top() != nil || !n.line.Focused() {
+		t.Errorf("after x in the command line: modal %T, line focused %v; want no modal and the line open", n.modals.Top(), n.line.Focused())
+	}
+}
+
 func TestMenuChoosingClosesThenPresses(t *testing.T) {
 	t.Parallel()
 	m := keysAfter(t, true, "global.pane_2")

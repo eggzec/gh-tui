@@ -3,7 +3,7 @@
 global
   help | ? | ? | on
   command | : | : | on
-  menu | menu | menu | on
+  menu | menu x | menu/x | on
   quit | q ctrl+c | q | on
   search | S | S | on
   find file | ctrl+p | ^p | off

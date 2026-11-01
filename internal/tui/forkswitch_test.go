@@ -36,7 +36,7 @@ func TestForkSwitchKey(t *testing.T) {
 				remote: map[core.RepoRef]core.Repo{parent: {Ref: parent}, mine: {Ref: mine}},
 			}
 			m, _ := newGotoApp(t, repos, WithRepo(testRepo))
-			tap(t, m, "x")
+			tap(t, m, "U")
 			if m.screen != repoScreen || m.repo != tt.want {
 				t.Errorf("screen %d with %v, want the repository screen of %v", m.screen, m.repo, tt.want)
 			}
