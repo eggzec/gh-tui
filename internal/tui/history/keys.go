@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -46,7 +47,7 @@ type KeyMap struct {
 	Retry key.Binding
 	// Branches and Files move through the branches and the files of a
 	// commit, and Graph through the commits.
-	Branches graph.KeyMap
+	Branches feed.KeyMap
 	Files    graph.KeyMap
 	Graph    graph.KeyMap
 	// form holds the keys of the filter form.
@@ -78,7 +79,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ResetBase: modal.Binding("reset_base", "back to head"),
 		Open:      modal.Binding("global.open", "browser"),
 		Retry:     modal.Binding("global.refresh", "retry"),
-		Branches:  graph.NewKeyMap(branches),
+		Branches:  feed.NewKeyMap(branches),
 		Files:     graph.NewKeyMap(files),
 		Graph:     g,
 		form:      ui.FilterFormKeys(keys, "filter"),

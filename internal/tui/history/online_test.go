@@ -60,9 +60,9 @@ func TestOnlineRetriesOnce(t *testing.T) {
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("reads after two OnlineMsg = %q, want %q", got, tt.want)
 			}
-			if tt.want != nil && (m.branches.err != nil || m.graph.model.Err() != nil || m.commit.err != nil || !m.commit.loaded) {
+			if tt.want != nil && (m.branches.feed.Err() != nil || m.graph.model.Err() != nil || m.commit.err != nil || !m.commit.loaded) {
 				t.Errorf("once online: branches %v, history %v, commit %v, loaded %v; want them all",
-					m.branches.err, m.graph.model.Err(), m.commit.err, m.commit.loaded)
+					m.branches.feed.Err(), m.graph.model.Err(), m.commit.err, m.commit.loaded)
 			}
 		})
 	}
@@ -93,11 +93,8 @@ func TestOnlineReadsKeptAgain(t *testing.T) {
 		}
 	}
 	// The head read, then the history shown again from its first page.
-	if want := []string{"branches again", "commits main", "commits main"}; !slices.Equal(got, want) {
+	if want := []string{"branches", "commits main", "commits main"}; !slices.Equal(got, want) {
 		t.Errorf("reads after two OnlineMsg = %q, want %q", got, want)
-	}
-	if m.branches.kept {
-		t.Error("branches still kept once read again")
 	}
 	if c, ok := m.graph.model.At(0); !ok || c.ID != moved[0].SHA {
 		t.Errorf("first commit shown = %v, %v; want the new head %s", c.ID, ok, short(moved[0].SHA))
@@ -121,7 +118,7 @@ func TestOnlineKeepsBranchOfLaterPage(t *testing.T) {
 	f.limited = true
 	m, h := newModal(t, f, 108, 30)
 	h.keys("shift+tab", "end", "end")
-	if b, _ := m.branches.selected(); b.Name != "fix/c" {
+	if b, _ := m.branches.feed.Selected(); b.Name != "fix/c" {
 		t.Fatalf("cursor on %q, want fix/c", b.Name)
 	}
 	f.mu.Lock()
@@ -129,10 +126,10 @@ func TestOnlineKeepsBranchOfLaterPage(t *testing.T) {
 	f.mu.Unlock()
 
 	h.run(func() tea.Msg { return ui.OnlineMsg{} })
-	if b, _ := m.branches.selected(); b.Name != "fix/c" || m.branches.follow != "" {
-		t.Errorf("cursor on %q, following %q; want back on fix/c", b.Name, m.branches.follow)
+	if b, _ := m.branches.feed.Selected(); b.Name != "fix/c" {
+		t.Errorf("cursor on %q; want back on fix/c", b.Name)
 	}
-	if n := len(m.branches.items); n != 15 {
+	if n := m.branches.feed.Len(); n != 15 {
 		t.Errorf("%d branches listed, want both pages", n)
 	}
 }
@@ -160,7 +157,7 @@ func TestOnlineFollowEndsAtMaxBranchPages(t *testing.T) {
 	f.limited = true
 	m, h := newModal(t, f, 108, 30)
 	h.keys("shift+tab", "j", "j", "j")
-	if b, _ := m.branches.selected(); b.Name != "feat/2" {
+	if b, _ := m.branches.feed.Selected(); b.Name != "feat/2" {
 		t.Fatalf("cursor on %q, want feat/2", b.Name)
 	}
 	f.mu.Lock()
@@ -180,8 +177,8 @@ func TestOnlineFollowEndsAtMaxBranchPages(t *testing.T) {
 	if reads != maxBranchPages {
 		t.Errorf("read %d pages of branches, want %d of %d", reads, maxBranchPages, pages)
 	}
-	if b := &m.branches; b.follow != "" || b.loading || b.next != "" {
-		t.Errorf("following %q, loading %v, next %q; want the follow ended", b.follow, b.loading, b.next)
+	if b := &m.branches; b.feed.Seeking() {
+		t.Error("still seeking the deleted branch; want the follow ended")
 	}
 }
 
@@ -244,18 +241,12 @@ func twoPages() *fake {
 func TestFilterWaitsForEveryPage(t *testing.T) {
 	m, h := newModal(t, twoPages(), 108, 30)
 	h.take()
-	var held []tea.Msg
-	h.skip = func(msg tea.Msg) bool {
-		b, ok := msg.(branchesMsg)
-		return ok && b.cursor == "2"
-	}
+	held := holdFeed(h)
 	h.keys("backspace", "f")
-	held = h.take()
-	h.skip = nil
-	if openedFilter(held) || !m.branches.wanted {
+	if openedFilter(h.take()) || !m.branches.wanted {
 		t.Fatalf("the form opened before the last page; wanted %v", m.branches.wanted)
 	}
-	h.run(m.loadBranches("2", true))
+	h.release(held)
 	if !openedFilter(h.take()) || m.branches.wanted {
 		t.Error("the form didn't open once the last page landed")
 	}
@@ -291,10 +282,7 @@ func TestFilterWaitEndsWhenTheUserMovesOn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m, h := newModal(t, twoPages(), 108, 30)
 			h.take()
-			h.skip = func(msg tea.Msg) bool {
-				b, ok := msg.(branchesMsg)
-				return ok && b.cursor == "2"
-			}
+			held := holdFeed(h)
 			h.keys("backspace", "f")
 			h.take()
 			if !m.branches.wanted {
@@ -302,11 +290,10 @@ func TestFilterWaitEndsWhenTheUserMovesOn(t *testing.T) {
 			}
 			h.keys(tt.key)
 			h.take()
-			h.skip = nil
 			if m.branches.wanted {
 				t.Fatalf("%s left the form wanted", tt.key)
 			}
-			h.run(m.loadBranches("2", true))
+			h.release(held)
 			if openedFilter(h.take()) {
 				t.Error("the last page opened a form the user moved on from")
 			}
@@ -320,17 +307,10 @@ func TestFilterOpensOnAReadError(t *testing.T) {
 	f := twoPages()
 	m, h := newModal(t, f, 108, 30)
 	h.take()
-	h.skip = func(msg tea.Msg) bool {
-		b, ok := msg.(branchesMsg)
-		return ok && b.cursor == "2"
-	}
-	h.keys("backspace", "f")
-	h.skip = nil
-	h.take()
 	f.mu.Lock()
 	f.errs["branches"] = fmt.Errorf("github: GET: %w", core.ErrOffline)
 	f.mu.Unlock()
-	h.run(m.loadBranches("2", true))
+	h.keys("backspace", "f")
 	if !openedFilter(h.take()) {
 		t.Fatal("the form didn't open after the read failed")
 	}
@@ -352,7 +332,8 @@ func TestFilterSpec(t *testing.T) {
 	if fd.Key != "branch" || fd.Kind != filterform.Choice || fd.Label != "Branch" {
 		t.Errorf("field %q %q %v, want a Choice branch", fd.Key, fd.Label, fd.Kind)
 	}
-	for i, br := range m.branches.items {
+	for i := range m.branches.feed.Len() {
+		br, _ := m.branches.feed.LoadedItem(i)
 		want := ""
 		if br.Name == m.branches.defaultBranch {
 			want = "default"
@@ -361,7 +342,7 @@ func TestFilterSpec(t *testing.T) {
 			t.Errorf("option %d is %+v, want %q with detail %q", i, o, br.Name, want)
 		}
 	}
-	if b, _ := m.branches.selected(); fl.Query != "branch:"+b.Name {
+	if b, _ := m.branches.feed.Selected(); fl.Query != "branch:"+b.Name {
 		t.Errorf("query %q, want the branch under the cursor %q", fl.Query, b.Name)
 	}
 }
@@ -369,9 +350,9 @@ func TestFilterSpec(t *testing.T) {
 // TestApplyFilterFollowsAMissingBranch checks that a branch no page loaded
 // yet is followed rather than selected.
 func TestApplyFilterFollowsAMissingBranch(t *testing.T) {
-	m, h := newModal(t, newFake(), 108, 30)
-	h.run(m.ApplyFilter(filterform.AppliedMsg{Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("fix/c")}}))
-	if m.branches.follow != "fix/c" || m.graph.shown() != "fix/c" {
-		t.Errorf("following %q, graph of %q; want fix/c", m.branches.follow, m.graph.shown())
+	m, h := newModal(t, twoPages(), 108, 30)
+	h.run(m.ApplyFilter(filterform.AppliedMsg{Values: map[string]filterform.Value{fieldBranch: filterform.TextValue("fix/b")}}))
+	if b, _ := m.branches.feed.Selected(); b.Name != "fix/b" || m.graph.shown() != "fix/b" {
+		t.Errorf("cursor on %q, graph of %q; want fix/b", b.Name, m.graph.shown())
 	}
 }

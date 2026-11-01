@@ -45,11 +45,6 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
-	case branchesMsg:
-		if msg.id != m.id {
-			return nil
-		}
-		return m.receiveBranches(msg)
 	case branchRestMsg:
 		if msg.id != m.id {
 			return nil
@@ -109,7 +104,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		if msg.Err != nil || msg.Key != historysvc.SyncKey(m.repo) {
 			return nil
 		}
-		return tea.Batch(m.loadBranches("", false), m.readHead())
+		return tea.Batch(m.branches.feed.Reload(), m.readHead())
 	case spinner.TickMsg:
 		if msg.ID == m.spin.ID() {
 			return m.spin.Update(msg, m.loading())
@@ -119,7 +114,7 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	graphCmd := m.updateGraph(msg)
 	var cmd tea.Cmd
 	m.commit.pager, cmd = m.commit.pager.Update(msg)
-	return tea.Batch(graphCmd, cmd)
+	return tea.Batch(graphCmd, cmd, m.updateBranches(msg))
 }
 
 // press handles a key: an open filter or pager search takes every key, the
@@ -181,6 +176,11 @@ func (m *Modal) setFocus(p pane) {
 	if p != branchPane {
 		m.branches.wanted = false
 	}
+	if p == branchPane {
+		m.branches.feed.Focus()
+	} else {
+		m.branches.feed.Blur()
+	}
 	if p == graphPane {
 		m.graph.model.Focus()
 	} else {
@@ -226,7 +226,7 @@ func (m *Modal) dismiss() tea.Cmd {
 func (m *Modal) useSelected() tea.Cmd {
 	switch m.focus {
 	case branchPane:
-		br, ok := m.branches.selected()
+		br, ok := m.branches.feed.Selected()
 		if !ok {
 			return nil
 		}
@@ -275,7 +275,7 @@ func (m *Modal) useBase(base ui.BaseMsg) tea.Cmd {
 func (m *Modal) open() tea.Cmd {
 	switch m.focus {
 	case branchPane:
-		if br, ok := m.branches.selected(); ok {
+		if br, ok := m.branches.feed.Selected(); ok {
 			return ui.Open(m.branchURL(br.Name))
 		}
 	case graphPane:
@@ -302,16 +302,8 @@ func (m *Modal) open() tea.Cmd {
 // read again too; the history is shown again if its head moved. What is
 // being read already is left to finish.
 func (m *Modal) online() tea.Cmd {
-	var branches, head tea.Cmd
-	switch b := &m.branches; {
-	case b.kept && !b.loading:
-		// Reading from the first page also reads again a later page
-		// that failed.
-		b.err = nil
-		branches = m.loadBranches("", true)
-	case ui.Unreached(b.err):
-		branches = m.retryBranches()
-	}
+	var head tea.Cmd
+	branches := ui.RetryUnreached(&m.branches.feed)
 	if k := m.graph.kept; k != nil && k.CompareAndSwap(true, false) {
 		head = m.readHead()
 	}

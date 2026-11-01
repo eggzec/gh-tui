@@ -1,11 +1,11 @@
 package history
 
 import (
-	"cmp"
 	"context"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	historysvc "github.com/eggzec/gh-tui/internal/service/history"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -30,26 +31,10 @@ const branchPageAt = 10
 // branches is the branch pane: the branches of the repository, the default
 // one first.
 type branches struct {
-	items []core.Branch
-	// next is the cursor of the next page, and pages the pages read.
-	next    string
-	pages   int
-	loaded  bool
-	loading bool
-	err     error
-	// kept reports that a page shown was served from what an earlier read
-	// kept, because GitHub couldn't be reached or rate limited the read,
-	// so the branches are read again once it answers.
-	kept bool
-	// follow names the branch the cursor was on when the branches were
-	// read again from the first page, until a page brings it back or the
-	// user moves, so that the cursor returns to it from a later page.
-	follow string
+	feed feed.Model[core.Branch]
 	// wanted reports that the filter waits for the last page of branches,
 	// which its branch field chooses from, to open.
 	wanted bool
-
-	cursor, top int
 	// defaultBranch is listed first, and the others are compared with it.
 	defaultBranch string
 	// compares holds how far each branch compared is from the default.
@@ -57,14 +42,8 @@ type branches struct {
 	// seq counts the moves of the cursor, so that only the last rest
 	// compares.
 	seq int
-}
-
-// branchesMsg carries a page of branches read after cursor.
-type branchesMsg struct {
-	id     int64
-	cursor string
-	page   core.Page[core.Branch]
-	err    error
+	// seen names the branch the cursor was last found on.
+	seen string
 }
 
 // branchRestMsg reports that the cursor rested on a branch.
@@ -86,173 +65,109 @@ func (b *branches) init(defaultBranch string) {
 	b.compares = map[string]core.Compare{}
 }
 
-// selected returns the branch under the cursor.
-func (b *branches) selected() (core.Branch, bool) {
-	if b.cursor < 0 || b.cursor >= len(b.items) {
-		return core.Branch{}, false
+// branchFetch reads the pages of branches for the feed. The default branch
+// leads the first page, as it is the one most often looked at, and the pages
+// stop at maxBranchPages.
+func (m *Modal) branchFetch() feed.Fetch[core.Branch] {
+	svc, repo, def := m.svc, m.repo, m.branches.defaultBranch
+	query := func(cursor string) historysvc.BranchesQuery {
+		return historysvc.BranchesQuery{Repo: repo, Cursor: cursor}
 	}
-	return b.items[b.cursor], true
-}
-
-// index returns the index of the branch named name, or -1.
-func (b *branches) index(name string) int {
-	return slices.IndexFunc(b.items, func(br core.Branch) bool { return br.Name == name })
-}
-
-// loadBranches reads the page of branches after cursor. With again set,
-// the read asks GitHub rather than serving the page an earlier session kept
-// once more.
-func (m *Modal) loadBranches(cursor string, again bool) tea.Cmd {
-	m.branches.loading = true
-	svc, ctx, repo, id := m.svc, m.ctx, m.repo, m.id
-	return tea.Batch(m.spin.Start(), func() tea.Msg {
-		ctx, end := obs.Begin(ctx, "history.branches")
-		p, err := svc.Branches(ctx, historysvc.BranchesQuery{Repo: repo, Cursor: cursor, Again: again})
-		end(err, "span", "tui", "repo", repo.String(), "first", cursor == "", "stale", p.Stale, "offline", p.Offline, "limited", p.Limited)
-		return branchesMsg{id: id, cursor: cursor, page: p, err: err}
-	})
-}
-
-// receiveBranches takes a page of branches. A first page kept by an earlier
-// session is shown while it is read again.
-func (m *Modal) receiveBranches(msg branchesMsg) tea.Cmd {
-	b := &m.branches
-	if msg.cursor != "" && msg.cursor != b.next {
-		return nil
+	read := func(ctx context.Context, q historysvc.BranchesQuery, again bool) (core.Page[core.Branch], error) {
+		q.Again = again
+		return svc.Branches(ctx, q)
 	}
-	b.loading = false
-	if msg.err != nil {
-		b.err = msg.err
-		// The read stops here, so the filter lists what loaded.
-		return m.openWanted()
-	}
-	b.err = nil
-	selected, _ := b.selected()
-	if msg.cursor == "" {
-		if b.follow == "" {
-			b.follow = selected.Name
+	pages := ui.FeedPages("history.branches", query, read)
+	var mu sync.Mutex
+	number := map[string]int{"": 1}
+	return func(ctx context.Context, cursor string) ([]core.Branch, string, error) {
+		items, next, err := pages(ctx, cursor)
+		mu.Lock()
+		n := number[cursor]
+		if next != "" {
+			number[next] = n + 1
 		}
-		b.items, b.pages, b.kept = nil, 0, false
-	}
-	b.kept = b.kept || msg.page.Offline || msg.page.Limited
-	b.items = append(slices.Clip(b.items), msg.page.Items...)
-	b.pages++
-	b.next = msg.page.Next
-	if b.pages >= maxBranchPages {
-		b.next = ""
-	}
-	// The default branch leads, as it is the one most often looked at.
-	if i := b.index(b.defaultBranch); i > 0 {
-		d := b.items[i]
-		b.items = slices.Insert(slices.Delete(b.items, i, i+1), 0, d)
-	}
-	first := !b.loaded
-	b.loaded = true
-	switch name := cmp.Or(b.follow, selected.Name); {
-	case first:
-		b.cursor = max(b.index(m.graph.shown()), 0)
-		b.follow = ""
-	case name != "":
-		if i := b.index(name); i >= 0 {
-			b.cursor, b.follow = i, ""
+		mu.Unlock()
+		if n >= maxBranchPages {
+			next = ""
 		}
+		if err != nil {
+			return items, next, err
+		}
+		i := slices.IndexFunc(items, func(b core.Branch) bool { return b.Name == def })
+		switch {
+		case cursor != "":
+			// The first page lists the default branch, so it isn't listed twice.
+			if i >= 0 {
+				items = slices.Delete(slices.Clone(items), i, i+1)
+			}
+		case i > 0:
+			items = slices.Clone(items)
+			d := items[i]
+			items = slices.Insert(slices.Delete(items, i, i+1), 0, d)
+		case i < 0 && def != "":
+			// GitHub may list the default branch on a later page; it leads
+			// the list all the same, and only its name is shown.
+			items = append([]core.Branch{{Name: def}}, items...)
+		}
+		return items, next, nil
 	}
-	if b.next == "" {
-		// No page left to bring it back.
-		b.follow = ""
-	}
-	b.clamp()
-	m.scrollBranches()
-	cmds := []tea.Cmd{m.moreBranches(), m.openWanted()}
-	if msg.page.Stale && msg.cursor == "" {
-		cmds = append(cmds, m.loadBranches("", true))
-	}
-	if first {
-		cmds = append(cmds, m.branchMoved())
-	}
-	return tea.Batch(cmds...)
 }
 
-func (b *branches) clamp() {
-	b.cursor = min(max(b.cursor, 0), max(len(b.items)-1, 0))
+// newBranchFeed returns the feed of the branches.
+func (m *Modal) newBranchFeed() feed.Model[core.Branch] {
+	return feed.New(m.branchFetch(), func(br core.Branch, selected bool, w int) string {
+		return m.branchRow(br, selected, w)
+	},
+		feed.WithContext(m.ctx),
+		feed.WithKey(func(br core.Branch) string { return br.Name }),
+		feed.WithPrefetch(branchPageAt),
+		feed.WithKeyMap(m.keys.Branches),
+		feed.WithEmptyText(ui.None("branches")),
+		feed.WithErrorText(ui.ErrorText("load the branches", m.repo.String(), *m.opts.voice)),
+	)
 }
 
-// moreBranches reads the next page when the cursor nears the end of the
-// branches loaded, or while the filter is open, which filters them all.
-func (m *Modal) moreBranches() tea.Cmd {
+// updateBranches passes a message to the feed, then reacts to what it
+// changed: a cursor on another branch, and the pages the filter waits for.
+func (m *Modal) updateBranches(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+	m.branches.feed, cmd = m.branches.feed.Update(msg)
+	return tea.Batch(cmd, m.branchSeen(), m.openWanted())
+}
+
+// branchSeen starts the comparisons of the branch under the cursor when it
+// is not the one last seen there, however the cursor got to it.
+func (m *Modal) branchSeen() tea.Cmd {
 	b := &m.branches
-	if b.next == "" || b.loading || b.err != nil {
+	br, ok := b.feed.Selected()
+	if !ok || br.Name == b.seen {
 		return nil
 	}
-	if !b.wanted && b.follow == "" && b.cursor+branchPageAt < len(b.items) {
-		return nil
-	}
-	// A later page is appended where it goes rather than shown and read
-	// again, so it reads past what an earlier session kept of it.
-	return m.loadBranches(b.next, true)
-}
-
-// scrollBranches keeps the cursor in the window of the branch pane.
-func (m *Modal) scrollBranches() {
-	b := &m.branches
-	h := max(m.bodyHeight(), 1)
-	b.top = min(b.top, b.cursor)
-	if b.cursor >= b.top+h {
-		b.top = b.cursor - h + 1
-	}
-	b.top = max(min(b.top, len(b.items)-h), 0)
+	b.seen = br.Name
+	return m.branchMoved()
 }
 
 // pressBranches handles a key in the branch pane.
 func (m *Modal) pressBranches(msg tea.KeyPressMsg) tea.Cmd {
 	b := &m.branches
-	k := m.keys.Branches
-	page := max(m.bodyHeight(), 1)
-	before := b.cursor
 	switch {
 	case keymap.Matches(msg, m.keys.Select):
-		br, ok := b.selected()
+		br, ok := b.feed.Selected()
 		if !ok {
 			return nil
 		}
 		return m.showBranch(br.Name)
 	case keymap.Matches(msg, m.keys.Filter):
 		return m.openFilter()
-	case keymap.Matches(msg, m.keys.Retry):
-		if b.err == nil {
-			return nil
-		}
-		return m.retryBranches()
-	case keymap.Matches(msg, k.Up):
-		b.cursor--
-	case keymap.Matches(msg, k.Down):
-		b.cursor++
-	case keymap.Matches(msg, k.PageUp):
-		b.cursor -= page
-	case keymap.Matches(msg, k.PageDown):
-		b.cursor += page
-	case keymap.Matches(msg, k.HalfPageUp):
-		b.cursor -= max(page/2, 1)
-	case keymap.Matches(msg, k.HalfPageDown):
-		b.cursor += max(page/2, 1)
-	case keymap.Matches(msg, k.Home):
-		b.cursor = 0
-	case keymap.Matches(msg, k.End):
-		b.cursor = len(b.items) - 1
-	default:
-		return nil
 	}
-	b.follow = ""
-	b.clamp()
-	m.scrollBranches()
-	if b.cursor != before {
+	before := b.feed.Index()
+	cmd := m.updateBranches(msg)
+	if b.feed.Index() != before {
 		// The user moved on, so the filter no longer waits for the pages.
 		b.wanted = false
 	}
-	if b.cursor == before {
-		return nil
-	}
-	return tea.Batch(m.branchMoved(), m.moreBranches())
+	return cmd
 }
 
 // branchMoved starts the delay after which the branch under the cursor is
@@ -266,7 +181,7 @@ func (m *Modal) branchMoved() tea.Cmd {
 func (m *Modal) branchRest() tea.Cmd {
 	b := &m.branches
 	b.seq++
-	br, ok := b.selected()
+	br, ok := b.feed.Selected()
 	if !ok || !m.comparable(br.Name) {
 		return nil
 	}
@@ -292,17 +207,19 @@ type branchPair struct {
 // itself, whatever they say.
 func (m *Modal) compareAround() tea.Cmd {
 	b := &m.branches
+	cursor := b.feed.Index()
 	at := func(j int) (branchPair, bool) {
-		if j == b.cursor || j < 0 || j >= len(b.items) || !m.comparable(b.items[j].Name) {
+		br, ok := b.feed.LoadedItem(j)
+		if j == cursor || !ok || !m.comparable(br.Name) {
 			return branchPair{}, false
 		}
-		return branchPair{b.defaultBranch, b.items[j].Name}, true
+		return branchPair{b.defaultBranch, br.Name}, true
 	}
 	// Until the branches are listed, there is no window.
-	if !b.loaded {
+	if !b.feed.Settled() {
 		at = nil
 	}
-	return m.compares.Window(at, b.cursor)
+	return m.compares.Window(at, cursor)
 }
 
 // readCompare compares the branches of k ahead of their use, for
@@ -327,7 +244,7 @@ func (m *Modal) comparable(name string) bool {
 // default branch, unless the cursor moved on.
 func (m *Modal) compare(msg branchRestMsg) tea.Cmd {
 	b := &m.branches
-	br, ok := b.selected()
+	br, ok := b.feed.Selected()
 	if msg.seq != b.seq || !ok || !m.comparable(br.Name) {
 		return nil
 	}
@@ -341,17 +258,6 @@ func (m *Modal) compare(msg branchRestMsg) tea.Cmd {
 		end(err, "span", "tui", "repo", repo.String(), "head", br.Name)
 		return compareMsg{id: id, branch: br.Name, cmp: c, err: err}
 	}
-}
-
-// retryBranches reads again the page of branches that failed.
-func (m *Modal) retryBranches() tea.Cmd {
-	b := &m.branches
-	b.err = nil
-	cursor := ""
-	if b.loaded {
-		cursor = b.next
-	}
-	return m.loadBranches(cursor, false)
 }
 
 // receiveCompare keeps a comparison. A failed one shows nothing: the
@@ -373,46 +279,12 @@ func (m *Modal) isBase(name string) bool {
 
 // branchLines renders the branch pane's body, h lines of w cells.
 func (m *Modal) branchLines(w, h int) []string {
-	b := &m.branches
-	lines := make([]string, 0, h)
-	focused := m.focus == branchPane
-	for i := b.top; i < len(b.items) && len(lines) < h; i++ {
-		lines = append(lines, m.branchRow(b.items[i], i == b.cursor, focused, w))
-	}
-	if len(lines) < h {
-		lines = append(lines, m.branchStatus(w)...)
-	}
-	return padLines(lines, w, h)
+	return padLines(strings.Split(m.branches.feed.View(), "\n"), w, h)
 }
 
-// branchStatus is the rows after the branches, in w cells: loading, an
-// error, or that there are none.
-func (m *Modal) branchStatus(w int) []string {
-	b := &m.branches
-	var s string
-	switch {
-	case b.err != nil:
-		return m.errorLines("load the branches", m.repo.String(), b.err, false, m.st.noGutter, w)
-	case b.loading:
-		s = m.spin.View() + m.st.muted.Render("Loading"+m.st.ic.Ellipsis)
-	case b.loaded && len(b.items) == 0:
-		s = m.st.muted.Render(ui.None("branches"))
-	default:
-		return nil
-	}
-	return wrap(s, w, m.st.noGutter)
-}
-
-// branchRow renders one branch: its name, how far it is from the default
-// branch once compared, and whether the files are shown at it.
-func (m *Modal) branchRow(br core.Branch, cursor, focused bool, w int) string {
-	gutter := m.st.noGutter
-	if cursor {
-		gutter = m.st.blurGutter
-		if focused {
-			gutter = m.st.gutter
-		}
-	}
+// branchRow renders one branch in w cells: its name, how far it is from the
+// default branch once compared, and whether the files are shown at it.
+func (m *Modal) branchRow(br core.Branch, _ bool, w int) string {
 	var tags []string
 	tagsW := 0
 	if c, ok := m.branches.compares[br.Name]; ok && br.Name != m.branches.defaultBranch {
@@ -432,18 +304,17 @@ func (m *Modal) branchRow(br core.Branch, cursor, focused bool, w int) string {
 	case br.Name == m.branches.defaultBranch:
 		style = m.st.strong
 	}
-	room := w - 2
-	nameRoom := room
-	if tagsW > 0 && room-tagsW-1 >= min(ansi.StringWidth(br.Name), 8) {
-		nameRoom = room - tagsW - 1
+	nameRoom := w
+	if tagsW > 0 && w-tagsW-1 >= min(ansi.StringWidth(br.Name), 8) {
+		nameRoom = w - tagsW - 1
 	} else {
 		tags, tagsW = nil, 0
 	}
 	name := termtext.Truncate(ui.OneLine(br.Name), nameRoom, m.st.ic.Ellipsis)
-	line := gutter + style.Render(name)
+	line := style.Render(name)
 	if tagsW == 0 {
-		return fit(line, w)
+		return line
 	}
-	pad := room - ansi.StringWidth(name) - tagsW
+	pad := w - ansi.StringWidth(name) - tagsW
 	return line + strings.Repeat(" ", max(pad, 1)) + strings.Join(tags, " ")
 }

@@ -82,7 +82,7 @@ func (m *Modal) paneWidth(p pane) int {
 func (m *Modal) layout() {
 	h := m.bodyHeight()
 	m.graph.model.SetSize(m.paneWidth(graphPane), h)
-	m.scrollBranches()
+	m.branches.feed.SetSize(m.paneWidth(branchPane), h)
 	m.layoutCommit()
 }
 
@@ -114,9 +114,9 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	switch p {
 	case branchPane:
 		spec.Name = "Branches"
-		if n := len(m.branches.items); n > 0 {
+		if n := m.branches.feed.Len(); n > 0 {
 			spec.Count = strconv.Itoa(n)
-			if m.branches.next != "" {
+			if !m.branches.feed.Done() {
 				spec.Count += "+"
 			}
 		}

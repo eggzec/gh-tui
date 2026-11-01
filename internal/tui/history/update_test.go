@@ -40,10 +40,10 @@ func TestOpensOnTheDefaultBranch(t *testing.T) {
 	if m.focus != graphPane || !m.graph.model.Focused() {
 		t.Errorf("focus = %d, want the graph focused", m.focus)
 	}
-	if got := names(m.branches.items); !slices.Equal(got, []string{"main", "fix/tabs", "v2-exp"}) {
+	if got := loadedBranches(m); !slices.Equal(got, []string{"main", "fix/tabs", "v2-exp"}) {
 		t.Errorf("branches = %v, want the default one first", got)
 	}
-	if b, _ := m.branches.selected(); b.Name != "main" || m.graph.shown() != "main" {
+	if b, _ := m.branches.feed.Selected(); b.Name != "main" || m.graph.shown() != "main" {
 		t.Errorf("cursor on %q, graph of %q; want main", b.Name, m.graph.shown())
 	}
 	if !m.commit.loaded || m.commit.c.SHA != main0 {
@@ -68,9 +68,11 @@ func sameCalls(got, want []string) bool {
 	return slices.Equal(got[:i], want[:i]) && slices.Equal(slices.Sorted(slices.Values(got[i:])), slices.Sorted(slices.Values(want[i:])))
 }
 
-func names(bs []core.Branch) []string {
-	out := make([]string, len(bs))
-	for i, b := range bs {
+// loadedBranches names the branches the feed holds, in order.
+func loadedBranches(m *Modal) []string {
+	out := make([]string, m.branches.feed.Len())
+	for i := range out {
+		b, _ := m.branches.feed.LoadedItem(i)
 		out[i] = b.Name
 	}
 	return out
@@ -80,7 +82,7 @@ func TestOpensOnTheBranchOfTheBase(t *testing.T) {
 	f := newFake()
 	base := ui.BaseMsg{Repo: repo, Ref: sha("v2-exp", 1), Label: "v2-exp @ x", Branch: "v2-exp"}
 	m, _ := newModalAt(t, f, 108, 30, base)
-	if b, _ := m.branches.selected(); b.Name != "v2-exp" || m.graph.shown() != "v2-exp" {
+	if b, _ := m.branches.feed.Selected(); b.Name != "v2-exp" || m.graph.shown() != "v2-exp" {
 		t.Errorf("cursor on %q, graph of %q; want v2-exp", b.Name, m.graph.shown())
 	}
 	if !m.isBase("v2-exp") || m.isBase("main") {
@@ -478,7 +480,7 @@ func TestFilterBranches(t *testing.T) {
 	if m.graph.shown() != "v2-exp" {
 		t.Errorf("graph of %q; want v2-exp shown", m.graph.shown())
 	}
-	if b, _ := m.branches.selected(); b.Name != "v2-exp" {
+	if b, _ := m.branches.feed.Selected(); b.Name != "v2-exp" {
 		t.Errorf("cursor on %q, want v2-exp", b.Name)
 	}
 }
@@ -506,11 +508,26 @@ func TestKeptLaterBranchPageIsReadAgain(t *testing.T) {
 	f.keptBranches = map[string]bool{"2": true}
 	m, _ := newModal(t, f, 108, 30)
 	got := f.took()
-	if count(got, "branches@2 again") != 1 || count(got, "branches@2") != 0 {
-		t.Errorf("calls = %q, want page 2 read past the kept one", got)
+	if count(got, "branches@2 again") != 1 || count(got, "branches@2") != 1 {
+		t.Errorf("calls = %q, want page 2 read once, then past the kept one", got)
 	}
-	if n := len(m.branches.items); n != 3 {
+	if n := m.branches.feed.Len(); n != 3 {
 		t.Errorf("%d branches listed, want both pages", n)
+	}
+}
+
+// The default branch leads the list even when GitHub lists it on a later
+// page, and is listed once.
+func TestDefaultBranchLeadsFromLaterPage(t *testing.T) {
+	f := newFake()
+	f.branchPages = map[string]core.Page[core.Branch]{
+		"":  {Items: []core.Branch{{Name: "fix/tabs"}, {Name: "v2-exp"}}, Next: "2"},
+		"2": {Items: []core.Branch{{Name: "main"}}},
+	}
+	m, _ := newModal(t, f, 108, 30)
+	got := loadedBranches(m)
+	if want := []string{"main", "fix/tabs", "v2-exp"}; !slices.Equal(got, want) {
+		t.Errorf("branches = %q, want %q", got, want)
 	}
 }
 
@@ -562,8 +579,8 @@ func TestErrorsAndRetry(t *testing.T) {
 	f.errs["branches"] = errBoom
 	f.errs["commit "+short(main0)] = errBoom
 	m, h := newModal(t, f, 108, 30)
-	// The branches are narrow, so the hint takes a line of its own.
-	if s := paneText(m, branchPane); !strings.Contains(s, errMark+" Something went wrong r to retry") {
+	// The branch pane is narrow, so the text is cut short.
+	if s := paneText(m, branchPane); !strings.Contains(s, errMark+" Som… · r to retry") {
 		t.Errorf("branch pane lacks the error:\n%s", s)
 	}
 	if s := paneText(m, commitPane); !strings.Contains(s, errMark+" Something went wrong · r to retry") {
@@ -576,7 +593,7 @@ func TestErrorsAndRetry(t *testing.T) {
 		t.Error("r didn't read the commit again")
 	}
 	h.keys("tab", "r")
-	if len(m.branches.items) != 3 {
+	if m.branches.feed.Len() != 3 {
 		t.Error("r didn't read the branches again")
 	}
 }
@@ -597,7 +614,7 @@ func TestPaneErrorWords(t *testing.T) {
 		},
 		{
 			"forbidden", fmt.Errorf("get commit: github: 403 Forbidden: %w", core.ErrForbidden),
-			errMark + " You don't have access to charmbracelet/bubbletea",
+			errMark + " You don't have access to charmbra… · o to open on GitHub",
 			errMark + " You don't have access to " + commit + " · o to open on GitHub",
 			errMark + " You don't have access to " + commit,
 		},
@@ -737,7 +754,6 @@ func TestIgnoresOtherModals(t *testing.T) {
 	h.take()
 	before := screen(m)
 	for _, msg := range []tea.Msg{
-		branchesMsg{id: other.id},
 		detailMsg{id: other.id, sha: main0, err: errBoom},
 		restMsg{id: other.id, seq: m.seq},
 		headMsg{id: other.id, gen: m.graph.gen, first: "x"},

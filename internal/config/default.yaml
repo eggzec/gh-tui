@@ -1023,6 +1023,15 @@ keys:
     # Open the list that picks the branches to show.
     filter: [f]
     base: [b]
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+    # Search the rows of the list for text, show only the rows that hold
+    # it, and step between the rows a search found.
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
   # History: the commit graph. Show the files at the commit under the
   # cursor.
   history_graph:
