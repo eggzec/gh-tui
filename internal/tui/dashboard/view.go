@@ -559,16 +559,9 @@ func (s *Section) inboxBody(w, h int) []string {
 				gutter = st.shared.Cursor
 			}
 		}
-		rp := &st.shared.Rows[ui.Look(i == l.sel, focused)]
-		age := s.dates.Short(nt.UpdatedAt, s.now())
-		room := max(w-4-s.dates.Width()-1, 0)
-		repo := termtext.Truncate(nt.Repo.Name, min(ansi.StringWidth(nt.Repo.Name), room/3), s.icons.Ellipsis)
-		title := termtext.Truncate(ui.CleanLine(nt.Subject.Title), max(room-ansi.StringWidth(repo)-2, 0), s.icons.Ellipsis)
-		used := 4 + ansi.StringWidth(repo) + 2 + ansi.StringWidth(title)
-		// The repository and the title link to the thread's page.
-		link := s.links.Link(nt.Subject.WebURL, rp.Muted.Render(repo)+"  "+rp.Title.Render(title))
-		lines = append(lines, gutter+rp.Accent.Render(s.icons.Dot)+" "+link+
-			strings.Repeat(" ", max(w-used-ansi.StringWidth(age), 1))+rp.Subtle.Render(age))
+		sub, known := s.subjectState(nt)
+		row := s.rows.Row(*nt, sub, known, ui.Look(i == l.sel, focused), w-2, s.dates, s.now(), s.links)
+		lines = append(lines, gutter+row)
 	}
 	return lines
 }

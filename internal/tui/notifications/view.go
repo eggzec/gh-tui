@@ -3,6 +3,7 @@ package notifications
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -193,22 +194,28 @@ func newLayout(width, age, tag int) layout {
 // where the glyph after the dot tells the kind of the thread and its state,
 // or is a tag such as "pr" in the ASCII set.
 func (s *Section) render(n core.Notification, selected bool, width int) string {
+	sub, known := s.State(n)
 	look := ui.Look(selected, s.feed.Focused())
+	return drawRow(&s.styles, s.icons, s.dates, s.links, s.now(), n, sub, known, look, width)
+}
+
+// drawRow draws n in width cells in the look, with sub as the state of its
+// subject if known.
+func drawRow(styles *styles, icons ui.Icons, dates ui.Dates, links termtext.Links, now time.Time, n core.Notification, sub core.SubjectState, known bool, look, width int) string {
 	unread := 0
 	if n.Unread {
 		unread = 1
 	}
-	st := &s.styles.look[look][unread]
-	l := newLayout(width, s.dates.Width(), kindWidth(s.icons))
+	st := &styles.look[look][unread]
+	l := newLayout(width, dates.Width(), kindWidth(icons))
 	tag, repo, title, dot := st.tag, st.repo, st.title, st.dot
 
-	ell := s.icons.Ellipsis
+	ell := icons.Ellipsis
 	var b strings.Builder
 	b.Grow(width + 96)
 	b.WriteString(dot)
 	b.WriteByte(' ')
 	if l.tag > 0 {
-		sub, known := s.State(n)
 		if g := st.marks[ui.SubjectMark(n.Subject.Type, sub, known)]; g != "" {
 			b.WriteString(g)
 		} else {
@@ -222,7 +229,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	}
 	// The title links to the thread's page.
 	t := termtext.Truncate(ui.OneLine(n.Subject.Title), l.title, ell)
-	b.WriteString(s.links.Link(n.Subject.WebURL, title.render(t)))
+	b.WriteString(links.Link(n.Subject.WebURL, title.render(t)))
 	spaces(&b, l.title-ansi.StringWidth(t)+gap)
 	if l.reason > 0 {
 		st.reason.write(&b, termtext.Fit(shortReason(n.Reason), l.reason, ell))
@@ -230,7 +237,7 @@ func (s *Section) render(n core.Notification, selected bool, width int) string {
 	}
 	age := ""
 	if !n.UpdatedAt.IsZero() {
-		age = s.dates.Short(n.UpdatedAt, s.now())
+		age = dates.Short(n.UpdatedAt, now)
 	}
 	st.age.write(&b, termtext.Fit(age, l.age, ""))
 	return b.String()

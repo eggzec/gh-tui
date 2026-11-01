@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	tuinotes "github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -84,19 +85,23 @@ func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
 
-// Marker marks a thread read, as the notifications service does, for the
-// notifications pane to mark a thread it opens.
+// Marker marks a thread read or done, as the notifications service does, for
+// the notifications pane to mark a thread it opens or is asked to.
 type Marker interface {
 	MarkRead(id string) *optimistic.Op
+	MarkDone(id string) *optimistic.Op
 }
 
 // WithInbox shows the unread notifications of in. If in is a Marker too,
-// opening a thread marks it read, as the notifications list does. Without
-// it the notifications pane says there are none to show.
+// opening a thread marks it read, as the notifications list does, and the
+// pane marks threads read and done. If it is a notifications.States too, the
+// rows show the state of what the threads are about. Without it the
+// notifications pane says there are none to show.
 func WithInbox(in Inbox) Option {
 	return func(s *Section) {
 		s.inbox = in
 		s.marker, _ = in.(Marker)
+		s.reader, _ = in.(tuinotes.States)
 	}
 }
 
@@ -196,6 +201,13 @@ type Section struct {
 	svc    Service
 	inbox  Inbox
 	marker Marker
+	// reader reads the states of the subjects of the threads, and states
+	// holds them. wantStates says the threads changed, so they are read.
+	reader     tuinotes.States
+	states     map[core.SubjectRef]core.SubjectState
+	wantStates bool
+	// rows draws the threads as the notifications list does.
+	rows   tuinotes.Rows
 	opener *threads.Opener
 	// ahead reads the work ahead through readers, as workAhead says.
 	// layers are the settings WithPrefetch gave, which New resolves, and
@@ -380,6 +392,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.st = newStyles(t, s.icons)
+	s.rows = tuinotes.NewRows(t, s.icons)
 	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar(s.icons))
 	s.cal.SetGlyph(ui.CalendarGlyph(s.glyph, s.icons))
