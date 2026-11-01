@@ -44,6 +44,9 @@ type mergePlan struct {
 
 // planMerge decides what the merge key does to d. What the detail hasn't
 // told yet is left to GitHub, as it would anyway: the pull request merges.
+// Pending checks with auto-merge available plan mergeAuto, which waits for
+// them, so no bypass is offered; the bypass is for a pull request that can't
+// merge by waiting.
 func planMerge(d core.PullRequestDetail) mergePlan {
 	m, n := d.Merge, "#"+strconv.Itoa(d.Number)
 	switch {
