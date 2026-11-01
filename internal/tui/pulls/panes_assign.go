@@ -119,20 +119,7 @@ func (m *panesModal) showAssignees() {
 	}
 
 	var search picker.Search
-	opts := []picker.Option{
-		picker.WithContext(m.ctx),
-		picker.WithGroupHeaders(false),
-		picker.WithModes(true),
-		picker.WithFilterLine(true),
-		picker.WithMarks(kindOn, kindOff),
-		picker.WithTicks(),
-		picker.WithMarkedFirst(true),
-		picker.WithDetailMatch(true),
-		picker.WithKeyMap(m.keys.pick),
-		// Enter before the first answer, or after a failed search, still sees
-		// the assignees as ticked.
-		picker.WithKnown(rows(nil)),
-	}
+	opts := m.pickerOptions(rows(nil))
 	if f := m.list.facets; f != nil {
 		repo := m.repo
 		search = func(ctx context.Context, q picker.Query) ([]picker.Item, error) {

@@ -26,6 +26,24 @@ type labelEditor interface {
 	EditLabels(repo core.RepoRef, number int, add []core.Label, remove []string) *optimistic.Op
 }
 
+// pickerOptions are the options the people pickers share. known are the rows
+// that stay ticked when Enter comes before the first answer, or after a
+// failed search.
+func (m *panesModal) pickerOptions(known []picker.Item) []picker.Option {
+	return []picker.Option{
+		picker.WithContext(m.ctx),
+		picker.WithGroupHeaders(false),
+		picker.WithModes(true),
+		picker.WithFilterLine(true),
+		picker.WithMarks(kindOn, kindOff),
+		picker.WithTicks(),
+		picker.WithMarkedFirst(true),
+		picker.WithDetailMatch(true),
+		picker.WithKeyMap(m.keys.pick),
+		picker.WithKnown(known),
+	}
+}
+
 // labelsReadMsg is the answer of the read of the labels of the repository.
 type labelsReadMsg struct {
 	id     int64
