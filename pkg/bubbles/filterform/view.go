@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/overlay"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -165,19 +166,17 @@ func (m *Model) tabLine(w int) string {
 	if c := &m.cache.tabs; c.ok && c.tab == m.tab && c.width == w {
 		return c.line
 	}
-	var b strings.Builder
-	b.WriteString("  ")
+	items := make([]tabrow.Item, len(tabNames))
 	for i, name := range tabNames {
-		if i > 0 {
-			b.WriteString(m.styles.Tab.Render(m.styles.Glyphs.Separator))
-		}
-		st := m.styles.Tab
-		if Tab(i) == m.tab {
-			st = m.styles.ActiveTab
-		}
-		b.WriteString(st.Render(name))
+		items[i] = tabrow.Item{Label: name}
 	}
-	line := m.fit(b.String(), w)
+	row := tabrow.New(
+		tabrow.WithStyles(tabrow.Styles{Current: m.styles.ActiveTab, Other: m.styles.Tab, Marker: m.styles.Tab}),
+		tabrow.WithSeparator(m.styles.Glyphs.Separator),
+	)
+	row.SetItems(items, int(m.tab))
+	row.SetWidth(max(w-2, 0))
+	line := m.fit("  "+row.View(), w)
 	m.cache.tabs = tabCache{ok: true, tab: m.tab, width: w, line: line}
 	return line
 }
