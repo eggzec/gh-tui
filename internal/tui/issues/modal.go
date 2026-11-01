@@ -49,6 +49,7 @@ type detailModal struct {
 	// links confirms the references of the bodies, and rendered holds the
 	// bodies drawn since the last update, to ask about them.
 	links    *ui.Autolinks
+	drew     uint64
 	rendered []string
 	// sendCtx bounds the changes, which go on after the modal closes.
 	sendCtx context.Context
@@ -355,7 +356,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	case issueMsg:
 		return m.gotIssue(msg)
 	case ui.SyncMsg:
-		if m.links.Synced(msg) {
+		if m.links.Synced(msg, &m.drew) {
 			m.thread.SetAutolink(m.links.Func(m.repo.String()))
 			return nil
 		}

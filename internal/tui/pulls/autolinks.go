@@ -35,7 +35,7 @@ func (m *panesModal) links() *ui.Autolinks {
 
 // linksSynced draws the description again if links learned answers.
 func (m *panesModal) linksSynced(msg ui.SyncMsg) {
-	if m.links().Synced(msg) {
+	if m.links().Synced(msg, &m.desc.drew) {
 		m.desc.links++
 		m.desc.version++
 		if m.conv.started {

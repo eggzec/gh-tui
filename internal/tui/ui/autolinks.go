@@ -27,13 +27,29 @@ type Autolinks struct {
 	host string
 
 	mu    sync.Mutex
+	gen   uint64 // moves when a sync changes an answer a view drew
 	asked map[uint64]bool
+	// drawn is the answer each reference the views asked of Func got, so a
+	// sync that changes none of them draws nothing again.
+	drawn map[drawnRef]answer
+}
+
+// drawnRef names a reference of the text of a repo.
+type drawnRef struct {
+	repo string
+	cand autolinks.Candidate
+}
+
+// answer is what a reference is drawn with: its link, if GitHub confirmed it.
+type answer struct {
+	url string
+	ok  bool
 }
 
 // NewAutolinks returns the autolinks of the session on host. A nil svc links
 // nothing.
 func NewAutolinks(svc AutolinkService, host string) *Autolinks {
-	return &Autolinks{svc: svc, host: host, asked: map[uint64]bool{}}
+	return &Autolinks{svc: svc, host: host, asked: map[uint64]bool{}, drawn: map[drawnRef]answer{}}
 }
 
 // Func returns what the renderer of a body of repo ("owner/name", or empty
@@ -45,11 +61,16 @@ func (a *Autolinks) Func(repo string) markdown.Autolink {
 	}
 	return func(kind markdown.RefKind, ref string) (string, bool) {
 		c := autolinks.Candidate{Kind: verifiedKind(kind), Ref: ref}
-		r := a.svc.Cached(repo, []autolinks.Candidate{c})
-		if len(r) == 0 {
-			return "", false
+		got := a.answer(repo, c)
+		a.mu.Lock()
+		// Only the first draw is kept: drawn holds the answer as of the
+		// last sync, and only Synced moves it forward.
+		k := drawnRef{repo, c}
+		if _, ok := a.drawn[k]; !ok {
+			a.drawn[k] = got
 		}
-		return r[0].URL, r[0].Known && r[0].Exists
+		a.mu.Unlock()
+		return got.url, got.ok
 	}
 }
 
@@ -167,12 +188,38 @@ func (a *Autolinks) Verify(ctx context.Context, repo, body string) tea.Cmd {
 // Synced reports whether msg says that answers were learned, so that the
 // views link again. Bodies may be asked about again then, which costs
 // nothing for what is fresh.
-func (a *Autolinks) Synced(msg SyncMsg) bool {
-	if a == nil || msg.Key != autolinks.SyncKey(a.host) {
+//
+// One message reaches several views, so each keeps the generation it last drew
+// with in drew: a view is told to link again while its generation is behind
+// the answers learned, however many views asked before it.
+func (a *Autolinks) Synced(msg SyncMsg, drew *uint64) bool {
+	if a == nil || a.svc == nil || msg.Key != autolinks.SyncKey(a.host) {
 		return false
 	}
 	a.mu.Lock()
-	clear(a.asked)
-	a.mu.Unlock()
-	return true
+	defer a.mu.Unlock()
+	changed := false
+	for d, was := range a.drawn {
+		now := a.answer(d.repo, d.cand)
+		if now != was {
+			a.drawn[d] = now
+			changed = true
+		}
+	}
+	if changed {
+		clear(a.asked)
+		a.gen++
+	}
+	stale := *drew != a.gen
+	*drew = a.gen
+	return stale
+}
+
+// answer is what the views draw for c of repo, as [Autolinks.Func] gives it.
+func (a *Autolinks) answer(repo string, c autolinks.Candidate) answer {
+	r := a.svc.Cached(repo, []autolinks.Candidate{c})
+	if len(r) == 0 {
+		return answer{}
+	}
+	return answer{url: r[0].URL, ok: r[0].Known && r[0].Exists}
 }

@@ -93,6 +93,8 @@ type Modal struct {
 	svc  Service
 	keys keyMap
 	now  func() time.Time
+	// drew is the generation of the autolinks the thread was drawn with.
+	drew uint64
 	// dates tell when the release was published, in the zone of the
 	// modal.
 	dates ui.Dates
@@ -326,7 +328,7 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	case ui.OnlineMsg:
 		return m.online()
 	case ui.SyncMsg:
-		if m.links.Synced(msg) {
+		if m.links.Synced(msg, &m.drew) {
 			m.thread.SetAutolink(m.links.Func(m.repo.String()))
 		}
 		return nil

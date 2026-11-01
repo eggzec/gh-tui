@@ -52,6 +52,79 @@ func TestAutolinksFuncReadsTheCacheOnly(t *testing.T) {
 	}
 }
 
+func TestAutolinksSynced(t *testing.T) {
+	t.Parallel()
+	const host = "github.com"
+	key := autolinks.SyncKey(host)
+	tests := []struct {
+		name    string
+		msg     SyncMsg
+		change  bool // whether the answer of #1 moves before the sync
+		want    bool
+		cleared bool
+	}{
+		{name: "unchanged answers", msg: SyncMsg{Key: key}},
+		{name: "changed answer", msg: SyncMsg{Key: key}, change: true, want: true, cleared: true},
+		{name: "another host", msg: SyncMsg{Key: autolinks.SyncKey("other")}, change: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			f := &fakeLinks{known: map[string]autolinks.Result{"1": {Known: true}}}
+			a := NewAutolinks(f, host)
+			fn := a.Func("o/r")
+			fn(markdown.RefIssue, "1")
+			a.asked[7] = true
+			if tt.change {
+				f.known["1"] = autolinks.Result{Known: true, Exists: true, URL: "u"}
+			}
+			var drew uint64
+			if got := a.Synced(tt.msg, &drew); got != tt.want {
+				t.Errorf("Synced = %v, want %v", got, tt.want)
+			}
+			if cleared := !a.asked[7]; cleared != tt.cleared {
+				t.Errorf("asked cleared = %v, want %v", cleared, tt.cleared)
+			}
+			if tt.want && a.Synced(tt.msg, &drew) {
+				t.Error("the same sync twice changed the links twice")
+			}
+		})
+	}
+	var nilLinks *Autolinks
+	if nilLinks.Synced(SyncMsg{Key: key}, new(uint64)) {
+		t.Error("a nil Autolinks synced")
+	}
+}
+
+func TestAutolinksSyncedReachesEveryView(t *testing.T) {
+	t.Parallel()
+	f := &fakeLinks{known: map[string]autolinks.Result{"1": {Known: true}}}
+	a := NewAutolinks(f, "github.com")
+	a.Func("o/r")(markdown.RefIssue, "1")
+	f.known["1"] = autolinks.Result{Known: true, Exists: true, URL: "u"}
+	msg := SyncMsg{Key: autolinks.SyncKey("github.com")}
+	var one, two uint64
+	if !a.Synced(msg, &one) || !a.Synced(msg, &two) {
+		t.Error("a view missed the sync that another one saw")
+	}
+	if a.Synced(msg, &one) || a.Synced(msg, &two) {
+		t.Error("a view drew again with nothing new")
+	}
+}
+
+func TestAutolinksSyncedSeesAnAnswerLearnedBetweenDraws(t *testing.T) {
+	t.Parallel()
+	f := &fakeLinks{known: map[string]autolinks.Result{"1": {Known: true}}}
+	a := NewAutolinks(f, "github.com")
+	fn := a.Func("o/r")
+	fn(markdown.RefIssue, "1")
+	f.known["1"] = autolinks.Result{Known: true, Exists: true, URL: "u"}
+	fn(markdown.RefIssue, "1")
+	if !a.Synced(SyncMsg{Key: autolinks.SyncKey("github.com")}, new(uint64)) {
+		t.Error("a draw between the answer and the sync hid the change")
+	}
+}
+
 func TestAutolinksNilLinksNothing(t *testing.T) {
 	t.Parallel()
 	var a *Autolinks
@@ -118,10 +191,13 @@ func TestAutolinksVerifyAsksOncePerBodyUntilSynced(t *testing.T) {
 	if a.Verify(context.Background(), "o/r", body) != nil {
 		t.Error("the same body was asked again")
 	}
-	if a.Synced(SyncMsg{Key: "other"}) {
+	var drew uint64
+	if a.Synced(SyncMsg{Key: "other"}, &drew) {
 		t.Error("an unrelated key counts as synced")
 	}
-	if !a.Synced(SyncMsg{Key: autolinks.SyncKey("github.com")}) {
+	a.Func("o/r")(markdown.RefIssue, "1")
+	f.known = map[string]autolinks.Result{"1": {Known: true, Exists: true, URL: "u"}}
+	if !a.Synced(SyncMsg{Key: autolinks.SyncKey("github.com")}, &drew) {
 		t.Fatal("the autolinks key isn't synced")
 	}
 	if a.Verify(context.Background(), "o/r", body) == nil {

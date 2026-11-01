@@ -36,7 +36,9 @@ type descPane struct {
 	// links counts the answers of the autolinks that the rows draw, and ask is
 	// the body drawn since the last update, to ask about its references.
 	links int
-	ask   string
+	// drew is the generation of the autolinks the rows were drawn with.
+	drew uint64
+	ask  string
 }
 
 // descKey is what the rows of the description depend on.
