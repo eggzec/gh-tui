@@ -15,14 +15,16 @@ const fieldBranch = "branch"
 // read, since the form's choices are fixed when it opens.
 func (m *Modal) openFilter() tea.Cmd {
 	b := &m.branches
-	if !b.loaded {
+	if !b.feed.Settled() {
 		return ui.Notify(toast.Info, "The branches are still loading.")
 	}
 	b.wanted = true
 	if cmd := m.openWanted(); cmd != nil {
 		return cmd
 	}
-	return m.moreBranches()
+	// No branch is named like this, so the feed reads every page looking
+	// for it.
+	return b.feed.Seek("\x00")
 }
 
 // openWanted opens the filter that waits for the branches, if the last page
@@ -31,12 +33,13 @@ func (m *Modal) openFilter() tea.Cmd {
 // either. A failed read opens it with the branches read so far, and says so.
 func (m *Modal) openWanted() tea.Cmd {
 	b := &m.branches
-	if !b.wanted || b.loading || (b.next != "" && b.err == nil) {
+	err := b.feed.Err()
+	if !b.wanted || (!b.feed.Done() && err == nil) {
 		return nil
 	}
 	b.wanted = false
 	open := ui.OpenModalOver(m.filterModal(), m)
-	if b.err != nil {
+	if err != nil {
 		return tea.Batch(open, ui.Notify(toast.Warning, "The branch list is partial: reading it failed."))
 	}
 	return open
@@ -57,7 +60,7 @@ func (m *Modal) filterModal() ui.Modal {
 // cursor.
 func (m *Modal) Filter() (ui.Filter, bool) {
 	q := ""
-	if br, ok := m.branches.selected(); ok {
+	if br, ok := m.branches.feed.Selected(); ok {
 		q = fieldBranch + ":" + br.Name
 	}
 	return ui.Filter{Spec: m.spec(), Query: q, Subject: m.repo.String()}, true
@@ -65,12 +68,17 @@ func (m *Modal) Filter() (ui.Filter, bool) {
 
 // spec is the form of the filter: one choice among the branches.
 func (m *Modal) spec() filterform.Spec {
-	items := make([]filterform.Item, len(m.branches.items))
-	for i, br := range m.branches.items {
-		items[i] = filterform.Item{Label: br.Name, Value: br.Name}
-		if br.Name == m.branches.defaultBranch {
-			items[i].Detail = "default"
+	items := make([]filterform.Item, 0, m.branches.feed.Len())
+	for i := range m.branches.feed.Len() {
+		br, ok := m.branches.feed.LoadedItem(i)
+		if !ok {
+			continue
 		}
+		item := filterform.Item{Label: br.Name, Value: br.Name}
+		if br.Name == m.branches.defaultBranch {
+			item.Detail = "default"
+		}
+		items = append(items, item)
 	}
 	return filterform.Spec{Fields: []filterform.Field{{
 		Key: fieldBranch, Label: "Branch", Kind: filterform.Choice, Qualifier: fieldBranch, Options: items,
@@ -83,16 +91,7 @@ func (m *Modal) ApplyFilter(msg filterform.AppliedMsg) tea.Cmd {
 	if name == "" {
 		return nil
 	}
-	b := &m.branches
-	b.follow = ""
-	if i := b.index(name); i >= 0 {
-		b.cursor = i
-		m.scrollBranches()
-	} else {
-		// Only what the form listed before the branches were read again
-		// from the first page has it, so the cursor follows it to the page
-		// that brings it back.
-		b.follow = name
-	}
-	return tea.Batch(m.showBranch(name), m.branchMoved())
+	// A branch the form listed before a reload may be on a page not read
+	// yet, which the feed reads until it finds it.
+	return tea.Batch(m.showBranch(name), m.branches.feed.Seek(name), m.branchSeen())
 }

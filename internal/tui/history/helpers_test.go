@@ -1,6 +1,7 @@
 package history
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -81,6 +82,29 @@ type host struct {
 	// skip drops the messages it reports, such as rests, so a test can
 	// look before they arrive.
 	skip func(tea.Msg) bool
+}
+
+// holdFeed holds back the messages of the feeds, such as a page landing,
+// until release.
+func holdFeed(h *host) *[]tea.Msg {
+	var held []tea.Msg
+	h.skip = func(msg tea.Msg) bool {
+		if !strings.HasPrefix(fmt.Sprintf("%T", msg), "feed.") {
+			return false
+		}
+		held = append(held, msg)
+		return true
+	}
+	return &held
+}
+
+// release lets the held messages through, in order.
+func (h *host) release(held *[]tea.Msg) {
+	h.skip = nil
+	for _, msg := range *held {
+		h.run(func() tea.Msg { return msg })
+	}
+	*held = nil
 }
 
 func isRest(msg tea.Msg) bool {

@@ -163,6 +163,14 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 		start, m.focus = o.commit, commitPane
 	}
 	m.graph.show(m, start)
+	m.branches.feed = m.newBranchFeed()
+	if start != "" && start != o.commit {
+		// The cursor starts on the branch the graph shows.
+		m.branches.feed.Seek(start)
+	}
+	if m.focus == branchPane {
+		m.branches.feed.Focus()
+	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
 	m.SetTheme(ui.NewTheme(p, true))
@@ -171,7 +179,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, defaultBranch stri
 
 // Init reads the branches and the first commits of the branch shown.
 func (m *Modal) Init() tea.Cmd {
-	return tea.Batch(m.loadBranches("", false), m.graph.model.Init(), m.spin.Start())
+	return tea.Batch(m.branches.feed.Init(), m.graph.model.Init(), m.spin.Start())
 }
 
 // Title names the repository.
@@ -194,6 +202,7 @@ func (m *Modal) SetTheme(t ui.Theme) {
 	m.spin.Style = t.Accent
 	m.spin.Spinner = m.opts.icons.SpinnerOr(spinner.Dot)
 	m.graph.model.SetStyles(t.Graph(m.opts.icons))
+	m.branches.feed.SetStyles(t.Feed(m.opts.icons))
 	m.commit.pager.SetStyles(t.Pager(m.opts.icons))
 	m.commit.header = nil
 }
@@ -236,10 +245,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	}
 	// The pane moves with the list's keys, and the modal's own select and
 	// retry take the place of its choose and retry.
-	list := k.Branches
-	if m.focus == commitPane {
-		list = k.Files
+	if m.focus == branchPane {
+		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", m.branches.feed.KeyMap(), false))}
 	}
+	list := k.Files
 	list.Choose.SetEnabled(false)
 	list.Retry.SetEnabled(false)
 	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, keyhelp.FromHelp("", list, false))}
@@ -272,7 +281,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	switch m.focus {
 	case branchPane:
 		k.Select = named(k.Select, "graph")
-		failed = m.branches.err != nil
+		// The feed retries with its own refresh key.
 	case graphPane:
 		// The graph opens a commit, and retries, with its own keys.
 		k.Select.SetEnabled(false)
@@ -305,7 +314,7 @@ func (m *Modal) close() tea.Cmd {
 
 // loading reports whether a pane waits for something the spinner shows.
 func (m *Modal) loading() bool {
-	return m.branches.loading || m.commit.loading || m.commit.filesLoading
+	return !m.branches.feed.Settled() || m.commit.loading || m.commit.filesLoading
 }
 
 // now reads the clock.
