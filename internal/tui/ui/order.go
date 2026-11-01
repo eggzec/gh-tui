@@ -35,9 +35,6 @@ type OrderModal struct {
 	rows  int
 	pick  orderpick.Model
 	icons Icons
-	// theme is the last one set, if themed, so that new icons restyle the picker.
-	theme  Theme
-	themed bool
 	// section and subject are what the title names.
 	section, subject string
 	apply            func([]orderpick.Choice) tea.Cmd
@@ -125,11 +122,6 @@ func (m *OrderModal) Update(msg tea.Msg) tea.Cmd {
 	case SettingsMsg:
 		msg.ReloadIcons(&m.icons)
 		m.retitle()
-		// The picker's styles hold the icons too; the theme that follows
-		// would draw them, but a modal open meanwhile keeps its own.
-		if m.themed {
-			m.pick.SetStyles(m.theme.OrderPick(m.icons))
-		}
 		return nil
 	case orderpick.ChosenMsg:
 		if msg.ID != m.pick.ID() {
@@ -160,7 +152,6 @@ func (m *OrderModal) Fit(maxWidth, maxHeight int) (width, height int) {
 
 // SetTheme implements Modal.
 func (m *OrderModal) SetTheme(t Theme) {
-	m.theme, m.themed = t, true
 	m.pick.SetStyles(t.OrderPick(m.icons))
 }
 
