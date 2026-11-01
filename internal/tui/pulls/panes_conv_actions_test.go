@@ -3,6 +3,7 @@ package pulls
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -60,6 +61,26 @@ func toasts(msgs []tea.Msg) []string {
 
 func canResolve(t *core.Thread)   { t.ViewerCanResolve = true }
 func canUnresolve(t *core.Thread) { t.Resolved, t.ViewerCanUnresolve = true, true }
+
+func TestConvCommentOpensTheComposer(t *testing.T) {
+	t.Parallel()
+	svc := convService()
+	_, m := convActions(t, svc, "me", "", nil)
+	m.Update(keyMsg("c"))
+	o, ok := m.top().(*composerOverlay)
+	if !ok {
+		t.Fatalf("c opened %T, want the composer", m.top())
+	}
+	if v := o.comp.Value(); v != "" {
+		t.Fatalf("the composer starts with %q, want it empty", v)
+	}
+	typeText(m, "hello")
+	submit(m)
+	got := svc.changes()
+	if len(got) != 1 || !strings.Contains(got[0], "hello") {
+		t.Fatalf("changes = %q, want the comment", got)
+	}
+}
 
 func TestConvResolveAsksAndSends(t *testing.T) {
 	t.Parallel()

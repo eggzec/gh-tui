@@ -44,3 +44,4 @@ Conversation
   sort | s | s | on
   resolve | T | T | on
   delete | D | D | on
+  comment | c | c | on
