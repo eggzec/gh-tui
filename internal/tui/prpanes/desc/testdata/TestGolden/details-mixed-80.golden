@@ -1,8 +1,8 @@
-▌Intro paragraph.
- Benchmarks  ⋯ 3 lines
- Changelog
- │  The tags between the two versions:
- │  0.42.0  ⋯ 2 lines
- │  Details  ⋯ 1 line
+▌  Intro paragraph.
+ ▸ Benchmarks  ⋯ 3 lines
+ ▾ Changelog
+ ├─   The tags between the two versions:
+ ├─ ▸ 0.42.0  ⋯ 2 lines
+ ├─ ▸ Details  ⋯ 1 line
  ╰─
- Outro paragraph.
+   Outro paragraph.

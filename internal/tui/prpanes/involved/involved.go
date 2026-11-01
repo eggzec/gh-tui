@@ -15,7 +15,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -297,19 +297,19 @@ func DefaultFolds(d Data) map[string]bool {
 // people, or with a hint when it has none. Enter on the header of a group
 // folds it, and on a person asks to focus their latest comment. The rows
 // share nothing with d.
-func Rows(d Data, o Options) []foldtree.Row {
+func Rows(d Data, o Options) []treeview.Node {
 	rows, _ := build(d, o)
 	return rows
 }
 
 // build returns the rows, and the person of each row that stands for one.
-func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
+func build(d Data, o Options) (rows []treeview.Node, who map[string]Person) {
 	st := &o.Styles
 	p := compose(d)
 	folds := DefaultFolds(d)
 	who = map[string]Person{}
 
-	rows = []foldtree.Row{{
+	rows = []treeview.Node{{
 		ID:     idAuthor,
 		Lines:  []string{st.dim.Render("Author ") + conv.Name(d.Author)},
 		Action: true,
@@ -317,17 +317,16 @@ func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
 	who[idAuthor] = Person{Login: d.Author.Login, Name: conv.Name(d.Author)}
 
 	group := func(id, name string, n int) {
-		rows = append(rows, foldtree.Row{
+		rows = append(rows, treeview.Node{
 			ID:     id,
 			Lines:  []string{st.bold.Render(name) + " " + st.dim.Render(strconv.Itoa(n))},
-			Fold:   true,
-			Arrow:  true,
+			Branch: true,
 			Action: true,
 			Closed: folds[id],
 		})
 	}
 	empty := func(id, hint string) {
-		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{st.dim.Render("none (enter to " + hint + ")")}})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.dim.Render("none (enter to " + hint + ")")}})
 	}
 
 	n := len(p.reviewers) + p.hidden
@@ -335,7 +334,7 @@ func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
 	for _, r := range p.reviewers {
 		id := reviewerID(r)
 		who[id] = r
-		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{st.reviewer(r)}, Action: true})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.reviewer(r)}, Action: true})
 	}
 	if n == 0 {
 		empty(idEmptyReviewers, "request")
@@ -345,7 +344,7 @@ func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
 	for _, a := range p.assignees {
 		id := assigneeID(a.Login)
 		who[id] = Person{Login: a.Login, Name: conv.Name(a)}
-		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{conv.Name(a)}, Action: true})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{conv.Name(a)}, Action: true})
 	}
 	if len(p.assignees) == 0 {
 		empty(idEmptyAssignees, "assign")
@@ -355,10 +354,10 @@ func build(d Data, o Options) (rows []foldtree.Row, who map[string]Person) {
 	for _, c := range p.commenters {
 		id := commenterID(c.Login)
 		who[id] = Person{Login: c.Login, Name: conv.Name(c)}
-		rows = append(rows, foldtree.Row{ID: id, Depth: 1, Lines: []string{conv.Name(c)}, Action: true})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{conv.Name(c)}, Action: true})
 	}
 	if len(p.commenters) == 0 {
-		rows = append(rows, foldtree.Row{ID: idEmptyCommenters, Depth: 1, Lines: []string{st.dim.Render("none")}})
+		rows = append(rows, treeview.Node{ID: idEmptyCommenters, Depth: 1, Lines: []string{st.dim.Render("none")}})
 	}
 	return rows, who
 }

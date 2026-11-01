@@ -52,9 +52,9 @@ func TestDescriptionFolds(t *testing.T) {
 	if s := paneText(m); !strings.Contains(s, "Notes") || !strings.Contains(s, "1 line") || strings.Contains(s, "hidden words") {
 		t.Fatalf("closed block drew:\n%s", s)
 	}
-	m.press(keyMsg("enter"))
+	m.press(keyMsg("l"))
 	if s := paneText(m); !strings.Contains(s, "hidden words") {
-		t.Errorf("enter on the summary left the block closed:\n%s", s)
+		t.Errorf("l on the summary left the block closed:\n%s", s)
 	}
 	m.press(keyMsg("h"))
 	if s := paneText(m); strings.Contains(s, "hidden words") {
@@ -80,7 +80,7 @@ func TestDescriptionEnterElsewhereAndStar(t *testing.T) {
 func TestDescriptionKeepsFoldsOnNewBody(t *testing.T) {
 	t.Parallel()
 	m := described(t, withDetails)
-	m.press(keyMsg("enter"))
+	m.press(keyMsg("l"))
 	m.detail.Body = withDetails + "\n\nmore"
 	if s := paneText(m); !strings.Contains(s, "hidden words") || !strings.Contains(s, "more") {
 		t.Errorf("a changed body closed the open block or was not drawn:\n%s", s)

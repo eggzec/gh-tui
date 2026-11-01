@@ -132,9 +132,9 @@ func TestDevelopmentHeaderFolds(t *testing.T) {
 	if s := tree(); !strings.Contains(s, "Crash on empty input") {
 		t.Fatalf("the issue isn't shown before the fold:\n%s", s)
 	}
-	msgs := press(t, h, "enter")
+	msgs := press(t, h, "h")
 	if n := len(opened[ui.OpenIssueMsg](msgs)) + len(opened[ui.OpenPullMsg](msgs)); n != 0 {
-		t.Fatal("enter on a header opened something")
+		t.Fatal("h on a header opened something")
 	}
 	if s := tree(); strings.Contains(s, "Crash on empty input") {
 		t.Fatalf("the issue is still shown after the fold:\n%s", s)

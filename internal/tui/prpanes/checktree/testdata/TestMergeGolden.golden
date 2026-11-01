@@ -1,11 +1,11 @@
 ▌▾ x Checks failing 3 - 3 running
  ├─ ▾ x > CI #12                                                     4 of 6 jobs
  │  ├─ ▾ x test                                                   2 of 3 failing
- │  │  ├─ x linux                                                 failed - 1m 5s
- │  │  ╰─ x windows                                               failed - 1m 5s
+ │  │  ├─   x linux                                               failed - 1m 5s
+ │  │  ╰─   x windows                                             failed - 1m 5s
  │  ╰─ ▾ ~ build                                                  2 of 2 running
- │     ├─ ~ docs                                                   running - 12s
- │     ╰─ ~ site                                                   running - 12s
+ │     ├─   ~ docs                                                 running - 12s
+ │     ╰─   ~ site                                                 running - 12s
  ├─ ▾ x # Codecov                                                         failed
- │  ╰─ x coverage                                            3 findings - failed
- ╰─ ~ . ci/other                                                ci/other pending
+ │  ╰─   x coverage                                          3 findings - failed
+ ╰─   ~ . ci/other                                              ci/other pending

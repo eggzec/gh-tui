@@ -9,16 +9,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // NewKeyMap returns the keys of the pane, read from its context in keys. Enter
 // is the select key of the global context, never bound here. The pane marks
 // nothing, so the tree's mark key stays unbound.
-func NewKeyMap(keys config.Keymap) foldtree.KeyMap {
+func NewKeyMap(keys config.Keymap) treeview.KeyMap {
 	look := ui.Lookup(keys, Context)
-	return foldtree.NewKeyMap(keymap.Func(func(action string) []string {
+	return treeview.NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "mark" {
 			return nil
 		}
@@ -29,7 +29,7 @@ func NewKeyMap(keys config.Keymap) foldtree.KeyMap {
 // Model is the pane: a tree of what a pull request links, or a line that says
 // it is loading or why it failed.
 type Model struct {
-	tree   foldtree.Model
+	tree   treeview.Model
 	items  map[string]Item
 	opts   Options
 	links  core.PullLinks
@@ -48,7 +48,7 @@ func New(o Options) Model {
 	return Model{
 		opts:  o,
 		items: map[string]Item{},
-		tree:  foldtree.New(foldtree.WithStyles(o.Styles.Tree)),
+		tree:  treeview.New(treeview.Source{}, treeview.WithStyles(o.Styles.Tree)),
 	}
 }
 
@@ -70,7 +70,7 @@ func (m *Model) SetRepo(r core.RepoRef) {
 }
 
 // SetKeyMap sets the keys of the tree.
-func (m *Model) SetKeyMap(k foldtree.KeyMap) { m.tree.SetKeyMap(k) }
+func (m *Model) SetKeyMap(k treeview.KeyMap) { m.tree.SetKeyMap(k) }
 
 // SetSize sets the size of the pane in cells.
 func (m *Model) SetSize(width, height int) {
@@ -120,7 +120,8 @@ func (m *Model) rebuild() {
 
 // Selected returns what the row under the cursor stands for.
 func (m Model) Selected() (Item, bool) {
-	id, ok := m.tree.Selected()
+	n, ok := m.tree.Selected()
+	id := n.ID
 	if !ok {
 		return Item{}, false
 	}
@@ -141,7 +142,8 @@ func (m Model) Hovered() (id, title string, it Item, ok bool) {
 	n := strconv.Itoa(it.Ref.Target.Number)
 	switch it.Kind {
 	case Header:
-		sel, _ := m.tree.Selected()
+		n, _ := m.tree.Selected()
+		sel := n.ID
 		return sel, it.Title, it, true
 	case Issue, Blocker:
 		return "issue:" + core.RefKey(it.Ref.Target), "Issue #" + n, it, true
@@ -176,12 +178,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.tree, cmd = m.tree.Update(msg)
 	m.version++
 	return m, cmd
-}
-
-// ToggleFold folds the group that id names, or opens it.
-func (m *Model) ToggleFold(id string) {
-	m.tree.SetFolded(id, !m.tree.Folded(id))
-	m.version++
 }
 
 // ID returns the identity that the messages of the tree carry.

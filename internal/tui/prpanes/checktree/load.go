@@ -11,7 +11,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Query names the checks of one commit to read.
@@ -186,13 +186,13 @@ func (l Loader) Stop() {
 // Rows returns the rows that stand for the checks of the commit sha: a note
 // while they load, the error if they failed, and their tree once read. A
 // commit that was never asked for has none.
-func (l Loader) Rows(sha string, o Options, st Styles) ([]foldtree.Row, Targets) {
+func (l Loader) Rows(sha string, o Options, st Styles) ([]treeview.Node, Targets) {
 	e, ok := l.entries[sha]
 	switch {
 	case !ok:
 		return nil, nil
 	case e.loading:
-		return []foldtree.Row{l.note(o, "loading", st.dim.Render("Loading checks"+st.Glyphs.Ellipsis))}, nil
+		return []treeview.Node{l.note(o, "loading", st.dim.Render("Loading checks"+st.Glyphs.Ellipsis))}, nil
 	case e.err != nil:
 		return l.failed(e.err, o, st), nil
 	}
@@ -200,7 +200,7 @@ func (l Loader) Rows(sha string, o Options, st Styles) ([]foldtree.Row, Targets)
 }
 
 // failed returns the lines of the error err as rows.
-func (l Loader) failed(err error, o Options, st Styles) []foldtree.Row {
+func (l Loader) failed(err error, o Options, st Styles) []treeview.Node {
 	var hint string
 	switch {
 	case errors.Is(err, core.ErrRateLimited):
@@ -209,7 +209,7 @@ func (l Loader) failed(err error, o Options, st Styles) []foldtree.Row {
 		hint = "Offline: reading again once GitHub answers"
 	}
 	lines := ui.ErrorLine(st.Errors, "Couldn't read the checks", hint, o.Width)
-	rows := make([]foldtree.Row, len(lines))
+	rows := make([]treeview.Node, len(lines))
 	for i, line := range lines {
 		rows[i] = l.note(o, "error/"+strconv.Itoa(i), line)
 	}
@@ -217,6 +217,6 @@ func (l Loader) failed(err error, o Options, st Styles) []foldtree.Row {
 }
 
 // note is a row that the cursor skips, with text.
-func (l Loader) note(o Options, id, text string) foldtree.Row {
-	return foldtree.Row{ID: o.Prefix + id, Depth: o.Depth, Lines: []string{text}, Skip: true}
+func (l Loader) note(o Options, id, text string) treeview.Node {
+	return treeview.Node{ID: o.Prefix + id, Depth: o.Depth, Lines: []string{text}, Skip: true}
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -19,7 +19,7 @@ type Options struct {
 
 // Rows are the rows of a tree, and what each stands for by the ID of the row.
 type Rows struct {
-	Rows  []foldtree.Row
+	Rows  []treeview.Node
 	Items map[string]Item
 }
 
@@ -42,22 +42,22 @@ func Build(links core.PullLinks, o Options) Rows {
 type builder struct {
 	o     Options
 	st    Styles
-	rows  []foldtree.Row
+	rows  []treeview.Node
 	items map[string]Item
 }
 
-func (b *builder) add(r foldtree.Row, it Item) {
+func (b *builder) add(r treeview.Node, it Item) {
 	b.rows = append(b.rows, r)
 	b.items[r.ID] = it
 }
 
 func (b *builder) header(id, group, title string) {
-	b.add(foldtree.Row{ID: id, Lines: []string{b.st.bold.Render(title)}, Fold: true, Arrow: true},
+	b.add(treeview.Node{ID: id, Lines: []string{b.st.bold.Render(title)}, Branch: true},
 		Item{Kind: Header, Group: group, Title: title})
 }
 
 func (b *builder) note(id string, depth int, kind Kind, text string) {
-	b.add(foldtree.Row{ID: id, Depth: depth, Lines: []string{b.st.dim.Render(text)}}, Item{Kind: kind})
+	b.add(treeview.Node{ID: id, Depth: depth, Lines: []string{b.st.dim.Render(text)}}, Item{Kind: kind})
 }
 
 func (b *builder) closes(links core.PullLinks) {
@@ -69,14 +69,14 @@ func (b *builder) closes(links core.PullLinks) {
 	for i := range links.Closes {
 		c := &links.Closes[i]
 		id := "issue:" + core.RefKey(c.Issue.Target)
-		b.add(foldtree.Row{ID: id, Depth: 1, Lines: []string{b.line(c.Issue)}, Fold: len(c.Blockers) > 0, Action: true},
+		b.add(treeview.Node{ID: id, Depth: 1, Lines: []string{b.line(c.Issue)}, Branch: len(c.Blockers) > 0, Action: true},
 			Item{Kind: Issue, Ref: c.Issue})
 		if !links.BlockersSupported {
 			continue
 		}
 		for j := range c.Blockers {
 			bl := c.Blockers[j]
-			b.add(foldtree.Row{ID: "blocker:" + core.RefKey(c.Issue.Target) + ">" + core.RefKey(bl.Target), Depth: 2, Lines: []string{b.blocker(bl)}, Action: true},
+			b.add(treeview.Node{ID: "blocker:" + core.RefKey(c.Issue.Target) + ">" + core.RefKey(bl.Target), Depth: 2, Lines: []string{b.blocker(bl)}, Action: true},
 				Item{Kind: Blocker, Ref: bl})
 		}
 		if more := c.BlockersTotal - len(c.Blockers); more > 0 {
@@ -92,7 +92,7 @@ func (b *builder) linked(links core.PullLinks) {
 	b.header(linkedID, GroupLinked, "Linked PRs "+strconv.Itoa(len(links.Linked)))
 	for i := range links.Linked {
 		r := links.Linked[i]
-		b.add(foldtree.Row{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(r)}, Action: true},
+		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(r)}, Action: true},
 			Item{Kind: Pull, Ref: r})
 	}
 	if links.LinkedCapped {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -47,7 +47,7 @@ func StateOf(c core.CommitChecks) core.CheckState {
 // Rows returns the rows of the checks of c, which are open folds, and what
 // enter on each of them asks for. It returns none when c has no check run
 // and no status. The rows share nothing with c.
-func Rows(c core.CommitChecks, o Options, st Styles) ([]foldtree.Row, Targets) {
+func Rows(c core.CommitChecks, o Options, st Styles) ([]treeview.Node, Targets) {
 	if len(c.Runs) == 0 && len(c.Statuses) == 0 {
 		return nil, nil
 	}
@@ -61,7 +61,7 @@ type builder struct {
 	c       core.CommitChecks
 	o       Options
 	st      *Styles
-	rows    []foldtree.Row
+	rows    []treeview.Node
 	targets Targets
 }
 
@@ -219,8 +219,8 @@ func jobOf(cc *core.CommitCheck) core.Job {
 }
 
 // jobs returns the rows of nodes at depth.
-func (b *builder) jobs(nodes []core.JobNode, jobs []core.Job, depth int) []foldtree.Row {
-	var rows []foldtree.Row
+func (b *builder) jobs(nodes []core.JobNode, jobs []core.Job, depth int) []treeview.Node {
+	var rows []treeview.Node
 	for _, n := range nodes {
 		if n.Group == nil {
 			if b.keep(jobs[n.Job].Outcome()) {
@@ -266,11 +266,11 @@ func (b *builder) groupWord(g *core.JobGroup, jobs []core.Job) string {
 }
 
 // job returns the row of a job or a leg, whose enter opens the job.
-func (b *builder) job(j core.Job, label string, depth int) foldtree.Row {
+func (b *builder) job(j core.Job, label string, depth int) treeview.Node {
 	state := j.Outcome()
 	id := b.id("job", j.ID)
 	b.targets[id] = OpenJobMsg{SHA: b.c.SHA, RunID: j.RunID, JobID: j.ID}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:     id,
 		Depth:  depth,
 		Lines:  []string{b.line(b.st.icon(state), b.st.link(j.URL, label))},
@@ -296,7 +296,7 @@ func (b *builder) took(state core.CheckState, status core.RunStatus, start, end 
 // runs. glyph marks the kind of the group, and is "" for none.
 func (b *builder) group(id, glyph, title string, checks []core.CommitCheck) {
 	states := make([]core.CheckState, len(checks))
-	kids := make([]foldtree.Row, 0, len(checks))
+	kids := make([]treeview.Node, 0, len(checks))
 	for i := range checks {
 		states[i] = checks[i].Outcome()
 		if b.keep(states[i]) {
@@ -313,7 +313,7 @@ func (b *builder) group(id, glyph, title string, checks []core.CommitCheck) {
 }
 
 // check returns the row of a check run of an App, whose enter opens the run.
-func (b *builder) check(cc *core.CommitCheck, state core.CheckState) foldtree.Row {
+func (b *builder) check(cc *core.CommitCheck, state core.CheckState) treeview.Node {
 	id := b.id("check", cc.ID)
 	b.targets[id] = OpenCheckMsg{SHA: b.c.SHA, CheckID: cc.ID, SuiteID: cc.SuiteID}
 	right := b.dim(b.took(state, cc.Status, cc.StartedAt, cc.CompletedAt))
@@ -325,7 +325,7 @@ func (b *builder) check(cc *core.CommitCheck, state core.CheckState) foldtree.Ro
 		word := strconv.Itoa(cc.Annotations) + " " + noun + b.st.Glyphs.Separator + stateWord(state)
 		right = b.line(b.noteGlyph(cc.Notes), b.dim(word))
 	}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:     id,
 		Depth:  b.o.Depth + 1,
 		Lines:  []string{b.line(b.st.icon(state), b.st.link(cc.DetailsURL, cc.Name))},
@@ -360,7 +360,7 @@ func (b *builder) status(s core.StatusContext) {
 		return
 	}
 	text := b.line(b.st.icon(state), b.st.status, b.st.link(s.TargetURL, s.Context))
-	b.rows = append(b.rows, foldtree.Row{
+	b.rows = append(b.rows, treeview.Node{
 		ID:    b.o.Prefix + "status/" + s.Context,
 		Depth: b.o.Depth,
 		Lines: []string{text},
@@ -375,7 +375,7 @@ func (b *builder) truncated() {
 	if more > 0 {
 		text = strconv.Itoa(more) + " more checks not shown"
 	}
-	b.rows = append(b.rows, foldtree.Row{
+	b.rows = append(b.rows, treeview.Node{
 		ID:    b.o.Prefix + "more",
 		Depth: b.o.Depth,
 		Lines: []string{b.dim(text)},
@@ -384,8 +384,8 @@ func (b *builder) truncated() {
 }
 
 // fold returns an open fold row.
-func (b *builder) fold(id string, depth int, text, right string) foldtree.Row {
-	return foldtree.Row{ID: id, Depth: depth, Lines: []string{text}, Right: right, Fold: true, Arrow: true}
+func (b *builder) fold(id string, depth int, text, right string) treeview.Node {
+	return treeview.Node{ID: id, Depth: depth, Lines: []string{text}, Right: right, Branch: true}
 }
 
 // line joins the parts of a row with a space, leaving out those that are

@@ -11,11 +11,11 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // ctxInvolved is the context of the keys of the people on the pull request.
@@ -39,7 +39,7 @@ type involvedPane struct {
 }
 
 // newInvolved returns the pane, with the keys of the tree.
-func newInvolved(k foldtree.KeyMap) *involvedPane {
+func newInvolved(k treeview.KeyMap) *involvedPane {
 	p := &involvedPane{tree: involved.New(), drawn: map[drawnInvolved]drawnPerson{}}
 	p.tree.SetKeyMap(k)
 	p.tree.Focus()
@@ -93,7 +93,7 @@ func (m *panesModal) refreshInvolved() {
 func (m *panesModal) restyleInvolved() {
 	p := m.inv
 	p.st = involved.NewStyles(m.theme, m.icons)
-	p.tree.SetStyles(foldtree.DefaultStyles(m.theme.Dark))
+	p.tree.SetStyles(m.theme.TreeView(m.icons))
 	m.refreshInvolved()
 }
 
@@ -169,7 +169,7 @@ func (m *panesModal) sendRerequest(p involved.Person) tea.Cmd {
 
 // involvedEnter takes the enter that the tree reports: a fold toggled, or the
 // person to show the comments of.
-func (m *panesModal) involvedEnter(msg foldtree.EnterMsg) tea.Cmd {
+func (m *panesModal) involvedEnter(msg treeview.OpenMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.inv.tree, cmd = m.inv.tree.Update(msg)
 	m.inv.ver++
@@ -189,6 +189,6 @@ func (m *panesModal) focusPerson(msg involved.FocusPersonMsg) tea.Cmd {
 func (m *panesModal) involvedLayer() keyhelp.Layer {
 	k := m.inv.tree.KeyMap()
 	// The tree's mark key is no key of this pane.
-	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Enter, m.keys.rerequest, m.keys.edit}
+	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Open, m.keys.rerequest, m.keys.edit}
 	return ui.ContextLayer(ctxInvolved, all, k.ShortHelp())
 }

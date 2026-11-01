@@ -12,7 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // The pull service reads what the pane reads.
@@ -58,7 +58,7 @@ func fixture() core.PullLinks {
 }
 
 func text(r Rows, width int) string {
-	m := foldtree.New(foldtree.WithSize(width, 40), foldtree.WithRows(r.Rows))
+	m := treeview.New(treeview.Source{}, treeview.WithSize(width, 40), treeview.WithRows(r.Rows))
 	lines := strings.Split(ansi.Strip(m.View()), "\n")
 	for i, l := range lines {
 		lines[i] = strings.TrimRight(l, " ")
@@ -68,8 +68,8 @@ func text(r Rows, width int) string {
 
 func ids(r Rows) []string {
 	out := make([]string, 0, len(r.Rows))
-	for _, row := range r.Rows {
-		out = append(out, row.ID)
+	for i := range r.Rows {
+		out = append(out, r.Rows[i].ID)
 	}
 	return out
 }

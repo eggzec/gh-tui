@@ -18,10 +18,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/merge"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // ctxMerge is the context of the keys of the Merge pane.
@@ -34,7 +34,7 @@ const updateSettle = 2 * time.Second
 // mergeKeys are the keys of the Merge pane: those of its tree, and the key
 // that updates the branch.
 type mergeKeys struct {
-	tree   foldtree.KeyMap
+	tree   treeview.KeyMap
 	update key.Binding
 }
 
@@ -56,7 +56,7 @@ func (l mergeLookup) Of(action string) []string {
 }
 
 func newMergeKeys(keys config.Keymap) mergeKeys {
-	tree := foldtree.NewKeyMap(mergeLookup{keys: keys, Context: ui.In(keys, ctxMerge)})
+	tree := treeview.NewKeyMap(mergeLookup{keys: keys, Context: ui.In(keys, ctxMerge)})
 	// Help lists no key that nothing takes.
 	tree.Mark = key.Binding{}
 	return mergeKeys{
@@ -139,7 +139,7 @@ func newMergePane(s *Section, repo core.RepoRef) *mergePane {
 	k := newMergeKeys(s.rawKeys)
 	p := &mergePane{
 		keys:   k,
-		model:  merge.New(foldtree.WithKeyMap(k.tree), foldtree.WithFocused(true)),
+		model:  merge.New(treeview.WithKeyMap(k.tree), treeview.WithFocused(true)),
 		behind: -1,
 		drawn:  map[drawnMerge]merge.Preview{},
 		logs:   map[int64]*jobLog{},
@@ -198,7 +198,7 @@ func (p *mergePane) restyle(m *panesModal) {
 	p.styles = merge.NewStyles(m.theme, m.icons, m.icons.Set())
 	p.page = nil
 	// No row says that nothing blocks: the ready mark in the title does.
-	st := foldtree.DefaultStyles(m.theme.Dark)
+	st := m.theme.TreeView(m.icons)
 	st.EmptyText = ""
 	p.model.SetStyles(st)
 	p.rebuild(m, true)
@@ -443,7 +443,7 @@ type mergeRevalidateMsg struct{ owner *panesModal }
 func (m *panesModal) mergeUpdate(msg tea.Msg) tea.Cmd {
 	p := m.merge
 	switch msg := msg.(type) {
-	case foldtree.EnterMsg:
+	case treeview.OpenMsg:
 		var cmd tea.Cmd
 		p.model, cmd = p.model.Update(msg)
 		p.version++

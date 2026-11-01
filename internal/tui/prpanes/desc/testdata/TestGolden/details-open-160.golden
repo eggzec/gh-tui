@@ -1,17 +1,17 @@
-▌Intro paragraph.
- Benchmarks
- │  before: 12ms
- │
- │  after: 9ms
+▌  Intro paragraph.
+ ▾ Benchmarks
+ ├─   before: 12ms
+ ├─
+ ├─   after: 9ms
  ╰─
- Changelog
- │  The tags between the two versions:
- │  0.42.0
- │  │  • security fixes only
- │  │  • a second item
+ ▾ Changelog
+ ├─   The tags between the two versions:
+ ├─ ▾ 0.42.0
+ │  ├─   • security fixes only
+ │  ├─   • a second item
  │  ╰─
- │  Details
- │  │  an untitled block
+ ├─ ▾ Details
+ │  ├─   an untitled block
  │  ╰─
  ╰─
- Outro paragraph.
+   Outro paragraph.

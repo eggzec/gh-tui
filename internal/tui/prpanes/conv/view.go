@@ -147,7 +147,7 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 		o.kids = func(prefix, sha string, depth int) []foldtree.Row {
 			rows, t := m.loader.Rows(sha, m.checkOptions(prefix, depth), o.Styles.checks)
 			maps.Copy(targets, t)
-			return rows
+			return checktree.FoldRows(rows)
 		}
 	}
 	d := m.dataOf()

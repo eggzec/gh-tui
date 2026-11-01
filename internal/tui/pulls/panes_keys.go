@@ -18,6 +18,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // panesKeys are the keys of the modal of a pull request that work on any of
@@ -43,7 +44,7 @@ type panesKeys struct {
 	// verdicts.
 	scroll ui.MoveKeys
 	// desc are the keys of the description's tree.
-	desc foldtree.KeyMap
+	desc treeview.KeyMap
 	// editDesc edits the title and the description, quoteDesc quotes the
 	// description in a new comment, and descEdit is the keys of the editor.
 	editDesc, quoteDesc key.Binding
@@ -78,7 +79,7 @@ type panesKeys struct {
 	convComment key.Binding
 	pick        picker.KeyMap
 	// inv is the keys of the involved pane's rows.
-	inv foldtree.KeyMap
+	inv treeview.KeyMap
 	// rerequest asks the person under the cursor for a review again.
 	rerequest key.Binding
 	// edit changes the people of the group under the cursor: the assignees or the reviewers.
@@ -111,7 +112,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
 		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
-		inv:      foldtree.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
+		inv:      treeview.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),
 		convSort:   ui.In(keys, ctxConversation).Binding("sort", "sort"),
@@ -129,7 +130,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
-		desc:    foldtree.NewKeyMap(ui.Lookup(keys, ctxDescription)),
+		desc:    treeview.NewKeyMap(ui.Lookup(keys, ctxDescription)),
 
 		editDesc:  ui.In(keys, ctxDescription).Binding("edit", "edit"),
 		quoteDesc: ui.In(keys, ctxDescription).Binding("comment", "quote"),
