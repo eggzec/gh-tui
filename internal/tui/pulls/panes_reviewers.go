@@ -172,20 +172,7 @@ func (m *panesModal) showReviewers() {
 	}
 
 	var search picker.Search
-	opts := []picker.Option{
-		picker.WithContext(m.ctx),
-		picker.WithGroupHeaders(false),
-		picker.WithModes(true),
-		picker.WithFilterLine(true),
-		picker.WithMarks(kindOn, kindOff),
-		picker.WithTicks(),
-		picker.WithMarkedFirst(true),
-		picker.WithDetailMatch(true),
-		picker.WithKeyMap(m.keys.pick),
-		// Enter before the first answer, or after a failed search, still sees
-		// the reviewers as ticked.
-		picker.WithKnown(rows(nil, nil)),
-	}
+	opts := m.pickerOptions(rows(nil, nil))
 	if f := m.list.facets; f != nil {
 		repo, svc := m.repo, m.svc
 		search = func(ctx context.Context, q picker.Query) ([]picker.Item, error) {
