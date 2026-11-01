@@ -1,6 +1,12 @@
 package history
 
-import "testing"
+import (
+	"fmt"
+	"strconv"
+	"testing"
+
+	"github.com/eggzec/gh-tui/internal/core"
+)
 
 func BenchmarkView(b *testing.B) {
 	for _, size := range []struct {
@@ -20,6 +26,47 @@ func BenchmarkView(b *testing.B) {
 				_ = m.View()
 			}
 		})
+	}
+}
+
+// BenchmarkViewBranches draws the branch pane over five pages of a hundred
+// branches, with the cursor in the middle of the list.
+func BenchmarkViewBranches(b *testing.B) {
+	const pages, perPage = 5, 100
+	f := newFake()
+	f.branchPages = map[string]core.Page[core.Branch]{}
+	for n := 1; n <= pages; n++ {
+		items := make([]core.Branch, perPage)
+		for i := range items {
+			items[i] = core.Branch{Name: fmt.Sprintf("feat/%d-%d", n, i)}
+		}
+		if n == 1 {
+			items[0] = core.Branch{Name: "main"}
+		}
+		p := core.Page[core.Branch]{Items: items}
+		if n < pages {
+			p.Next = strconv.Itoa(n + 1)
+		}
+		cursor := strconv.Itoa(n)
+		if n == 1 {
+			cursor = ""
+		}
+		f.branchPages[cursor] = p
+	}
+	m, h := newModal(b, f, wideW, wideH)
+	h.keys("shift+tab")
+	for range pages {
+		h.keys("end")
+	}
+	if got := m.branches.feed.Len(); got < pages*perPage {
+		b.Fatalf("loaded %d branches, want %d", got, pages*perPage)
+	}
+	for range pages * perPage / 2 {
+		h.keys("up")
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
 	}
 }
 
