@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
+	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 )
 
 // sortFixture opens the sort modal of a list that sorts by update time or
@@ -97,29 +98,48 @@ func TestSortModalTakesNewIcons(t *testing.T) {
 	}
 }
 
-func TestSortModalRestylesPickerWithNewIcons(t *testing.T) {
+func TestOrderModalRestylesPickerOnTheme(t *testing.T) {
 	t.Parallel()
-	p, _ := config.Default().Palette(true)
-	th := NewTheme(p, true)
-
-	m, _ := sortFixture(t, "is:closed")
-	m.SetTheme(th)
-	before := m.View()
-
 	d := config.Default()
-	d.UI.Icons = config.IconsASCII
-	m.Update(SettingsMsg{Config: d})
-	after := m.View()
-	if after == before {
-		t.Fatal("the picker drew the same after the icons changed, want its glyphs restyled")
+	fields := []orderpick.Item{{Value: "type", Title: "Type"}, {Value: "reason", Title: "Reason"}}
+	keys := OrderPickKeys(d.Keys)
+	none := func([]orderpick.Choice) tea.Cmd { return nil }
+	tests := []struct {
+		name string
+		make func() *OrderModal
+	}{
+		{"group", func() *OrderModal {
+			return NewGroupModal("Notifications", fields, nil, keys, NewIcons(d.UI.Icons), none)
+		}},
+		{"sort levels", func() *OrderModal {
+			return NewSortLevelsModal("Notifications", fields, nil, keys, NewIcons(d.UI.Icons), none)
+		}},
 	}
+	p, _ := d.Palette(true)
+	th := NewTheme(p, true)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := tt.make()
+			m.SetSize(120, 30)
+			m.SetTheme(th)
+			before := m.View()
 
-	// The picker now looks as one that was made with the ASCII icons.
-	want, _ := sortFixture(t, "is:closed")
-	want.Update(SettingsMsg{Config: d})
-	want.SetTheme(th)
-	if got := want.View(); after != got {
-		t.Errorf("picker after the icons changed differs from one themed with them:\n%s\nwant\n%s", after, got)
+			nd := config.Default()
+			nd.UI.Icons = config.IconsASCII
+			m.Update(SettingsMsg{Config: nd})
+			if want := tt.make().Title(); m.Title() == want {
+				t.Errorf("title %q did not follow the new icons", m.Title())
+			}
+			if after := m.View(); after != before {
+				t.Fatal("the picker was restyled by the settings, want it restyled only by the theme")
+			}
+
+			m.SetTheme(th)
+			if m.View() == before {
+				t.Error("the picker drew the same after the theme was set again, want the new icons")
+			}
+		})
 	}
 }
 
