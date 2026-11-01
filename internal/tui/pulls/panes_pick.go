@@ -171,6 +171,8 @@ type tickOverlay[K comparable] struct {
 	order func(K) string
 	// change turns the ticks into the command that applies them, or nil.
 	change func(on, was map[K]bool) tea.Cmd
+	// locked, when set, answers an attempt to change a locked row.
+	locked func(picker.Item) tea.Cmd
 	done   bool
 }
 
@@ -275,6 +277,11 @@ func (o *tickOverlay[K]) update(msg tea.Msg) tea.Cmd {
 		}
 		o.done = true
 		return o.change(o.on, o.was)
+	case picker.LockedMsg:
+		if msg.ID != o.p.ID() || o.locked == nil {
+			return nil
+		}
+		return o.locked(msg.Item)
 	case picker.CancelMsg:
 		if msg.ID == o.p.ID() {
 			o.done = true

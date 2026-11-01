@@ -18,15 +18,39 @@ func (f *fakeService) RequestReviews(core.RepoRef, int, []pulls.Reviewer) *optim
 	return optimistic.New(func(context.Context) error { return nil })
 }
 
+// RemoveReviewRequests sends nothing.
+func (f *fakeService) RemoveReviewRequests(core.RepoRef, int, []pulls.Reviewer) *optimistic.Op {
+	return optimistic.New(func(context.Context) error { return nil })
+}
+
+// ReviewerTeams finds no team.
+func (f *fakeService) ReviewerTeams(context.Context, pulls.ReviewerTeamsQuery) (pulls.ReviewerTeams, error) {
+	return pulls.ReviewerTeams{}, nil
+}
+
 // involvedService is a fake service whose cached timeline holds comments, and
-// which records the reviews asked for.
+// which records the reviews asked for and withdrawn.
 type involvedService struct {
 	*fakeService
 	timeline []core.TimelineItem
+	removed  [][]pulls.Reviewer
+	teams    []core.Team
 	// asked is each request for review, in order, and refuse the error that
 	// the Op of the next one returns.
 	asked  [][]pulls.Reviewer
 	refuse error
+}
+
+func (s *involvedService) RemoveReviewRequests(_ core.RepoRef, _ int, who []pulls.Reviewer) *optimistic.Op {
+	s.removed = append(s.removed, who)
+	if s.refuse != nil {
+		return optimistic.Refused(s.refuse)
+	}
+	return s.fakeService.RemoveReviewRequests(core.RepoRef{}, 0, who)
+}
+
+func (s *involvedService) ReviewerTeams(context.Context, pulls.ReviewerTeamsQuery) (pulls.ReviewerTeams, error) {
+	return pulls.ReviewerTeams{Teams: s.teams}, nil
 }
 
 func (s *involvedService) RequestReviews(_ core.RepoRef, _ int, who []pulls.Reviewer) *optimistic.Op {

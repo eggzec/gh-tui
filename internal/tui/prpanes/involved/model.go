@@ -89,6 +89,13 @@ func (m Model) OnAssignees() bool {
 	return ok && (id == idAssignees || id == idEmptyAssignees || strings.HasPrefix(id, "assignee:"))
 }
 
+// OnReviewers reports whether the cursor is on the Reviewers group or on one
+// of its rows.
+func (m Model) OnReviewers() bool {
+	id, ok := m.tree.Selected()
+	return ok && (id == idReviewers || id == idEmptyReviewers || strings.HasPrefix(id, "reviewer:"))
+}
+
 // View returns the rows drawn in the size of the tree.
 func (m Model) View() string { return m.tree.View() }
 

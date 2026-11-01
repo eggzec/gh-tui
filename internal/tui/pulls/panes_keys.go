@@ -78,7 +78,7 @@ type panesKeys struct {
 	inv foldtree.KeyMap
 	// rerequest asks the person under the cursor for a review again.
 	rerequest key.Binding
-	// edit changes the people of the group under the cursor: the assignees.
+	// edit changes the people of the group under the cursor: the assignees or the reviewers.
 	edit key.Binding
 	// diff is the keys of the diff of a file.
 	diff diffKeys
