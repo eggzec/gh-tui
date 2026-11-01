@@ -2,6 +2,8 @@ package pulls
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,6 +41,10 @@ type involvedService struct {
 	// the Op of the next one returns.
 	asked  [][]pulls.Reviewer
 	refuse error
+	// filterTeams makes the team search keep the slugs that have the text, and
+	// teamErr makes it fail.
+	filterTeams bool
+	teamErr     error
 }
 
 func (s *involvedService) RemoveReviewRequests(_ core.RepoRef, _ int, who []pulls.Reviewer) *optimistic.Op {
@@ -49,8 +55,15 @@ func (s *involvedService) RemoveReviewRequests(_ core.RepoRef, _ int, who []pull
 	return s.fakeService.RemoveReviewRequests(core.RepoRef{}, 0, who)
 }
 
-func (s *involvedService) ReviewerTeams(context.Context, pulls.ReviewerTeamsQuery) (pulls.ReviewerTeams, error) {
-	return pulls.ReviewerTeams{Teams: s.teams}, nil
+func (s *involvedService) ReviewerTeams(_ context.Context, q pulls.ReviewerTeamsQuery) (pulls.ReviewerTeams, error) {
+	if s.teamErr != nil {
+		return pulls.ReviewerTeams{}, s.teamErr
+	}
+	if !s.filterTeams {
+		return pulls.ReviewerTeams{Teams: s.teams}, nil
+	}
+	found := slices.DeleteFunc(slices.Clone(s.teams), func(t core.Team) bool { return !strings.Contains(t.Slug, q.Text) })
+	return pulls.ReviewerTeams{Teams: found}, nil
 }
 
 func (s *involvedService) RequestReviews(_ core.RepoRef, _ int, who []pulls.Reviewer) *optimistic.Op {

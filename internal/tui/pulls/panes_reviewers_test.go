@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -73,6 +74,11 @@ func TestReviewersTickDiff(t *testing.T) {
 			tickRow(t, m, userKey("hubot"))
 			tickRow(t, m, userKey("rita"))
 		}, []string{"hubot"}, []string{"rita"}},
+		{"team and person swap", func(t *testing.T, m *panesModal) {
+			t.Helper()
+			tickRow(t, m, teamKey(repo.Owner+"/core"))
+			tickRow(t, m, userKey("rita"))
+		}, []string{repo.Owner + "/core"}, []string{"rita"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -182,12 +188,63 @@ func TestReviewersRequeryKeepsTicks(t *testing.T) {
 	if m.top() == nil {
 		t.Fatal("esc closed the picker instead of clearing the query")
 	}
+	if !reviewersOverlayOf(t, m).on[userKey("rita")] {
+		t.Error("the pending reviewer rita lost her tick after the query")
+	}
 	settle(m, m.Update(keyMsg("enter")))
 	if got := names(svc.asked); !slices.Equal(got, []string{"hubot"}) {
 		t.Errorf("asked %q, want hubot", got)
 	}
 	if len(svc.removed) != 0 {
 		t.Errorf("removed %q, want nothing", names(svc.removed))
+	}
+}
+
+func TestReviewersTeamSearchFiltersByText(t *testing.T) {
+	t.Parallel()
+	svc := &involvedService{
+		fakeService: newFakeService(),
+		teams:       []core.Team{{Slug: "core", Name: "Core"}, {Slug: "docs", Name: "Docs"}},
+		filterTeams: true,
+	}
+	m := reviewing(t, svc, WithFacets(fakeFacets{}))
+	settle(m, nil)
+	settle(m, m.Update(keyMsg("/")))
+	for _, r := range "doc" {
+		settle(m, m.Update(keyMsg(string(r))))
+	}
+	settle(m, m.Update(keyMsg("enter")))
+	if reviewersOverlayOf(t, m).p.Select(teamKey(repo.Owner + "/core")) {
+		t.Error("the team core is listed for the text doc")
+	}
+	tickRow(t, m, teamKey(repo.Owner+"/docs"))
+	settle(m, m.Update(keyMsg("enter")))
+	if got := names(svc.asked); !slices.Equal(got, []string{repo.Owner + "/docs"}) {
+		t.Errorf("asked %q, want docs", got)
+	}
+}
+
+func TestReviewersTeamSearchErrorKeepsPeople(t *testing.T) {
+	t.Parallel()
+	svc := &involvedService{
+		fakeService: newFakeService(),
+		teams:       []core.Team{{Slug: "core", Name: "Core"}},
+		teamErr:     errors.New("hidden"),
+	}
+	m := reviewing(t, svc, WithFacets(fakeFacets{}))
+	settle(m, nil)
+	settle(m, m.Update(keyMsg("/")))
+	for _, r := range "hub" {
+		settle(m, m.Update(keyMsg(string(r))))
+	}
+	settle(m, m.Update(keyMsg("enter")))
+	tickRow(t, m, userKey("hubot"))
+	if !reviewersOverlayOf(t, m).p.Select(userKey("hubot")) {
+		t.Error("the picker lost hubot when the team search failed")
+	}
+	settle(m, m.Update(keyMsg("enter")))
+	if got := names(svc.asked); !slices.Equal(got, []string{"hubot"}) {
+		t.Errorf("asked %q, want hubot", got)
 	}
 }
 
