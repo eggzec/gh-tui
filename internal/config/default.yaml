@@ -1495,7 +1495,9 @@ keys:
     prev_field: [shift+tab]
     # Step through the methods the repository allows, while the cursor is
     # on the method; in the title and body they move the text cursor. A
-    # message that you haven't changed follows the method.
+    # message that you haven't changed follows the method. On the bypass
+    # row, shown for a pull request held by its rules, they turn the bypass
+    # on and off.
     prev_method: [left]
     next_method: [right]
   # The editor of the title and the description of a pull request. The

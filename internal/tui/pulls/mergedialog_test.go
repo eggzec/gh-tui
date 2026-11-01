@@ -275,7 +275,7 @@ func TestMergeDialogOffersTheBypassOnlyToWhoMay(t *testing.T) {
 		if dlg == nil {
 			t.Fatal("no dialog opened for a blocked pull request the viewer may merge as admin")
 		}
-		if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Bypass checks [off] a review is required") {
+		if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Bypass rules [off] a review is required") {
 			t.Errorf("the dialog doesn't offer the bypass:\n%s", got)
 		}
 	})
@@ -306,14 +306,14 @@ func TestMergeDialogBypassTogglesAndConfirms(t *testing.T) {
 	if got := svc.changes(); len(got) != 0 {
 		t.Fatalf("changes = %q before the bypass was turned on, want none", got)
 	}
-	if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Turn on Bypass checks") {
+	if got := ansi.Strip(dlg.View()); !strings.Contains(got, "Turn on Bypass rules") {
 		t.Errorf("the dialog doesn't say to turn the bypass on:\n%s", got)
 	}
 	press(t, h, "right")
 	if got := ansi.Strip(dlg.View()); !strings.Contains(got, "[on] merges although a review is required") {
 		t.Errorf("the dialog doesn't say that checks are bypassed:\n%s", got)
 	}
-	if got, want := dlg.Title(), "Merge #142, bypassing checks"; got != want {
+	if got, want := dlg.Title(), "Merge #142, bypassing rules"; got != want {
 		t.Errorf("title = %q, want %q", got, want)
 	}
 	// Off again, and on, with the other key.

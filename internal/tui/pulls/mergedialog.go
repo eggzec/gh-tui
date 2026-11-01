@@ -135,7 +135,9 @@ func newMergeDialog(a mergeAsk, keys mergeDialogKeys) *mergeDialog {
 	switch {
 	case a.c.of.blocked:
 		// Nothing merges until the user decides on this row; the same keys
-		// that pick a method turn it on.
+		// that pick a method turn it on. PrevMethod and NextMethod stay
+		// enabled here, unlike below: they are the bypass toggle, and move
+		// never stops on the method row of a blocked pull request.
 		d.focus = focusBypass
 	case !d.choosable():
 		// The method row takes no cursor, so the title does.
@@ -182,7 +184,7 @@ func (d *mergeDialog) Title() string {
 		t += " when ready"
 	}
 	if d.bypass {
-		t += ", bypassing checks"
+		t += ", bypassing rules"
 	}
 	return t
 }
@@ -394,7 +396,7 @@ func (d *mergeDialog) submit() tea.Cmd {
 	if c.of.blocked && !d.bypass {
 		// A plain merge of a blocked pull request would go past its rules
 		// without the user having said so.
-		d.note = "Can't merge: " + c.unmet + ". Turn on Bypass checks to merge anyway."
+		d.note = "Can't merge: " + c.unmet + ". Turn on Bypass rules to merge anyway."
 		return nil
 	}
 	c.of.bypass = d.bypass
@@ -500,10 +502,10 @@ func (d *mergeDialog) bypassRow() string {
 		mark = d.theme.Accent.Render("> ")
 	}
 	if d.bypass {
-		return mark + "Bypass checks " + d.theme.Accent.Bold(true).Render("[on]") +
+		return mark + "Bypass rules " + d.theme.Accent.Bold(true).Render("[on]") +
 			d.theme.Muted.Render(" merges although "+d.ask.c.unmet)
 	}
-	return mark + "Bypass checks " + d.theme.Muted.Render("[off] "+d.ask.c.unmet)
+	return mark + "Bypass rules " + d.theme.Muted.Render("[off] "+d.ask.c.unmet)
 }
 
 // methodName names method m as the dialog shows it.
@@ -559,6 +561,11 @@ func (d *mergeDialog) KeyLayers() []keyhelp.Layer {
 	onMethod := d.focus == focusMethod && len(d.methods) > 1 || d.focus == focusBypass
 	k.PrevMethod.SetEnabled(k.PrevMethod.Enabled() && onMethod)
 	k.NextMethod.SetEnabled(k.NextMethod.Enabled() && onMethod)
+	if d.focus == focusBypass {
+		// The same keys turn the bypass on and off there.
+		k.PrevMethod.SetHelp(k.PrevMethod.Help().Key, "toggle bypass")
+		k.NextMethod.SetHelp(k.NextMethod.Help().Key, "toggle bypass")
+	}
 	k.Edit.SetEnabled(k.Edit.Enabled() && d.focus == focusBody)
 	k.NextField.SetEnabled(k.NextField.Enabled() && d.hasMessage())
 	k.PrevField.SetEnabled(k.PrevField.Enabled() && d.hasMessage())
