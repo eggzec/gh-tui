@@ -201,7 +201,14 @@ func (a *Autolinks) Synced(msg SyncMsg, drew *uint64) bool {
 	changed := false
 	for d, was := range a.drawn {
 		now := a.answer(d.repo, d.cand)
-		if now != was {
+		switch now {
+		case was:
+		case answer{}:
+			// The cache forgot it: a view that draws it again records it
+			// anew, so the map doesn't keep what is gone.
+			delete(a.drawn, d)
+			changed = true
+		default:
 			a.drawn[d] = now
 			changed = true
 		}
