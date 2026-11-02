@@ -39,6 +39,7 @@ type API interface {
 	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
+	ListIssueTimeline(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -72,11 +73,14 @@ type Service struct {
 	lists    *cache.Cache[core.Page[core.Issue]]
 	issues   *cache.Cache[core.Issue]
 	comments *cache.Cache[stampedComments]
+	// timelines holds the pages of an issue's timeline.
+	timelines *cache.Cache[core.Page[core.TimelineItem]]
 	// The kept ones are what an earlier session read of each, if the
 	// service has a store. A read that misses memory starts from them.
-	keptLists    *cache.Shelf[core.Page[core.Issue]]
-	keptIssues   *cache.Shelf[core.Issue]
-	keptComments *cache.Shelf[stampedComments]
+	keptLists     *cache.Shelf[core.Page[core.Issue]]
+	keptIssues    *cache.Shelf[core.Issue]
+	keptComments  *cache.Shelf[stampedComments]
+	keptTimelines *cache.Shelf[core.Page[core.TimelineItem]]
 	// kinds holds whether each number resolved so far is an issue or a pull
 	// request, which never changes, so it is kept for good, and on
 	// keptKinds without validators. pulls tells a pull request from its
@@ -110,20 +114,22 @@ func New(api API, opts ...Option) *Service {
 	ttl := cmp.Or(o.ttl, d.Cache.TTL.Issues)
 	mem := []cache.Option{cache.WithTTL(ttl), cache.WithCapacity(cmp.Or(o.capacity, d.Cache.Memory.Entries))}
 	s := &Service{
-		api:          api,
-		viewer:       o.viewer,
-		ttl:          ttl,
-		access:       o.access,
-		repos:        o.repos,
-		lists:        cache.New[core.Page[core.Issue]](mem...),
-		issues:       cache.New[core.Issue](mem...),
-		comments:     cache.New[stampedComments](mem...),
-		keptLists:    cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
-		keptIssues:   cache.NewShelf[core.Issue](o.store, kindIssue, schema),
-		keptComments: cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
-		keptKinds:    cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
-		pulls:        o.pulls,
-		pageSize:     cmp.Or(o.pageSize, d.PageSize.Issues),
+		api:           api,
+		viewer:        o.viewer,
+		ttl:           ttl,
+		access:        o.access,
+		repos:         o.repos,
+		lists:         cache.New[core.Page[core.Issue]](mem...),
+		issues:        cache.New[core.Issue](mem...),
+		comments:      cache.New[stampedComments](mem...),
+		keptLists:     cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
+		keptIssues:    cache.NewShelf[core.Issue](o.store, kindIssue, schema),
+		keptComments:  cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),
+		timelines:     cache.New[core.Page[core.TimelineItem]](mem...),
+		keptTimelines: cache.NewShelf[core.Page[core.TimelineItem]](o.store, kindTimeline, timelineSchema),
+		keptKinds:     cache.NewShelf[core.NumberKind](o.store, kindNumber, numberSchema),
+		pulls:         o.pulls,
+		pageSize:      cmp.Or(o.pageSize, d.PageSize.Issues),
 	}
 	s.etags.Keep(o.store)
 	return s
@@ -136,6 +142,9 @@ const (
 	kindList     = "issuelist"
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
+	// timelineSchema is bumped when core.TimelineItem changes shape.
+	kindTimeline   = "issuetimeline"
+	timelineSchema = 1
 	// schema 4 keeps whether the author of each issue is an app.
 	schema = 4
 	// commentsSchema 4 keeps the avatar of each comment's author.

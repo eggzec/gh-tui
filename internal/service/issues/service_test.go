@@ -33,6 +33,7 @@ type fakeAPI struct {
 	filterIssues func(f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	search       func(query, cursor string, perPage int) (core.Page[core.SearchHit], error)
 	viewerLogin  func() (string, error)
+	timeline     func(number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 
 	mu    sync.Mutex
 	calls []string
@@ -89,6 +90,14 @@ func (f *fakeAPI) SearchIssues(_ context.Context, query, cursor string, perPage 
 		return core.Page[core.SearchHit]{}, errUnexpected
 	}
 	return f.search(query, cursor, perPage)
+}
+
+func (f *fakeAPI) ListIssueTimeline(_ context.Context, r core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error) {
+	f.checkRepo(r)
+	if !f.record("ListIssueTimeline", f.timeline != nil) {
+		return core.Page[core.TimelineItem]{}, errUnexpected
+	}
+	return f.timeline(number, cursor, first)
 }
 
 func (f *fakeAPI) ViewerLogin(context.Context) (string, error) {
