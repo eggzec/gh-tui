@@ -123,20 +123,20 @@ func (s *Service) EditAssignees(repo core.RepoRef, number int, add []core.User, 
 	}, undos...)
 }
 
-// editPull applies edit to every cached copy of pull request number of repo,
+// editPull applies change to every cached copy of pull request number of repo,
 // without touching what the copies share, and returns the rollbacks.
-func (s *Service) editPull(repo core.RepoRef, number int, edit func(*core.PullRequest)) []func() {
+func (s *Service) editPull(repo core.RepoRef, number int, change func(*core.PullRequest)) []func() {
 	key := detailKey(repo, number)
 	// The change moves the pull request past the version the list showed.
 	s.seen.Delete(key)
 	undoLists := s.lists.MutateTag(repoTag(repo), func(p listPage) (listPage, bool) {
 		return replace(p, number, func(pr core.PullRequest) core.PullRequest {
-			edit(&pr)
+			change(&pr)
 			return pr
 		})
 	})
 	undoDetail, _ := s.details.Mutate(key, func(d core.PullRequestDetail) core.PullRequestDetail {
-		edit(&d.PullRequest)
+		change(&d.PullRequest)
 		return d
 	})
 	return []func(){undoLists, undoDetail}

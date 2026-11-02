@@ -13,7 +13,7 @@ func TestEditComment(t *testing.T) {
 	api := &fakeAPI{t: t}
 	s := prime(t, api)
 	at := epoch.Add(time.Hour)
-	api.editComment = func(id, body string) (core.Edited, error) {
+	api.editComment = func(_, body string) (core.Edited, error) {
 		return core.Edited{Body: body + " (server)", At: at}, nil
 	}
 
@@ -133,7 +133,7 @@ func TestEditAssignees(t *testing.T) {
 	api := &fakeAPI{t: t}
 	s := prime(t, api)
 	hubot := core.User{Login: "hubot"}
-	api.addAssignees = func(number int, logins []string) (core.Issue, error) {
+	api.addAssignees = func(number int, _ []string) (core.Issue, error) {
 		it := issue(number)
 		it.Assignees = []core.User{{Login: "hubot", Name: "From GitHub"}}
 		return it, nil
