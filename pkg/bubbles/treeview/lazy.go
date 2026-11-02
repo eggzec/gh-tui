@@ -101,6 +101,7 @@ type lazy struct {
 	bulk    bulk
 	goal    []string
 	filter  string
+	keep    func(Node) bool
 }
 
 func with[V any](c map[string]V, k string, v V) map[string]V {
@@ -122,7 +123,24 @@ func without[V any](c map[string]V, k string) map[string]V {
 // errLine is the text of err on one line, since a newline in it would change
 // the height of its row.
 func (m Model) errLine(err error) string {
-	return strings.Join(strings.Fields(m.errText(err)), " ")
+	text, _ := m.errText(err)
+	return strings.Join(strings.Fields(text), " ")
+}
+
+// errHint is the hint that goes with the text of err, on one line.
+func (m Model) errHint(err error) string {
+	_, hint := m.errText(err)
+	return strings.Join(strings.Fields(hint), " ")
+}
+
+// ExpandAllLimits returns the most rows and the most levels an expand-all may
+// open, as [WithExpandAllLimits] sets them.
+func (m Model) ExpandAllLimits() (nodes, depth int) { return m.maxNodes, m.maxDepth }
+
+// SetExpandAllLimits sets the limits that [WithExpandAllLimits] does, for a
+// tree that is already made.
+func (m *Model) SetExpandAllLimits(nodes, depth int) {
+	m.maxNodes, m.maxDepth = max(nodes, 1), max(depth, 1)
 }
 
 // Loading reports whether any load is in flight.
@@ -140,25 +158,68 @@ func (m Model) Filter() string { return m.lz.filter }
 
 // SetFilter shows only the rows whose name holds q, without regard to case,
 // and the rows above them, with their folds held open. An empty q shows every
-// row again. Only rows that are loaded are matched.
+// row again. Only rows that are loaded are matched. It combines with
+// [Model.SetFilterFunc]: a row must pass both.
 func (m *Model) SetFilter(q string) {
 	m.lz.filter = strings.ToLower(strings.TrimSpace(q))
 	m.reflow()
 }
 
-// filterHits returns which of rows show for the filter, or nil when there is
+// SetFilterFunc shows only the rows that keep returns true for, and the rows
+// above them, with their folds held open, as [Model.SetFilter] does for a
+// name. A nil keep shows every row again. Only rows that are loaded are asked.
+func (m *Model) SetFilterFunc(keep func(Node) bool) {
+	m.lz.keep = keep
+	m.reflow()
+}
+
+// filtering reports whether a filter of either kind is set.
+func (m Model) filtering() bool { return m.lz.filter != "" || m.lz.keep != nil }
+
+// Filtered returns how many of the children of the row with the ID, "" being
+// the top level, show for the filters, and how many it has in all. Without a
+// filter the two are equal. A child that shows only because a row below it
+// matches counts as shown.
+func (m Model) Filtered(id string) (shown, total int) {
+	depth, from := 0, 0
+	if id != "" {
+		r := m.rowIndex(id)
+		if r < 0 {
+			return 0, 0
+		}
+		depth, from = m.rows[r].Depth+1, r+1
+	}
+	hit := m.filterHits()
+	for i := from; i < len(m.rows) && (id == "" || m.rows[i].Depth >= depth); i++ {
+		if m.rows[i].Depth != depth || m.rows[i].Inline {
+			continue
+		}
+		total++
+		if len(hit) == 0 || hit[i] {
+			shown++
+		}
+	}
+	return shown, total
+}
+
+// filterHits returns which of rows show for the filters, or nil when there is
 // none.
 func (m Model) filterHits() []bool {
-	if m.lz.filter == "" {
+	if !m.filtering() {
 		return nil
 	}
 	hit := make([]bool, len(m.rows))
 	for i := range m.rows {
-		name := m.rows[i].Name
-		if name == "" && len(m.rows[i].Lines) > 0 {
-			name = ansi.Strip(m.rows[i].Lines[0])
+		if m.lz.filter != "" {
+			name := m.rows[i].Name
+			if name == "" && len(m.rows[i].Lines) > 0 {
+				name = ansi.Strip(m.rows[i].Lines[0])
+			}
+			if !strings.Contains(strings.ToLower(name), m.lz.filter) {
+				continue
+			}
 		}
-		if !strings.Contains(strings.ToLower(name), m.lz.filter) {
+		if m.lz.keep != nil && !m.lz.keep(m.rows[i]) {
 			continue
 		}
 		hit[i] = true
@@ -473,6 +534,37 @@ func (m *Model) Reload() tea.Cmd {
 		}
 	}
 	return m.pump()
+}
+
+// Retry loads again the children of every row whose last load failed, the top
+// level included, within the limit of loads in flight.
+func (m *Model) Retry() tea.Cmd {
+	if len(m.lz.failed) == 0 {
+		return nil
+	}
+	m.lz.reload = m.lz.reload[:0:0]
+	if m.lz.failed[""] != nil {
+		m.lz.reload = append(m.lz.reload, "")
+	}
+	for i := range m.rows {
+		if id := m.rows[i].ID; m.lz.failed[id] != nil {
+			m.lz.reload = append(m.lz.reload, id)
+		}
+	}
+	return m.pump()
+}
+
+// Load loads the children of the row with the ID, "" being the top level,
+// without opening it. It does nothing when they are loaded or loading, or when
+// there is no such row; a failed load is tried again.
+func (m *Model) Load(id string) tea.Cmd {
+	if id != "" && m.rowIndex(id) < 0 {
+		return nil
+	}
+	if _, busy := m.lz.busy[id]; busy || (m.lz.loaded[id] && m.lz.failed[id] == nil) {
+		return nil
+	}
+	return m.startLoad(id, false)
 }
 
 // ReloadNode loads again the children of the row with the ID id, "" being the

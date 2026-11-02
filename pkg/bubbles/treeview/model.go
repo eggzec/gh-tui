@@ -19,6 +19,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // tabWidth is the stop that tabs in the text of a row expand to, so a tab
@@ -88,6 +90,10 @@ type Node struct {
 	// Value is the caller's own data for the row, handed back in an
 	// [OpenMsg].
 	Value any
+	// Folded is set by the tree, on the copies it hands out (the icon
+	// callback, [Model.Selected], [Model.At], [Model.ByID]), to whether the row
+	// is a fold that shows closed. It is ignored in the rows given to the tree.
+	Folded bool
 }
 
 // nextID gives each tree an identity that its messages carry.
@@ -107,10 +113,11 @@ type Model struct {
 	ctx      context.Context
 	lz       lazy
 	icon     func(Node) string
-	errText  func(error) string
+	errText  func(error) (string, string)
 	maxNodes int
 	maxDepth int
 	maxLoads int
+	minName  int
 
 	rows   []Node
 	closed map[string]bool
@@ -157,10 +164,11 @@ func New(src Source, opts ...Option) Model {
 		closed:   map[string]bool{},
 		src:      src,
 		ctx:      context.Background(),
-		errText:  func(err error) string { return err.Error() },
+		errText:  func(err error) (string, string) { return err.Error(), "" },
 		maxNodes: DefaultExpandAllNodes,
 		maxDepth: DefaultExpandAllDepth,
 		maxLoads: DefaultMaxLoads,
+		minName:  1,
 	}
 	m.setStyles(DefaultStyles(true))
 	for _, o := range opts {
@@ -219,7 +227,72 @@ func (m Model) Selected() (Node, bool) {
 	if len(m.vis) == 0 {
 		return Node{}, false
 	}
-	return m.row(m.cur), true
+	return m.node(m.vis[m.cur]), true
+}
+
+// node returns row r of rows as the tree hands it out, with Folded set.
+func (m Model) node(r int) Node {
+	n := m.rows[r]
+	n.Folded = m.shut(r)
+	return n
+}
+
+// At returns the row at place i of the rows that show, and false when i is out
+// of range.
+func (m Model) At(i int) (Node, bool) {
+	if i < 0 || i >= len(m.vis) {
+		return Node{}, false
+	}
+	return m.node(m.vis[i]), true
+}
+
+// ByID returns the row with the given ID, shown or hidden by a fold, and false
+// when there is none.
+func (m Model) ByID(id string) (Node, bool) {
+	r := m.rowIndex(id)
+	if r < 0 {
+		return Node{}, false
+	}
+	return m.node(r), true
+}
+
+// SetIcons sets the text drawn before the text of a row, and a space, as
+// [WithIcons] does. The callback sees [Node.Folded]. A nil icon draws none.
+func (m *Model) SetIcons(icon func(Node) string) { m.icon = icon }
+
+// Rename gives the row with the ID a new name, and redraws its first line as
+// the name linked to its Link; the other lines stay. It reports whether there
+// is such a row. A filter on names sees the new name.
+func (m *Model) Rename(id, name string) bool {
+	r := m.rowIndex(id)
+	if r < 0 {
+		return false
+	}
+	rows := slices.Clone(m.rows)
+	rows[r].Name = name
+	lines := slices.Clone(rows[r].Lines)
+	lines[0] = tidy([]string{termtext.Link(rows[r].Link, name)})[0]
+	rows[r].Lines = lines
+	m.rows = rows
+	m.reflow()
+	return true
+}
+
+// Expand opens the fold of the row with the ID and the folds above it, so the
+// row shows, and returns the command that loads its children when they were
+// never loaded. It does nothing for a row that is not there; unlike
+// [Model.SetFolded] it moves no cursor and reaches a hidden row.
+func (m *Model) Expand(id string) tea.Cmd {
+	r := m.rowIndex(id)
+	if r < 0 {
+		return nil
+	}
+	m.open(r)
+	if m.folds[r] {
+		m.closed = withKey(m.closed, id, false)
+	}
+	m.reflow()
+	return m.fetch(r)
 }
 
 // Folded reports whether the row with the given ID is a fold that is
@@ -406,7 +479,7 @@ func (m Model) row(i int) Node { return m.rows[m.vis[i]] }
 // shut reports whether row r of rows is a fold that hides what follows it.
 // A filter holds every fold open.
 func (m Model) shut(r int) bool {
-	return m.folds[r] && m.closed[m.rows[r].ID] && m.lz.filter == ""
+	return m.folds[r] && m.closed[m.rows[r].ID] && !m.filtering()
 }
 
 // foldAt reports whether the row at place i of vis folds.

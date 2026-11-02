@@ -49,7 +49,7 @@ func (m Model) View() string {
 		lines = append(lines, m.pinned(p))
 	}
 	if len(m.vis) == 0 {
-		lines = append(lines, m.empty())
+		lines = append(lines, m.empty()...)
 	}
 	i := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > m.off })
 	for ; i < len(m.vis) && len(lines) < m.height; i++ {
@@ -67,15 +67,24 @@ func (m Model) View() string {
 }
 
 // empty is the line shown in place of the rows: the spinner while the top
-// level loads, its error if it failed, else the empty text.
-func (m Model) empty() string {
+// level loads, its error if it failed, else the empty text, each with its hint
+// on a line under it when it has one.
+func (m Model) empty() []string {
 	if _, ok := m.lz.busy[""]; ok {
-		return m.spinner() + m.styles.Empty.Render(m.cut(m.styles.LoadingText, max(m.width-2, 0)))
+		return []string{m.spinner() + m.styles.Empty.Render(m.cut(m.styles.LoadingText, max(m.width-2, 0)))}
 	}
 	if err := m.lz.failed[""]; err != nil {
-		return m.styles.Error.Render(m.cut(m.errLine(err), m.width))
+		out := []string{m.styles.Error.Render(m.cut(m.errLine(err), m.width))}
+		if h := m.errHint(err); h != "" {
+			out = append(out, m.styles.Empty.Render(m.cut(h, m.width)))
+		}
+		return out
 	}
-	return m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width))
+	out := []string{m.styles.Empty.Render(m.cut(m.styles.EmptyText, m.width))}
+	if h := m.styles.EmptyHint; h != "" {
+		out = append(out, m.styles.Empty.Render(m.cut(h, m.width)))
+	}
+	return out
 }
 
 // spinner is the current frame and a space, or two spaces with no frames.
@@ -164,7 +173,7 @@ func (m Model) head(r Node, i int) string {
 	// The right part comes last; it needs a column of text and a space.
 	right, rw := r.Right, ansi.StringWidth(r.Right)
 	room := avail
-	if right != "" && avail-rw-1 >= 1 {
+	if right != "" && avail-rw-1 >= m.minName {
 		room = avail - rw - 1
 	} else {
 		right = ""
@@ -186,7 +195,7 @@ func (m Model) head(r Node, i int) string {
 func (m Model) fit(r Node, i, room int) string {
 	text := r.Lines[0]
 	if m.icon != nil {
-		if ic := m.icon(r); ic != "" {
+		if ic := m.icon(m.node(m.vis[i])); ic != "" {
 			text = ic + " " + text
 		}
 	}
