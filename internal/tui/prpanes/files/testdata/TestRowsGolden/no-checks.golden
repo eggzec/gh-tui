@@ -4,7 +4,7 @@ width 80
  ├─   ● a1b2d41 Fix the off by one error in the pager when the last line is… 19d
  ├─   ● a1b2e52 Rename the helpers                                    Linus  18d
  ╰─   ● a1b2f63 Document the flags                             Ada Lovelace  17d
-   ────────────────────────────────────────────────────────────────────────────…
+   ─────────────────────────────────────────────────────────────────────────────
  ▾ Files
 
 width 50
@@ -13,7 +13,7 @@ width 50
  ├─   ● a1b2d41 Fix the off by one error in t… 19d
  ├─   ● a1b2e52 Rename the helpers      Linus  18d
  ╰─   ● a1b2f63 Document the fl… Ada Lovelace  17d
-   ──────────────────────────────────────────────…
+   ───────────────────────────────────────────────
  ▾ Files
 
 width 30
@@ -22,6 +22,6 @@ width 30
  ├─   ● a1b2d41 Fix the o… 19d
  ├─   ● a1b2e52 Rename th… 18d
  ╰─   ● a1b2f63 Document … 17d
-   ──────────────────────────…
+   ───────────────────────────
  ▾ Files
 
