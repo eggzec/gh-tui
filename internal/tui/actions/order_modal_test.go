@@ -214,14 +214,14 @@ func TestGroupedJobsNestUnderRun(t *testing.T) {
 				if fold < 0 || !strings.Contains(row, "#") {
 					continue
 				}
-				// The job's state sits a level (2 cells) right of the run's,
+				// The job's state sits a level of guides (3 cells) right of the run's,
 				// which follows the run's fold marker.
 				state := col(rows[i+1], "✓✗⊖◐")
 				if state < 0 {
 					t.Fatalf("no job under the run in:\n%s", strings.Join(rows, "\n"))
 				}
-				if state != fold+4 {
-					t.Errorf("job state at column %d, run marker at %d, want 4 cells right:\n%s", state, fold, strings.Join(rows[i:i+2], "\n"))
+				if state != fold+5 {
+					t.Errorf("job state at column %d, run marker at %d, want 5 cells right:\n%s", state, fold, strings.Join(rows[i:i+2], "\n"))
 				}
 				return
 			}

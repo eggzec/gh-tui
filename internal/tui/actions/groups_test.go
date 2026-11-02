@@ -225,7 +225,7 @@ func jobsPaneRows(m *Modal) []string {
 	for _, l := range lines {
 		// The outline's guides are drawn, not read, so they drop out.
 		words := slices.DeleteFunc(strings.Fields(ansi.Strip(l)), func(w string) bool {
-			return strings.Trim(w, "│├└") == ""
+			return strings.Trim(w, "│├└╰─") == ""
 		})
 		if len(words) > 0 {
 			rows = append(rows, strings.Join(words, " "))

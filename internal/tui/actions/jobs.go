@@ -14,6 +14,7 @@ import (
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -62,6 +63,11 @@ func (j *jobs) isOpen(k string) bool {
 type jobLine struct {
 	jobNode
 	depth int
+	// last reports that no row of its level follows it, and more that one
+	// follows each group it is in, from the outermost (index 1), as
+	// [treeview.Prefix] takes them.
+	last bool
+	more []bool
 }
 
 // selectedAt returns the job of row k, or the job a group opens on: its first
@@ -146,16 +152,19 @@ func (j *jobs) reveal(i int) {
 // relines lays the rows out as the groups are folded.
 func (j *jobs) relines() {
 	j.lines = nil
-	var walk func([]jobNode, int)
-	walk = func(nodes []jobNode, depth int) {
-		for _, n := range nodes {
-			j.lines = append(j.lines, jobLine{jobNode: n, depth: depth})
+	var walk func([]jobNode, int, []bool)
+	walk = func(nodes []jobNode, depth int, more []bool) {
+		for i := range nodes {
+			n := nodes[i]
+			// The line that says there are more follows the top level.
+			last := i == len(nodes)-1 && (depth > 0 || !j.more)
+			j.lines = append(j.lines, jobLine{jobNode: n, depth: depth, last: last, more: more})
 			if n.group != nil && j.isOpen(n.group.key) {
-				walk(n.group.kids, depth+1)
+				walk(n.group.kids, depth+1, append(slices.Clone(more), !last))
 			}
 		}
 	}
-	walk(j.tree, 0)
+	walk(j.tree, 0, []bool{false})
 }
 
 // lineOf returns the row of the job of index i: its own, or that of the
@@ -333,7 +342,7 @@ func (m *Modal) jobsNote(j *jobs, run core.Run, w int) (string, bool) {
 	return ui.Fit(indent+note, w), true
 }
 
-// jobsIndent is the indent of the jobs under their run.
+// jobsIndent is the indent of the note that stands for the jobs of a run.
 const jobsIndent = 2
 
 // noJobsText tells why run has no jobs, and what to do: a run of a pull
@@ -369,7 +378,7 @@ func (m *Modal) renderJob(run core.Run, k int, selected bool, w int) string {
 	}
 	if k >= len(j.lines) {
 		text := "First " + strconv.Itoa(len(j.items)) + " jobs"
-		return ui.Fit(strings.Repeat(" ", jobsIndent)+st.Subtle.Render(termtext.Truncate(text, w-jobsIndent, st.ic.Ellipsis)), w)
+		return ui.Fit(treeview.Prefix(st.tree, 1, true, nil)+st.Subtle.Render(termtext.Truncate(text, w-st.level, st.ic.Ellipsis)), w)
 	}
 	row := &st.row[ui.Look(selected, m.inRuns())]
 	style := row.Text
@@ -391,7 +400,7 @@ func (m *Modal) renderJob(run core.Run, k int, selected bool, w int) string {
 		url = x.URL
 		mark = st.Glyphs[ui.RunStateOf(x.Status, x.Conclusion)] + " "
 	}
-	indent := strings.Repeat(" ", jobsIndent*(l.depth+1))
+	indent := treeview.Prefix(st.tree, l.depth+1, l.last, l.more)
 	room := w - ansi.StringWidth(indent+mark)
 	if rw := ansi.StringWidth(right); room-rw-1 >= 8 {
 		room -= rw + 1
