@@ -51,7 +51,7 @@ type PageSize struct {
 	// rules of rulesets it reads of the base branch.
 	Reviewers int `yaml:"reviewers"`
 	Rules     int `yaml:"rules"`
-	// Issues sizes the pages of issues, and of their comments.
+	// Issues sizes the pages of issues, and of their comments and timeline.
 	Issues        int `yaml:"issues"`
 	Notifications int `yaml:"notifications"`
 	// Repos sizes the pages of the user's repositories.

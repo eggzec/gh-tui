@@ -110,7 +110,7 @@ cache:
   ttl:
     # The lists and details of pull requests, and their comments.
     pulls: 5m
-    # The lists and details of issues, and their comments.
+    # The lists and details of issues, and their comments and timeline.
     issues: 5m
     notifications: 5m
     # The lists of repositories: the search modal's start, an owner's

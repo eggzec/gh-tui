@@ -45,6 +45,7 @@ var graphqlOperations = map[string]string{
 	"getPullQuery":              getPullQuery,
 	"pullThreadsQuery":          pullThreadsQuery,
 	"pullReviewsQuery":          pullReviewsQuery,
+	"issueTimelineQuery":        issueTimelineQuery,
 	"pullTimelineQuery":         pullTimelineQuery,
 	"pullCommitsQuery":          pullCommitsQuery,
 	"pullViewedQuery":           pullViewedQuery,
