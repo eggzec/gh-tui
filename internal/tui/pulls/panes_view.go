@@ -147,13 +147,7 @@ func (m *panesModal) stripForms(p panes.Pane) []string {
 
 // sealed cuts or pads line to width cells, and ends its styles, so that
 // the next line starts plain.
-func sealed(line string, width int) string {
-	line = ansi.Truncate(line, width, "")
-	if pad := width - ansi.StringWidth(line); pad > 0 {
-		line += strings.Repeat(" ", pad)
-	}
-	return line + "\x1b[m"
-}
+func sealed(line string, width int) string { return ui.Seal(line, width) }
 
 // headerRows is the rows above the panes: one for the labels of the pull
 // request if it has any, else none, so the panes have the row.
@@ -174,31 +168,7 @@ func (m *panesModal) header() string {
 	for i, l := range labels {
 		chips[i], widths[i] = m.chips.Get(l)
 	}
-	for k := len(labels); k >= 0; k-- {
-		need := max(k-1, 0)
-		for _, w := range widths[:k] {
-			need += w
-		}
-		more := "+" + strconv.Itoa(len(labels)-k)
-		if k < len(labels) {
-			need += len(more)
-			if k > 0 {
-				need++
-			}
-		}
-		if need > m.width && k > 0 {
-			continue
-		}
-		line := strings.Join(chips[:k], " ")
-		if k < len(labels) {
-			if k > 0 {
-				line += " "
-			}
-			line += m.theme.Subtle.Render(more)
-		}
-		return sealed(line, m.width)
-	}
-	return sealed("", m.width)
+	return ui.ChipRow(chips, widths, m.width, func(s string) string { return m.theme.Subtle.Render(s) })
 }
 
 // footer is the last line: the keys that work in the modal, as far as they
