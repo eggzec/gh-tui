@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -375,7 +376,9 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	if prompting {
 		return []keyhelp.Layer{list}
 	}
-	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, keyhelp.FromHelp("", k, false), list)}
+	own := keyhelp.FromHelp("", k, false)
+	own.SetMenu(keymap.Menu(k))
+	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, own, list)}
 }
 
 // Capturing implements ui.Capturer: the list takes every key while its

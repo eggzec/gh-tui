@@ -37,8 +37,8 @@ type keyMap struct {
 	NextTab key.Binding
 	PrevTab key.Binding
 	Refresh key.Binding
-	Close   key.Binding
-	Reopen  key.Binding
+	Close   key.Binding `menu:"item"`
+	Reopen  key.Binding `menu:"item"`
 	Comment key.Binding
 	Label   key.Binding
 	// References shows the issues and pull requests linked to the issue, in
@@ -139,6 +139,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.onList(s)
 	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
+	own.SetMenu(keymap.Menu(k))
 	if !s.hasRepo || s.issuesOff() {
 		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}
