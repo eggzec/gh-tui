@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -23,20 +22,6 @@ func SpreadDrop(left, right string, width int, tail string) string {
 // controls, so it can't break the layout.
 func CleanLine(s string) string {
 	return strings.Join(strings.Fields(OneLine(s)), " ")
-}
-
-// Count formats n the way GitHub shows counts: 999, 1.2k, 12k.
-func Count(n int) string {
-	switch {
-	case n < 1000:
-		return strconv.Itoa(n)
-	case n < 10_000:
-		s := strconv.FormatFloat(float64(n)/1000, 'f', 1, 64)
-		return strings.TrimSuffix(s, ".0") + "k"
-	case n < 1_000_000:
-		return strconv.Itoa(n/1000) + "k"
-	}
-	return strconv.Itoa(n/1_000_000) + "m"
 }
 
 // Plural returns one when n is 1 and many otherwise.

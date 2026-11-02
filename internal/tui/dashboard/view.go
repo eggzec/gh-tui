@@ -429,40 +429,20 @@ func (s *Section) workBody(w, h int) []string {
 // workTabs renders the tabs of the lists of work, each with its count, by
 // their short titles when the full ones don't fit in w cells.
 func (s *Section) workTabs(w int) string {
-	st, l := &s.st, &s.tasks
-	labels := make([]string, len(workLists))
-	for _, short := range []bool{false, true} {
-		n := 1
-		for i, wl := range workLists {
-			title := wl.title
-			if short {
-				title = wl.short
-			}
-			count := strconv.Itoa(l.tabs[i].count)
-			if l.tabs[i].refused {
-				// Not none: unknown.
-				count = "?"
-			}
-			labels[i] = title + " " + count
-			n += ansi.StringWidth(labels[i]) + 2
+	l := &s.tasks
+	items := make([]tabrow.Item, len(workLists))
+	for i, wl := range workLists {
+		count := ui.Count(l.tabs[i].count, false)
+		if l.tabs[i].refused {
+			// Not none: unknown.
+			count = "?"
 		}
-		if n-2 <= w {
-			break
-		}
+		items[i] = tabrow.Item{Label: wl.title, Short: wl.short, Count: count}
 	}
-	var b strings.Builder
-	b.WriteByte(' ')
-	for i, label := range labels {
-		if i > 0 {
-			b.WriteString("  ")
-		}
-		if i == l.cur {
-			st.focusTitle.Write(&b, label)
-		} else {
-			st.shared.Muted.Write(&b, label)
-		}
-	}
-	return b.String()
+	row := tabrow.New(tabrow.WithStyles(s.st.row))
+	row.SetItems(items, l.cur)
+	row.SetWidth(max(w-1, 0))
+	return " " + row.View()
 }
 
 // workItem renders the line of a pull request or issue waiting on the

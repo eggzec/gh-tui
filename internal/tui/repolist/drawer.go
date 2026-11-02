@@ -58,7 +58,7 @@ func (d Drawer) RepoFacts(r core.Repo, w int) string {
 	if r.Language != "" {
 		parts = append(parts, d.Lang(r).Render(d.Icons.Language(r.Language))+" "+st.Text.Render(r.Language))
 	}
-	parts = append(parts, st.Muted.Render(d.Icons.Star+" "+ui.Count(r.Stars)))
+	parts = append(parts, st.Muted.Render(d.Icons.Star+" "+ui.Count(r.Stars, false)))
 	if flags := d.Icons.Flags(r); len(flags) > 0 {
 		parts = append(parts, st.Subtle.Render(strings.Join(flags, " ")))
 	}

@@ -383,7 +383,7 @@ func (s *Section) facts(o core.Owner) string {
 		}
 	}
 	count := func(n int, one, many string) {
-		parts = append(parts, st.Text.Render(ui.Count(n))+st.Muted.Render(ui.Plural(n, one, many)))
+		parts = append(parts, st.Text.Render(ui.Count(n, false))+st.Muted.Render(ui.Plural(n, one, many)))
 	}
 	if o.Kind == core.OwnerOrg {
 		muted(p.Location, site(p.Website), o.Email)
@@ -555,7 +555,7 @@ func (s *Section) tabCount(t tab) string {
 		n = l.feed().Len()
 	case membersTab:
 		if !o.Viewer.Member {
-			return ui.Count(o.Members) + " public"
+			return ui.Count(o.Members, false) + " public"
 		}
 		n = o.Members
 	case teamsTab:
@@ -565,7 +565,7 @@ func (s *Section) tabCount(t tab) string {
 		n = o.Teams
 	default:
 	}
-	return ui.Count(n)
+	return ui.Count(n, false)
 }
 
 // failure renders err, which stopped action, in lines of w cells. The
