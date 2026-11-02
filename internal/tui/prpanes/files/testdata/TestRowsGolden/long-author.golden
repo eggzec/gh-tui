@@ -1,24 +1,24 @@
 width 80
-▌Commits 3 of 3 ● a1b2c30…a1b2e52
- ├─ ● a1b2c30 ✓ Add the cache                      Bartholomew Maximilian …  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in the pager when the last line is… 19d
- ╰─ ● a1b2e52 ◐ Rename the helpers                                    Linus  18d
- ───────────────────────────────────────────────────────────────────────────────
- Files
+▌▾ Commits 3 of 3 ● a1b2c30…a1b2e52
+ ├─   ● a1b2c30 ✓ Add the cache                    Bartholomew Maximilian …  20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in the pager when the last line … 19d
+ ╰─   ● a1b2e52 ◐ Rename the helpers                                  Linus  18d
+   ────────────────────────────────────────────────────────────────────────────…
+ ▾ Files
 
 width 50
-▌Commits 3 of 3 ● a1b2c30…a1b2e52
- ├─ ● a1b2c30 ✓ Add the cache                  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in t… 19d
- ╰─ ● a1b2e52 ◐ Rename the helpers      Linus  18d
- ─────────────────────────────────────────────────
- Files
+▌▾ Commits 3 of 3 ● a1b2c30…a1b2e52
+ ├─   ● a1b2c30 ✓ Add the cache                20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in… 19d
+ ╰─   ● a1b2e52 ◐ Rename the helpers    Linus  18d
+   ──────────────────────────────────────────────…
+ ▾ Files
 
 width 30
-▌Commits 3 of 3 ● a1b2c30…a1b…
- ├─ ● a1b2c30 ✓ Add the c… 20d
- ├─ ● a1b2d41 ✗ Fix the o… 19d
- ╰─ ● a1b2e52 ◐ Rename th… 18d
- ─────────────────────────────
- Files
+▌▾ Commits 3 of 3 ● a1b2c30…a…
+ ├─   ● a1b2c30 ✓ Add the… 20d
+ ├─   ● a1b2d41 ✗ Fix the… 19d
+ ╰─   ● a1b2e52 ◐ Rename … 18d
+   ──────────────────────────…
+ ▾ Files
 

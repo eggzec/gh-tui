@@ -103,7 +103,7 @@ func TestSegmentRows(t *testing.T) {
 	rows := buildOf(segmentData(), opts(config.IconsNerd, 80))
 	by := byID(rows)
 	d0 := by["rc:c2/d0"]
-	if !d0.Inline || !d0.Fold || !d0.Closed || d0.Kind != KindSegment {
+	if !d0.Inline || !d0.Branch || !d0.Closed || d0.Kind != KindSegment {
 		t.Errorf("a block is not an inline closed fold of the segment kind: %+v", d0)
 	}
 	// Its text, its nested block with its head, line and end, and its last text.
@@ -116,7 +116,7 @@ func TestSegmentRows(t *testing.T) {
 	if end := by["rc:c2/d0/end"]; !end.Skip || !end.Inline {
 		t.Errorf("the end of a block is not a skipped inline row: %+v", end)
 	}
-	if c := by["rc:c2"]; c.Fold {
+	if c := by["rc:c2"]; c.Branch {
 		t.Errorf("a comment with blocks folds itself")
 	}
 }
@@ -126,7 +126,7 @@ func TestSegmentDiagrams(t *testing.T) {
 	for _, w := range []int{80, 60} {
 		by := byID(buildOf(segmentData(), opts(config.IconsNerd, w)))
 		m0 := by["rc:c5/t0.m0"]
-		if !m0.Inline || !m0.Fold || !m0.Closed || m0.Kind != KindSegment {
+		if !m0.Inline || !m0.Branch || !m0.Closed || m0.Kind != KindSegment {
 			t.Errorf("at %d cells a diagram is not an inline closed fold of the segment kind: %+v", w, m0)
 		}
 		if len(m0.Lines) != 4 || !strings.Contains(ansi.Strip(m0.Lines[0]), "3 lines · View diagram") {

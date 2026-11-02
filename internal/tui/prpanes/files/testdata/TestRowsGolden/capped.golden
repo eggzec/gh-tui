@@ -1,33 +1,33 @@
 width 80
-▌Commits 5 of 5 ● a1b2c30…a1b3074
- ├─ ● a1b2c30 ✓ Add the cache                                  Ada Lovelace  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in the pager when the last line is… 19d
- ├─ ● a1b2e52 ◐ Rename the helpers                                    Linus  18d
- ├─ ● a1b2f63 Document the flags                               Ada Lovelace  17d
- ├─ ● a1b3074 ✓ Add the cache                                  Grace Hopper  16d
- ╰─ first 250 commits shown
- ───────────────────────────────────────────────────────────────────────────────
- Files
+▌▾ Commits 5 of 5 ● a1b2c30…a1b3074
+ ├─   ● a1b2c30 ✓ Add the cache                                Ada Lovelace  20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in the pager when the last line … 19d
+ ├─   ● a1b2e52 ◐ Rename the helpers                                  Linus  18d
+ ├─   ● a1b2f63 Document the flags                             Ada Lovelace  17d
+ ├─   ● a1b3074 ✓ Add the cache                                Grace Hopper  16d
+ ╰─   first 250 commits shown
+   ────────────────────────────────────────────────────────────────────────────…
+ ▾ Files
 
 width 50
-▌Commits 5 of 5 ● a1b2c30…a1b3074
- ├─ ● a1b2c30 ✓ Add the cache    Ada Lovelace  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in t… 19d
- ├─ ● a1b2e52 ◐ Rename the helpers      Linus  18d
- ├─ ● a1b2f63 Document the flags Ada Lovelace  17d
- ├─ ● a1b3074 ✓ Add the cache    Grace Hopper  16d
- ╰─ first 250 commits shown
- ─────────────────────────────────────────────────
- Files
+▌▾ Commits 5 of 5 ● a1b2c30…a1b3074
+ ├─   ● a1b2c30 ✓ Add the cache  Ada Lovelace  20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in… 19d
+ ├─   ● a1b2e52 ◐ Rename the helpers    Linus  18d
+ ├─   ● a1b2f63 Document the fl… Ada Lovelace  17d
+ ├─   ● a1b3074 ✓ Add the cache  Grace Hopper  16d
+ ╰─   first 250 commits shown
+   ──────────────────────────────────────────────…
+ ▾ Files
 
 width 30
-▌Commits 5 of 5 ● a1b2c30…a1b…
- ├─ ● a1b2c30 ✓ Add the c… 20d
- ├─ ● a1b2d41 ✗ Fix the o… 19d
- ├─ ● a1b2e52 ◐ Rename th… 18d
- ├─ ● a1b2f63 Document th… 17d
- ├─ ● a1b3074 ✓ Add the c… 16d
- ╰─ first 250 commits shown
- ─────────────────────────────
- Files
+▌▾ Commits 5 of 5 ● a1b2c30…a…
+ ├─   ● a1b2c30 ✓ Add the… 20d
+ ├─   ● a1b2d41 ✗ Fix the… 19d
+ ├─   ● a1b2e52 ◐ Rename … 18d
+ ├─   ● a1b2f63 Document … 17d
+ ├─   ● a1b3074 ✓ Add the… 16d
+ ╰─   first 250 commits shown
+   ──────────────────────────…
+ ▾ Files
 

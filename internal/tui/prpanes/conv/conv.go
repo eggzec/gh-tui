@@ -1,7 +1,7 @@
 // Package conv turns the timeline and the review threads of a pull request
 // into the rows of its conversation: comments, reviews that fold over their
 // threads, threads that fold over their replies, and runs of plain comments
-// that fold into one line. It is pure: data in, [foldtree.Row]s out. Loading,
+// that fold into one line. It is pure: data in, [treeview.Node]s out. Loading,
 // caching and the view belong to the host.
 package conv
 
@@ -10,11 +10,11 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
-// The kinds of rows, as [foldtree.Row.Kind] says them.
+// The kinds of rows, as [treeview.Node.Kind] says them.
 const (
 	// KindComment is a comment of the conversation that stands alone.
 	KindComment = "comment"
@@ -78,7 +78,7 @@ type Options struct {
 	// kids gives the rows of the checks of the commit sha, whose row has the
 	// ID prefix without its slash, at depth. Commits fold over them when it is
 	// set.
-	kids func(prefix, sha string, depth int) []foldtree.Row
+	kids func(prefix, sha string, depth int) []treeview.Node
 
 	// preview draws a narrowed view: each comment is a row of its own, with no
 	// run, and a review is open.

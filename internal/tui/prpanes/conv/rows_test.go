@@ -13,7 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
@@ -37,18 +37,18 @@ func opts(set string, width int) Options {
 }
 
 // byID returns the rows of d by their IDs.
-func byID(rows []foldtree.Row) map[string]foldtree.Row {
-	m := make(map[string]foldtree.Row, len(rows))
-	for _, r := range rows {
-		m[r.ID] = r
+func byID(rows []treeview.Node) map[string]treeview.Node {
+	m := make(map[string]treeview.Node, len(rows))
+	for i := range rows {
+		m[rows[i].ID] = rows[i]
 	}
 	return m
 }
 
-func ids(rows []foldtree.Row) []string {
+func ids(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.ID)
+	for i := range rows {
+		out = append(out, rows[i].ID)
 	}
 	return out
 }
@@ -73,8 +73,8 @@ func TestDefaultFolds(t *testing.T) {
 			t.Parallel()
 			rows := Build(Data{Items: []core.TimelineItem{review("R", tc.state)}, Threads: []core.Thread{tc.thread}}, opts(config.IconsUnicode, 100))
 			r := byID(rows)["r:R"]
-			if !r.Fold || r.Closed != tc.closed {
-				t.Errorf("review: fold %v closed %v, want a fold, closed %v", r.Fold, r.Closed, tc.closed)
+			if !r.Branch || r.Closed != tc.closed {
+				t.Errorf("review: fold %v closed %v, want a fold, closed %v", r.Branch, r.Closed, tc.closed)
 			}
 		})
 	}
@@ -83,13 +83,13 @@ func TestDefaultFolds(t *testing.T) {
 		Items:   []core.TimelineItem{review("R", core.ReviewStateApproved), review("S", core.ReviewStateCommented), comment("1"), comment("2")},
 		Threads: []core.Thread{open, shut},
 	}, opts(config.IconsUnicode, 100)))
-	if r := rows["r:S"]; r.Fold {
+	if r := rows["r:S"]; r.Branch {
 		t.Errorf("a review with no thread is a fold: %+v", r)
 	}
-	if r := rows["run:1"]; !r.Fold || !r.Closed {
-		t.Errorf("run: fold %v closed %v, want a closed fold", r.Fold, r.Closed)
+	if r := rows["run:1"]; !r.Branch || !r.Closed {
+		t.Errorf("run: fold %v closed %v, want a closed fold", r.Branch, r.Closed)
 	}
-	if r := rows["c:1"]; r.Fold {
+	if r := rows["c:1"]; r.Branch {
 		t.Error("a comment is a fold")
 	}
 
@@ -217,7 +217,8 @@ func TestHostileText(t *testing.T) {
 	for _, set := range []string{config.IconsNerd, config.IconsASCII} {
 		for _, w := range []int{40, 80, 160} {
 			rows := Build(d, opts(set, w))
-			m := foldtree.New(foldtree.WithSize(w, 400), foldtree.WithRows(rows))
+			m := treeview.New(treeview.Source{}, treeview.WithSize(w, 400))
+			m.SetRows(rows)
 			termtexttest.AssertClean(t, m.View(), w)
 			for _, r := range rows {
 				if len(r.Lines) > maxBodyLines+2 {
@@ -302,8 +303,8 @@ func TestUnreadReplies(t *testing.T) {
 		Threads: []core.Thread{th},
 	}, opts(config.IconsUnicode, 100)))
 	r := rows["t:T"]
-	if !r.Fold || !r.Closed || !strings.Contains(ansi.Strip(r.Marker), "3 replies") {
-		t.Errorf("fold %v closed %v marker %q, want a closed fold over 3 replies", r.Fold, r.Closed, ansi.Strip(r.Marker))
+	if !r.Branch || !r.Closed || !strings.Contains(ansi.Strip(r.Marker), "3 replies") {
+		t.Errorf("fold %v closed %v marker %q, want a closed fold over 3 replies", r.Branch, r.Closed, ansi.Strip(r.Marker))
 	}
 }
 
@@ -358,12 +359,13 @@ func BenchmarkBuild(b *testing.B) {
 
 // text draws rows in a tree of width cells, without colors or links, and
 // with every fold opened when all is set.
-func text(rows []foldtree.Row, width int, all bool) string {
-	m := foldtree.New(foldtree.WithSize(width, 400), foldtree.WithRows(rows))
+func text(rows []treeview.Node, width int, all bool) string {
+	m := treeview.New(treeview.Source{}, treeview.WithSize(width, 400))
+	m.SetRows(rows)
 	if all {
-		for _, r := range rows {
-			if r.Fold {
-				m.SetFolded(r.ID, false)
+		for i := range rows {
+			if rows[i].Branch {
+				m.SetFolded(rows[i].ID, false)
 			}
 		}
 	}

@@ -1,14 +1,14 @@
-▌Alice Chen  Opening this for review.                                                                                 3d
+▌  Alice Chen  Opening this for review.                                                                               3d
 
-  Alice Chen pushed 3 commits (a1b2c3d…c3d4e5f)                                                                      3d
- ├─ a1b2c3d  Commit a1b2c3d
- ├─ b2c3d4e  Commit b2c3d4e
- ╰─ c3d4e5f  Commit c3d4e5f
+ ▾  Alice Chen pushed 3 commits (a1b2c3d…c3d4e5f)                                                                    3d
+ ├─   a1b2c3d  Commit a1b2c3d
+ ├─   b2c3d4e  Commit b2c3d4e
+ ╰─   c3d4e5f  Commit c3d4e5f
 
- Bert Moss  Looks fine to me.                                                                                         2d
+   Bert Moss  Looks fine to me.                                                                                       2d
 
-                                      Alice Chen pushed 1 commit (d4e5f60) ● forced                                  2d
+ ▸                                      Alice Chen pushed 1 commit (d4e5f60) ● forced                                2d
 
-                                           Bert Moss pushed 1 commit (e5f6071)                                       1d
+ ▸                                           Bert Moss pushed 1 commit (e5f6071)                                     1d
 
-                                Bert Moss force-pushed the branch from e5f6071 to f607182                           20h
+                                  Bert Moss force-pushed the branch from e5f6071 to f607182                         20h

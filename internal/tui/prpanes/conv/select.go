@@ -21,10 +21,11 @@ func (m Model) Current() (Selection, bool) {
 	if v == nil {
 		return Selection{}, false
 	}
-	id, ok := v.tree.Selected()
+	sel, ok := v.tree.Selected()
 	if !ok {
 		return Selection{}, false
 	}
+	id := sel.ID
 	n := v.nodes[id]
 	if n == nil {
 		return Selection{}, false

@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // lexMu keeps tests from highlighting code at the same time. One lexer runs
@@ -19,7 +19,7 @@ import (
 var lexMu sync.Mutex
 
 // buildOf returns the rows of d, built with no other test highlighting.
-func buildOf(d Data, o Options) []foldtree.Row {
+func buildOf(d Data, o Options) []treeview.Node {
 	lexMu.Lock()
 	defer lexMu.Unlock()
 	return Build(d, o)

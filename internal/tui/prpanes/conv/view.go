@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // cacheKey says what the rows of a view were built from. Rows are built
@@ -21,14 +21,14 @@ type cacheKey struct {
 // view is a tree of the conversation, with the state that is its own: cursor,
 // scroll and folds.
 type view struct {
-	tree foldtree.Model
+	tree treeview.Model
 	// folds holds the folds the user set, by row ID. A tree forgets the fold of
 	// a row that leaves it, as a filter or a reload may take it away, and this
 	// remembers it for when it comes back.
 	folds map[string]bool
 	// rows are the rows as the tree has them, and nodes the entries they
 	// were built from, by ID.
-	rows  []foldtree.Row
+	rows  []treeview.Node
 	nodes map[string]*node
 	// targets is what enter asks for on the rows of the checks, by row ID.
 	targets checktree.Targets
@@ -50,7 +50,7 @@ func (m *Model) view(key string) *view {
 	if v, ok := m.views[key]; ok {
 		return v
 	}
-	t := foldtree.New()
+	t := treeview.New(treeview.Source{})
 	t.SetKeyMap(m.keys)
 	if m.hasTreeStyles {
 		t.SetStyles(m.treeStyles)
@@ -98,8 +98,8 @@ func (m *Model) Peek(key string, n Narrow, width int) (view string, ok bool) {
 	m.sync()
 	m.cur, m.width, m.height = cur, w, h
 	lines := 0
-	for _, r := range v.rows {
-		lines += max(len(r.Lines), 1)
+	for i := range v.rows {
+		lines += max(len(v.rows[i].Lines), 1)
 	}
 	if lines == 0 {
 		return "", false
@@ -132,8 +132,9 @@ func (m *Model) sync() {
 // it belongs when its row is gone.
 func (m *Model) rebuild(v *view, reshaped bool) {
 	cur, hadCur := cursorOf(v)
-	for _, r := range v.rows {
-		if !r.Fold {
+	for i := range v.rows {
+		r := &v.rows[i]
+		if !r.Branch {
 			continue
 		}
 		if c := v.tree.Folded(r.ID); c != r.Closed {
@@ -144,10 +145,10 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 	o.Width, o.Viewer, o.hide, o.order, o.checks = m.width, m.viewer, m.hide(), m.order, m.checks
 	targets := checktree.Targets{}
 	if m.src.Checks != nil {
-		o.kids = func(prefix, sha string, depth int) []foldtree.Row {
+		o.kids = func(prefix, sha string, depth int) []treeview.Node {
 			rows, t := m.loader.Rows(sha, m.checkOptions(prefix, depth), o.Styles.checks)
 			maps.Copy(targets, t)
-			return checktree.FoldRows(rows)
+			return rows
 		}
 	}
 	d := m.dataOf()
@@ -155,8 +156,8 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 		d, o.preview = v.narrow.filter(d), true
 	}
 	rows, nodes := build(d, o, true)
-	for i, r := range rows {
-		if c, ok := v.folds[r.ID]; ok && r.Fold {
+	for i := range rows {
+		if c, ok := v.folds[rows[i].ID]; ok && rows[i].Branch {
 			rows[i].Closed = c
 		}
 	}
@@ -183,8 +184,9 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 // tree and the copies of the model share them, and the tree gets them again
 // only when a line changed.
 func (v *view) syncForms() {
-	var rows []foldtree.Row
-	for i, r := range v.rows {
+	var rows []treeview.Node
+	for i := range v.rows {
+		r := &v.rows[i]
 		if r.Kind != KindPush {
 			continue
 		}
@@ -215,7 +217,7 @@ func (m Model) dataOf() Data { return Data{Items: m.items, Threads: m.threads} }
 
 // withMore adds the quiet last row that says how much of the conversation
 // GitHub holds and was not read, when it is more than the reads reached.
-func (m Model) withMore(rows []foldtree.Row, o Options) []foldtree.Row {
+func (m Model) withMore(rows []treeview.Node, o Options) []treeview.Node {
 	tl, th := m.feeds[timeline], m.feeds[threads]
 	var text string
 	switch {
@@ -228,8 +230,8 @@ func (m Model) withMore(rows []foldtree.Row, o Options) []foldtree.Row {
 	}
 	st := &o.Styles
 	return append(rows,
-		foldtree.Row{ID: "b:more", Lines: []string{""}, Skip: true, Kind: KindBlank},
-		foldtree.Row{ID: "more", Lines: []string{st.dim.Render(text)}, Skip: true},
+		treeview.Node{ID: "b:more", Lines: []string{""}, Skip: true, Kind: KindBlank},
+		treeview.Node{ID: "more", Lines: []string{st.dim.Render(text)}, Skip: true},
 	)
 }
 

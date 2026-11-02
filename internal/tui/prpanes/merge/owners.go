@@ -10,7 +10,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/codeowners"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
@@ -267,13 +266,14 @@ func (s *Styles) treeLines(rows []treeview.Node, width int) []string {
 }
 
 // nodesOf returns the rows of a foldtree as the rows of a treeview, for the
-// file rows that the files pane still builds as a foldtree.
-func nodesOf(rows []foldtree.Row) []treeview.Node {
+// file rows that the files pane still builds as a treeview.
+func nodesOf(rows []treeview.Node) []treeview.Node {
 	out := make([]treeview.Node, len(rows))
-	for i, r := range rows {
+	for i := range rows {
+		r := &rows[i]
 		out[i] = treeview.Node{
 			ID: r.ID, Depth: r.Depth, Lines: r.Lines, Marker: r.Marker, Right: r.Right,
-			Branch: r.Fold, Closed: r.Closed, Action: r.Action, Skip: r.Skip, Kind: r.Kind, Inline: r.Inline,
+			Branch: r.Branch, Closed: r.Closed, Action: r.Action, Skip: r.Skip, Kind: r.Kind, Inline: r.Inline,
 		}
 	}
 	return out

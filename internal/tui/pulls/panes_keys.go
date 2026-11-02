@@ -13,7 +13,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -65,7 +64,7 @@ type panesKeys struct {
 	// files is the keys of the Files pane.
 	files filesKeys
 	// tree is the keys of the conversation's tree.
-	tree foldtree.KeyMap
+	tree treeview.KeyMap
 	// filter is the key that changes what the conversation shows, "" when
 	// none is bound.
 	filter string
@@ -111,7 +110,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		finder:   ui.FinderKeys(keys),
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
-		tree:     foldtree.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
+		tree:     treeview.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
 		inv:      treeview.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),

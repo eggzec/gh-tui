@@ -13,7 +13,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -84,7 +84,7 @@ type Data struct {
 	// Children returns the rows that go under the commit oid when its fold is
 	// open, whose top rows are at depth. With Children set, a commit that has
 	// checks is a fold, closed at first; without it, no commit is.
-	Children func(oid string, depth int) []foldtree.Row
+	Children func(oid string, depth int) []treeview.Node
 	// Findings is what the checks found in each file of the range, by path; a
 	// file that is not in it shows no badge.
 	Findings map[string]Finding
@@ -126,13 +126,13 @@ type builder struct {
 
 // Rows returns the rows of the pane: the Commits section with a row for each
 // commit, a rule, and the Files section.
-func Rows(d Data, o Options) []foldtree.Row {
+func Rows(d Data, o Options) []treeview.Node {
 	b := builder{o: o, st: &o.Styles, width: o.Width, findings: d.Findings}
 	if b.width <= 0 {
 		b.width = defaultWidth
 	}
 	cs := d.Commits.Commits
-	rows := make([]foldtree.Row, 0, len(cs)+5)
+	rows := make([]treeview.Node, 0, len(cs)+5)
 	rows = append(rows, b.commits(d))
 
 	before, divided := Divider(d.Commits)
@@ -142,12 +142,12 @@ func Rows(d Data, o Options) []foldtree.Row {
 		}
 		row := b.commit(c, d.Range.Contains(i), d.Children != nil)
 		rows = append(rows, row)
-		if row.Fold {
+		if row.Branch {
 			rows = append(rows, d.Children(c.OID, commitDepth+1)...)
 		}
 	}
 	if d.Commits.Capped {
-		rows = append(rows, foldtree.Row{
+		rows = append(rows, treeview.Node{
 			ID:    idCapped,
 			Depth: commitDepth,
 			Lines: []string{b.st.dim.Render(fmt.Sprintf("first %d commits shown", core.MaxPullCommits))},
@@ -155,19 +155,19 @@ func Rows(d Data, o Options) []foldtree.Row {
 		})
 	}
 
-	rows = append(rows, b.rule(), foldtree.Row{
-		ID:    IDFiles,
-		Fold:  true,
-		Lines: []string{b.st.bold.Render("Files")},
+	rows = append(rows, b.rule(), treeview.Node{
+		ID:     IDFiles,
+		Branch: true,
+		Lines:  []string{b.st.bold.Render("Files")},
 	})
 	return append(rows, b.files(d)...)
 }
 
 // files are the rows under the Files section: the error of the read, or a row
 // for each file by path, then the note that the list is cut short.
-func (b *builder) files(d Data) []foldtree.Row {
+func (b *builder) files(d Data) []treeview.Node {
 	if d.FilesErr != "" {
-		return []foldtree.Row{b.note(idFilesErr, d.FilesErr)}
+		return []treeview.Node{b.note(idFilesErr, d.FilesErr)}
 	}
 	rows := b.fileTree(d.Files, fileDepth, d.Viewed)
 	if d.Truncated != "" {
@@ -178,21 +178,21 @@ func (b *builder) files(d Data) []foldtree.Row {
 
 // fileTree returns the rows of fs as folders and files by path, the top ones
 // at depth.
-func (b *builder) fileTree(fs []core.CommitFile, depth int, v core.PullViewed) []foldtree.Row {
+func (b *builder) fileTree(fs []core.CommitFile, depth int, v core.PullViewed) []treeview.Node {
 	fs = slices.Clone(fs)
 	slices.SortStableFunc(fs, func(x, y core.CommitFile) int { return strings.Compare(x.Path, y.Path) })
 	root := &dirNode{}
 	for _, f := range fs {
 		root.add(f)
 	}
-	rows := make([]foldtree.Row, 0, len(fs)+len(root.dirs)+1)
+	rows := make([]treeview.Node, 0, len(fs)+len(root.dirs)+1)
 	return b.tree(rows, root, "", depth, v)
 }
 
 // Tree returns the rows of fs as the Files section draws them, folders and
 // files by path with no file marked viewed, the top ones at depth. A host that
 // shows files outside the pane uses it, so that they look the same.
-func Tree(fs []core.CommitFile, depth int, o Options) []foldtree.Row {
+func Tree(fs []core.CommitFile, depth int, o Options) []treeview.Node {
 	b := builder{o: o, st: &o.Styles, width: o.Width}
 	return b.fileTree(fs, depth, core.PullViewed{})
 }
@@ -226,7 +226,7 @@ func (n *dirNode) add(f core.CommitFile) {
 // tree appends the rows of the folder n, whose path is dir with its slash, at
 // depth: its folders first, each with what is in it, then its files, each in
 // the order of their names.
-func (b *builder) tree(rows []foldtree.Row, n *dirNode, dir string, depth int, v core.PullViewed) []foldtree.Row {
+func (b *builder) tree(rows []treeview.Node, n *dirNode, dir string, depth int, v core.PullViewed) []treeview.Node {
 	for _, name := range slices.Sorted(maps.Keys(n.dirs)) {
 		rows = append(rows, b.dir(dir+name, name, depth))
 		rows = b.tree(rows, n.dirs[name], dir+name+"/", depth+1, v)
@@ -242,19 +242,18 @@ func (b *builder) tree(rows []foldtree.Row, n *dirNode, dir string, depth int, v
 }
 
 // dir is the row of the folder at p, named name: an open fold.
-func (b *builder) dir(p, name string, depth int) foldtree.Row {
-	return foldtree.Row{
-		ID:    DirID(p),
-		Depth: depth,
-		Fold:  true,
-		Arrow: true,
-		Lines: []string{termtext.OneLine(name) + b.st.dim.Render("/")},
+func (b *builder) dir(p, name string, depth int) treeview.Node {
+	return treeview.Node{
+		ID:     DirID(p),
+		Depth:  depth,
+		Branch: true,
+		Lines:  []string{termtext.OneLine(name) + b.st.dim.Render("/")},
 	}
 }
 
 // note is a dim row that the cursor skips.
-func (b *builder) note(id, text string) foldtree.Row {
-	return foldtree.Row{
+func (b *builder) note(id, text string) treeview.Node {
+	return treeview.Node{
 		ID:    id,
 		Depth: fileDepth,
 		Lines: []string{b.st.dim.Render(termtext.OneLine(text))},
@@ -265,7 +264,7 @@ func (b *builder) note(id, text string) foldtree.Row {
 // file is the row of f at depth: its icon and name, and the lines it adds and
 // deletes on the right. A file marked viewed is drawn dim and ends in a check;
 // one that changed since it was marked says so.
-func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) foldtree.Row {
+func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) treeview.Node {
 	name := termtext.OneLine(path.Base(f.Path))
 	viewed := state == core.Viewed
 	icon := b.st.fileIcon(f.Path)
@@ -282,7 +281,7 @@ func (b *builder) file(f core.CommitFile, depth int, state core.ViewedState) fol
 	if state == core.ViewedChanged {
 		text += " " + b.st.rerequested + b.st.dim.Render(" changed since viewed")
 	}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:    FileID(f.Path),
 		Depth: depth,
 		Kind:  KindFile,
@@ -351,7 +350,7 @@ func (b *builder) totals(add, del int) string {
 }
 
 // commits is the title of the Commits section.
-func (b *builder) commits(d Data) foldtree.Row {
+func (b *builder) commits(d Data) treeview.Node {
 	n := len(d.Commits.Commits)
 	title := b.st.bold.Render("Commits")
 	switch {
@@ -361,9 +360,9 @@ func (b *builder) commits(d Data) foldtree.Row {
 	default:
 		title += b.st.dim.Render(" " + b.selection(d))
 	}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:     IDCommits,
-		Fold:   true,
+		Branch: true,
 		Closed: true,
 		Marker: b.st.Glyphs.Folded,
 		Lines:  []string{title},
@@ -387,7 +386,7 @@ func (b *builder) selection(d Data) string {
 // commit is the row of c, whose glyph and SHA are accented while it is in the
 // range. It is a fold when checks says that the checks can open under it and c
 // has some.
-func (b *builder) commit(c core.PullCommit, in, checks bool) foldtree.Row {
+func (b *builder) commit(c core.PullCommit, in, checks bool) treeview.Node {
 	st := b.st
 	glyph, sha := st.out, st.dim.Bold(true).Render(Short(c.OID))
 	subject := st.dim.Render(termtext.OneLine(c.Headline))
@@ -414,22 +413,22 @@ func (b *builder) commit(c core.PullCommit, in, checks bool) foldtree.Row {
 			right = full
 		}
 	}
-	return foldtree.Row{
+	return treeview.Node{
 		ID:    CommitID(c.OID),
 		Depth: commitDepth,
 		Kind:  KindCommit,
 		Lines: []string{left},
 		Right: st.dim.Render(strings.TrimSpace(right)),
 		// The checks of a commit open under it, with enter.
-		Fold:   checks && c.Checks != core.CheckNone,
+		Branch: checks && c.Checks != core.CheckNone,
 		Closed: true,
 	}
 }
 
 // divider marks where the commits after the viewer's last review start.
-func (b *builder) divider() foldtree.Row {
+func (b *builder) divider() treeview.Node {
 	g := b.st.Glyphs.Rule
-	return foldtree.Row{
+	return treeview.Node{
 		ID:    idDivider,
 		Depth: commitDepth,
 		Lines: []string{b.st.dim.Render(g + g + " your last review " + g + g)},
@@ -438,8 +437,8 @@ func (b *builder) divider() foldtree.Row {
 }
 
 // rule is the line between the sections, as wide as the tree.
-func (b *builder) rule() foldtree.Row {
-	return foldtree.Row{
+func (b *builder) rule() treeview.Node {
+	return treeview.Node{
 		ID:    idRule,
 		Lines: []string{b.st.dim.Render(strings.Repeat(b.st.Glyphs.Rule, max(b.width-1, 1)))},
 		Skip:  true,

@@ -68,8 +68,8 @@ func TestFilesPanePreviousFileFromACommitGoesToTheLast(t *testing.T) {
 	modalScreen(t, h)
 	m.files.tree.Reveal(files.CommitID("ccc3333"))
 	modalScreen(t, h)
-	if id, _ := m.files.tree.Selected(); id != files.CommitID("ccc3333") {
-		t.Fatalf("the cursor is on %q, want the commit row", id)
+	if n, _ := m.files.tree.Selected(); n.ID != files.CommitID("ccc3333") {
+		t.Fatalf("the cursor is on %q, want the commit row", n.ID)
 	}
 	press(t, h, "K")
 	modalScreen(t, h)

@@ -129,7 +129,7 @@ func TestCommitNoChecks(t *testing.T) {
 		t.Helper()
 		for _, r := range d.m.views[""].rows {
 			if r.ID == id {
-				return foldtreeRow{r.Fold, r.Arrow, r.Closed}
+				return foldtreeRow{r.Branch, r.Branch, r.Closed}
 			}
 		}
 		t.Fatalf("no row %s", id)

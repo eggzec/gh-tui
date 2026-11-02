@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -66,7 +66,7 @@ func (c clause) String() string {
 
 // event draws a system line: the icon and what the actor did, centred, with
 // the age at the right.
-func (b *builder) event(n *node) foldtree.Row {
+func (b *builder) event(n *node) treeview.Node {
 	var newest time.Time
 	for _, it := range n.events {
 		newest = latest(newest, it.At)
@@ -77,7 +77,7 @@ func (b *builder) event(n *node) foldtree.Row {
 
 // system lays out a system line: the text centred, or at the left, and the age
 // at the right. A text too long for the room is cut.
-func (b *builder) system(line, age string, centred bool) foldtree.Row {
+func (b *builder) system(line, age string, centred bool) treeview.Node {
 	rw := ansi.StringWidth(age)
 	w := b.width - 1
 	room := w - rw - 2
@@ -88,7 +88,7 @@ func (b *builder) system(line, age string, centred bool) foldtree.Row {
 	} else if centred {
 		pad = max(0, min((w-tw)/2, room-tw))
 	}
-	r := foldtree.Row{Lines: []string{strings.Repeat(" ", pad) + line}}
+	r := treeview.Node{Lines: []string{strings.Repeat(" ", pad) + line}}
 	if age != "" {
 		r.Right = b.st.dim.Render(age)
 	}

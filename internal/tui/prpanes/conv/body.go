@@ -19,6 +19,9 @@ const (
 	maxBodyLines = 200
 	// guide is the cells of one level of the guides of a tree.
 	guide = 3
+	// arrow is the cells of the fold arrow that the tree puts before a row
+	// with lines under its head.
+	arrow = 2
 )
 
 // split cleans src and cuts it into the text that leads the body, trimmed,
@@ -140,7 +143,7 @@ type column struct {
 // column returns where the text of a row with prefix sits, at depth and with
 // or without children.
 func (b *builder) column(prefix string, depth int, kids bool) column {
-	limit := b.width - 1 - guide*depth
+	limit := b.width - 1 - guide*depth - arrow
 	pw := ansi.StringWidth(prefix)
 	// A prefix that takes much of the row leaves the text no room beside it:
 	// the text goes under it instead.
@@ -153,10 +156,10 @@ func (b *builder) column(prefix string, depth int, kids bool) column {
 	// children, which takes guide cells of the hang, and the text of a head
 	// without a prefix beside it sits just past that guide.
 	col := hang
-	pad := hang
+	pad := hang + arrow
 	if kids {
 		col = max(hang, guide)
-		pad = col - guide
+		pad = col - guide + arrow
 	}
 	return column{limit: limit, pw: pw, lead: lead, pad: pad, room: markdown.Room(limit, col)}
 }

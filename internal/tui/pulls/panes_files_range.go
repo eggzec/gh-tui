@@ -192,9 +192,9 @@ func (m *panesModal) filesRange() (base, head string, fs []core.CommitFile, ok b
 // hoveredFile returns the path of the file under the cursor of the Files pane,
 // and false when the cursor is on another row.
 func (m *panesModal) hoveredFile() (path string, ok bool) {
-	id, ok := m.files.tree.Selected()
+	n, ok := m.files.tree.Selected()
 	if !ok {
 		return "", false
 	}
-	return files.PathOf(id)
+	return files.PathOf(n.ID)
 }

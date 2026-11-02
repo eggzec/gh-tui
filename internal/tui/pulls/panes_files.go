@@ -13,17 +13,17 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // filesKeys are the keys of the Files pane: those of its tree, and the two
 // that choose the commits.
 type filesKeys struct {
-	tree foldtree.KeyMap
+	tree treeview.KeyMap
 	// all selects every commit, and since the commits made since the viewer's
 	// last review.
 	all, since key.Binding
@@ -56,7 +56,7 @@ func (k filesKeys) hints(ic ui.Icons) files.Keys {
 func newFilesKeys(keys config.Keymap) filesKeys {
 	pane := ui.In(keys, ctxFiles)
 	return filesKeys{
-		tree:  foldtree.NewKeyMap(ui.Lookup(keys, ctxFiles)),
+		tree:  treeview.NewKeyMap(ui.Lookup(keys, ctxFiles)),
 		all:   pane.Binding("select_all", "all commits"),
 		since: pane.Binding("since_review", "since your review"),
 		next:  pane.Binding("next_file", "next file"),
@@ -78,7 +78,7 @@ func (k filesKeys) layer() keyhelp.Layer {
 // filesPane is what the Files pane shows: its commits, which of them are
 // selected, and the tree they are drawn in.
 type filesPane struct {
-	tree foldtree.Model
+	tree treeview.Model
 	keys filesKeys
 
 	// commits are the commits of head, and loaded says they were read. asked is
@@ -176,7 +176,7 @@ type filesCommitsMsg struct {
 }
 
 func newFilesPane(k filesKeys) filesPane {
-	return filesPane{tree: foldtree.New(foldtree.WithKeyMap(k.tree)), keys: k}
+	return filesPane{tree: treeview.New(treeview.Source{}, treeview.WithKeyMap(k.tree)), keys: k}
 }
 
 // slotFiles is the slot of the Files pane.
@@ -247,7 +247,7 @@ func (m *panesModal) filesStyles() *checktree.Styles {
 	if f.stylesGen != m.gen {
 		f.styles = files.NewStyles(m.theme, m.icons, m.icons.Set())
 		f.checkStyles = checktree.NewStyles(m.theme, m.icons, m.icons.Set())
-		f.tree.SetStyles(foldtree.DefaultStyles(m.theme.Dark))
+		f.tree.SetStyles(treeview.DefaultStyles(m.theme.Dark))
 		f.stylesGen = m.gen
 	}
 	return &f.checkStyles
@@ -299,7 +299,7 @@ func (m *panesModal) pressFiles(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	k := f.keys
-	if keymap.Matches(msg, k.tree.Enter) {
+	if keymap.Matches(msg, k.tree.Open) {
 		// A file opens its diff; a folder or a commit is the tree's.
 		if path, ok := m.hoveredFile(); ok {
 			return m.openDiff(path), true
@@ -367,7 +367,7 @@ func (m *panesModal) hint(h files.Hint) tea.Cmd {
 func (m *panesModal) filesMsg(msg tea.Msg) tea.Cmd {
 	f := &m.files
 	switch msg := msg.(type) {
-	case foldtree.MarkMsg:
+	case treeview.MarkMsg:
 		if msg.Tree != f.tree.ID() || msg.Kind != files.KindCommit {
 			return nil
 		}
@@ -380,11 +380,11 @@ func (m *panesModal) filesMsg(msg tea.Msg) tea.Cmd {
 		if hint != "" {
 			return m.hint(hint)
 		}
-	case foldtree.NoMarkMsg:
+	case treeview.NoMarkMsg:
 		if msg.Tree == f.tree.ID() {
 			return m.hint(files.HintNotACommit)
 		}
-	case foldtree.EnterMsg:
+	case treeview.OpenMsg:
 		// Enter on a job or check of a commit opens it; on a file or a commit
 		// without checks it does nothing.
 		if target := f.targets[msg.ID]; msg.Tree == f.tree.ID() && target != nil {

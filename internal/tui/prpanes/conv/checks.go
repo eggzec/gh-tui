@@ -9,7 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // checkOptions says how the rows of the checks of a commit are drawn.
@@ -26,8 +26,9 @@ func (m Model) wantChecks() (Model, tea.Cmd) {
 	v := m.views[m.cur]
 	var cmds []tea.Cmd
 	var added map[string]bool
-	for _, r := range v.rows {
-		if r.Kind != KindCommit || !r.Fold || v.tree.Folded(r.ID) {
+	for i := range v.rows {
+		r := &v.rows[i]
+		if r.Kind != KindCommit || !r.Branch || v.tree.Folded(r.ID) {
 			continue
 		}
 		n := v.nodes[r.ID]
@@ -62,7 +63,7 @@ func (m Model) updateChecks(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	switch msg.(type) {
-	case tea.KeyPressMsg, tea.MouseMsg, foldtree.EnterMsg, loadMsg, commitsMsg:
+	case tea.KeyPressMsg, tea.MouseMsg, treeview.OpenMsg, loadMsg, commitsMsg:
 		return m, nil
 	}
 	before := m.checksSig()

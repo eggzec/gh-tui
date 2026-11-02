@@ -9,14 +9,15 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // setRows gives the tree its rows, and keeps which of them are files.
-func (f *filesPane) setRows(rows []foldtree.Row) {
+func (f *filesPane) setRows(rows []treeview.Node) {
 	f.tree.SetRows(rows)
 	f.fileIDs = f.fileIDs[:0]
-	for _, r := range rows {
+	for i := range rows {
+		r := &rows[i]
 		if r.Kind == files.KindFile && !r.Skip {
 			f.fileIDs = append(f.fileIDs, r.ID)
 		}
@@ -33,7 +34,7 @@ func (m *panesModal) stepFile(dir int) {
 		return
 	}
 	cur, _ := f.tree.Selected()
-	at := slices.Index(f.fileIDs, cur)
+	at := slices.Index(f.fileIDs, cur.ID)
 	to := at + dir
 	switch {
 	case at < 0 && dir > 0:

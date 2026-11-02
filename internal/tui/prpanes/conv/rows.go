@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -20,7 +20,7 @@ type builder struct {
 	o     Options
 	st    *Styles
 	width int
-	rows  []foldtree.Row
+	rows  []treeview.Node
 	// index, when it is not nil, gets each node by its ID.
 	index map[string]*node
 }
@@ -28,14 +28,14 @@ type builder struct {
 // Build returns the rows for d, in order, with stable IDs: comments, reviews
 // over their threads and threads over their replies, with one blank row
 // between the items of the top level.
-func Build(d Data, o Options) []foldtree.Row {
+func Build(d Data, o Options) []treeview.Node {
 	rows, _ := build(d, o, false)
 	return rows
 }
 
 // build is Build, which also returns the nodes the rows were made from by
 // their IDs when index is set.
-func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string]*node) {
+func build(d Data, o Options, index bool) (rows []treeview.Node, nodes map[string]*node) {
 	b := &builder{o: o, st: &o.Styles, width: o.Width}
 	if b.width <= 0 {
 		b.width = defaultWidth
@@ -46,7 +46,7 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 	for i, n := range tree(d, o) {
 		// The line of the checks of a push sits right under it.
 		if i > 0 && n.kind != KindCI {
-			b.rows = append(b.rows, foldtree.Row{ID: "b:" + n.id, Lines: []string{""}, Skip: true, Kind: KindBlank})
+			b.rows = append(b.rows, treeview.Node{ID: "b:" + n.id, Lines: []string{""}, Skip: true, Kind: KindBlank})
 		}
 		b.node(n, 0)
 	}
@@ -55,7 +55,7 @@ func build(d Data, o Options, index bool) (rows []foldtree.Row, nodes map[string
 
 // node adds the rows of n at depth, and of its children.
 func (b *builder) node(n *node, depth int) {
-	var r foldtree.Row
+	var r treeview.Node
 	var s segs
 	switch n.kind {
 	case KindComment, KindRunComment:
@@ -83,7 +83,7 @@ func (b *builder) node(n *node, depth int) {
 		b.index[n.id] = n
 	}
 	b.rows = append(b.rows, b.segments(n.id, s, depth+1)...)
-	if r.Fold && n.kind == KindCommit {
+	if r.Branch && n.kind == KindCommit {
 		b.rows = append(b.rows, b.o.kids(n.id+"/", n.item.Commit.OID, depth+1)...)
 	}
 	for _, c := range n.children {
@@ -127,16 +127,16 @@ func (b *builder) marker(n int, one, many string) string {
 }
 
 // comment draws a comment of the conversation.
-func (b *builder) comment(n *node, depth int) (foldtree.Row, segs) {
+func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	it := n.item
 	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
 	lines, s := b.body(b.st.who(it.Actor, false), it.Body, depth, false, right)
-	return foldtree.Row{Lines: lines, Right: right}, s
+	return treeview.Node{Lines: lines, Right: right}, s
 }
 
 // review draws a review, a fold when it holds threads.
-func (b *builder) review(n *node, depth int) (foldtree.Row, segs) {
-	var r foldtree.Row
+func (b *builder) review(n *node, depth int) (treeview.Node, segs) {
+	var r treeview.Node
 	var prefix, body, right string
 	if n.pending {
 		prefix = b.st.review(core.ReviewStatePending) + " "
@@ -151,13 +151,13 @@ func (b *builder) review(n *node, depth int) (foldtree.Row, segs) {
 		body, right = it.Body, b.right(it.At, false, false)
 	}
 	r.Right = right
-	r.Fold = len(n.children) > 0
-	if r.Fold {
+	r.Branch = len(n.children) > 0
+	if r.Branch {
 		r.Marker = b.marker(len(n.children), "thread", "threads")
 		r.Closed = !openReview(n) && !b.o.preview
 	}
 	var s segs
-	r.Lines, s = b.body(prefix, body, depth, r.Fold, right+r.Marker)
+	r.Lines, s = b.body(prefix, body, depth, r.Branch, right+r.Marker)
 	return r, s
 }
 
@@ -181,7 +181,7 @@ func openReview(n *node) bool {
 // replies, or more to the comment than its first line, or replies that were
 // not read. A resolved one starts closed, and quiet, as a draft is, with the
 // glyph of a pending review.
-func (b *builder) thread(n *node, depth int) (foldtree.Row, segs) {
+func (b *builder) thread(n *node, depth int) (treeview.Node, segs) {
 	t, c := n.thread, n.comment
 	quiet := t.Resolved || c.Pending
 	glyph := b.st.thread(t.Resolved)
@@ -199,16 +199,16 @@ func (b *builder) thread(n *node, depth int) (foldtree.Row, segs) {
 	replies := max(t.TotalComments, len(t.Comments)) - 1
 
 	kids := len(n.children) > 0
-	r := foldtree.Row{Right: right, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
+	r := treeview.Node{Right: right, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
 	var s segs
 	r.Lines, s = b.body(prefix, c.Body, depth, kids, right+r.Marker)
 	r.Lines = b.withSnippet(r.Lines, t, c.DiffHunk, prefix, depth, kids)
 	// Replies that were not read have no row to open, so a thread of one
 	// line closes over their count.
 	unread := replies > 0 && !kids
-	r.Fold = kids || len(r.Lines) > 1 || unread
+	r.Branch = kids || len(r.Lines) > 1 || unread
 	switch {
-	case !r.Fold:
+	case !r.Branch:
 		r.Marker, r.Closed = "", false
 	case replies == 0 && !kids:
 		r.Marker = b.st.Glyphs.Folded
@@ -238,7 +238,7 @@ func location(t *core.Thread, cut string) string {
 }
 
 // reply draws a comment of a thread after the first.
-func (b *builder) reply(n *node, depth int) (foldtree.Row, segs) {
+func (b *builder) reply(n *node, depth int) (treeview.Node, segs) {
 	c := n.comment
 	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending)
 	prefix := b.st.who(c.Author, c.Pending)
@@ -246,11 +246,11 @@ func (b *builder) reply(n *node, depth int) (foldtree.Row, segs) {
 	if c.Pending {
 		lines = b.quiet(lines, prefix)
 	}
-	return foldtree.Row{Lines: lines, Right: right}, s
+	return treeview.Node{Lines: lines, Right: right}, s
 }
 
 // run draws the fold over a run of comments: how many, by whom, and when.
-func (b *builder) run(n *node) foldtree.Row {
+func (b *builder) run(n *node) treeview.Node {
 	var names []string
 	seen := make(map[string]bool)
 	for _, c := range n.children {
@@ -266,11 +266,11 @@ func (b *builder) run(n *node) foldtree.Row {
 	}
 	head := b.st.bold.Render(strconv.Itoa(len(n.children))+" comments") +
 		b.st.dim.Render(" "+b.st.Glyphs.Dot+" "+strings.Join(names, ", "))
-	return foldtree.Row{
+	return treeview.Node{
 		Lines:  []string{head},
 		Right:  b.st.dim.Render(right),
 		Marker: b.st.Glyphs.Folded,
-		Fold:   true,
+		Branch: true,
 		Closed: true,
 	}
 }
