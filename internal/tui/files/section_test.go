@@ -14,7 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 func TestNoRepo(t *testing.T) {
@@ -115,7 +115,7 @@ func TestTruncatedListing(t *testing.T) {
 	if got := screen(s); !strings.Contains(got, "main.go") {
 		t.Errorf("screen = %q, want cmd/gh-tui/main.go", got)
 	}
-	if nodes, depth := s.tree.ExpandAllLimits(); nodes != tree.DefaultExpandAllNodes || depth != tree.DefaultExpandAllDepth {
+	if nodes, depth := s.tree.ExpandAllLimits(); nodes != treeview.DefaultExpandAllNodes || depth != treeview.DefaultExpandAllDepth {
 		t.Errorf("expand-all limits = %d, %d; want the tree's defaults", nodes, depth)
 	}
 	if msgs := keys(s, "r"); len(msgs) != 0 {

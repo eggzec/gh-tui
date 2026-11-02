@@ -265,7 +265,7 @@ func (s *Styles) treeLines(rows []treeview.Node, width int) []string {
 	return lines
 }
 
-// nodesOf returns the rows of a foldtree as the rows of a treeview, for the
+// nodesOf returns the rows as the rows of a treeview, for the
 // file rows that the files pane still builds as a treeview.
 func nodesOf(rows []treeview.Node) []treeview.Node {
 	out := make([]treeview.Node, len(rows))

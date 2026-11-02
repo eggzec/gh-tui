@@ -160,11 +160,6 @@ pkg/bubbles/pager/options.go:DefaultHighlightLimit  keep: a bubble's own default
 pkg/syntax/spans.go:LexLimit  keep: a bound on highlighting
 pkg/extedit/extedit.go:StaleAfter  keep: a safety mechanism, when an editor's temporary file counts as abandoned
 pkg/bubbles/picker/model.go:DefaultDebounce  keep: the debounce of typing, a feel constant
-pkg/bubbles/tree/options.go:DefaultExpandAllDepth  keep: a bubble's own default, a safety bound on expand-all
-pkg/bubbles/tree/options.go:DefaultExpandAllNodes  keep: a bubble's own default, a safety bound on expand-all
-pkg/bubbles/tree/options.go:DefaultMaxLoads  keep: a bubble's own default, a bound on loads at once
-pkg/bubbles/tree/options.go:DefaultMinName  keep: a bubble's own default, a layout measure
-pkg/bubbles/tree/options.go:DefaultScrollOff  keep: a bubble's own default, a layout measure
 pkg/bubbles/treeview/model.go:defaultIndent  keep: a bubble's own default, a layout measure
 pkg/markdown/code.go:renderLexLimit keep: a bound on highlighting
 pkg/syntax/lex.go:Limit  keep: a bound on highlighting

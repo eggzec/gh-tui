@@ -1,9 +1,9 @@
 // Package checktree turns the checks of one commit into the rows of a
-// foldtree: the workflow runs of GitHub Actions with their jobs, grouped as
+// tree: the workflow runs of GitHub Actions with their jobs, grouped as
 // the jobs pane of the Actions modal groups them, then one group for each
 // other GitHub App, then the plain commit statuses.
 //
-// The component holds no keys: folding and enter belong to the foldtree that
+// The component holds no keys: folding and enter belong to the tree that
 // draws the rows. What enter on a row asks for leaves as an intent message
 // from [Targets], and the component never opens anything itself.
 package checktree

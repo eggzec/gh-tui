@@ -198,7 +198,7 @@ func (p *mergePane) restyle(m *panesModal) {
 	p.styles = merge.NewStyles(m.theme, m.icons, m.icons.Set())
 	p.page = nil
 	// No row says that nothing blocks: the ready mark in the title does.
-	st := m.theme.TreeView(m.icons)
+	st := m.theme.Tree(m.icons)
 	st.EmptyText = ""
 	p.model.SetStyles(st)
 	p.rebuild(m, true)

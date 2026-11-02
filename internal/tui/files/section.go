@@ -486,7 +486,7 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.icons
 	s.theme = t
-	s.styles = t.TreeView(s.icons)
+	s.styles = t.Tree(s.icons)
 	s.fileIcons = newFileIcons(s.icons, t)
 	if s.tree != nil {
 		s.tree.SetStyles(s.styles)

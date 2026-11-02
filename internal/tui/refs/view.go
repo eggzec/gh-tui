@@ -43,7 +43,7 @@ func (s *Step) SetTheme(t ui.Theme) {
 	s.errs = t.Errors(s.opts.icons)
 	s.spin.Style = t.Accent
 	s.spin.Spinner = s.opts.icons.SpinnerOr(s.spin.Spinner)
-	s.tree.SetStyles(t.TreeView(s.opts.icons))
+	s.tree.SetStyles(t.Tree(s.opts.icons))
 	s.tree.SetIcons(s.icon)
 	ps := cmdline.DefaultStyles(t.Dark)
 	ps.Prompt, ps.Text, ps.Cursor = t.Accent.Bold(true), t.Text, t.Accent

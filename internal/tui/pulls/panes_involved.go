@@ -93,7 +93,7 @@ func (m *panesModal) refreshInvolved() {
 func (m *panesModal) restyleInvolved() {
 	p := m.inv
 	p.st = involved.NewStyles(m.theme, m.icons)
-	p.tree.SetStyles(m.theme.TreeView(m.icons))
+	p.tree.SetStyles(m.theme.Tree(m.icons))
 	m.refreshInvolved()
 }
 
