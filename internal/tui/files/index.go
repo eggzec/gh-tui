@@ -198,7 +198,7 @@ func joinPath(dir, name string) string {
 func (s *source) nodes(entries []core.TreeEntry) []treeview.Node {
 	out := make([]treeview.Node, len(entries))
 	for i, e := range entries {
-		n := treeview.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e, Link: webURL(s.host, s.repo, s.ref, e)}
+		n := treeview.Node{ID: e.Path, Name: ui.OneLine(strings.ToValidUTF8(e.Name, "")), Branch: e.Dir(), Value: e, Link: webURL(s.host, s.repo, s.ref, e)}
 		if e.Type == core.EntryBlob && !e.Symlink() {
 			n.Right = ui.Size(e.Size)
 		}

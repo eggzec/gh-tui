@@ -26,7 +26,23 @@ type convEditor interface {
 
 // convRecacheMsg tells the modal that a change of the conversation was sent or
 // rolled back, so that the conversation reads its cache again.
-type convRecacheMsg struct{ id int64 }
+type convRecacheMsg struct {
+	id int64
+	// reload asks for the pages to be read from the network again.
+	reload bool
+}
+
+// reloadConv has the conversation read its pages again from the first.
+func (m *panesModal) reloadConv() tea.Cmd {
+	c := &m.conv
+	if !c.started {
+		return nil
+	}
+	var cmd tea.Cmd
+	c.model, cmd = c.model.Reload()
+	m.refreshConv()
+	return cmd
+}
 
 // recacheConv shows what the cache holds now in the conversation, which the
 // conversation doesn't learn of by itself.
@@ -43,19 +59,29 @@ func (m *panesModal) recacheConv() tea.Cmd {
 
 // sendConvOp sends a change of the conversation. Once it went through, it says
 // done; whichever way it ended, the conversation reads the cache again, which
-// shows a rollback, and the pull request is read again.
+// shows a rollback, and the pull request is read again. An empty done says
+// nothing.
 func (m *panesModal) sendConvOp(op ui.Op, what, done string) tea.Cmd {
+	return m.sendConv(op, what, done, false)
+}
+
+// sendConv is sendConvOp, which with reload set also has the conversation read
+// its pages from the network again once the change went through, for a change
+// that makes the service forget them.
+func (m *panesModal) sendConv(op ui.Op, what, done string, reload bool) tea.Cmd {
 	about := core.Target{Repo: m.repo, Number: m.number}.String()
 	send := ui.Do(m.sendCtx, ui.PullsTitle, ui.About(about, op), what)
 	id, revalidate := m.id, m.revalidate()
 	return func() tea.Msg {
 		msg := send()
+		d, ok := msg.(ui.DoneMsg)
+		again := reload && ok && d.Err == nil
 		cmds := tea.BatchMsg{
 			func() tea.Msg { return msg },
-			func() tea.Msg { return convRecacheMsg{id: id} },
+			func() tea.Msg { return convRecacheMsg{id: id, reload: again} },
 			revalidate,
 		}
-		if d, ok := msg.(ui.DoneMsg); ok && d.Err == nil {
+		if ok && d.Err == nil && done != "" {
 			cmds = append(cmds, ui.Notify(toast.Info, done))
 		}
 		return cmds

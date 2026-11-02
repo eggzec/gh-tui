@@ -121,7 +121,11 @@ func (m *panesModal) postComment(o *composerOverlay) tea.Cmd {
 	}
 	o.done = true
 	op := m.svc.Comment(m.repo, m.number, body, m.conv.viewer)
-	return m.sendOp(op, "comment on #"+strconv.Itoa(m.number))
+	// The conversation reads the cache again, which holds the comment now and
+	// shows a rollback, and the network once the comment went through, since
+	// the service forgets the timeline then.
+	send := m.sendConv(op, "comment on #"+strconv.Itoa(m.number), "", true)
+	return tea.Batch(m.list.reload(), m.recacheConv(), send)
 }
 
 // sendOp sends a change of the pull request, and reads it again once it went

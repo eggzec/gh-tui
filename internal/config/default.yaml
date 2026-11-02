@@ -726,7 +726,7 @@ keys:
     top: ["g g", home]
     bottom: [G, end]
     # Expand the directory under the cursor, or go to its first entry when
-    # it is open; on a file it does nothing, the select key previews it. Collapse a
+    # it is open; on a file it previews it, as the select key does. Collapse a
     # directory, or go to its parent from an entry or a closed directory.
     # The toggle expands every directory, or collapses them all when all
     # are expanded.
