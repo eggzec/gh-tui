@@ -133,8 +133,9 @@ func menuTitles(t *testing.T, repo bool, steps ...string) []string {
 	t.Helper()
 	m := keysAfter(t, repo, steps...)
 	layers, _ := m.innerLayers()
-	var got []string
-	for _, e := range menuEntries(layers) {
+	entries := menuEntries(layers)
+	got := make([]string, 0, len(entries))
+	for _, e := range entries {
 		got = append(got, e.title+" "+e.key)
 	}
 	return got
