@@ -115,9 +115,7 @@ func (m *panesModal) buildConv() tea.Cmd {
 		},
 	}
 	c.voice.Icons = &m.icons
-	c.md = markdown.New(m.theme.Thread(m.icons).Markdown)
-	c.md.SetGlyphs(m.icons.Markdown)
-	c.md.SetLinkColor(m.theme.LinkColor())
+	c.md = ui.NewMarkdown(m.theme, m.icons)
 	c.seen = m.links().Seen(m.repo.String())
 	c.md.SetAutolink(c.seen.Func())
 	opts := []conv.Option{

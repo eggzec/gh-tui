@@ -9,8 +9,8 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/appcheck"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
-	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // checkNotes are the annotations that a read of the preview brought, and the
@@ -123,8 +123,7 @@ func (m *panesModal) checkBody(id string, width int) (string, bool) {
 		d.State = appcheck.NotesLoading
 	}
 	if p.page == nil {
-		md := markdown.New(m.theme.Thread(m.icons).Markdown)
-		md.SetGlyphs(m.icons.Markdown)
+		md := ui.NewMarkdown(m.theme, m.icons)
 		p.page = &appcheck.Options{Styles: appcheck.NewStyles(m.theme, m.icons), MD: md}
 	}
 	return appcheck.Build(d, *p.page, width).String(), true

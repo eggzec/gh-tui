@@ -460,7 +460,7 @@ func (r *Renderer) lines(text string, width int) ([]string, error) {
 	if r.linking {
 		lines = r.dropGone(lines)
 	}
-	return lines, nil
+	return r.hang(lines, width), nil
 }
 
 func (r *Renderer) glamour(text string, width int) (string, error) {
