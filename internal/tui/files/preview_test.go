@@ -177,6 +177,21 @@ func TestPreviewFromCache(t *testing.T) {
 	}
 }
 
+// Enter on a directory does nothing: its SHA names a tree, which the blob API
+// does not serve.
+func TestPreviewDirectory(t *testing.T) {
+	for _, row := range []int{0, 1} {
+		f := sampleFake()
+		h := openRow(t, f, row)
+		if h.top() != nil || len(f.blobReads) != 0 {
+			t.Errorf("row %d: a directory opened %v and read %v, want neither", row, h.top(), f.blobReads)
+		}
+		if len(h.got) != 0 {
+			t.Errorf("row %d: messages = %#v, want none", row, h.got)
+		}
+	}
+}
+
 func TestPreviewSubmodule(t *testing.T) {
 	f := sampleFake()
 	h := openRow(t, f, 2)
