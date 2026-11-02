@@ -376,6 +376,9 @@ func (s *Section) preview(n treeview.Node) tea.Cmd {
 	if !ok {
 		return nil
 	}
+	if e.Dir() {
+		return nil
+	}
 	if e.Submodule() {
 		text := e.Path + " is a submodule, with its files in another repository."
 		return ui.Notify(toast.Info, text)
@@ -386,6 +389,10 @@ func (s *Section) preview(n treeview.Node) tea.Cmd {
 // open previews the file of e in a modal, which opens over over, if set, and
 // returns to it when it closes.
 func (s *Section) open(e core.TreeEntry, over ui.Modal) tea.Cmd {
+	if e.Dir() {
+		// A directory's SHA names a tree, which the blob API doesn't serve.
+		return nil
+	}
 	s.opened(e.Path)
 	q := s.blobQuery(e)
 	s.ahead.Opened(q)
