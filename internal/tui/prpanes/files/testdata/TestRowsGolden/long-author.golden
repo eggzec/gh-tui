@@ -3,7 +3,7 @@ width 80
  ├─   ● a1b2c30 ✓ Add the cache                    Bartholomew Maximilian …  20d
  ├─   ● a1b2d41 ✗ Fix the off by one error in the pager when the last line … 19d
  ╰─   ● a1b2e52 ◐ Rename the helpers                                  Linus  18d
-   ────────────────────────────────────────────────────────────────────────────…
+   ─────────────────────────────────────────────────────────────────────────────
  ▾ Files
 
 width 50
@@ -11,7 +11,7 @@ width 50
  ├─   ● a1b2c30 ✓ Add the cache                20d
  ├─   ● a1b2d41 ✗ Fix the off by one error in… 19d
  ╰─   ● a1b2e52 ◐ Rename the helpers    Linus  18d
-   ──────────────────────────────────────────────…
+   ───────────────────────────────────────────────
  ▾ Files
 
 width 30
@@ -19,6 +19,6 @@ width 30
  ├─   ● a1b2c30 ✓ Add the… 20d
  ├─   ● a1b2d41 ✗ Fix the… 19d
  ╰─   ● a1b2e52 ◐ Rename … 18d
-   ──────────────────────────…
+   ───────────────────────────
  ▾ Files
 

@@ -7,7 +7,7 @@ width 80
  ├─   ● a1b2f63 Document the flags                             Ada Lovelace  17d
  ├─   ● a1b3074 ✓ Add the cache                                Grace Hopper  16d
  ╰─   ● a1b3185 ✗ Fix the off by one error in the pager when the last line … 15d
-   ────────────────────────────────────────────────────────────────────────────…
+   ─────────────────────────────────────────────────────────────────────────────
  ▾ Files
 
 width 50
@@ -19,7 +19,7 @@ width 50
  ├─   ● a1b2f63 Document the fl… Ada Lovelace  17d
  ├─   ● a1b3074 ✓ Add the cache  Grace Hopper  16d
  ╰─   ● a1b3185 ✗ Fix the off by one error in… 15d
-   ──────────────────────────────────────────────…
+   ───────────────────────────────────────────────
  ▾ Files
 
 width 30
@@ -31,6 +31,6 @@ width 30
  ├─   ● a1b2f63 Document … 17d
  ├─   ● a1b3074 ✓ Add the… 16d
  ╰─   ● a1b3185 ✗ Fix the… 15d
-   ──────────────────────────…
+   ───────────────────────────
  ▾ Files
 
