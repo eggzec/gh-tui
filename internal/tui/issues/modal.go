@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,12 +19,13 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
-	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -46,11 +49,10 @@ type detailModal struct {
 	svc  Service
 	keys keyMap
 	now  func() time.Time
-	// links confirms the references of the bodies, and rendered holds the
-	// bodies drawn since the last update, to ask about them.
-	links    *ui.Autolinks
-	drew     uint64
-	rendered []string
+	// links confirms the references of the bodies, and drew counts the
+	// answers it has read.
+	links *ui.Autolinks
+	drew  uint64
 	// sendCtx bounds the changes, which go on after the modal closes.
 	sendCtx context.Context
 
@@ -72,7 +74,22 @@ type detailModal struct {
 	// failed is why the last read of the issue failed, or nil.
 	failed error
 
-	thread thread.Model[core.Comment]
+	// id names the modal to its reads, conv is the conversation under the
+	// header, which convOn says is made, and head is the header drawn.
+	id     int64
+	conv   conv.Model
+	convOn bool
+	head   string
+	voice  ui.Voice
+	md     *markdown.Renderer
+	seen   *ui.Seen
+	// mu guards body and pending, which the conversation's reads take from
+	// a command's goroutine. body is the issue's text as the first row, and
+	// pending the comments sent that GitHub hasn't confirmed.
+	mu      sync.Mutex
+	body    *core.TimelineItem
+	pending []core.TimelineItem
+	sent    int
 	// newRefs makes the References step, which refs is while it shows in
 	// place of the thread; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -102,13 +119,11 @@ type detailModal struct {
 	rows          rowStyles
 	icons         ui.Icons
 	dates         ui.Dates
-	avatars       *ui.Images
-	// picRows is the tallest the thread draws the images of markdown,
-	// or 0 while it draws none, and bodies those it draws them of.
-	picRows int
-	bodies  *ui.ImageBodies
-	chips   ui.LabelChips
+	chips         ui.LabelChips
 }
+
+// modalIDs numbers the modals.
+var modalIDs atomic.Int64
 
 // openDetail opens a modal on issue number of repo. it is the list item,
 // shown until the issue arrives, or nil when there is none. back is the
@@ -141,10 +156,11 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		rows:    s.rows,
 		icons:   s.icons,
 		dates:   s.dates,
-		avatars: s.avatars,
-		bodies:  ui.NewImageBodies(s.capsOf(repo).Private),
 		chips:   s.rows.newChips(),
+		id:      modalIDs.Add(1),
+		voice:   s.voice,
 	}
+	m.voice.Icons = &m.icons
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
 	if s.refs != nil {
@@ -156,25 +172,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 			return refs.New(m.ctx, svc, core.Target{Repo: repo, Number: number, Kind: core.KindIssue}, false, keys, append(slices.Clone(opts), refs.WithIcons(m.icons))...)
 		}
 	}
-	svc, q := s.svc, commentsQuery(repo, number)
-	fetch := func(ctx context.Context, cursor string) ([]core.Comment, string, error) {
-		q := q
-		q.Cursor = cursor
-		p, err := svc.Comments(ctx, q)
-		return p.Items, p.Next, err
-	}
-	// The thread fetches failed comments again with its own retry key.
-	v := s.voice
-	v.Retry = s.keys.thread.Retry
-	m.thread = thread.New(fetch, m.renderComment,
-		thread.WithContext(ctx),
-		thread.WithKeyMap(s.keys.thread),
-		thread.WithStyles(s.theme.Thread(s.icons)),
-		thread.WithFocused(true),
-		thread.WithAutolink(s.autolinks.Func(repo.String())),
-		thread.WithErrorText(ui.ErrorText("load the comments", core.Target{Repo: repo, Number: number}.String(), v)),
-	)
-	m.drawPictures()
+	svc := s.svc
 	switch cached, ok := svc.CachedGet(repo, number); {
 	case ok:
 		m.issue, m.loaded = cached, true
@@ -189,17 +187,10 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.thread.Init(), m.get(), caps))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps))
 	}
 	// What is cached shows at once, and is read again behind it.
-	cp, primed := svc.CachedComments(q)
-	if primed {
-		m.thread.SetFirst(cp.Items, cp.Next)
-	}
-	loads := []tea.Cmd{m.show(), m.get(), caps}
-	if primed {
-		loads = append(loads, m.thread.Reload())
-	}
+	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
@@ -214,13 +205,6 @@ func (s *Section) capsOf(repo core.RepoRef) core.RepoCaps {
 // detailKey names issue number of repo to the reads ahead.
 func detailKey(repo core.RepoRef, number int) details.Key {
 	return details.Key{Repo: repo, Number: number}
-}
-
-// commentsQuery selects the first page of the comments on issue number of
-// repo, as the modal reads it, so that what is read ahead is what the modal
-// finds in the cache.
-func commentsQuery(repo core.RepoRef, number int) issuesvc.CommentsQuery {
-	return issuesvc.CommentsQuery{Repo: repo, Number: number}
 }
 
 // Title implements ui.Modal. It is the number only, with the repository
@@ -258,10 +242,8 @@ func (m *detailModal) SetSize(width, height int) {
 	if m.refs != nil {
 		m.refs.SetSize(m.width, m.height)
 	}
-	m.drawPictures()
 	if m.loaded {
-		// The header wraps its title to the width. The thread loads what
-		// the new size shows on its next message.
+		// The header wraps its title to the width.
 		_ = m.show()
 	}
 }
@@ -275,15 +257,121 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.confirmSt = t.Confirm(m.icons)
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = m.rows.newChips()
-	m.thread.SetStyles(t.Thread(m.icons))
+	m.restyleConv()
 	if m.composing != composeNone {
 		m.prompt.SetStyles(t.Prompt(m.icons))
 	}
 	if m.loaded {
-		// The header is styled too. The thread loads whatever the new
-		// layout needs on its next message, so the command can go.
+		// The header is styled too.
 		_ = m.show()
 	}
+}
+
+// convOptions returns how the rows are drawn.
+func (m *detailModal) convOptions() conv.Options {
+	return conv.Options{
+		Styles: conv.NewStyles(m.theme, m.icons, m.icons.Set()),
+		MD:     m.md,
+		Dates:  m.dates,
+		Now:    m.now(),
+	}
+}
+
+// restyleConv draws the rows again with the theme and the icons the modal has.
+func (m *detailModal) restyleConv() {
+	if !m.convOn {
+		return
+	}
+	m.md.SetStyle(m.theme.Thread(m.icons).Markdown)
+	m.md.SetGlyphs(m.icons.Markdown)
+	o := m.convOptions()
+	m.conv.SetOptions(o)
+	m.conv.SetStyles(o.Styles, treeview.DefaultStyles(m.theme.Dark))
+}
+
+// source reads the timeline of the issue, with its text as the first row and
+// the comments being sent as the last.
+func (m *detailModal) source() conv.Source {
+	svc, repo, number := m.svc, m.repo, m.number
+	query := func(cursor string) issuesvc.TimelineQuery {
+		return issuesvc.TimelineQuery{Repo: repo, Number: number, Cursor: cursor}
+	}
+	return conv.Source{
+		CachedTimeline: func(cursor string) (core.Page[core.TimelineItem], bool) {
+			p, ok := svc.CachedTimeline(query(cursor))
+			return m.decorate(p, cursor), ok
+		},
+		Timeline: func(ctx context.Context, cursor string) (core.Page[core.TimelineItem], error) {
+			p, err := svc.Timeline(ctx, query(cursor))
+			return m.decorate(p, cursor), err
+		},
+	}
+}
+
+// decorate adds the issue's text to the first page and the comments being
+// sent to the last, on a copy.
+func (m *detailModal) decorate(p core.Page[core.TimelineItem], cursor string) core.Page[core.TimelineItem] {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var items []core.TimelineItem
+	if cursor == "" && m.body != nil {
+		items = append(items, *m.body)
+	}
+	items = append(items, p.Items...)
+	if p.Next == "" {
+		items = append(items, m.pending...)
+	}
+	p.Items = items
+	return p
+}
+
+// buildConv makes the conversation, closing the one it replaces, and returns
+// its first reads.
+func (m *detailModal) buildConv() tea.Cmd {
+	if m.convOn {
+		m.conv.Close()
+	}
+	m.md = ui.NewMarkdown(m.theme, m.icons)
+	m.seen = m.links.Seen(m.repo.String())
+	m.md.SetAutolink(m.seen.Func())
+	m.conv = conv.New(m.source(),
+		conv.WithOptions(m.convOptions()),
+		conv.WithTreeKeys(m.keys.tree),
+		conv.WithTreeStyles(treeview.DefaultStyles(m.theme.Dark)),
+		conv.WithViewer(m.viewer),
+		conv.WithVoice(m.voice),
+		conv.WithSize(m.width, m.convHeight()),
+	)
+	m.convOn = true
+	if m.composing == composeNone {
+		m.conv.Focus()
+	}
+	return m.conv.Init()
+}
+
+// setBody sets the issue's text as the first row of the conversation, and builds
+// the conversation again when it changed.
+func (m *detailModal) setBody() tea.Cmd {
+	it := m.issue
+	row := core.TimelineItem{Kind: core.TimelineComment, ID: "body", Actor: it.Author, At: it.CreatedAt, UpdatedAt: it.UpdatedAt, Body: it.Body, URL: it.URL}
+	m.mu.Lock()
+	same := m.body != nil && m.body.Body == row.Body && m.body.UpdatedAt.Equal(row.UpdatedAt) && m.body.Actor == row.Actor
+	m.body = &row
+	m.mu.Unlock()
+	if same || !m.convOn {
+		return nil
+	}
+	return m.buildConv()
+}
+
+// convHeight is what the conversation has of the modal: the rest after the
+// header and the prompt.
+func (m *detailModal) convHeight() int {
+	h := m.height - m.promptHeight()
+	if m.head != "" {
+		h -= strings.Count(m.head, "\n") + 1
+	}
+	return max(h, 0)
 }
 
 // View implements ui.Modal. It renders exactly the modal's size.
@@ -307,31 +395,50 @@ func (m *detailModal) View() string {
 	return ui.OverLastLines(v, lines)
 }
 
-// composed renders the thread, and the prompt under it while one is open.
+// composed renders the header and the conversation, and the prompt under them
+// while one is open.
 func (m *detailModal) composed() string {
-	if m.composing == composeNone {
-		return m.thread.View()
+	var lines []string
+	if m.head != "" {
+		for l := range strings.SplitSeq(m.head, "\n") {
+			lines = append(lines, ui.Seal(l, m.width))
+		}
 	}
-	if m.thread.Height() == 0 {
-		return m.prompt.View()
+	if m.convOn && m.convHeight() > 0 {
+		lines = append(lines, strings.Split(m.conv.View(), "\n")...)
 	}
-	return m.thread.View() + "\n" + m.prompt.View()
+	if m.composing != composeNone {
+		lines = append(lines, strings.Split(m.prompt.View(), "\n")...)
+	}
+	if len(lines) > m.height {
+		lines = lines[:m.height]
+	}
+	blank := ui.Seal("", m.width)
+	for len(lines) < m.height {
+		lines = append(lines, blank)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
 func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	cmd := m.update(msg)
-	// What rendered since names references that may be links.
-	var verify []tea.Cmd
-	for _, body := range m.rendered {
-		verify = append(verify, m.links.Verify(m.ctx, m.repo.String(), body))
-	}
-	m.rendered = nil
-	if len(verify) == 0 {
+	if !m.convOn {
 		return cmd
 	}
-	return tea.Batch(append(verify, cmd)...)
+	// What rendered since names references that may be links.
+	return tea.Batch(cmd, m.seen.Ask(m.ctx))
+}
+
+// convUpdate hands msg to the conversation, which drops what isn't its own.
+func (m *detailModal) convUpdate(msg tea.Msg) tea.Cmd {
+	if !m.convOn {
+		return nil
+	}
+	var cmd tea.Cmd
+	m.conv, cmd = m.conv.Update(msg)
+	return cmd
 }
 
 func (m *detailModal) update(msg tea.Msg) tea.Cmd {
@@ -355,13 +462,15 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return m.gotIssue(msg)
 	case ui.SyncMsg:
 		if m.links.Synced(msg, &m.drew) {
-			m.thread.SetAutolink(m.links.Func(m.repo.String()))
+			if m.convOn {
+				m.conv.SetOptions(m.convOptions())
+			}
 			return nil
 		}
 		if msg.Err != nil || msg.Key != issuesvc.SyncKey(m.repo) {
 			return nil
 		}
-		return tea.Batch(m.thread.Reload(), m.get())
+		return tea.Batch(m.buildConv(), m.get())
 	case refs.CloseMsg:
 		// The step has nothing left to clear: the modal closes.
 		if m.refs != nil && msg.ID == m.refs.ID() {
@@ -379,29 +488,33 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if m.refs != nil {
 			step = m.refs.Update(msg)
 		}
-		return tea.Batch(m.thread.Reload(), m.get(), step)
+		return tea.Batch(m.buildConv(), m.get(), step)
 	case ui.CapsMsg:
 		if msg.Repo.Same(m.repo) {
 			m.caps = msg.Caps
-			m.bodies.SetPrivate(msg.Caps.Private)
 		}
+		return nil
+	case conv.EnterMsg:
 		return nil
 	case viewerMsg:
 		m.viewer = msg.login
 		return nil
 	case ui.OnlineMsg:
 		return m.online()
-	case ui.ImagesMsg:
-		if !m.drawPictures() {
-			m.thread.Redraw()
-		}
-		return nil
 	case ui.DoneMsg:
-		// The thread reloads too, since the change may be a comment.
+		// The conversation is read again too, since the change may be a
+		// comment, which the service has not put in its timeline.
 		if msg.From != ui.IssuesTitle {
 			return nil
 		}
-		return tea.Batch(m.reload(), m.thread.Reload())
+		m.mu.Lock()
+		sent := len(m.pending) > 0
+		m.pending = nil
+		m.mu.Unlock()
+		if sent {
+			m.svc.Invalidate(m.repo)
+		}
+		return tea.Batch(m.reload(), m.buildConv())
 	case prompt.SubmitMsg, prompt.CancelMsg:
 		return m.promptDone(msg)
 	case tea.PasteMsg:
@@ -420,8 +533,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		// The links cover the thread, which would scroll under the mouse.
 		return nil
 	}
-	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
+	cmd := m.convUpdate(msg)
 	if m.refs != nil {
 		cmd = tea.Batch(cmd, m.refs.Update(msg))
 	}
@@ -462,11 +574,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.setState(core.StateOpen)
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
-		return tea.Batch(m.thread.Reload(), m.get())
+		return tea.Batch(m.buildConv(), m.get())
 	}
-	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
-	return cmd
+	return m.convUpdate(msg)
 }
 
 // close closes the modal, and stops its reads.
@@ -493,7 +603,7 @@ func (m *detailModal) Discard() {
 // answering again doesn't read it once more while this read is under way.
 func (m *detailModal) get() tea.Cmd {
 	m.failed = nil
-	svc, repo, number, id, ctx, resume := m.svc, m.repo, m.number, m.thread.ID(), m.ctx, m.resume
+	svc, repo, number, id, ctx, resume := m.svc, m.repo, m.number, m.id, m.ctx, m.resume
 	return func() tea.Msg {
 		start := time.Now()
 		it, err := svc.Get(ctx, repo, number)
@@ -506,16 +616,19 @@ func (m *detailModal) get() tea.Cmd {
 // online reads again, now that GitHub answers again, the issue and the
 // comments that failed for want of an answer from it.
 func (m *detailModal) online() tea.Cmd {
-	var get tea.Cmd
+	var get, again tea.Cmd
 	if ui.Unreached(m.failed) {
 		get = m.get()
 	}
-	return tea.Batch(get, ui.RetryUnreached(&m.thread))
+	if m.convOn && ui.Unreached(m.conv.Status().Err) {
+		again = m.buildConv()
+	}
+	return tea.Batch(get, again)
 }
 
 // gotIssue shows the issue that Get read for this modal.
 func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
-	if msg.thread != m.thread.ID() {
+	if msg.thread != m.id {
 		return nil
 	}
 	if msg.err != nil {
@@ -605,11 +718,12 @@ func (m *detailModal) reload() tea.Cmd {
 	return m.show()
 }
 
-// show sets the document of the thread from the issue.
+// show draws the header from the issue and gives the conversation the issue's
+// text as its first row.
 func (m *detailModal) show() tea.Cmd {
-	m.bodies.SetDocument(m.issue.ID, m.issue.Body)
-	m.rendered = append(m.rendered, m.issue.Body)
-	return m.thread.SetDocument(m.header(m.issue), m.issue.Body)
+	m.head = m.header(m.issue)
+	m.layout()
+	return m.setBody()
 }
 
 // header renders the head of the detail: the title, the state, who opened
@@ -665,40 +779,6 @@ func (m *detailModal) header(it core.Issue) string {
 	return b.String()
 }
 
-// renderComment renders a comment as its author and age over its body,
-// markdown rendered like the issue's. A comment GitHub hasn't confirmed
-// yet says it is sending.
-func (m *detailModal) renderComment(c core.Comment, width int) string {
-	t := m.theme
-	var b strings.Builder
-	// The avatar takes its box from the start, so the line doesn't move
-	// when it arrives.
-	b.WriteString("  ")
-	b.WriteString(m.avatars.Line(c.AvatarURL))
-	if issuesvc.IsPending(c) {
-		// The service may not know who the viewer is.
-		who := ui.OneLine(c.Author.Login)
-		if who == "" {
-			who = "you"
-		}
-		b.WriteString(t.Subtle.Render(who + m.icons.Separator + "sending" + m.icons.Ellipsis))
-	} else {
-		b.WriteString(t.Title.Render(login(c.Author)))
-		b.WriteString(t.Subtle.Render(m.icons.Separator + m.dates.Prose(c.CreatedAt, m.now())))
-	}
-	// The body is indented by two cells, with as much room on the right.
-	if !issuesvc.IsPending(c) {
-		// GitHub has no HTML of a comment it hasn't taken yet.
-		m.bodies.Add(c.ID, c.Body)
-	}
-	m.rendered = append(m.rendered, c.Body)
-	if body := m.thread.Markdown(c.Body, markdown.Room(width, 4)); body != "" {
-		b.WriteByte('\n')
-		b.WriteString(markdown.Indent(body, "  "))
-	}
-	return b.String()
-}
-
 // login is how a user shows: their login, cleaned since it comes from
 // GitHub, or "ghost" for a deleted account.
 func login(u core.User) string {
@@ -713,19 +793,4 @@ func plural(n int, noun string) string {
 		return "1 " + noun
 	}
 	return strconv.Itoa(n) + " " + noun + "s"
-}
-
-// drawPictures has the thread draw the images of the body and comments
-// that stand alone on their lines, where images are drawn, at most as
-// tall as the modal's height allows, and reports whether that changed.
-// Only the bodies whose pictures change render again, and where images
-// aren't drawn the markdown is as without them.
-func (m *detailModal) drawPictures() bool {
-	rows := m.avatars.PictureRows(m.height)
-	if rows == m.picRows {
-		return false
-	}
-	m.picRows = rows
-	m.thread.SetPictures(m.avatars.Pictures(rows, m.bodies))
-	return true
 }

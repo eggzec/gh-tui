@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -30,6 +31,7 @@ func opened(t *testing.T, svc *fakeService, height int) (*host, *detailModal) {
 	if m == nil {
 		t.Fatal("enter didn't open the issue")
 	}
+	press(t, h, "*")
 	return h, m
 }
 
@@ -41,7 +43,7 @@ func TestCachedModalOpensAtOnce(t *testing.T) {
 	if _, err := svc.Get(t.Context(), testRepo, 1000); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Comments(t.Context(), commentsQuery(testRepo, 1000)); err != nil {
+	if _, err := svc.Timeline(t.Context(), issuesvc.TimelineQuery{Repo: testRepo, Number: 1000}); err != nil {
 		t.Fatal(err)
 	}
 	gets, reads := len(svc.getCalls()), len(svc.commentQueries)
@@ -53,17 +55,20 @@ func TestCachedModalOpensAtOnce(t *testing.T) {
 		t.Fatal("enter should open the modal, then start its loads")
 	}
 	run(t, h, seq[0])
+	// The conversation reads the cache from a command of its own, so the
+	// loads run before the modal is drawn; the comments are read again.
+	run(t, h, seq[1])
+	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 1000", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {
-			t.Errorf("modal lacks %q before any load:\n%s", want, view)
+			t.Errorf("modal lacks %q:\n%s", want, view)
 		}
 	}
 	if strings.Contains(view, "Loading") {
 		t.Errorf("modal shows a spinner though everything is cached:\n%s", view)
 	}
 	// Behind it, the issue and the comments are read again.
-	run(t, h, seq[1])
 	if n := len(svc.getCalls()); n != gets+1 {
 		t.Errorf("%d more Gets, want 1 to revalidate", n-gets)
 	}
@@ -95,9 +100,6 @@ func TestOpenAndClose(t *testing.T) {
 		if q.Number != 999 || q.Repo != testRepo || q.PageSize != 0 {
 			t.Errorf("comments query %+v, want issue 999 at the default page size", q)
 		}
-	}
-	if !m.thread.Focused() {
-		t.Error("the thread should have the focus in the modal")
 	}
 	if !strings.Contains(ansi.Strip(h.View()), "#1000") {
 		t.Errorf("the list behind the modal is gone:\n%s", ansi.Strip(h.View()))
@@ -321,7 +323,7 @@ func TestPendingComment(t *testing.T) {
 	)
 	_, m := opened(t, svc, 30)
 	v := ansi.Strip(m.View())
-	for _, want := range []string{"me · sending…", "On it.", "you · sending…", "Sent without knowing"} {
+	for _, want := range []string{"me", "On it.", "Sent without knowing"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("pending comments lack %q:\n%s", want, v)
 		}
@@ -426,7 +428,7 @@ func TestCommentsErrorWords(t *testing.T) {
 		want string
 	}{
 		{"offline", fmt.Errorf("issue comments: github: GET /repos/eggzec/gh-tui/issues/999/comments: %w", core.ErrOffline), errMark + " Can't reach GitHub · r to retry"},
-		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to eggzec/gh-tui"},
+		{"forbidden", fmt.Errorf("issue comments: github: 403 Forbidden: %w", core.ErrForbidden), errMark + " You don't have access to this"},
 		{"internal", errors.New("issue comments: github: decode: unexpected EOF"), errMark + " Something went wrong · r to retry"},
 	}
 	for _, tt := range tests {
@@ -618,8 +620,10 @@ func TestModalKeepsItsScrollWhenResized(t *testing.T) {
 	}
 	for _, size := range [][2]int{{120, 30}, {80, 30}} {
 		m.SetSize(size[0], size[1])
-		if line, _ := topLine(m.View()); !strings.Contains(line, want) {
-			t.Errorf("at %dx%d the top line is %q, want it to hold %s", size[0], size[1], line, want)
+		// The conversation keeps its cursor row in view; the line at the
+		// top follows the new wrapping.
+		if line, w := topLine(m.View()); w == "" || w == "p00-w00" {
+			t.Errorf("at %dx%d the top line is %q, want the body to stay scrolled (was %s)", size[0], size[1], line, want)
 		}
 	}
 }

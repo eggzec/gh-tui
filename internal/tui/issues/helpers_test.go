@@ -65,6 +65,8 @@ type fakeService struct {
 	// ones served, which CachedComments then serves.
 	commentQueries []issuesvc.CommentsQuery
 	commented      map[issuesvc.CommentsQuery]bool
+	// timelined holds the issues whose timeline was served.
+	timelined map[int]bool
 	// changes are the state changes asked for, such as "close 999", and
 	// sendErr fails sending them.
 	changes []string
@@ -260,6 +262,7 @@ func newFakeService(issues []core.Issue) *fakeService {
 		cached:    map[int]core.Issue{},
 		comments:  map[int][]core.Comment{},
 		commented: map[issuesvc.CommentsQuery]bool{},
+		timelined: map[int]bool{},
 	}
 }
 
@@ -305,6 +308,47 @@ func (f *fakeService) CachedComments(q issuesvc.CommentsQuery) (core.Page[core.C
 		return core.Page[core.Comment]{}, false
 	}
 	return f.commentPage(q), true
+}
+
+// timelinePage serves every comment of the issue as one page of its timeline.
+// f.mu must be held.
+func (f *fakeService) timelinePage(number int) core.Page[core.TimelineItem] {
+	comments := f.comments[number]
+	items := make([]core.TimelineItem, 0, len(comments))
+	for i := range comments {
+		c := &comments[i]
+		items = append(items, core.TimelineItem{
+			Kind: core.TimelineComment, ID: c.ID, Actor: c.Author,
+			At: c.CreatedAt, UpdatedAt: c.UpdatedAt, Body: c.Body,
+		})
+	}
+	return core.Page[core.TimelineItem]{Items: items}
+}
+
+func (f *fakeService) Timeline(_ context.Context, q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.commentsErr != nil {
+		return core.Page[core.TimelineItem]{}, f.commentsErr
+	}
+	f.timelined[q.Number] = true
+	f.commentQueries = append(f.commentQueries, issuesvc.CommentsQuery{Repo: q.Repo, Number: q.Number, Cursor: q.Cursor})
+	return f.timelinePage(q.Number), nil
+}
+
+// commentsQuery selects the first page of the comments on issue number of
+// repo.
+func commentsQuery(repo core.RepoRef, number int) issuesvc.CommentsQuery {
+	return issuesvc.CommentsQuery{Repo: repo, Number: number}
+}
+
+func (f *fakeService) CachedTimeline(q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.timelined[q.Number] {
+		return core.Page[core.TimelineItem]{}, false
+	}
+	return f.timelinePage(q.Number), true
 }
 
 func (f *fakeService) CurrentGet(_ core.RepoRef, number int) bool {

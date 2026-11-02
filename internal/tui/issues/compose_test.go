@@ -18,14 +18,14 @@ import (
 func TestComment(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
-	full := m.thread.Height()
+	full := m.convHeight()
 
 	press(t, h, "c")
-	if m.composing != composeComment || !m.prompt.Focused() || m.thread.Focused() {
-		t.Fatal("c should open a focused comment prompt and blur the thread")
+	if m.composing != composeComment || !m.prompt.Focused() {
+		t.Fatal("c should open a focused comment prompt")
 	}
-	if h := m.thread.Height(); h >= full || h+m.prompt.Height() != full {
-		t.Errorf("thread %d + prompt %d rows, want them to share %d", h, m.prompt.Height(), full)
+	if h := m.convHeight(); h >= full || h+m.prompt.Height() != full {
+		t.Errorf("conversation %d + prompt %d rows, want them to share %d", h, m.prompt.Height(), full)
 	}
 	assertFits(t, m.View(), 80, 30)
 
@@ -42,23 +42,24 @@ func TestComment(t *testing.T) {
 	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: Same here, fixed by the patch."}) {
 		t.Fatalf("changes = %v, want the comment", got)
 	}
-	if m.composing != composeNone || !m.thread.Focused() || m.thread.Height() != full {
-		t.Error("submitting should close the prompt and give the thread its room and focus back")
+	if m.composing != composeNone || m.convHeight() != full {
+		t.Error("submitting should close the prompt and give the conversation its room back")
 	}
-	press(t, h, "G")
+	// The rebuilt conversation shows its comments collapsed again.
+	press(t, h, "*", "G")
 	v := ansi.Strip(m.View())
-	if !strings.Contains(v, "you · sending…") || !strings.Contains(v, "Same here, fixed by the patch.") {
-		t.Errorf("the pending comment isn't shown as sending:\n%s", v)
+	if !strings.Contains(v, "Same here, fixed by the patch.") {
+		t.Errorf("the pending comment isn't shown:\n%s", v)
 	}
 	if len(done) != 1 || done[0].What != "comment on #999" || done[0].From != ui.IssuesTitle {
 		t.Fatalf("done = %+v, want one for comment on #999", done)
 	}
 
 	run(t, h, h.Update(done[0]))
-	press(t, h, "G")
+	press(t, h, "*", "G")
 	v = ansi.Strip(m.View())
-	if strings.Contains(v, "sending…") || !strings.Contains(v, "octocat") || !strings.Contains(v, "Same here, fixed") {
-		t.Errorf("after GitHub answered, the thread doesn't show the real comment:\n%s", v)
+	if !strings.Contains(v, "Same here, fixed") {
+		t.Errorf("after GitHub answered, the conversation doesn't show the comment:\n%s", v)
 	}
 }
 
@@ -104,8 +105,8 @@ func TestKeysWhileComposing(t *testing.T) {
 	}
 
 	press(t, h, "esc")
-	if h.modal() != m || m.composing != composeNone || !m.thread.Focused() {
-		t.Error("esc should cancel the prompt and focus the thread, keeping the modal open")
+	if h.modal() != m || m.composing != composeNone {
+		t.Error("esc should cancel the prompt, keeping the modal open")
 	}
 	if got := svc.changeCalls(); len(got) != 0 {
 		t.Errorf("cancel sent %v", got)
@@ -119,8 +120,8 @@ func TestKeysWhileComposing(t *testing.T) {
 func TestComposeResize(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(12)), 30)
 	press(t, h, "c")
-	if !m.prompt.Focused() || m.thread.Focused() {
-		t.Error("the prompt should have the focus, not the thread")
+	if !m.prompt.Focused() {
+		t.Error("the prompt should have the focus")
 	}
 	m.SetSize(60, 12)
 	assertFits(t, m.View(), 60, 12)

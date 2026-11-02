@@ -137,6 +137,8 @@ func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 		t.Fatal("enter should open the modal, then start its loads")
 	}
 	run(t, h, seq[0])
+	run(t, h, seq[1])
+	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 999", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {
@@ -182,6 +184,8 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 		t.Fatal("the notification should open the modal, then start its loads")
 	}
 	run(t, h, seq[0])
+	run(t, h, seq[1])
+	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 997", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {

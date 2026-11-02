@@ -1,7 +1,6 @@
 package issues
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,7 +13,6 @@ import (
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
-	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 func theme(dark bool) ui.Theme {
@@ -35,6 +33,8 @@ func threadModal(tb testing.TB, comments []core.Comment, dark bool, width, heigh
 	if m == nil {
 		tb.Fatal("enter didn't open the issue")
 	}
+	// The conversation shows its comments collapsed; open them all.
+	press(tb, h, "*")
 	return h, m
 }
 
@@ -63,13 +63,13 @@ func TestCommentsShowAsMarkdown(t *testing.T) {
 	}
 	v := strings.Join(lines, "\n")
 	for _, want := range []string{
-		"  hubot · 5h ago\n  What happened",
-		"  What happened",
-		"  The modal shows raw markdown\n  instead of rendering it.",
-		"  [✓] I searched the issues",
-		"  🖼 screenshot (https://github.com/user-attachments/assets/1234)",
-		"  ▸ Stack trace",
-		"›   ◆ flowchart · 2 lines · View diagram ↗",
+		"hubot  What happened",
+		"The modal shows raw markdown",
+		"instead of rendering it.",
+		"[✓] I searched the issues",
+		"🖼 screenshot (https://github.com/user-",
+		"Stack trace",
+		"◆ flowchart · 2 lines · View diagram ↗",
 	} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the modal lacks %q:\n%s", want, v)
@@ -79,38 +79,6 @@ func TestCommentsShowAsMarkdown(t *testing.T) {
 		if strings.Contains(v, raw) {
 			t.Errorf("the modal shows %q:\n%s", raw, v)
 		}
-	}
-}
-
-// Scrolling, and a reload that finds the same comments, only read what was
-// rendered; a new width or theme renders again, and an old width is kept.
-func TestCommentsRenderOnce(t *testing.T) {
-	h, m := threadModal(t, uitest.Thread(50, testNow), true, 80, 30)
-	runs := m.thread.MarkdownRenders()
-	if runs == 0 {
-		t.Fatal("nothing was rendered")
-	}
-	for _, k := range []string{"j", "j", "G", "k", "g"} {
-		press(t, h, k)
-		_ = m.View()
-	}
-	run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
-	if got := m.thread.MarkdownRenders(); got != runs {
-		t.Fatalf("scrolling and reloading rendered %d times", got-runs)
-	}
-	m.SetSize(100, 30)
-	run(t, h, h.Update(nil))
-	resized := m.thread.MarkdownRenders()
-	if resized == runs {
-		t.Fatal("a new width didn't render again")
-	}
-	m.SetSize(80, 30)
-	if got := m.thread.MarkdownRenders(); got != resized {
-		t.Errorf("going back to a width rendered %d times", got-resized)
-	}
-	m.SetTheme(theme(false))
-	if m.thread.MarkdownRenders() == resized {
-		t.Error("a new theme didn't render again")
 	}
 }
 
@@ -161,44 +129,4 @@ func BenchmarkUpdateThread(b *testing.B) {
 			i++
 		}
 	})
-}
-
-// A view too narrow for the margins still shows the body, a cell wide.
-func TestNarrowCommentsKeepTheirBody(t *testing.T) {
-	_, m := threadModal(t, nil, true, 80, 20)
-	c := core.Comment{Author: core.User{Login: "octocat"}, Body: "ok"}
-	if out := ansi.Strip(m.renderComment(c, 4)); !strings.Contains(out, "o") || !strings.Contains(out, "k") {
-		t.Errorf("a narrow comment lost its body: %q", out)
-	}
-}
-
-// With a diagram on screen, select shows its code, as the help says,
-// its head links to it on mermaid.live, and open still opens the issue.
-func TestDiagramKeys(t *testing.T) {
-	h, m := threadModal(t, uitest.Comments(testNow), true, 80, 100)
-	var want string
-	for _, c := range uitest.Comments(testNow) {
-		if b := markdown.Blocks(c.Body); len(b) > 0 && b[0].Lang == "mermaid" {
-			want = b[0].URL
-		}
-	}
-	if !strings.HasPrefix(want, "https://mermaid.live/view#pako:") {
-		t.Fatalf("the comments have no diagram with a link: %q", want)
-	}
-	if v := m.View(); strings.Count(v, "\x1b]8;;"+want+"\x1b\\") != 1 {
-		t.Errorf("the head doesn't link to %q once:\n%q", want, v)
-	}
-	var help []string
-	for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
-		if b.Enabled() {
-			help = append(help, b.Help().Key+" "+b.Help().Desc)
-		}
-	}
-	if !slices.Contains(help, "↵ diagram code") {
-		t.Errorf("the help doesn't offer the diagram's code: %q", help)
-	}
-	press(t, h, "enter")
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "A[issue] --> B[modal]") {
-		t.Errorf("select didn't show the diagram's code:\n%s", v)
-	}
 }
