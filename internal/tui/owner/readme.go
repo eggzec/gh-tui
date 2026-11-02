@@ -100,8 +100,7 @@ func (s *Section) setReadme(p *page) {
 func (s *Section) readmeRender(p *page, src string) pager.Render {
 	return func(width int) string {
 		if s.sc.md == nil {
-			s.sc.md = markdown.New(s.theme.Thread(s.icons).Markdown)
-			s.sc.md.SetGlyphs(s.icons.Markdown)
+			s.sc.md = ui.NewMarkdown(s.theme, s.icons)
 		}
 		p.side.askedPics = false
 		pics := s.readmePictures(p)

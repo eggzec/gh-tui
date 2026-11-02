@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
@@ -119,9 +120,7 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 		return
 	}
 	if d.md == nil || d.built.gen != m.gen {
-		d.md = markdown.New(m.theme.Thread(m.icons).Markdown)
-		d.md.SetGlyphs(m.icons.Markdown)
-		d.md.SetLinkColor(m.theme.LinkColor())
+		d.md = ui.NewMarkdown(m.theme, m.icons)
 	}
 	d.md.SetAutolink(m.links().Func(m.repo.String()))
 	d.askLinks(body)

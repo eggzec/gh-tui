@@ -12,7 +12,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
-	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // previewBody is what the preview shows of the result under the cursor.
@@ -118,8 +117,7 @@ func (s *Section) readBody(kind, name string, h core.SearchHit, own string) prev
 func (s *Section) markdownRender(head, body string) pager.Render {
 	return func(width int) string {
 		if s.md == nil {
-			s.md = markdown.New(s.theme.Thread(s.icons).Markdown)
-			s.md.SetGlyphs(s.icons.Markdown)
+			s.md = ui.NewMarkdown(s.theme, s.icons)
 		}
 		out := ansi.Wrap(strings.TrimRight(head, "\n"), width, "")
 		if body != "" {

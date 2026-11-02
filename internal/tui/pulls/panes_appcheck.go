@@ -20,7 +20,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
-	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // ctxAppCheck is the context of the keys of the page of a check run of an App.
@@ -76,8 +75,7 @@ func (m *panesModal) openAppCheck(msg checktree.OpenCheckMsg) tea.Cmd {
 		return nil
 	}
 	ctx, cancel := context.WithCancel(m.ctx)
-	md := markdown.New(m.theme.Thread(m.icons).Markdown)
-	md.SetGlyphs(m.icons.Markdown)
+	md := ui.NewMarkdown(m.theme, m.icons)
 	o := &appCheckOverlay{
 		m: m, sha: msg.SHA, check: cc.Runs[i], ctx: ctx, cancel: cancel,
 		v: appcheck.New(appcheck.Options{Styles: appcheck.NewStyles(m.theme, m.icons), MD: md}),
