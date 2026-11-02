@@ -24,7 +24,7 @@ var issueTimelineQuery = fmt.Sprintf(`query IssueTimeline($owner: String!, $name
           ... on IssueComment {
             id author { __typename login avatarUrl ... on User { name } }
             body createdAt updatedAt url viewerCanUpdate viewerCanDelete
-    reactionGroups { content users { totalCount } }
+    reactionGroups { content reactors { totalCount } }
           }
           ... on LabeledEvent { actor { __typename login ... on User { name } } createdAt label { name color description } }
           ... on UnlabeledEvent { actor { __typename login ... on User { name } } createdAt label { name color description } }
