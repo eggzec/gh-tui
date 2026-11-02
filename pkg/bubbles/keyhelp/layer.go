@@ -47,7 +47,29 @@ type Layer struct {
 	//
 	// It is a pointer so that a Layer stays small enough to range over by
 	// value; use [Layer.MenuItems] and [Layer.SetMenu].
-	Menu *[]key.Binding
+	Menu *Menu
+}
+
+// Menu is the context menu of a layer: its bindings, and how the menu names
+// them while the layer's list has items marked.
+type Menu struct {
+	Items []key.Binding
+	// Marked is how many items the list has marked, so that the menu can
+	// tell the entries that act on them; see Title.
+	Marked int
+	// Title, if set, returns the title for one of Items, given Marked, or
+	// "" for its help text.
+	Title func(b key.Binding, marked int) string
+}
+
+// MenuTitleOf returns the title the menu shows for b, one of its items.
+func (l *Layer) MenuTitleOf(b key.Binding) string {
+	if l.Menu != nil && l.Menu.Title != nil {
+		if t := l.Menu.Title(b, l.Menu.Marked); t != "" {
+			return t
+		}
+	}
+	return b.Help().Desc
 }
 
 // MenuItems returns the bindings of the context menu, or nil for a layer
@@ -56,16 +78,39 @@ func (l *Layer) MenuItems() []key.Binding {
 	if l.Menu == nil {
 		return nil
 	}
-	return *l.Menu
+	return l.Menu.Items
 }
 
-// SetMenu sets the bindings of the context menu.
+// MenuMarked returns how many items the layer's list has marked.
+func (l *Layer) MenuMarked() int {
+	if l.Menu == nil {
+		return 0
+	}
+	return l.Menu.Marked
+}
+
+// SetMenu sets the bindings of the context menu, keeping how it names them.
 func (l *Layer) SetMenu(items []key.Binding) {
 	if len(items) == 0 {
 		l.Menu = nil
 		return
 	}
-	l.Menu = &items
+	menu := Menu{Items: items}
+	if l.Menu != nil {
+		menu.Marked, menu.Title = l.Menu.Marked, l.Menu.Title
+	}
+	l.Menu = &menu
+}
+
+// SetMarked sets how many items are marked and how the menu names its
+// entries then. It does nothing for a layer with no menu.
+func (l *Layer) SetMarked(marked int, title func(b key.Binding, marked int) string) {
+	if l.Menu == nil {
+		return
+	}
+	menu := *l.Menu
+	menu.Marked, menu.Title = marked, title
+	l.Menu = &menu
 }
 
 // SameBinding reports whether a and b are the same binding, in the same

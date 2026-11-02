@@ -106,6 +106,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.onList(s)
 	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
 	own.SetMenu(keymap.Menu(k))
+	if s.feed != nil {
+		// Merge and checks act on the cursor item, as isBulk says.
+		ui.MarkedMenu(&own, s.feed.Marks(), "pulls.merge", "pulls.checks")
+	}
 	if !s.hasRepo || s.feed == nil {
 		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}

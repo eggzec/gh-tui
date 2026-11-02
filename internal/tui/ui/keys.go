@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -195,17 +196,40 @@ func ContextHelp(ctx string, km help.KeyMap, typing bool) keyhelp.Layer {
 func MergeLayers(ctx string, layers ...keyhelp.Layer) keyhelp.Layer {
 	out := ContextLayer(ctx, nil, nil)
 	var menu []key.Binding
+	var marked int
+	var title func(b key.Binding, marked int) string
 	for i := range layers {
 		l := &layers[i]
 		out.Bindings = append(out.Bindings, l.Bindings...)
 		out.Typing = out.Typing || l.Typing
 		menu = append(menu, l.MenuItems()...)
+		if l.Menu != nil && l.Menu.Title != nil {
+			marked, title = l.Menu.Marked, l.Menu.Title
+		}
 	}
 	out.SetMenu(menu)
+	out.SetMarked(marked, title)
 	for _, l := range slices.Backward(layers) {
 		out.Short = append(out.Short, l.Short...)
 	}
 	return out
+}
+
+// MarkedMenu sets the marked count of l and the titles of its menu: while
+// some items are marked, an entry says it acts on them ("close 3 marked"),
+// except those of the actions in cursor, which act on the item under the
+// cursor only and say so.
+func MarkedMenu(l *keyhelp.Layer, marked int, cursor ...string) {
+	l.SetMarked(marked, func(b key.Binding, n int) string {
+		if n == 0 {
+			return ""
+		}
+		desc := b.Help().Desc
+		if slices.ContainsFunc(keymap.Actions(b), func(a string) bool { return slices.Contains(cursor, a) }) {
+			return desc + " (cursor item)"
+		}
+		return fmt.Sprintf("%s %d marked", desc, n)
+	})
 }
 
 // contextTitle returns the title of context ctx, or its name if the

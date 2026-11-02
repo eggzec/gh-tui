@@ -112,6 +112,9 @@ func (m *Model) actOverModal(mod ui.Modal, msg tea.KeyPressMsg) (tea.Cmd, bool) 
 		}
 		return m.openSearch(), true
 	}
+	if _, ok := mod.(*notifications.Modal); ok && keymap.Matches(msg, m.keys.Menu) {
+		return m.openMenu(), true
+	}
 	for _, o := range m.overModals() {
 		if !keymap.Matches(msg, o.binding) {
 			continue
