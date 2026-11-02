@@ -125,7 +125,7 @@ func (l *teamList) remeasure(*Section) bool {
 	for i := range n {
 		if t, ok := l.Feed.LoadedItem(i); ok {
 			name = max(name, ansi.StringWidth(ui.CleanLine(t.Name)))
-			members = max(members, len(ui.Count(t.Members)))
+			members = max(members, len(ui.Count(t.Members, false)))
 			secret = secret || t.Secret
 		}
 	}
@@ -162,7 +162,7 @@ func (s *Section) teamRow(c teamCols, t core.Team, look int) string {
 	r := s.newRow()
 	r.cell(ui.CleanLine(t.Name), c.name, false, name, t.URL)
 	r.cell(flag, c.flag, false, st.Subtle, "")
-	r.cell(ui.Count(t.Members), c.members, true, st.Muted, "")
+	r.cell(ui.Count(t.Members, false), c.members, true, st.Muted, "")
 	r.cell(ui.CleanLine(t.Description), c.desc, false, st.Muted, "")
 	return r.String()
 }

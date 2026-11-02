@@ -30,8 +30,8 @@ func (d Drawer) Facts(p core.Profile) string {
 		}
 	}
 	parts = append(parts,
-		st.Text.Render(ui.Count(p.Followers))+st.Muted.Render(ui.Plural(p.Followers, " follower", " followers")),
-		st.Text.Render(ui.Count(p.Following))+st.Muted.Render(" following"),
+		st.Text.Render(ui.Count(p.Followers, false))+st.Muted.Render(ui.Plural(p.Followers, " follower", " followers")),
+		st.Text.Render(ui.Count(p.Following, false))+st.Muted.Render(" following"),
 	)
 	if m := ui.CleanLine(p.Status.Message); m != "" || p.Status.Busy {
 		status := m

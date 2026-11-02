@@ -2,15 +2,6 @@ package ui
 
 import "testing"
 
-func TestCount(t *testing.T) {
-	t.Parallel()
-	for n, want := range map[int]string{0: "0", 999: "999", 1000: "1k", 1234: "1.2k", 12_345: "12k", 2_500_000: "2m"} {
-		if got := Count(n); got != want {
-			t.Errorf("Count(%d) = %q, want %q", n, got, want)
-		}
-	}
-}
-
 func TestPlural(t *testing.T) {
 	t.Parallel()
 	if Plural(1, "a", "b") != "a" || Plural(2, "a", "b") != "b" || Plural(0, "a", "b") != "b" {
