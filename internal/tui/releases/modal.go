@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -259,6 +260,33 @@ func (m *Modal) Title() string {
 		name = releaseName(m.rel)
 	}
 	return ui.Title(ui.TitleSpec{Name: name, Chips: []string{m.repo.String()}, Sep: m.icons.Separator})
+}
+
+// TrimTitle implements ui.Trimmed: the tag keeps its place in the top edge of
+// the frame, after a glyph for the state, and the name of the release, when it
+// differs from the tag, is cut first.
+func (m *Modal) TrimTitle() ui.TrimTitle {
+	t := ui.TrimTitle{Name: "Release"}
+	if !m.loaded {
+		return t
+	}
+	r := m.rel
+	t.Name = ui.OneLine(r.Tag)
+	if name := strings.TrimSpace(ui.OneLine(r.Name)); name != "" && name != t.Name {
+		t.Detail = name
+	}
+	if t.Name == "" {
+		t.Name, t.Detail = releaseName(r), ""
+	}
+	state := ui.ReleasePublished
+	switch {
+	case r.Draft:
+		state = ui.ReleaseDraft
+	case r.Prerelease:
+		state = ui.ReleasePre
+	}
+	t.Lead = m.theme.State(state).Render(m.icons.State(state))
+	return t
 }
 
 // Link implements ui.Linked: the page of the release, or of the releases

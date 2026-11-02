@@ -139,6 +139,11 @@ const (
 	PullDraft
 	PullMerged
 	PullClosed
+	// The states of a release: not yet published, published as a
+	// pre-release, and published.
+	ReleaseDraft
+	ReleasePre
+	ReleasePublished
 	// NumStates counts the states, for arrays indexed by them.
 	NumStates
 )
@@ -175,6 +180,7 @@ func newIcons(set string) Icons {
 			states: [NumStates]string{
 				IssueOpen: "⦾", IssueClosed: "⦿", IssueNotPlanned: "⊘",
 				PullOpen: "↣", PullDraft: "⇢", PullMerged: "⋈", PullClosed: "⊗",
+				ReleaseDraft: "◌", ReleasePre: "◐", ReleasePublished: "◉",
 			},
 		}
 	case config.IconsASCII:
@@ -190,6 +196,7 @@ func newIcons(set string) Icons {
 			states: [NumStates]string{
 				IssueOpen: "o", IssueClosed: "x", IssueNotPlanned: "-",
 				PullOpen: "O", PullDraft: "D", PullMerged: "M", PullClosed: "X",
+				ReleaseDraft: "d", ReleasePre: "p", ReleasePublished: "r",
 			},
 		}
 	default:
@@ -216,6 +223,8 @@ func newIcons(set string) Icons {
 			states: [NumStates]string{
 				IssueOpen: "\uf41b", IssueClosed: "\uf41d", IssueNotPlanned: "\uf517",
 				PullOpen: "\uf407", PullDraft: "\uf4dd", PullMerged: "\uf419", PullClosed: "\uf4dc",
+				// oct-pencil, oct-alert, oct-tag
+				ReleaseDraft: "\uf448", ReleasePre: "\uf421", ReleasePublished: "\uf412",
 			},
 		}
 	}
@@ -301,6 +310,10 @@ var stateColors = [NumStates][2]string{
 	PullDraft:       {"#59636e", "#9198a1"},
 	PullMerged:      {"#8250df", "#a371f7"},
 	PullClosed:      {"#cf222e", "#f85149"},
+
+	ReleaseDraft:     {"#59636e", "#9198a1"},
+	ReleasePre:       {"#9a6700", "#d29922"},
+	ReleasePublished: {"#1a7f37", "#3fb950"},
 }
 
 // State returns the style of the glyph of state s: green while open,
