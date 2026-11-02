@@ -38,6 +38,8 @@ type Model struct {
 	// row scrolls instead of stepping down the ladder when both are set.
 	before, more string
 	scroll       bool
+	// styleBlanks styles blank separators too.
+	styleBlanks bool
 }
 
 // Option configures a Model.
@@ -48,6 +50,10 @@ func WithStyles(s Styles) Option { return func(m *Model) { m.styles = s } }
 
 // WithSeparator sets the text between two tabs.
 func WithSeparator(sep string) Option { return func(m *Model) { m.sep = sep } }
+
+// WithStyledBlanks styles a blank separator with the marker style as well,
+// for a marker style that has a background or other effect on blank cells.
+func WithStyledBlanks() Option { return func(m *Model) { m.styleBlanks = true } }
 
 // WithMarkers makes the row scroll to the tab on view where the tabs don't
 // fit, instead of stepping down the ladder. before marks tabs hidden on the
@@ -166,7 +172,7 @@ func (m Model) paint(i int, text string) string {
 // mark styles a separator or marker, leaving blank text unstyled, since
 // there is nothing in it to colour.
 func (m Model) mark(text string) string {
-	if strings.TrimSpace(text) == "" {
+	if !m.styleBlanks && strings.TrimSpace(text) == "" {
 		return text
 	}
 	return m.styles.Marker.Render(text)

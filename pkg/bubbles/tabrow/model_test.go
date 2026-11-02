@@ -70,6 +70,11 @@ func TestForms(t *testing.T) {
 	if New().Forms() != nil {
 		t.Error("no items must give no forms")
 	}
+	empty := New()
+	empty.SetWidth(20)
+	if got := empty.View(); got != "" {
+		t.Errorf("View with no items = %q, want empty", got)
+	}
 }
 
 func TestWidthNeverExceeded(t *testing.T) {
