@@ -30,10 +30,15 @@ type fakeAPI struct {
 	removeLabel  func(number int, name string) ([]core.Label, error)
 	comment      func(number int, body string) (core.Comment, error)
 	probe        func(cond github.Conditional) (github.Response, error)
-	filterIssues func(f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
-	search       func(query, cursor string, perPage int) (core.Page[core.SearchHit], error)
-	viewerLogin  func() (string, error)
-	timeline     func(number int, cursor string, first int) (core.Page[core.TimelineItem], error)
+
+	editComment     func(id, body string) (core.Edited, error)
+	deleteComment   func(id string) error
+	addAssignees    func(number int, logins []string) (core.Issue, error)
+	removeAssignees func(number int, logins []string) (core.Issue, error)
+	filterIssues    func(f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
+	search          func(query, cursor string, perPage int) (core.Page[core.SearchHit], error)
+	viewerLogin     func() (string, error)
+	timeline        func(number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 
 	mu    sync.Mutex
 	calls []string
@@ -161,6 +166,36 @@ func (f *fakeAPI) CreateIssueComment(_ context.Context, r core.RepoRef, number i
 		return core.Comment{}, errUnexpected
 	}
 	return f.comment(number, body)
+}
+
+func (f *fakeAPI) EditIssueComment(_ context.Context, id, body string) (core.Edited, error) {
+	if !f.record("EditIssueComment", f.editComment != nil) {
+		return core.Edited{}, errUnexpected
+	}
+	return f.editComment(id, body)
+}
+
+func (f *fakeAPI) DeleteIssueComment(_ context.Context, id string) error {
+	if !f.record("DeleteIssueComment", f.deleteComment != nil) {
+		return errUnexpected
+	}
+	return f.deleteComment(id)
+}
+
+func (f *fakeAPI) AddIssueAssignees(_ context.Context, r core.RepoRef, number int, logins []string) (core.Issue, error) {
+	f.checkRepo(r)
+	if !f.record("AddIssueAssignees", f.addAssignees != nil) {
+		return core.Issue{}, errUnexpected
+	}
+	return f.addAssignees(number, logins)
+}
+
+func (f *fakeAPI) RemoveIssueAssignees(_ context.Context, r core.RepoRef, number int, logins []string) (core.Issue, error) {
+	f.checkRepo(r)
+	if !f.record("RemoveIssueAssignees", f.removeAssignees != nil) {
+		return core.Issue{}, errUnexpected
+	}
+	return f.removeAssignees(number, logins)
 }
 
 func (f *fakeAPI) ProbeIssues(_ context.Context, r core.RepoRef, cond github.Conditional) (github.Response, error) {
