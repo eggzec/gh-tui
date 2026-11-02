@@ -129,29 +129,31 @@ func fit(s string, width int) string {
 
 // styles are the root's own, built once per theme.
 type styles struct {
-	edge, focusEdge   lipgloss.Style
-	title, focusTitle lipgloss.Style
-	repo, branch      lipgloss.Style
+	edge         lipgloss.Style
+	repo, branch lipgloss.Style
 	// base marks a base other than the head of the default branch.
 	base       lipgloss.Style
 	dot, badge lipgloss.Style
-	// strip draws the strip of panes in the bottom edge of a zoomed pane.
-	strip panes.Styles
+	// frame draws the edges of a pane and the strip of panes in the bottom
+	// edge of a zoomed one.
+	frame panes.Styles
 }
 
 func newStyles(t ui.Theme) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
+	frame := panes.DefaultStyles(t.Dark)
+	frame.Edge, frame.EdgeFocus = border, t.Accent
+	frame.Title, frame.TitleFocus = t.Muted, t.Accent.Bold(true)
+	// The strip's forms carry their own styles.
+	frame.Info = lipgloss.NewStyle()
 	return styles{
-		edge:       border,
-		focusEdge:  t.Accent,
-		title:      t.Muted,
-		focusTitle: t.Accent.Bold(true),
-		repo:       t.Title,
-		branch:     t.Muted,
-		base:       t.Accent,
-		dot:        t.Accent,
-		badge:      t.Muted,
-		strip:      panes.DefaultStyles(t.Dark),
+		edge:   border,
+		repo:   t.Title,
+		branch: t.Muted,
+		base:   t.Accent,
+		dot:    t.Accent,
+		badge:  t.Muted,
+		frame:  frame,
 	}
 }
 
@@ -166,37 +168,30 @@ func (m *Model) drawFrame(p *pane) {
 		p.top, p.bottom, p.side = "", "", ""
 		return
 	}
-	edge, title := m.st.edge, m.st.title
-	if p.focused {
-		edge, title = m.st.focusEdge, m.st.focusTitle
-	}
-	b := m.icons.Border
+	frames := m.st.frame
+	frames.Border = m.icons.Border
+	frames.Ellipsis = m.icons.Ellipsis
+	frames.Separator = m.icons.Separator
 	zoomed := m.zoom.Zoomed() && p.key != ""
 	text := p.label
 	if p.key != "" && !zoomed {
 		text = "[" + p.key + "] " + text
 	}
-	label := termtext.Truncate(text, max(w-4, 0), m.icons.Ellipsis)
-	if label == "" {
-		p.top = edge.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
-	} else {
-		rest := max(w-4-ansi.StringWidth(label), 0)
-		p.top = edge.Render(b.TopLeft+b.Top) + title.Render(label) +
-			edge.Render(" "+strings.Repeat(b.Top, rest)+b.TopRight)
+	c := panes.Content{Focus: p.focused}
+	if label := termtext.Truncate(text, max(w-5, 0), m.icons.Ellipsis); label != "" {
+		c.TopLeft = []string{label}
 	}
-	p.bottom = edge.Render(b.BottomLeft + strings.Repeat(b.Bottom, w-2) + b.BottomRight)
-	if foot, footW := m.foot(p); zoomed && footW > 0 && footW <= w-5 {
-		rest := w - 5 - footW
-		p.bottom = edge.Render(b.BottomLeft+b.Bottom+" ") + foot +
-			edge.Render(" "+strings.Repeat(b.Bottom, rest)+b.BottomRight)
+	if zoomed {
+		c.BottomLeft = m.foot(p, frames)
 	}
-	p.side = edge.Render(b.Left)
+	p.top, p.bottom = frames.Edges(c, w)
+	p.side, _ = frames.Sides(p.focused)
 }
 
-// foot is the strip of the keys of the panes of the repository screen, with
-// the one of p in brackets, for the bottom edge of the zoomed pane, and its
-// width.
-func (m *Model) foot(p *pane) (strip string, width int) {
+// foot is the forms of the strip of the keys of the panes of the repository
+// screen, with the one of p in brackets, for the bottom edge of the zoomed
+// pane.
+func (m *Model) foot(p *pane, frames panes.Styles) []string {
 	defs := make([]panes.Def, len(m.panes))
 	cur := panes.Pane(0)
 	for i, q := range m.panes {
@@ -205,15 +200,7 @@ func (m *Model) foot(p *pane) (strip string, width int) {
 			cur = panes.Pane(i + 1)
 		}
 	}
-	frames := m.st.strip
-	frames.Separator = m.icons.Separator
-	forms := frames.StripForms(defs, cur)
-	for _, f := range forms {
-		if w := ansi.StringWidth(f); w <= p.width-5 {
-			return f, w
-		}
-	}
-	return "", 0
+	return frames.StripForms(defs, cur)
 }
 
 func (m *Model) drawFrames() {
