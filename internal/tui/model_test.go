@@ -242,7 +242,7 @@ func TestRepoScreenIsFramed(t *testing.T) {
 	plain := ansi.Strip(out)
 	for _, want := range []string{
 		"─ eggzec/gh-tui ─",
-		"╭─[1] Files ─", "╭─[2] Pull requests ─", "╭─[3] Issues ─",
+		"╭─ [1] Files ─", "╭─ [2] Pull requests ─", "╭─ [3] Issues ─",
 		"│Files content", "│Pull requests content", "│Issues content",
 	} {
 		if !strings.Contains(plain, want) {
@@ -257,7 +257,7 @@ func TestRepoScreenIsFramed(t *testing.T) {
 func TestFocusedFrameTakesTheAccent(t *testing.T) {
 	t.Parallel()
 	m, _ := newTestApp(t)
-	focused, blurred := m.st.focusEdge.Render("╭─"), m.st.edge.Render("╭─")
+	focused, blurred := m.st.frame.EdgeFocus.Render("╭"), m.st.edge.Render("╭")
 	if focused == blurred {
 		t.Fatal("the focused and blurred edges look the same")
 	}
