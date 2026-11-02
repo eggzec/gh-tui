@@ -296,7 +296,7 @@ func TestPaneFocus(t *testing.T) {
 
 func TestNarrowShowsTheFocusedPane(t *testing.T) {
 	s := newSection(t, newFake(), nil, 80, 22)
-	if view := screen(s); !strings.Contains(view, "Repositories") || !strings.Contains(view, "3 Waiting on you") || strings.Contains(view, "Review requests") {
+	if view := screen(s); !strings.Contains(view, "Repositories") || !strings.Contains(view, "3 Work") || strings.Contains(view, "Review requests") {
 		t.Errorf("the narrow dashboard should show the repositories and name the other panes:\n%s", view)
 	}
 	press(t, s, "3")

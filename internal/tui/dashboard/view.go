@@ -53,8 +53,7 @@ func (s *Section) layout() {
 		b[inboxPane] = box{s.width - cw, calendarHeight}
 	} else {
 		for i := range b {
-			// The last row is the strip of pane names.
-			b[i] = box{s.width, max(rest-1, 0)}
+			b[i] = box{s.width, rest}
 		}
 	}
 	s.boxes = b
@@ -119,6 +118,9 @@ func (s *Section) renderPane(p paneID) {
 		return
 	}
 	c := panes.Content{TopLeft: s.titleForms(p), Body: strings.Join(body, "\n"), Focus: s.focused && p == s.focus}
+	if s.onePane() {
+		c.BottomLeft = s.stripForms()
+	}
 	s.frames[p] = strings.Split(s.st.frames.Frame(c, b.w, b.h), "\n")
 }
 
@@ -132,7 +134,6 @@ func (s *Section) compose() {
 	lines = append(lines, s.head...)
 	if s.onePane() {
 		lines = append(lines, s.frames[s.focus]...)
-		lines = append(lines, s.strip())
 	} else {
 		lines = append(lines, s.frames[pinnedPane]...)
 		lines = ui.Beside(lines, s.frames[reposPane], s.frames[workPane])
@@ -169,33 +170,18 @@ func (s *Section) titleForms(p paneID) []string {
 	return slices.Compact(forms)
 }
 
-// strip is the row of pane names under the one pane that shows, in the
-// longest form that fits the width. Trailing panes with no key are left
-// out; one in the middle of the others still shows, since the strip numbers
-// its panes by place.
-func (s *Section) strip() string {
+// stripForms are the forms of the pane names in the bottom edge of the one
+// pane that shows, longest first. Trailing panes with no key are left out;
+// one in the middle of the others still shows, since the strip numbers its
+// panes by place.
+func (s *Section) stripForms() []string {
 	n := int(s.focus) + 1
 	for p := range paneDefs {
 		if s.keyLabel(paneID(p)) != "" {
 			n = max(n, p+1)
 		}
 	}
-	for _, f := range s.st.frames.StripForms(paneDefs[:n], panes.Pane(s.focus+1)) {
-		if ansi.StringWidth(f) <= s.width {
-			return sealed(f, s.width)
-		}
-	}
-	return sealed("", s.width)
-}
-
-// sealed cuts or pads line to width cells and ends its styles, so that the
-// next line starts plain.
-func sealed(line string, width int) string {
-	line = ansi.Truncate(line, width, "")
-	if pad := width - ansi.StringWidth(line); pad > 0 {
-		line += strings.Repeat(" ", pad)
-	}
-	return line + "\x1b[m"
+	return s.st.frames.StripForms(paneDefs[:n], panes.Pane(s.focus+1))
 }
 
 // keyLabel is the key that focuses pane p, or "" when it has none.

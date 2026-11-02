@@ -51,12 +51,13 @@ func (m *Modal) framed() []string {
 			c.Body = strings.Join(m.runsBox(inner.W, inner.H), "\n")
 			c.BottomLeft = m.runsCount()
 		}
+		if l.Zoomed {
+			// The strip of the pane names takes the left of the edge.
+			c.BottomLeft, c.BottomRight = m.frames.StripForms(paneDefs, m.box()), c.BottomLeft
+		}
 		return c
 	})
 	lines := termtext.PadLines(strings.Split(out, "\n"), aw, ah)
-	if m.hasStrip() {
-		lines = append(lines, m.strip())
-	}
 	return append(lines, m.footer(l))
 }
 
@@ -74,15 +75,9 @@ func (m *Modal) titleForms(title string, b panes.Box) []string {
 	return []string{title, ansi.Truncate(title, room, m.st.ic.Ellipsis)}
 }
 
-// zoomed reports whether one pane fills the area.
-func (m *Modal) zoomed() bool { return showsOne(m.width, m.zoom) }
-
 // canZoom reports whether the zoom key changes anything: under wideMin the
 // focused pane is alone anyway.
 func (m *Modal) canZoom() bool { return m.width >= wideMin }
-
-// hasStrip reports whether the row of pane names shows under the boxes.
-func (m *Modal) hasStrip() bool { return m.zoomed() && m.height >= 4 }
 
 // box is the pane of the focus: the runs box, or the annotations.
 func (m *Modal) box() panes.Pane {
@@ -92,25 +87,9 @@ func (m *Modal) box() panes.Pane {
 	return paneRuns
 }
 
-// area is the size of the boxes: the modal less the footer and, while one
-// pane is zoomed, the strip.
+// area is the size of the boxes: the modal less the footer.
 func (m *Modal) area() (w, h int) {
-	h = max(m.height-1, 0)
-	if m.hasStrip() {
-		h--
-	}
-	return m.width, h
-}
-
-// strip is the row of pane names under the zoomed boxes, in the longest form
-// that fits the width, and blank when none does.
-func (m *Modal) strip() string {
-	for _, f := range m.frames.StripForms(paneDefs, m.box()) {
-		if ansi.StringWidth(f) <= m.width {
-			return ui.Fit(f, m.width)
-		}
-	}
-	return ui.Fit("", m.width)
+	return m.width, max(m.height-1, 0)
 }
 
 // footer is the last line: the keys that move between the panes.
