@@ -38,6 +38,10 @@ type API interface {
 	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
 	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
+	EditIssueComment(ctx context.Context, id, body string) (core.Edited, error)
+	DeleteIssueComment(ctx context.Context, id string) error
+	AddIssueAssignees(ctx context.Context, repo core.RepoRef, number int, logins []string) (core.Issue, error)
+	RemoveIssueAssignees(ctx context.Context, repo core.RepoRef, number int, logins []string) (core.Issue, error)
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 	ListIssueTimeline(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 }

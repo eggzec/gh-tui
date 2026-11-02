@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/github"
+	"github.com/eggzec/gh-tui/internal/service/edit"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
 
@@ -40,28 +41,6 @@ var (
 // GitHub confirmed it, which can be neither edited nor deleted until it is.
 func Unconfirmed(id string) bool {
 	return strings.HasPrefix(id, pendingPrefix)
-}
-
-// patch returns items with f applied to the first one that match accepts, on a
-// copy, since the slice is shared with whoever holds the cached value. It
-// reports false, and returns items, when none matches.
-func patch[T any](items []T, match func(T) bool, f func(*T)) ([]T, bool) {
-	i := slices.IndexFunc(items, match)
-	if i < 0 {
-		return items, false
-	}
-	items = slices.Clone(items)
-	f(&items[i])
-	return items, true
-}
-
-// unkeep drops what the kept shelf holds under tag, so that a later session
-// reads it again: the change it doesn't hold was only confirmed by GitHub's
-// answer to the change, not by a read.
-func unkeep[V any](c *cache.Cache[V], shelf *cache.Shelf[V], tag string) {
-	for key := range c.TaggedEntries(tag) {
-		shelf.Delete(key)
-	}
 }
 
 // EditPull sets the title and the description of pull request number of repo.
@@ -162,7 +141,7 @@ func (s *Service) Reply(repo core.RepoRef, number int, threadID, body, author st
 				t.Comments = append(t.Comments, got)
 			}
 		}))
-		unkeep(s.threads, s.keptThreads, key)
+		edit.Unkeep(s.threads, s.keptThreads, key)
 		return nil
 	}, undo)
 }
@@ -203,7 +182,7 @@ func (s *Service) sendReply(ctx context.Context, repo core.RepoRef, number int, 
 // thread id, on copies of what it changes. A page without the thread is left.
 func onThread(id string, f func(*core.Thread)) func(core.ThreadPage) (core.ThreadPage, bool) {
 	return func(p core.ThreadPage) (core.ThreadPage, bool) {
-		threads, ok := patch(p.Threads, func(t core.Thread) bool { return t.ID == id }, f)
+		threads, ok := edit.Patch(p.Threads, func(t core.Thread) bool { return t.ID == id }, f)
 		p.Threads = threads
 		return p, ok
 	}
@@ -220,13 +199,13 @@ func (s *Service) EditComment(repo core.RepoRef, number int, id, body string) *o
 	key := detailKey(repo, number)
 	set := func(body string, at time.Time) func() {
 		undoComments := s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
-			items, ok := patch(p.Items, func(c core.Comment) bool { return c.ID == id }, func(c *core.Comment) {
+			items, ok := edit.Patch(p.Items, func(c core.Comment) bool { return c.ID == id }, func(c *core.Comment) {
 				c.Body, c.UpdatedAt = body, at
 			})
 			p.Items = items
 			return p, ok
 		}))
-		undoTimeline := s.timelines.MutateTag(key, onTimeline(id, body, at))
+		undoTimeline := s.timelines.MutateTag(key, edit.OnTimeline(id, body, at))
 		return func() { undoTimeline(); undoComments() }
 	}
 	undo := set(body, s.now())
@@ -235,31 +214,11 @@ func (s *Service) EditComment(repo core.RepoRef, number int, id, body string) *o
 		if err != nil {
 			return fmt.Errorf("edit comment on pull %s#%d: %w", repo, number, err)
 		}
-		set(got.Body, editedAt(got, s.now()))
-		unkeep(s.comments, s.keptComments, key)
-		unkeep(s.timelines, s.keptTimelines, key)
+		set(got.Body, edit.At(got, s.now()))
+		edit.Unkeep(s.comments, s.keptComments, key)
+		edit.Unkeep(s.timelines, s.keptTimelines, key)
 		return nil
 	}, undo)
-}
-
-// editedAt returns when e was edited, or now if GitHub gave no time.
-func editedAt(e core.Edited, now time.Time) time.Time {
-	if e.At.IsZero() {
-		return now
-	}
-	return e.At
-}
-
-// onTimeline returns the change of a cached timeline page that sets the body
-// and update time of item id.
-func onTimeline(id, body string, at time.Time) func(core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
-	return func(p core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
-		items, ok := patch(p.Items, func(it core.TimelineItem) bool { return it.ID == id }, func(it *core.TimelineItem) {
-			it.Body, it.UpdatedAt = body, at
-		})
-		p.Items = items
-		return p, ok
-	}
 }
 
 // EditReviewComment sets the body of comment id, the first comment or a reply
@@ -273,7 +232,7 @@ func (s *Service) EditReviewComment(repo core.RepoRef, number int, threadID, id,
 	key := detailKey(repo, number)
 	set := func(body string, at time.Time) func() {
 		return s.threads.MutateTag(key, onThread(threadID, func(t *core.Thread) {
-			t.Comments, _ = patch(t.Comments, func(c core.ThreadComment) bool { return c.ID == id }, func(c *core.ThreadComment) {
+			t.Comments, _ = edit.Patch(t.Comments, func(c core.ThreadComment) bool { return c.ID == id }, func(c *core.ThreadComment) {
 				c.Body, c.EditedAt = body, at
 			})
 		}))
@@ -284,8 +243,8 @@ func (s *Service) EditReviewComment(repo core.RepoRef, number int, threadID, id,
 		if err != nil {
 			return fmt.Errorf("edit comment on pull %s#%d: %w", repo, number, err)
 		}
-		set(got.Body, editedAt(got, s.now()))
-		unkeep(s.threads, s.keptThreads, key)
+		set(got.Body, edit.At(got, s.now()))
+		edit.Unkeep(s.threads, s.keptThreads, key)
 		// The pending review lists its comments with their bodies.
 		s.pendings.Invalidate(key)
 		return nil
@@ -302,11 +261,11 @@ func (s *Service) EditReviewBody(repo core.RepoRef, number int, reviewID, body s
 	key := detailKey(repo, number)
 	set := func(body string, at time.Time) func() {
 		undoReviews := s.reviews.MutateTag(key, func(p core.Page[core.Review]) (core.Page[core.Review], bool) {
-			items, ok := patch(p.Items, func(r core.Review) bool { return r.ID == reviewID }, func(r *core.Review) { r.Body = body })
+			items, ok := edit.Patch(p.Items, func(r core.Review) bool { return r.ID == reviewID }, func(r *core.Review) { r.Body = body })
 			p.Items = items
 			return p, ok
 		})
-		undoTimeline := s.timelines.MutateTag(key, onTimeline(reviewID, body, at))
+		undoTimeline := s.timelines.MutateTag(key, edit.OnTimeline(reviewID, body, at))
 		return func() { undoTimeline(); undoReviews() }
 	}
 	undo := set(body, s.now())
@@ -315,9 +274,9 @@ func (s *Service) EditReviewBody(repo core.RepoRef, number int, reviewID, body s
 		if err != nil {
 			return fmt.Errorf("edit comment on pull %s#%d: %w", repo, number, err)
 		}
-		set(got.Body, editedAt(got, s.now()))
-		unkeep(s.reviews, s.keptReviews, key)
-		unkeep(s.timelines, s.keptTimelines, key)
+		set(got.Body, edit.At(got, s.now()))
+		edit.Unkeep(s.reviews, s.keptReviews, key)
+		edit.Unkeep(s.timelines, s.keptTimelines, key)
 		// The review may be the pending one, which holds the summary.
 		s.pendings.Invalidate(key)
 		return nil
@@ -342,20 +301,13 @@ func (s *Service) DeleteComment(repo core.RepoRef, number int, id string) *optim
 		p.Items = slices.Delete(slices.Clone(p.Items), i, i+1)
 		return p, true
 	}))
-	undoTimeline := s.timelines.MutateTag(key, func(p core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
-		i := slices.IndexFunc(p.Items, func(it core.TimelineItem) bool { return it.ID == id })
-		if i < 0 {
-			return p, false
-		}
-		p.Items = slices.Delete(slices.Clone(p.Items), i, i+1)
-		return p, true
-	})
+	undoTimeline := s.timelines.MutateTag(key, edit.DropFromTimeline(id))
 	return optimistic.New(func(ctx context.Context) error {
 		if err := s.api.DeleteIssueComment(ctx, id); err != nil {
 			return fmt.Errorf("delete comment on pull %s#%d: %w", repo, number, err)
 		}
-		unkeep(s.comments, s.keptComments, key)
-		unkeep(s.timelines, s.keptTimelines, key)
+		edit.Unkeep(s.comments, s.keptComments, key)
+		edit.Unkeep(s.timelines, s.keptTimelines, key)
 		s.staleDetail(repo, number)
 		return nil
 	}, undoComments, undoTimeline)
@@ -401,7 +353,7 @@ func (s *Service) DeleteReviewComment(repo core.RepoRef, number int, threadID, i
 		if err := s.api.DeleteReviewComment(ctx, id); err != nil {
 			return fmt.Errorf("delete comment on pull %s#%d: %w", repo, number, err)
 		}
-		unkeep(s.threads, s.keptThreads, key)
+		edit.Unkeep(s.threads, s.keptThreads, key)
 		// A reply posted at once made a review of its own, which its deletion
 		// may drop, and a pending review lists the comment.
 		forget(s.timelines, s.keptTimelines, key)

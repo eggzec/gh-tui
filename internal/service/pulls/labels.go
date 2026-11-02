@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/edit"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
 
@@ -36,7 +36,7 @@ func (s *Service) EditLabels(repo core.RepoRef, number int, add []core.Label, re
 		return optimistic.Refused(fmt.Errorf("label pull %s#%d: %w", repo, number, err))
 	}
 	undos := s.editPull(repo, number, func(pr *core.PullRequest) {
-		pr.Labels = edited(pr.Labels, add, remove, func(l core.Label) string { return l.Name })
+		pr.Labels = edit.Merged(pr.Labels, add, remove, func(l core.Label) string { return l.Name })
 	})
 	return optimistic.New(func(ctx context.Context) error {
 		labels, known, err := s.sendLabels(ctx, repo, number, add, remove)
@@ -94,7 +94,7 @@ func (s *Service) EditAssignees(repo core.RepoRef, number int, add []core.User, 
 		return optimistic.Refused(fmt.Errorf("assign pull %s#%d: %w", repo, number, err))
 	}
 	undos := s.editPull(repo, number, func(pr *core.PullRequest) {
-		pr.Assignees = edited(pr.Assignees, add, remove, func(u core.User) string { return u.Login })
+		pr.Assignees = edit.Merged(pr.Assignees, add, remove, func(u core.User) string { return u.Login })
 	})
 	return optimistic.New(func(ctx context.Context) error {
 		var it core.Issue
@@ -163,22 +163,4 @@ func (s *Service) staleEdit(repo core.RepoRef, number int, undos []func()) {
 	}
 	s.details.Invalidate(detailKey(repo, number))
 	s.lists.InvalidateTag(repoTag(repo))
-}
-
-// edited returns items without those whose name is in remove, which may differ
-// in case, and with those of add that aren't there yet. It is a new slice,
-// since the cache and the models share items.
-func edited[T any](items, add []T, remove []string, name func(T) string) []T {
-	out := make([]T, 0, len(items)+len(add))
-	for _, it := range items {
-		if !slices.ContainsFunc(remove, func(n string) bool { return strings.EqualFold(n, name(it)) }) {
-			out = append(out, it)
-		}
-	}
-	for _, a := range add {
-		if !slices.ContainsFunc(out, func(o T) bool { return strings.EqualFold(name(o), name(a)) }) {
-			out = append(out, a)
-		}
-	}
-	return out
 }
