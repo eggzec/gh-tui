@@ -50,6 +50,28 @@ func TestLadder(t *testing.T) {
 	}
 }
 
+func TestForms(t *testing.T) {
+	m := row(0, 1)
+	want := []string{
+		"Repositories 12  Stars 3  Followers  Following  Organizations",
+		"Repos 12  Stars 3  Followers  Following  Orgs",
+		"Repos 12 Stars 3 Followers Following Orgs",
+		"1 [2] 3 4 5",
+	}
+	got := m.Forms()
+	if len(got) != len(want) {
+		t.Fatalf("%d forms, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("form %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+	if New().Forms() != nil {
+		t.Error("no items must give no forms")
+	}
+}
+
 func TestWidthNeverExceeded(t *testing.T) {
 	for _, scroll := range []bool{false, true} {
 		var opts []Option

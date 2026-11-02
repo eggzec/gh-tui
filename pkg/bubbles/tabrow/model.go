@@ -97,20 +97,29 @@ func (m Model) View() string {
 	if m.scroll {
 		return m.scrolled()
 	}
-	forms := []func() string{
-		func() string { return m.join(m.names(false), m.sep) },
-		func() string { return m.join(m.names(true), m.sep) },
-		func() string { return m.join(m.names(true), " ") },
-		func() string { return m.join(m.digits(), " ") },
-	}
-	var last string
+	forms := m.Forms()
 	for _, f := range forms {
-		last = f()
-		if ansi.StringWidth(last) <= m.width {
-			return last
+		if ansi.StringWidth(f) <= m.width {
+			return f
 		}
 	}
-	return ansi.Truncate(last, m.width, "")
+	return ansi.Truncate(forms[len(forms)-1], m.width, "")
+}
+
+// Forms returns the ladder View steps down, widest first: the names, the short
+// names, the short names with single spaces between them, then the digits with
+// the current in brackets. It ignores the width and the scrolled form, and is
+// nil when there are no items.
+func (m Model) Forms() []string {
+	if len(m.items) == 0 {
+		return nil
+	}
+	return []string{
+		m.join(m.names(false), m.sep),
+		m.join(m.names(true), m.sep),
+		m.join(m.names(true), " "),
+		m.join(m.digits(), " "),
+	}
 }
 
 // name returns the text of tab i for the form.
