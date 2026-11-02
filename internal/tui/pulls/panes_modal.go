@@ -581,17 +581,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
 	h := max(m.height-2, 0)
-	if m.hasStrip() {
-		h--
-	}
 	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows())
-}
-
-// hasStrip reports whether the pane strip has a row of its own under the
-// boxes: while the panes are zoomed, and the modal is tall enough to give
-// the boxes a row as well.
-func (m *panesModal) hasStrip() bool {
-	return showsOne(m.width, m.zoom.Zoomed()) && m.height >= 4
 }
 
 // context returns the context of the keys of what has the focus in l.

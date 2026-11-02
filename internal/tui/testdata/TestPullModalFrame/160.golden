@@ -4,7 +4,7 @@
 │   README.md                                            6B││     #      Title                                         R C  Labels          Author      Updated│
 │               ╭─ #2 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮cat     now    │
 │               │ ↣ #2 Match keys by order                                                                                                     │               │
-│               │ ╭─ 1 Description ───────────────────────────────────────────────────────────────── 0% ─╮╭─ 3 Merge ──────────── 1 blocker ─╮ │               │
+│               │ ╭─ [1] Description ─────────────────────────────────────────────────────────────── 0% ─╮╭─ [3] Merge ────────── 1 blocker ─╮ │               │
 │               │ │ ▌▸ Notes  ⋯ 1 line                                                                   ││ keys → main                      │ │               │
 │               │ │    Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys  ││ ▌▾ ✗ Checks failing 1            │ │               │
 │               │ │    match by order. Keys match by order. Keys match by order.                         ││  ╰─ ▾ ✗ ▣ Codecov         failed │ │               │
@@ -13,16 +13,16 @@
 │               │ │    match by order. Keys match by order. Keys match by order.                         ││                                  │ │               │
 │               │ │                                                                                      ││                                  │ │               │
 │               │ ╰──────────────────────────────────────────────────────────────────────────────────────╯│ ─────                            │ │               │
-│               │ ╭─ 2 Conversation ──────────────────────────────────────── 2 of 2 shown · filter: all ─╮│ Update U                         │ │               │
+│               │ ╭─ [2] Conversation ────────────────────────────────────── 2 of 2 shown · filter: all ─╮│ Update U                         │ │               │
 │               │ │ ▌▾ ○ bob                                                                         now │╰──────────────────────────────────╯ │               │
-│               │ │  ╰─ ▾ ● dee ● b.go:7  Why?                                                       now │╭─ 4 Involved ─────────────────────╮ │               │
+│               │ │  ╰─ ▾ ● dee ● b.go:7  Why?                                                       now │╭─ [4] Involved ───────────────────╮ │               │
 │               │ │     ╰─   bob  Because.                                                           now ││ ▌  Author octocat                │ │               │
 │               │ │                                                                                      ││  ▾ Reviewers 0                   │ │───────────────╯
 │               │ │    ann  Looks good.                                                              now │╰──────────────────────────────────╯ │───────────────╮
-│               │ │                                                                                      │╭─ 5 Development ──────────────────╮ │ · Closed · All│
+│               │ │                                                                                      │╭─ [5] Development ────────────────╮ │ · Closed · All│
 │               │ │                                                                                      ││ Not shown yet.                   │ │thor    Updated│
 │               │ │                                                                                      │╰──────────────────────────────────╯ │tocat   now    │
-│               │ │                                                                                      │╭─ 6 Files ──── 4 files ● +24 −12 ─╮ │               │
+│               │ │                                                                                      │╭─ [6] Files ── 4 files ● +24 −12 ─╮ │               │
 │               │ │                                                                                      ││ ▌▸ Commits all 1 commits  ▸      │ │               │
 │               │ │                                                                                      ││    ───────────────────────────── │ │               │
 │               │ │                                                                                      ││  ▾ Files                         │ │               │

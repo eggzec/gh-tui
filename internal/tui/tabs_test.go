@@ -18,18 +18,24 @@ func TestPullModalFrame(t *testing.T) {
 		name          string
 		icons         string
 		width, height int
+		extra         string
 	}{
-		{"80", config.IconsUnicode, 80, 24},
-		{"120", config.IconsUnicode, 120, 36},
-		{"160", config.IconsUnicode, 160, 40},
-		{"ascii", config.IconsASCII, 80, 24},
+		{"80", config.IconsUnicode, 80, 24, ""},
+		{"120", config.IconsUnicode, 120, 36, ""},
+		{"160", config.IconsUnicode, 160, 40, ""},
+		{"ascii", config.IconsASCII, 80, 24, ""},
+		{"zoomed", config.IconsUnicode, 120, 36, "global.zoom"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				m := newKeysAppWith(t, true, func(c *config.Config) { c.UI.Icons = tt.icons })
 				resize(m, tt.width, tt.height)
 				c := keyContext{name: "pull request tabs"}
-				for _, k := range []string{"global.pane_2", "global.select"} {
+				keys := []string{"global.pane_2", "global.select"}
+				if tt.extra != "" {
+					keys = append(keys, tt.extra)
+				}
+				for _, k := range keys {
 					for _, name := range c.press(t, m.cfg.Keys, k) {
 						msg, _ := keyPress(name)
 						driveKeys(t, m, m.key(msg))
