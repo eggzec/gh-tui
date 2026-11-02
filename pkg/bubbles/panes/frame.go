@@ -48,10 +48,10 @@ func (s Styles) frame(c Content, w, h int) []string {
 		}
 		return blank
 	}
-	b, e := s.Border, s.edge(c.Focus)
-	side, right := e.Render(b.Left), e.Render(b.Right)
+	side, right := s.Sides(c.Focus)
+	topLine, bottomLine := s.Edges(c, w)
 	lines := make([]string, 0, h)
-	lines = append(lines, s.top(c, w))
+	lines = append(lines, topLine)
 	inner := w - 2
 	body := strings.Split(c.Body, "\n")
 	for i := range h - 2 {
@@ -61,7 +61,25 @@ func (s Styles) frame(c Content, w, h int) []string {
 		}
 		lines = append(lines, side+s.pad(line, inner)+right)
 	}
-	return append(lines, s.bottom(c, w))
+	return append(lines, bottomLine)
+}
+
+// Edges draws the top and the bottom border lines of a box w cells wide, as
+// Frame does: the four slots of c are placed the same way and c.Body is not
+// read. A caller that draws its own body between the borders uses it with
+// Sides. Each line is w cells; both are empty when w is under 2.
+func (s Styles) Edges(c Content, w int) (top, bottom string) {
+	if w < 2 {
+		return "", ""
+	}
+	return s.top(c, w), s.bottom(c, w)
+}
+
+// Sides draws the left and the right border of a body row, in the colour of
+// the focus or not.
+func (s Styles) Sides(focus bool) (left, right string) {
+	b, e := s.Border, s.edge(focus)
+	return e.Render(b.Left), e.Render(b.Right)
 }
 
 // bottom is the bottom border: corner, "─ ", left slot, " ", dashes, " ",
