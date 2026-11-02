@@ -32,6 +32,8 @@ func TestView(t *testing.T) {
 		{"100 columns", 100, 30, []string{"3", "[", "down"}, "", ""},
 		{"120 columns zoomed", 120, 34, []string{"z"}, "", ""},
 		{"120 columns zoomed work", 120, 34, []string{"z", "3"}, "", ""},
+		{"80 columns zoomed", 80, 24, []string{"z"}, "", ""},
+		{"50 columns zoomed", 50, 20, []string{"z"}, "", ""},
 		{"80 columns", 80, 22, nil, "", ""},
 		{"80 columns pinned", 80, 22, []string{"1", "right"}, "", ""},
 		{"80 columns work", 80, 22, []string{"3", "down"}, "", ""},
