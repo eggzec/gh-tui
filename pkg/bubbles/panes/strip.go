@@ -25,6 +25,7 @@ func (s Styles) StripForms(defs []Def, cur Pane) []string {
 	row := tabrow.New(
 		tabrow.WithStyles(tabrow.Styles{Current: s.StripCurrent, Other: s.StripOther, Marker: s.StripSep}),
 		tabrow.WithSeparator(s.Separator),
+		tabrow.WithStyledBlanks(),
 	)
 	row.SetItems(items, int(cur)-1)
 	return row.Forms()
