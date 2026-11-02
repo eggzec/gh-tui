@@ -159,9 +159,12 @@ func TestErrorInlineAndRetry(t *testing.T) {
 
 func TestTopLevelError(t *testing.T) {
 	w := &world{fail: map[string]error{"": errors.New("offline")}}
-	m := lazyTree(w, WithErrorText(func(err error) string { return "! " + err.Error() }))
+	m := lazyTree(w, WithErrorText(func(err error) (string, string) { return "! " + err.Error(), "press r" }))
 	if got := lines(m)[0]; !contains(got, "! offline") {
 		t.Errorf("view = %q", got)
+	}
+	if got := lines(m)[1]; !contains(got, "press r") {
+		t.Errorf("hint line = %q", got)
 	}
 }
 
@@ -537,9 +540,12 @@ func TestIconsAndEmpty(t *testing.T) {
 	if got := lines(m)[0]; !contains(got, "# a") {
 		t.Errorf("row = %q, want an icon", got)
 	}
-	e := New(Rows(nil), WithSize(20, 3), WithEmpty("no files"))
+	e := New(Rows(nil), WithSize(20, 3), WithEmpty("no files", "press a"))
 	if got := lines(e)[0]; !contains(got, "no files") {
 		t.Errorf("empty = %q", got)
+	}
+	if got := lines(e)[1]; !contains(got, "press a") {
+		t.Errorf("empty hint = %q", got)
 	}
 }
 

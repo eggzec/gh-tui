@@ -58,10 +58,11 @@ type Styles struct {
 	Right lipgloss.Style
 	// Ellipsis ends a text where it is cut. The default is "…".
 	Ellipsis string
-	// Empty styles the text shown when there are no rows, and EmptyText is
-	// that text.
+	// Empty styles the text shown when there are no rows, EmptyText is that
+	// text, and EmptyHint a second line under it, drawn in the same style.
 	Empty     lipgloss.Style
 	EmptyText string
+	EmptyHint string
 	// Error styles the text of a failed load, shown after the row that
 	// failed, or in place of the rows when the top level failed.
 	Error lipgloss.Style
@@ -125,6 +126,13 @@ func (look) pick(ok bool, a, b string) string {
 		return a
 	}
 	return b
+}
+
+// SetEmpty sets the title shown when there are no rows and the hint under it.
+func (m *Model) SetEmpty(title, hint string) {
+	s := m.styles
+	s.EmptyText, s.EmptyHint = title, hint
+	m.setStyles(s)
 }
 
 func (m *Model) setStyles(s Styles) {

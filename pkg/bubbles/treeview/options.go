@@ -36,19 +36,24 @@ func WithIcons(icon func(Node) string) Option {
 	return func(m *Model) { m.icon = icon }
 }
 
-// WithEmpty sets the text shown when there are no rows.
-func WithEmpty(text string) Option {
-	return func(m *Model) {
-		s := m.styles
-		s.EmptyText = text
-		m.setStyles(s)
-	}
+// WithEmpty sets the title shown when there are no rows, and the hint under
+// it, such as the key that adds one. An empty hint draws no second line.
+func WithEmpty(title, hint string) Option {
+	return func(m *Model) { m.SetEmpty(title, hint) }
 }
 
-// WithErrorText sets how a failed load is worded. The default is the error's
-// own text.
-func WithErrorText(text func(error) string) Option {
-	return func(m *Model) { m.errText = text }
+// WithErrorText sets how a failed load is worded: the text, shown after the
+// row that failed or in place of the rows, and a hint under it when the top
+// level failed, such as the key that retries. The default is the error's own
+// text and no hint.
+func WithErrorText(say func(error) (text, hint string)) Option {
+	return func(m *Model) { m.errText = say }
+}
+
+// WithMinName sets the cells a row keeps for its text before its right part is
+// dropped to make room. The default is 1.
+func WithMinName(n int) Option {
+	return func(m *Model) { m.minName = max(n, 1) }
 }
 
 // WithMaxLoads sets how many loads expand-all runs at once. The default is
@@ -61,7 +66,7 @@ func WithMaxLoads(n int) Option {
 // open before it stops and reports [Model.Capped]. The defaults are
 // [DefaultExpandAllNodes] and [DefaultExpandAllDepth].
 func WithExpandAllLimits(nodes, depth int) Option {
-	return func(m *Model) { m.maxNodes, m.maxDepth = max(nodes, 1), max(depth, 1) }
+	return func(m *Model) { m.SetExpandAllLimits(nodes, depth) }
 }
 
 // WithRows sets the rows of a tree that has no source of its own, the static
