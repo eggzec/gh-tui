@@ -7,12 +7,14 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
@@ -392,6 +394,42 @@ func TestRowsGolden(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+// A comment that the window starts inside keeps its author's name and its age
+// on the top line, never the words of the body that follow the name in the
+// lead layout.
+func TestStickyAuthor(t *testing.T) {
+	t.Parallel()
+	body := "first words\n\nsecond\n\nthird\n\nfourth\n\nfifth"
+	for _, tc := range []struct {
+		name  string
+		login string
+		width int
+	}{
+		{"lead", "ann", 40},
+		{"wide-name", strings.Repeat("n", 60), 40},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := Data{Items: []core.TimelineItem{{
+				Kind: core.TimelineComment, ID: "c", Actor: core.User{Login: tc.login}, At: now.Add(-time.Hour), Body: body,
+			}}}
+			keys := keytest.Table(map[string][]string{"down": {"j"}})
+			m := treeview.New(treeview.Source{}, treeview.WithKeyMap(treeview.NewKeyMap(keys)),
+				treeview.WithFocused(true), treeview.WithRows(Build(d, opts(config.IconsASCII, tc.width))),
+				treeview.WithSize(tc.width, 4))
+			for range 4 {
+				m, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+			}
+			got := ansi.Strip(m.View())
+			first, _, _ := strings.Cut(got, "\n")
+			if strings.Contains(first, "first") {
+				t.Errorf("top line %q holds the body", first)
+			}
+			golden.RequireEqual(t, got)
+		})
 	}
 }
 

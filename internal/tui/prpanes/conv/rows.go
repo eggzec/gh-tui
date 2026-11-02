@@ -130,27 +130,30 @@ func (b *builder) marker(n int, one, many string) string {
 func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	it := n.item
 	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
-	lines, s := b.body(b.st.who(it.Actor, false), it.Body, depth, false, right)
-	return treeview.Node{Lines: lines, Right: right, Sticky: true}, s
+	who := b.st.who(it.Actor, false)
+	lines, s := b.body(who, it.Body, depth, false, right)
+	return treeview.Node{Lines: lines, Right: right, Head: who}, s
 }
 
 // review draws a review, a fold when it holds threads.
 func (b *builder) review(n *node, depth int) (treeview.Node, segs) {
 	var r treeview.Node
-	var prefix, body, right string
+	var prefix, body, right, who string
 	if n.pending {
 		prefix = b.st.review(core.ReviewStatePending) + " "
 		if b.o.Viewer != "" {
-			prefix += b.st.who(core.User{Login: b.o.Viewer}, false) + b.st.dim.Render(" pending review")
+			who = b.st.who(core.User{Login: b.o.Viewer}, false)
+			prefix += who + b.st.dim.Render(" pending review")
 		} else {
 			prefix += b.st.dim.Render("your pending review")
 		}
 	} else {
 		it := n.item
-		prefix = b.st.review(it.Review) + " " + b.st.who(it.Actor, false)
+		who = b.st.who(it.Actor, false)
+		prefix = b.st.review(it.Review) + " " + who
 		body, right = it.Body, b.right(it.At, false, false)
 	}
-	r.Right, r.Sticky = right, true
+	r.Right, r.Head = right, who
 	r.Branch = len(n.children) > 0
 	if r.Branch {
 		r.Marker = b.marker(len(n.children), "thread", "threads")
@@ -188,7 +191,8 @@ func (b *builder) thread(n *node, depth int) (treeview.Node, segs) {
 	if c.Pending {
 		glyph = b.st.review(core.ReviewStatePending)
 	}
-	prefix := glyph + " " + b.st.who(c.Author, quiet)
+	who := b.st.who(c.Author, quiet)
+	prefix := glyph + " " + who
 	if where := location(t, b.st.Glyphs.Cut); where != "" {
 		prefix += b.st.dim.Render(" " + b.st.Glyphs.Dot + " " + where)
 	}
@@ -199,7 +203,7 @@ func (b *builder) thread(n *node, depth int) (treeview.Node, segs) {
 	replies := max(t.TotalComments, len(t.Comments)) - 1
 
 	kids := len(n.children) > 0
-	r := treeview.Node{Right: right, Sticky: true, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
+	r := treeview.Node{Right: right, Head: who, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
 	var s segs
 	r.Lines, s = b.body(prefix, c.Body, depth, kids, right+r.Marker)
 	r.Lines = b.withSnippet(r.Lines, t, c.DiffHunk, prefix, depth, kids)
@@ -246,7 +250,7 @@ func (b *builder) reply(n *node, depth int) (treeview.Node, segs) {
 	if c.Pending {
 		lines = b.quiet(lines, prefix)
 	}
-	return treeview.Node{Lines: lines, Right: right, Sticky: true}, s
+	return treeview.Node{Lines: lines, Right: right, Head: prefix}, s
 }
 
 // run draws the fold over a run of comments: how many, by whom, and when.
