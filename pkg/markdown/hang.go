@@ -21,6 +21,7 @@ var ordinalMarker = regexp.MustCompile(`^\d+\. `)
 func (r *Renderer) hang(lines []string, width int) []string {
 	g := r.glyphs
 	bullet := cmp.Or(g.Bullet, "•")
+	tick := cmp.Or(g.Tick, "✓")
 	column := cmp.Or(g.TableColumn, "│")
 	// A line of a table or a mark stays as it is and ends the item.
 	plain := func(body string) bool {
@@ -32,6 +33,9 @@ func (r *Renderer) hang(lines []string, width int) []string {
 		switch {
 		case strings.HasPrefix(s, bullet+" "):
 			return xansi.StringWidth(bullet + " ")
+		case strings.HasPrefix(s, "[ ] "), strings.HasPrefix(s, "["+tick+"] "):
+			// A task item has a box in place of the bullet.
+			return xansi.StringWidth("[" + tick + "] ")
 		case ordinalMarker.MatchString(s):
 			return len(ordinalMarker.FindString(s))
 		}
