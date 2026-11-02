@@ -38,6 +38,23 @@ func TestAtAndByID(t *testing.T) {
 	}
 }
 
+func TestIndex(t *testing.T) {
+	m := lazyTree(&world{})
+	if got := m.Index(); got != 0 {
+		t.Fatalf("Index = %d, want 0 on the first row", got)
+	}
+	m = pressRun(t, m, "l")
+	m = pressRun(t, m, "j")
+	got := m.Index()
+	if got == 0 {
+		t.Fatal("Index = 0 after moving down")
+	}
+	sel, _ := m.Selected()
+	if n, ok := m.At(got); !ok || n.ID != sel.ID {
+		t.Errorf("At(Index) = %q, %v, want the selected row %q", n.ID, ok, sel.ID)
+	}
+}
+
 func TestSetIconsSeesFolded(t *testing.T) {
 	w := &world{}
 	m := lazyTree(w)

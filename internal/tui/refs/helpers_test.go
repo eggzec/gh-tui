@@ -2,6 +2,7 @@ package refs
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"reflect"
@@ -236,6 +237,11 @@ func (h *host) run(cmd tea.Cmd) {
 		return
 	}
 	msg := cmd()
+	// The tree's ticks re-arm while a load is busy, and a load that runs
+	// after them in a batch would never end them.
+	if strings.HasSuffix(fmt.Sprintf("%T", msg), "tickMsg") {
+		return
+	}
 	switch msg := msg.(type) {
 	case nil, spinner.TickMsg:
 		return
@@ -328,7 +334,13 @@ func text(s *Step) string {
 // marks with its gutter.
 func selected(s *Step) string {
 	for _, l := range lines(s) {
-		if rest, ok := strings.CutPrefix(l, "> "); ok {
+		if rest, ok := strings.CutPrefix(l, ">"); ok {
+			// The tree's guide of an item, such as "|-", comes before it.
+			if r, ok := strings.CutPrefix(rest, "|-"); ok {
+				rest = r
+			} else if r, ok := strings.CutPrefix(rest, "`-"); ok {
+				rest = r
+			}
 			return strings.TrimSpace(rest)
 		}
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // readMsg carries the links one read found to the step that asked.
@@ -67,8 +67,8 @@ func (s *Step) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		cmd = s.receive(msg)
-	case tree.OpenMsg:
-		if msg.ID != s.tree.ID() {
+	case treeview.OpenMsg:
+		if msg.Tree != s.tree.ID() {
 			return nil
 		}
 		return s.pick(msg.Node)
@@ -120,7 +120,8 @@ func (s *Step) land() tea.Cmd {
 		}
 		if n == s.landFrom {
 			s.landFrom = -1
-			return s.tree.Reveal(mentionedID, node.ID)
+			_, cmd := s.tree.Reveal(mentionedID, node.ID)
+			return cmd
 		}
 		n++
 	}
@@ -167,7 +168,16 @@ func (s *Step) setRefs(r core.References) tea.Cmd {
 	if !s.started {
 		return s.start()
 	}
-	return s.tree.ReloadNode("")
+	// The groups come with the top level; one the tree has read again shows
+	// its new rows, and the mentions read again only if they were read.
+	cmds := []tea.Cmd{s.tree.ReloadNode("")}
+	for _, g := range snap.groups {
+		if g.id == mentionedID && s.mread.Load() == nil {
+			continue
+		}
+		cmds = append(cmds, s.tree.ReloadNode(g.id))
+	}
+	return tea.Batch(cmds...)
 }
 
 // start starts the tree once there are links to list.
@@ -195,7 +205,8 @@ func (s *Step) openFolds() tea.Cmd {
 		}
 		cmds = append(cmds, s.tree.Expand(g.id))
 		if first == "" && len(g.rows) > 0 {
-			cmds = append(cmds, s.tree.Reveal(g.id, g.rows[0].ID))
+			_, cmd := s.tree.Reveal(g.id, g.rows[0].ID)
+			cmds = append(cmds, cmd)
 			first = g.id
 		}
 	}
@@ -240,7 +251,7 @@ func (s *Step) press(msg tea.KeyPressMsg) tea.Cmd {
 
 // pick takes the row that enter opened. An item replaces the modal, which
 // the back key returns to; the row of more mentions reads the next page.
-func (s *Step) pick(n tree.Node) tea.Cmd {
+func (s *Step) pick(n treeview.Node) tea.Cmd {
 	switch v := n.Value.(type) {
 	case itemValue:
 		return s.openItem(v.ref)
@@ -313,12 +324,12 @@ func (s *Step) setFilter(text string) tea.Cmd {
 	s.filter = text
 	var cmd tea.Cmd
 	if text == "" {
-		s.tree.SetEmptyText(ui.None("links"))
-		s.tree.SetFilter(nil)
+		s.tree.SetEmpty(ui.None("links"), "")
+		s.tree.SetFilterFunc(nil)
 		s.asked = false
 	} else {
 		s.emptyText()
-		s.tree.SetFilter(matcher(text))
+		s.tree.SetFilterFunc(matcher(text))
 		if s.refs.Mentioned > 0 && !s.asked {
 			// Once per filter, so that a read that fails isn't tried again
 			// on every key; the refresh key tries it.
@@ -334,14 +345,14 @@ func (s *Step) setFilter(text string) tea.Cmd {
 // emptyText words the tree's empty list for the filter in force, with the
 // key that clears it.
 func (s *Step) emptyText() {
-	s.tree.SetEmptyText(ui.NoMatch("links", ui.KeyOf(s.opts.icons, s.keys.Dismiss)))
+	s.tree.SetEmpty(ui.NoMatch("links", ui.KeyOf(s.opts.icons, s.keys.Dismiss)), "")
 }
 
 // matcher returns what tells whether a row holds every word of text,
 // ignoring case. Only the rows of items hold anything.
-func matcher(text string) func(tree.Node) bool {
+func matcher(text string) func(treeview.Node) bool {
 	words := strings.Fields(strings.ToLower(text))
-	return func(n tree.Node) bool {
+	return func(n treeview.Node) bool {
 		v, ok := n.Value.(itemValue)
 		if !ok {
 			return false
@@ -403,10 +414,10 @@ func (s *Step) heading(g group, r core.References) string {
 }
 
 // notes counts the rows of nodes that are notes.
-func notes(nodes []tree.Node) int {
+func notes(nodes []treeview.Node) int {
 	n := 0
-	for _, r := range nodes {
-		if _, ok := r.Value.(noteValue); ok {
+	for i := range nodes {
+		if _, ok := nodes[i].Value.(noteValue); ok {
 			n++
 		}
 	}

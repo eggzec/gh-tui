@@ -20,7 +20,7 @@ import (
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Item is what the step asks the modal about the item on view, which
@@ -109,7 +109,7 @@ type Step struct {
 	keys KeyMap
 	opts options
 
-	tree tree.Model
+	tree treeview.Model
 	// started is set once the tree was started, which waits for the first
 	// links, and folds while the groups still have to be opened or closed as
 	// they start.
@@ -183,15 +183,15 @@ func New(ctx context.Context, svc Service, self core.Target, pull bool, keys con
 	}
 	s.voice = v
 	s.prompt = cmdline.New(0, cmdline.WithPrompt(promptFilter), cmdline.WithKeyMap(cmdline.KeyMap{CancelEmpty: s.keys.prompt.cancelEmpty}))
-	s.tree = tree.New(s.children,
-		tree.WithContext(rctx),
-		tree.WithKeyMap(s.keys.Tree),
-		tree.WithFocused(true),
+	s.tree = treeview.New(treeview.Source{Load: s.children},
+		treeview.WithContext(rctx),
+		treeview.WithKeyMap(s.keys.Tree),
+		treeview.WithFocused(true),
 		// The titles are what the rows are for: the state at the right gives
 		// way to them.
-		tree.WithMinName(minName),
-		tree.WithEmptyText(ui.None("links")),
-		tree.WithErrorText(ui.ErrorText("load the mentions", self.String(), s.voice)),
+		treeview.WithMinName(minName),
+		treeview.WithEmpty(ui.None("links"), ""),
+		treeview.WithErrorText(ui.ErrorText("load the mentions", self.String(), s.voice)),
 	)
 	// Assume a dark terminal until the parent sets the theme.
 	p, _ := config.Default().Palette(true)
@@ -204,7 +204,7 @@ func New(ctx context.Context, svc Service, self core.Target, pull bool, keys con
 
 // minName is the fewest cells of a title that a row keeps to show the state
 // beside it.
-const minName = 24
+const minName = 44
 
 // promptFilter is the prompt of the filter, which also says what the line
 // typed after it is for.

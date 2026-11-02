@@ -4,7 +4,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/finder"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // fileIcons renders the icons of files in a theme. A repository holds
@@ -46,13 +46,14 @@ func (f *fileIcons) entry(e core.TreeEntry, open bool) string {
 	return r
 }
 
-// node is a tree.Icons.
-func (f *fileIcons) node(n tree.Node, expanded bool) string {
+// node is the icon function of the tree, which says whether a directory is
+// open through the node.
+func (f *fileIcons) node(n treeview.Node) string {
 	e, ok := entryOf(n)
 	if !ok {
 		return ""
 	}
-	return f.entry(e, expanded)
+	return f.entry(e, !n.Folded)
 }
 
 // item is a finder.Icons.
