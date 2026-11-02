@@ -67,9 +67,41 @@ type issueComment struct {
 		user
 		AvatarURL string `json:"avatar_url"`
 	} `json:"user"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Body      string        `json:"body"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
+	Reactions restReactions `json:"reactions"`
+}
+
+// restReactions is the REST summary of the reactions of a comment, a count
+// for each kind.
+type restReactions struct {
+	PlusOne  int `json:"+1"`
+	MinusOne int `json:"-1"`
+	Laugh    int `json:"laugh"`
+	Hooray   int `json:"hooray"`
+	Confused int `json:"confused"`
+	Heart    int `json:"heart"`
+	Rocket   int `json:"rocket"`
+	Eyes     int `json:"eyes"`
+}
+
+// core lists the kinds that have a count, under the names GraphQL gives them.
+func (r restReactions) core() []core.Reaction {
+	var out []core.Reaction
+	for _, k := range []struct {
+		content string
+		n       int
+	}{
+		{"THUMBS_UP", r.PlusOne}, {"THUMBS_DOWN", r.MinusOne}, {"LAUGH", r.Laugh},
+		{"HOORAY", r.Hooray}, {"CONFUSED", r.Confused}, {"HEART", r.Heart},
+		{"ROCKET", r.Rocket}, {"EYES", r.Eyes},
+	} {
+		if k.n > 0 {
+			out = append(out, core.Reaction{Content: k.content, Count: k.n})
+		}
+	}
+	return out
 }
 
 func (c issueComment) core() core.Comment {
@@ -80,6 +112,7 @@ func (c issueComment) core() core.Comment {
 		Body:      c.Body,
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
+		Reactions: c.Reactions.core(),
 	}
 }
 
