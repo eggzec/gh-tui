@@ -18,6 +18,10 @@ type Service interface {
 	CachedGet(repo core.RepoRef, number int) (core.Issue, bool)
 	CachedComments(q issuesvc.CommentsQuery) (core.Page[core.Comment], bool)
 	Comments(ctx context.Context, q issuesvc.CommentsQuery) (core.Page[core.Comment], error)
+	// CachedTimeline and Timeline read a page of the timeline of an issue:
+	// its comments and events.
+	CachedTimeline(q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], bool)
+	Timeline(ctx context.Context, q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], error)
 	// CurrentGet and CurrentComments report whether Get and Comments
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool

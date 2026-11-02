@@ -61,7 +61,9 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 	m.prompt = prompt.New(opts...)
 	m.composing = what
 	m.layout()
-	m.thread.Blur()
+	if m.convOn {
+		m.conv.Blur()
+	}
 	return m.prompt.Focus()
 }
 
@@ -79,25 +81,33 @@ func (m *detailModal) closePrompt() {
 	m.composing = composeNone
 	m.prompt.Blur()
 	m.layout()
-	m.thread.Focus()
+	if m.convOn {
+		m.conv.Focus()
+	}
 }
 
-// layout shares the height of the modal between the thread and the prompt,
-// if it is open.
-func (m *detailModal) layout() {
+// promptHeight is the height of the prompt, or 0 while none is open.
+func (m *detailModal) promptHeight() int {
 	h := m.height
-	ph := 0
 	switch m.composing {
 	case composeComment:
-		ph = min(max(h/3, minCommentHeight), maxCommentHeight, h)
+		return min(max(h/3, minCommentHeight), maxCommentHeight, h)
 	case composeLabels:
-		ph = min(prompt.SingleLineHeight, h)
+		return min(prompt.SingleLineHeight, h)
 	case composeNone:
 	}
-	if ph > 0 {
+	return 0
+}
+
+// layout shares the height of the modal between the header, the conversation
+// and the prompt, if it is open.
+func (m *detailModal) layout() {
+	if ph := m.promptHeight(); ph > 0 {
 		m.prompt.SetSize(m.width, ph)
 	}
-	m.thread.SetSize(m.width, h-ph)
+	if m.convOn {
+		m.conv.SetSize(m.width, m.convHeight())
+	}
 }
 
 // promptDone handles what the prompt reports, if it is this modal's. A
@@ -162,10 +172,28 @@ func (m *detailModal) comment(body string) (c confirm.Ask, ok bool, refusal tea.
 		Run: func() tea.Cmd {
 			m.closePrompt()
 			op := m.svc.Comment(m.repo, n, body)
-			return tea.Batch(m.reload(), m.thread.Reload(), m.changed(),
+			m.addPending(body)
+			return tea.Batch(m.reload(), m.buildConv(), m.changed(),
 				m.send(op, "comment on "+num))
 		},
 	}, true, nil
+}
+
+// addPending shows body as a comment being sent, which the conversation
+// draws last until GitHub answers.
+func (m *detailModal) addPending(body string) {
+	who := m.viewer
+	if who == "" {
+		who = "you"
+	}
+	now := m.now()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sent++
+	m.pending = append(m.pending, core.TimelineItem{
+		Kind: core.TimelineComment, ID: "pending:" + strconv.Itoa(m.sent),
+		Actor: core.User{Login: who}, At: now, UpdatedAt: now, Body: body,
+	})
 }
 
 // submitLabels asks to make the issue's labels the comma-separated names

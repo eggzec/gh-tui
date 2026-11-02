@@ -2,6 +2,7 @@ package issues
 
 import (
 	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 
@@ -14,7 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
-	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // keyMap holds the keys of the section and of the bubbles it shows. The
@@ -54,7 +55,8 @@ type keyMap struct {
 	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
 	search cmdline.KeyMap
-	thread thread.KeyMap
+	// tree are the keys of the conversation's rows.
+	tree treeview.KeyMap
 	// owner shows the author's page from the modal. The list leaves the
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
@@ -95,12 +97,25 @@ func newKeyMap(keys config.Keymap) keyMap {
 		feed:   feed.NewKeyMap(list),
 		mark:   feed.NewMarkKeys(list),
 		search: ui.SearchPromptKeys(keys),
+		tree:   treeview.NewKeyMap(convLookup{Context: ui.In(keys, ctxModal), keys: keys}),
 	}
-
-	tk := thread.NewKeyMap(ui.In(keys, ctxModal))
-	tk.Retry = retry(k.Refresh)
-	k.thread = tk
 	return k
+}
+
+// convLookup gives the actions the modal's context has. The tree has others,
+// such as marking a row, that have no key here and no line in the config.
+type convLookup struct {
+	ui.Context
+	keys config.Keymap
+}
+
+// Of implements keymap.Lookup. It asks Has, not Of, for what the config may
+// lack, so that the actions the code reads stay those the config has.
+func (l convLookup) Of(action string) []string {
+	if !strings.Contains(action, ".") && !l.keys.Has(l.Scope()+"."+action) {
+		return nil
+	}
+	return l.Context.Of(action)
 }
 
 // forModal returns k with the keys of the changes that the modal of an
@@ -111,12 +126,6 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Reopen = modal.Binding("reopen", "reopen issue")
 	k.References = modal.Binding("references", "linked items")
 	return k
-}
-
-// retry is the refresh binding, described as retry for the bubbles' error
-// hints. Without keys, as while refresh is unbound, it is off.
-func retry(refresh key.Binding) key.Binding {
-	return keymap.Derive(key.NewBinding(key.WithKeys(refresh.Keys()...), key.WithHelp(refresh.Help().Key, "retry")), refresh)
 }
 
 // ShortHelp implements help.KeyMap.
@@ -199,6 +208,11 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	}
 	own := keyhelp.FromHelp("", k, false)
 	own.Bindings = append(own.Bindings, owner)
-	// The thread is the one pane of the modal.
-	return []keyhelp.Layer{ui.MergeLayers(ctxModal, own, keyhelp.FromHelp("", m.thread, false))}
+	// The conversation is the one pane of the modal. Its actions that the
+	// config has no key for here, such as marking a row, are left out.
+	tree := keyhelp.FromHelp("", m.keys.tree, false)
+	tree.Bindings = slices.DeleteFunc(tree.Bindings, func(b key.Binding) bool {
+		return len(b.Keys()) == 0 && len(keymap.Actions(b)) == 0
+	})
+	return []keyhelp.Layer{ui.MergeLayers(ctxModal, own, tree)}
 }

@@ -1,53 +1,53 @@
-  ]8;;https://github.com/eggzec/gh-tui/issues/999\[1;38;2;31;35;48mSupport GitHub Enterprise hosts in the repository picker[m]8;;\                                                              
-  [1;38;2;26;127;55m Open[m  [38;2;84;91;110m#999[m[38;2;138;144;160m · [m]8;;https://github.com/hubot\[38;2;84;91;110mhubot[m]8;;\[38;2;138;144;160m opened 4d ago[m[38;2;138;144;160m · [m[38;2;138;144;160mupdated 1h ago[m[38;2;138;144;160m · [m[38;2;84;91;110m◦ 7 comments[m                                                    
-  [48;2;218;241;241m [m[38;2;31;121;122;48;2;218;241;241menhancement[m[48;2;218;241;241m [m [48;2;218;241;238m [m[38;2;31;122;109;48;2;218;241;238mhelp wanted[m[48;2;218;241;238m [m                                                                                           
-  [38;2;138;144;160massigned to [m]8;;https://github.com/mona\[38;2;84;91;110mmona[m]8;;\                                                                                                      
+  ]8;;https://github.com/eggzec/gh-tui/issues/999\[1;38;2;31;35;48mSupport GitHub Enterprise hosts in the repository picker[m]8;;\                                                              [m
+  [1;38;2;26;127;55m Open[m  [38;2;84;91;110m#999[m[38;2;138;144;160m · [m]8;;https://github.com/hubot\[38;2;84;91;110mhubot[m]8;;\[38;2;138;144;160m opened 4d ago[m[38;2;138;144;160m · [m[38;2;138;144;160mupdated 1h ago[m[38;2;138;144;160m · [m[38;2;84;91;110m◦ 7 comments[m                                                    [m
+  [48;2;218;241;241m [m[38;2;31;121;122;48;2;218;241;241menhancement[m[48;2;218;241;241m [m [48;2;218;241;238m [m[38;2;31;122;109;48;2;218;241;238mhelp wanted[m[48;2;218;241;238m [m                                                                                           [m
+  [38;2;138;144;160massigned to [m]8;;https://github.com/mona\[38;2;84;91;110mmona[m]8;;\                                                                                                      [m
+[48;2;228;232;240m[1;38;2;59;99;196m▌[m[48;2;228;232;240m[38;2;138;144;160m▾[m[48;2;228;232;240m [1;38;2;31;35;48m6 comments[m[48;2;228;232;240m[38;2;138;144;160m ● hubot, octocat, monalisa, defunkt[m[48;2;228;232;240m                                                                [38;2;138;144;160m[38;2;138;144;160m4d — 1h[m[48;2;228;232;240m[m[48;2;228;232;240m[m
+ [38;2;138;144;160m├─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48mhubot[m  Steps to reproduce:                                                                              [38;2;138;144;160m[38;2;138;144;160medited[m  [38;2;138;144;160m4d[m[m
+ [38;2;138;144;160m│  [m                                                                                                                    
+ [38;2;138;144;160m│  [m         1. Open gh-tui                                                                                             
+ [38;2;138;144;160m│  [m         2. Look at issue 999                                                                                       
+ [38;2;138;144;160m├─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48mhubot[m  [38;5;27;1mWhat happened[m                                                                                            [38;2;138;144;160m[38;2;138;144;160m5h[m[m
+ [38;2;138;144;160m│  [m                                                                                                                    
+ [38;2;138;144;160m│  [m         The modal shows [1mraw[m markdown                                                                               
+ [38;2;138;144;160m│  [m         instead of rendering it.                                                                                   
+ [38;2;138;144;160m│  [m                                                                                                                    
+ [38;2;138;144;160m│  [m         [38;5;27;1mChecklist[m                                                                                                  
+ [38;2;138;144;160m│  [m                                                                                                                    
+ [38;2;138;144;160m│  [m         [✓] I searched the issues                                                                                  
+ [38;2;138;144;160m│  [m         [ ] I tried [38;5;124;48;5;254m main [m                                                                                         
+ [38;2;138;144;160m├─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48moctocat[m  Looks like [38;5;124;48;5;254m renderComment [m wraps the body as plain text, see #12 and ]8;;https://github.com/charmbracelet/glamour\[38;2;59;99;196m[4m[38;2;59;99;196m[38;5;29;1m[38;2;59;99;196mthe docs[m[38;2;59;99;196m[24m[38;2;59;99;196m[39m]8;;\                          [38;2;138;144;160m[38;2;138;144;160m4h[m[m
+ [38;2;138;144;160m│  [m           . cc @mona                                                                                               
+ [38;2;138;144;160m│  [m             [2m▏ [22m[38;2;207;34;46mfunc [m[38;2;102;57;186mrender[m[38;2;31;35;40m(body [m[38;2;5;80;174mstring[m[38;2;31;35;40m) [m[38;2;5;80;174mstring [m[38;2;31;35;40m{[m                                                                    
+ [38;2;138;144;160m│  [m             [2m▏     [m[38;2;207;34;46mreturn [m[38;2;31;35;40mansi.[m[38;2;102;57;186mWrap[m[38;2;31;35;40m(body, [m[38;2;5;80;174m80[m[38;2;31;35;40m, [m[38;2;10;48;105m""[m[38;2;31;35;40m)[m                                                                   
+ [38;2;138;144;160m│  [m             [2m▏ [22m[38;2;31;35;40m}[m                                                                                                    
+ [38;2;138;144;160m├─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48mmonalisa[m  │ the comments inside the current issue and pr are not rendering                                      [38;2;138;144;160m[38;2;138;144;160m3h[m[m
+ [38;2;138;144;160m│  [m                                                                                                                    
+ [38;2;138;144;160m│  [m             Where                            │ Before                           │ After                            
+ [38;2;138;144;160m│  [m            ──────────────────────────────────┼──────────────────────────────────┼──────────────────────────────────
+ [38;2;138;144;160m│  [m             issues                           │ glamour                          │ shared                           
+ [38;2;138;144;160m│  [m             pulls                            │ plain                            │ shared                           
+ [38;2;138;144;160m├─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48mdefunkt[m  [38;5;243m🖼 ]8;;https://github.com/user-attachments/assets/1234\[38;2;59;99;196m[4m[38;2;59;99;196mscreenshot[24m[38;2;59;99;196m[39m]8;;\ [m[38;5;205;4m(]8;;https://github.com/user-attachments/assets/1234\[38;2;59;99;196m[4m[38;2;59;99;196mhttps://github.com/user-attachments/assets/1234[24m[38;2;59;99;196m[39m]8;;\)[m                                         [38;2;138;144;160m[38;2;138;144;160m2h[m[m
+ [38;2;138;144;160m│  [m           [38;5;243m🖼 ]8;;https://github.com/user-attachments/assets/5678\[38;2;59;99;196m[4m[38;2;59;99;196mlight theme[24m[38;2;59;99;196m[39m]8;;\ [m[38;5;205;4m(]8;;https://github.com/user-attachments/assets/5678\[38;2;59;99;196m[4m[38;2;59;99;196mhttps://github.com/user-attachments/assets/5678[24m[38;2;59;99;196m[39m]8;;\)[m                                          
+ [38;2;138;144;160m│  [m           [1;38;2;31;35;48mStack trace[m                                                                                              
+ [38;2;138;144;160m│  [m           [38;2;138;144;160m│ [m  [38;5;242mpanic: runtime error[m                                                                                 
+ [38;2;138;144;160m│  [m           [38;2;138;144;160m│ [m  [38;5;242m    main.go:12[m                                                                                       
+ [38;2;138;144;160m│  [m           [38;2;138;144;160m╰─[m                                                                                                       
+ [38;2;138;144;160m╰─ [m[38;2;138;144;160m▾[m [1;38;2;31;35;48mhubot[m                                                                                                           [38;2;138;144;160m[38;2;138;144;160m1h[m[m
+               [1;38;5;29m◆ flowchart[m[38;5;242m · 2 lines · [m[4;38;5;36;4m]8;;https://mermaid.live/view#pako:eNo0yrEKwjAQh_FXOf5z-gIZBMXRydHa4TBnGmh64dKbSt9dBB0_vt-OlyZBRDZuM93uz5XoPJbeXSYahhNdxqqJlwkB2UpC3MwloIpV_ib2AwGN14dq_V9TzzPim5cuAd4Sb3ItnI1_5PgMAGd-KNA\View[m[38;5;36;4m [m[4;38;5;36;4mdiagram[m[38;5;36;4m [m[4;38;5;36;4m↗]8;;\[m                                                                   
+               [2m▏   [22m[38;5;242mgraph LR[m                                                                                             
+               [2m▏   [22m[38;5;242m  A[issue] --> B[modal][m                                                                              
+             Title �]0;pwned� and �[31mred�[0m text.                                                                    
                                                                                                                         
-  Steps to reproduce:                                                                                                   
                                                                                                                         
-  1. Open gh-tui                                                                                                        
-  2. Look at issue 999                                                                                                  
                                                                                                                         
-  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 5h ago[m                                                                                                        
-  [38;5;27;1mWhat happened[m                                                                                                         
                                                                                                                         
-  The modal shows [1mraw[m markdown                                                                                          
-  instead of rendering it.                                                                                              
                                                                                                                         
-  [38;5;27;1mChecklist[m                                                                                                             
                                                                                                                         
-  [✓] I searched the issues                                                                                             
-  [ ] I tried [38;5;124;48;5;254m main [m                                                                                                    
                                                                                                                         
-  [1;38;2;31;35;48moctocat[m[38;2;138;144;160m · 4h ago[m                                                                                                      
-  Looks like [38;5;124;48;5;254m renderComment [m wraps the body as plain text, see #12 and ]8;;https://github.com/charmbracelet/glamour\[38;2;59;99;196m[4m[38;2;59;99;196m[38;5;29;1m[38;2;59;99;196mthe docs[m[38;2;59;99;196m[24m[38;2;59;99;196m[39m]8;;\                                         
-  . cc @mona                                                                                                            
                                                                                                                         
-    [2m▏ [22m[38;2;207;34;46mfunc [m[38;2;102;57;186mrender[m[38;2;31;35;40m(body [m[38;2;5;80;174mstring[m[38;2;31;35;40m) [m[38;2;5;80;174mstring [m[38;2;31;35;40m{[m                                                                                 
-    [2m▏     [m[38;2;207;34;46mreturn [m[38;2;31;35;40mansi.[m[38;2;102;57;186mWrap[m[38;2;31;35;40m(body, [m[38;2;5;80;174m80[m[38;2;31;35;40m, [m[38;2;10;48;105m""[m[38;2;31;35;40m)[m                                                                                
-    [2m▏ [22m[38;2;31;35;40m}[m                                                                                                                 
                                                                                                                         
-  [1;38;2;31;35;48mmonalisa[m[38;2;138;144;160m · 3h ago[m                                                                                                     
-  │ the comments inside the current issue and pr are not rendering                                                      
                                                                                                                         
-   Where                                │ Before                               │ After                                  
-  ──────────────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────────  
-   issues                               │ glamour                              │ shared                                 
-   pulls                                │ plain                                │ shared                                 
-                                                                                                                        
-  [1;38;2;31;35;48mdefunkt[m[38;2;138;144;160m · 2h ago[m                                                                                                      
-  [38;5;243m🖼 ]8;;https://github.com/user-attachments/assets/1234\[38;2;59;99;196m[4m[38;2;59;99;196mscreenshot[24m[38;2;59;99;196m[39m]8;;\ [m[38;5;205;4m(]8;;https://github.com/user-attachments/assets/1234\[38;2;59;99;196m[4m[38;2;59;99;196mhttps://github.com/user-attachments/assets/1234[24m[38;2;59;99;196m[39m]8;;\)[m                                                        
-  [38;5;243m🖼 ]8;;https://github.com/user-attachments/assets/5678\[38;2;59;99;196m[4m[38;2;59;99;196mlight theme[24m[38;2;59;99;196m[39m]8;;\ [m[38;5;205;4m(]8;;https://github.com/user-attachments/assets/5678\[38;2;59;99;196m[4m[38;2;59;99;196mhttps://github.com/user-attachments/assets/5678[24m[38;2;59;99;196m[39m]8;;\)[m                                                       
-                                                                                                                        
-  [1m▸ Stack trace[m                                                                                                         
-                                                                                                                        
-    [38;5;242mpanic: runtime error[m                                                                                                
-    [38;5;242m    main.go:12[m                                                                                                      
-                                                                                                                        
-  [1;38;2;31;35;48mhubot[m[38;2;138;144;160m · 1h ago[m                                                                                                        
-[1;38;2;59;99;196m›[m   [1;38;5;29m◆ flowchart[m[38;5;242m · 2 lines · [m[4;38;5;36;4m]8;;https://mermaid.live/view#pako:eNo0yrEKwjAQh_FXOf5z-gIZBMXRydHa4TBnGmh64dKbSt9dBB0_vt-OlyZBRDZuM93uz5XoPJbeXSYahhNdxqqJlwkB2UpC3MwloIpV_ib2AwGN14dq_V9TzzPim5cuAd4Sb3ItnI1_5PgMAGd-KNA\View[m[38;5;36;4m [m[4;38;5;36;4mdiagram[m[38;5;36;4m [m[4;38;5;36;4m↗]8;;\[m                                                                              
-                                                                                                                        
-  Title �]0;pwned� and �[31mred�[0m text.                                                                               
                                                                                                                         
                                                                                                                         
                                                                                                                         

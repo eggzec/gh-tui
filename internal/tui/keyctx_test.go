@@ -308,6 +308,12 @@ func (keyIssues) CachedComments(issuesvc.CommentsQuery) (core.Page[core.Comment]
 func (keyIssues) Comments(context.Context, issuesvc.CommentsQuery) (core.Page[core.Comment], error) {
 	return core.Page[core.Comment]{}, nil
 }
+func (keyIssues) CachedTimeline(issuesvc.TimelineQuery) (core.Page[core.TimelineItem], bool) {
+	return core.Page[core.TimelineItem]{}, true
+}
+func (keyIssues) Timeline(context.Context, issuesvc.TimelineQuery) (core.Page[core.TimelineItem], error) {
+	return core.Page[core.TimelineItem]{}, nil
+}
 func (keyIssues) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyIssues) CurrentComments(issuesvc.CommentsQuery) bool { return true }
@@ -952,6 +958,8 @@ var idleRows = map[string]string{
 
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
+
+	"issue_modal expand": "the issue has no comments yet, so the conversation has no fold to open",
 
 	"pull_involved expand":     "the cursor starts on the author, which is no group to open",
 	"pull_involved collapse":   "the cursor starts on the author, which is no group to close",

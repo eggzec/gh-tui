@@ -218,13 +218,13 @@ func TestIssueModalRereadsTheLinksForAChange(t *testing.T) {
 	h, m, f := openedRefs(t)
 	press(t, h, "#")
 	reads := len(f.reads)
-	run(t, h, m.Update(issueMsg{thread: m.thread.ID(), issue: m.issue}))
+	run(t, h, m.Update(issueMsg{thread: m.id, issue: m.issue}))
 	if got := len(f.reads); got != reads {
 		t.Fatalf("an unchanged issue read the links %d more times", got-reads)
 	}
 	changed := m.issue
 	changed.UpdatedAt = changed.UpdatedAt.Add(time.Hour)
-	run(t, h, m.Update(issueMsg{thread: m.thread.ID(), issue: changed}))
+	run(t, h, m.Update(issueMsg{thread: m.id, issue: changed}))
 	if got := len(f.reads); got != reads+1 {
 		t.Errorf("a changed issue read the links %d more times, want 1", got-reads)
 	}
@@ -235,19 +235,19 @@ func TestIssueModalMouseDoesNotReachTheCoveredThread(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	svc.addComments(999, sampleComments(40)...)
 	h := started(t, svc, 100, 20, WithReferences(&fakeRefs{}), WithIcons(ui.NewIcons(config.IconsASCII)))
-	press(t, h, "down", "enter")
+	press(t, h, "down", "enter", "*")
 	m := h.modal()
 	wheel := tea.MouseWheelMsg{Button: tea.MouseWheelDown}
-	top := ansi.Strip(m.thread.View())
-	run(t, h, m.Update(wheel))
-	if ansi.Strip(m.thread.View()) == top {
-		t.Fatal("the wheel doesn't scroll the thread, so the test shows nothing")
+	top := ansi.Strip(m.conv.View())
+	press(t, h, "j")
+	if ansi.Strip(m.conv.View()) == top {
+		t.Fatal("the key doesn't move the thread, so the test shows nothing")
 	}
 	press(t, h, "g")
-	top = ansi.Strip(m.thread.View())
+	top = ansi.Strip(m.conv.View())
 	press(t, h, "#")
 	run(t, h, m.Update(wheel))
-	if got := ansi.Strip(m.thread.View()); got != top {
+	if got := ansi.Strip(m.conv.View()); got != top {
 		t.Error("the mouse scrolled the thread under the links")
 	}
 }
