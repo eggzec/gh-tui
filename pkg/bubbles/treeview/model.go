@@ -75,9 +75,10 @@ type Node struct {
 	// Skip marks a row the cursor never rests on, such as a rule between
 	// sections.
 	Skip bool
-	// Sticky keeps the row's first line at the top of the window while the
-	// window starts inside the row, drawn over the line it covers.
-	Sticky bool
+	// Head is the text pinned at the top of the window, with the row's Right
+	// part, while the window starts inside the row, drawn over the line it
+	// covers. Empty means the row has no sticky head.
+	Head string
 	// Kind groups the rows that space marks one after another, such as
 	// "file" or "commit". A row without a kind has nothing to mark.
 	Kind string

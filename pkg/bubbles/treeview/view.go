@@ -56,8 +56,8 @@ func (m Model) View() string {
 	if i < len(m.vis) {
 		k = m.off - m.starts[i]
 	}
-	if k > 0 && m.row(i).Sticky && m.height-len(lines) > 1 {
-		lines, k = append(lines, m.pinned(i)), k+1 // the head covers line k
+	if k > 0 && m.row(i).Head != "" && m.height-len(lines) > 1 {
+		lines, k = append(lines, m.pin(i, m.draw(i, 0, true))), k+1 // the head covers line k
 	}
 	for ; i < len(m.vis) && len(lines) < m.height; i, k = i+1, 0 {
 		for ; k < m.lines(i) && len(lines) < m.height; k++ {
@@ -106,6 +106,12 @@ func (m Model) spinner() string {
 // focused tree has the background of CursorRow across it, resumed after each
 // reset the row's own text makes, and a blurred one only the cursor glyph.
 func (m Model) render(i, k int) string {
+	return m.draw(i, k, false)
+}
+
+// draw is render, with the head line of the row cut down to its Head when
+// sticky is set.
+func (m Model) draw(i, k int, sticky bool) string {
 	r := m.row(i)
 	glyph := " "
 	if i == m.cur {
@@ -119,7 +125,7 @@ func (m Model) render(i, k int) string {
 	}
 	var text string
 	if k == 0 {
-		text = m.head(r, i)
+		text = m.head(r, i, sticky)
 	} else if room := m.width - m.gutter() - m.bodyw[i]; room > 0 {
 		text = m.body[i] + m.cut(r.Lines[k], room)
 	}
@@ -133,7 +139,12 @@ func (m Model) render(i, k int) string {
 // pinned returns the line of the row at place i of vis as a pin: on the
 // background of the pins, unless it is the cursor row, which is drawn as such.
 func (m Model) pinned(i int) string {
-	line := m.render(i, 0)
+	return m.pin(i, m.render(i, 0))
+}
+
+// pin shades line, the head line of the row at place i of vis, as pinned
+// does.
+func (m Model) pin(i int, line string) string {
 	if i == m.cur || m.look.pin == "" {
 		return line
 	}
@@ -152,8 +163,9 @@ func (m Model) shade(line, bg string) string {
 
 // head draws the first line of row r, the one at place i of vis, after its
 // cursor column: guides, the arrow of a fold, the text, the marker of a
-// closed fold and the right-aligned part, in the width that is left.
-func (m Model) head(r Node, i int) string {
+// closed fold and the right-aligned part, in the width that is left. A sticky
+// head has the row's Head in place of its text.
+func (m Model) head(r Node, i int, sticky bool) string {
 	avail := m.width - m.gutter() - m.indent(i)
 	var arrow string
 	// Every row of a tree with a fold keeps a cell for the arrow, so that
@@ -186,7 +198,12 @@ func (m Model) head(r Node, i int) string {
 		right = ""
 	}
 
-	left := m.fit(r, i, room)
+	var left string
+	if sticky {
+		left = m.cut(r.Head, room)
+	} else {
+		left = m.fit(r, i, room)
+	}
 	gap := avail - ansi.StringWidth(left)
 	if right != "" {
 		gap -= rw

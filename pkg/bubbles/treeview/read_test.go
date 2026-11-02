@@ -92,17 +92,23 @@ func TestRowsThatFitMoveByRow(t *testing.T) {
 	}
 }
 
-// A sticky row that the window starts inside keeps its head on the top line,
-// and a row that is not sticky does not.
+// A row with a Head that the window starts inside keeps only that Head and its
+// Right part on the top line, not the text of its first line, and a row
+// without one does not.
 func TestViewStickyHead(t *testing.T) {
 	for _, sticky := range []bool{true, false} {
 		rows := tallRows()
-		rows[1].Sticky = sticky
+		if sticky {
+			rows[1].Head, rows[1].Right = "who", "2d"
+		}
 		m := newTree(rows, WithSize(24, 4))
 		m, _ = keys(t, m, slices.Repeat([]string{"j"}, 5)...)
 		got := lines(m)
-		if has := strings.Contains(got[0], "T 0"); has != sticky {
+		if has := strings.Contains(got[0], "who"); has != sticky {
 			t.Errorf("sticky %v: top line %q", sticky, got[0])
+		}
+		if sticky && (strings.Contains(got[0], "T 0") || !strings.Contains(got[0], "2d")) {
+			t.Errorf("top line %q, want the head and the right part only", got[0])
 		}
 		if !strings.Contains(got[1], "T 4") {
 			t.Errorf("sticky %v: second line %q, want the line it covers to go on", sticky, got[1])
