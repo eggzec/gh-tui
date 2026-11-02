@@ -2,9 +2,11 @@ package actions
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // styles are the modal's own, built once per theme.
@@ -20,6 +22,10 @@ type styles struct {
 	gutter, blurGutter, noGutter string
 	// folded and unfolded mark a group of jobs, rendered.
 	folded, unfolded string
+	// tree draws the guides of the job rows, as the trees of the panes do, and
+	// level is the cells of one level of them.
+	tree  treeview.Styles
+	level int
 
 	ui.RunStyles
 	// row holds the styles of the cells of a run row in each of its looks.
@@ -30,7 +36,10 @@ type styles struct {
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
+	tree := t.TreeView(ic)
 	return styles{
+		tree:       tree,
+		level:      ansi.StringWidth(treeview.Prefix(tree, 1, true, nil)),
 		ic:         ic,
 		title:      t.Muted,
 		focusTitle: t.Accent.Bold(true),
