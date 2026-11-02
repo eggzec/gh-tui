@@ -183,9 +183,9 @@ func primeTimeline(t *testing.T, s *Service, api *fakeAPI) {
 func timelineBodies(t *testing.T, s *Service) ([]string, bool) {
 	t.Helper()
 	p, ok := s.CachedTimeline(timelineQuery)
-	var out []string
-	for _, it := range p.Items {
-		out = append(out, it.Body)
+	out := make([]string, 0, len(p.Items))
+	for i := range p.Items {
+		out = append(out, p.Items[i].Body)
 	}
 	return out, ok
 }
