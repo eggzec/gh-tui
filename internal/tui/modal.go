@@ -16,9 +16,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // modalContext returns the name of the key context of mod, the modal that
@@ -400,73 +400,38 @@ func (m *Model) frame(mod ui.Modal) string {
 	if w < 4 {
 		return ""
 	}
-	b := m.icons.Border
 	var tabs string
 	if t, ok := mod.(ui.Tabbed); ok {
 		tabs = m.tabs(t, w)
 	}
 	tw := lipgloss.Width(tabs)
-	titleWidth := max(w-4, 0)
+	// The slot of the title is the edge less the corners, a dash on either
+	// side, and a space on either side of the title.
+	titleWidth := max(w-6, 0)
 	// The tabs keep a stretch of the edge before them, or give way.
-	if room := w - 6 - tw; tabs != "" && room >= minTitleWidth {
+	if room := w - 9 - tw; tabs != "" && room >= minTitleWidth {
 		titleWidth = min(titleWidth, room)
 	}
-	title := m.trimTitle(mod, titleWidth)
-	rest := max(w-3-lipgloss.Width(title), 0)
-	switch {
-	case tabs == "":
-	case tw+3 <= rest:
-		rest -= tw + 1
-	default:
-		tabs = ""
+	parts, ok := mod.(ui.Trimmed)
+	var tt ui.TrimTitle
+	if ok {
+		tt = parts.TrimTitle()
+	} else {
+		tt = ui.TrimTitle{Name: mod.Title()}
 	}
+	title := tt.Fit(titleWidth, m.theme.Title, m.icons.Ellipsis)
 	if l, ok := mod.(ui.Linked); ok {
 		title = m.links.Link(l.Link(), title)
 	}
-	top := m.theme.Accent.Render(b.TopLeft+b.Top) + title +
-		m.theme.Accent.Render(strings.Repeat(b.Top, rest))
+	c := panes.Content{Focus: true, TopLeft: []string{title}, Body: mod.View()}
 	if tabs != "" {
-		top += tabs + m.theme.Accent.Render(b.Top)
+		c.TopRight = []string{tabs}
 	}
-	top += m.theme.Accent.Render(b.TopRight)
-	return top + "\n" + m.frameStyle().Render(mod.View())
-}
-
-// trimTitle draws the title of mod for the top edge of its frame, in at most
-// width cells. A title may hold text from GitHub, such as a pull request's.
-func (m *Model) trimTitle(mod ui.Modal, width int) string {
-	t, ok := mod.(ui.Trimmed)
-	if !ok {
-		title := termtext.Truncate(" "+ui.OneLine(mod.Title())+" ", width, m.icons.Ellipsis+" ")
-		return m.theme.Title.Render(title)
+	if e, ok := mod.(ui.Edged); ok {
+		edges := e.Edges()
+		c.BottomLeft, c.BottomRight = edges.BottomLeft, edges.BottomRight
 	}
-	parts := t.TrimTitle()
-	var lead string
-	if parts.Lead != "" {
-		// The glyph ends its own styles, so the edge's style is applied
-		// to what is around it, not over it.
-		lead = m.theme.Title.Render(" ") + parts.Lead
-	}
-	room := width - lipgloss.Width(lead) - 2
-	// The number matters more than the glyph: a narrow edge drops the glyph.
-	if lead != "" && room < lipgloss.Width(ui.OneLine(parts.Name)) {
-		lead = ""
-		room = width - 2
-	}
-	name := termtext.Truncate(ui.OneLine(parts.Name), room, m.icons.Ellipsis)
-	body := name
-	// The detail only gets what the name leaves, and none if that is too
-	// little to show a part of it.
-	if detail := ui.OneLine(parts.Detail); detail != "" && room-lipgloss.Width(name)-1 >= 2 {
-		body += " " + termtext.Truncate(detail, room-lipgloss.Width(name)-1, m.icons.Ellipsis)
-	}
-	return lead + m.theme.Title.Render(" "+body+" ")
-}
-
-// frameStyle draws the sides and bottom of a frame like a modal's, in the
-// theme's frame with the border of the icon set.
-func (m *Model) frameStyle() lipgloss.Style {
-	return m.theme.Frame().Border(m.icons.Border, false, true, true)
+	return m.theme.ModalFrame(m.icons).Frame(c, w, strings.Count(c.Body, "\n")+3)
 }
 
 // tabs renders the tabs of t for the top edge of a frame: the one shown in
@@ -487,9 +452,5 @@ func (m *Model) tabs(t ui.Tabbed, w int) string {
 	row.SetItems(items, active)
 	// Leave the title its least room and a space on either side of the row.
 	row.SetWidth(max(w-6-minTitleWidth-2, 0))
-	v := row.View()
-	if v == "" {
-		return ""
-	}
-	return " " + v + " "
+	return row.View()
 }

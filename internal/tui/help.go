@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // The help lists the keys of what has them when it opens, over the modal
@@ -83,9 +84,8 @@ func (m *Model) helpFrame() string {
 	if w < 4 {
 		return ""
 	}
-	b := m.icons.Border
-	top := m.theme.Accent.Render(b.TopLeft + strings.Repeat(b.Top, w-2) + b.TopRight)
-	return top + "\n" + m.frameStyle().Render(m.keyhelp.View())
+	body := m.keyhelp.View()
+	return m.theme.ModalFrame(m.icons).Frame(panes.Content{Focus: true, Body: body}, w, strings.Count(body, "\n")+3)
 }
 
 // keyLayers returns the keys that reach something now, as layersNow

@@ -19,6 +19,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/logview"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
@@ -569,13 +570,20 @@ func (t Theme) Cmdline(ic Icons) cmdline.Styles {
 	return s
 }
 
-// Frame returns the style of the frame around a modal, without its top
-// edge, which carries the modal's title and is drawn in Accent.
-func (t Theme) Frame() lipgloss.Style {
-	return lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder(), false, true, true).
-		BorderForeground(lipgloss.Color(t.Palette.Accent)).
-		Padding(0, 1)
+// ModalFrame returns the styles of the frame around a modal: the edge and the
+// title in the accent, the corner slots muted, and the glyphs, ellipsis and
+// separator of the icon set.
+func (t Theme) ModalFrame(ic Icons) panes.Styles {
+	return panes.Styles{
+		Border:     ic.Border,
+		Edge:       t.Accent,
+		EdgeFocus:  t.Accent,
+		Title:      t.Title,
+		TitleFocus: t.Title,
+		Info:       t.Muted,
+		Ellipsis:   ic.Ellipsis,
+		Separator:  ic.Separator,
+	}
 }
 
 // Help returns the styles of the help line.

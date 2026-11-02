@@ -2,8 +2,10 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Modal is a popup over the screen, such as a file preview or the history.
@@ -149,6 +151,46 @@ type TrimTitle struct {
 	// Detail is plain text after the name, such as a pull request's title;
 	// it is cut first.
 	Detail string
+}
+
+// Fit draws the title in at most width cells, in style, for the top edge of a
+// frame. A title may hold text from GitHub, such as a pull request's. The
+// glyph goes before the name is cut, and the detail is cut first.
+func (t TrimTitle) Fit(width int, style lipgloss.Style, ellipsis string) string {
+	var lead string
+	if t.Lead != "" {
+		// The glyph ends its own styles, so the style is applied to what is
+		// around it, not over it.
+		lead = t.Lead + style.Render(" ")
+	}
+	room := width - lipgloss.Width(lead)
+	name := OneLine(t.Name)
+	// The name matters more than the glyph: a narrow edge drops the glyph.
+	if lead != "" && room < lipgloss.Width(name) {
+		lead = ""
+		room = width
+	}
+	name = termtext.Truncate(name, room, ellipsis)
+	body := name
+	// The detail only gets what the name leaves, and none if that is too
+	// little to show a part of it.
+	if detail := OneLine(t.Detail); detail != "" && room-lipgloss.Width(name)-1 >= 2 {
+		body += " " + termtext.Truncate(detail, room-lipgloss.Width(name)-1, ellipsis)
+	}
+	return lead + style.Render(body)
+}
+
+// Edged is a Modal that fills the bottom edge of its frame.
+type Edged interface {
+	// Edges returns what the bottom edge shows.
+	Edges() Edges
+}
+
+// Edges is what a modal puts in the bottom edge of its frame. Each slot is a
+// list of forms of the same text, the longest first; the frame draws the
+// first that fits and leaves the slot out if none does.
+type Edges struct {
+	BottomLeft, BottomRight []string
 }
 
 // Trimmed is a Modal whose title in the top edge of the frame has more than
