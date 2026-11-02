@@ -130,7 +130,6 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 		got := map[string]string{
 			"feed":        th.Feed(ic).ErrorGlyph,
 			"thread":      th.Thread(ic).ErrorGlyph,
-			"tree":        th.Tree(ic).ErrorGlyph,
 			"graph":       th.Graph(ic).ErrorGlyph,
 			"pager":       th.Pager(ic).ErrorGlyph,
 			"logview":     th.LogView(ic).ErrorGlyph,
@@ -150,7 +149,6 @@ func TestThemeTakesErrorGlyph(t *testing.T) {
 		joins := map[string][2]string{
 			"feed":        {th.Feed(ic).ErrorSeparator, th.Feed(ic).ErrorEllipsis},
 			"thread":      {th.Thread(ic).ErrorSeparator, th.Thread(ic).ErrorEllipsis},
-			"tree":        {th.Tree(ic).ErrorSeparator, th.Tree(ic).ErrorEllipsis},
 			"graph":       {th.Graph(ic).ErrorSeparator, th.Graph(ic).ErrorEllipsis},
 			"pager":       {th.Pager(ic).ErrorSeparator, th.Pager(ic).ErrorEllipsis},
 			"logview":     {th.LogView(ic).ErrorSeparator, th.LogView(ic).ErrorEllipsis},

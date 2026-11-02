@@ -131,7 +131,7 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 	}
 	// Images draw as the app's images setting says: none while it is off.
 	d.md.SetPictures(m.pics.Pictures(k.picRows, nil))
-	d.tree.SetStyles(m.theme.TreeView(m.icons))
+	d.tree.SetStyles(m.theme.Tree(m.icons))
 	d.rows = desc.Rows(body, desc.Options{Width: width, Styles: desc.NewStyles(m.theme, m.icons, set), MD: d.md})
 	d.tree.SetRows(d.rows)
 	d.built, d.made = k, true

@@ -36,7 +36,7 @@ type styles struct {
 
 func newStyles(t ui.Theme, ic ui.Icons) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
-	tree := t.TreeView(ic)
+	tree := t.Tree(ic)
 	return styles{
 		tree:       tree,
 		level:      ansi.StringWidth(treeview.Prefix(tree, 1, true, nil)),

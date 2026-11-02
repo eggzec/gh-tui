@@ -1,9 +1,0 @@
-▌Files                        
- ├─ cmd                       
- │  ╰─ app                    
- │     ├─ flags.go            
- │     ╰─ main.go             
- ╰─ README.md                 
- Notes                        
- ╰─ todo                      
-                              

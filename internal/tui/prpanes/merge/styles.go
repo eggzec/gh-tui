@@ -44,7 +44,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		top = "-"
 	}
 	// The tree of an owner's files has no cursor, so its column stays blank.
-	tree := t.TreeView(ic)
+	tree := t.Tree(ic)
 	tree.CursorGlyph = " "
 	return Styles{
 		Checks:    ck,

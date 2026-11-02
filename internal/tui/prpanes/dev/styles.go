@@ -50,7 +50,7 @@ type Styles struct {
 func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 	s := Styles{
 		Glyphs: newGlyphs(ic),
-		Tree:   t.TreeView(ic),
+		Tree:   t.Tree(ic),
 		icons:  ic,
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,

@@ -1,6 +1,6 @@
 // Package desc turns the body of a pull request into the rows of its
 // description pane: rendered markdown, one row per line, with the collapsible
-// blocks of the body as folds. It is pure: text in, [foldtree.Row]s out.
+// blocks of the body as folds. It is pure: text in, rows out.
 // Loading, fold state and the view belong to the host.
 package desc
 

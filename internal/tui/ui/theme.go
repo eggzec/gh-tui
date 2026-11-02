@@ -23,7 +23,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
@@ -194,37 +193,15 @@ func (t Theme) Thread(ic Icons) thread.Styles {
 	return s
 }
 
-// Tree returns the styles of a tree, such as the files of a repository.
-func (t Theme) Tree(ic Icons) tree.Styles {
-	s := tree.DefaultStyles(t.Dark)
-	s.SpinnerFrames = ic.SpinnerOr(spinner.MiniDot)
-	s.ErrorGlyph = ic.Error
-	s.ErrorSeparator, s.ErrorEllipsis = ic.Separator, ic.Ellipsis
-	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph = ic.Cursor, ic.Unfolded, ic.Folded
-	s.GuideGlyph, s.Ellipsis = ic.Border.Left, ic.Ellipsis
-	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
-	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))
-	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
-	s.Marker = s.Marker.Foreground(lipgloss.Color(t.Palette.Muted))
-	s.Branch = s.Branch.Foreground(lipgloss.Color(t.Palette.Foreground))
-	s.Leaf = s.Leaf.Foreground(lipgloss.Color(t.Palette.Foreground))
-	s.Detail = s.Detail.Foreground(lipgloss.Color(t.Palette.Subtle))
-	s.Spinner = s.Spinner.Foreground(lipgloss.Color(t.Palette.Accent))
-	s.Loading = s.Loading.Foreground(lipgloss.Color(t.Palette.Muted))
-	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
-	s.EmptyTitle = t.Title
-	s.Error = s.Error.Foreground(lipgloss.Color(t.Palette.Error))
-	s.Hint = s.Hint.Foreground(lipgloss.Color(t.Palette.Subtle))
-	return s
-}
-
-// TreeView returns the styles of a treeview, for every pane that shows a
-// tree. The guides are those of [Theme.WithTreeGuides].
-func (t Theme) TreeView(ic Icons) treeview.Styles {
+// Tree returns the styles of a tree, for every pane that shows one. The
+// guides are those of [Theme.WithTreeGuides].
+func (t Theme) Tree(ic Icons) treeview.Styles {
 	s := treeview.DefaultStyles(t.Dark)
 	s.Guides = t.guides
 	s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph = ic.Cursor, ic.Unfolded, ic.Folded
 	s.Ellipsis = ic.Ellipsis
+	s.SpinnerFrames = ic.SpinnerOr(spinner.MiniDot).Frames
+	s.LoadingText = "Loading" + ic.Ellipsis
 	if ic.Set() == config.IconsASCII {
 		s.Branch, s.Last, s.Line = "|- ", "`- ", "|  "
 	}

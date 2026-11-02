@@ -21,17 +21,17 @@ func TestThemeTreeView(t *testing.T) {
 		{config.GuidesConnectors, treeview.Connectors},
 		{config.GuidesIndent, treeview.Indent},
 	} {
-		if got := th.WithTreeGuides(tt.mode).TreeView(NewIcons(config.IconsUnicode)).Guides; got != tt.want {
+		if got := th.WithTreeGuides(tt.mode).Tree(NewIcons(config.IconsUnicode)).Guides; got != tt.want {
 			t.Errorf("guides %q = %v, want %v", tt.mode, got, tt.want)
 		}
 	}
 
 	ic := NewIcons(config.IconsUnicode)
-	s := th.TreeView(ic)
+	s := th.Tree(ic)
 	if s.CursorGlyph != ic.Cursor || s.OpenGlyph != ic.Unfolded || s.ClosedGlyph != ic.Folded {
 		t.Errorf("glyphs = %q %q %q, want the icons'", s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph)
 	}
-	if got := th.TreeView(NewIcons(config.IconsASCII)).Branch; got != "|- " {
+	if got := th.Tree(NewIcons(config.IconsASCII)).Branch; got != "|- " {
 		t.Errorf("ASCII branch = %q, want an ASCII connector", got)
 	}
 }
