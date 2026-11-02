@@ -138,6 +138,25 @@ type Sourced interface {
 	SetRaw(raw bool) tea.Cmd
 }
 
+// TrimTitle is a title for the top edge of a frame in parts, so that the
+// frame can cut the long one and keep the others.
+type TrimTitle struct {
+	// Lead is a glyph, already styled, before the title; "" for none.
+	Lead string
+	// Name is what identifies the modal, such as "#12". It is never cut
+	// unless the edge has no room for more.
+	Name string
+	// Detail is plain text after the name, such as a pull request's title;
+	// it is cut first.
+	Detail string
+}
+
+// Trimmed is a Modal whose title in the top edge of the frame has more than
+// Title, which stays plain since it names the modal.
+type Trimmed interface {
+	TrimTitle() TrimTitle
+}
+
 // Linked is a Modal about something that has a page on the web, such as a
 // pull request, whose title in the top edge of the frame links to it.
 type Linked interface {

@@ -137,7 +137,7 @@ func (m *panesModal) CanMaximize() bool {
 
 // areaHeight is the height of the panes' area: the modal without its header
 // and footer.
-func (m *panesModal) areaHeight() int { return max(m.height-2, 0) }
+func (m *panesModal) areaHeight() int { return max(m.height-1-m.headerRows(), 0) }
 
 // dimmed returns the panes as they were drawn, without their styles and
 // faint. It is made once for each drawing of the panes.

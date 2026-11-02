@@ -198,36 +198,47 @@ func TestMaximizeViewer(t *testing.T) {
 func TestOverlayPlacement(t *testing.T) {
 	t.Parallel()
 	for _, size := range [][2]int{{120, 40}, {80, 24}} {
-		for _, tc := range []struct {
-			name string
-			open func(m *panesModal)
-			want panes.Overlay
-		}{
-			{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}},
-			{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5, InsetMin: wideMin}},
-			{"Confirm", func(m *panesModal) { m.ask(confirm.Ask{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
-		} {
-			w, h := size[0], size[1]
-			m := sizedPanes(t, w, h)
-			tc.open(m)
-			r := panes.OverlayRect(tc.want, w, h-2)
-			if got := m.placed(); got != r {
-				t.Errorf("%s at %dx%d: placed %v, want %v", tc.name, w, h, got, r)
-			}
-			lines := strings.Split(m.View(), "\n")
-			if len(lines) != h {
-				t.Fatalf("%s at %dx%d: %d lines", tc.name, w, h, len(lines))
-			}
-			for i, l := range lines {
-				if got := ansi.StringWidth(l); got != w {
-					t.Errorf("%s at %dx%d: line %d is %d cells wide", tc.name, w, h, i, got)
+		for _, labelled := range []bool{true, false} {
+			for _, tc := range []struct {
+				name string
+				open func(m *panesModal)
+				want panes.Overlay
+			}{
+				{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}},
+				{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5, InsetMin: wideMin}},
+				{"Confirm", func(m *panesModal) { m.ask(confirm.Ask{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
+			} {
+				w, h := size[0], size[1]
+				m := sizedPanes(t, w, h)
+				if !labelled {
+					m.detail.Labels = nil
+					m.SetSize(w, h)
 				}
-			}
-			if !strings.Contains(ansi.Strip(lines[1+r.Y]), tc.name) {
-				t.Errorf("%s at %dx%d: no title on line %d, the top of the box (header offset 1): %q", tc.name, w, h, 1+r.Y, ansi.Strip(lines[1+r.Y]))
-			}
-			if !strings.Contains(ansi.Strip(lines[0]), "#") {
-				t.Errorf("%s at %dx%d: the header is gone: %q", tc.name, w, h, lines[0])
+				// The labels row is the header; without labels the panes start at the top.
+				hr := m.headerRows()
+				if want := map[bool]int{true: 1, false: 0}[labelled]; hr != want {
+					t.Fatalf("header rows %d with labels %v", hr, labelled)
+				}
+				tc.open(m)
+				r := panes.OverlayRect(tc.want, w, h-1-hr)
+				if got := m.placed(); got != r {
+					t.Errorf("%s at %dx%d: placed %v, want %v", tc.name, w, h, got, r)
+				}
+				lines := strings.Split(m.View(), "\n")
+				if len(lines) != h {
+					t.Fatalf("%s at %dx%d: %d lines", tc.name, w, h, len(lines))
+				}
+				for i, l := range lines {
+					if got := ansi.StringWidth(l); got != w {
+						t.Errorf("%s at %dx%d: line %d is %d cells wide", tc.name, w, h, i, got)
+					}
+				}
+				if !strings.Contains(ansi.Strip(lines[hr+r.Y]), tc.name) {
+					t.Errorf("%s at %dx%d: no title on line %d, the top of the box (header rows %d): %q", tc.name, w, h, hr+r.Y, hr, ansi.Strip(lines[hr+r.Y]))
+				}
+				if labelled && !strings.Contains(ansi.Strip(lines[0]), "cache") {
+					t.Errorf("%s at %dx%d: the labels header is gone: %q", tc.name, w, h, ansi.Strip(lines[0]))
+				}
 			}
 		}
 	}

@@ -245,13 +245,25 @@ func (m *panesModal) revalidate() tea.Cmd {
 }
 
 // Title implements ui.Modal. It is the number only, with the repository
-// when it isn't the page's: the header below the frame holds the title.
+// when it isn't the page's: it names the modal, so it stays the same when
+// the title loads.
 func (m *panesModal) Title() string {
 	n := "#" + strconv.Itoa(m.number)
 	if m.other {
 		n = m.repo.String() + n
 	}
 	return n
+}
+
+// TrimTitle implements ui.Trimmed: the state and the title join the number in
+// the top edge of the frame, once they are known.
+func (m *panesModal) TrimTitle() ui.TrimTitle {
+	t := ui.TrimTitle{Name: m.Title()}
+	if m.loaded {
+		t.Lead = m.st.states[ui.PullState(m.detail.State, m.detail.Draft)]
+		t.Detail = m.detail.Title
+	}
+	return t
 }
 
 // Link implements ui.Linked.
@@ -580,7 +592,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
-	h := max(m.height-2, 0)
+	h := m.areaHeight()
 	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows())
 }
 

@@ -3,7 +3,6 @@ package pulls
 import (
 	"errors"
 	"slices"
-	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -200,8 +199,8 @@ func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 		if m == nil || !m.loaded {
 			t.Fatalf("modal %v waits for its detail, want it read ahead", m)
 		}
-		if view, title := modalScreen(t, h), svc.find(m.number).Title; !strings.Contains(view, title) {
-			t.Errorf("modal lacks %q before any load:\n%s", title, view)
+		if title := svc.find(m.number).Title; m.TrimTitle().Detail != title {
+			t.Errorf("modal title %q, want %q before any load", m.TrimTitle().Detail, title)
 		}
 	})
 }
@@ -238,8 +237,8 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	if m == nil || !m.loaded {
 		t.Fatalf("modal %v waits for its detail, want what was read ahead", m)
 	}
-	if view, title := modalScreen(t, h), svc.find(m.number).Title; !strings.Contains(view, title) {
-		t.Errorf("modal lacks %q before any load:\n%s", title, view)
+	if title := svc.find(m.number).Title; m.TrimTitle().Detail != title {
+		t.Errorf("modal title %q, want %q before any load", m.TrimTitle().Detail, title)
 	}
 }
 

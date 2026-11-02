@@ -108,13 +108,18 @@ func TestRowASCII(t *testing.T) {
 	}
 }
 
-// With the ASCII icons the modal's header is ASCII apart from what GitHub
-// wrote: the state, the separator and the ellipsis.
+// With the ASCII icons the modal's header and the state in its title are
+// ASCII apart from what GitHub wrote.
 func TestDetailHeaderASCII(t *testing.T) {
 	s := started(t, newFakeService(), 120, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "enter")
-	s.modal().SetSize(120, 30)
-	if v := ansi.Strip(s.modal().header()); strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
-		t.Errorf("header isn't ASCII:\n%s", v)
+	m := s.modal()
+	m.SetSize(120, 30)
+	m.loaded = true
+	m.detail.Labels = []core.Label{{Name: "bug"}}
+	for _, v := range []string{m.header(), m.TrimTitle().Lead} {
+		if v = ansi.Strip(v); v == "" || strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
+			t.Errorf("%q isn't ASCII", v)
+		}
 	}
 }

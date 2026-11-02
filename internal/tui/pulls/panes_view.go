@@ -7,19 +7,12 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-const (
-	// headerChipName is the longest label name the header shows.
-	headerChipName = 24
-	// headerTitleMin is the width the title keeps before a label is dropped
-	// to make room for it.
-	headerTitleMin = 20
-)
+// headerChipName is the longest label name the header shows.
+const headerChipName = 24
 
 // drawnPanes is the panes area as it was last drawn, and what it was drawn
 // from.
@@ -50,6 +43,8 @@ type drawKey struct {
 	desc   int
 	body   string
 	edited int64
+	// header is the rows above the panes.
+	header int
 }
 
 // SetTheme implements ui.Modal.
@@ -71,22 +66,26 @@ func (m *panesModal) SetTheme(t ui.Theme) {
 	m.restyleFilesDiff()
 }
 
-// View implements ui.Modal: the header, the panes and the footer.
+// View implements ui.Modal: the labels, if there are any, the panes and the
+// footer.
 func (m *panesModal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
 	l := m.layout()
 	lines := make([]string, 0, 3)
-	lines = append(lines, m.header())
-	if m.height >= 3 {
+	hr := m.headerRows()
+	if hr > 0 {
+		lines = append(lines, m.header())
+	}
+	if m.height >= 2+hr {
 		out := m.panes(l)
 		if m.top() != nil {
 			out = m.covered(out)
 		}
 		lines = append(lines, out)
 	}
-	if m.height >= 2 {
+	if m.height >= 1+hr {
 		if m.top() != nil {
 			lines = append(lines, m.overlayFooter())
 		} else {
@@ -99,7 +98,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano()}
+	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
@@ -156,49 +155,29 @@ func sealed(line string, width int) string {
 	return line + "\x1b[m"
 }
 
-// header is the first line: the state, the number and title as a link to the
-// pull request, and its labels as far as they fit.
-func (m *panesModal) header() string {
-	d := m.detail
-	var lead string
-	if m.loaded {
-		lead = m.st.states[ui.PullState(d.State, d.Draft)] + " "
+// headerRows is the rows above the panes: one for the labels of the pull
+// request if it has any, else none, so the panes have the row.
+func (m *panesModal) headerRows() int {
+	if len(m.detail.Labels) > 0 {
+		return 1
 	}
-	head := "#" + strconv.Itoa(m.number)
-	if t := ui.OneLine(d.Title); t != "" {
-		head += " " + t
-	}
-	rest := m.width - ansi.StringWidth(lead)
-	room, tail := rest, ""
-	if len(d.Labels) > 0 && rest > 0 {
-		tail, room = m.labelTail(d.Labels, rest, ansi.StringWidth(head))
-	}
-	head = termtext.Truncate(head, room, m.icons.Ellipsis)
-	title := m.theme.Text.Bold(true).Render(head)
-	return sealed(lead+termtext.Link(d.URL, title)+tail, m.width)
+	return 0
 }
 
-// labelTail returns what follows a title that is headWidth cells wide, in
-// rest cells: a separator, and as many label chips as fit, with the number of
-// the others, and the width left to the title. Chips are dropped before the
-// title is cut under headerTitleMin cells; none is shown if even the
-// number of them doesn't fit.
-func (m *panesModal) labelTail(labels []core.Label, rest, headWidth int) (tail string, titleWidth int) {
-	sep := m.icons.Separator
-	sepWidth := ansi.StringWidth(sep)
-	keep := min(headWidth, headerTitleMin)
+// header is the first line: the labels of the pull request as far as they
+// fit, and the number of the others. The state and title are in the top edge
+// of the frame.
+func (m *panesModal) header() string {
+	labels := m.detail.Labels
 	chips := make([]string, len(labels))
 	widths := make([]int, len(labels))
 	for i, l := range labels {
 		chips[i], widths[i] = m.chips.Get(l)
 	}
 	for k := len(labels); k >= 0; k-- {
-		need := sepWidth
-		for i := range k {
-			need += widths[i]
-			if i > 0 {
-				need++
-			}
+		need := max(k-1, 0)
+		for _, w := range widths[:k] {
+			need += w
 		}
 		more := "+" + strconv.Itoa(len(labels)-k)
 		if k < len(labels) {
@@ -207,19 +186,19 @@ func (m *panesModal) labelTail(labels []core.Label, rest, headWidth int) (tail s
 				need++
 			}
 		}
-		if rest-need < keep {
+		if need > m.width && k > 0 {
 			continue
 		}
-		tail := m.theme.Subtle.Render(sep) + strings.Join(chips[:k], " ")
+		line := strings.Join(chips[:k], " ")
 		if k < len(labels) {
 			if k > 0 {
-				tail += " "
+				line += " "
 			}
-			tail += m.theme.Subtle.Render(more)
+			line += m.theme.Subtle.Render(more)
 		}
-		return tail, min(headWidth, rest-need)
+		return sealed(line, m.width)
 	}
-	return "", headWidth
+	return sealed("", m.width)
 }
 
 // footer is the last line: the keys that work in the modal, as far as they
