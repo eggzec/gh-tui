@@ -28,6 +28,13 @@ type timelineNode struct {
 	ViewerCanUpdate bool `json:"viewerCanUpdate"`
 	ViewerCanDelete bool `json:"viewerCanDelete"`
 
+	ReactionGroups []struct {
+		Content string `json:"content"`
+		Users   struct {
+			TotalCount int `json:"totalCount"`
+		} `json:"users"`
+	} `json:"reactionGroups"`
+
 	State      string          `json:"state"`
 	Commit     *timelineCommit `json:"commit"`
 	PullCommit *timelineCommit `json:"pullCommit"`
@@ -143,6 +150,11 @@ func (n timelineNode) core() (core.TimelineItem, bool) {
 	it := core.TimelineItem{ID: n.ID, At: n.CreatedAt, Body: n.Body, URL: n.URL}
 	if n.Actor != nil {
 		it.Actor = n.Actor.core()
+	}
+	for _, g := range n.ReactionGroups {
+		if g.Users.TotalCount > 0 {
+			it.Reactions = append(it.Reactions, core.Reaction{Content: g.Content, Count: g.Users.TotalCount})
+		}
 	}
 	switch n.Typename {
 	case "IssueComment":

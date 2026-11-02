@@ -142,13 +142,15 @@ const (
 	kindList     = "issuelist"
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
-	// timelineSchema is bumped when core.TimelineItem changes shape.
+	// timelineSchema is bumped when core.TimelineItem changes shape, and 2
+	// keeps the reactions of each comment.
 	kindTimeline   = "issuetimeline"
-	timelineSchema = 1
+	timelineSchema = 2
 	// schema 4 keeps whether the author of each issue is an app.
 	schema = 4
-	// commentsSchema 4 keeps the avatar of each comment's author.
-	commentsSchema = 4
+	// commentsSchema 4 keeps the avatar of each comment's author, and 5 the
+	// reactions.
+	commentsSchema = 5
 	// A number's kind is kept apart, since it outlives any shape of
 	// core.Issue.
 	kindNumber   = "numberkind"

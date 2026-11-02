@@ -20,15 +20,29 @@ type Glyphs struct {
 	// Bar runs beside the content of an open details block, and Corner ends
 	// it. Both are two cells wide.
 	Bar, Corner string
+	// Reactions maps the kind of a reaction, as core.Reaction names it, to its
+	// mark.
+	Reactions map[string]string
+}
+
+var emojiReactions = map[string]string{
+	"THUMBS_UP": "👍", "THUMBS_DOWN": "👎", "LAUGH": "😄", "HOORAY": "🎉",
+	"CONFUSED": "😕", "HEART": "❤", "ROCKET": "🚀", "EYES": "👀",
+}
+
+var asciiReactions = map[string]string{
+	"THUMBS_UP": "+1", "THUMBS_DOWN": "-1", "LAUGH": "laugh", "HOORAY": "hooray",
+	"CONFUSED": "confused", "HEART": "<3", "ROCKET": "rocket", "EYES": "eyes",
 }
 
 // newGlyphs returns the glyphs of the icon set named set, one of
 // config.IconsNerd, config.IconsUnicode and config.IconsASCII, whose icons
 // are ic.
 func newGlyphs(set string, ic ui.Icons) Glyphs {
-	g := Glyphs{Glyphs: prpanes.GlyphsFrom(ic), Cut: ic.Ellipsis, Bar: "│ ", Corner: "╰─"}
+	g := Glyphs{Glyphs: prpanes.GlyphsFrom(ic), Cut: ic.Ellipsis, Bar: "│ ", Corner: "╰─", Reactions: emojiReactions}
 	if set == config.IconsASCII {
 		g.Bar, g.Corner = "| ", "`-"
+		g.Reactions = asciiReactions
 	}
 	return g
 }

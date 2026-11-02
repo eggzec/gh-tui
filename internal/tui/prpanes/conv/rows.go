@@ -132,7 +132,28 @@ func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
 	who := b.st.who(it.Actor, false)
 	lines, s := b.body(who, it.Body, depth, false, right)
+	if line := b.reactions(it.Reactions); line != "" {
+		pad := strings.Repeat(" ", b.column(who, depth, false).pad)
+		lines = append(lines, pad+line)
+	}
 	return treeview.Node{Lines: lines, Right: right, Head: who}, s
+}
+
+// reactions returns the counts of a comment's reactions, such as
+// "👍 3  ❤ 1", dim, or "" when it has none.
+func (b *builder) reactions(rs []core.Reaction) string {
+	parts := make([]string, 0, len(rs))
+	for _, r := range rs {
+		mark, ok := b.st.Glyphs.Reactions[r.Content]
+		if !ok || r.Count <= 0 {
+			continue
+		}
+		parts = append(parts, mark+" "+strconv.Itoa(r.Count))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return b.st.dim.Render(strings.Join(parts, "  "))
 }
 
 // review draws a review, a fold when it holds threads.

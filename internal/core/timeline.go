@@ -82,6 +82,8 @@ type TimelineItem struct {
 	// CanUpdate and CanDelete are what the viewer may do to a comment.
 	CanUpdate bool
 	CanDelete bool
+	// Reactions counts the reactions of a comment or a review.
+	Reactions []Reaction
 	Review    ReviewState
 	Commit    TimelineCommit
 	// From and To are the two sides of a change: SHAs of a force push, the

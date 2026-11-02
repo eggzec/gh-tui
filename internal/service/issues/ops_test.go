@@ -259,7 +259,7 @@ func TestComment(t *testing.T) {
 		lastOfTwo:   {"IC_3", "IC_4"},
 		onlyOfThree: {"IC_1", "IC_2", "IC_3", "IC_4"},
 	})
-	if got := look(t, s).comments[lastOfTwo].Items[1]; got != posted {
+	if got := look(t, s).comments[lastOfTwo].Items[1]; !reflect.DeepEqual(got, posted) {
 		t.Errorf("comment after Do = %+v, want the server's %+v", got, posted)
 	}
 	checkIssue7(t, s, "2 comments after Do", func(it core.Issue) bool { return it.Comments == 2 })

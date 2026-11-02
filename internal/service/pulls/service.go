@@ -290,8 +290,8 @@ const (
 	// commented, a team's name and when the description was edited.
 	detailSchema = 7
 	// commentsSchema 3 reads the pages with REST, whose cursors are URLs,
-	// and 4 keeps the avatar of each comment's author.
-	commentsSchema = 4
+	// 4 keeps the avatar of each comment's author, and 5 the reactions.
+	commentsSchema = 5
 	// reviewsSchema 1 is the first.
 	reviewsSchema = 1
 	// filesSchema 1 is the first.

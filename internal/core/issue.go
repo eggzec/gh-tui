@@ -86,6 +86,17 @@ type Comment struct {
 	Body      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	// Reactions counts the reactions of the comment, only the kinds that
+	// someone gave, in GitHub's order.
+	Reactions []Reaction
+}
+
+// Reaction is how many people gave one kind of reaction to a comment.
+type Reaction struct {
+	// Content is the kind, as GitHub's ReactionContent names it: THUMBS_UP,
+	// THUMBS_DOWN, LAUGH, HOORAY, CONFUSED, HEART, ROCKET or EYES.
+	Content string
+	Count   int
 }
 
 // Milestone is a milestone of a repository, which issues and pull requests
