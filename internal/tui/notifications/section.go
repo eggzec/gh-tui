@@ -378,6 +378,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	own := keyhelp.FromHelp("", k, false)
 	own.SetMenu(keymap.Menu(k))
+	ui.MarkedMenu(&own, s.feed.Marks())
 	return []keyhelp.Layer{ui.MergeLayers(ctxScreen, own, list)}
 }
 

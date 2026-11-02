@@ -140,6 +140,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.onList(s)
 	own := keyhelp.Layer{Bindings: slices.Concat(k.FullHelp()...), Short: k.ShortHelp()}
 	own.SetMenu(keymap.Menu(k))
+	ui.MarkedMenu(&own, s.list.Marks())
 	if !s.hasRepo || s.issuesOff() {
 		return []keyhelp.Layer{ui.Off(ui.MergeLayers(ctxList, own))}
 	}

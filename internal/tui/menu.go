@@ -37,7 +37,7 @@ func menuEntries(layers []keyhelp.Layer) []menuEntry {
 			if len(acts) == 0 {
 				continue
 			}
-			out = append(out, menuEntry{title: b.Help().Desc, key: menuKey(b), action: acts[0]})
+			out = append(out, menuEntry{title: layers[i].MenuTitleOf(b), key: menuKey(b), action: acts[0]})
 		}
 	}
 	return out
@@ -59,6 +59,17 @@ type menuRunMsg struct {
 	// sel is the selection the menu opened on, and had whether there was one.
 	sel ui.Selection
 	had bool
+	// marks is how many items were marked then: the action may act on them.
+	marks int
+}
+
+// menuMarks returns how many items the layers have marked.
+func menuMarks(layers []keyhelp.Layer) int {
+	n := 0
+	for i := range layers {
+		n += layers[i].MenuMarked()
+	}
+	return n
 }
 
 // menuModal lists the actions of the selected item, each with its key.
@@ -68,6 +79,7 @@ type menuModal struct {
 	rows    int
 	sel     ui.Selection
 	had     bool
+	marks   int
 	entries []menuEntry
 }
 
@@ -100,7 +112,7 @@ func (m *menuModal) Update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		action, _ := msg.Item.Value.(string)
-		run := menuRunMsg{action: action, sel: m.sel, had: m.had}
+		run := menuRunMsg{action: action, sel: m.sel, had: m.had, marks: m.marks}
 		// In order: a batch may deliver the run while the menu is still on
 		// top, where the pressed action would be lost.
 		return tea.Sequence(ui.LeaveModal(m), func() tea.Msg { return run })
@@ -151,13 +163,16 @@ func (m *Model) openMenu() tea.Cmd {
 	if len(entries) == 0 {
 		return m.toast.Push(toast.Info, "Nothing to do with the selection.")
 	}
-	return m.open(newMenuModal(entries, sel, had, picker.NewKeyMap(ui.Lookup(m.cfg.Keys, "picker")), m.icons), nil)
+	menu := newMenuModal(entries, sel, had, picker.NewKeyMap(ui.Lookup(m.cfg.Keys, "picker")), m.icons)
+	menu.marks = menuMarks(layers)
+	return m.open(menu, nil)
 }
 
 // runMenu presses the action the menu chose, unless the selection moved
 // to another item meanwhile.
 func (m *Model) runMenu(msg menuRunMsg) tea.Cmd {
-	if sel, had := m.selection(); sel != msg.sel || had != msg.had {
+	layers, _ := m.innerLayers()
+	if sel, had := m.selection(); sel != msg.sel || had != msg.had || menuMarks(layers) != msg.marks {
 		return m.toast.Push(toast.Warning, "The selection changed; open the menu again.")
 	}
 	return m.pressAction(msg.action)

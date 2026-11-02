@@ -4,11 +4,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
@@ -220,6 +222,100 @@ func TestMenuChoosingEachEntryOfOtherSurfaces(t *testing.T) {
 				t.Errorf("screen after choosing lacks %q (top modal %T)", tt.wantText, top)
 			}
 		})
+	}
+}
+
+// markTwo marks the item under the cursor; the lists of the fakes hold one.
+func markTwo(t *testing.T, m *Model) {
+	t.Helper()
+	space, ok := keyPress("space")
+	if !ok {
+		t.Fatal("can't press space")
+	}
+	driveKeys(t, m, m.key(space))
+}
+
+func TestMenuTitlesCountTheMarks(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		repo  bool
+		steps []string
+		want  []string
+		pick  int
+		ask   string
+	}{
+		{"pulls", true, []string{"global.pane_2"}, []string{"merge (cursor item) M", "close PR 1 marked X", "checks (cursor item) C"}, 1, "1"},
+		{"issues", true, []string{"global.pane_3"}, []string{"close issue 1 marked X"}, 0, "1"},
+		{"notifications", true, []string{"global.pane_2", "global.notifications"}, []string{"read 1 marked U", "done 1 marked D"}, 0, "1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				m := keysAfter(t, tt.repo, tt.steps...)
+				markTwo(t, m)
+				got := menuTitles2(m)
+				for _, w := range tt.want {
+					if !slices.Contains(got, w) {
+						t.Errorf("menu = %q, want it to hold %q", got, w)
+					}
+				}
+				driveKeys(t, m, m.key(press("x")))
+				for range tt.pick {
+					driveKeys(t, m, m.key(tea.KeyPressMsg{Code: tea.KeyDown}))
+				}
+				driveKeys(t, m, m.key(tea.KeyPressMsg{Code: tea.KeyEnter}))
+				if _, ok := m.modals.Top().(*ui.ConfirmModal); !ok {
+					t.Fatalf("top modal = %T, want the bulk confirmation", m.modals.Top())
+				}
+				if s := onScreen(m); !strings.Contains(s, tt.ask) {
+					t.Errorf("confirmation does not name %q:\n%s", tt.ask, s)
+				}
+			})
+		})
+	}
+}
+
+// menuTitles2 returns the titles and keys of the menu of the current screen.
+func menuTitles2(m *Model) []string {
+	layers, _ := m.innerLayers()
+	entries := menuEntries(layers)
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.title+" "+e.key)
+	}
+	return out
+}
+
+func TestMenuRefusesWhenTheMarksChanged(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := keysAfter(t, true, "global.pane_2", "global.notifications")
+		sel, had := m.selection()
+		space, _ := keyPress("space")
+		driveKeys(t, m, m.key(space))
+		// Space steps down, so the selection moves too; the guard must refuse.
+		driveKeys(t, m, m.runMenu(menuRunMsg{action: "notifications.read", sel: sel, had: had}))
+		if !hasToast(m, "The selection changed") {
+			t.Errorf("toast = %q, want the selection-changed warning", toasted(m))
+		}
+	})
+}
+
+func TestMenuOpensOverTheNotificationsModal(t *testing.T) {
+	t.Parallel()
+	m := keysAfter(t, true, "global.pane_2", "global.notifications")
+	if _, ok := m.modals.Top().(*notifications.Modal); !ok {
+		t.Fatalf("top modal = %T, want the notifications", m.modals.Top())
+	}
+	layers, _ := m.innerLayers()
+	if got := menuEntries(layers); len(got) != 2 || got[0].action != "notifications.read" {
+		t.Fatalf("entries = %v, want read and done", got)
+	}
+	chooseMenuEntry(t, m, 0)
+	if _, ok := m.modals.Top().(*ui.ConfirmModal); !ok {
+		t.Fatalf("top modal = %T after choosing read, want the confirmation", m.modals.Top())
 	}
 }
 
