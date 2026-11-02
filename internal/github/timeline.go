@@ -29,10 +29,10 @@ type timelineNode struct {
 	ViewerCanDelete bool `json:"viewerCanDelete"`
 
 	ReactionGroups []struct {
-		Content string `json:"content"`
-		Users   struct {
+		Content  string `json:"content"`
+		Reactors struct {
 			TotalCount int `json:"totalCount"`
-		} `json:"users"`
+		} `json:"reactors"`
 	} `json:"reactionGroups"`
 
 	State      string          `json:"state"`
@@ -152,8 +152,8 @@ func (n timelineNode) core() (core.TimelineItem, bool) {
 		it.Actor = n.Actor.core()
 	}
 	for _, g := range n.ReactionGroups {
-		if g.Users.TotalCount > 0 {
-			it.Reactions = append(it.Reactions, core.Reaction{Content: g.Content, Count: g.Users.TotalCount})
+		if g.Reactors.TotalCount > 0 {
+			it.Reactions = append(it.Reactions, core.Reaction{Content: g.Content, Count: g.Reactors.TotalCount})
 		}
 	}
 	switch n.Typename {

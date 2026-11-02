@@ -11,9 +11,9 @@ import (
 func TestTimelineReactions(t *testing.T) {
 	var n timelineNode
 	src := `{"__typename":"IssueComment","id":"IC_1","body":"b","reactionGroups":[
-		{"content":"THUMBS_UP","users":{"totalCount":3}},
-		{"content":"HEART","users":{"totalCount":0}},
-		{"content":"EYES","users":{"totalCount":1}}]}`
+		{"content":"THUMBS_UP","reactors":{"totalCount":3}},
+		{"content":"HEART","reactors":{"totalCount":0}},
+		{"content":"EYES","reactors":{"totalCount":1}}]}`
 	if err := json.Unmarshal([]byte(src), &n); err != nil {
 		t.Fatal(err)
 	}
