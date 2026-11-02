@@ -75,6 +75,9 @@ type Node struct {
 	// Skip marks a row the cursor never rests on, such as a rule between
 	// sections.
 	Skip bool
+	// Sticky keeps the row's first line at the top of the window while the
+	// window starts inside the row, drawn over the line it covers.
+	Sticky bool
 	// Kind groups the rows that space marks one after another, such as
 	// "file" or "commit". A row without a kind has nothing to mark.
 	Kind string
@@ -150,10 +153,6 @@ type Model struct {
 	sel string
 	cur int
 	off int
-
-	// bottom asks the next [Model.scroll] to show the end of the cursor row
-	// when it is taller than the window, as moving up into it does.
-	bottom bool
 }
 
 // New returns a tree of the rows src gives. Rows that src has at once show
@@ -371,10 +370,11 @@ func (m *Model) reveal(id string) bool {
 	m.open(r)
 	m.reflow()
 	m.setCur(m.selectable(m.visIndex(id), 1))
-	// A tall row the cursor comes to is read from its top, as a key does; on
-	// the row it was on, the window stays where the user left it.
-	if m.sel != prev && m.tall() {
-		m.off = m.starts[m.cur]
+	// A row the cursor comes to shows whole by the least move, or from its
+	// head when it is taller than the window; on the row it was on, the window
+	// stays where the user left it.
+	if m.sel != prev {
+		m.off = min(max(m.off, m.starts[m.cur+1]-m.inner()), m.starts[m.cur])
 	}
 	m.scroll()
 	return true
@@ -654,10 +654,8 @@ func (m *Model) setCur(i int) {
 // maxPins is the most ancestors that stay pinned above a scrolled tree.
 const maxPins = 2
 
-// scroll moves the window the least that shows the row under the cursor, or
-// keeps it where it is inside the row when the row is taller than the window
-// (the keys put it at the row's first lines, or its last when [Model.bottom]
-// is set), and pins the ancestors of the row at its top. The pins take lines
+// scroll moves the window the least that keeps a line of the row under the
+// cursor in view, and pins the ancestors of the row at its top. The pins take lines
 // off the window and which rows they are depends on where it is, so the
 // window is settled again with the lines the pins of its last place took,
 // until they take no more than that. It starts from the pins the window had,
@@ -666,7 +664,6 @@ const maxPins = 2
 // back up as far as the cursor row allows.
 func (m *Model) scroll() {
 	taken, from := len(m.pins), m.off
-	defer func() { m.bottom = false }()
 	m.pins = nil
 	if len(m.vis) == 0 || m.height <= 0 {
 		m.off = 0
@@ -675,17 +672,7 @@ func (m *Model) scroll() {
 	s, e := m.starts[m.cur], m.starts[m.cur+1]
 	for {
 		avail := max(m.height-taken, 1)
-		switch {
-		case e-s > avail && m.bottom:
-			m.off = e - avail
-		case e-s > avail:
-			// A window inside a row taller than it stays where it is.
-			m.off = min(max(m.off, s), e-avail)
-		case s < m.off:
-			m.off = s
-		case e > m.off+avail:
-			m.off = e - avail
-		}
+		m.off = min(max(m.off, s+1-avail), e-1)
 		m.off = max(min(m.off, m.starts[len(m.vis)]-avail), 0)
 		pins := m.pinsAt(m.off)
 		if len(pins) <= taken {
@@ -695,21 +682,19 @@ func (m *Model) scroll() {
 		taken = len(pins)
 	}
 	if len(m.pins) < taken {
-		m.pull(s, e, from)
+		m.pull(e, from)
 	}
 }
 
 // pull moves the window up, a line at a time, while the row that ends at line
 // e stays in view and either lines are left blank at the bottom that rows
 // above could fill, or the window is still below line from, where it was
-// before it moved, or the row that starts at line s fits the window but its
-// first lines are above it. The window was settled with more pins than its
-// place has, so it went further down than it needed to.
-func (m *Model) pull(s, e, from int) {
+// before it moved. The window was settled with more pins than its place has,
+// so it went further down than it needed to.
+func (m *Model) pull(e, from int) {
 	total := m.starts[len(m.vis)]
 	for m.off > 0 {
-		hidden := s < m.off && e-s <= m.height-len(m.pinsAt(m.off))
-		if m.off <= total-(m.height-len(m.pinsAt(m.off))) && m.off <= from && !hidden {
+		if m.off <= total-(m.height-len(m.pinsAt(m.off))) && m.off <= from {
 			break
 		}
 		if e > m.off-1+m.height-len(m.pinsAt(m.off-1)) {

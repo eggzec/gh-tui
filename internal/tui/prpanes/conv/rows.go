@@ -131,7 +131,7 @@ func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	it := n.item
 	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
 	lines, s := b.body(b.st.who(it.Actor, false), it.Body, depth, false, right)
-	return treeview.Node{Lines: lines, Right: right}, s
+	return treeview.Node{Lines: lines, Right: right, Sticky: true}, s
 }
 
 // review draws a review, a fold when it holds threads.
@@ -150,7 +150,7 @@ func (b *builder) review(n *node, depth int) (treeview.Node, segs) {
 		prefix = b.st.review(it.Review) + " " + b.st.who(it.Actor, false)
 		body, right = it.Body, b.right(it.At, false, false)
 	}
-	r.Right = right
+	r.Right, r.Sticky = right, true
 	r.Branch = len(n.children) > 0
 	if r.Branch {
 		r.Marker = b.marker(len(n.children), "thread", "threads")
@@ -199,7 +199,7 @@ func (b *builder) thread(n *node, depth int) (treeview.Node, segs) {
 	replies := max(t.TotalComments, len(t.Comments)) - 1
 
 	kids := len(n.children) > 0
-	r := treeview.Node{Right: right, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
+	r := treeview.Node{Right: right, Sticky: true, Closed: t.Resolved, Marker: b.marker(replies, "reply", "replies")}
 	var s segs
 	r.Lines, s = b.body(prefix, c.Body, depth, kids, right+r.Marker)
 	r.Lines = b.withSnippet(r.Lines, t, c.DiffHunk, prefix, depth, kids)
@@ -246,7 +246,7 @@ func (b *builder) reply(n *node, depth int) (treeview.Node, segs) {
 	if c.Pending {
 		lines = b.quiet(lines, prefix)
 	}
-	return treeview.Node{Lines: lines, Right: right}, s
+	return treeview.Node{Lines: lines, Right: right, Sticky: true}, s
 }
 
 // run draws the fold over a run of comments: how many, by whom, and when.
