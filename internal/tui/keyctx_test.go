@@ -377,6 +377,8 @@ type keyInbox struct {
 	notifications.Service
 	// reads, when set, counts the lists read.
 	reads *atomic.Int32
+	// none serves an empty list to the dashboard's inbox.
+	none bool
 }
 
 var keyThread = core.Notification{
@@ -386,11 +388,17 @@ var keyThread = core.Notification{
 
 func (k keyInbox) CachedList(notifsvc.ListQuery) (core.Page[core.Notification], bool) {
 	k.count()
-	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}, true
+	return k.page(), true
 }
 func (k keyInbox) List(context.Context, notifsvc.ListQuery) (core.Page[core.Notification], error) {
 	k.count()
-	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}, nil
+	return k.page(), nil
+}
+func (k keyInbox) page() core.Page[core.Notification] {
+	if k.none {
+		return core.Page[core.Notification]{}
+	}
+	return core.Page[core.Notification]{Items: []core.Notification{keyThread}}
 }
 func (k keyInbox) count() {
 	if k.reads != nil {
@@ -1124,7 +1132,7 @@ func newKeysAppPulls(t *testing.T, repo bool, edit func(*config.Config), inbox k
 		Notifications: notifications.New(ctx, inbox, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
-			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),
+			dashboard.WithInbox(keyInbox{none: inbox.none}), dashboard.WithHere(testRepo, nil)),
 		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 	}
 	opts := []Option{

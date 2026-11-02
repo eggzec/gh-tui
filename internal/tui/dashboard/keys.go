@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
@@ -174,6 +175,8 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	case calendarPane:
 		return []keyhelp.Layer{screen, ui.ContextHelp(ctx, s.cal.KeyMap(), false)}
 	case workPane:
+		hit, ok := s.tasks.selected()
+		k.Checks.SetEnabled(k.Checks.Enabled() && ok && hit.Kind == core.SearchPulls)
 		own.SetMenu([]key.Binding{k.Checks})
 	case inboxPane:
 		own.SetMenu([]key.Binding{k.InboxRead, k.InboxDone})

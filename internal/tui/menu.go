@@ -142,15 +142,15 @@ func (m *menuModal) KeyLayers() []keyhelp.Layer {
 func (m *Model) openMenu() tea.Cmd {
 	layers, _ := m.innerLayers()
 	entries := menuEntries(layers)
+	// With no item selected, there is no list to open a menu on; x is then
+	// nothing but a key.
+	sel, had := m.selection()
+	if !had {
+		return nil
+	}
 	if len(entries) == 0 {
-		// With no item selected, there is no list to open a menu on; x is
-		// then nothing but a key.
-		if _, had := m.selection(); !had {
-			return nil
-		}
 		return m.toast.Push(toast.Info, "Nothing to do with the selection.")
 	}
-	sel, had := m.selection()
 	return m.open(newMenuModal(entries, sel, had, picker.NewKeyMap(ui.Lookup(m.cfg.Keys, "picker")), m.icons), nil)
 }
 

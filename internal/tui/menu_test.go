@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
@@ -168,8 +169,99 @@ func TestMenuWithoutItemsToasts(t *testing.T) {
 	t.Parallel()
 	m := keysAfter(t, true, "global.pane_1")
 	driveKeys(t, m, m.key(press("x")))
-	if !hasToast(m, "Nothing to do with the selection.") && m.modals.Top() == nil {
-		t.Errorf("no menu and no toast: toast %q", toasted(m))
+	if !hasToast(m, "Nothing to do with the selection.") {
+		t.Errorf("no toast: toast %q", toasted(m))
+	}
+	if m.modals.Top() != nil {
+		t.Errorf("top modal = %T, want none", m.modals.Top())
+	}
+}
+
+// chooseMenuEntry opens the menu with x and chooses the nth entry.
+func chooseMenuEntry(t *testing.T, m *Model, n int) {
+	t.Helper()
+	driveKeys(t, m, m.key(press("x")))
+	if _, ok := m.modals.Top().(*menuModal); !ok {
+		t.Fatalf("top modal = %T after x, want the menu", m.modals.Top())
+	}
+	for range n {
+		driveKeys(t, m, m.key(press("down")))
+	}
+	driveKeys(t, m, m.key(press("enter")))
+}
+
+func TestMenuChoosingEachEntryOfOtherSurfaces(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		repo     bool
+		steps    []string
+		n        int
+		wantText string
+	}{
+		{"close issue", true, []string{"global.pane_3"}, 0, "Close issue"},
+		{"inbox read", false, []string{"global.pane_5"}, 0, "as read"},
+		{"inbox done", false, []string{"global.pane_5"}, 1, "as done"},
+		{"work checks", false, []string{"global.pane_3"}, 0, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := keysAfter(t, tt.repo, tt.steps...)
+			chooseMenuEntry(t, m, tt.n)
+			top := m.modals.Top()
+			if top == nil {
+				t.Fatal("choosing the entry opened no modal")
+			}
+			if _, ok := top.(*menuModal); ok {
+				t.Fatal("the menu is still open")
+			}
+			if tt.wantText != "" && !strings.Contains(onScreen(m), tt.wantText) {
+				t.Errorf("screen after choosing lacks %q (top modal %T)", tt.wantText, top)
+			}
+		})
+	}
+}
+
+func TestMenuOfAnOpenIssueHasNoReopen(t *testing.T) {
+	t.Parallel()
+	for _, e := range menuTitles(t, true, "global.pane_3") {
+		if strings.HasPrefix(e, "reopen") {
+			t.Errorf("menu lists %q on an open issue", e)
+		}
+	}
+}
+
+func TestMenuOfAnIssueWorkItemHasNoChecks(t *testing.T) {
+	t.Parallel()
+	m := keysAfter(t, false, "global.pane_3")
+	// The work pane has a tab of issues: on it the menu has no checks.
+	seen := false
+	for range 4 {
+		layers, _ := m.innerLayers()
+		if len(menuEntries(layers)) == 0 {
+			seen = true
+			driveKeys(t, m, m.key(press("x")))
+			if m.modals.Top() != nil {
+				t.Errorf("top modal = %T on an issue, want none", m.modals.Top())
+			}
+			break
+		}
+		driveKeys(t, m, m.key(press("]")))
+	}
+	if !seen {
+		t.Error("no work tab without menu entries: the issues tab still offers checks")
+	}
+}
+
+func TestMenuOnAnEmptyInboxOpensNothing(t *testing.T) {
+	t.Parallel()
+	m := newKeysAppInbox(t, false, func(*config.Config) {}, keyInbox{none: true})
+	driveKeys(t, m, m.Init())
+	driveKeys(t, m, m.key(press("5")))
+	driveKeys(t, m, m.key(press("x")))
+	if m.modals.Top() != nil {
+		t.Errorf("top modal = %T on an empty inbox, want none", m.modals.Top())
 	}
 }
 
