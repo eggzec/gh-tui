@@ -8,7 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // readTree reads a directory. Directories below the root are read by SHA,
@@ -25,7 +25,7 @@ func readTree(ctx context.Context, svc Service, q filesvc.TreeQuery) (core.Tree,
 }
 
 // entryOf returns the entry a node of the tree stands for.
-func entryOf(n tree.Node) (core.TreeEntry, bool) {
+func entryOf(n treeview.Node) (core.TreeEntry, bool) {
 	e, ok := n.Value.(core.TreeEntry)
 	return e, ok
 }

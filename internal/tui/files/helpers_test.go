@@ -2,6 +2,7 @@ package files
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -104,9 +105,16 @@ func run(s *Section, cmd tea.Cmd) []tea.Msg {
 			return
 		}
 		msg := cmd()
-		switch msg := msg.(type) {
+		switch msg.(type) {
 		case nil, spinner.TickMsg:
 			return
+		}
+		// The tree's spinner re-arms itself while a load is in flight, so
+		// running it before the loads queued after it would never end.
+		if fmt.Sprintf("%T", msg) == "treeview.tickMsg" {
+			return
+		}
+		switch msg := msg.(type) {
 		case tea.BatchMsg:
 			for _, c := range msg {
 				exec(c)

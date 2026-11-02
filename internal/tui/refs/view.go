@@ -8,7 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -43,11 +43,7 @@ func (s *Step) SetTheme(t ui.Theme) {
 	s.errs = t.Errors(s.opts.icons)
 	s.spin.Style = t.Accent
 	s.spin.Spinner = s.opts.icons.SpinnerOr(s.spin.Spinner)
-	ts := t.Tree(s.opts.icons)
-	// The groups are told apart by their folds, so the rows below one
-	// are indented by plain space, not by a guide.
-	ts.GuideGlyph = " "
-	s.tree.SetStyles(ts)
+	s.tree.SetStyles(t.TreeView(s.opts.icons))
 	s.tree.SetIcons(s.icon)
 	ps := cmdline.DefaultStyles(t.Dark)
 	ps.Prompt, ps.Text, ps.Cursor = t.Accent.Bold(true), t.Text, t.Accent
@@ -58,7 +54,7 @@ func (s *Step) SetTheme(t ui.Theme) {
 
 // icon draws the icon of a row: the state of an item, in the colour the
 // lists give it, or a question mark for one that can't be read.
-func (s *Step) icon(n tree.Node, _ bool) string {
+func (s *Step) icon(n treeview.Node) string {
 	v, ok := n.Value.(itemValue)
 	switch {
 	case !ok:
@@ -115,7 +111,7 @@ func (s *Step) View() string {
 func (s *Step) titleLine(w int) string {
 	left := "#" + itoa(s.self.Number)
 	if s.opts.item != nil {
-		if t := ui.OneLine(s.opts.item().Title); t != "" {
+		if t := ui.OneLine(strings.ToValidUTF8(s.opts.item().Title, "")); t != "" {
 			left += " " + t
 		}
 	}

@@ -194,6 +194,9 @@ func (m Model) head(r Node, i int) string {
 // marker goes.
 func (m Model) fit(r Node, i, room int) string {
 	text := r.Lines[0]
+	if m.text[i] != "" {
+		text = m.text[i]
+	}
 	if m.icon != nil {
 		if ic := m.icon(m.node(m.vis[i])); ic != "" {
 			text = ic + " " + text

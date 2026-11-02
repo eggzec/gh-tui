@@ -5,7 +5,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // KeyMap holds the keys of the section. It implements help.KeyMap.
@@ -15,7 +15,7 @@ type KeyMap struct {
 	// files show another base.
 	ResetBase key.Binding
 	// Tree moves through the files and expands directories.
-	Tree tree.KeyMap
+	Tree treeview.KeyMap
 }
 
 // ctxPane is the context of the keys of the file tree.
@@ -23,8 +23,9 @@ const ctxPane = "files"
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	files := ui.In(keys, ctxPane)
-	tk := tree.NewKeyMap(files)
-	// A preview opens a file, and a directory folds.
+	tk := treeview.NewKeyMap(files)
+	// A preview opens a file; a directory folds with the expand and
+	// collapse keys, and the preview key leaves it as it is.
 	tk.Open = files.Binding("global.select", "preview")
 	return KeyMap{
 		Refresh:   files.Binding("global.refresh", "refresh"),

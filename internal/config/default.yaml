@@ -726,13 +726,15 @@ keys:
     top: ["g g", home]
     bottom: [G, end]
     # Expand the directory under the cursor, or go to its first entry when
-    # it is open; on a file, preview it as the select key does. Collapse a
+    # it is open; on a file it does nothing, the select key previews it. Collapse a
     # directory, or go to its parent from an entry or a closed directory.
     # The toggle expands every directory, or collapses them all when all
     # are expanded.
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
+    # The tree's mark has nothing to mark in the files.
+    mark: []
     # Show the files at the head of the default branch again, after
     # history's base chose another one.
     reset_base: [H]
@@ -1007,12 +1009,14 @@ keys:
     top: ["g g", home]
     bottom: [G, end]
     # Expand the group under the cursor, or go to its first item when it is
-    # open; on an item, open it as the select key does. Collapse a group, or
+    # open; on an item it does nothing, the select key opens it. Collapse a group, or
     # go to its group from an item. The toggle expands every group, or
     # collapses them all when all are expanded.
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
+    # The tree's mark has nothing to mark in the links.
+    mark: []
     # Show only the items that hold the words typed, wherever they are in a
     # row: the number, the title, how the item stands, or who linked it.
     quick_filter: ["&"]

@@ -8,7 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // The IDs of the groups, which are the branches of the tree.
@@ -41,7 +41,7 @@ type moreValue struct{}
 type group struct {
 	id    string
 	title string
-	rows  []tree.Node
+	rows  []treeview.Node
 }
 
 // snapshot is what one read of the links gives the tree: the groups, whose
@@ -79,13 +79,13 @@ func (s *Step) build(r core.References) *snapshot {
 }
 
 // writtenNodes lists what the texts write, and notes what they leave out.
-func (s *Step) writtenNodes(r core.References) []tree.Node {
+func (s *Step) writtenNodes(r core.References) []treeview.Node {
 	if len(r.Written) == 0 && r.Unresolved == 0 {
 		return nil
 	}
 	nodes := s.itemNodes(writtenID, r.Written)
 	note := func(id, text string) {
-		nodes = append(nodes, tree.Node{ID: writtenID + ":" + id, Name: text, Value: noteValue{}})
+		nodes = append(nodes, treeview.Node{ID: writtenID + ":" + id, Name: text, Value: noteValue{}})
 	}
 	if r.CommentsTotal > r.CommentsRead {
 		note("comments", "searched the newest "+strconv.Itoa(r.CommentsRead)+" of "+strconv.Itoa(r.CommentsTotal)+" comments")
@@ -107,8 +107,8 @@ func plural(n int, noun string) string {
 }
 
 // itemNodes returns the rows of refs in the group.
-func (s *Step) itemNodes(group string, refs []core.Reference) []tree.Node {
-	nodes := make([]tree.Node, 0, len(refs))
+func (s *Step) itemNodes(group string, refs []core.Reference) []treeview.Node {
+	nodes := make([]treeview.Node, 0, len(refs))
 	for i := range refs {
 		// The item doesn't link to itself, whatever its text says.
 		if !refs[i].Target.Same(s.self) {
@@ -121,27 +121,32 @@ func (s *Step) itemNodes(group string, refs []core.Reference) []tree.Node {
 // itemNode returns the row of r: its repository when it isn't the item on
 // view's, number and title, and the state and where it was found at the
 // right. An item that can't be read says why instead of a title.
-func (s *Step) itemNode(group string, r core.Reference) tree.Node {
+func (s *Step) itemNode(group string, r core.Reference) treeview.Node {
 	name := s.ident(r.Target)
 	if r.Problem != "" {
-		name += " can't be read: " + r.Problem
+		name += " can't be read: " + clean(r.Problem)
 	} else if r.Title != "" {
-		name += " " + r.Title
+		name += " " + clean(r.Title)
 	}
 	state := stateWord(r)
-	origin := originWords(r.Origins)
+	origin := clean(originWords(r.Origins))
 	hay := strings.Join([]string{core.RefKey(r.Target), s.ident(r.Target), r.Title, r.Problem, state, origin}, " ")
 	detail := origin
 	if state != "" {
 		detail = state + s.opts.icons.Separator + origin
 	}
-	return tree.Node{
-		ID:     group + ":" + core.RefKey(r.Target),
-		Name:   name,
-		Detail: detail,
-		Link:   r.URL,
-		Value:  itemValue{ref: r, hay: strings.ToLower(hay)},
+	return treeview.Node{
+		ID:    group + ":" + core.RefKey(r.Target),
+		Name:  name,
+		Right: detail,
+		Link:  r.URL,
+		Value: itemValue{ref: r, hay: strings.ToLower(hay)},
 	}
+}
+
+// clean makes text from GitHub one line of valid text without controls.
+func clean(s string) string {
+	return ui.OneLine(strings.ToValidUTF8(s, ""))
 }
 
 // ident names the target as the row does: by number alone in the
@@ -209,15 +214,15 @@ func stateOf(r core.Reference) ui.State {
 
 // children is the tree's source: the groups, the rows of each, and for the
 // mentions the pages read so far, from the cache.
-func (s *Step) children(ctx context.Context, parent tree.Node) ([]tree.Node, error) {
+func (s *Step) children(ctx context.Context, parent treeview.Node) ([]treeview.Node, error) {
 	snap := s.snap.Load()
 	if snap == nil {
 		return nil, nil
 	}
 	if parent.ID == "" {
-		nodes := make([]tree.Node, len(snap.groups))
+		nodes := make([]treeview.Node, len(snap.groups))
 		for i, g := range snap.groups {
-			nodes[i] = tree.Node{ID: g.id, Name: g.title, Branch: true, Value: g.id}
+			nodes[i] = treeview.Node{ID: g.id, Name: g.title, Branch: true, Value: g.id}
 		}
 		return nodes, nil
 	}
@@ -235,9 +240,9 @@ func (s *Step) children(ctx context.Context, parent tree.Node) ([]tree.Node, err
 // mentions reads the pages of the items that mention this one, as many as
 // were asked for, each from the cache if it is there, and makes their rows,
 // with the row that reads the next page after them.
-func (s *Step) mentions(ctx context.Context) ([]tree.Node, error) {
+func (s *Step) mentions(ctx context.Context) ([]treeview.Node, error) {
 	again := s.again.Swap(false)
-	var nodes []tree.Node
+	var nodes []treeview.Node
 	cursor, next := "", ""
 	for range max(s.pages.Load(), 1) {
 		q := refssvc.MentionsQuery{Repo: s.self.Repo, Number: s.self.Number, Pull: s.pull, Cursor: cursor, Again: again}
@@ -260,7 +265,7 @@ func (s *Step) mentions(ctx context.Context) ([]tree.Node, error) {
 	}
 	s.mread.Store(&mentionsRead{rows: len(nodes), more: next != ""})
 	if next != "" {
-		nodes = append(nodes, tree.Node{ID: moreID, Name: s.moreText(), Value: moreValue{}})
+		nodes = append(nodes, treeview.Node{ID: moreID, Name: s.moreText(), Value: moreValue{}})
 	}
 	return nodes, nil
 }

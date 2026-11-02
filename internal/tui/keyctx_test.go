@@ -975,6 +975,7 @@ var idleRows = map[string]string{
 	"search_modal results up":          "the results are one hit, so the cursor has nowhere to go",
 	"actions_runs expand":              "the cursor starts on a run, which has no group to open",
 	"actions_log expand":               "the log opens with every section open, so there is none to expand",
+	"references expand":                "the cursor starts on a link, which has no group to open",
 	"pull_files collapse":              "the commits start folded and the cursor starts on them",
 	"pull_files all commits":           "every commit starts selected",
 	"pull_involved edit":               "the cursor starts on the author, and the key acts on the assignees only",

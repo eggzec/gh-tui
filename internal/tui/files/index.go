@@ -10,7 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // index holds a recursive listing of a repository by directory, so the tree
@@ -128,7 +128,7 @@ func (s *source) indexOf(t core.Tree) *index {
 // children lists a directory for the tree. The root revalidates the
 // listing, so a refresh sees new commits; directories below take the
 // cached listing, so expanding never waits on GitHub.
-func (s *source) children(ctx context.Context, parent tree.Node) (_ []tree.Node, err error) {
+func (s *source) children(ctx context.Context, parent treeview.Node) (_ []treeview.Node, err error) {
 	ctx, end := obs.Begin(ctx, "files.dir")
 	defer func() { end(err, "span", "tui", "repo", s.repo.String(), "ref", s.ref, "root", parent.ID == "") }()
 	dir, _ := entryOf(parent)
@@ -146,8 +146,32 @@ func (s *source) children(ctx context.Context, parent tree.Node) (_ []tree.Node,
 	return s.nodes(x.dirs[dir.Path]), nil
 }
 
+// source returns the rows of the tree: a directory below the root comes at
+// once from the cached listing, and the root and what isn't cached load.
+func (s *source) source() treeview.Source {
+	return treeview.Source{Cached: s.fromCache, Load: s.children}
+}
+
+// fromCache returns the children of a directory below the root from the
+// cached listing, with no request.
+func (s *source) fromCache(parent treeview.Node) ([]treeview.Node, bool) {
+	if parent.ID == "" {
+		return nil, false
+	}
+	t, ok := s.svc.CachedAll(filesvc.TreeQuery{Repo: s.repo, Ref: s.ref})
+	if !ok {
+		return nil, false
+	}
+	x := s.indexOf(t)
+	if x.truncated {
+		return nil, false
+	}
+	dir, _ := entryOf(parent)
+	return s.nodes(x.dirs[dir.Path]), true
+}
+
 // lazy reads one directory, for listings that are truncated.
-func (s *source) lazy(ctx context.Context, dir core.TreeEntry) ([]tree.Node, error) {
+func (s *source) lazy(ctx context.Context, dir core.TreeEntry) ([]treeview.Node, error) {
 	t, err := readTree(ctx, s.svc, filesvc.TreeQuery{Repo: s.repo, Ref: dir.SHA})
 	if err != nil {
 		return nil, err
@@ -171,12 +195,12 @@ func joinPath(dir, name string) string {
 // nodes returns the nodes of entries. Every node carries its
 // core.TreeEntry, with Path relative to the root of the repository, and a
 // file its size as the detail. Each links to its page at the ref listed.
-func (s *source) nodes(entries []core.TreeEntry) []tree.Node {
-	out := make([]tree.Node, len(entries))
+func (s *source) nodes(entries []core.TreeEntry) []treeview.Node {
+	out := make([]treeview.Node, len(entries))
 	for i, e := range entries {
-		n := tree.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e, Link: webURL(s.host, s.repo, s.ref, e)}
+		n := treeview.Node{ID: e.Path, Name: e.Name, Branch: e.Dir(), Value: e, Link: webURL(s.host, s.repo, s.ref, e)}
 		if e.Type == core.EntryBlob && !e.Symlink() {
-			n.Detail = ui.Size(e.Size)
+			n.Right = ui.Size(e.Size)
 		}
 		out[i] = n
 	}

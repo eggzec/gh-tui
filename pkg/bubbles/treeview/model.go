@@ -135,8 +135,11 @@ type Model struct {
 	vis    []int
 	starts []int
 	first  []string
-	body   []string
-	bodyw  []int
+	// text is the first line of each shown row that is made from its name,
+	// styled, or "".
+	text  []string
+	body  []string
+	bodyw []int
 
 	// pins lists the places in vis of the ancestors of the top row of the
 	// window that stay pinned above it, the nearest last.
@@ -184,6 +187,10 @@ func (m Model) ID() int { return m.id }
 
 // Len returns the number of rows that show, folds hiding the rest.
 func (m Model) Len() int { return len(m.vis) }
+
+// Index returns the place of the cursor among the rows that show, as At
+// counts them.
+func (m Model) Index() int { return m.cur }
 
 // Focused reports whether the tree takes keys and draws its cursor row.
 func (m Model) Focused() bool { return m.focused }
@@ -538,6 +545,18 @@ func (m *Model) guides() {
 	m.first = make([]string, len(m.vis))
 	m.body = make([]string, len(m.vis))
 	m.bodyw = make([]int, len(m.vis))
+	m.text = make([]string, len(m.vis))
+	for i, r := range m.vis {
+		n := m.rows[r]
+		if n.Name == "" || len(n.Lines) == 0 || n.Lines[0] != termtext.Link(n.Link, n.Name) {
+			continue
+		}
+		st := m.styles.Name
+		if m.foldAt(i) {
+			st = m.styles.FoldName
+		}
+		m.text[i] = termtext.Link(n.Link, st.Render(n.Name))
+	}
 	depth := 0
 	for _, r := range m.vis {
 		depth = max(depth, m.rows[r].Depth)

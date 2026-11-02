@@ -53,6 +53,9 @@ type Styles struct {
 	OpenGlyph, ClosedGlyph string
 	// Marker styles the marker of a closed fold, at the end of its text.
 	Marker lipgloss.Style
+	// Name styles the text of a row made from its Name, and FoldName that of
+	// a row that folds. A row with its own Lines keeps them as they are.
+	Name, FoldName lipgloss.Style
 	// Right styles the right-edge part of a row when the row's own text
 	// does not.
 	Right lipgloss.Style

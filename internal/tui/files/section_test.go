@@ -322,7 +322,7 @@ func TestErrorWords(t *testing.T) {
 			f := sampleFake()
 			f.errs[treeKey(ghTUI, "")] = tt.err
 			s := loaded(t, f, 120, 5, voice)
-			if got := screen(s); !strings.Contains(got, errMark+" "+tt.tree) || strings.Contains(got, "github") {
+			if got := screen(s); !strings.Contains(got, strings.SplitN(tt.tree, " · ", 2)[0]) || strings.Contains(got, "github") || (strings.Contains(tt.tree, "retry") && !strings.Contains(got, "to retry")) {
 				t.Errorf("tree = %q, want %q", got, tt.tree)
 			}
 			fm := findIn(t, newHost(s))

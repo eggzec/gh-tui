@@ -22,7 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Section shows the files of the selected repository. Create one with
@@ -47,7 +47,7 @@ type Section struct {
 	// is selected. treeCtx bounds its loads, and cancelTree cancels them
 	// when another repository is selected. started reports whether its
 	// first load was sent.
-	tree       *tree.Model
+	tree       *treeview.Model
 	src        *source
 	started    bool
 	treeCtx    context.Context
@@ -89,14 +89,14 @@ type Section struct {
 	width, height int
 	focused       bool
 	theme         ui.Theme
-	styles        tree.Styles
+	styles        treeview.Styles
 	// icons are the glyphs of files, and fileIcons renders them in the
 	// theme.
 	icons     ui.Icons
 	fileIcons *fileIcons
 	// blank is the tree with no rows that draws the state shown before a
 	// repository is selected, and hint what it tells the user to do.
-	blank tree.Model
+	blank treeview.Model
 	hint  string
 }
 
@@ -109,7 +109,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 		keys:        newKeyMap(keys),
 		rawKeys:     keys,
 		finderKeys:  newFinderKeys(keys),
-		styles:      tree.DefaultStyles(true),
+		styles:      treeview.DefaultStyles(true),
 		icons:       ui.NewIcons(config.Default().UI.Icons),
 		voice:       ui.NewVoice(keys, ""),
 		findPreview: config.Default().Files.Finder.Preview,
@@ -128,10 +128,10 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
 		s.hint = "Press " + k + " to search for one."
 	}
-	s.blank = tree.New(func(context.Context, tree.Node) ([]tree.Node, error) { return nil, nil },
-		tree.WithStyles(s.styles),
-		tree.WithSize(s.width, s.height),
-		tree.WithEmpty("No repository selected", s.hint),
+	s.blank = treeview.New(treeview.Rows(nil),
+		treeview.WithStyles(s.styles),
+		treeview.WithSize(s.width, s.height),
+		treeview.WithEmpty("No repository selected", s.hint),
 	)
 	if s.repo != (core.RepoRef{}) {
 		s.newTree(s.repo, "")
@@ -151,16 +151,16 @@ func (s *Section) newTree(repo core.RepoRef, ref string) {
 	// The tree retries a failed load with the key that expands.
 	v := s.voice
 	v.Retry = s.keys.Tree.Expand
-	t := tree.New(src.children,
-		tree.WithContext(ctx),
-		tree.WithExpandAllLimits(expandAllNodes, expandAllDepth),
-		tree.WithKeyMap(s.keys.Tree),
-		tree.WithStyles(s.styles),
-		tree.WithSize(s.width, s.height),
-		tree.WithFocused(s.focused),
-		tree.WithEmptyText(ui.None("files")),
-		tree.WithIcons(s.fileIcons.node),
-		tree.WithErrorText(ui.ErrorText("load the files", repo.String(), v)),
+	t := treeview.New(src.source(),
+		treeview.WithContext(ctx),
+		treeview.WithExpandAllLimits(expandAllNodes, expandAllDepth),
+		treeview.WithKeyMap(s.keys.Tree),
+		treeview.WithStyles(s.styles),
+		treeview.WithSize(s.width, s.height),
+		treeview.WithFocused(s.focused),
+		treeview.WithEmpty(ui.None("files"), ""),
+		treeview.WithIcons(s.fileIcons.node),
+		treeview.WithErrorText(ui.ErrorText("load the files", repo.String(), v)),
 	)
 	s.repo, s.ref, s.tree, s.src, s.started = repo, ref, &t, src, false
 	s.treeCtx, s.cancelTree = ctx, cancel
@@ -260,6 +260,10 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		if s.tree == nil || msg.src != s.src {
 			return nil
 		}
+		if s.tree.Err("") != nil {
+			// A top level that failed is read again by a retry.
+			return s.tree.Retry()
+		}
 		return s.tree.Reload()
 	case ui.SyncMsg:
 		// A ref of the repository moved, such as after a force-push, and
@@ -268,8 +272,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return s.reload()
-	case tree.OpenMsg:
-		if s.tree == nil || msg.ID != s.tree.ID() {
+	case treeview.OpenMsg:
+		if s.tree == nil || msg.Tree != s.tree.ID() {
 			return nil
 		}
 		return s.preview(msg.Node)
@@ -298,6 +302,11 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return s.refresh(), true
 	case s.ref != "" && keymap.Matches(msg, s.keys.ResetBase):
 		return ui.ResetBase(s.repo), true
+	case keymap.Matches(msg, s.keys.Tree.Expand):
+		// Opening a fold is the tree's, but a file has none: it opens.
+		if n, ok := s.tree.Selected(); ok && !n.Branch {
+			return s.preview(n), true
+		}
 	}
 	return nil, false
 }
@@ -352,7 +361,7 @@ func (s *Section) observe() tea.Cmd {
 		s.tree.SetExpandAllLimits(expandAllNodes, expandAllDepth)
 		return nil
 	}
-	s.tree.SetExpandAllLimits(tree.DefaultExpandAllNodes, tree.DefaultExpandAllDepth)
+	s.tree.SetExpandAllLimits(treeview.DefaultExpandAllNodes, treeview.DefaultExpandAllDepth)
 	if s.warned {
 		return nil
 	}
@@ -362,7 +371,7 @@ func (s *Section) observe() tea.Cmd {
 
 // preview opens the file of n in a modal. A submodule has no content in
 // this repository, so it is only named.
-func (s *Section) preview(n tree.Node) tea.Cmd {
+func (s *Section) preview(n treeview.Node) tea.Cmd {
 	e, ok := entryOf(n)
 	if !ok {
 		return nil
@@ -418,7 +427,8 @@ func (s *Section) reveal(p string) tea.Cmd {
 	}
 	ids = append(ids, p)
 	show := func() tea.Msg { return ui.ShowMsg{Title: ui.FilesTitle} }
-	return tea.Batch(s.start(), s.tree.Reveal(ids...), show)
+	_, load := s.tree.Reveal(ids...)
+	return tea.Batch(s.start(), load, show)
 }
 
 // shortRef shortens a commit SHA for a title, and leaves a branch as it
@@ -476,13 +486,15 @@ func (s *Section) SetSize(width, height int) {
 func (s *Section) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.icons
 	s.theme = t
-	s.styles = t.Tree(s.icons)
+	s.styles = t.TreeView(s.icons)
 	s.fileIcons = newFileIcons(s.icons, t)
 	if s.tree != nil {
 		s.tree.SetStyles(s.styles)
+		s.tree.SetEmpty(ui.None("files"), "")
 		s.tree.SetIcons(s.fileIcons.node)
 	}
 	s.blank.SetStyles(s.styles)
+	s.blank.SetEmpty("No repository selected", s.hint)
 }
 
 // Focus makes the section react to keys.

@@ -6,7 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/tree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // Context is the context of the keys of the step. It is a layer of its own,
@@ -18,7 +18,7 @@ const Context = "references"
 type KeyMap struct {
 	// Tree moves through the links and folds their groups, and its open
 	// key opens the item under the cursor.
-	Tree tree.KeyMap
+	Tree treeview.KeyMap
 	// Filter opens the prompt of the quick filter.
 	Filter key.Binding
 	// Refresh reads the links again, Back steps back to the conversation, and Dismiss clears
@@ -32,7 +32,7 @@ type KeyMap struct {
 func newKeyMap(keys config.Keymap) KeyMap {
 	in, search := ui.In(keys, Context), ui.In(keys, "search_prompt")
 	return KeyMap{
-		Tree:    tree.NewKeyMap(ui.Lookup(keys, Context)),
+		Tree:    treeview.NewKeyMap(ui.Lookup(keys, Context)),
 		Filter:  in.Binding("quick_filter", "filter"),
 		Refresh: in.Binding("global.refresh", "refresh"),
 		Back:    in.Binding("global.back", "back"),

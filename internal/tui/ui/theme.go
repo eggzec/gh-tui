@@ -233,6 +233,9 @@ func (t Theme) TreeView(ic Icons) treeview.Styles {
 	s.Guide = s.Guide.Foreground(lipgloss.Color(t.Palette.Border))
 	s.Arrow = s.Arrow.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Marker = s.Marker.Foreground(lipgloss.Color(t.Palette.Muted))
+	fg := lipgloss.Color(t.Palette.Foreground)
+	s.Name = s.Name.Foreground(fg)
+	s.FoldName = s.FoldName.Foreground(fg).Bold(true)
 	s.Right = s.Right.Foreground(lipgloss.Color(t.Palette.Subtle))
 	s.Empty = s.Empty.Foreground(lipgloss.Color(t.Palette.Muted))
 	return s

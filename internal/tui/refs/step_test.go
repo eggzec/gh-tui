@@ -97,7 +97,7 @@ func TestRefsLazyMentions(t *testing.T) {
 	if _, m := f.counts(); m != 0 {
 		t.Fatalf("%d reads of the mentions before they opened", m)
 	}
-	h.keys("G", "enter")
+	h.keys("G", "l")
 	_, m := f.counts()
 	if m != 1 {
 		t.Fatalf("%d reads of the mentions after opening them, want 1", m)
@@ -140,8 +140,8 @@ func TestRefsPickOpensWithBack(t *testing.T) {
 		{"an issue", nil, ui.OpenIssueMsg{Repo: repo, Number: 198, Over: ret}},
 		{"a pull request", []string{"j", "j", "j"}, ui.OpenPullMsg{Repo: repo, Number: 187, Over: ret}},
 		{"one of another repository", []string{"j", "j", "j", "j"}, ui.OpenPullMsg{Repo: other, Number: 412, Over: ret}},
-		{"a mention", []string{"G", "enter", "j"}, ui.OpenPullMsg{Repo: repo, Number: 240, Over: ret}},
-		{"a mention of another repository", []string{"G", "enter", "j", "j", "j"}, ui.OpenIssueMsg{Repo: infra, Number: 77, Over: ret}},
+		{"a mention", []string{"G", "l", "j"}, ui.OpenPullMsg{Repo: repo, Number: 240, Over: ret}},
+		{"a mention of another repository", []string{"G", "l", "j", "j", "j"}, ui.OpenIssueMsg{Repo: infra, Number: 77, Over: ret}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -156,8 +156,8 @@ func TestRefsPickOpensWithBack(t *testing.T) {
 	}
 }
 
-// Enter on a group folds it, and does not open anything.
-func TestRefsEnterOnGroupFolds(t *testing.T) {
+// Enter on a group neither folds it nor opens anything; h and l fold it.
+func TestRefsEnterOnGroupDoesNotFold(t *testing.T) {
 	s, h := newStep(t, newFake(), narrowW, narrowH)
 	h.keys("k")
 	if got := selected(s); !strings.Contains(got, "Closes") {
@@ -167,7 +167,11 @@ func TestRefsEnterOnGroupFolds(t *testing.T) {
 	if got := h.take(); len(got) != 0 {
 		t.Errorf("enter on a group sent %v", got)
 	}
+	has(t, s, "#198")
+	h.keys("h")
 	lacks(t, s, "#198")
+	h.keys("l")
+	has(t, s, "#198")
 }
 
 // Where an item was found reads as the first two places, then how many
@@ -417,8 +421,8 @@ func TestRefsMentionsFail(t *testing.T) {
 	f := newFake()
 	f.pagesErr = fmt.Errorf("list mentions: %w", core.ErrOffline)
 	s, h := newStep(t, f, narrowW, narrowH)
-	h.keys("G", "enter")
-	has(t, s, "Closes (2)", "Can't reach GitHub", "r to retry")
+	h.keys("G", "l")
+	has(t, s, "Closes (2)", "Can't reach GitHub")
 	f.mu.Lock()
 	f.pagesErr = nil
 	f.mu.Unlock()
@@ -448,7 +452,7 @@ func TestRefsRefreshDropsEditedLinks(t *testing.T) {
 func TestRefsRefreshReadsMentionsAgain(t *testing.T) {
 	f := newFake()
 	_, h := newStep(t, f, wideW, wideH)
-	h.keys("G", "enter")
+	h.keys("G", "l")
 	h.keys("r")
 	if _, m := f.counts(); m != 2 {
 		t.Fatalf("the mentions were read %d times, want 2", m)
@@ -521,7 +525,7 @@ func TestRefsMentionsQueryKind(t *testing.T) {
 	s.SetSize(narrowW, narrowH)
 	h := &host{s: s}
 	h.run(s.Init())
-	h.keys("G", "enter")
+	h.keys("G", "l")
 	if len(f.mentionQueries) != 1 || f.mentionQueries[0].Pull || f.mentionQueries[0].Number != 5 {
 		t.Errorf("the mentions were read as %+v", f.mentionQueries)
 	}
@@ -551,7 +555,7 @@ func TestRefsOnline(t *testing.T) {
 func TestRefsReopenedKeepsState(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH)
-	h.keys("G", "enter", "j", "j")
+	h.keys("G", "l", "j", "j")
 	h.keys("&")
 	h.typed("alice")
 	h.keys("enter")
@@ -618,7 +622,7 @@ func TestRefsFilterAsksForMentionsOncePerFilter(t *testing.T) {
 func TestRefsMoreLandsOnTheFirstNewMention(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, wideW, wideH)
-	h.keys("G", "enter")
+	h.keys("G", "l")
 	h.keys("G")
 	if got := selected(s); !strings.Contains(got, "more: enter reads the next") {
 		t.Fatalf("the cursor is on %q, want the row of more", got)
