@@ -391,6 +391,20 @@ func TestSetIssueState(t *testing.T) {
 	}
 }
 
+func TestUpdateIssueText(t *testing.T) {
+	c := serveIssueMutation(t, "issues_update.json", http.StatusOK, func(r *http.Request, body string) {
+		checkIssueRequest(t, r, http.MethodPatch, "/repos/octo-org/hello/issues/42", nil)
+		checkIssueBody(t, body, `{"title":"New title","body":"New body"}`)
+	})
+	got, err := c.UpdateIssueText(t.Context(), issueRepo, 42, "New title", "New body")
+	if err != nil {
+		t.Fatalf("UpdateIssueText: %v", err)
+	}
+	if got.Number != 42 || got.Body != wantIssue42.Body {
+		t.Errorf("issue = %+v, want issue 42 as GitHub stored it", got)
+	}
+}
+
 var wantIssueLabels = []core.Label{
 	{Name: "bug", Color: "d73a4a", Description: "Something isn't working"},
 	{Name: "good first issue", Color: "7057ff", Description: "Good for newcomers"},

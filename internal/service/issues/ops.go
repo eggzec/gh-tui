@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
@@ -148,7 +147,7 @@ const pendingPrefix = "pending:"
 // IsPending reports whether c is a comment that is shown before GitHub
 // confirmed it.
 func IsPending(c core.Comment) bool {
-	return strings.HasPrefix(c.ID, pendingPrefix)
+	return Unconfirmed(c.ID)
 }
 
 // Comment adds a comment to an issue. Until GitHub answers, the comment has
@@ -160,7 +159,7 @@ func (s *Service) Comment(repo core.RepoRef, number int, body string) *optimisti
 	if err := s.refused(repo); err != nil {
 		return optimistic.Refused(fmt.Errorf("comment on issue %s#%d: %w", repo, number, err))
 	}
-	now := time.Now()
+	now := s.now()
 	pending := core.Comment{
 		ID:        pendingPrefix + strconv.FormatUint(s.pending.Add(1), 10),
 		Author:    core.User{Login: s.viewer},

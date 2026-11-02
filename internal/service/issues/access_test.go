@@ -46,6 +46,15 @@ var changes = []struct {
 	{"label", func(s *Service) *optimistic.Op { return s.AddLabels(repo, 7, []string{"enhancement"}) }},
 	{"unlabel", func(s *Service) *optimistic.Op { return s.RemoveLabel(repo, 7, "enhancement") }},
 	{"comment", func(s *Service) *optimistic.Op { return s.Comment(repo, 7, "Thanks!") }},
+	{"edit", func(s *Service) *optimistic.Op { return s.EditIssue(repo, 7, "New", "Text") }},
+	{"edit labels", func(s *Service) *optimistic.Op {
+		return s.EditLabels(repo, 7, []core.Label{enhancement}, []string{"bug"})
+	}},
+	{"edit assignees", func(s *Service) *optimistic.Op {
+		return s.EditAssignees(repo, 7, []core.User{{Login: "hubot"}}, []string{"octocat"})
+	}},
+	{"edit comment", func(s *Service) *optimistic.Op { return s.EditComment(repo, 7, "IC_2", "New") }},
+	{"delete comment", func(s *Service) *optimistic.Op { return s.DeleteComment(repo, 7, "IC_2") }},
 }
 
 func TestChangeRefused(t *testing.T) {

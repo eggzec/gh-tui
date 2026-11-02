@@ -59,7 +59,10 @@ type Issue struct {
 	Number int
 	Title  string
 	Body   string
-	State  State
+	// BodyEditedAt is when the description was last edited from here, or
+	// zero when it wasn't, since GitHub's read of an issue doesn't say.
+	BodyEditedAt time.Time
+	State        State
 	// Reason says why a closed issue was closed.
 	Reason    StateReason
 	Author    User
