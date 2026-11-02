@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -172,32 +173,45 @@ func (s *Section) kindForms() []string {
 // kindStripForms builds the forms of a strip over kinds, one key each by
 // position (a kind with none shows no key), with cur accented.
 func kindStripForms(st panes.Styles, kinds []core.SearchKind, keys []string, cur core.SearchKind) []string {
-	build := func(title func(core.SearchKind) string) string {
-		parts := make([]string, len(kinds))
+	row := func(label func(i int, k core.SearchKind) (full, short string)) tabrow.Model {
+		items := make([]tabrow.Item, len(kinds))
+		at := 0
 		for i, k := range kinds {
-			key := keys[i]
-			if k == cur && key != "" {
-				key = "[" + key + "]"
-			}
-			t := strings.TrimSpace(key + " " + title(k))
+			f, s := label(i, k)
+			items[i] = tabrow.Item{Label: f, Short: s}
 			if k == cur {
-				parts[i] = st.StripCurrent.Render(t)
-			} else {
-				parts[i] = st.StripOther.Render(t)
+				at = i
 			}
 		}
-		return strings.Join(parts, st.StripSep.Render(st.Separator))
+		m := tabrow.New(
+			tabrow.WithStyles(tabrow.Styles{Current: st.StripCurrent, Other: st.StripOther, Marker: st.StripSep}),
+			tabrow.WithSeparator(st.Separator),
+		)
+		m.SetItems(items, at)
+		return m
 	}
-	full := func(k core.SearchKind) string { return kindTitles[k] }
-	short := func(k core.SearchKind) string {
-		if k == core.SearchPulls {
-			return "PRs"
+	// A kind with no key shows its title alone; the key of the one on view
+	// is in brackets.
+	keyed := func(i int, k core.SearchKind) string {
+		key := keys[i]
+		if k == cur && key != "" {
+			key = "[" + key + "]"
 		}
-		return kindTitles[k]
+		return key
 	}
-	forms := []string{build(full), build(short)}
+	titled := row(func(i int, k core.SearchKind) (string, string) {
+		short := kindTitles[k]
+		if k == core.SearchPulls {
+			short = "PRs"
+		}
+		key := keyed(i, k)
+		return strings.TrimSpace(key + " " + kindTitles[k]), strings.TrimSpace(key + " " + short)
+	}).Forms()
+	forms := titled[:3]
 	if slices.ContainsFunc(keys, func(k string) bool { return k != "" }) {
-		forms = append(forms, build(func(core.SearchKind) string { return "" }))
+		forms = append(forms, row(func(i int, k core.SearchKind) (string, string) {
+			return keyed(i, k), ""
+		}).Forms()[0])
 	}
 	return forms
 }
