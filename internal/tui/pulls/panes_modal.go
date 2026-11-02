@@ -357,6 +357,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if msg.id != m.id {
 			return nil
 		}
+		if msg.reload {
+			return m.reloadConv()
+		}
 		return m.recacheConv()
 	case conv.EnterMsg:
 		switch msg.Kind {

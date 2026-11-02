@@ -260,6 +260,9 @@ func (m *panesModal) footer(l panes.Layout) string {
 		}
 		parts = append(parts, hint(hintKeys(k.zoom), what))
 	}
+	if m.nav.Focus() == paneConversation {
+		parts = append(parts, hint(hintKeys(k.convComment), "comment"))
+	}
 	parts = append(parts, hint(hintKeys(k.help), "help"))
 	// A key that is unbound leaves its part out.
 	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })

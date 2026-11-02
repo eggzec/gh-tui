@@ -39,6 +39,10 @@ func (m Model) Recache() (Model, tea.Cmd) {
 	return m, tea.Batch(m.localCmd(timeline), m.localCmd(threads))
 }
 
+// Reload reads both sources again from their first page, from the network
+// where the cache no longer holds them.
+func (m Model) Reload() (Model, tea.Cmd) { return m.reload() }
+
 // localCmd is cachedCmd for a read that only takes in what the cache holds.
 func (m Model) localCmd(src which) tea.Cmd {
 	read := m.cachedCmd(src)

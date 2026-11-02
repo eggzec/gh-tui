@@ -440,7 +440,7 @@ func (b *builder) divider() treeview.Node {
 func (b *builder) rule() treeview.Node {
 	return treeview.Node{
 		ID:    idRule,
-		Lines: []string{b.st.dim.Render(strings.Repeat(b.st.Glyphs.Rule, max(b.width-1, 1)))},
+		Lines: []string{b.st.dim.Render(strings.Repeat(b.st.Glyphs.Rule, max(b.width-3, 1)))},
 		Skip:  true,
 	}
 }
