@@ -39,6 +39,7 @@ func init() {
 		reflect.TypeFor[*settlingModal](),
 		reflect.TypeFor[*ctxModal](),
 		reflect.TypeFor[*linkedModal](),
+		reflect.TypeFor[*trimmedModal](),
 		reflect.TypeFor[*pullsModal](),
 		reflect.TypeFor[*screenModal](),
 		reflect.TypeFor[*savingModal](),

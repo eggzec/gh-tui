@@ -40,21 +40,15 @@ func TestRowAuthorLinks(t *testing.T) {
 	}
 }
 
-// The title and the number in the header link to the pull request's page.
-func TestDetailHeaderLinks(t *testing.T) {
+// The modal links its title in the top edge to the pull request's page.
+func TestModalLink(t *testing.T) {
 	s := started(t, newFakeService(), 120, 30)
 	press(t, s, "enter")
 	m := s.modal()
-	m.SetSize(80, 30)
 	for _, host := range uitest.Hosts {
 		m.detail.URL = ui.WebURL(host, "o/r/pull/142")
-		m.detail.Title = uitest.HostileTitle
-		links := uitest.Links(t, m.header())
-		if len(links) != 1 || links[0] != m.detail.URL {
-			t.Errorf("%s: header links to %q, want the number and title to %q", host, links, m.detail.URL)
-		}
-		if h := m.header(); strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
-			t.Errorf("%s: header carries the title's escapes: %q", host, h)
+		if got := m.Link(); got != m.detail.URL {
+			t.Errorf("%s: links to %q, want %q", host, got, m.detail.URL)
 		}
 	}
 }

@@ -411,8 +411,7 @@ func (m *Model) frame(mod ui.Modal) string {
 	if room := w - 6 - tw; tabs != "" && room >= minTitleWidth {
 		titleWidth = min(titleWidth, room)
 	}
-	// A title may hold text from GitHub, such as a pull request's.
-	title := termtext.Truncate(" "+ui.OneLine(mod.Title())+" ", titleWidth, m.icons.Ellipsis+" ")
+	title := m.trimTitle(mod, titleWidth)
 	rest := max(w-3-lipgloss.Width(title), 0)
 	switch {
 	case tabs == "":
@@ -421,7 +420,6 @@ func (m *Model) frame(mod ui.Modal) string {
 	default:
 		tabs = ""
 	}
-	title = m.theme.Title.Render(title)
 	if l, ok := mod.(ui.Linked); ok {
 		title = m.links.Link(l.Link(), title)
 	}
@@ -432,6 +430,37 @@ func (m *Model) frame(mod ui.Modal) string {
 	}
 	top += m.theme.Accent.Render(b.TopRight)
 	return top + "\n" + m.frameStyle().Render(mod.View())
+}
+
+// trimTitle draws the title of mod for the top edge of its frame, in at most
+// width cells. A title may hold text from GitHub, such as a pull request's.
+func (m *Model) trimTitle(mod ui.Modal, width int) string {
+	t, ok := mod.(ui.Trimmed)
+	if !ok {
+		title := termtext.Truncate(" "+ui.OneLine(mod.Title())+" ", width, m.icons.Ellipsis+" ")
+		return m.theme.Title.Render(title)
+	}
+	parts := t.TrimTitle()
+	var lead string
+	if parts.Lead != "" {
+		// The glyph ends its own styles, so the edge's style is applied
+		// to what is around it, not over it.
+		lead = m.theme.Title.Render(" ") + parts.Lead
+	}
+	room := width - lipgloss.Width(lead) - 2
+	// The number matters more than the glyph: a narrow edge drops the glyph.
+	if lead != "" && room < lipgloss.Width(ui.OneLine(parts.Name)) {
+		lead = ""
+		room = width - 2
+	}
+	name := termtext.Truncate(ui.OneLine(parts.Name), room, m.icons.Ellipsis)
+	body := name
+	// The detail only gets what the name leaves, and none if that is too
+	// little to show a part of it.
+	if detail := ui.OneLine(parts.Detail); detail != "" && room-lipgloss.Width(name)-1 >= 2 {
+		body += " " + termtext.Truncate(detail, room-lipgloss.Width(name)-1, m.icons.Ellipsis)
+	}
+	return lead + m.theme.Title.Render(" "+body+" ")
 }
 
 // frameStyle draws the sides and bottom of a frame like a modal's, in the
