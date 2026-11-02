@@ -15,8 +15,8 @@ import (
 // KeyMap holds the keys of the section. It implements help.KeyMap.
 type KeyMap struct {
 	Select   key.Binding
-	MarkRead key.Binding
-	MarkDone key.Binding
+	MarkRead key.Binding `menu:"item"`
+	MarkDone key.Binding `menu:"item"`
 	// MarkAllRead is for help, which lists the read all command by it.
 	MarkAllRead key.Binding
 	// Filter opens the filter, and ClearFilter goes back to the unread

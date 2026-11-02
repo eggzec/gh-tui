@@ -173,6 +173,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own, list)}
 	case calendarPane:
 		return []keyhelp.Layer{screen, ui.ContextHelp(ctx, s.cal.KeyMap(), false)}
+	case workPane:
+		own.SetMenu([]key.Binding{k.Checks})
+	case inboxPane:
+		own.SetMenu([]key.Binding{k.InboxRead, k.InboxDone})
 	default:
 	}
 	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own)}

@@ -127,6 +127,51 @@ func TestMenuRefusesWhenTheSelectionMoved(t *testing.T) {
 	}
 }
 
+// menuTitles returns the titles and keys of the menu of the screen that
+// the steps reach.
+func menuTitles(t *testing.T, repo bool, steps ...string) []string {
+	t.Helper()
+	m := keysAfter(t, repo, steps...)
+	layers, _ := m.innerLayers()
+	var got []string
+	for _, e := range menuEntries(layers) {
+		got = append(got, e.title+" "+e.key)
+	}
+	return got
+}
+
+func TestMenuEntriesOfOtherSurfaces(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		repo  bool
+		steps []string
+		want  []string
+	}{
+		{"issues list", true, []string{"global.pane_3"}, []string{"close issue X"}},
+		{"notifications", false, []string{"global.notifications"}, []string{"read U", "done D"}},
+		{"dashboard work", false, []string{"global.pane_3"}, []string{"checks C"}},
+		{"dashboard inbox", false, []string{"global.pane_5"}, []string{"read U", "done D"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := menuTitles(t, tt.repo, tt.steps...); !slices.Equal(got, tt.want) {
+				t.Errorf("menu = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMenuWithoutItemsToasts(t *testing.T) {
+	t.Parallel()
+	m := keysAfter(t, true, "global.pane_1")
+	driveKeys(t, m, m.key(press("x")))
+	if !hasToast(m, "Nothing to do with the selection.") && m.modals.Top() == nil {
+		t.Errorf("no menu and no toast: toast %q", toasted(m))
+	}
+}
+
 func TestMenuKeyOfUnboundAction(t *testing.T) {
 	t.Parallel()
 	b := key.NewBinding(key.WithHelp("", "merge"))
