@@ -81,12 +81,7 @@ func (m *panesModal) View() string {
 	lines = append(lines, m.header())
 	if m.height >= 3 {
 		out := m.panes(l)
-		if m.hasStrip() {
-			out += "\n" + m.strip()
-		}
 		if m.top() != nil {
-			// The strip row is part of the area an overlay covers, so a
-			// full-area overlay keeps its bottom border.
 			out = m.covered(out)
 		}
 		lines = append(lines, out)
@@ -115,12 +110,15 @@ func (m *panesModal) panes(l panes.Layout) string {
 		c := m.slots[b.Pane-1].content(m, b)
 		c.Focus = b.Pane == l.Focus
 		if len(c.TopLeft) == 0 {
-			title := l.Title(b.Pane)
+			title := "[" + strconv.Itoa(int(b.Pane)) + "] " + paneName(b.Pane)
 			if l.Zoomed {
-				// The digits are in the strip under the boxes.
+				// The digits are in the strip on the bottom border.
 				title = paneName(b.Pane)
 			}
 			c.TopLeft = m.titleForms(title, b)
+		}
+		if l.Zoomed {
+			c.BottomLeft = m.stripForms(b.Pane)
 		}
 		return c
 	})
@@ -142,15 +140,10 @@ func (m *panesModal) titleForms(title string, b panes.Box) []string {
 	return []string{title, ansi.Truncate(title, room, m.icons.Ellipsis)}
 }
 
-// strip is the row of pane names under the zoomed boxes, in the longest form
-// that fits the width, and blank when none does.
-func (m *panesModal) strip() string {
-	for _, f := range m.frames.StripForms(paneDefs, m.nav.Focus()) {
-		if ansi.StringWidth(f) <= m.width {
-			return sealed(f, m.width)
-		}
-	}
-	return sealed("", m.width)
+// stripForms are the forms of the strip of the panes with p marked, for the
+// bottom border of the zoomed box, the longest first.
+func (m *panesModal) stripForms(p panes.Pane) []string {
+	return m.frames.StripForms(paneDefs, p)
 }
 
 // sealed cuts or pads line to width cells, and ends its styles, so that
