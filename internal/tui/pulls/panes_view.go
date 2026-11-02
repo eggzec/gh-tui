@@ -145,10 +145,6 @@ func (m *panesModal) stripForms(p panes.Pane) []string {
 	return m.frames.StripForms(paneDefs, p)
 }
 
-// sealed cuts or pads line to width cells, and ends its styles, so that
-// the next line starts plain.
-func sealed(line string, width int) string { return ui.Seal(line, width) }
-
 // headerRows is the rows above the panes: one for the labels of the pull
 // request if it has any, else none, so the panes have the row.
 func (m *panesModal) headerRows() int {
@@ -208,5 +204,5 @@ func (m *panesModal) footer(l panes.Layout) string {
 	parts = append(parts, hint(hintKeys(k.help), "help"))
 	// A key that is unbound leaves its part out.
 	parts = slices.DeleteFunc(parts, func(p string) bool { return p == "" })
-	return sealed(strings.Join(parts, m.theme.Subtle.Render(m.icons.Separator)), m.width)
+	return ui.Seal(strings.Join(parts, m.theme.Subtle.Render(m.icons.Separator)), m.width)
 }

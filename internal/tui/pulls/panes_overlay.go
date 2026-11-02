@@ -183,7 +183,7 @@ func (m *panesModal) overlayFooter() string {
 			}
 		}
 	}
-	return sealed(strings.Join(parts, m.theme.Subtle.Render(m.icons.Separator)), m.width)
+	return ui.Seal(strings.Join(parts, m.theme.Subtle.Render(m.icons.Separator)), m.width)
 }
 
 // confirmOverlay asks a question, which y answers with yes and n or esc with
