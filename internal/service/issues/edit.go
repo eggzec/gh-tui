@@ -8,10 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eggzec/gh-tui/internal/cache"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/edit"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 )
+
+// errCannotEdit is why an issue that the viewer may not update is not edited.
+var errCannotEdit = errors.New("you may not edit this issue")
 
 // errUnsent is why a comment that GitHub hasn't confirmed is not edited or
 // deleted: it has no ID to send yet.
@@ -36,11 +40,63 @@ func (s *Service) refusedComment(repo core.RepoRef, what string, number int, id 
 	return fmt.Errorf("%s comment on issue %s#%d: %w", what, repo, number, err)
 }
 
-// forgetTimeline marks stale the cached timeline pages of issue number, and
-// drops them from the store, since they lack what GitHub just accepted.
+// forgetTimeline marks stale the cached timeline pages of the issue with key,
+// and drops them from the store, since they lack what GitHub just accepted.
 func (s *Service) forgetTimeline(key string) {
 	edit.Unkeep(s.timelines, s.keptTimelines, key)
 	s.timelines.InvalidateTag(key)
+}
+
+// staleIssue marks stale what is cached of issue number of repo, and of the
+// repository's lists, which show it, when its state at GitHub is no longer
+// what the cache holds or can tell.
+func (s *Service) staleIssue(repo core.RepoRef, number int) {
+	key := issueKey(repo, number)
+	s.seen.Delete(key)
+	s.issues.Invalidate(key)
+	s.keptIssues.Delete(key)
+	s.lists.InvalidateTag(repoTag(repo))
+}
+
+// EditIssue sets the title and the description of issue number of repo. They
+// show at once in the cached list rows and detail, the description with the
+// time it was edited, and the returned Op sends them. When GitHub accepts
+// them, the issue's cached copies take what it returns and the repository's
+// lists are marked stale. A token that may not change the repository is
+// refused, and so is a cached detail that says the viewer may not update the
+// issue, and nothing changes then. Without a cached detail, GitHub's refusal
+// is what rolls the change back.
+func (s *Service) EditIssue(repo core.RepoRef, number int, title, body string) *optimistic.Op {
+	if err := s.refused(repo); err != nil {
+		return optimistic.Refused(fmt.Errorf("edit issue %s#%d: %w", repo, number, err))
+	}
+	key := issueKey(repo, number)
+	if e, st := s.issues.Get(key); st != cache.Miss && e.Value.Caps.Known && !e.Value.Caps.Update {
+		return optimistic.Refused(fmt.Errorf("edit issue %s#%d: %w", repo, number, errCannotEdit))
+	}
+	at := s.now()
+	rollbacks := s.update(repo, number, func(it core.Issue) core.Issue {
+		it.Title, it.Body, it.BodyEditedAt = title, body, at
+		return it
+	})
+	return optimistic.New(func(ctx context.Context) error {
+		got, err := s.api.UpdateIssueText(ctx, repo, number, title, body)
+		if err != nil {
+			return fmt.Errorf("edit issue %s#%d: %w", repo, number, err)
+		}
+		edited := edit.At(core.Edited{At: got.UpdatedAt}, s.now())
+		s.update(repo, number, func(it core.Issue) core.Issue {
+			it.Title, it.Body, it.BodyEditedAt, it.UpdatedAt = got.Title, got.Body, edited, got.UpdatedAt
+			return it
+		})
+		if e, st := s.issues.Get(key); st != cache.Miss {
+			// What is kept has no validators, which belong to a read.
+			_ = s.keptIssues.Save(key, cache.Entry[core.Issue]{Value: e.Value, Tags: e.Tags})
+		}
+		s.forgetTimeline(key)
+		s.lists.InvalidateTag(repoTag(repo))
+		return nil
+	}, rollbacks...)
 }
 
 // EditComment sets the body of comment id of issue number of repo in the
@@ -63,13 +119,13 @@ func (s *Service) EditComment(repo core.RepoRef, number int, id, body string) *o
 		undoTimeline := s.timelines.MutateTag(key, edit.OnTimeline(id, body, at))
 		return func() { undoTimeline(); undoComments() }
 	}
-	undo := set(body, time.Now())
+	undo := set(body, s.now())
 	return optimistic.New(func(ctx context.Context) error {
 		got, err := s.api.EditIssueComment(ctx, id, body)
 		if err != nil {
 			return fmt.Errorf("edit comment on issue %s#%d: %w", repo, number, err)
 		}
-		set(got.Body, edit.At(got, time.Now()))
+		set(got.Body, edit.At(got, s.now()))
 		edit.Unkeep(s.comments, s.keptComments, key)
 		edit.Unkeep(s.timelines, s.keptTimelines, key)
 		return nil
@@ -109,10 +165,7 @@ func (s *Service) DeleteComment(repo core.RepoRef, number int, id string) *optim
 		}
 		edit.Unkeep(s.comments, s.keptComments, key)
 		edit.Unkeep(s.timelines, s.keptTimelines, key)
-		s.seen.Delete(key)
-		s.issues.Invalidate(key)
-		s.keptIssues.Delete(key)
-		s.lists.InvalidateTag(repoTag(repo))
+		s.staleIssue(repo, number)
 		return nil
 	}, rollbacks...)
 }
@@ -133,9 +186,16 @@ func (s *Service) EditLabels(repo core.RepoRef, number int, add []core.Label, re
 		it.Labels = edit.Merged(it.Labels, add, remove, func(l core.Label) string { return l.Name })
 		return it
 	})
+	// A change that failed after some call went through is on GitHub, so the
+	// rollback must not leave the old view as if it were current. The mark
+	// goes first in the list, to run after the rollbacks, which skip an entry
+	// that is already stale.
+	var partial bool
+	rollbacks = slices.Insert(rollbacks, 0, func() { s.staleAfterPartial(repo, number, partial) })
 	return optimistic.New(func(ctx context.Context) error {
 		labels, known, err := s.sendLabels(ctx, repo, number, add, remove)
 		if err != nil {
+			partial = known
 			return fmt.Errorf("label issue %s#%d: %w", repo, number, err)
 		}
 		if known {
@@ -147,9 +207,20 @@ func (s *Service) EditLabels(repo core.RepoRef, number int, add []core.Label, re
 	}, rollbacks...)
 }
 
+// staleAfterPartial marks the issue and its timeline stale if partial, which
+// is when a change failed after one of its calls had gone through.
+func (s *Service) staleAfterPartial(repo core.RepoRef, number int, partial bool) {
+	if !partial {
+		return
+	}
+	s.staleIssue(repo, number)
+	s.forgetTimeline(issueKey(repo, number))
+}
+
 // sendLabels adds the labels in one call and removes each of the others, which
 // GitHub has no call for in bulk. A label that is already gone is no failure.
-// known is false when the changes ended with no answer that lists the labels.
+// known is false when no call answered with the labels, and on an error it
+// tells whether one went through before it.
 func (s *Service) sendLabels(ctx context.Context, repo core.RepoRef, number int, add []core.Label, remove []string) (labels []core.Label, known bool, err error) {
 	if len(add) > 0 {
 		names := make([]string, len(add))
@@ -167,7 +238,7 @@ func (s *Service) sendLabels(ctx context.Context, repo core.RepoRef, number int,
 			continue
 		}
 		if err != nil {
-			return nil, false, err
+			return nil, known, err
 		}
 		labels, known = got, true
 	}
@@ -190,6 +261,9 @@ func (s *Service) EditAssignees(repo core.RepoRef, number int, add []core.User, 
 		it.Assignees = edit.Merged(it.Assignees, add, remove, func(u core.User) string { return u.Login })
 		return it
 	})
+	// As for the labels, a failure after the users were added is stale.
+	var partial bool
+	rollbacks = slices.Insert(rollbacks, 0, func() { s.staleAfterPartial(repo, number, partial) })
 	return optimistic.New(func(ctx context.Context) error {
 		var got core.Issue
 		var err error
@@ -204,10 +278,13 @@ func (s *Service) EditAssignees(repo core.RepoRef, number int, add []core.User, 
 		}
 		if len(remove) > 0 {
 			if got, err = s.api.RemoveIssueAssignees(ctx, repo, number, remove); err != nil {
+				partial = len(add) > 0
 				return fmt.Errorf("assign issue %s#%d: %w", repo, number, err)
 			}
 		}
 		s.update(repo, number, func(it core.Issue) core.Issue {
+			// The answer is the whole issue, so its labels, which an
+			// assignment doesn't change, are as current as its assignees.
 			it.Assignees, it.Labels = got.Assignees, got.Labels
 			return it
 		})

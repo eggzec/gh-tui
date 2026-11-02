@@ -31,6 +31,7 @@ type fakeAPI struct {
 	comment      func(number int, body string) (core.Comment, error)
 	probe        func(cond github.Conditional) (github.Response, error)
 
+	updateText      func(number int, title, body string) (core.Issue, error)
 	editComment     func(id, body string) (core.Edited, error)
 	deleteComment   func(id string) error
 	addAssignees    func(number int, logins []string) (core.Issue, error)
@@ -142,6 +143,14 @@ func (f *fakeAPI) SetIssueState(_ context.Context, r core.RepoRef, number int, s
 		return core.Issue{}, errUnexpected
 	}
 	return f.setState(number, state)
+}
+
+func (f *fakeAPI) UpdateIssueText(_ context.Context, r core.RepoRef, number int, title, body string) (core.Issue, error) {
+	f.checkRepo(r)
+	if !f.record("UpdateIssueText", f.updateText != nil) {
+		return core.Issue{}, errUnexpected
+	}
+	return f.updateText(number, title, body)
 }
 
 func (f *fakeAPI) AddIssueLabels(_ context.Context, r core.RepoRef, number int, names []string) ([]core.Label, error) {

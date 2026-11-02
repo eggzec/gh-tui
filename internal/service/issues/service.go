@@ -35,6 +35,7 @@ type API interface {
 	GetIssueKind(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.NumberKind, core.Issue, github.Response, error)
 	ListIssueComments(ctx context.Context, repo core.RepoRef, number int, cursor string, perPage int, cond github.Conditional) (core.Page[core.Comment], github.Response, error)
 	SetIssueState(ctx context.Context, repo core.RepoRef, number int, state core.State) (core.Issue, error)
+	UpdateIssueText(ctx context.Context, repo core.RepoRef, number int, title, body string) (core.Issue, error)
 	AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error)
 	RemoveIssueLabel(ctx context.Context, repo core.RepoRef, number int, name string) ([]core.Label, error)
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
@@ -68,6 +69,8 @@ type Service struct {
 	viewer string
 	// ttl is how long what the service read stays fresh.
 	ttl time.Duration
+	// now is the clock that stamps the changes shown before GitHub answers.
+	now func() time.Time
 	// pending numbers the comments shown before GitHub confirms them.
 	pending atomic.Uint64
 	// An issue and each page of its comments are separate entries, each with
@@ -120,6 +123,7 @@ func New(api API, opts ...Option) *Service {
 	s := &Service{
 		api:           api,
 		viewer:        o.viewer,
+		now:           time.Now,
 		ttl:           ttl,
 		access:        o.access,
 		repos:         o.repos,
@@ -150,8 +154,9 @@ const (
 	// keeps the reactions of each comment.
 	kindTimeline   = "issuetimeline"
 	timelineSchema = 2
-	// schema 4 keeps whether the author of each issue is an app.
-	schema = 4
+	// schema 4 keeps whether the author of each issue is an app, and 5 when
+	// its description was edited.
+	schema = 5
 	// commentsSchema 4 keeps the avatar of each comment's author, and 5 the
 	// reactions.
 	commentsSchema = 5

@@ -249,6 +249,21 @@ func (c *Client) SetIssueState(ctx context.Context, repo core.RepoRef, number in
 	return it.core(repo), nil
 }
 
+// UpdateIssueText sets the title and the description of an issue and returns
+// the issue as GitHub stored it. Both are sent, since GitHub keeps what a
+// change leaves out only if it is not sent at all.
+func (c *Client) UpdateIssueText(ctx context.Context, repo core.RepoRef, number int, title, body string) (core.Issue, error) {
+	in := struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+	}{title, body}
+	var it restIssue
+	if _, err := c.Do(ctx, http.MethodPatch, issuePath(repo, number), in, &it); err != nil {
+		return core.Issue{}, err
+	}
+	return it.core(repo), nil
+}
+
 // AddIssueLabels adds labels to an issue by name and returns all of the
 // issue's labels. GitHub creates names the repository doesn't have yet.
 func (c *Client) AddIssueLabels(ctx context.Context, repo core.RepoRef, number int, names []string) ([]core.Label, error) {
