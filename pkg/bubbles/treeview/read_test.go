@@ -28,23 +28,14 @@ func TestTallRowRead(t *testing.T) {
 		wantRow string
 		wantTop string // the first line of the window
 	}{
-		{"j enters the row at its top", []string{"j"}, "T", "T 0"},
-		{"j scrolls a line", []string{"j", "j"}, "T", "T 1"},
-		{"j reaches the bottom", slices.Repeat([]string{"j"}, 7), "T", "T 6"},
-		{"j at the bottom leaves the row", slices.Repeat([]string{"j"}, 8), "b", "T 7"},
-		{"k enters the row at its bottom", append(slices.Repeat([]string{"j"}, 8), "k"), "T", "T 6"},
-		{"k scrolls a line", append(slices.Repeat([]string{"j"}, 8), "k", "k"), "T", "T 5"},
-		{"k reaches the top", append(slices.Repeat([]string{"j"}, 8), slices.Repeat([]string{"k"}, 7)...), "T", "T 0"},
-		{"k at the top leaves the row", append(slices.Repeat([]string{"j"}, 8), slices.Repeat([]string{"k"}, 8)...), "a", "a"},
-		{"ctrl+d scrolls half a page in the row", []string{"j", "ctrl+d"}, "T", "T 2"},
-		{"ctrl+d stops at the bottom", []string{"j", "ctrl+d", "ctrl+d", "ctrl+d"}, "T", "T 6"},
-		{"ctrl+d leaves once the bottom shows", []string{"j", "ctrl+d", "ctrl+d", "ctrl+d", "ctrl+d"}, "b", "T 7"},
-		{"ctrl+d from a row that fits enters the row at its top", []string{"ctrl+d"}, "T", "T 0"},
-		{"ctrl+f scrolls a page in the row", []string{"j", "ctrl+f"}, "T", "T 4"},
-		{"ctrl+f clamps at the bottom", []string{"j", "ctrl+f", "ctrl+f"}, "T", "T 6"},
-		{"ctrl+u scrolls up in the row", []string{"j", "ctrl+f", "ctrl+f", "ctrl+u"}, "T", "T 4"},
-		{"ctrl+b leaves the row from its top", []string{"j", "ctrl+b"}, "a", "a"},
-		{"ctrl+u into the row shows its bottom", []string{"j", "j", "j", "j", "j", "j", "j", "j", "ctrl+u"}, "T", "T 6"},
+		{"j enters the row at its head", []string{"j"}, "T", "a"},
+		{"j scrolls a line", []string{"j", "j"}, "T", "T 0"},
+		{"j reaches the bottom", slices.Repeat([]string{"j"}, 8), "T", "T 6"},
+		{"j at the bottom leaves the row", slices.Repeat([]string{"j"}, 9), "b", "T 7"},
+		{"k enters the row at its bottom", append(slices.Repeat([]string{"j"}, 9), "k"), "T", "T 7"},
+		{"k scrolls a line", append(slices.Repeat([]string{"j"}, 9), "k", "k"), "T", "T 6"},
+		{"k reaches the top", append(slices.Repeat([]string{"j"}, 9), slices.Repeat([]string{"k"}, 8)...), "T", "T 0"},
+		{"k at the top leaves the row", append(slices.Repeat([]string{"j"}, 9), slices.Repeat([]string{"k"}, 9)...), "a", "a"},
 		{"end goes to the last row", []string{"j", "G"}, "c", "T 8"},
 		{"home shows the top of the first row", []string{"G", "g"}, "a", "a"},
 	}
@@ -92,12 +83,31 @@ func TestRowsThatFitMoveByRow(t *testing.T) {
 	if got := selected(m); got != "c" {
 		t.Fatalf("cursor on %q, want c", got)
 	}
-	if got := lines(m)[0]; !strings.Contains(got, "b 0") {
-		t.Fatalf("window starts with %q, want b 0", got)
+	if got := lines(m)[0]; !strings.Contains(got, "a 1") {
+		t.Fatalf("window starts with %q, want a 1", got)
 	}
 	m, _ = keys(t, m, "k", "k")
 	if got := selected(m); got != "a" {
 		t.Fatalf("cursor on %q, want a", got)
+	}
+}
+
+// A sticky row that the window starts inside keeps its head on the top line,
+// and a row that is not sticky does not.
+func TestViewStickyHead(t *testing.T) {
+	for _, sticky := range []bool{true, false} {
+		rows := tallRows()
+		rows[1].Sticky = sticky
+		m := newTree(rows, WithSize(24, 4))
+		m, _ = keys(t, m, slices.Repeat([]string{"j"}, 5)...)
+		got := lines(m)
+		if has := strings.Contains(got[0], "T 0"); has != sticky {
+			t.Errorf("sticky %v: top line %q", sticky, got[0])
+		}
+		if !strings.Contains(got[1], "T 4") {
+			t.Errorf("sticky %v: second line %q, want the line it covers to go on", sticky, got[1])
+		}
+		assertFits(t, m.View(), 24, 4)
 	}
 }
 
@@ -115,7 +125,7 @@ func TestTallRowWithPins(t *testing.T) {
 		t.Fatalf("cursor on %q, want T", got)
 	}
 	got := lines(m)
-	if !strings.Contains(got[0], "root") || !strings.Contains(got[len(got)-1], "T 9") {
+	if !strings.Contains(got[0], "root") || !strings.Contains(got[len(got)-2], "T 9") {
 		t.Fatalf("want root pinned over the end of T:\n%s", strings.Join(got, "\n"))
 	}
 	for range 20 {

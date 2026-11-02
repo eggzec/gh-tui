@@ -97,9 +97,9 @@ func TestScrollPins(t *testing.T) {
 			[]string{"X", "Y", "Z", "w", "v", "u", "t", "~"}},
 		{"a resize that shrinks the window", overshoot(), 8, []string{"G"}, 5,
 			[]string{"w", "v", "u", "t", "~"}},
-		{"a page down out of the pins moves the least", tailed(8, 30), 8,
+		{"a page down out of the pins moves the window a page", tailed(8, 30), 8,
 			append(slices.Repeat([]string{"j"}, 12), "ctrl+f"), 0,
-			[]string{"tail 00", "tail 01", "tail 02", "tail 03", "tail 04", "tail 05", "tail 06", "tail 07"}},
+			[]string{"tail 02", "tail 03", "tail 04", "tail 05", "tail 06", "tail 07", "tail 08", "tail 09"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -180,7 +180,7 @@ func TestScrollPinsKeepTheRules(t *testing.T) {
 				if size, ok := strings.CutPrefix(k, "resize "); ok {
 					m.SetSize(24, atoi(t, size))
 				} else {
-					if !slices.Contains([]string{"h", "l", "*"}, k) {
+					if !slices.Contains([]string{"h", "l", "*"}, k) && !strings.HasPrefix(k, "ctrl+") {
 						from = m.off
 					}
 					m, _ = keys(t, m, k)

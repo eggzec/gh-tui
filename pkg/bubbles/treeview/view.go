@@ -52,8 +52,15 @@ func (m Model) View() string {
 		lines = append(lines, m.empty()...)
 	}
 	i := sort.Search(len(m.vis), func(i int) bool { return m.starts[i+1] > m.off })
-	for ; i < len(m.vis) && len(lines) < m.height; i++ {
-		for k := max(m.off-m.starts[i], 0); k < m.lines(i) && len(lines) < m.height; k++ {
+	k := 0
+	if i < len(m.vis) {
+		k = m.off - m.starts[i]
+	}
+	if k > 0 && m.row(i).Sticky && m.height-len(lines) > 1 {
+		lines, k = append(lines, m.pinned(i)), k+1 // the head covers line k
+	}
+	for ; i < len(m.vis) && len(lines) < m.height; i, k = i+1, 0 {
+		for ; k < m.lines(i) && len(lines) < m.height; k++ {
 			lines = append(lines, m.render(i, k))
 		}
 	}

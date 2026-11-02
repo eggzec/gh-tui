@@ -351,8 +351,8 @@ func TestScrollWindow(t *testing.T) {
 	}{
 		{"stays while the cursor is in view", lineRows(20), []string{"j", "j", "j", "j"}, "r04", 0},
 		{"scrolls one line past the end", lineRows(20), []string{"j", "j", "j", "j", "j"}, "r05", 1},
-		{"page down moves a window", lineRows(20), []string{"pgdown"}, "r05", 1},
-		{"half page moves half a window", lineRows(20), []string{"ctrl+d"}, "r02", 0},
+		{"page down moves a window", lineRows(20), []string{"pgdown"}, "r05", 5},
+		{"half page moves half a window", lineRows(20), []string{"ctrl+d"}, "r02", 2},
 		{"page up goes back", lineRows(20), []string{"pgdown", "pgdown", "pgup"}, "r05", 5},
 		{"end shows the last line", lineRows(20), []string{"G"}, "r19", 15},
 		{"home goes back to the top", lineRows(20), []string{"G", "g"}, "r00", 0},
@@ -375,10 +375,10 @@ func TestScrollKeepsTallRowsInView(t *testing.T) {
 	rows := []Node{leaf("a", 0), leaf("b", 0), open(body), leaf("z", 0)}
 	m := newTree(rows, WithSize(10, 4))
 	m, _ = keys(t, m, "j", "j")
-	if m.off != 2 {
-		t.Errorf("window at %d on a row taller than the window, want its first line (2)", m.off)
+	if m.off != 0 {
+		t.Errorf("window at %d entering a row taller than the window, want 0: its head at the bottom", m.off)
 	}
-	m, _ = keys(t, m, "j", "j", "j")
+	m, _ = keys(t, m, "j", "j", "j", "j", "j")
 	if selected(m) != "body" || m.off != 9-4 {
 		t.Errorf("cursor on %q, window at %d, want body with its end in view at 5", selected(m), m.off)
 	}
