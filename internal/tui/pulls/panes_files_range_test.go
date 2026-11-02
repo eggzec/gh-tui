@@ -142,7 +142,7 @@ func TestFilesPaneRewritten(t *testing.T) {
 		t.Errorf("error = %q, want the commits no longer on the branch", got)
 	}
 	// The pane is narrow, so the row is cut.
-	if screen := modalScreen(t, h); !strings.Contains(screen, "these commits are no longer") {
+	if screen := modalScreen(t, h); !strings.Contains(screen, "these commits are no long") {
 		t.Errorf("no inline error:\n%s", screen)
 	}
 	if _, _, _, ok := m.filesRange(); ok {

@@ -1,56 +1,56 @@
-▌6 comments * ann                                                             3d
- ├─ ann  Before.                                                              3d
- │       Logs
- │       | line one
- │       |
- │       | line two
- │       `-
- ├─ ann  Intro.                                                               3d
- │       Outer
- │       | outer text
- │       | Inner
- │       | | inner text
- │       | `-
- │       | outer end
- │       `-
- │       After the blocks.
- ├─ ann                                                                       3d
- │       Details
- │       | no summary
- │       `-
- │       Trailing.
- ├─ ann  Never closed.                                                        3d
- │       Open ended
- │       | runs to the end
- │       `-
- ├─ ann  Flow:                                                                3d
- │         * flowchart - 3 lines - View diagram ->
- │         |   graph TD
- │         |     A[Start] --> B[Stop]
- │         |     B --> C[Again]
- │       After the diagram.
- │         * sequence diagram - 2 lines - View diagram ->
- │         |   sequenceDiagram
- │         |     Ann->>Bob: Hi
- ╰─ ann                                                                       3d
-         Diagram
-         | Inside.
-         |   * pie chart - 3 lines - View diagram ->
-         |   |   pie title Pets
-         |   |     "Dogs" : 3
-         |   |     "Cats" : 2
-         | Below.
-         `-
+▌▾ 6 comments * ann                                                           3d
+ ├─ ▾ ann  Before.                                                            3d
+ │         Logs
+ │         | line one
+ │         |
+ │         | line two
+ │         `-
+ ├─ ▾ ann  Intro.                                                             3d
+ │         Outer
+ │         | outer text
+ │         | Inner
+ │         | | inner text
+ │         | `-
+ │         | outer end
+ │         `-
+ │         After the blocks.
+ ├─ ▾ ann                                                                     3d
+ │         Details
+ │         | no summary
+ │         `-
+ │         Trailing.
+ ├─ ▾ ann  Never closed.                                                      3d
+ │         Open ended
+ │         | runs to the end
+ │         `-
+ ├─ ▾ ann  Flow:                                                              3d
+ │           * flowchart - 3 lines - View diagram ->
+ │           |   graph TD
+ │           |     A[Start] --> B[Stop]
+ │           |     B --> C[Again]
+ │         After the diagram.
+ │           * sequence diagram - 2 lines - View diagram ->
+ │           |   sequenceDiagram
+ │           |     Ann->>Bob: Hi
+ ╰─ ▾ ann                                                                     3d
+           Diagram
+           | Inside.
+           |   * pie chart - 3 lines - View diagram ->
+           |   |   pie title Pets
+           |   |     "Dogs" : 3
+           |   |     "Cats" : 2
+           | Below.
+           `-
 
- o bob  Review.                                                               3d
- │      Notes
- │      | in a review
- │      `-
- ╰─ * bob * a.go:3  Thread.                                                   3d
-    │               More
-    │               | in a thread
-    │               `-
-    ╰─ ann  Reply.                                                            3d
-            Reply notes
-            | in a reply
-            `-
+ ▾ o bob  Review.                                                             3d
+ │        Notes
+ │        | in a review
+ │        `-
+ ╰─ ▾ * bob * a.go:3  Thread.                                                 3d
+    │                 More
+    │                 | in a thread
+    │                 `-
+    ╰─ ▾ ann  Reply.                                                          3d
+              Reply notes
+              | in a reply
+              `-

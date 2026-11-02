@@ -14,8 +14,8 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // sha returns a full SHA that starts with the seven hex digits of n.
@@ -136,8 +136,9 @@ func TestPushAuthorFallsBackToTheCommit(t *testing.T) {
 
 // pushLine returns the first line of the row id, without colors or the
 // trailing space.
-func pushLine(rows []foldtree.Row, id string) string {
-	for _, r := range rows {
+func pushLine(rows []treeview.Node, id string) string {
+	for i := range rows {
+		r := &rows[i]
 		if r.ID == id {
 			return strings.TrimRight(ansi.Strip(r.Lines[0]), " ")
 		}
@@ -197,11 +198,11 @@ func TestPushLines(t *testing.T) {
 		t.Errorf("lone force push = %q, want %q", lone, want)
 	}
 	r := byID(rows)["push:"+sha(0xa1b2c3d)]
-	if !r.Fold || !r.Closed || r.Marker != "" || r.Right == "" {
+	if !r.Branch || !r.Closed || r.Marker != "" || r.Right == "" {
 		t.Errorf("push row = %+v, want a closed fold with no marker and an age", r)
 	}
 	k := byID(rows)["k:"+sha(0xb2c3d4e)]
-	if k.Depth != 1 || !k.Action || k.Fold || k.Kind != KindCommit {
+	if k.Depth != 1 || !k.Action || k.Branch || k.Kind != KindCommit {
 		t.Errorf("commit row = %+v, want a depth 1 action", k)
 	}
 	if got := ansi.Strip(k.Lines[0]); got != "b2c3d4e  Commit b2c3d4e" {
@@ -257,8 +258,8 @@ func TestCountsPushes(t *testing.T) {
 }
 
 // pushKeys are the keys of a tree that open and close folds.
-func pushKeys() foldtree.KeyMap {
-	return foldtree.NewKeyMap(keytest.Table(map[string][]string{
+func pushKeys() treeview.KeyMap {
+	return treeview.NewKeyMap(keytest.Table(map[string][]string{
 		"up":            {"up"},
 		"down":          {"down"},
 		"expand":        {"right"},
@@ -337,9 +338,9 @@ func TestPushFormAfterFilter(t *testing.T) {
 
 // openPush opens the push id of rows built with the nodes: the fold and its
 // line.
-func openPush(rows []foldtree.Row, nodes map[string]*node, id string) {
-	for i, r := range rows {
-		if r.ID == id {
+func openPush(rows []treeview.Node, nodes map[string]*node, id string) {
+	for i := range rows {
+		if rows[i].ID == id {
 			rows[i].Closed = false
 			rows[i].Lines = []string{nodes[id].forms[1]}
 		}

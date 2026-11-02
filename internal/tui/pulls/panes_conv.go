@@ -13,10 +13,10 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
@@ -123,7 +123,7 @@ func (m *panesModal) buildConv() tea.Cmd {
 	opts := []conv.Option{
 		conv.WithOptions(m.convOptions()),
 		conv.WithTreeKeys(m.keys.tree),
-		conv.WithTreeStyles(foldtree.DefaultStyles(m.theme.Dark)),
+		conv.WithTreeStyles(treeview.DefaultStyles(m.theme.Dark)),
 		conv.WithViewer(c.viewer),
 		conv.WithVoice(c.voice),
 		conv.WithSize(c.w, c.h),
@@ -160,7 +160,7 @@ func (m *panesModal) restyleConv() {
 	c.md.SetGlyphs(m.icons.Markdown)
 	o := m.convOptions()
 	c.model.SetOptions(o)
-	c.model.SetStyles(o.Styles, foldtree.DefaultStyles(m.theme.Dark))
+	c.model.SetStyles(o.Styles, treeview.DefaultStyles(m.theme.Dark))
 	m.refreshConv()
 }
 

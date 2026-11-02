@@ -13,7 +13,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 var (
@@ -41,7 +41,9 @@ func said(d Data, width int) []string { return saidWith(d, opts(config.IconsASCI
 // saidWith is said with the options o.
 func saidWith(d Data, o Options) []string {
 	var out []string
-	for _, r := range Build(d, o) {
+	rows := Build(d, o)
+	for i := range rows {
+		r := &rows[i]
 		if !strings.HasPrefix(r.ID, "e:") {
 			continue
 		}
@@ -121,19 +123,19 @@ func TestEventCentred(t *testing.T) {
 	shifted := ev(core.TimelineHeadDeleted, alice, 0)
 	shifted.Ref = "ab"
 
-	lead := func(r foldtree.Row) (pad, tw int, right string) {
+	lead := func(r treeview.Node) (pad, tw int, right string) {
 		s := ansi.Strip(r.Lines[0])
 		trimmed := strings.TrimLeft(s, " ")
 		return len(s) - len(trimmed), ansi.StringWidth(strings.TrimRight(trimmed, " ")), ansi.Strip(r.Right)
 	}
-	row := func(it core.TimelineItem, w int) foldtree.Row {
+	row := func(it core.TimelineItem, w int) treeview.Node {
 		for _, r := range Build(Data{Items: []core.TimelineItem{it}}, opts(config.IconsASCII, w)) {
 			if strings.HasPrefix(r.ID, "e:") {
 				return r
 			}
 		}
 		t.Fatal("no system line")
-		return foldtree.Row{}
+		return treeview.Node{}
 	}
 
 	for _, w := range []int{80, 160} {

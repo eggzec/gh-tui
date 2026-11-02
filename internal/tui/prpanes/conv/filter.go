@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // noMatch is the text of a conversation whose filter leaves nothing.
@@ -73,12 +73,13 @@ type cursor struct {
 
 // cursorOf returns where the cursor of v is, and false when it has no row.
 func cursorOf(v *view) (cursor, bool) {
-	id, ok := v.tree.Selected()
+	sel, ok := v.tree.Selected()
 	if !ok {
 		return cursor{}, false
 	}
+	id := sel.ID
 	c := cursor{id: id, nodes: v.nodes}
-	i := slices.IndexFunc(v.rows, func(r foldtree.Row) bool { return r.ID == id })
+	i := slices.IndexFunc(v.rows, func(r treeview.Node) bool { return r.ID == id })
 	if i < 0 {
 		return c, true
 	}

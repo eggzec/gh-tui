@@ -9,7 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // minWidth is the narrowest conversation that is drawn; a narrower one is
@@ -62,10 +62,10 @@ func WithOptions(o Options) Option { return func(m *Model) { m.opts = o } }
 
 // WithTreeKeys sets the keys of the trees. The host matches its own keys with
 // keymap.Matches.
-func WithTreeKeys(k foldtree.KeyMap) Option { return func(m *Model) { m.keys = k } }
+func WithTreeKeys(k treeview.KeyMap) Option { return func(m *Model) { m.keys = k } }
 
 // WithTreeStyles sets the styles of the trees.
-func WithTreeStyles(s foldtree.Styles) Option {
+func WithTreeStyles(s treeview.Styles) Option {
 	return func(m *Model) { m.treeStyles, m.hasTreeStyles = s, true }
 }
 
@@ -91,8 +91,8 @@ type Model struct {
 	cancel context.CancelFunc
 	seq    int
 
-	keys          foldtree.KeyMap
-	treeStyles    foldtree.Styles
+	keys          treeview.KeyMap
+	treeStyles    treeview.Styles
 	hasTreeStyles bool
 	opts          Options
 	viewer        string
@@ -180,7 +180,7 @@ func (m *Model) SetSize(width, height int) {
 
 // SetStyles sets the styles of the rows and of the trees, and builds the rows
 // again.
-func (m *Model) SetStyles(s Styles, tree foldtree.Styles) {
+func (m *Model) SetStyles(s Styles, tree treeview.Styles) {
 	m.opts.Styles = s
 	m.treeStyles, m.hasTreeStyles = tree, true
 	for _, v := range m.views {
@@ -249,10 +249,11 @@ func (m Model) Status() Status {
 // Selected returns the ID and kind of the row under the cursor.
 func (m Model) Selected() (id, kind string, ok bool) {
 	v := m.views[m.cur]
-	id, ok = v.tree.Selected()
+	sel, ok := v.tree.Selected()
 	if !ok {
 		return "", "", false
 	}
+	id = sel.ID
 	n := v.nodes[id]
 	if n == nil {
 		return "", "", false
@@ -286,7 +287,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.reload()
-	case foldtree.EnterMsg:
+	case treeview.OpenMsg:
 		v := m.views[m.cur]
 		if msg.Tree != v.tree.ID() {
 			return m, nil
@@ -319,13 +320,13 @@ func (m Model) kept() bool {
 // View draws the conversation in exactly the width and height it has.
 func (m Model) View() string {
 	if m.width < minWidth || m.height <= 0 {
-		return foldtree.Fit(nil, m.width, m.height)
+		return treeview.Fit(nil, m.width, m.height)
 	}
 	v := m.views[m.cur]
 	// Rows that can't be built from what one source read, such as threads
 	// without their reviews, leave the error to say what is missing.
 	if !m.ready() || (len(v.rows) == 0 && m.failed()) {
-		return foldtree.Fit(m.placeholder(), m.width, m.height)
+		return treeview.Fit(m.placeholder(), m.width, m.height)
 	}
 	return v.tree.View()
 }

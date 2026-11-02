@@ -1,8 +1,8 @@
-▌6 comments * ann  +                                                                                                  3d
+▌▸ 6 comments * ann  +                                                                                                3d
 
- o bob  Review.                                                                                                       3d
- │      Notes  + 1 line
- ╰─ * bob * a.go:3  Thread.                                                                                           3d
-    │               More  + 1 line
-    ╰─ ann  Reply.                                                                                                    3d
-            Reply notes  + 1 line
+ ▾ o bob  Review.                                                                                                     3d
+ │        Notes  + 1 line
+ ╰─ ▾ * bob * a.go:3  Thread.                                                                                         3d
+    │                 More  + 1 line
+    ╰─ ▾ ann  Reply.                                                                                                  3d
+              Reply notes  + 1 line

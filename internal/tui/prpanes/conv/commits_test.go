@@ -51,7 +51,9 @@ func newSourceDriver(t *testing.T, s Source) *driver {
 // commitRights returns the Right of the commit rows by OID.
 func commitRights(d *driver) map[string]string {
 	rights := map[string]string{}
-	for _, r := range d.m.views[""].rows {
+	rows := d.m.views[""].rows
+	for i := range rows {
+		r := &rows[i]
 		if r.Kind == KindCommit {
 			rights[strings.TrimPrefix(r.ID, "k:")] = r.Right
 		}

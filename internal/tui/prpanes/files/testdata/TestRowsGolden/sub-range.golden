@@ -1,33 +1,33 @@
 width 80
-▌Commits 3 of 6 ● a1b2d41…a1b2f63
- ├─ ● a1b2c30 ✓ Add the cache                                  Ada Lovelace  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in the pager when the last line is… 19d
- ├─ ● a1b2e52 ◐ Rename the helpers                                    Linus  18d
- ├─ ● a1b2f63 Document the flags                               Ada Lovelace  17d
- ├─ ● a1b3074 ✓ Add the cache                                  Grace Hopper  16d
- ╰─ ● a1b3185 ✗ Fix the off by one error in the pager when the last line is… 15d
- ───────────────────────────────────────────────────────────────────────────────
- Files
+▌▾ Commits 3 of 6 ● a1b2d41…a1b2f63
+ ├─   ● a1b2c30 ✓ Add the cache                                Ada Lovelace  20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in the pager when the last line … 19d
+ ├─   ● a1b2e52 ◐ Rename the helpers                                  Linus  18d
+ ├─   ● a1b2f63 Document the flags                             Ada Lovelace  17d
+ ├─   ● a1b3074 ✓ Add the cache                                Grace Hopper  16d
+ ╰─   ● a1b3185 ✗ Fix the off by one error in the pager when the last line … 15d
+   ────────────────────────────────────────────────────────────────────────────…
+ ▾ Files
 
 width 50
-▌Commits 3 of 6 ● a1b2d41…a1b2f63
- ├─ ● a1b2c30 ✓ Add the cache    Ada Lovelace  20d
- ├─ ● a1b2d41 ✗ Fix the off by one error in t… 19d
- ├─ ● a1b2e52 ◐ Rename the helpers      Linus  18d
- ├─ ● a1b2f63 Document the flags Ada Lovelace  17d
- ├─ ● a1b3074 ✓ Add the cache    Grace Hopper  16d
- ╰─ ● a1b3185 ✗ Fix the off by one error in t… 15d
- ─────────────────────────────────────────────────
- Files
+▌▾ Commits 3 of 6 ● a1b2d41…a1b2f63
+ ├─   ● a1b2c30 ✓ Add the cache  Ada Lovelace  20d
+ ├─   ● a1b2d41 ✗ Fix the off by one error in… 19d
+ ├─   ● a1b2e52 ◐ Rename the helpers    Linus  18d
+ ├─   ● a1b2f63 Document the fl… Ada Lovelace  17d
+ ├─   ● a1b3074 ✓ Add the cache  Grace Hopper  16d
+ ╰─   ● a1b3185 ✗ Fix the off by one error in… 15d
+   ──────────────────────────────────────────────…
+ ▾ Files
 
 width 30
-▌Commits 3 of 6 ● a1b2d41…a1b…
- ├─ ● a1b2c30 ✓ Add the c… 20d
- ├─ ● a1b2d41 ✗ Fix the o… 19d
- ├─ ● a1b2e52 ◐ Rename th… 18d
- ├─ ● a1b2f63 Document th… 17d
- ├─ ● a1b3074 ✓ Add the c… 16d
- ╰─ ● a1b3185 ✗ Fix the o… 15d
- ─────────────────────────────
- Files
+▌▾ Commits 3 of 6 ● a1b2d41…a…
+ ├─   ● a1b2c30 ✓ Add the… 20d
+ ├─   ● a1b2d41 ✗ Fix the… 19d
+ ├─   ● a1b2e52 ◐ Rename … 18d
+ ├─   ● a1b2f63 Document … 17d
+ ├─   ● a1b3074 ✓ Add the… 16d
+ ╰─   ● a1b3185 ✗ Fix the… 15d
+   ──────────────────────────…
+ ▾ Files
 

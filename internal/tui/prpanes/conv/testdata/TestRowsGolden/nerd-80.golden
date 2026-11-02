@@ -1,44 +1,44 @@
-▌ cy                                                                         2d
+▌   cy                                                                       2d
 
- dependabot bot  Bumps golang.org/x/text from 0.3                             2d
-                 to 0.4.
+ ▾ dependabot bot  Bumps golang.org/x/text from                               2d
+                   0.3 to 0.4.
 
-                       ann requested review from core team                   2d
+                         ann requested review from core team                 2d
 
-  Bob Builder  Needs work on the tree.                                       2d
+ ▾  Bob Builder  Needs work on the tree.                                     2d
  │
- │              See the threads below.
- ╰─  ann ● tree.go:42  This loop runs once per row, which is                 1d
-    │                   slow for
+ │                See the threads below.
+ ╰─ ▾  ann ● tree.go:42  This loop runs once per row, which is               1d
+    │                     slow for
     │
-    │                   the long trees we draw. Could it be
-    │                   cached?
-    ├─ bob  This loop runs once per row, which is slow for                    1d
+    │                     the long trees we draw. Could it be
+    │                     cached?
+    ├─ ▾ bob  This loop runs once per row, which is slow for                  1d
     │
-    │       the long trees we draw. Could it be cached?
-    ╰─ ann  This loop runs once per row, which is slow for            edited  1d
+    │         the long trees we draw. Could it be cached?
+    ╰─ ▾ ann  This loop runs once per row, which is slow for          edited  1d
 
-            the long trees we draw. Could it be cached?
+              the long trees we draw. Could it be cached?
 
- Bob Builder  Thanks.                                                 edited  2d
+ ▾ Bob Builder  Thanks.                                               edited  2d
 
-              I changed the layout, see  tree.go  and
+                I changed the layout, see  tree.go  and
 
-                indented with a tab
+                  indented with a tab
 
-              • one
-              • two
+                • one
+                • two
 
-  dee   1 thread                                                            1d
+ ▸  dee   1 thread                                                          1d
 
-  ann  A few remarks.                                                        1d
- ╰─  ann ● tree.go  Please add a header comment to the file.         edited  1d
+ ▾  ann  A few remarks.                                                      1d
+ ╰─    ann ● tree.go  Please add a header comment to the file.       edited  1d
 
-  Eve  Stale.                                                                1d
+    Eve  Stale.                                                              1d
 
-  fay  Looks good to me.                                                     1d
+    fay  Looks good to me.                                                   1d
 
- 3 comments ● ghost, 山田太郎, ann                                      1d — 2h
+ ▸ 3 comments ● ghost, 山田太郎, ann                                    1d — 2h
 
-  your pending review
- ╰─  ann ● tree.go:42  A draft.                             pending  edited  1d
+ ▾  your pending review
+ ╰─    ann ● tree.go:42  A draft.                           pending  edited  1d

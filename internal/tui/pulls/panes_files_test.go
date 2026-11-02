@@ -10,7 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 func sampleCommits(review *core.ViewerReview) core.PullCommits {
@@ -63,7 +63,7 @@ func rangePanes(tb testing.TB, pc core.PullCommits, setup func(svc *fakeService)
 }
 
 func markCommit(m *panesModal, oid string) {
-	m.filesMsg(foldtree.MarkMsg{Tree: m.files.tree.ID(), ID: files.CommitID(oid), Kind: files.KindCommit})
+	m.filesMsg(treeview.MarkMsg{Tree: m.files.tree.ID(), ID: files.CommitID(oid), Kind: files.KindCommit})
 }
 
 func TestFilesPaneReadsCommitsOnce(t *testing.T) {
@@ -96,7 +96,7 @@ func TestFilesPaneSpaceKeepsOneCommit(t *testing.T) {
 	t.Parallel()
 	_, m, _ := commitPanes(t, sampleCommits(nil))
 	m.files.rng = files.Range{First: 2, Last: 2}
-	cmd := m.filesMsg(foldtree.MarkMsg{Tree: m.files.tree.ID(), ID: files.CommitID("ccc3333"), Kind: files.KindCommit})
+	cmd := m.filesMsg(treeview.MarkMsg{Tree: m.files.tree.ID(), ID: files.CommitID("ccc3333"), Kind: files.KindCommit})
 	if cmd == nil {
 		t.Error("marking the only selected commit said nothing")
 	}
@@ -109,7 +109,7 @@ func TestFilesPaneIgnoresOtherTrees(t *testing.T) {
 	t.Parallel()
 	_, m, _ := commitPanes(t, sampleCommits(nil))
 	m.files.rng = files.Range{First: 1, Last: 1}
-	m.filesMsg(foldtree.MarkMsg{Tree: m.files.tree.ID() + 1, ID: files.CommitID("ddd4444"), Kind: files.KindCommit})
+	m.filesMsg(treeview.MarkMsg{Tree: m.files.tree.ID() + 1, ID: files.CommitID("ddd4444"), Kind: files.KindCommit})
 	if m.files.rng != (files.Range{First: 1, Last: 1}) {
 		t.Errorf("a mark of another tree changed the range to %+v", m.files.rng)
 	}
@@ -196,7 +196,7 @@ func TestFilesPaneCommitChecksOpen(t *testing.T) {
 	if len(fc.commits) != 0 {
 		t.Fatalf("read the checks of %v before the commit opened", fc.commits)
 	}
-	press(t, h, "enter")
+	press(t, h, "l")
 	screen := modalScreen(t, h)
 	if len(fc.commits) != 1 || fc.commits[0] != "ccc3333" {
 		t.Fatalf("read the checks of %v, want ccc3333", fc.commits)
@@ -210,7 +210,7 @@ func TestFilesPaneCommitChecksOpen(t *testing.T) {
 		t.Fatalf("targets = %v, want the job's", f.targets)
 	}
 	for id := range f.targets {
-		cmd := m.filesMsg(foldtree.EnterMsg{Tree: f.tree.ID(), ID: id})
+		cmd := m.filesMsg(treeview.OpenMsg{Tree: f.tree.ID(), ID: id})
 		if cmd == nil {
 			t.Fatal("enter on the job did nothing")
 		}
@@ -218,7 +218,7 @@ func TestFilesPaneCommitChecksOpen(t *testing.T) {
 			t.Errorf("enter on the job sent %v, want %v", got, want)
 		}
 	}
-	if cmd := m.filesMsg(foldtree.EnterMsg{Tree: f.tree.ID(), ID: files.CommitID("aaa1111")}); cmd != nil {
+	if cmd := m.filesMsg(treeview.OpenMsg{Tree: f.tree.ID(), ID: files.CommitID("aaa1111")}); cmd != nil {
 		t.Error("enter on a commit without checks did something")
 	}
 	// Closing the modal ends the reads.

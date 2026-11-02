@@ -17,8 +17,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // fake is a pull request whose conversation comes in pages.
@@ -147,8 +147,8 @@ func newDriver(tb testing.TB, f *fake, opts ...Option) *driver {
 
 func opts0() Options { return opts(config.IconsUnicode, 100) }
 
-func treeKeys() foldtree.KeyMap {
-	return foldtree.NewKeyMap(keytest.Table(map[string][]string{
+func treeKeys() treeview.KeyMap {
+	return treeview.NewKeyMap(keytest.Table(map[string][]string{
 		"up":            {"up"},
 		"down":          {"down"},
 		"global.select": {"enter"},
@@ -433,7 +433,7 @@ func TestEnter(t *testing.T) {
 		t.Errorf("enter on a reply = %+v", got)
 	}
 	// A message of another tree is not the model's to answer.
-	if _, cmd := d.m.Update(foldtree.EnterMsg{Tree: d.m.views[""].tree.ID() + 1000, ID: "c:1"}); cmd != nil {
+	if _, cmd := d.m.Update(treeview.OpenMsg{Tree: d.m.views[""].tree.ID() + 1000, ID: "c:1"}); cmd != nil {
 		t.Error("an enter of a foreign tree was answered")
 	}
 }

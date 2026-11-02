@@ -12,7 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // checkReader reads the checks of a commit for a checktree.Loader from the
@@ -29,13 +29,13 @@ func (r checkReader) CommitChecks(ctx context.Context, q checktree.Query) (core.
 
 // filesRows builds the rows of the Files pane for a tree width wide. A commit
 // that has checks opens them under it when a checks service reads them.
-func (m *panesModal) filesRows(width int, folded bool) []foldtree.Row {
+func (m *panesModal) filesRows(width int, folded bool) []treeview.Node {
 	f := &m.files
 	now := time.Now()
 	d := m.filesData()
 	targets := checktree.Targets{}
 	if m.checks != nil {
-		d.Children = func(oid string, depth int) []foldtree.Row {
+		d.Children = func(oid string, depth int) []treeview.Node {
 			rows, t := f.loader.Rows(oid, checktree.Options{
 				Mode:   checktree.All,
 				Depth:  depth,
@@ -44,7 +44,7 @@ func (m *panesModal) filesRows(width int, folded bool) []foldtree.Row {
 				Width:  width,
 			}, f.checkStyles)
 			maps.Copy(targets, t)
-			return checktree.FoldRows(rows)
+			return rows
 		}
 	}
 	f.targets = targets

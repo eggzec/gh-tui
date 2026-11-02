@@ -1,12 +1,12 @@
 width 80
-▌Commits all 2 commits  ▸
- ───────────────────────────────────────────────────────────────────────────────
- Files
+▌▸ Commits all 2 commits  ▸
+   ────────────────────────────────────────────────────────────────────────────…
+ ▾ Files
  ├─ ▾ assets/
- │  ╰─ logo.png
+ │  ╰─   logo.png
  ├─ ▾ cmd/
  │  ╰─ ▾ gh-tui/
- │     ╰─ main.go ⚠ 1 ↻ changed since viewed                                 −14
+ │     ╰─   main.go ⚠ 1 ↻ changed since viewed                               −14
  ├─ ▾ internal/
  │  ├─ ▾ a-very-long-directory-name/
  │  │  ╰─ ▾ with/
@@ -17,21 +17,21 @@ width 80
  │  │                 ╰─ ▾ in/
  │  │                    ╰─ ▾ the/
  │  │                       ╰─ ▾ pane/
- │  │                          ╰─ file.go ✗ 1                              +1 −1
+ │  │                          ╰─   file.go ✗ 1                            +1 −1
  │  ╰─ ▾ tui/
  │     ╰─ ▾ pulls/
- │        ╰─ panes.go ✗ 3 ✓                                              +120 −7
- ╰─ README.md • 2 ✓                                                           +3
+ │        ╰─   panes.go ✗ 3 ✓                                            +120 −7
+ ╰─   README.md • 2 ✓                                                         +3
 
 width 40
-▌Commits all 2 commits  ▸
- ───────────────────────────────────────
- Files
+▌▸ Commits all 2 commits  ▸
+   ────────────────────────────────────…
+ ▾ Files
  ├─ ▾ assets/
- │  ╰─ logo.png
+ │  ╰─   logo.png
  ├─ ▾ cmd/
  │  ╰─ ▾ gh-tui/
- │     ╰─ main.go ⚠ 1 ↻ changed sin… −14
+ │     ╰─   main.go ⚠ 1 ↻ changed s… −14
  ├─ ▾ internal/
  │  ├─ ▾ a-very-long-directory-name/
  │  │  ╰─ ▾ with/
@@ -42,9 +42,9 @@ width 40
  │  │                 ╰─ ▾ in/
  │  │                    ╰─ ▾ the/
  │  │                       ╰─ ▾ pane/
- │  │                          ╰─ file.…
+ │  │                          ╰─   fil…
  │  ╰─ ▾ tui/
  │     ╰─ ▾ pulls/
- │        ╰─ panes.go ✗ 3 ✓      +120 −7
- ╰─ README.md • 2 ✓                   +3
+ │        ╰─   panes.go ✗ 3 ✓    +120 −7
+ ╰─   README.md • 2 ✓                 +3
 

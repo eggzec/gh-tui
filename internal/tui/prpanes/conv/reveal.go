@@ -30,7 +30,8 @@ func (m *Model) Reveal(itemID string) bool {
 			}
 		}
 	}
-	return v.tree.Reveal(id)
+	found, _ := v.tree.Reveal(id)
+	return found
 }
 
 // Ready reports whether the rows are built, which takes the first page of the

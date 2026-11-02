@@ -7,7 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -85,7 +85,7 @@ func (p *pushRun) end() (lone *node) {
 // as the other system lines are; open it is left-aligned, so the commits
 // under it hang from its icon. The row carries the closed line, and the node
 // both.
-func (b *builder) push(n *node) foldtree.Row {
+func (b *builder) push(n *node) treeview.Node {
 	first, last := n.children[0].item, n.children[len(n.children)-1].item
 	what := "1 commit"
 	if k := len(n.children); k > 1 {
@@ -104,16 +104,16 @@ func (b *builder) push(n *node) foldtree.Row {
 
 	r := b.system(line, age, true)
 	n.forms = [2]string{r.Lines[0], b.system(line, age, false).Lines[0]}
-	r.Fold, r.Closed = true, true
+	r.Branch, r.Closed = true, true
 	return r
 }
 
 // commit draws a commit of a push: its short SHA and the first line of its
 // message.
-func (b *builder) commit(n *node) foldtree.Row {
+func (b *builder) commit(n *node) treeview.Node {
 	c := n.item.Commit
 	head := termtext.Truncate(termtext.OneLine(c.Headline), max(b.width-20, 8), b.st.Glyphs.Cut)
-	r := foldtree.Row{
+	r := treeview.Node{
 		Lines:  []string{b.st.sha.Render(shortSHA(c)) + "  " + head},
 		Action: true,
 	}
@@ -121,7 +121,7 @@ func (b *builder) commit(n *node) foldtree.Row {
 	r.Right = b.checkGlyph(state)
 	// An unknown roll-up folds too: the read of the checks tells what shows.
 	if b.o.kids != nil && (!known || state != core.CheckNone) {
-		r.Fold, r.Arrow, r.Closed = true, true, true
+		r.Branch, r.Closed = true, true
 	}
 	return r
 }

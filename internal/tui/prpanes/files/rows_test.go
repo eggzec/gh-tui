@@ -13,7 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 var now = epoch.AddDate(0, 0, 20)
@@ -61,18 +61,19 @@ func pull(n int) core.PullCommits {
 	return core.PullCommits{Commits: cs}
 }
 
-func ids(rows []foldtree.Row) []string {
+func ids(rows []treeview.Node) []string {
 	out := make([]string, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.ID)
+	for i := range rows {
+		out = append(out, rows[i].ID)
 	}
 	return out
 }
 
 // text draws rows in a tree of width cells, without colors, with the Commits
 // section opened when open is set.
-func text(rows []foldtree.Row, width int, open bool) string {
-	m := foldtree.New(foldtree.WithSize(width, 60), foldtree.WithRows(rows))
+func text(rows []treeview.Node, width int, open bool) string {
+	m := treeview.New(treeview.Source{}, treeview.WithSize(width, 60))
+	m.SetRows(rows)
 	if open {
 		m.SetFolded(IDCommits, false)
 	}
@@ -263,14 +264,14 @@ func TestCommitChecksFolds(t *testing.T) {
 	t.Parallel()
 	d := Data{Commits: pull(4), Range: All(4)}
 	for _, r := range Rows(d, opts(config.IconsNerd, 80)) {
-		if r.Fold && r.ID != IDCommits && r.ID != IDFiles {
+		if r.Branch && r.ID != IDCommits && r.ID != IDFiles {
 			t.Errorf("commit row %q is a fold with no way to read its checks", r.ID)
 		}
 	}
 	var depths []int
-	d.Children = func(oid string, depth int) []foldtree.Row {
+	d.Children = func(oid string, depth int) []treeview.Node {
 		depths = append(depths, depth)
-		return []foldtree.Row{{ID: "child/" + oid, Depth: depth}}
+		return []treeview.Node{{ID: "child/" + oid, Depth: depth}}
 	}
 	got := ids(Rows(d, opts(config.IconsNerd, 80)))
 	var folds, kids int
@@ -323,12 +324,12 @@ func TestFileRows(t *testing.T) {
 	for _, r := range rows[len(rows)-len(want) : len(rows)-1] {
 		switch p, isFile := PathOf(r.ID); {
 		case isFile:
-			if r.Kind != KindFile || r.Skip || r.Fold || r.Action || r.Depth != fileDepth+strings.Count(p, "/") {
+			if r.Kind != KindFile || r.Skip || r.Branch || r.Action || r.Depth != fileDepth+strings.Count(p, "/") {
 				t.Errorf("file row %+v", r)
 			}
 		default:
 			dir, ok := DirOf(r.ID)
-			if !ok || r.Kind == KindFile || r.Skip || !r.Fold || r.Closed || !r.Arrow || r.Action || r.Depth != fileDepth+strings.Count(dir, "/") {
+			if !ok || r.Kind == KindFile || r.Skip || !r.Branch || r.Closed || r.Action || r.Depth != fileDepth+strings.Count(dir, "/") {
 				t.Errorf("folder row %+v", r)
 			}
 		}
@@ -341,7 +342,7 @@ func TestFileRows(t *testing.T) {
 func TestViewedRows(t *testing.T) {
 	t.Parallel()
 	d := Data{Commits: pull(1), Range: All(1), Files: changed(), Viewed: viewed(true)}
-	byID := map[string]foldtree.Row{}
+	byID := map[string]treeview.Node{}
 	for _, r := range Rows(d, opts(config.IconsUnicode, 80)) {
 		byID[r.ID] = r
 	}
@@ -439,11 +440,11 @@ func TestRowsShape(t *testing.T) {
 	for _, r := range rows {
 		switch r.ID {
 		case IDCommits:
-			if !r.Fold || !r.Closed || r.Arrow {
+			if !r.Branch || !r.Closed {
 				t.Errorf("Commits: %+v, want a closed fold with no arrow", r)
 			}
 		case IDFiles:
-			if !r.Fold || r.Closed || r.Arrow {
+			if !r.Branch || r.Closed {
 				t.Errorf("Files: %+v, want an open fold with no arrow", r)
 			}
 		case idDivider, idCapped, idRule:
@@ -451,7 +452,7 @@ func TestRowsShape(t *testing.T) {
 				t.Errorf("%s must be skipped by the cursor", r.ID)
 			}
 		default:
-			if r.Skip || r.Kind != KindCommit || r.Depth != 1 || r.Fold {
+			if r.Skip || r.Kind != KindCommit || r.Depth != 1 || r.Branch {
 				t.Errorf("commit row %+v", r)
 			}
 		}

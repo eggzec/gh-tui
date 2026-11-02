@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/pkg/bubbles/foldtree"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // withCI puts the line with the state of the checks after each push whose last
@@ -40,7 +40,7 @@ func withCI(out []*node, o Options) []*node {
 
 // ci draws the line with the state of the checks of the last commit of a
 // push, centred like the other system lines and with no age.
-func (b *builder) ci(n *node) foldtree.Row {
+func (b *builder) ci(n *node) treeview.Node {
 	oid := n.item.Commit.OID
 	state := b.o.checks[strings.ToLower(oid)]
 	what := "checks passed on"
