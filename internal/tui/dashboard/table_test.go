@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
 // reposLines returns the headers and rows of the repositories pane without
@@ -88,10 +90,54 @@ func TestReposCountInTheTrim(t *testing.T) {
 		t.Errorf("total: the forms are %q", got)
 	}
 
+	// Too narrow for the brackets, the title keeps the total.
+	s = newSection(t, svc, nil, 24, 40)
+	s.header.value.Profile.Repos = 2000
+	s.header.ok = true
+	s.renderPane(reposPane)
+	if top := ansi.Strip(s.frames[reposPane][0]); strings.Contains(top, "[30]") || !strings.Contains(top, "2k") {
+		t.Errorf("narrow: only the total should show: %q", top)
+	}
+
 	svc.repos["@me"] = nil
 	s = newSection(t, svc, nil, 140, 40)
 	if got := s.reposCount(); len(got) != 1 || got[0] != "0" {
 		t.Errorf("empty: the forms are %q", got)
+	}
+}
+
+func TestReposCountUnderFilters(t *testing.T) {
+	svc := newFake()
+	svc.repos["@me"] = repos("octocat", 30)
+
+	// The pane filter lists all it keeps, so its count is the matches of the total.
+	s := newSection(t, svc, nil, 140, 40)
+	s.header.value.Profile.Repos = 2000
+	s.header.ok = true
+	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "is:private"}))
+	n := s.repos.current().Feed.Shown()
+	want := strconv.Itoa(n) + "/2k"
+	if got := s.reposCount(); len(got) == 0 || got[0] != want {
+		t.Errorf("pane filter with a total: the forms are %q, want %q first", got, want)
+	}
+
+	// The quick filter keeps some of the loaded rows.
+	s = newSection(t, svc, nil, 140, 40)
+	press(t, s, "2")
+	press(t, s, "&")
+	press(t, s, "0", "0", "1", "enter")
+	n = s.repos.current().Feed.Shown()
+	if n == 0 || n >= 30 {
+		t.Fatalf("the quick filter keeps %d of 30", n)
+	}
+	m := strconv.Itoa(n)
+	if got := s.reposCount(); len(got) != 2 || got[0] != m+" [30]" || got[1] != m {
+		t.Errorf("quick filter, no total: the forms are %q", got)
+	}
+	s.header.value.Profile.Repos = 2000
+	s.header.ok = true
+	if got := s.reposCount(); len(got) != 3 || got[0] != m+"/2k [30]" || got[1] != m+"/2k" || got[2] != m {
+		t.Errorf("quick filter, total: the forms are %q", got)
 	}
 }
 
