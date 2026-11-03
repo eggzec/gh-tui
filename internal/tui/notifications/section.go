@@ -101,6 +101,18 @@ func WithOpener(o *threads.Opener) Option {
 	}
 }
 
+// WithoutHeader leaves out the filter line and the titles of the columns, so
+// the list has the whole height, for a small pane.
+func WithoutHeader() Option {
+	return func(s *Section) { s.compact = true }
+}
+
+// WithPageLimit makes one read follow at most n pages, and keep the cursor
+// of the rest. n <= 0 keeps the default.
+func WithPageLimit(n int) Option {
+	return func(s *Section) { s.pageLimit = n }
+}
+
 // Section lists the user's notifications. Create one with New.
 type Section struct {
 	ctx  context.Context
@@ -148,6 +160,10 @@ type Section struct {
 	// unreadable is drawn in place of the list while the token may not
 	// read notifications, or is "".
 	unreadable string
+	// compact drops the filter line and the titles of the columns, for a
+	// small pane, and pageLimit is the pages one read follows.
+	compact   bool
+	pageLimit int
 }
 
 var (
@@ -268,6 +284,10 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 	f := s.filter()
 	q.Again = again
 	var all core.Page[core.Notification]
+	limit := maxPages
+	if s.pageLimit > 0 {
+		limit = s.pageLimit
+	}
 	for n := 1; ; n++ {
 		if err := ctx.Err(); err != nil {
 			return core.Page[core.Notification]{}, err
@@ -281,10 +301,10 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 		all.Stale = all.Stale || p.Stale
 		all.Offline = all.Offline || p.Offline
 		all.Limited = all.Limited || p.Limited
-		if p.Next != "" && n == maxPages {
+		if p.Next != "" && n == limit {
 			slog.InfoContext(ctx, "notifications: page cap reached", "span", "tui.notifications", "pages", n)
 		}
-		if p.Next == "" || n == maxPages || p.Offline || p.Limited {
+		if p.Next == "" || n == limit || p.Offline || p.Limited {
 			break
 		}
 		q.Cursor = p.Next
@@ -336,7 +356,7 @@ func (s *Section) All() bool { return s.filter().all }
 // SetSize sets the size of the section. The first line shows the filter.
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = width, height
-	s.feed.SetSize(width, max(height-headerHeight, 0))
+	s.feed.SetSize(width, max(height-s.headerLines(), 0))
 	s.renderHeader()
 	s.renderUnreadable()
 }

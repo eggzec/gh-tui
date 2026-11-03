@@ -247,6 +247,11 @@ func drawRow(styles *styles, icons ui.Icons, dates ui.Dates, links termtext.Link
 // filter keeps of them, and the keys that change it, such as
 // "Unread · mention · f filter".
 func (s *Section) renderHeader() {
+	if s.compact {
+		s.header, s.columns = "", ""
+		s.feed.SetEmptyText(s.emptyText())
+		return
+	}
 	f := s.filter()
 	name := "Unread"
 	if f.all {
@@ -303,6 +308,14 @@ func (s *Section) renderHeader() {
 	s.feed.SetEmptyText(s.emptyText())
 }
 
+// headerLines is the lines above the list: none in a compact section.
+func (s *Section) headerLines() int {
+	if s.compact {
+		return 0
+	}
+	return headerHeight
+}
+
 func (s *Section) emptyText() string {
 	switch f := s.filter(); {
 	case f.local():
@@ -319,7 +332,7 @@ func (s *Section) View() string {
 	if body == "" {
 		body = s.feed.View()
 	}
-	if s.height < headerHeight+1 {
+	if s.compact || s.height < headerHeight+1 {
 		return body
 	}
 	return s.header + "\n" + s.columns + "\n" + body
@@ -341,8 +354,8 @@ func (s *Section) renderUnreadable() {
 		return
 	}
 	h := s.height
-	if h >= headerHeight+1 {
-		h -= headerHeight
+	if hh := s.headerLines(); h >= hh+1 {
+		h -= hh
 	}
 	// The text starts where the titles of the rows do.
 	lines := ui.ErrorLine(s.theme.Empty(s.icons), text, hint, max(s.width-2, 1))
