@@ -99,8 +99,8 @@ func TestTabCompletesRepoAndTopicOnRepositories(t *testing.T) {
 func TestEmptyCompletionHint(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct{ typed, want string }{
-		{"label:bug", "no label: filter for repositories; press 2 for issues"},
-		{"topic:", "no known topic: values yet"},
+		{"label:bug", "nothing to complete for label:; press 2 for issues"},
+		{"topic:", "no known topic: values yet; open the dashboard or the repositories list"},
 	} {
 		s := newSection(t, newFake(), 120, 30)
 		s.Focus()
@@ -109,6 +109,41 @@ func TestEmptyCompletionHint(t *testing.T) {
 		if view := s.View(); !strings.Contains(view, tt.want) {
 			t.Errorf("%q: view lacks %q:\n%s", tt.typed, tt.want, view)
 		}
+	}
+}
+
+func TestHintFor(t *testing.T) {
+	t.Parallel()
+	vals := fakeValues{repos: []string{"octo/hello"}, owners: []string{"octo"}, topics: []string{"cli"}}
+	tests := []struct {
+		name string
+		kind core.SearchKind
+		line string
+		want string // substring; "" means no hint
+		not  string // substring the hint must lack
+	}{
+		{"known repo", core.SearchRepos, "repo:octo/hello", "", ""},
+		{"known repo case", core.SearchRepos, "repo:Octo/Hello", "", ""},
+		{"known org", core.SearchRepos, "org:octo", "", ""},
+		{"known user", core.SearchCommits, "user:octo", "", ""},
+		{"known topic", core.SearchRepos, "topic:cli", "", ""},
+		{"unknown repo", core.SearchRepos, "repo:zzz", "no known repo: value starts with zzz", ""},
+		{"created on repos", core.SearchRepos, "created:", "nothing to complete for created:", "no created: filter"},
+		{"topics take none", core.SearchTopics, "topic:x", "no topic: filter for topics", ""},
+		{"code has no sort", core.SearchCode, "sort:x", "no sort: filter for code", ""},
+		{"url", core.SearchRepos, "https://x", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := hintFor(tt.kind, tt.line, len(tt.line), vals)
+			if tt.want == "" && got != "" || !strings.Contains(got, tt.want) {
+				t.Errorf("hintFor(%q) = %q, want %q", tt.line, got, tt.want)
+			}
+			if tt.not != "" && strings.Contains(got, tt.not) {
+				t.Errorf("hintFor(%q) = %q, must lack %q", tt.line, got, tt.not)
+			}
+		})
 	}
 }
 
