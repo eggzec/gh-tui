@@ -84,10 +84,14 @@ func (m Model[T]) SelectedRow() int {
 
 func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	selected := i == m.sel
+	if i < len(m.pinned) {
+		m.writePin(w, i, selected, width)
+		return
+	}
 	indent := ""
 	var l line
 	if m.lined() {
-		l = m.lines[i]
+		l = m.lines[i-len(m.pinned)]
 		indent = strings.Repeat("  ", l.depth)
 		switch {
 		case l.head:
@@ -131,6 +135,21 @@ func (m Model[T]) writeItem(w *lineWriter, i, width int) {
 	}
 }
 
+// writePin writes a pinned row: the item drawn as any other, in the pinned
+// gutter if there is one.
+func (m Model[T]) writePin(w *lineWriter, i int, selected bool, width int) {
+	gutter := m.gutter(selected, false)
+	if m.pinnedGutter != nil {
+		gutter = m.pinnedGutter(selected, m.focused)
+	}
+	rest := m.render(m.pinned[i], selected, width)
+	for range m.itemHeight {
+		var text string
+		text, rest, _ = strings.Cut(rest, "\n")
+		w.line(gutter, text)
+	}
+}
+
 // marker returns the fold marker of a header or an item.
 func (m Model[T]) marker(open bool) string {
 	if open {
@@ -165,9 +184,10 @@ func (m Model[T]) writeHead(w *lineWriter, l line, gutter, indent string) {
 // it is fetched again, or the error once, where the failed chunk comes into
 // view, or only the retry key for a failure not worth telling.
 func (m Model[T]) writePending(w *lineWriter, i int, gutter string) {
+	row := i
 	i = m.at(i)
 	c := m.chunkAt(i)
-	if m.chunks[c].err != nil && (i == m.starts[c] || i == m.top) {
+	if m.chunks[c].err != nil && (i == m.starts[c] || row == m.top) {
 		w.status(gutter, m.errLine, m.errHint)
 	} else {
 		w.line(gutter, m.placeholder)

@@ -64,8 +64,8 @@ func (m Model[T]) FilterQuery() string { return m.filter }
 func (m Model[T]) Matches() int { return len(m.hits) }
 
 // Shown returns the number of rows the feed shows: those the quick filter
-// matches, or every row known without one.
-func (m Model[T]) Shown() int { return m.shown() }
+// matches, or every row known without one. The pinned rows are not counted.
+func (m Model[T]) Shown() int { return m.listRows() }
 
 // Loaded returns the number of items that are loaded, which is what a
 // quick filter looks at.
@@ -79,8 +79,14 @@ func (m Model[T]) Loaded() int {
 	return n
 }
 
-// shown returns the number of rows in the window's list.
+// shown returns the number of rows in the window's list, the pinned rows
+// above it included.
 func (m Model[T]) shown() int {
+	return len(m.pinned) + m.listRows()
+}
+
+// listRows returns the number of rows of the list, without the pinned ones.
+func (m Model[T]) listRows() int {
 	if m.lined() {
 		return len(m.lines)
 	}
@@ -91,8 +97,12 @@ func (m Model[T]) shown() int {
 }
 
 // at returns the index among all items of the row at position p, or -1,
-// which is also what a group header gives.
+// which is also what a group header or a pinned row gives.
 func (m Model[T]) at(p int) int {
+	if p < len(m.pinned) {
+		return -1
+	}
+	p -= len(m.pinned)
 	if m.lined() {
 		if p < 0 || p >= len(m.lines) || m.lines[p].head || m.lines[p].more || m.lines[p].child {
 			return -1
@@ -112,8 +122,18 @@ func (m Model[T]) at(p int) int {
 }
 
 // posOf returns the position of the first row at or after item g, or the
-// last row.
+// last row, or -1 when there is none. Callers that floor the result at 0 floor
+// it at the first list row, len(m.pinned), instead.
 func (m Model[T]) posOf(g int) int {
+	p := m.listPosOf(g)
+	if p < 0 {
+		return -1
+	}
+	return p + len(m.pinned)
+}
+
+// listPosOf is posOf among the rows of the list alone.
+func (m Model[T]) listPosOf(g int) int {
 	if m.lined() {
 		// An item in a closed group has no row.
 		for p, l := range m.lines {
@@ -203,7 +223,7 @@ func (m *Model[T]) refind() {
 			}
 		}
 	} else {
-		for p := range m.shown() {
+		for p := len(m.pinned); p < m.shown(); p++ {
 			if t, ok := m.textOf(m.at(p)); ok && match(t) {
 				m.hits = append(m.hits, p)
 			}
@@ -217,13 +237,14 @@ func (m *Model[T]) refind() {
 // item, which a header and the row of the items not loaded are not: they sit
 // before the item that follows them.
 func (m Model[T]) spot() (pos int, item bool) {
+	p := len(m.pinned)
 	if !m.lined() {
-		return m.sel, true
+		return m.sel, m.sel >= p
 	}
-	if m.sel < 0 || m.sel >= len(m.lines) {
+	if m.sel < p || m.sel-p >= len(m.lines) {
 		return 0, false
 	}
-	l := m.lines[m.sel]
+	l := m.lines[m.sel-p]
 	return l.before, !l.head && !l.more && !l.child
 }
 
@@ -361,16 +382,20 @@ func (m *Model[T]) filterFor(line string) tea.Cmd {
 	if g >= 0 {
 		m.held = g
 	}
+	pin, onPin := m.sel, m.onPin()
+	if onPin {
+		defer func() { m.sel = pin }()
+	}
 	ref := m.cursor()
 	m.filter = line
 	if m.lined() {
 		if !m.regroup(ref) {
-			m.sel = 0
+			m.sel = len(m.pinned)
 		}
 		m.top = 0
 	} else {
 		m.rebuildRows()
-		m.sel, m.top = max(m.posOf(g), 0), 0
+		m.sel, m.top = max(m.posOf(g), len(m.pinned)), 0
 	}
 	m.anchored, m.seeking = false, false
 	return m.sync()
@@ -387,6 +412,10 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 		g = m.held
 	}
 	m.anchored, m.seeking = false, false
+	if m.onPin() {
+		pin := m.sel
+		defer func() { m.sel = pin }()
+	}
 	if m.lined() {
 		ref := m.cursor()
 		if !ref.valid {
@@ -397,7 +426,7 @@ func (m *Model[T]) clearFilter() tea.Cmd {
 		return m.sync()
 	}
 	m.filter, m.rows = "", nil
-	m.sel = max(m.posOf(g), 0)
+	m.sel = max(m.posOf(g), len(m.pinned))
 	m.refind()
 	return m.sync()
 }

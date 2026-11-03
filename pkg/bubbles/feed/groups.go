@@ -108,7 +108,9 @@ func (m *Model[T]) Resort() {
 func (m *Model[T]) reshape(ref cursorRef) tea.Cmd {
 	m.anchored, m.seeking, m.fill = false, false, true
 	if !m.lined() {
-		m.sel = m.flatSel()
+		if !m.onPin() {
+			m.sel = m.flatSel()
+		}
 		m.lines, m.heads, m.order, m.nitems = nil, nil, nil, 0
 		if m.filter != "" {
 			m.rebuildRows()
@@ -180,9 +182,9 @@ func (m *Model[T]) CollapseAll() tea.Cmd {
 		return nil
 	}
 	ref := m.headRef(0)
-	if !ref.valid && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].path != "" {
+	if l, ok := m.cur(); !ref.valid && ok && l.path != "" {
 		// Without groups the cursor goes to the item whose children close.
-		ref = m.itemRef(m.lines[m.sel].item)
+		ref = m.itemRef(l.item)
 	}
 	// Closing adds no line, so no chunk is fetched just to fill the window.
 	m.fill = false
@@ -197,10 +199,10 @@ func (m *Model[T]) CollapseAll() tea.Cmd {
 
 // setOpen opens or closes the group of the header under the cursor.
 func (m *Model[T]) setOpen(open bool) tea.Cmd {
-	if !m.lined() || m.sel < 0 || m.sel >= len(m.lines) {
+	l, ok := m.cur()
+	if !ok {
 		return nil
 	}
-	l := m.lines[m.sel]
 	if !l.foldable() && open {
 		return nil
 	}
@@ -235,7 +237,7 @@ func (m *Model[T]) setOpen(open bool) tea.Cmd {
 // headRef returns a reference to the header at depth that the cursor is on
 // or under, or an empty one.
 func (m Model[T]) headRef(depth int) cursorRef {
-	for i := min(m.sel, len(m.lines)-1); i >= 0; i-- {
+	for i := min(m.sel-len(m.pinned), len(m.lines)-1); i >= 0; i-- {
 		if l := m.lines[i]; l.head && l.depth == depth {
 			return cursorRef{valid: true, head: true, path: l.path}
 		}
@@ -249,12 +251,12 @@ func (m *Model[T]) right() tea.Cmd {
 	if !m.onFold() {
 		return nil
 	}
-	l := m.lines[m.sel]
+	l, _ := m.cur()
 	if !l.open {
 		return m.setOpen(true)
 	}
 	// An open header has items, and its first line is the next one.
-	if m.sel+1 < len(m.lines) && m.lines[m.sel+1].depth > l.depth {
+	if i := m.sel - len(m.pinned) + 1; i < len(m.lines) && m.lines[i].depth > l.depth {
 		m.sel++
 		return m.sync()
 	}
@@ -264,19 +266,16 @@ func (m *Model[T]) right() tea.Cmd {
 // left is the key that goes out of a group: it closes an open header, and
 // from an item or a closed header moves to the header of the group around it.
 func (m *Model[T]) left() tea.Cmd {
-	if !m.lined() || m.sel < 0 || m.sel >= len(m.lines) {
-		return nil
-	}
-	l := m.lines[m.sel]
-	if l.more {
+	l, ok := m.cur()
+	if !ok || l.more {
 		return nil
 	}
 	if l.foldable() && l.open {
 		return m.setOpen(false)
 	}
-	for i := m.sel - 1; i >= 0; i-- {
+	for i := m.sel - len(m.pinned) - 1; i >= 0; i-- {
 		if p := m.lines[i]; p.foldable() && p.depth < l.depth {
-			m.sel = i
+			m.sel = len(m.pinned) + i
 			return m.sync()
 		}
 	}
@@ -295,18 +294,31 @@ func (m *Model[T]) toggleAll() tea.Cmd {
 
 // onHeader reports whether the cursor is on a group header.
 func (m Model[T]) onHeader() bool {
-	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].head
+	l, ok := m.cur()
+	return ok && l.head
+}
+
+// cur returns the line under the cursor, if the rows are grouped and the
+// cursor is on one: the pinned rows above the lines have none.
+func (m Model[T]) cur() (line, bool) {
+	i := m.sel - len(m.pinned)
+	if !m.lined() || i < 0 || i >= len(m.lines) {
+		return line{}, false
+	}
+	return m.lines[i], true
 }
 
 // onFold reports whether the cursor is on a header or a foldable item.
 func (m Model[T]) onFold() bool {
-	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].foldable()
+	l, ok := m.cur()
+	return ok && l.foldable()
 }
 
 // Unfolded reports whether the cursor is on a header or an item that shows
 // what is under it.
 func (m Model[T]) Unfolded() bool {
-	return m.onFold() && m.lines[m.sel].open
+	l, ok := m.cur()
+	return ok && l.foldable() && l.open
 }
 
 // UnfoldedItems returns the loaded items that show their children now, wherever
@@ -326,12 +338,14 @@ func (m Model[T]) UnfoldedItems() []T {
 
 // onChild reports whether the cursor is on a child row.
 func (m Model[T]) onChild() bool {
-	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].child
+	l, ok := m.cur()
+	return ok && l.child
 }
 
 // onMore reports whether the cursor is on the row of the items not loaded.
 func (m Model[T]) onMore() bool {
-	return m.lined() && m.sel >= 0 && m.sel < len(m.lines) && m.lines[m.sel].more
+	l, ok := m.cur()
+	return ok && l.more
 }
 
 // Activate is what enter does on the row of the items not loaded: it fetches
@@ -342,10 +356,8 @@ func (m *Model[T]) Activate() (tea.Cmd, bool) {
 	if m.onMore() {
 		return m.fetchMore(), true
 	}
-	if m.kids != nil && m.sel >= 0 && m.sel < len(m.lines) {
-		if l := m.lines[m.sel]; l.kids > 0 {
-			return m.setOpen(!l.open), true
-		}
+	if l, ok := m.cur(); m.kids != nil && ok && l.kids > 0 {
+		return m.setOpen(!l.open), true
 	}
 	return nil, false
 }
@@ -518,17 +530,18 @@ func (m Model[T]) cursor() cursorRef {
 		}
 		return cursorRef{}
 	}
-	if m.sel < 0 || m.sel >= len(m.lines) {
+	l, ok := m.cur()
+	if !ok {
 		return cursorRef{}
 	}
-	switch l := m.lines[m.sel]; {
+	switch {
 	case l.head:
 		return cursorRef{valid: true, head: true, path: l.path}
 	case l.more:
 		return cursorRef{valid: true, more: true}
 	}
-	ref := m.itemRef(m.lines[m.sel].item)
-	if l := m.lines[m.sel]; l.child {
+	ref := m.itemRef(l.item)
+	if l.child {
 		ref.child, ref.k = true, l.k
 	}
 	return ref
@@ -543,13 +556,13 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 	if ref.more {
 		// The row stays at the end of the lines while items are missing. Once
 		// the feed is done it is gone, and the last line is the nearest one.
-		m.sel = max(len(m.lines)-1, 0)
+		m.sel = len(m.pinned) + max(len(m.lines)-1, 0)
 		return true
 	}
 	for i, l := range m.lines {
 		if ref.head {
 			if l.head && l.path == ref.path {
-				m.sel = i
+				m.sel = len(m.pinned) + i
 				return true
 			}
 			continue
@@ -559,11 +572,11 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 		}
 		if ref.byKey {
 			if it, ok := m.item(l.item); ok && m.key(it) == ref.key {
-				m.sel = i
+				m.sel = len(m.pinned) + i
 				return true
 			}
 		} else if l.item == ref.item {
-			m.sel = i
+			m.sel = len(m.pinned) + i
 			return true
 		}
 	}
@@ -579,24 +592,24 @@ func (m *Model[T]) restore(ref cursorRef) bool {
 // flatSel returns the index of the item at or after the cursor's line, for
 // when the groups go and the cursor is on an item again.
 func (m Model[T]) flatSel() int {
-	for i := max(m.sel, 0); i < len(m.lines); i++ {
+	for i := max(m.sel-len(m.pinned), 0); i < len(m.lines); i++ {
 		if l := m.lines[i]; l.more {
-			return max(m.shown()-1, 0)
+			return max(m.shown()-1, len(m.pinned))
 		} else if !l.head {
-			return m.posOf(l.item)
+			return max(m.posOf(l.item), len(m.pinned))
 		}
 	}
-	return 0
+	return len(m.pinned)
 }
 
 // itemsAfter returns the number of loaded items that come after the cursor's
 // line in the order of the groups, whether they show or not.
 func (m Model[T]) itemsAfter() int {
-	if m.sel < 0 || m.sel >= len(m.lines) {
-		return 0
+	if m.sel < len(m.pinned) {
+		return m.nitems
 	}
-	l := m.lines[m.sel]
-	if l.more {
+	l, ok := m.cur()
+	if !ok || l.more {
 		return 0
 	}
 	after := m.nitems - l.before
