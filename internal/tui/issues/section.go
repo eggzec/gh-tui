@@ -62,6 +62,10 @@ type Section struct {
 	// never reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
+	// pins are the numbers of the pinned issues shown above list, and
+	// pinGutters the gutters of their rows.
+	pins       *pinKeys
+	pinGutters [3]string
 	// voice words the errors of the list and of the comments.
 	voice ui.Voice
 
@@ -167,7 +171,7 @@ func (s *Section) Init() tea.Cmd {
 	if !s.live() {
 		return cmd
 	}
-	return tea.Batch(s.list.Init(), cmd)
+	return tea.Batch(s.list.Init(), s.readPinned(), cmd)
 }
 
 // live reports whether the section shows the issues of a repository and
@@ -196,6 +200,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.rows = newRowStyles(t, s.icons)
 	s.chips = s.rows.newChips()
 	s.list.SetStyles(t.Feed(s.icons))
+	s.renderPinGutters()
 	// The chips may have changed width with the icons.
 	s.rescanLabels()
 	s.renderChrome()
@@ -236,11 +241,21 @@ func (s *Section) newList() feed.Model[core.Issue] {
 		q.Cursor = cursor
 		return q
 	}
+	pinned := s.cachedPinned()
+	pins := &pinKeys{}
+	pins.store(pinned)
+	s.pins = pins
+	s.renderPinGutters()
 	fetch := ui.FeedPages("list.issues", query, func(ctx context.Context, q issuesvc.ListQuery, again bool) (core.Page[core.Issue], error) {
 		q.Again = again
-		return svc.List(ctx, q)
+		p, err := svc.List(ctx, q)
+		// The pinned issues are shown above, also when the page was kept.
+		p.Items = pins.drop(p.Items)
+		return p, err
 	})
 	return feed.New(fetch, s.renderRow,
+		feed.WithPinned(pinned),
+		feed.WithPinnedGutter(s.pinGutter),
 		feed.WithContext(ctx),
 		feed.WithKey(issueKey),
 		feed.WithKeyMap(s.keys.feed),
@@ -270,5 +285,5 @@ func (s *Section) resetList() tea.Cmd {
 	if !s.live() {
 		return nil
 	}
-	return s.list.Init()
+	return tea.Batch(s.list.Init(), s.readPinned())
 }
