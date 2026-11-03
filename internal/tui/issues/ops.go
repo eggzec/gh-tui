@@ -117,7 +117,7 @@ func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
 	return s.reload()
 }
 
-// reload shows the list from the cache again.
+// reload shows the list and the pinned issues from the cache again.
 func (s *Section) reload() tea.Cmd {
-	return s.list.Reload()
+	return tea.Batch(s.list.Reload(), s.readPinned())
 }

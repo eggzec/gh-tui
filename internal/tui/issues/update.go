@@ -66,6 +66,8 @@ func (s *Section) update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(s.done(msg), s.forward(msg))
 	case ui.BulkDoneMsg:
 		return s.bulkDone(msg)
+	case pinnedMsg:
+		return s.landPinned(msg)
 	}
 	return s.forward(msg)
 }
@@ -129,7 +131,7 @@ func (s *Section) sync(msg ui.SyncMsg) tea.Cmd {
 	if msg.Err != nil || !s.live() || msg.Key != issuesvc.SyncKey(s.repo) {
 		return nil
 	}
-	return s.list.Reload()
+	return s.reload()
 }
 
 // setRepo shows the issues of repo. It arrives before Init too, so the
@@ -207,7 +209,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		return s.openDetail(s.repo, it.Number, &it, false, nil, nil)
 	case keymap.Matches(msg, k.Close, k.Reopen):
-		if state, ok := s.bulkState(msg); ok && s.list.Marks() > 0 {
+		if state, ok := s.bulkState(msg); ok && s.list.Marks() > 0 && !s.onPinned() {
 			return s.bulk(state)
 		}
 		if keymap.Matches(msg, k.Close) {
@@ -240,7 +242,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		s.svc.Invalidate(s.repo)
 		s.ahead.Resume()
-		return s.list.Reload()
+		return s.reload()
 	case keymap.Matches(msg, k.Filter):
 		return ui.OpenFilter()
 	case keymap.Matches(msg, k.Sort):
