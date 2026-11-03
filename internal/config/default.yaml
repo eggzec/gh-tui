@@ -1591,6 +1591,10 @@ keys:
     # cycle through the candidates forward and back.
     complete: [tab]
     complete_prev: [shift+tab]
+    # Show the candidates of the word under the cursor without inserting one.
+    # On macOS, ctrl+space may be taken by the input-source switcher; rebind
+    # it here if the terminal never sees it.
+    complete_show: [ctrl+space]
   # The query line of the filter form, and the editor of a text field,
   # which type.
   filter_query:

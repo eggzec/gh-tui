@@ -154,6 +154,9 @@ func (s *Section) pressTyping(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.query.CompletePrev):
 		s.cycleComplete(-1)
 		return nil
+	case keymap.Matches(msg, k.query.CompleteShow):
+		s.refreshComplete()
+		return nil
 	}
 	var cmd tea.Cmd
 	s.input, cmd = s.input.Update(msg)

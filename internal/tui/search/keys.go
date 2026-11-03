@@ -75,6 +75,9 @@ type queryKeys struct {
 	// cycle through the candidates forward and back.
 	Complete     key.Binding `keymap:"complete" help:"complete"`
 	CompletePrev key.Binding `keymap:"complete_prev" help:"previous completion"`
+	// CompleteShow shows the candidates of the word under the cursor, with
+	// none inserted.
+	CompleteShow key.Binding `keymap:"complete_show" help:"show completions"`
 }
 
 // maxKinds is how many kinds the digits reach: pane_1 to pane_6 of the
@@ -163,7 +166,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query types first, so it has only the keys that type
 		// nothing.
 		k := s.keys.query
-		l := ui.ContextLayer("search_query", []key.Binding{k.Submit, k.Cancel, k.Complete, k.CompletePrev}, []key.Binding{k.Submit, k.Complete, k.Cancel})
+		l := ui.ContextLayer("search_query", []key.Binding{k.Submit, k.Cancel, k.Complete, k.CompletePrev, k.CompleteShow}, []key.Binding{k.Submit, k.Complete, k.Cancel})
 		l.Typing = true
 		return []keyhelp.Layer{l}
 	}
