@@ -500,7 +500,7 @@ func inboxThreads() []core.Notification {
 
 // newSection returns a started, focused dashboard of width by height over
 // svc and in, with the repository of the current directory.
-func newSection(tb testing.TB, svc Service, in Inbox, width, height int, opts ...Option) *Section {
+func newSection(tb testing.TB, svc Service, in tuinotes.Service, width, height int, opts ...Option) *Section {
 	tb.Helper()
 	opts = append([]Option{
 		WithNow(func() time.Time { return now }),
