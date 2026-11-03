@@ -103,23 +103,23 @@ func (m *panesModal) openComment(text string) tea.Cmd {
 		m.drafts(),
 	)
 	c.SetValue(text)
-	o := &composerOverlay{m: m, comp: c, head: "Comment on " + num, submit: (*panesModal).postComment}
+	o := m.newComposer(c, "Comment on "+num, 0, m.postComment)
 	m.open(o)
-	return tea.Batch(o.comp.Init(), o.comp.Focus())
+	return tea.Batch(o.Comp.Init(), o.Comp.Focus())
 }
 
 // postComment adds the comment the composer holds to the conversation. The
 // service shows it at once and the modal reads the pull request once GitHub
 // answered.
 func (m *panesModal) postComment(o *composerOverlay) tea.Cmd {
-	body := strings.TrimSpace(o.comp.Value())
+	body := strings.TrimSpace(o.Comp.Value())
 	if body == "" {
 		return ui.Notify(toast.Info, "Nothing to send: the comment is empty.")
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActComment, &m.detail.Issue); refused {
 		return cmd
 	}
-	o.done = true
+	o.Close()
 	op := m.svc.Comment(m.repo, m.number, body, m.conv.viewer)
 	// The conversation reads the cache again, which holds the comment now and
 	// shows a rollback, and the network once the comment went through, since

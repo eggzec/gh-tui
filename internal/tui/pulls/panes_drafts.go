@@ -280,23 +280,23 @@ func (o *diffOverlay) compose(d tray.Draft, edit bool) tea.Cmd {
 	if edit {
 		c.SetValue(d.Body)
 	}
-	co := &composerOverlay{m: m, comp: c, head: title, submit: func(_ *panesModal, co *composerOverlay) tea.Cmd {
+	co := m.newComposer(c, title, 0, func(co *composerOverlay) tea.Cmd {
 		return o.saveDraft(d, co)
-	}}
+	})
 	m.open(co)
-	return tea.Batch(co.comp.Init(), co.comp.Focus())
+	return tea.Batch(co.Comp.Init(), co.Comp.Focus())
 }
 
 // saveDraft keeps the draft with the body the composer holds, and shows it.
 func (o *diffOverlay) saveDraft(d tray.Draft, co *composerOverlay) tea.Cmd {
-	d.Body = strings.TrimSpace(co.comp.Value())
+	d.Body = strings.TrimSpace(co.Comp.Value())
 	if d.Body == "" {
 		return ui.Notify(toast.Info, "Nothing to save: the comment is empty.")
 	}
 	if _, err := o.m.draftStore().Put(o.m.draftKey(), d); err != nil {
 		return ui.Fail("keep the draft", err)
 	}
-	co.done = true
+	co.Close()
 	o.d.ClearAnchor()
 	o.readDrafts()
 	return nil
@@ -322,7 +322,7 @@ func (o *diffOverlay) askDelete() tea.Cmd {
 // comments, and why it must not, if it must not.
 func (m *panesModal) reviewWithDrafts(o *composerOverlay) (p reviewPlan, refusal string) {
 	drafts := m.reviewDrafts()
-	p, why := planReview(o.verdict, o.comp.Value(), m.detail.HeadSHA, m.number)
+	p, why := planReview(o.Verdict, o.Comp.Value(), m.detail.HeadSHA, m.number)
 	if len(drafts) == 0 {
 		return p, why
 	}

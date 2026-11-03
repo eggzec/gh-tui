@@ -56,7 +56,7 @@ func (m *panesModal) Save() error {
 	var errs []error
 	for _, o := range m.overlays {
 		if c, ok := o.overlay.(*composerOverlay); ok {
-			errs = append(errs, c.comp.Save())
+			errs = append(errs, c.Comp.Save())
 		}
 	}
 	return errors.Join(errs...)

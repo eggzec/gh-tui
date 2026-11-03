@@ -71,7 +71,7 @@ func TestConvCommentOpensTheComposer(t *testing.T) {
 	if !ok {
 		t.Fatalf("c opened %T, want the composer", m.top())
 	}
-	if v := o.comp.Value(); v != "" {
+	if v := o.Comp.Value(); v != "" {
 		t.Fatalf("the composer starts with %q, want it empty", v)
 	}
 	typeText(m, "hello")

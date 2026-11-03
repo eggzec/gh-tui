@@ -120,7 +120,7 @@ func TestReviewSendsTheVerdictAndTheSummary(t *testing.T) {
 	m.Update(keyMsg("down"))
 	m.Update(keyMsg("enter"))
 	c, ok := m.top().(*composerOverlay)
-	if !ok || c.verdict != 1 {
+	if !ok || c.Verdict != 1 {
 		t.Fatalf("choosing opened %T, want the composer of the second verdict", m.top())
 	}
 	if _, handled := m.Act(ui.ActDismiss); handled {
@@ -163,7 +163,7 @@ func TestReviewAskedAgainAfterNo(t *testing.T) {
 	submit(m)
 	m.Update(keyMsg("n"))
 	c, ok := m.top().(*composerOverlay)
-	if !ok || c.comp.Value() != "x" {
+	if !ok || c.Comp.Value() != "x" {
 		t.Fatalf("a no left %T, want the composer with its text", m.top())
 	}
 	if len(svc.sends()) != 0 {
@@ -202,7 +202,7 @@ func TestReviewFailureKeepsTheSummary(t *testing.T) {
 		t.Error("no failure was shown")
 	}
 	c, ok := m.top().(*composerOverlay)
-	if !ok || c.comp.Value() != "x" || m.sending {
+	if !ok || c.Comp.Value() != "x" || m.sending {
 		t.Errorf("after a failure: top %T, sending %v", m.top(), m.sending)
 	}
 }
