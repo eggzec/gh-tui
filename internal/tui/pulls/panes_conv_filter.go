@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
@@ -25,8 +26,8 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 		return nil
 	}
 	choices := c.model.Choices()
-	o := &filterOverlay{heading: "Show", rows: len(choices), flat: true}
-	o.change = func(on, _ map[conv.Group]bool) tea.Cmd {
+	o := &filterOverlay{Heading: "Show", Rows: len(choices), Flat: true}
+	o.Change = func(on, _ map[conv.Group]bool) tea.Cmd {
 		// Nothing ticked applies nothing.
 		if len(on) == 0 {
 			return nil
@@ -49,7 +50,7 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 	}
 	st := m.theme.Picker(m.icons)
 	st.Frame = lipgloss.NewStyle()
-	o.p = picker.New(nil,
+	o.P = picker.New(nil,
 		picker.WithContext(m.ctx),
 		picker.WithItems(items),
 		picker.WithGroupHeaders(false),
@@ -60,10 +61,10 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 		picker.WithKeyMap(m.keys.pick),
 		picker.WithStyles(st),
 	)
-	o.p.SetMarked(marked)
+	o.P.SetMarked(marked)
 	m.open(o)
-	return o.p.Focus()
+	return o.P.Focus()
 }
 
 // filterOverlay is the checklist of the kinds of items in the conversation.
-type filterOverlay = tickOverlay[conv.Group]
+type filterOverlay = prpanes.TickOverlay[conv.Group]

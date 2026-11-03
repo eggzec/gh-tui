@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
@@ -41,7 +42,7 @@ const notPendingText = "only a pending review request can be removed"
 
 // reviewersOverlay is the checklist of the reviewers of the pull request,
 // keyed by "user:login" or "team:org/slug".
-type reviewersOverlay = tickOverlay[string]
+type reviewersOverlay = prpanes.TickOverlay[string]
 
 func userKey(login string) string { return "user:" + login }
 func teamKey(slug string) string  { return "team:" + slug }
@@ -61,7 +62,7 @@ func (m *panesModal) openReviewers() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return tea.Batch(o.p.Focus(), o.p.Init())
+	return tea.Batch(o.P.Focus(), o.P.Init())
 }
 
 // reviewerDetail words the state of a reviewer, and marks a team.
@@ -93,13 +94,13 @@ func (m *panesModal) showReviewers() {
 	locked := map[string]bool{}
 
 	o := &reviewersOverlay{
-		heading: "Reviewers",
-		order:   strings.ToLower,
-		on:      map[string]bool{},
-		was:     map[string]bool{},
-		rows:    len(have) + reviewerRows,
+		Heading: "Reviewers",
+		Order:   strings.ToLower,
+		On:      map[string]bool{},
+		Was:     map[string]bool{},
+		Rows:    len(have) + reviewerRows,
 	}
-	o.change = func(on, was map[string]bool) tea.Cmd {
+	o.Change = func(on, was map[string]bool) tea.Cmd {
 		var add, remove []pulls.Reviewer
 		mu.Lock()
 		for k := range on {
@@ -123,7 +124,7 @@ func (m *panesModal) showReviewers() {
 		slices.SortFunc(remove, byName)
 		return m.applyReviewers(add, remove)
 	}
-	o.locked = func(picker.Item) tea.Cmd { return ui.Notify(toast.Info, notPendingText) }
+	o.Locked = func(picker.Item) tea.Cmd { return ui.Notify(toast.Info, notPendingText) }
 
 	haveItems := make([]picker.Item, 0, len(have))
 	for _, p := range have {
@@ -133,7 +134,7 @@ func (m *panesModal) showReviewers() {
 		}
 		r := pulls.Reviewer{Login: p.Login, Team: p.Team, Name: p.Name}
 		remember(key, r)
-		o.on[key], o.was[key] = true, true
+		o.On[key], o.Was[key] = true, true
 		if p.State.Reviewed() {
 			locked[key] = true
 		}
@@ -194,8 +195,8 @@ func (m *panesModal) showReviewers() {
 	st := m.theme.Picker(m.icons)
 	st.Frame = lipgloss.NewStyle()
 	opts = append(opts, picker.WithStyles(st))
-	o.p = picker.New(search, opts...)
-	o.p.SetMarked(o.marks())
+	o.P = picker.New(search, opts...)
+	o.P.SetMarked(o.Marks())
 	m.open(o)
 }
 
