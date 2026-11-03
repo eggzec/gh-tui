@@ -173,9 +173,11 @@ func (s *Section) titleForms(p paneID) []string {
 	return slices.Compact(forms)
 }
 
-// reposCount is the forms of the count of rows the tab on view lists, longest
-// first, for the right of the pane's title. Rows the quick filter hides and
-// the pinned ones are not counted. There is none while the tab loads.
+// reposCount is the forms of the repositories count, longest first, for the
+// right of the pane's title: "all [loaded]" with the viewer's total, or the
+// loaded count alone while the total is unknown. Under a filter it is
+// "matched/all", with "[loaded]" only when that differs from matched. There
+// is none while the tab loads.
 func (s *Section) reposCount() []string {
 	f := &s.repos.current().Feed
 	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
@@ -191,8 +193,7 @@ func (s *Section) reposCount() []string {
 		// The total is not known yet, or the pages outgrew it.
 		total = 0
 	}
-	shown := f.Shown()
-	if shown == f.Loaded() {
+	if !s.repos.current().Filter().Active() && f.FilterQuery() == "" {
 		if total == 0 {
 			return []string{loaded}
 		}
@@ -202,13 +203,18 @@ func (s *Section) reposCount() []string {
 		}
 		return []string{all + " [" + loaded + "]", all}
 	}
-	// A quick filter keeps only some of the loaded rows.
-	matched := ui.Count(shown, false)
+	matched := ui.Count(f.Shown(), false)
 	if total == 0 {
+		if f.Shown() == f.Loaded() {
+			return []string{matched}
+		}
 		return []string{matched + " [" + loaded + "]", matched}
 	}
-	all := ui.Count(total, false)
-	return []string{matched + "/" + all + " [" + loaded + "]", matched + "/" + all, matched}
+	head := matched + "/" + ui.Count(total, false)
+	if f.Shown() == f.Loaded() {
+		return []string{head, matched}
+	}
+	return []string{head + " [" + loaded + "]", head, matched}
 }
 
 // stripForms are the forms of the pane names in the bottom edge of the one
