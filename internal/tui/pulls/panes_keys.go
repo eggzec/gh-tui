@@ -195,7 +195,7 @@ func (m *panesModal) KeyContext() string { return ctxModal }
 // ones: the modal's quit key reaches it through ui.Actor.
 func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	if o := m.top(); o != nil {
-		return o.layers()
+		return o.Layers()
 	}
 	k := m.keys
 	l := m.layout()
@@ -215,8 +215,8 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	ctx := m.context(l)
 	if m.filesDiffFocused() {
 		// The focused diff beside the tree takes the keys of the diff modal.
-		layers := m.files.pv.o.layers()
-		if m.files.pv.o.typing() {
+		layers := m.files.pv.o.Layers()
+		if m.files.pv.o.Typing() {
 			return layers
 		}
 		return []keyhelp.Layer{own, layers[len(layers)-1]}

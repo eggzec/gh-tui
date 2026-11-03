@@ -108,7 +108,7 @@ func TestLabelsView(t *testing.T) {
 	h, m := labeling(t, newFakeService())
 	press(t, h, "L")
 	o := labelsOverlayOf(t, m)
-	if got := o.title(); got != "Labels · 1 selected" {
+	if got := o.Title(); got != "Labels · 1 selected" {
 		t.Errorf("title is %q", got)
 	}
 	golden.RequireEqual(t, m.View())
@@ -179,7 +179,7 @@ func TestLabelsSpaceSortsAndKeepsTheCursorByIdentity(t *testing.T) {
 	if got := selectedLabel(t, o); got != "docs" {
 		t.Errorf("space on bug left the cursor on %q, want the one below it, docs", got)
 	}
-	if got := o.title(); got != "Labels · 2 selected" {
+	if got := o.Title(); got != "Labels · 2 selected" {
 		t.Errorf("title is %q after a tick", got)
 	}
 	// The ticked labels sort first, so bug now sits above cache.

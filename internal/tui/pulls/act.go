@@ -24,7 +24,7 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	}
 	o := m.top()
 	if o == nil {
-		if m.filesDiffFocused() && m.files.pv.o.typing() {
+		if m.filesDiffFocused() && m.files.pv.o.Typing() {
 			// The search of the diff beside the tree takes the keys as text.
 			return nil, false
 		}
@@ -39,11 +39,11 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 		}
 		return nil, false
 	}
-	if t, ok := o.(interface{ typing() bool }); ok && t.typing() {
+	if t, ok := o.(interface{ Typing() bool }); ok && t.Typing() {
 		// Its own keys close it, and the other keys are its text.
 		return nil, false
 	}
-	viewer := o.kind() == panes.Viewer
+	viewer := o.Kind() == panes.Viewer
 	switch action {
 	case ui.ActBack:
 		if viewer {
@@ -60,14 +60,14 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 		// A picker closes itself on back. The press is passed in, since the
 		// app would otherwise pop the modal under this one, and the key
 		// never reaches the picker.
-		cmd := o.update(keymap.ActionPress("picker_normal.back"))
+		cmd := o.Update(keymap.ActionPress("picker_normal.back"))
 		m.settle()
 		return cmd, true
 	case ui.ActDismiss:
 		if !viewer {
 			return nil, false
 		}
-		if !o.clear() {
+		if !o.Clear() {
 			m.pop()
 		}
 		return nil, true

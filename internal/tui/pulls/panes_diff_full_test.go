@@ -72,18 +72,18 @@ func TestDiffFullFileSwitchesTheMode(t *testing.T) {
 		"sha-a.go": {Content: []byte("keep\nnew a.go\nmore\nafter the hunk\n")},
 	}}
 	h, o := fullPanes(t, blobs, "a.go")
-	if got := o.title(); !strings.Contains(got, "hunks only [x]") {
+	if got := o.Title(); !strings.Contains(got, "hunks only [x]") {
 		t.Fatalf("title %q, want the mode hunks only with its key", got)
 	}
 	press(t, h, "x")
-	if got := o.title(); !strings.Contains(got, "full file [x]") {
+	if got := o.Title(); !strings.Contains(got, "full file [x]") {
 		t.Errorf("title %q after x, want the mode full file", got)
 	}
 	if got := modalScreen(t, h); !strings.Contains(got, "after the hunk") {
 		t.Errorf("screen doesn't show the lines after the hunk:\n%s", got)
 	}
 	press(t, h, "x")
-	if got := o.title(); !strings.Contains(got, "hunks only [x]") {
+	if got := o.Title(); !strings.Contains(got, "hunks only [x]") {
 		t.Errorf("title %q after x again, want hunks only", got)
 	}
 	if got := modalScreen(t, h); strings.Contains(got, "after the hunk") {
@@ -91,7 +91,7 @@ func TestDiffFullFileSwitchesTheMode(t *testing.T) {
 	}
 	// Shown whole again from what was read.
 	press(t, h, "x")
-	if got := o.title(); !strings.Contains(got, "full file [x]") {
+	if got := o.Title(); !strings.Contains(got, "full file [x]") {
 		t.Errorf("title %q after the third x, want full file", got)
 	}
 	if reads := blobs.read(); len(reads) != 1 || reads[0] != "sha-a.go" {
@@ -108,7 +108,7 @@ func TestDiffFullFileSurvivesAStepToAnotherFile(t *testing.T) {
 	press(t, h, "x")
 	press(t, h, "J")
 	press(t, h, "K")
-	if got := o.title(); !strings.Contains(got, "full file [x]") {
+	if got := o.Title(); !strings.Contains(got, "full file [x]") {
 		t.Errorf("title %q after coming back to the file, want full file", got)
 	}
 }
@@ -158,7 +158,7 @@ func TestDiffFullFileRefusals(t *testing.T) {
 			if !notified(msgs, tt.toast) {
 				t.Errorf("no toast saying %q among %v", tt.toast, msgs)
 			}
-			if got := o.title(); !strings.Contains(got, "hunks only") {
+			if got := o.Title(); !strings.Contains(got, "hunks only") {
 				t.Errorf("title %q, want the mode to stay hunks only", got)
 			}
 			if tt.name == "deleted" && len(blobs.read()) != 0 {

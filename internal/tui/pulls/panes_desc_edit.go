@@ -170,31 +170,31 @@ func newDescEdit(m *panesModal) *descEditOverlay {
 	return o
 }
 
-func (o *descEditOverlay) title() string { return "Edit #" + strconv.Itoa(o.m.number) }
+func (o *descEditOverlay) Title() string { return "Edit #" + strconv.Itoa(o.m.number) }
 
-func (o *descEditOverlay) kind() panes.OverlayKind { return panes.Viewer }
-func (o *descEditOverlay) items() int              { return 0 }
-func (o *descEditOverlay) text() int               { return 0 }
-func (o *descEditOverlay) clear() bool             { return false }
-func (o *descEditOverlay) closed() bool            { return o.done }
+func (o *descEditOverlay) Kind() panes.OverlayKind { return panes.Viewer }
+func (o *descEditOverlay) Items() int              { return 0 }
+func (o *descEditOverlay) Text() int               { return 0 }
+func (o *descEditOverlay) Clear() bool             { return false }
+func (o *descEditOverlay) Closed() bool            { return o.done }
 
 // typing reports that the overlay takes the keys of the app's actions as text.
-func (o *descEditOverlay) typing() bool { return true }
+func (o *descEditOverlay) Typing() bool { return true }
 
-func (o *descEditOverlay) layers() []keyhelp.Layer {
+func (o *descEditOverlay) Layers() []keyhelp.Layer {
 	k := o.keys
 	k.Edit.SetEnabled(k.Edit.Enabled() && o.focus == editBody)
 	return []keyhelp.Layer{ui.ContextHelp(ctxDescEdit, k, true)}
 }
 
-func (o *descEditOverlay) view(w, h int) string {
+func (o *descEditOverlay) View(w, h int) string {
 	o.titleF.SetSize(w, prompt.SingleLineHeight)
 	o.bodyF.SetSize(w, max(h-prompt.SingleLineHeight, descEditBodyMin))
 	lines := append(strings.Split(o.titleF.View(), "\n"), strings.Split(o.bodyF.View(), "\n")...)
 	return strings.Join(termtext.PadLines(lines, w, h), "\n")
 }
 
-func (o *descEditOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *descEditOverlay) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {

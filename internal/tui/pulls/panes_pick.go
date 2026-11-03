@@ -198,25 +198,25 @@ type tickOverlay[K comparable] struct {
 	done bool
 }
 
-func (o *tickOverlay[K]) title() string           { return o.p.Title(o.heading) }
-func (o *tickOverlay[K]) kind() panes.OverlayKind { return panes.Picker }
+func (o *tickOverlay[K]) Title() string           { return o.p.Title(o.heading) }
+func (o *tickOverlay[K]) Kind() panes.OverlayKind { return panes.Picker }
 
 // items is the rows of the picker and the rule between the ticked and the
 // others.
-func (o *tickOverlay[K]) items() int {
+func (o *tickOverlay[K]) Items() int {
 	if o.flat {
 		return o.rows
 	}
 	return o.rows + 1
 }
-func (o *tickOverlay[K]) text() int    { return 0 }
-func (o *tickOverlay[K]) clear() bool  { return false }
-func (o *tickOverlay[K]) closed() bool { return o.done }
+func (o *tickOverlay[K]) Text() int    { return 0 }
+func (o *tickOverlay[K]) Clear() bool  { return false }
+func (o *tickOverlay[K]) Closed() bool { return o.done }
 
 // typing says that the search takes the keys as text.
-func (o *tickOverlay[K]) typing() bool { return o.p.Typing() }
+func (o *tickOverlay[K]) Typing() bool { return o.p.Typing() }
 
-func (o *tickOverlay[K]) layers() []keyhelp.Layer {
+func (o *tickOverlay[K]) Layers() []keyhelp.Layer {
 	ctx := "picker_normal"
 	if o.p.Typing() && !o.flat {
 		ctx = "picker"
@@ -266,7 +266,7 @@ func moving(down, up key.Binding) key.Binding {
 
 func (h labelsHelp) FullHelp() [][]key.Binding { return h.p.FullHelp() }
 
-func (o *tickOverlay[K]) view(w, h int) string {
+func (o *tickOverlay[K]) View(w, h int) string {
 	// The frame keeps a cell of room on each side of what it holds.
 	o.p.SetSize(w-2, h)
 	return o.p.View()
@@ -296,7 +296,7 @@ func (o *tickOverlay[K]) marks() []any {
 	return marked
 }
 
-func (o *tickOverlay[K]) update(msg tea.Msg) tea.Cmd {
+func (o *tickOverlay[K]) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case picker.ChosenMsg:
 		if msg.ID != o.p.ID() {

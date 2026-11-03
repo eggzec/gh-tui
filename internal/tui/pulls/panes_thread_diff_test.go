@@ -194,8 +194,8 @@ func TestEnterOutdatedThreadOpensTheDiffAtItsCommit(t *testing.T) {
 			t.Errorf("screen shows %q, which is not a thread of this commit:\n%s", not, screen)
 		}
 	}
-	if !strings.Contains(o.title(), commit[:7]) {
-		t.Errorf("title %q lacks the commit %s", o.title(), commit[:7])
+	if !strings.Contains(o.Title(), commit[:7]) {
+		t.Errorf("title %q lacks the commit %s", o.Title(), commit[:7])
 	}
 	if _, marked := o.marks[wantPos]; !marked {
 		t.Errorf("the line %+v carries no mark: %v", wantPos, o.marks)

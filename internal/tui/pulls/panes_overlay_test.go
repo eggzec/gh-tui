@@ -23,22 +23,22 @@ type stubOverlay struct {
 	got       []tea.Msg
 }
 
-func (o *stubOverlay) title() string           { return o.name }
-func (o *stubOverlay) kind() panes.OverlayKind { return o.k }
-func (o *stubOverlay) items() int              { return o.rows }
-func (o *stubOverlay) text() int               { return 0 }
-func (o *stubOverlay) closed() bool            { return o.done }
-func (o *stubOverlay) view(w, h int) string {
+func (o *stubOverlay) Title() string           { return o.name }
+func (o *stubOverlay) Kind() panes.OverlayKind { return o.k }
+func (o *stubOverlay) Items() int              { return o.rows }
+func (o *stubOverlay) Text() int               { return 0 }
+func (o *stubOverlay) Closed() bool            { return o.done }
+func (o *stubOverlay) View(w, h int) string {
 	return strings.Repeat(strings.Repeat("x", w)+"\n", max(h-1, 0)) + strings.Repeat("x", w)
 }
-func (o *stubOverlay) layers() []keyhelp.Layer {
+func (o *stubOverlay) Layers() []keyhelp.Layer {
 	return []keyhelp.Layer{{Source: "stub", Context: "stub"}}
 }
-func (o *stubOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *stubOverlay) Update(msg tea.Msg) tea.Cmd {
 	o.got = append(o.got, msg)
 	return nil
 }
-func (o *stubOverlay) clear() bool {
+func (o *stubOverlay) Clear() bool {
 	was := o.transient
 	o.transient = false
 	return was
