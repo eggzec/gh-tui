@@ -70,10 +70,47 @@ func TestCompleteQuerySpan(t *testing.T) {
 	}
 }
 
-type fakeValues struct{ repos, owners []string }
+type fakeValues struct{ repos, owners, topics []string }
 
 func (f fakeValues) Repos() []string  { return f.repos }
 func (f fakeValues) Owners() []string { return f.owners }
+func (f fakeValues) Topics() []string { return f.topics }
+
+func TestTabCompletesRepoAndTopicOnRepositories(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ typed, want string }{
+		{"tea repo:oc", "tea repo:octo/hello"},
+		{"tea topic:cl", "tea topic:cli"},
+		{"org:oc", "org:octo"},
+	} {
+		s := newSection(t, newFake(), 120, 30)
+		s.SetValues(fakeValues{repos: []string{"octo/hello"}, owners: []string{"octo"}, topics: []string{"cli", "tui"}})
+		s.Focus()
+		// The default kind is repositories.
+		press(t, s, "/")
+		typeOnly(t, s, tt.typed)
+		press(t, s, "tab")
+		if got := s.input.Value(); got != tt.want {
+			t.Errorf("%q + tab = %q, want %q", tt.typed, got, tt.want)
+		}
+	}
+}
+
+func TestEmptyCompletionHint(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ typed, want string }{
+		{"label:bug", "no label: filter for repositories; press 2 for issues"},
+		{"topic:", "no known topic: values yet"},
+	} {
+		s := newSection(t, newFake(), 120, 30)
+		s.Focus()
+		press(t, s, "/")
+		typeOnly(t, s, tt.typed)
+		if view := s.View(); !strings.Contains(view, tt.want) {
+			t.Errorf("%q: view lacks %q:\n%s", tt.typed, tt.want, view)
+		}
+	}
+}
 
 func TestCompleteQueryValues(t *testing.T) {
 	t.Parallel()

@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"unicode"
@@ -69,7 +70,46 @@ func qualifiers(kind core.SearchKind) []qualifier {
 			add("sort", o.Value)
 		}
 	}
+	if kind == core.SearchRepos {
+		// GitHub's repository search takes these too, though the filter form
+		// has no field for them.
+		for _, name := range []string{"repo", "org", "topic"} {
+			add(name, "")
+		}
+	}
 	return out
+}
+
+// hintFor explains why the word of line under the cursor has no candidates,
+// or returns "" when there is nothing to say: a qualifier the kind's search
+// does not take, naming the kind that does, or a value the app knows none of.
+func hintFor(kind core.SearchKind, line string, cursor int) string {
+	if cursor < 0 || cursor > len(line) {
+		return ""
+	}
+	start, end := wordSpan(line, cursor)
+	body := strings.TrimPrefix(line[start:end], "-")
+	name, val, ok := strings.Cut(body, ":")
+	if !ok || name == "" || strings.Contains(body, `"`) {
+		return ""
+	}
+	name = strings.ToLower(name)
+	if slices.ContainsFunc(qualifiers(kind), func(q qualifier) bool { return q.name == name }) {
+		switch name {
+		case "repo", "org", "user", "topic":
+			if val == "" {
+				return "no known " + name + ": values yet; open the dashboard or a repository"
+			}
+			return "no known " + name + ": value starts with " + val
+		}
+		return ""
+	}
+	for i, k := range kinds {
+		if slices.ContainsFunc(qualifiers(k), func(q qualifier) bool { return q.name == name }) {
+			return fmt.Sprintf("no %s: filter for %s; press %d for %s", name, strings.ToLower(kindTitles[kind]), i+1, strings.ToLower(kindTitles[k]))
+		}
+	}
+	return fmt.Sprintf("no %s: filter for %s", name, strings.ToLower(kindTitles[kind]))
 }
 
 // wordSpan returns the byte span of the word of line the cursor touches, or
@@ -166,6 +206,8 @@ type Values interface {
 	// Owners returns the logins of users and organizations, the most
 	// relevant first.
 	Owners() []string
+	// Topics returns the topics of the repositories the app has read.
+	Topics() []string
 }
 
 // SetValues sets what the values of repo:, org: and user: complete to in the
@@ -191,6 +233,8 @@ func knownValues(vals Values, name, prefix string) []string {
 		all = vals.Repos()
 	case "org", "user":
 		all = vals.Owners()
+	case "topic":
+		all = vals.Topics()
 	default:
 		return nil
 	}
@@ -220,6 +264,8 @@ type completion struct {
 	// the spans of cands refer to.
 	line   string
 	cursor int
+	// hint says why there are no candidates, when the word asks for some.
+	hint string
 }
 
 // refreshComplete asks for the candidates of the query as it is, which ends
@@ -230,6 +276,9 @@ func (s *Section) refreshComplete() {
 	s.comp = completion{sel: -1, line: line, cursor: cursor}
 	if s.typing {
 		s.comp.cands = completeQuery(s.kind, line, cursor, s.values)
+		if len(s.comp.cands) == 0 {
+			s.comp.hint = hintFor(s.kind, line, cursor)
+		}
 	}
 }
 
