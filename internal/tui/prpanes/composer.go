@@ -29,25 +29,39 @@ func (o *ComposerOverlay) Close() { o.done = true }
 
 func (o *ComposerOverlay) busy() bool { return o.Busy != nil && o.Busy() }
 
-func (o *ComposerOverlay) Title() string           { return o.Head }
+// Title is the heading of the frame.
+func (o *ComposerOverlay) Title() string { return o.Head }
+
+// Kind says the frame is a viewer.
 func (o *ComposerOverlay) Kind() panes.OverlayKind { return panes.Viewer }
-func (o *ComposerOverlay) Items() int              { return 0 }
-func (o *ComposerOverlay) Text() int               { return 0 }
-func (o *ComposerOverlay) Clear() bool             { return false }
-func (o *ComposerOverlay) Closed() bool            { return o.done }
+
+// Items is zero: the composer has no rows.
+func (o *ComposerOverlay) Items() int { return 0 }
+
+// Text is zero: the composer has no text to find in.
+func (o *ComposerOverlay) Text() int { return 0 }
+
+// Clear reports false: the composer has no find or filter to clear.
+func (o *ComposerOverlay) Clear() bool { return false }
+
+// Closed reports whether the overlay is done.
+func (o *ComposerOverlay) Closed() bool { return o.done }
 
 // Typing reports that the overlay takes the keys of the app's actions as text.
 func (o *ComposerOverlay) Typing() bool { return true }
 
+// Layers lists the keys of the composer for the help.
 func (o *ComposerOverlay) Layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextHelp("composer", &o.Comp, true)}
 }
 
+// View draws the composer at the size of the frame.
 func (o *ComposerOverlay) View(w, h int) string {
 	o.Comp.SetSize(w, h)
 	return o.Comp.View()
 }
 
+// Update passes a message to the composer and submits it when it is sent.
 func (o *ComposerOverlay) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case composer.SubmitMsg:
