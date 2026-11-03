@@ -1,8 +1,6 @@
 package pulls
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -95,7 +93,7 @@ func (m *panesModal) follow() {
 
 // offset is how far the preview of the focused pane is scrolled.
 func (m *panesModal) offset() int {
-	return m.previews[previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id}]
+	return m.previews.Get(previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id})
 }
 
 // previewContent frames the preview in box b: its pane's body, scrolled to
@@ -106,13 +104,12 @@ func (m *panesModal) previewContent(b panes.Box) panes.Content {
 	if s.preview == nil {
 		return panes.Content{TopLeft: m.titleForms(h.title, b)}
 	}
-	lines := strings.Split(s.preview(m, b), "\n")
-	off := min(m.previews[previewKey{b.Pane, h.id}], max(0, len(lines)-b.Rect.Inner().H))
+	body, _ := panes.Window(s.preview(m, b), m.previews.Get(previewKey{b.Pane, h.id}), b.Rect.Inner().H)
 	title := h.title
 	if s.title != nil {
 		title = s.title(m, b)
 	}
-	c := panes.Content{TopLeft: m.titleForms(title, b), Body: strings.Join(lines[off:], "\n")}
+	c := panes.Content{TopLeft: m.titleForms(title, b), Body: body}
 	if s.info != nil {
 		c.TopRight = s.info(m, b)
 	}

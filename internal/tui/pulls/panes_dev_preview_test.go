@@ -66,13 +66,13 @@ func TestDevelopmentPreviewScrollKept(t *testing.T) {
 		press(t, h, "down")
 	}
 	press(t, h, "tab")
-	want := m.previews[key]
+	want := m.previews.Get(key)
 	if want == 0 {
 		t.Fatal("the preview didn't scroll")
 	}
 	press(t, h, "down")
 	press(t, h, "up")
-	if got := m.previews[key]; got != want {
+	if got := m.previews.Get(key); got != want {
 		t.Fatalf("the offset of the preview is %d after hovering away and back, want %d", got, want)
 	}
 }
