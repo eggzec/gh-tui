@@ -46,6 +46,9 @@ type Icons struct {
 	// Marked marks a row of a list that the user marked, in a cell left of
 	// the row, next to the cursor.
 	Marked string
+	// Pinned marks a row that is pinned, such as an issue pinned to its
+	// repository.
+	Pinned string
 	// Lock follows the title of a row that can't be changed, such as a
 	// label that is fixed in a picker.
 	Lock string
@@ -173,7 +176,7 @@ func newIcons(set string) Icons {
 			Fork: "⑂", Private: "⊘", Archived: "⊟", Template: "⧉", Mirror: "⇄", Here: "⌂",
 			Star: "★", Repo: "◫", Person: "☺", Org: "▦", Error: "✗", Separator: " · ", Ellipsis: "…",
 			Yes: "✓", No: "✗", Info: "•",
-			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Lock: "⚷", Changed: "↻",
+			Cursor: "▌", Folded: "▸", Unfolded: "▾", Marked: "◆", Pinned: "⚑", Lock: "⚷", Changed: "↻",
 			ChangesRequested: "±", ReviewRequired: "•",
 			Workflow: "⚙", Event: "↯", Clock: "◷", Attempt: "↺",
 			lang: "◉",
@@ -188,7 +191,7 @@ func newIcons(set string) Icons {
 			Fork: "F", Private: "P", Archived: "A", Template: "T", Mirror: "M", Here: "~",
 			Star: "*", Repo: "R", Person: "@", Org: "#", Error: "x", Separator: " - ", Ellipsis: "...",
 			Yes: "+", No: "x", Info: "i",
-			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Lock: "L", Changed: "~",
+			Cursor: ">", Folded: "+", Unfolded: "-", Marked: "+", Pinned: "^", Lock: "L", Changed: "~",
 			ChangesRequested: "~", ReviewRequired: "?",
 			Workflow: "W", Event: "e", Clock: "t", Attempt: "#",
 			// A colored dot, as the other sets have, since the star takes *.
@@ -212,6 +215,7 @@ func newIcons(set string) Icons {
 			// of the other sets.
 			Cursor: "▌", Folded: "\uf44a", Unfolded: "\uf44b",
 			Marked:           "\uf14a",                           // fa-check_square
+			Pinned:           "\uf435",                           // oct-pin
 			Lock:             "\uf456",                           // oct-lock
 			Changed:          "\uf46a",                           // oct-sync
 			ChangesRequested: "\uf4d2", ReviewRequired: "\uf444", // oct-file_diff, oct-dot_fill
