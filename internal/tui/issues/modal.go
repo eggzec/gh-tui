@@ -334,14 +334,7 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.md = ui.NewMarkdown(m.theme, m.icons)
 	m.seen = m.links.Seen(m.repo.String())
 	m.md.SetAutolink(m.seen.Func())
-	m.conv = conv.New(m.source(),
-		conv.WithOptions(m.convOptions()),
-		conv.WithTreeKeys(m.keys.tree),
-		conv.WithTreeStyles(treeview.DefaultStyles(m.theme.Dark)),
-		conv.WithViewer(m.viewer),
-		conv.WithVoice(m.voice),
-		conv.WithSize(m.width, m.convHeight()),
-	)
+	m.conv = conv.New(m.source(), conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.width, m.convHeight())...)
 	m.convOn = true
 	if m.composing == composeNone {
 		m.conv.Focus()

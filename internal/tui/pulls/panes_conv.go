@@ -118,14 +118,7 @@ func (m *panesModal) buildConv() tea.Cmd {
 	c.md = ui.NewMarkdown(m.theme, m.icons)
 	c.seen = m.links().Seen(m.repo.String())
 	c.md.SetAutolink(c.seen.Func())
-	opts := []conv.Option{
-		conv.WithOptions(m.convOptions()),
-		conv.WithTreeKeys(m.keys.tree),
-		conv.WithTreeStyles(treeview.DefaultStyles(m.theme.Dark)),
-		conv.WithViewer(c.viewer),
-		conv.WithVoice(c.voice),
-		conv.WithSize(c.w, c.h),
-	}
+	opts := conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, c.viewer, c.voice, c.w, c.h)
 	if c.opt != nil {
 		opts = append(opts, c.opt)
 	}
