@@ -80,36 +80,56 @@ func qualifiers(kind core.SearchKind) []qualifier {
 	return out
 }
 
+// lacking lists the qualifier names a kind's search is known not to take. The
+// filter form lists only some of what GitHub accepts, so a name missing from
+// its fields proves nothing; only these names are called unsupported.
+var lacking = map[core.SearchKind][]string{
+	core.SearchCode: {"sort"},
+}
+
 // hintFor explains why the word of line under the cursor has no candidates,
 // or returns "" when there is nothing to say: a qualifier the kind's search
-// does not take, naming the kind that does, or a value the app knows none of.
-func hintFor(kind core.SearchKind, line string, cursor int) string {
+// does not take, a qualifier with nothing to complete (naming the kind whose
+// filter lists it), or a value the app knows none of. A value that is already
+// one the app knows, or a word that is a URL, gets no hint.
+func hintFor(kind core.SearchKind, line string, cursor int, vals Values) string {
 	if cursor < 0 || cursor > len(line) {
 		return ""
 	}
 	start, end := wordSpan(line, cursor)
 	body := strings.TrimPrefix(line[start:end], "-")
 	name, val, ok := strings.Cut(body, ":")
-	if !ok || name == "" || strings.Contains(body, `"`) {
+	if !ok || name == "" || strings.Contains(body, `"`) || strings.HasPrefix(val, "//") {
 		return ""
 	}
 	name = strings.ToLower(name)
 	if slices.ContainsFunc(qualifiers(kind), func(q qualifier) bool { return q.name == name }) {
 		switch name {
 		case "repo", "org", "user", "topic":
+			if slices.ContainsFunc(knownValues(vals, name, val), func(v string) bool { return strings.EqualFold(v, val) }) {
+				return ""
+			}
 			if val == "" {
+				if name == "topic" {
+					return "no known topic: values yet; open the dashboard or the repositories list"
+				}
 				return "no known " + name + ": values yet; open the dashboard or a repository"
 			}
 			return "no known " + name + ": value starts with " + val
 		}
 		return ""
 	}
+	title := strings.ToLower(kindTitles[kind])
+	if kind == core.SearchTopics || slices.Contains(lacking[kind], name) {
+		return fmt.Sprintf("no %s: filter for %s", name, title)
+	}
+	hint := "nothing to complete for " + name + ":"
 	for i, k := range kinds {
 		if slices.ContainsFunc(qualifiers(k), func(q qualifier) bool { return q.name == name }) {
-			return fmt.Sprintf("no %s: filter for %s; press %d for %s", name, strings.ToLower(kindTitles[kind]), i+1, strings.ToLower(kindTitles[k]))
+			return fmt.Sprintf("%s; press %d for %s", hint, i+1, strings.ToLower(kindTitles[k]))
 		}
 	}
-	return fmt.Sprintf("no %s: filter for %s", name, strings.ToLower(kindTitles[kind]))
+	return hint
 }
 
 // wordSpan returns the byte span of the word of line the cursor touches, or
@@ -150,7 +170,7 @@ func wordSpan(line string, cursor int) (start, end int) {
 // that negates the word stays. A word that is empty or holds a quote has no
 // candidates.
 //
-// vals, when set, completes the value of repo:, org: and user: from what the
+// vals, when set, completes the value of repo:, org:, user: and topic: from what the
 // app knows, for the kinds whose search takes that qualifier.
 func completeQuery(kind core.SearchKind, line string, cursor int, vals Values) []candidate {
 	if cursor < 0 || cursor > len(line) {
@@ -210,7 +230,7 @@ type Values interface {
 	Topics() []string
 }
 
-// SetValues sets what the values of repo:, org: and user: complete to in the
+// SetValues sets what the values of repo:, org:, user: and topic: complete to in the
 // query. Without it, only the qualifiers and their fixed values complete. The
 // app sets it once it can tell what it has read, after the section is built.
 func (s *Section) SetValues(v Values) {
@@ -277,7 +297,7 @@ func (s *Section) refreshComplete() {
 	if s.typing {
 		s.comp.cands = completeQuery(s.kind, line, cursor, s.values)
 		if len(s.comp.cands) == 0 {
-			s.comp.hint = hintFor(s.kind, line, cursor)
+			s.comp.hint = hintFor(s.kind, line, cursor, s.values)
 		}
 	}
 }
