@@ -15,8 +15,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
-	"github.com/eggzec/gh-tui/internal/service/notifications"
-	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	tuinotes "github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/repolist"
@@ -52,15 +50,6 @@ type Service interface {
 	Invalidate()
 }
 
-// Inbox is what the section needs of the notifications service: the first
-// page of the default inbox, which holds the unread threads.
-type Inbox interface {
-	CachedList(q notifications.ListQuery) (core.Page[core.Notification], bool)
-	// FreshList reports whether reading q costs no request, without I/O.
-	FreshList(q notifications.ListQuery) bool
-	List(ctx context.Context, q notifications.ListQuery) (core.Page[core.Notification], error)
-}
-
 // Repos reads the repository of the current directory, for its card.
 type Repos interface {
 	Get(ctx context.Context, repo core.RepoRef) (core.Repo, error)
@@ -85,23 +74,13 @@ func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
 }
 
-// Marker marks a thread read or done, as the notifications service does, for
-// the notifications pane to mark a thread it opens or is asked to.
-type Marker interface {
-	MarkRead(id string) *optimistic.Op
-	MarkDone(id string) *optimistic.Op
-}
-
-// WithInbox shows the unread notifications of in. If in is a Marker too,
-// opening a thread marks it read, as the notifications list does, and the
-// pane marks threads read and done. If it is a notifications.States too, the
-// rows show the state of what the threads are about. Without it the
-// notifications pane says there are none to show.
-func WithInbox(in Inbox) Option {
+// WithInbox shows the notifications of in in the notifications pane, which
+// is the notifications list: it reads, opens and marks threads as that does.
+// If in is a notifications.States too, the rows show the state of what the
+// threads are about. Without it the pane says there are none to show.
+func WithInbox(in tuinotes.Service) Option {
 	return func(s *Section) {
 		s.inbox = in
-		s.marker, _ = in.(Marker)
-		s.reader, _ = in.(tuinotes.States)
 	}
 }
 
@@ -199,15 +178,11 @@ type Section struct {
 	id     int64
 	ctx    context.Context
 	svc    Service
-	inbox  Inbox
-	marker Marker
-	// reader reads the states of the subjects of the threads, and states
-	// holds them. wantStates says the threads changed, so they are read.
-	reader     tuinotes.States
-	states     map[core.SubjectRef]core.SubjectState
-	wantStates bool
-	// rows draws the threads as the notifications list does.
-	rows   tuinotes.Rows
+	// inbox is the service the notifications pane reads through, and notes
+	// the notifications list in the pane, which is nil without it. The list
+	// is the only reader of the inbox.
+	inbox  tuinotes.Service
+	notes  *tuinotes.Section
 	opener *threads.Opener
 	// ahead reads the work ahead through readers, as workAhead says.
 	// layers are the settings WithPrefetch gave, which New resolves, and
@@ -253,15 +228,12 @@ type Section struct {
 	header   read[core.Header]
 	work     read[core.Work]
 	contribs read[core.Contributions]
-	notes    read[core.Page[core.Notification]]
 	hereRepo read[core.Repo]
 
 	pinned repolist.Cards
 	repos  repoTabs
 	tasks  workList
-	// threads are the unread notifications in their pane.
-	threads inboxList
-	cal     calendar.Model
+	cal    calendar.Model
 
 	width, height int
 	// zoom shows the focused pane alone, as a narrow dashboard does.
@@ -319,6 +291,18 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	if s.opener == nil {
 		s.opener = threads.New(ctx)
 	}
+	if s.inbox != nil {
+		opts := []tuinotes.Option{
+			tuinotes.WithoutHeader(), tuinotes.WithPageLimit(1),
+			tuinotes.WithOpener(s.opener), tuinotes.WithVoice(s.voice),
+			tuinotes.WithIcons(s.icons), tuinotes.WithDates(s.dates),
+			tuinotes.WithNow(s.now),
+		}
+		if st, ok := s.inbox.(tuinotes.States); ok {
+			opts = append(opts, tuinotes.WithStates(st))
+		}
+		s.notes = tuinotes.New(ctx, s.inbox, keys, opts...)
+	}
 	s.newLandingAheads()
 	s.setPrefetch(s.layers)
 	s.cal = calendar.New(
@@ -349,19 +333,6 @@ func (s *Section) paintCached() {
 		s.contribs.value, s.contribs.ok = c, true
 		s.setContributions()
 	}
-	s.readInboxCache()
-}
-
-// readInboxCache shows the inbox as the notifications service has it
-// cached, which the notifications section and the polls keep current.
-func (s *Section) readInboxCache() {
-	if s.inbox == nil {
-		return
-	}
-	if p, ok := s.inbox.CachedList(notifications.ListQuery{}); ok {
-		s.notes.value, s.notes.ok, s.notes.err = p, true, nil
-		s.setInbox()
-	}
 }
 
 // Title returns the title of the section.
@@ -371,6 +342,9 @@ func (s *Section) Title() string { return ui.DashboardTitle }
 func (s *Section) Init() tea.Cmd {
 	s.started = true
 	cmd := tea.Batch(s.load(), s.repos.start())
+	if s.notes != nil {
+		cmd = tea.Batch(cmd, s.notes.Init())
+	}
 	s.render()
 	return cmd
 }
@@ -392,7 +366,9 @@ func (s *Section) SetTheme(t ui.Theme) {
 	s.opener.SetIcons(s.icons)
 	s.theme = t
 	s.st = newStyles(t, s.icons)
-	s.rows = tuinotes.NewRows(t, s.icons)
+	if s.notes != nil {
+		s.notes.SetTheme(t)
+	}
 	s.errs = t.Errors(s.icons)
 	s.cal.SetStyles(t.Calendar(s.icons))
 	s.cal.SetGlyph(ui.CalendarGlyph(s.glyph, s.icons))
@@ -411,7 +387,6 @@ func (s *Section) SetTheme(t ui.Theme) {
 // cached now, which may have changed while another screen was on view.
 func (s *Section) Focus() {
 	s.focused = true
-	s.readInboxCache()
 	s.focusPane(s.focus)
 	s.render()
 }
@@ -421,9 +396,9 @@ func (s *Section) Focus() {
 // leaves the screen.
 func (s *Section) Blur() {
 	s.focused = false
-	s.opener.Stop()
-	// The notifications list reads ahead as its own settings say.
-	s.opener.FollowInbox(false)
+	if s.notes != nil {
+		s.notes.Blur()
+	}
 	s.ahead.Reset(s.ctx)
 	s.aheadRepos.Reset(s.ctx)
 	s.aheadPinned.Reset(s.ctx)

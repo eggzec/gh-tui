@@ -53,18 +53,13 @@ type KeyMap struct {
 	// checks.
 	Checks key.Binding
 	// Up, Down, Left and Right move through the cards, WorkUp and WorkDown
-	// through the work, and InboxUp and InboxDown through the
-	// notifications, each with the keys of its pane.
+	// through the work, each with the keys of its pane.
 	Up        key.Binding `keymap:"dashboard_pinned.up" help:"up"`
 	Down      key.Binding `keymap:"dashboard_pinned.down" help:"down"`
 	Left      key.Binding `keymap:"dashboard_pinned.left" help:"left"`
 	Right     key.Binding `keymap:"dashboard_pinned.right" help:"right"`
 	WorkUp    key.Binding `keymap:"dashboard_work.up" help:"up"`
 	WorkDown  key.Binding `keymap:"dashboard_work.down" help:"down"`
-	InboxUp   key.Binding `keymap:"dashboard_inbox.up" help:"up"`
-	InboxDown key.Binding `keymap:"dashboard_inbox.down" help:"down"`
-	InboxRead key.Binding `keymap:"dashboard_inbox.read" help:"read"`
-	InboxDone key.Binding `keymap:"dashboard_inbox.done" help:"done"`
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
@@ -149,7 +144,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Left, k.Right, k.Up, k.Down, k.Select, k.Checks, k.NextOwner, k.PrevOwner, k.NextList, k.PrevList, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups},
-		{k.WorkUp, k.WorkDown, k.InboxUp, k.InboxDown, k.InboxRead, k.InboxDone},
+		{k.WorkUp, k.WorkDown},
 		{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
 	}
 }
@@ -179,16 +174,26 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		k.Checks.SetEnabled(k.Checks.Enabled() && ok && hit.Kind == core.SearchPulls)
 		own.SetMenu([]key.Binding{k.Checks})
 	case inboxPane:
-		own.SetMenu([]key.Binding{k.InboxRead, k.InboxDone})
+		if s.notes != nil {
+			// The notifications list's keys nest over the dashboard's.
+			return append([]keyhelp.Layer{screen}, s.notes.KeyLayers()...)
+		}
 	default:
 	}
 	return []keyhelp.Layer{screen, ui.MergeLayers(ctx, own)}
 }
 
-// Capturing implements ui.Capturer: the list of repositories takes every
-// key while its find or filter prompt is open.
+// Capturing implements ui.Capturer: the list of repositories or of
+// notifications takes every key while its find or filter prompt is open.
 func (s *Section) Capturing() bool {
-	return s.focus == reposPane && s.repos.current().Feed.Capturing()
+	switch s.focus {
+	case reposPane:
+		return s.repos.current().Feed.Capturing()
+	case inboxPane:
+		return s.notes != nil && s.notes.Capturing()
+	default:
+		return false
+	}
 }
 
 // paneKeys returns the keys that work in the pane, in the order the
@@ -201,9 +206,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 		return []key.Binding{k.Select, k.NextOwner, k.PrevOwner, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
 	case workPane:
 		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList, k.PrevList}
-	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.InboxRead, k.InboxDone}
-	case calendarPane, numPanes:
+	case inboxPane, calendarPane, numPanes:
 	}
 	return nil
 }
@@ -217,9 +220,7 @@ func (k KeyMap) paneShort(p paneID) []key.Binding {
 		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextOwner}
 	case workPane:
 		return []key.Binding{k.WorkUp, k.WorkDown, k.Select, k.Checks, k.NextList}
-	case inboxPane:
-		return []key.Binding{k.InboxUp, k.InboxDown, k.Select, k.InboxRead, k.InboxDone}
-	case calendarPane, numPanes:
+	case inboxPane, calendarPane, numPanes:
 	}
 	return nil
 }
@@ -234,11 +235,6 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && active)
 		k.ToggleFilter.SetEnabled(k.ToggleFilter.Enabled() && active)
 		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && len(s.repos.grouping.Levels) > 0)
-	case inboxPane:
-		k.Select.SetHelp(k.Select.Help().Key, "open")
-		if s.opener.MarksRead() {
-			k.Select.SetHelp(k.Select.Help().Key, "open & read")
-		}
 	default:
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.zoom.CanZoom())

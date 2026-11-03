@@ -248,8 +248,10 @@ func (s *Section) paneExtras(p paneID) string {
 			text += s.icons.Separator + ui.Count(s.tasks.count(s.work.value), false)
 		}
 	case inboxPane:
-		if n := s.unread(); n != "" {
-			text += s.icons.Separator + n + " unread"
+		if s.notes != nil {
+			if n := s.notes.Badge(); n != "" {
+				text += s.icons.Separator + n + " unread"
+			}
 		}
 	default:
 	}
@@ -320,24 +322,6 @@ func (s *Section) profile() []string {
 		right = st.shared.Subtle.Render("updating" + s.icons.Ellipsis)
 	}
 	return s.drawer().Profile(box, first, second, right, w, n)
-}
-
-// unread is the number of unread threads, with a "+" when more pages
-// follow, or "" when there are none.
-func (s *Section) unread() string {
-	if !s.notes.ok {
-		return ""
-	}
-	n := 0
-	for i := range s.notes.value.Items {
-		if s.notes.value.Items[i].Unread {
-			n++
-		}
-	}
-	if n == 0 {
-		return ""
-	}
-	return ui.Count(n, !s.notes.value.Last())
 }
 
 func (s *Section) pinnedBody(w, h int) []string {
@@ -507,71 +491,11 @@ func (s *Section) workItem(r *workRow, selected, focused bool) string {
 }
 
 func (s *Section) inboxBody(w, h int) []string {
-	st := &s.st
-	if s.inbox != nil {
-		if text, hint, ok := ui.Unreadable(core.NeedNotifications, "load your notifications", s.voice); ok {
-			lines := ui.ErrorLine(s.theme.Empty(s.icons), text, hint, max(w-1, 1))
-			for i := range lines {
-				lines[i] = " " + lines[i]
-			}
-			return lines
-		}
+	if s.notes == nil {
+		return []string{" " + s.st.shared.Muted.Render("Notifications aren't available.")}
 	}
-	switch {
-	case s.inbox == nil:
-		return []string{" " + st.shared.Muted.Render("Notifications aren't available.")}
-	case !s.notes.ok && s.notes.err != nil:
-		return ui.Indent(s.failure("load your notifications", s.notes.err, w-1))
-	case !s.notes.ok:
-		return []string{" " + st.shared.Muted.Render("Loading notifications"+s.icons.Ellipsis)}
-	}
-	n := s.unread()
-	if n == "" {
-		return []string{" " + st.shared.Muted.Render(ui.None("unread notifications"))}
-	}
-	lines := make([]string, 0, h)
-	head := " " + st.shared.Text.Render(n) + st.shared.Muted.Render(" unread")
-	if hint := s.inboxHint(); hint != "" && ansi.StringWidth(n)+len(" unread")+1+ansi.StringWidth(hint) < w {
-		head += st.shared.Subtle.Render(s.icons.Separator + hint)
-	}
-	lines = append(lines, head)
-	l := &s.threads
-	l.scroll(h - 1)
-	focused := s.focused && s.focus == inboxPane
-	for i := l.top; i < len(l.rows) && len(lines) < h; i++ {
-		nt := &l.rows[i]
-		gutter := "  "
-		if i == l.sel {
-			gutter = st.shared.Blurred
-			if focused {
-				gutter = st.shared.Cursor
-			}
-		}
-		sub, known := s.subjectState(nt)
-		row := s.rows.Row(*nt, sub, known, ui.Look(i == l.sel, focused), w-2, s.dates, s.now(), s.links)
-		lines = append(lines, gutter+row)
-	}
-	return lines
-}
-
-// inboxHint says which keys show every notification: the pane's key, then
-// zoom on a wide dashboard, and the pane's key alone on a narrow one, which
-// shows the pane in full. It is "" when a key it needs is unbound, or while
-// the pane is zoomed.
-func (s *Section) inboxHint() string {
-	pane := s.keyLabel(inboxPane)
-	if pane == "" || s.zoomed() {
-		return ""
-	}
-	keys := s.icons.Key(pane)
-	if s.zoom.CanZoom() {
-		zoom := s.keys.Zoom.Help().Key
-		if !s.keys.Zoom.Enabled() || zoom == "" {
-			return ""
-		}
-		keys += " then " + s.icons.Key(zoom)
-	}
-	return keys + " shows them all"
+	s.notes.SetSize(w, h)
+	return strings.Split(s.notes.View(), "\n")
 }
 
 // failure renders err, which stopped action, in lines of w cells. Every
