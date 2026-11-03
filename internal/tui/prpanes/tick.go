@@ -35,7 +35,10 @@ type TickOverlay[K comparable] struct {
 	done bool
 }
 
-func (o *TickOverlay[K]) Title() string           { return o.P.Title(o.Heading) }
+// Title is the heading of the frame, with the picker's state.
+func (o *TickOverlay[K]) Title() string { return o.P.Title(o.Heading) }
+
+// Kind says the frame is a picker.
 func (o *TickOverlay[K]) Kind() panes.OverlayKind { return panes.Picker }
 
 // Items is the rows of the picker and the rule between the ticked and the
@@ -46,13 +49,20 @@ func (o *TickOverlay[K]) Items() int {
 	}
 	return o.Rows + 1
 }
-func (o *TickOverlay[K]) Text() int    { return 0 }
-func (o *TickOverlay[K]) Clear() bool  { return false }
+
+// Text is zero: the picker has no text to find in.
+func (o *TickOverlay[K]) Text() int { return 0 }
+
+// Clear reports false: the picker clears its own search.
+func (o *TickOverlay[K]) Clear() bool { return false }
+
+// Closed reports whether the overlay is done.
 func (o *TickOverlay[K]) Closed() bool { return o.done }
 
 // Typing says that the search takes the keys as text.
 func (o *TickOverlay[K]) Typing() bool { return o.P.Typing() }
 
+// Layers lists the keys of the picker for the help.
 func (o *TickOverlay[K]) Layers() []keyhelp.Layer {
 	ctx := "picker_normal"
 	if o.P.Typing() && !o.Flat {
@@ -68,6 +78,7 @@ type TickHelp struct {
 	Flat bool
 }
 
+// ShortHelp lists the keys of the picker as its mode has them.
 func (h TickHelp) ShortHelp() []key.Binding {
 	if h.P.Typing() && !h.Flat {
 		return h.P.ShortHelp()
@@ -83,6 +94,7 @@ func (h TickHelp) ShortHelp() []key.Binding {
 	return []key.Binding{moving(k.Normal.Down, k.Normal.Up), k.Normal.Search, toggle, apply, k.Cancel}
 }
 
+// FullHelp lists every key of the picker.
 func (h TickHelp) FullHelp() [][]key.Binding { return h.P.FullHelp() }
 
 // moving is the one hint for the keys that move, named by the first key of
@@ -103,6 +115,7 @@ func moving(down, up key.Binding) key.Binding {
 	return keymap.Derive(hint, down, up)
 }
 
+// View draws the picker at the size of the frame.
 func (o *TickOverlay[K]) View(w, h int) string {
 	// The frame keeps a cell of room on each side of what it holds.
 	o.P.SetSize(w-2, h)
@@ -133,6 +146,7 @@ func (o *TickOverlay[K]) Marks() []any {
 	return marked
 }
 
+// Update passes a message to the picker.
 func (o *TickOverlay[K]) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case picker.ChosenMsg:
