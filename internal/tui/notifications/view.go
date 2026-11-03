@@ -332,7 +332,10 @@ func (s *Section) View() string {
 	if body == "" {
 		body = s.feed.View()
 	}
-	if s.compact || s.height < headerHeight+1 {
+	if s.compact {
+		return body
+	}
+	if s.height <= headerHeight {
 		return body
 	}
 	return s.header + "\n" + s.columns + "\n" + body
