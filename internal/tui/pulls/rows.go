@@ -169,9 +169,8 @@ func newCells(t ui.Theme, icons ui.Icons, look int) cells {
 }
 
 func newStyles(t ui.Theme, icons ui.Icons) styles {
-	var states, badges [ui.NumStates]string
+	var badges [ui.NumStates]string
 	for s, name := range stateNames {
-		states[s] = t.State(s).Render(icons.State(s))
 		badges[s] = t.State(s).Bold(true).Reverse(true).Render(" " + icons.State(s) + " " + name + " ")
 	}
 	var look [numLooks]cells
@@ -179,7 +178,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		look[i] = newCells(t, icons, i)
 	}
 	return styles{
-		states:         states,
+		states:         ui.StateGlyphs(t, icons),
 		badges:         badges,
 		look:           look,
 		theme:          t,
