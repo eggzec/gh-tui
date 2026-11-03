@@ -148,23 +148,14 @@ func (m *panesModal) stripForms(p panes.Pane) []string {
 // headerRows is the rows above the panes: one for the labels of the pull
 // request if it has any, else none, so the panes have the row.
 func (m *panesModal) headerRows() int {
-	if len(m.detail.Labels) > 0 {
-		return 1
-	}
-	return 0
+	return ui.LabelStripRows(m.detail.Labels)
 }
 
 // header is the first line: the labels of the pull request as far as they
 // fit, and the number of the others. The state and title are in the top edge
 // of the frame.
 func (m *panesModal) header() string {
-	labels := m.detail.Labels
-	chips := make([]string, len(labels))
-	widths := make([]int, len(labels))
-	for i, l := range labels {
-		chips[i], widths[i] = m.chips.Get(l)
-	}
-	return ui.ChipRow(chips, widths, m.width, func(s string) string { return m.theme.Subtle.Render(s) })
+	return ui.LabelStrip(m.detail.Labels, m.chips, m.width, func(s string) string { return m.theme.Subtle.Render(s) })
 }
 
 // footer is the last line: the keys that work in the modal, as far as they
