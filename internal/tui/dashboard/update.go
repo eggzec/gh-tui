@@ -1,12 +1,10 @@
 package dashboard
 
 import (
-	"maps"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
@@ -21,7 +19,7 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		if !s.focused {
 			return nil
 		}
-		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg), s.aheadRepos.Rested(msg), s.aheadPinned.Rested(msg))
+		return tea.Batch(s.opener.Rested(msg), s.ahead.Rested(msg), s.aheadRepos.Rested(msg), s.aheadPinned.Rested(msg), s.notesUpdate(msg))
 	}
 	updating := s.updating()
 	cmd, all := s.update(msg)
@@ -35,12 +33,6 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		}
 		s.renderPane(reposPane)
 		s.compose()
-	}
-	if read := s.readStates(); read != nil {
-		cmd = tea.Batch(cmd, read)
-	}
-	if ahead := s.readAhead(); ahead != nil {
-		cmd = tea.Batch(cmd, ahead)
 	}
 	if ahead := s.readWorkAhead(); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
@@ -63,12 +55,8 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		s.configure(msg.Config)
 		return nil, false
 	case ui.SyncMsg:
-		// The poll refreshed the cache of the inbox.
-		if msg.Key != notifications.SyncKey || msg.Err != nil {
-			return nil, false
-		}
-		s.readInboxCache()
-		return nil, true
+		// The poll may have refreshed the cache of the inbox.
+		return tea.Batch(s.notesUpdate(msg), s.repos.update(msg)), true
 	case ui.OnlineMsg:
 		return s.online(msg), true
 	case ui.ImagesMsg:
@@ -76,36 +64,20 @@ func (s *Section) update(msg tea.Msg) (tea.Cmd, bool) {
 		s.layout()
 		return nil, true
 	case ui.AccessMsg:
-		// The inbox the token was refused, or failed to read, it may
-		// read now.
-		if s.inbox == nil || !s.started || s.notes.loading || s.notes.ok && s.notes.err == nil {
-			return nil, true
-		}
-		return s.readInbox(true), true
-	case ui.DoneMsg:
-		// Marking threads read changes the unread ones.
-		if msg.From != ui.NotificationsTitle {
-			return nil, false
-		}
-		s.readInboxCache()
-		return nil, true
-	case statesMsg:
-		s.states = maps.Clone(s.states)
-		if s.states == nil {
-			s.states = map[core.SubjectRef]core.SubjectState{}
-		}
-		maps.Copy(s.states, msg.states)
-		return nil, true
-	case ui.BulkDoneMsg:
-		// So does marking several at once.
-		if msg.From != ui.NotificationsTitle {
-			return nil, false
-		}
-		s.readInboxCache()
-		return nil, true
+		// The inbox the token was refused may read now.
+		return s.notesUpdate(msg), true
 	}
-	// The calendar has no messages of its own.
-	return s.repos.update(msg), false
+	// The calendar has no messages of its own. The notifications list
+	// takes its own, and ignores the rest.
+	return tea.Batch(s.repos.update(msg), s.notesUpdate(msg)), s.notes != nil
+}
+
+// notesUpdate passes msg to the notifications list, if there is one.
+func (s *Section) notesUpdate(msg tea.Msg) tea.Cmd {
+	if s.notes == nil {
+		return nil
+	}
+	return s.notes.Update(msg)
 }
 
 // press handles a key: the focused pane takes its own, then the
@@ -117,6 +89,10 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	if s.focus == reposPane && s.repos.current().Feed.Takes(msg) {
 		// The list's prompt takes the keys before the dashboard's own.
 		return s.repos.update(msg)
+	}
+	if s.focus == inboxPane && s.notes != nil && s.notes.Capturing() {
+		// The list's find prompt takes every key.
+		return s.notes.Update(msg)
 	}
 	if cmd, ok := s.pressPane(msg); ok {
 		return cmd
@@ -147,6 +123,8 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		var cmd tea.Cmd
 		s.cal, cmd = s.cal.Update(msg)
 		return cmd
+	case inboxPane:
+		return s.notesUpdate(msg)
 	default:
 		return nil
 	}
@@ -252,23 +230,6 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return nil, false
 		}
 		return s.moreWork(), true
-	case inboxPane:
-		l := &s.threads
-		switch {
-		case keymap.Matches(msg, k.InboxUp):
-			l.move(-1)
-		case keymap.Matches(msg, k.InboxDown):
-			l.move(1)
-		case keymap.Matches(msg, k.Select):
-			return s.openThread(), true
-		case keymap.Matches(msg, k.InboxRead):
-			return s.markThread(false), true
-		case keymap.Matches(msg, k.InboxDone):
-			return s.markThread(true), true
-		default:
-			return nil, false
-		}
-		return nil, true
 	default:
 	}
 	return nil, false
@@ -278,11 +239,18 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 func (s *Section) focusPane(p paneID) {
 	s.repos.blur()
 	s.cal.Blur()
+	if s.notes != nil {
+		s.notes.Blur()
+	}
 	s.focus = p
 	if !s.focused {
 		return
 	}
 	switch p {
+	case inboxPane:
+		if s.notes != nil {
+			s.notes.Focus()
+		}
 	case reposPane:
 		s.repos.focus()
 	case calendarPane:

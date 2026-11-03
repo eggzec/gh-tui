@@ -694,14 +694,9 @@ keys:
     right: [right, l]
     top: ["g g", home]
     bottom: [G, end]
-  # Dashboard: your newest notifications.
-  dashboard_inbox:
-    up: [up, k]
-    down: [down, j]
-    # Mark the notification read, as in the notifications list.
-    read: [U]
-    # Mark the notification done, as in the notifications list.
-    done: [D]
+  # Dashboard: your newest notifications, which take the keys of the
+  # notifications list.
+  dashboard_inbox: {}
 
   # The repository screen, on any of its panes.
   repo:

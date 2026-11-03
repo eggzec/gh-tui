@@ -8,7 +8,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
-	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -37,7 +36,7 @@ type loadedMsg struct {
 // load reads everything the dashboard shows. Each read serves what the
 // cache has at once, so a fresh cache costs no request.
 func (s *Section) load() tea.Cmd {
-	cmds := []tea.Cmd{s.readHeader(false), s.readWork(false), s.readContributions(false), s.readInbox(false)}
+	cmds := []tea.Cmd{s.readHeader(false), s.readWork(false), s.readContributions(false)}
 	if s.hasHere() && !s.hereRepo.ok {
 		cmds = append(cmds, s.readHere())
 	}
@@ -135,19 +134,6 @@ func (s *Section) readContributions(again bool) tea.Cmd {
 	})
 }
 
-func (s *Section) readInbox(again bool) tea.Cmd {
-	// The pane says why the token may not read the inbox instead.
-	if s.inbox == nil || s.voice.Token.Check(core.NeedNotifications) != nil {
-		return nil
-	}
-	s.notes.loading = true
-	in := s.inbox
-	return readCmd(s, kindInbox, "dashboard.inbox", func(ctx context.Context) (core.Page[core.Notification], served, error) {
-		p, err := in.List(ctx, notifications.ListQuery{Again: again})
-		return p, served{p.Stale, p.Offline, p.Limited}, err
-	})
-}
-
 // hasHere reports whether the dashboard reads the repository of the
 // current directory.
 func (s *Section) hasHere() bool {
@@ -216,14 +202,6 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 		if s.contribs.value.Stale {
 			return s.readContributions(true)
 		}
-	case kindInbox:
-		if !take(&s.notes, msg) {
-			return nil
-		}
-		s.setInbox()
-		if s.notes.value.Stale {
-			return s.readInbox(true)
-		}
 	case kindHere:
 		if take(&s.hereRepo, msg) {
 			s.pinned.HereRepo = s.hereRepo.value
@@ -258,7 +236,11 @@ func (s *Section) refresh() tea.Cmd {
 	s.aheadPinned.Resume()
 	s.gen++
 	s.hereRepo.ok = false
-	return tea.Batch(s.load(), s.repos.reload())
+	cmd := tea.Batch(s.load(), s.repos.reload())
+	if s.notes != nil {
+		cmd = tea.Batch(cmd, s.notes.Refresh())
+	}
+	return cmd
 }
 
 // online reads again, now that GitHub answers again, what failed for want
@@ -288,9 +270,7 @@ func (s *Section) online(msg ui.OnlineMsg) tea.Cmd {
 	if unreached(s.contribs, s.contribs.value.Offline || s.contribs.value.Limited) {
 		cmds = append(cmds, s.readContributions(true))
 	}
-	if unreached(s.notes, s.notes.value.Offline || s.notes.value.Limited) {
-		cmds = append(cmds, s.readInbox(true))
-	}
+	cmds = append(cmds, s.notesUpdate(msg))
 	if unreached(s.hereRepo, false) && s.hasHere() {
 		cmds = append(cmds, s.readHere())
 	}
@@ -325,11 +305,6 @@ func (s *Section) Revisit() tea.Cmd {
 	}
 	if !s.contribs.loading && !s.svc.FreshContributions() {
 		cmds = append(cmds, s.readContributions(true))
-	}
-	// The polls keep the inbox current, but may not have while another
-	// screen was on view.
-	if s.inbox != nil && !s.notes.loading && !s.inbox.FreshList(notifications.ListQuery{}) {
-		cmds = append(cmds, s.readInbox(true))
 	}
 	if s.hasHere() && !s.hereRepo.loading && !s.hereRepos.FreshGet(s.here) {
 		cmds = append(cmds, s.readHere())
@@ -371,7 +346,7 @@ func (s *Section) offlineNow() bool {
 	return s.header.ok && s.header.value.Offline ||
 		s.work.ok && s.work.value.Offline ||
 		s.contribs.ok && s.contribs.value.Offline ||
-		s.notes.ok && s.notes.value.Offline
+		s.notes != nil && s.notes.Offline()
 }
 
 // limitedNow reports whether anything shown was served because GitHub rate
@@ -380,5 +355,5 @@ func (s *Section) limitedNow() bool {
 	return s.header.ok && s.header.value.Limited ||
 		s.work.ok && s.work.value.Limited ||
 		s.contribs.ok && s.contribs.value.Limited ||
-		s.notes.ok && s.notes.value.Limited
+		s.notes != nil && s.notes.Limited()
 }

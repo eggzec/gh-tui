@@ -40,8 +40,8 @@ func (s *Section) Selected() (ui.Selection, bool) {
 			return sel, true
 		}
 	case inboxPane:
-		if n, ok := s.threads.selected(); ok {
-			return ui.NotificationSelection(n), true
+		if s.notes != nil {
+			return s.notes.Selected()
 		}
 	default:
 	}
