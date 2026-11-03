@@ -521,6 +521,13 @@ func (f *fakeService) Invalidate(repo core.RepoRef) {
 	f.invalidated = append(f.invalidated, invalidation{repo, len(f.lists), len(f.gets)})
 }
 
+// CachedPinned and Pinned have nothing pinned.
+func (f *fakeService) CachedPinned(core.RepoRef) ([]core.Issue, bool) { return nil, false }
+
+func (f *fakeService) Pinned(context.Context, core.RepoRef) ([]core.Issue, error) {
+	return nil, nil
+}
+
 func (f *fakeService) invalidations() []invalidation {
 	f.mu.Lock()
 	defer f.mu.Unlock()
