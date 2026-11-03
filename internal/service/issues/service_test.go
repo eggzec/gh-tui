@@ -40,6 +40,7 @@ type fakeAPI struct {
 	search          func(query, cursor string, perPage int) (core.Page[core.SearchHit], error)
 	viewerLogin     func() (string, error)
 	timeline        func(number int, cursor string, first int) (core.Page[core.TimelineItem], error)
+	pinnedIssues    func() ([]core.Issue, error)
 
 	mu    sync.Mutex
 	calls []string
@@ -73,6 +74,14 @@ func (f *fakeAPI) checkCalls(t *testing.T, want ...string) {
 	if got := f.called(); !slices.Equal(got, want) {
 		t.Errorf("calls = %q, want %q", got, want)
 	}
+}
+
+func (f *fakeAPI) PinnedIssues(_ context.Context, r core.RepoRef) ([]core.Issue, error) {
+	f.checkRepo(r)
+	if !f.record("PinnedIssues", f.pinnedIssues != nil) {
+		return nil, errUnexpected
+	}
+	return f.pinnedIssues()
 }
 
 func (f *fakeAPI) ListIssues(_ context.Context, r core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {

@@ -45,6 +45,7 @@ type API interface {
 	RemoveIssueAssignees(ctx context.Context, repo core.RepoRef, number int, logins []string) (core.Issue, error)
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 	ListIssueTimeline(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error)
+	PinnedIssues(ctx context.Context, repo core.RepoRef) ([]core.Issue, error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
@@ -82,6 +83,8 @@ type Service struct {
 	comments *cache.Cache[stampedComments]
 	// timelines holds the pages of an issue's timeline.
 	timelines *cache.Cache[core.Page[core.TimelineItem]]
+	// pinned holds the pinned issues of each repository, in memory only.
+	pinned *cache.Cache[[]core.Issue]
 	// The kept ones are what an earlier session read of each, if the
 	// service has a store. A read that misses memory starts from them.
 	keptLists     *cache.Shelf[core.Page[core.Issue]]
@@ -130,6 +133,7 @@ func New(api API, opts ...Option) *Service {
 		lists:         cache.New[core.Page[core.Issue]](mem...),
 		issues:        cache.New[core.Issue](mem...),
 		comments:      cache.New[stampedComments](mem...),
+		pinned:        cache.New[[]core.Issue](mem...),
 		keptLists:     cache.NewShelf[core.Page[core.Issue]](o.store, kindList, schema),
 		keptIssues:    cache.NewShelf[core.Issue](o.store, kindIssue, schema),
 		keptComments:  cache.NewShelf[stampedComments](o.store, kindComments, commentsSchema),

@@ -22,6 +22,10 @@ type Service interface {
 	// its comments and events.
 	CachedTimeline(q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], bool)
 	Timeline(ctx context.Context, q issuesvc.TimelineQuery) (core.Page[core.TimelineItem], error)
+	// CachedPinned and Pinned read the pinned issues of a repository, in pin
+	// order. They are apart from the pages of List.
+	CachedPinned(repo core.RepoRef) ([]core.Issue, bool)
+	Pinned(ctx context.Context, repo core.RepoRef) ([]core.Issue, error)
 	// CurrentGet and CurrentComments report whether Get and Comments
 	// would answer without a request. They do no I/O.
 	CurrentGet(repo core.RepoRef, number int) bool

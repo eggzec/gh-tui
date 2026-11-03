@@ -51,6 +51,7 @@ func (s *Service) setState(repo core.RepoRef, number int, state core.State, verb
 		key := issueKey(repo, number)
 		_ = s.keptIssues.Save(key, cache.Entry[core.Issue]{Value: got, Tags: []string{repoTag(repo), key}})
 		s.lists.InvalidateTag(repoTag(repo))
+		s.pinned.InvalidateTag(repoTag(repo))
 		return nil
 	}, rollbacks...)
 }
@@ -237,8 +238,17 @@ func (s *Service) update(repo core.RepoRef, number int, fn func(core.Issue) core
 		p.Items[i] = fn(p.Items[i])
 		return p, true
 	})
+	inPinned := s.pinned.MutateTag(key, func(items []core.Issue) ([]core.Issue, bool) {
+		i := slices.IndexFunc(items, func(it core.Issue) bool { return it.Number == number })
+		if i < 0 {
+			return items, false
+		}
+		items = slices.Clone(items)
+		items[i] = fn(items[i])
+		return items, true
+	})
 	inDetail, _ := s.issues.Mutate(key, fn)
-	return []func(){inList, inDetail}
+	return []func(){inList, inPinned, inDetail}
 }
 
 // pages applies fn to the page of a stamped comment page, for MutateTag.

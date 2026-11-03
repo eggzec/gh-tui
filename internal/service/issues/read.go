@@ -238,6 +238,7 @@ func (s *Service) Invalidate(repo core.RepoRef) {
 	s.seen.DeletePrefix(issuePrefix(repo))
 	tag := repoTag(repo)
 	s.lists.InvalidateTag(tag)
+	s.pinned.InvalidateTag(tag)
 	s.issues.InvalidateTag(tag)
 	s.comments.InvalidateTag(tag)
 }
