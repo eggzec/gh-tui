@@ -72,7 +72,7 @@ type panesModal struct {
 	// kept while the modal lives.
 	slots    [paneCount]slot
 	hover    [paneCount]hovered
-	previews map[previewKey]int
+	previews panes.Scrolls[previewKey]
 	// inv is the involved pane's state.
 	inv *involvedPane
 
@@ -171,16 +171,15 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		slots:  slots,
 		id:     panesIDs.Add(1),
 
-		previews: map[previewKey]int{},
-		ctx:      ctx,
-		cancel:   cancel,
-		resume:   resume,
-		icons:    s.icons,
-		dates:    s.dates,
-		conv:     convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
-		now:      s.now,
-		pics:     s.avatars,
-		blobs:    s.blobs,
+		ctx:    ctx,
+		cancel: cancel,
+		resume: resume,
+		icons:  s.icons,
+		dates:  s.dates,
+		conv:   convPane{voice: s.voice, dates: s.dates, now: s.now, opt: s.convOpt},
+		now:    s.now,
+		pics:   s.avatars,
+		blobs:  s.blobs,
 
 		caps:    s.capsOf(repo),
 		token:   s.voice.Token,
@@ -566,7 +565,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 	last := max(0, strings.Count(s.preview(m, b), "\n")+1-rows)
 	k := m.keys.scroll
 	pk := previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id}
-	off := m.previews[pk]
+	off := m.previews.Get(pk)
 	switch {
 	case keymap.Matches(msg, k.Up):
 		off--
@@ -587,7 +586,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 	default:
 		return
 	}
-	m.previews[pk] = min(max(off, 0), last)
+	m.previews.Set(pk, min(max(off, 0), last))
 }
 
 // layout returns the layout of the panes.

@@ -269,8 +269,8 @@ func (m *panesModal) storeLog(cc core.CommitCheck, lg core.Log, final bool, step
 	// count as the user's choice.
 	scrolled := shown != nil && shown.state == jobLogReady
 	if key := (previewKey{paneMerge, jobRow(cc.JobID)}); l.found {
-		if _, set := m.previews[key]; !set || !scrolled {
-			m.previews[key] = max(0, l.hidden()+l.first-l.from-errSeen)
+		if !m.previews.Has(key) || !scrolled {
+			m.previews.Set(key, max(0, l.hidden()+l.first-l.from-errSeen))
 		}
 	}
 	return l
