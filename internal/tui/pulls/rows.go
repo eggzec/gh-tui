@@ -28,7 +28,10 @@ const gutter = "  "
 const (
 	stateWidth  = 2 // the state's glyph and a space
 	diffWidth   = 11
-	labelsWidth = 14 // the first label and how many more, such as "bug +2"
+	labelsWidth = 14 // the first label's chip and how many more, such as "bug +2"
+	// chipName is the longest name of a chip: with its padding and " +9" it
+	// fills labelsWidth.
+	chipName    = labelsWidth - 2 - 3
 	authorWidth = 10
 	// minTitle is the narrowest the title may get before columns drop. On
 	// wide rows the title keeps titleShare of the width instead.
@@ -104,6 +107,9 @@ type styles struct {
 	approved, changes, reviewRequired   string
 	checksOK, checksFail, checksPending string
 
+	// chips draw the labels of a row. Their cache is made with the styles.
+	chips ui.LabelChips
+
 	repo, filterOn, filterOff, sep lipgloss.Style
 	empty                          lipgloss.Style
 
@@ -135,7 +141,7 @@ type cells struct {
 	approved, changes, reviewRequired   string
 	checksOK, checksFail, checksPending string
 
-	number, title, author, age, diff, label paint
+	number, title, author, age, diff paint
 }
 
 func newCells(t ui.Theme, icons ui.Icons, look int) cells {
@@ -152,7 +158,6 @@ func newCells(t ui.Theme, icons ui.Icons, look int) cells {
 		author:         newPaint(cell(t.Muted)),
 		age:            newPaint(cell(t.Subtle)),
 		diff:           newPaint(cell(t.Muted)),
-		label:          newPaint(cell(t.Muted)),
 		approved:       cell(t.Success).Render(icons.Yes),
 		changes:        cell(t.Warning).Render(icons.ChangesRequested),
 		reviewRequired: cell(t.Muted).Render(icons.ReviewRequired),
@@ -179,6 +184,7 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		look:           look,
 		theme:          t,
 		ic:             icons,
+		chips:          ui.NewLabelChips(t.Muted.Padding(0, 1), t.Dark, icons.Ellipsis, chipName),
 		title:          t.Text,
 		selected:       t.Title,
 		author:         t.Muted,
@@ -308,7 +314,7 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	}
 	if c.labels {
 		pad(&b, 2)
-		st.writeLabels(&b, pr.Labels, s.st.ic)
+		st.writeLabels(&b, &s.st.chips, pr.Labels, s.st.ic, selected)
 	}
 	if c.author {
 		pad(&b, 2)
@@ -336,9 +342,9 @@ func (s *Section) renderRow(pr core.PullRequest, selected bool, width int) strin
 	return b.String()
 }
 
-// writeLabels writes the first of labels and how many more there are, in
-// labelsWidth cells.
-func (st *cells) writeLabels(b *strings.Builder, labels []core.Label, ic ui.Icons) {
+// writeLabels writes the chip of the first of labels, bold in a selected
+// row, and how many more there are, in labelsWidth cells.
+func (st *cells) writeLabels(b *strings.Builder, chips *ui.LabelChips, labels []core.Label, ic ui.Icons, selected bool) {
 	if len(labels) == 0 {
 		pad(b, labelsWidth)
 		return
@@ -350,11 +356,14 @@ func (st *cells) writeLabels(b *strings.Builder, labels []core.Label, ic ui.Icon
 	case n > 0:
 		more = " +" + strconv.Itoa(n)
 	}
-	mw := ansi.StringWidth(more)
-	name, w := truncate(labels[0].Name, labelsWidth-mw, ic.Ellipsis)
-	st.label.write(b, name)
+	get := chips.Get
+	if selected {
+		get = chips.GetBold
+	}
+	chip, w := get(labels[0])
+	b.WriteString(chip)
 	st.age.write(b, more)
-	pad(b, labelsWidth-w-mw)
+	pad(b, labelsWidth-w-ansi.StringWidth(more))
 }
 
 // truncate cuts s, text from GitHub, to at most width cells ending in
