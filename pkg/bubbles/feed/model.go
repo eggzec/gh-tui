@@ -101,8 +101,11 @@ type Model[T any] struct {
 	// pages counts the chunks of items stored, for Pages.
 	pages int
 
-	sel int
-	top int
+	// pinned are the rows above the list. sel and top count them: rows
+	// 0..len(pinned)-1 are pinned, and the list's rows follow.
+	pinned []T
+	sel    int
+	top    int
 	// resized asks the next Update to fetch what a new size shows.
 	resized bool
 	// err is the first failed fetch, shown in the error row.
@@ -200,6 +203,10 @@ func New[T any](fetch Fetch[T], render Render[T], opts ...Option) Model[T] {
 	if c, ok := m.children.(childSpec[T]); ok {
 		m.kids = &c
 	}
+	if p, ok := m.settings.pinned.([]T); ok {
+		m.pinned = slices.Clone(p[:min(len(p), MaxPinned)])
+		m.sel = len(m.pinned)
+	}
 	m.prompt = m.newPrompt()
 	m.ctx, m.cancel = context.WithCancel(m.parent)
 	// Init fetches the first chunk, and it cannot record that itself.
@@ -224,7 +231,7 @@ func (m *Model[T]) Reset() tea.Cmd {
 	m.reindex()
 	m.tail = chunk[T]{}
 	m.done = false
-	m.sel, m.top = 0, 0
+	m.sel, m.top = len(m.pinned), 0
 	m.anchored, m.seeking = false, false
 	// The new items are not the ones the find and the filter looked at.
 	m.query, m.hits, m.filter, m.rows, m.note, m.marks = "", nil, "", nil, "", nil
@@ -259,6 +266,9 @@ func (m *Model[T]) Reload() tea.Cmd {
 // has a key, until the user moves.
 func (m *Model[T]) anchorSelection() {
 	m.anchored = false
+	if m.onPin() {
+		return
+	}
 	if it, ok := m.Selected(); ok && m.key != nil {
 		m.anchor, m.anchorRow, m.anchored = m.key(it), m.sel-m.top, true
 	}
@@ -284,9 +294,54 @@ func (m Model[T]) ID() int {
 }
 
 // Selected returns the selected item, or false if there is none or it is not
-// loaded, such as on a group header or on the row of the items not loaded.
+// loaded, such as on a group header or on the row of the items not loaded. On
+// a pinned row it is the pinned item.
 func (m Model[T]) Selected() (T, bool) {
+	if m.onPin() {
+		return m.pinned[m.sel], true
+	}
 	return m.item(m.at(m.sel))
+}
+
+// onPin reports whether the cursor is on a pinned row.
+func (m Model[T]) onPin() bool {
+	return m.sel >= 0 && m.sel < len(m.pinned)
+}
+
+// MaxPinned is the most rows a feed pins; [WithPinned] and
+// [Model.SetPinned] drop the items after it.
+const MaxPinned = 10
+
+// Pinned returns the number of pinned rows.
+func (m Model[T]) Pinned() int {
+	return len(m.pinned)
+}
+
+// SelectedPinned returns the index among the pinned rows of the one under the
+// cursor, or false when the cursor is on a row of the list.
+func (m Model[T]) SelectedPinned() (int, bool) {
+	if !m.onPin() {
+		return -1, false
+	}
+	return m.sel, true
+}
+
+// SetPinned replaces the pinned rows with a copy of items, which may be none.
+// The cursor stays on its row of the list, or on the pinned row at its place,
+// or the last one left; nothing is fetched again.
+func (m *Model[T]) SetPinned(items []T) {
+	old := len(m.pinned)
+	m.pinned = slices.Clone(items[:min(len(items), MaxPinned)])
+	delta := len(m.pinned) - old
+	if m.sel >= old {
+		m.sel += delta
+		m.top = max(m.top+delta, 0)
+	} else if m.sel >= len(m.pinned) {
+		m.sel = max(len(m.pinned)-1, 0)
+	}
+	// Rows of the list moved, and so did the hits among them.
+	m.refind()
+	m.scroll()
 }
 
 // SelectedChild returns the item whose k-th child row is selected, which is
@@ -295,17 +350,22 @@ func (m Model[T]) SelectedChild() (item T, k int, ok bool) {
 	if !m.onChild() {
 		return item, 0, false
 	}
-	l := m.lines[m.sel]
+	l, _ := m.cur()
 	item, ok = m.item(l.item)
 	return item, l.k, ok
 }
 
 // Item returns the item of row i, or false if there is none or it is not
-// loaded. Rows are counted among those shown: while a quick filter shows,
-// they are the items it keeps, and while the rows are grouped they are the
-// lines, headers included, which have no item.
+// loaded. Rows are counted among those shown, as [Model.Index] does, and the
+// pinned rows are not counted: while a quick filter shows, they are the items
+// it keeps, and while the rows are grouped they are the lines, headers
+// included, which have no item.
 func (m Model[T]) Item(i int) (T, bool) {
-	return m.item(m.at(i))
+	if i < 0 {
+		var zero T
+		return zero, false
+	}
+	return m.item(m.at(i + len(m.pinned)))
 }
 
 // LoadedItem returns item i of all the items, whether a quick filter shows
@@ -319,9 +379,12 @@ func (m Model[T]) LoadedItem(i int) (T, bool) {
 
 // Index returns the index of the selected row, which is that of its item
 // unless a quick filter shows or the rows are grouped, when it is a line,
-// which may be a header.
+// which may be a header. It is -1 on a pinned row.
 func (m Model[T]) Index() int {
-	return m.sel
+	if m.onPin() {
+		return -1
+	}
+	return m.sel - len(m.pinned)
 }
 
 // Len returns the number of items known so far, loaded or not, whether a
@@ -516,7 +579,9 @@ func (m *Model[T]) reindex() {
 	if m.filter != "" {
 		g := m.at(m.sel)
 		m.rebuildRows()
-		m.sel = max(m.posOf(g), 0)
+		if !m.onPin() {
+			m.sel = max(m.posOf(g), len(m.pinned))
+		}
 	} else if m.query != "" {
 		m.refind()
 	}

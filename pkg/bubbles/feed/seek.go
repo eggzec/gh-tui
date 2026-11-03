@@ -48,7 +48,7 @@ func (m *Model[T]) SelectChild(key string, k int) bool {
 		return false
 	}
 	if at+1 >= len(m.lines) || !m.lines[at+1].child {
-		m.sel = at
+		m.sel = len(m.pinned) + at
 		// Opening adds lines only; a chunk is fetched later, if the window
 		// needs one.
 		m.setOpen(true)
@@ -69,7 +69,7 @@ func (m *Model[T]) SelectChild(key string, k int) bool {
 func (m *Model[T]) seekStep() tea.Cmd {
 	if i, ok := m.indexOf(m.seek); ok {
 		m.seeking, m.anchored = false, false
-		m.sel = max(m.posOf(i), 0)
+		m.sel = max(m.posOf(i), len(m.pinned))
 		m.scroll()
 		return nil
 	}

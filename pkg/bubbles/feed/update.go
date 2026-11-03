@@ -75,7 +75,7 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, m.keyMap.HalfPageDown):
 		m.sel += max(page/2, 1)
 	case keymap.Matches(msg, m.keyMap.Home):
-		m.sel = 0
+		m.sel = len(m.pinned)
 	case keymap.Matches(msg, m.keyMap.End):
 		m.sel = m.shown() - 1
 	case keymap.Matches(msg, m.keyMap.Retry):
@@ -88,6 +88,10 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.step(1)
 	case keymap.Matches(msg, m.keyMap.Prev):
 		return m.step(-1)
+	case m.onPin() && (keymap.Matches(msg, m.keyMap.Expand) || keymap.Matches(msg, m.keyMap.Collapse) ||
+		keymap.Matches(msg, m.keyMap.ToggleAll) || keymap.Matches(msg, m.markKeys.Mark)):
+		// A pinned row is neither folded nor marked.
+		return nil
 	case m.lined() && keymap.Matches(msg, m.keyMap.Expand):
 		return m.afterMove(m.right())
 	case m.lined() && keymap.Matches(msg, m.keyMap.Collapse):
@@ -118,7 +122,9 @@ func (m *Model[T]) press(msg tea.KeyPressMsg) tea.Cmd {
 	// fetch every chunk: moving down from its last row, or from where it
 	// shows none, fetches the next one.
 	n := m.shown()
-	past := (m.filter != "" || m.stalled()) && (n == 0 || before == n-1) && m.sel > before && m.sel >= n
+	// A move that starts on a pinned row is not one past the list.
+	p := len(m.pinned)
+	past := (m.filter != "" || m.stalled()) && before >= p && (n == p || before == n-1) && m.sel > before && m.sel >= n
 	cmd := m.sync()
 	if past || m.onMore() {
 		cmd = tea.Batch(cmd, m.fetchMore())
@@ -222,7 +228,7 @@ func (m *Model[T]) receive(msg chunkMsg[T]) tea.Cmd {
 	if m.firstItem && before == 0 && m.lined() {
 		for i, l := range m.lines {
 			if !l.head && !l.more && !l.child {
-				m.sel = i
+				m.sel = len(m.pinned) + i
 				break
 			}
 		}
@@ -281,7 +287,8 @@ func (m Model[T]) wantsTail() bool {
 		// which closed groups would never show.
 		return !m.onMore() && (m.fill && m.top+m.slots() >= m.shown() || m.itemsAfter() <= m.margin())
 	}
-	return m.top+m.slots() >= m.total || m.sel+m.margin() >= m.total-1
+	p := len(m.pinned)
+	return m.top-p+m.slots() >= m.total || m.sel-p+m.margin() >= m.total-1
 }
 
 // emptyChunkWalk is how many chunks in a row may come back with no item, as
@@ -332,8 +339,9 @@ func (m *Model[T]) keep() tea.Cmd {
 		return nil
 	}
 	margin := m.margin()
-	lo := m.chunkAt(max(m.top-margin, 0))
-	hi := m.chunkAt(min(m.top+m.slots()+margin, m.total) - 1)
+	top := m.top - len(m.pinned)
+	lo := m.chunkAt(max(top-margin, 0))
+	hi := m.chunkAt(min(top+m.slots()+margin, m.total) - 1)
 
 	var cmd tea.Cmd
 	loaded := 0
@@ -366,7 +374,13 @@ func (m *Model[T]) keep() tea.Cmd {
 // scroll keeps the selection in range and in view.
 func (m *Model[T]) scroll() {
 	n := m.shown()
-	m.sel = max(min(m.sel, n-1), 0)
+	hi := n - 1
+	if len(m.pinned) > 0 && m.listRows() == 0 && !m.done {
+		// The first rows are still to come: keep the cursor where they will
+		// start instead of on the last pin.
+		hi = max(hi, len(m.pinned))
+	}
+	m.sel = max(min(m.sel, hi), 0)
 
 	slots := m.slots()
 	rows := n
@@ -396,7 +410,7 @@ func (m Model[T]) slots() int {
 
 // hasStatus reports whether a loading, error or empty row follows the items.
 func (m Model[T]) hasStatus() bool {
-	return m.tail.fetching || m.tail.err != nil || m.shown() == 0
+	return m.tail.fetching || m.tail.err != nil || m.listRows() == 0
 }
 
 // ClearTransient peels one layer of what the user asked to see: the find

@@ -43,6 +43,27 @@ type settings struct {
 	children any
 	// childrenFolded starts the items with children folded.
 	childrenFolded bool
+	// pinned is a []T of rows above the list, checked against the item type
+	// in New.
+	pinned any
+	// pinnedGutter is a func(selected, focused bool) string, the gutter of a
+	// pinned row.
+	pinnedGutter func(selected, focused bool) string
+}
+
+// WithPinned puts items in rows above the list. They are not items of the
+// feed: they are not counted, marked, found, filtered or grouped, and the
+// fetch never sees them. They scroll with the list, and the cursor can go to
+// them. Like [WithKey], it infers T from items, and New ignores one whose
+// type does not match the feed's items. It keeps at most [MaxPinned] items.
+func WithPinned[T any](items []T) Option {
+	return func(s *settings) { s.pinned = items }
+}
+
+// WithPinnedGutter sets what is drawn in the gutter of a pinned row, whose
+// width must be that of the gutter of a marked row.
+func WithPinnedGutter(gutter func(selected, focused bool) string) Option {
+	return func(s *settings) { s.pinnedGutter = gutter }
 }
 
 // WithFirstItem has a grouped feed start with the cursor on its first item
