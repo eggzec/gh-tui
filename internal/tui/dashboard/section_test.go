@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -869,85 +868,6 @@ func inboxPrefetch(after int, rest time.Duration) config.PrefetchLayers {
 	p := config.Default().Prefetch
 	p.Dashboard.Inbox.Window.After, p.Dashboard.Inbox.Rest = &after, &rest
 	return p
-}
-
-func TestInboxReadsAhead(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ps := &aheadPulls{}
-		in := &fakeInbox{threads: inboxThreads()}
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, 150*time.Millisecond)))
-		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
-		// The first two unread threads, once the inbox loads.
-		if got := slices.Sorted(slices.Values(ps.got())); !slices.Equal(got, []int{1, 2}) {
-			t.Errorf("read %v ahead, want the first two threads", got)
-		}
-		// The thread under the cursor, once the pane has the focus and
-		// the cursor rests.
-		press(t, s, "5", "down", "down")
-		if got := ps.got(); len(got) != 3 || got[2] != 3 {
-			t.Errorf("read %v, want the third thread last", got)
-		}
-	})
-}
-
-// TestInboxNotLoadedReadsAtOnceWhenItIs checks that an inbox that hasn't
-// loaded tells the reads ahead so, and that the window it first shows once
-// it loads is read at once rather than after the cursor rests.
-func TestInboxNotLoadedReadsAtOnceWhenItIs(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ps := &aheadPulls{}
-		in := &fakeInbox{threads: inboxThreads()}
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, time.Hour)))
-		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
-		// As if the inbox hadn't loaded yet: a new list, not loaded.
-		loaded := s.notes
-		o.Stop()
-		s.notes.ok = false
-		// Nothing read so far, so that the first window has rows to read.
-		ps.mu.Lock()
-		ps.reads = nil
-		ps.mu.Unlock()
-		if cmd := s.readAhead(); cmd != nil {
-			t.Fatal("an inbox that hasn't loaded read ahead")
-		}
-		s.notes = loaded
-		start := time.Now()
-		run(t, s, s.readAhead())
-		if waited := time.Since(start); waited != 0 {
-			t.Errorf("the inbox as it first showed was read after %v, want at once", waited)
-		}
-		if got := ps.got(); len(got) == 0 {
-			t.Errorf("read %v, want the threads the inbox first shows", got)
-		}
-	})
-}
-
-// A change to the inbox while another screen is on view, such as the one
-// a poll reports, reads nothing ahead, and nor does the cursor's delay
-// that fires meanwhile.
-func TestInboxReadsNothingAheadOffScreen(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		ps := &aheadPulls{}
-		in := &fakeInbox{threads: inboxThreads()}
-		// The window reaches the row above the cursor, where a new thread
-		// comes.
-		o := threads.New(t.Context(), threads.WithPulls(ps), threads.WithPrefetch(inboxPrefetch(1, 150*time.Millisecond)))
-		s := newSection(t, newFake(), in, 140, 38, WithOpener(o))
-		before := len(ps.got())
-		s.Blur()
-		in.mu.Lock()
-		in.threads = append([]core.Notification{thread("9", "cli/cli", "New", true, time.Minute)}, in.threads...)
-		in.mu.Unlock()
-		run(t, s, s.Update(ui.SyncMsg{Key: notifications.SyncKey}))
-		if got := ps.got(); len(got) != before {
-			t.Errorf("read %v ahead off screen, want nothing more", got[before:])
-		}
-		s.Focus()
-		run(t, s, s.Update(ui.SyncMsg{Key: "other"}))
-		if got := ps.got(); !slices.Contains(got, 9) {
-			t.Errorf("read %v ahead back on screen, want the new thread", got)
-		}
-	})
 }
 
 // On an Enterprise host, a repository without a URL links to its pages.

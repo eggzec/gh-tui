@@ -66,9 +66,9 @@ func TestSelectedOwner(t *testing.T) {
 		}
 	}
 	s.focusPane(inboxPane)
-	if n, ok := s.threads.selected(); ok {
-		if got, _ := s.Selected(); got.Owner != n.Repo.Owner {
-			t.Errorf("inbox: owner %q, want %q", got.Owner, n.Repo.Owner)
+	if want, ok := s.notes.Selected(); ok {
+		if got, _ := s.Selected(); got != want {
+			t.Errorf("inbox: selected %+v, want %+v", got, want)
 		}
 	}
 }
