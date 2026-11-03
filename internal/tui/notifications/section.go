@@ -164,6 +164,24 @@ type Section struct {
 	// small pane, and pageLimit is the pages one read follows.
 	compact   bool
 	pageLimit int
+	// offline and limited tell how the last read was served: kept, because
+	// GitHub couldn't be reached or rate limited it.
+	offline, limited atomic.Bool
+}
+
+// Offline reports whether the last read was served from what an earlier one
+// kept, because GitHub couldn't be reached.
+func (s *Section) Offline() bool { return s.offline.Load() }
+
+// Limited reports whether the last read was served from what an earlier one
+// kept, because GitHub rate limited it.
+func (s *Section) Limited() bool { return s.limited.Load() }
+
+// Refresh reads the list again from GitHub, as its refresh key does.
+func (s *Section) Refresh() tea.Cmd {
+	s.svc.Invalidate()
+	s.opener.Resume()
+	return s.reload()
 }
 
 var (
@@ -309,6 +327,8 @@ func (s *Section) list(ctx context.Context, q notifications.ListQuery, again boo
 		}
 		q.Cursor = p.Next
 	}
+	s.offline.Store(all.Offline)
+	s.limited.Store(all.Limited)
 	all.Items = s.byState(ctx, f, f.apply(all.Items))
 	return all, nil
 }

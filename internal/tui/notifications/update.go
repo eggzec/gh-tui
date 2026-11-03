@@ -103,9 +103,7 @@ func (s *Section) press(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	k := &s.keys
 	switch {
 	case keymap.Matches(msg, k.Refresh):
-		s.svc.Invalidate()
-		s.opener.Resume()
-		return s.reload(), true
+		return s.Refresh(), true
 	case keymap.Matches(msg, k.ClearFilter):
 		if !s.filtered() && !s.toggle.Off() {
 			return nil, true
