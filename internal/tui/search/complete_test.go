@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 )
 
 func texts(cs []candidate) []string {
@@ -216,6 +217,38 @@ func TestTabCompletesInQuery(t *testing.T) {
 	}
 	if !s.typing {
 		t.Fatal("tab left the query")
+	}
+}
+
+func TestCtrlSpaceShowsCandidates(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	s.Focus()
+	press(t, s, "/")
+	typeOnly(t, s, "is:")
+	if !keymap.Matches(keyPress("ctrl+space"), s.keys.query.CompleteShow) {
+		t.Fatal("ctrl+space does not match the complete_show binding")
+	}
+	// ctrl+space ends a cycle that tab started: the inserted candidate stays.
+	press(t, s, "tab")
+	if s.comp.sel == -1 {
+		t.Fatal("tab did not select a candidate")
+	}
+	press(t, s, "ctrl+space")
+	if s.comp.sel != -1 || s.input.Value() != "is:public" {
+		t.Fatalf("ctrl+space after tab: sel %d, query %q", s.comp.sel, s.input.Value())
+	}
+	press(t, s, "backspace", "backspace", "backspace", "backspace", "backspace", "backspace")
+	// ctrl+space asks for the candidates, without inserting one.
+	press(t, s, "ctrl+space")
+	if got := s.input.Value(); got != "is:" {
+		t.Fatalf("ctrl+space changed the query to %q", got)
+	}
+	if s.comp.sel != -1 || len(s.comp.cands) == 0 {
+		t.Fatalf("ctrl+space: sel %d, %d candidates", s.comp.sel, len(s.comp.cands))
+	}
+	if !strings.Contains(s.View(), "is:private") {
+		t.Fatal("the candidate row does not show is:private")
 	}
 }
 

@@ -9,3 +9,4 @@ Query (types)
   results | esc | esc | on
   complete | tab | tab | on
   previous completion | shift+tab | shift+tab | on
+  show completions | ctrl+space | ^space | on
