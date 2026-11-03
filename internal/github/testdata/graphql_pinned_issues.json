@@ -1,0 +1,38 @@
+{
+  "data": {
+    "rateLimit": {"cost": 1, "remaining": 4999, "limit": 5000, "resetAt": "2026-10-16T12:00:00Z"},
+    "repository": {
+      "pinnedIssues": {
+        "nodes": [
+          {
+            "issue": {
+              "id": "I_10", "number": 10, "title": "Read this first", "body": "Welcome.",
+              "state": "OPEN", "stateReason": null,
+              "url": "https://github.com/eggzec/gh-tui/issues/10",
+              "createdAt": "2026-09-01T10:00:00Z", "updatedAt": "2026-09-02T11:00:00Z",
+              "locked": true, "activeLockReason": "TOO_HEATED",
+              "author": {"__typename": "User", "login": "octocat"},
+              "labels": {"nodes": [{"name": "docs", "color": "0075ca", "description": "Docs"}]},
+              "assignees": {"nodes": [{"login": "alice", "name": "Alice"}]},
+              "comments": {"totalCount": 3}
+            }
+          },
+          {
+            "issue": {
+              "id": "I_11", "number": 11, "title": "Roadmap", "body": "",
+              "state": "CLOSED", "stateReason": "COMPLETED",
+              "url": "https://github.com/eggzec/gh-tui/issues/11",
+              "createdAt": "2026-09-03T10:00:00Z", "updatedAt": "2026-09-04T11:00:00Z",
+              "locked": false, "activeLockReason": null,
+              "author": null,
+              "labels": {"nodes": []},
+              "assignees": {"nodes": []},
+              "comments": {"totalCount": 0}
+            }
+          },
+          {"issue": null}
+        ]
+      }
+    }
+  }
+}
