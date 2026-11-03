@@ -79,7 +79,7 @@ func appCheckPanes(t *testing.T) (*host, *panesModal, *fakeChecks, *appCheckOver
 func TestOpenCheckMsgOpensTheAppRun(t *testing.T) {
 	t.Parallel()
 	_, m, _, o := appCheckPanes(t)
-	if got, want := o.title(), "Codecov · coverage"; got != want {
+	if got, want := o.Title(), "Codecov · coverage"; got != want {
 		t.Errorf("title = %q, want %q", got, want)
 	}
 	if a, ok := o.v.Selected(); !ok || a.Message != "Uncovered line." {

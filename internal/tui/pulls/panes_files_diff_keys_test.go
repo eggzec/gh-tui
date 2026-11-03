@@ -203,7 +203,7 @@ func TestFilesDiffEscClosesOverASearch(t *testing.T) {
 	if o.d.Capturing() || o.d.Query() != "a" {
 		t.Fatalf("the search is not shown: prompt %v, query %q", o.d.Capturing(), o.d.Query())
 	}
-	if o.clear() {
+	if o.Clear() {
 		t.Error("clear took the search before the modal closed")
 	}
 	m.Act(ui.ActDismiss)

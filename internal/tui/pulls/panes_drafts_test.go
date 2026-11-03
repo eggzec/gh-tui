@@ -173,7 +173,7 @@ func TestDraftEscClearsTheRangeFirst(t *testing.T) {
 	if _, ok := o.d.Anchor(); !ok {
 		t.Fatal("V started no range")
 	}
-	if !o.clear() {
+	if !o.Clear() {
 		t.Error("clear did nothing with a range")
 	}
 	if _, ok := o.d.Anchor(); ok {

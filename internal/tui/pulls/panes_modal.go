@@ -434,7 +434,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		if m.top() != nil {
 			return m.pressOverlay(msg)
 		}
-		if m.filesDiffFocused() && m.files.pv.o.typing() {
+		if m.filesDiffFocused() && m.files.pv.o.Typing() {
 			// The search prompt of the diff beside the tree takes every key as text.
 			return m.pressFilesDiff(msg)
 		}
@@ -458,7 +458,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 	case appCheckNotesMsg:
 		// The page takes its annotations wherever it sits in the stack, such as
 		// under the question of a re-request.
-		return msg.o.update(msg)
+		return msg.o.Update(msg)
 	default:
 		// Several panes have a tree, and each enter carries the ID of its tree.
 		if enter, ok := msg.(treeview.OpenMsg); ok {

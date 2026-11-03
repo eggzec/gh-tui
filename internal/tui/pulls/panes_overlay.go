@@ -19,25 +19,25 @@ import (
 // panes. While one is open, the keys go to it alone, and the panes behind it
 // keep their focus, zoom and scroll.
 type overlay interface {
-	// title is what the frame of the overlay says.
-	title() string
-	// kind is how the overlay is placed over the panes.
-	kind() panes.OverlayKind
-	// items is the number of rows of a picker, and text the width of what a
+	// Title is what the frame of the overlay says.
+	Title() string
+	// Kind is how the overlay is placed over the panes.
+	Kind() panes.OverlayKind
+	// Items is the number of rows of a picker, and Text the width of what a
 	// confirm asks.
-	items() int
-	text() int
-	// update takes a key or a paste.
-	update(tea.Msg) tea.Cmd
-	// view draws the inside of the frame, w by h cells.
-	view(w, h int) string
-	// layers are the keys of the overlay, for the footer and the help.
-	layers() []keyhelp.Layer
-	// clear drops what is transient, such as a search, and reports whether
+	Items() int
+	Text() int
+	// Update takes a key or a paste.
+	Update(tea.Msg) tea.Cmd
+	// View draws the inside of the frame, w by h cells.
+	View(w, h int) string
+	// Layers are the keys of the overlay, for the footer and the help.
+	Layers() []keyhelp.Layer
+	// Clear drops what is transient, such as a search, and reports whether
 	// there was any.
-	clear() bool
-	// closed reports that the overlay is done and takes no more keys.
-	closed() bool
+	Clear() bool
+	// Closed reports that the overlay is done and takes no more keys.
+	Closed() bool
 }
 
 // openOverlay is an overlay on the stack, with whether it fills the area.
@@ -62,7 +62,7 @@ func (m *panesModal) open(o overlay) {
 // settle drops the overlays on top that are done, which returns the focus to
 // what is below.
 func (m *panesModal) settle() {
-	for len(m.overlays) > 0 && m.top().closed() {
+	for len(m.overlays) > 0 && m.top().Closed() {
 		m.pop()
 	}
 }
@@ -97,14 +97,14 @@ func (m *panesModal) pop() {
 	}
 	o := m.top()
 	m.overlays = m.overlays[:len(m.overlays)-1]
-	if f, ok := o.(interface{ finish() }); ok {
-		f.finish()
+	if f, ok := o.(interface{ Finish() }); ok {
+		f.Finish()
 	}
 }
 
 // pressOverlay gives msg to the overlay on top.
 func (m *panesModal) pressOverlay(msg tea.Msg) tea.Cmd {
-	cmd := m.top().update(msg)
+	cmd := m.top().Update(msg)
 	m.settle()
 	return cmd
 }
@@ -118,19 +118,19 @@ func (m *panesModal) ask(c confirm.Ask) {
 // placed returns where the overlay on top lies in the panes' area.
 func (m *panesModal) placed() panes.Rect {
 	o := m.overlays[len(m.overlays)-1]
-	return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: o.maximized, InsetMin: wideMin}, m.width, m.areaHeight())
+	return panes.OverlayRect(panes.Overlay{Kind: o.Kind(), Items: o.Items(), Text: o.Text(), Maximized: o.maximized, InsetMin: wideMin}, m.width, m.areaHeight())
 }
 
 // CanMaximize implements ui.Maximizer: the key flips a viewer between its
 // place and the whole area, which is no change where the viewer fills the area
 // either way, as on a narrow terminal.
 func (m *panesModal) CanMaximize() bool {
-	if len(m.overlays) == 0 || m.top().kind() != panes.Viewer {
+	if len(m.overlays) == 0 || m.top().Kind() != panes.Viewer {
 		return true
 	}
 	o := m.overlays[len(m.overlays)-1]
 	rect := func(maximized bool) panes.Rect {
-		return panes.OverlayRect(panes.Overlay{Kind: o.kind(), Items: o.items(), Text: o.text(), Maximized: maximized, InsetMin: wideMin}, m.width, m.areaHeight())
+		return panes.OverlayRect(panes.Overlay{Kind: o.Kind(), Items: o.Items(), Text: o.Text(), Maximized: maximized, InsetMin: wideMin}, m.width, m.areaHeight())
 	}
 	return rect(o.maximized) != rect(!o.maximized)
 }
@@ -161,7 +161,7 @@ func (m *panesModal) covered(out string) string {
 		return strings.Join(lines, "\n")
 	}
 	o := m.top()
-	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.title(), panes.Box{Rect: r}), Body: o.view(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.Title(), panes.Box{Rect: r}), Body: o.View(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
 	for i, row := range box {
 		y := r.Y + i
 		if y >= len(lines) {
@@ -176,7 +176,7 @@ func (m *panesModal) covered(out string) string {
 // overlay alone.
 func (m *panesModal) overlayFooter() string {
 	var parts []string
-	for _, l := range m.top().layers() {
+	for _, l := range m.top().Layers() {
 		for _, b := range l.Short {
 			if b.Enabled() && len(b.Keys()) > 0 {
 				parts = append(parts, m.theme.Muted.Render(b.Help().Key)+" "+m.theme.Subtle.Render(b.Help().Desc))
@@ -195,24 +195,24 @@ type confirmOverlay struct {
 	armed bool
 }
 
-func (o *confirmOverlay) title() string           { return "Confirm" }
-func (o *confirmOverlay) kind() panes.OverlayKind { return panes.Confirm }
-func (o *confirmOverlay) items() int              { return 0 }
-func (o *confirmOverlay) text() int               { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
-func (o *confirmOverlay) clear() bool             { return false }
-func (o *confirmOverlay) closed() bool            { return o.done }
-func (o *confirmOverlay) view(w, _ int) string    { return o.c.Line(o.m.cst, o.m.keys.confirm, w) }
+func (o *confirmOverlay) Title() string           { return "Confirm" }
+func (o *confirmOverlay) Kind() panes.OverlayKind { return panes.Confirm }
+func (o *confirmOverlay) Items() int              { return 0 }
+func (o *confirmOverlay) Text() int               { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
+func (o *confirmOverlay) Clear() bool             { return false }
+func (o *confirmOverlay) Closed() bool            { return o.done }
+func (o *confirmOverlay) View(w, _ int) string    { return o.c.Line(o.m.cst, o.m.keys.confirm, w) }
 
 // layers are the keys that answer, and the quit key, which closes the whole
 // modal: the question takes every key, so the app never sees that one.
-func (o *confirmOverlay) layers() []keyhelp.Layer {
+func (o *confirmOverlay) Layers() []keyhelp.Layer {
 	l := ui.ConfirmLayer(o.m.keys.confirm)
 	l.Bindings = append(l.Bindings, o.m.keys.quit)
 	l.Short = append(l.Short, o.m.keys.quit)
 	return []keyhelp.Layer{l}
 }
 
-func (o *confirmOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *confirmOverlay) Update(msg tea.Msg) tea.Cmd {
 	if ui.IsArm(msg) {
 		o.armed = true
 		return nil

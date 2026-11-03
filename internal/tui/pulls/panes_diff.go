@@ -174,21 +174,21 @@ func (o *diffOverlay) label() string {
 	return o.m.rangeLabel()
 }
 
-func (o *diffOverlay) title() string {
+func (o *diffOverlay) Title() string {
 	path := o.current()
 	i, n := diffview.Place(o.src.paths(), path)
 	pct := o.d.Cursor() * 100 / max(o.d.Len()-1, 1)
 	return o.m.diffGlyphs().Title(o.mode, o.label(), path, i, n, o.modeNote(path), pct, o.m.placed().W-4)
 }
 
-func (o *diffOverlay) kind() panes.OverlayKind { return panes.Viewer }
-func (o *diffOverlay) items() int              { return 0 }
-func (o *diffOverlay) text() int               { return 0 }
-func (o *diffOverlay) closed() bool            { return o.done }
+func (o *diffOverlay) Kind() panes.OverlayKind { return panes.Viewer }
+func (o *diffOverlay) Items() int              { return 0 }
+func (o *diffOverlay) Text() int               { return 0 }
+func (o *diffOverlay) Closed() bool            { return o.done }
 
 // clear ends a range being picked. A search shown does not stop the overlay
 // from closing.
-func (o *diffOverlay) clear() bool {
+func (o *diffOverlay) Clear() bool {
 	if _, ok := o.d.Anchor(); ok {
 		o.d.ClearAnchor()
 		return true
@@ -198,21 +198,21 @@ func (o *diffOverlay) clear() bool {
 
 // typing reports that the overlay takes the keys of the app's actions as text,
 // while its search prompt is open.
-func (o *diffOverlay) typing() bool { return o.d.Capturing() }
+func (o *diffOverlay) Typing() bool { return o.d.Capturing() }
 
-func (o *diffOverlay) view(w, h int) string {
+func (o *diffOverlay) View(w, h int) string {
 	o.w, o.h = w, h
 	o.d.SetSize(w, h)
 	return o.d.View()
 }
 
 // finish ends the diff and the read it has in flight.
-func (o *diffOverlay) finish() {
+func (o *diffOverlay) Finish() {
 	o.done = true
 	o.cancel()
 }
 
-func (o *diffOverlay) layers() []keyhelp.Layer {
+func (o *diffOverlay) Layers() []keyhelp.Layer {
 	if o.d.Capturing() {
 		return []keyhelp.Layer{ui.ContextHelp("search_prompt", o.d, true)}
 	}
@@ -232,7 +232,7 @@ func (o *diffOverlay) layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
 }
 
-func (o *diffOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *diffOverlay) Update(msg tea.Msg) tea.Cmd {
 	if fm, ok := msg.(diff.FilesMsg); ok && fm.ID == o.d.ID() {
 		for _, f := range fm.Files {
 			o.foldViewed(f.Path)

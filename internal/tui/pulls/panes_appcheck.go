@@ -157,31 +157,31 @@ func readNotes(ctx context.Context, svc ChecksService, q actions.AnnotationsQuer
 	return all, nil
 }
 
-func (o *appCheckOverlay) title() string {
+func (o *appCheckOverlay) Title() string {
 	if a := o.check.App; a != nil && a.Name != "" {
 		return a.Name + o.m.icons.Separator + o.check.Name
 	}
 	return o.check.Name
 }
 
-func (o *appCheckOverlay) kind() panes.OverlayKind { return panes.Viewer }
-func (o *appCheckOverlay) items() int              { return 0 }
-func (o *appCheckOverlay) text() int               { return 0 }
-func (o *appCheckOverlay) clear() bool             { return false }
-func (o *appCheckOverlay) closed() bool            { return o.done }
+func (o *appCheckOverlay) Kind() panes.OverlayKind { return panes.Viewer }
+func (o *appCheckOverlay) Items() int              { return 0 }
+func (o *appCheckOverlay) Text() int               { return 0 }
+func (o *appCheckOverlay) Clear() bool             { return false }
+func (o *appCheckOverlay) Closed() bool            { return o.done }
 
-func (o *appCheckOverlay) view(w, h int) string {
+func (o *appCheckOverlay) View(w, h int) string {
 	o.v.SetSize(w, h)
 	return o.v.View()
 }
 
 // finish ends the read of the annotations.
-func (o *appCheckOverlay) finish() {
+func (o *appCheckOverlay) Finish() {
 	o.done = true
 	o.cancel()
 }
 
-func (o *appCheckOverlay) layers() []keyhelp.Layer {
+func (o *appCheckOverlay) Layers() []keyhelp.Layer {
 	k, mv := o.m.keys, o.m.keys.scroll
 	l := ui.ContextLayer(ctxAppCheck,
 		[]key.Binding{mv.Up, mv.Down, mv.PageUp, mv.PageDown, mv.HalfPageUp, mv.HalfPageDown, mv.Home, mv.End, k.choose, k.appCheck.rerequest},
@@ -189,7 +189,7 @@ func (o *appCheckOverlay) layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal, nil, nil), l}
 }
 
-func (o *appCheckOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *appCheckOverlay) Update(msg tea.Msg) tea.Cmd {
 	if n, ok := msg.(appCheckNotesMsg); ok {
 		if n.o != o {
 			return nil

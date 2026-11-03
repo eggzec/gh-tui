@@ -34,7 +34,7 @@ type filesDiff struct {
 // the files are not read again when a diff is built over it.
 func (pv *filesDiff) drop() {
 	if pv.o != nil {
-		pv.o.finish()
+		pv.o.Finish()
 	}
 	pv.on, pv.o = false, nil
 }
@@ -169,7 +169,7 @@ func (m *panesModal) filesDiffUpdate(msg tea.Msg) tea.Cmd {
 	if !pv.on || !pv.o.d.Handles(msg) {
 		return nil
 	}
-	cmd := pv.o.update(msg)
+	cmd := pv.o.Update(msg)
 	m.files.seq++
 	return cmd
 }
@@ -182,7 +182,7 @@ func (m *panesModal) pressFilesDiff(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	o := pv.o
-	cmd := o.update(msg)
+	cmd := o.Update(msg)
 	switch {
 	case o.mode == diffview.ThisFile && o.path != pv.path:
 		// The diff went to another file, such as when it left the whole patch.
@@ -199,7 +199,7 @@ func (m *panesModal) pressFilesDiff(msg tea.KeyPressMsg) tea.Cmd {
 // clearFilesDiff drops what is transient in the diff that has the focus, such as
 // a range being picked, and says whether there was any.
 func (m *panesModal) clearFilesDiff() bool {
-	if !m.filesDiffFocused() || !m.files.pv.o.clear() {
+	if !m.filesDiffFocused() || !m.files.pv.o.Clear() {
 		return false
 	}
 	m.files.seq++

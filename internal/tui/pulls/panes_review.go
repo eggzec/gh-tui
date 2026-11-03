@@ -187,23 +187,23 @@ type verdictOverlay struct {
 	done   bool
 }
 
-func (o *verdictOverlay) title() string           { return "Review #" + strconv.Itoa(o.m.number) }
-func (o *verdictOverlay) kind() panes.OverlayKind { return panes.Picker }
+func (o *verdictOverlay) Title() string           { return "Review #" + strconv.Itoa(o.m.number) }
+func (o *verdictOverlay) Kind() panes.OverlayKind { return panes.Picker }
 
 // items is two rows for each verdict: its label and its hint.
-func (o *verdictOverlay) items() int   { return 2 * len(verdicts) }
-func (o *verdictOverlay) text() int    { return 0 }
-func (o *verdictOverlay) clear() bool  { return false }
-func (o *verdictOverlay) closed() bool { return o.done }
+func (o *verdictOverlay) Items() int   { return 2 * len(verdicts) }
+func (o *verdictOverlay) Text() int    { return 0 }
+func (o *verdictOverlay) Clear() bool  { return false }
+func (o *verdictOverlay) Closed() bool { return o.done }
 
-func (o *verdictOverlay) layers() []keyhelp.Layer {
+func (o *verdictOverlay) Layers() []keyhelp.Layer {
 	k := o.m.keys
 	return []keyhelp.Layer{ui.ContextLayer(ctxModal,
 		[]key.Binding{k.scroll.Up, k.scroll.Down, k.choose, k.back, k.cancel},
 		[]key.Binding{k.choose, k.cancel})}
 }
 
-func (o *verdictOverlay) view(w, h int) string {
+func (o *verdictOverlay) View(w, h int) string {
 	m := o.m
 	lines := make([]string, 0, 2*len(verdicts))
 	for i, v := range verdicts {
@@ -223,7 +223,7 @@ func (o *verdictOverlay) view(w, h int) string {
 // cancel closes the verdicts, for the back key, which the modal takes.
 func (o *verdictOverlay) cancel() { o.done = true }
 
-func (o *verdictOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *verdictOverlay) Update(msg tea.Msg) tea.Cmd {
 	press, ok := msg.(tea.KeyPressMsg)
 	if !ok || o.done {
 		return nil
@@ -276,26 +276,26 @@ type composerOverlay struct {
 	done    bool
 }
 
-func (o *composerOverlay) title() string           { return o.head }
-func (o *composerOverlay) kind() panes.OverlayKind { return panes.Viewer }
-func (o *composerOverlay) items() int              { return 0 }
-func (o *composerOverlay) text() int               { return 0 }
-func (o *composerOverlay) clear() bool             { return false }
-func (o *composerOverlay) closed() bool            { return o.done }
+func (o *composerOverlay) Title() string           { return o.head }
+func (o *composerOverlay) Kind() panes.OverlayKind { return panes.Viewer }
+func (o *composerOverlay) Items() int              { return 0 }
+func (o *composerOverlay) Text() int               { return 0 }
+func (o *composerOverlay) Clear() bool             { return false }
+func (o *composerOverlay) Closed() bool            { return o.done }
 
 // typing reports that the overlay takes the keys of the app's actions as text.
-func (o *composerOverlay) typing() bool { return true }
+func (o *composerOverlay) Typing() bool { return true }
 
-func (o *composerOverlay) layers() []keyhelp.Layer {
+func (o *composerOverlay) Layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextHelp("composer", &o.comp, true)}
 }
 
-func (o *composerOverlay) view(w, h int) string {
+func (o *composerOverlay) View(w, h int) string {
 	o.comp.SetSize(w, h)
 	return o.comp.View()
 }
 
-func (o *composerOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *composerOverlay) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case composer.SubmitMsg:
 		if msg.ID == o.comp.ID() {

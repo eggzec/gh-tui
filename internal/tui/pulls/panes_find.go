@@ -159,27 +159,27 @@ type finderOverlay struct {
 	done bool
 }
 
-func (o *finderOverlay) title() string           { return "Changed files in #" + strconv.Itoa(o.m.number) }
-func (o *finderOverlay) kind() panes.OverlayKind { return panes.Picker }
-func (o *finderOverlay) items() int              { return finderRows }
-func (o *finderOverlay) text() int               { return 0 }
-func (o *finderOverlay) clear() bool             { return false }
-func (o *finderOverlay) closed() bool            { return o.done }
+func (o *finderOverlay) Title() string           { return "Changed files in #" + strconv.Itoa(o.m.number) }
+func (o *finderOverlay) Kind() panes.OverlayKind { return panes.Picker }
+func (o *finderOverlay) Items() int              { return finderRows }
+func (o *finderOverlay) Text() int               { return 0 }
+func (o *finderOverlay) Clear() bool             { return false }
+func (o *finderOverlay) Closed() bool            { return o.done }
 
 // typing reports that the overlay takes the keys of the app's actions as text.
-func (o *finderOverlay) typing() bool { return true }
+func (o *finderOverlay) Typing() bool { return true }
 
-func (o *finderOverlay) layers() []keyhelp.Layer {
+func (o *finderOverlay) Layers() []keyhelp.Layer {
 	return []keyhelp.Layer{ui.ContextHelp("finder", &o.f, true)}
 }
 
-func (o *finderOverlay) view(w, h int) string {
+func (o *finderOverlay) View(w, h int) string {
 	o.f.SetSize(w, h)
 	return o.f.View()
 }
 
 // finish ends the finder and the read it has in flight.
-func (o *finderOverlay) finish() {
+func (o *finderOverlay) Finish() {
 	if o.done {
 		return
 	}
@@ -188,13 +188,13 @@ func (o *finderOverlay) finish() {
 	o.stop()
 }
 
-func (o *finderOverlay) update(msg tea.Msg) tea.Cmd {
+func (o *finderOverlay) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case finder.ChosenMsg:
 		if msg.ID != o.f.ID() {
 			return nil
 		}
-		o.finish()
+		o.Finish()
 		if o.m.detail.HeadSHA != o.head {
 			return ui.Notify(toast.Warning, "The pull request changed; find again.")
 		}
@@ -203,7 +203,7 @@ func (o *finderOverlay) update(msg tea.Msg) tea.Cmd {
 		return o.m.openFound(msg.Item.Path)
 	case finder.CancelMsg:
 		if msg.ID == o.f.ID() {
-			o.finish()
+			o.Finish()
 		}
 		return nil
 	}

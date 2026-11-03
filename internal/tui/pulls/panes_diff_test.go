@@ -133,12 +133,12 @@ func TestDiffEscClosesAtOnceOverASearch(t *testing.T) {
 	t.Parallel()
 	h, m, o := diffPanes(t, "a.go")
 	press(t, h, "/")
-	if !o.typing() {
+	if !o.Typing() {
 		t.Fatal("/ didn't open the search prompt")
 	}
 	typeQuery(t, h, "keep")
 	press(t, h, "enter")
-	if o.typing() {
+	if o.Typing() {
 		t.Fatal("enter left the prompt open")
 	}
 	if _, ok := m.Act(ui.ActDismiss); !ok || m.top() != nil {
@@ -190,7 +190,7 @@ func TestDiffSearchTakesTyping(t *testing.T) {
 		t.Error("back was taken as an intent while the search prompt types")
 	}
 	if got := slices.Collect(func(yield func(string) bool) {
-		for _, l := range o.layers() {
+		for _, l := range o.Layers() {
 			for _, b := range l.Short {
 				if !yield(b.Help().Desc) {
 					return
