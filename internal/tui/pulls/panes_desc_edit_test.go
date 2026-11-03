@@ -106,8 +106,8 @@ func TestDescriptionQuoteComments(t *testing.T) {
 	if !ok {
 		t.Fatalf("c opened %T, want the composer", m.top())
 	}
-	if want := "> line one\n>\n> line two\n\n"; o.comp.Value() != want {
-		t.Fatalf("the composer starts with %q, want %q", o.comp.Value(), want)
+	if want := "> line one\n>\n> line two\n\n"; o.Comp.Value() != want {
+		t.Fatalf("the composer starts with %q, want %q", o.Comp.Value(), want)
 	}
 	typeText(m, "hi")
 	submit(m)

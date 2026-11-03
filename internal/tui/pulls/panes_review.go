@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tray"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -258,62 +259,15 @@ func (m *panesModal) writeSummary(row int) tea.Cmd {
 		composer.WithOptional(),
 		m.drafts(),
 	)
-	o := &composerOverlay{m: m, comp: c, verdict: row, head: "Review #" + strconv.Itoa(m.number), submit: (*panesModal).submitReview}
+	o := m.newComposer(c, "Review #"+strconv.Itoa(m.number), row, m.submitReview)
 	m.open(o)
-	return tea.Batch(o.comp.Init(), o.comp.Focus())
+	return tea.Batch(o.Comp.Init(), o.Comp.Focus())
 }
 
-// composerOverlay takes the summary of a review, or the text of a comment. It
-// is a viewer in the way it is placed, but it types: it takes every key itself,
-// and its own keys close it. head is what its frame says, and submit what its
-// submit key does.
-type composerOverlay struct {
-	m       *panesModal
-	comp    composer.Model
-	verdict int
-	head    string
-	submit  func(m *panesModal, o *composerOverlay) tea.Cmd
-	done    bool
-}
+type composerOverlay = prpanes.ComposerOverlay
 
-func (o *composerOverlay) Title() string           { return o.head }
-func (o *composerOverlay) Kind() panes.OverlayKind { return panes.Viewer }
-func (o *composerOverlay) Items() int              { return 0 }
-func (o *composerOverlay) Text() int               { return 0 }
-func (o *composerOverlay) Clear() bool             { return false }
-func (o *composerOverlay) Closed() bool            { return o.done }
-
-// typing reports that the overlay takes the keys of the app's actions as text.
-func (o *composerOverlay) Typing() bool { return true }
-
-func (o *composerOverlay) Layers() []keyhelp.Layer {
-	return []keyhelp.Layer{ui.ContextHelp("composer", &o.comp, true)}
-}
-
-func (o *composerOverlay) View(w, h int) string {
-	o.comp.SetSize(w, h)
-	return o.comp.View()
-}
-
-func (o *composerOverlay) Update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
-	case composer.SubmitMsg:
-		if msg.ID == o.comp.ID() {
-			return o.submit(o.m, o)
-		}
-		return nil
-	case composer.CancelMsg:
-		if msg.ID == o.comp.ID() && !o.m.sending {
-			o.done = true
-		}
-		return nil
-	case tea.KeyPressMsg, tea.PasteMsg:
-		// GitHub has the review: the summary stays until it answers.
-		if o.m.sending {
-			return nil
-		}
-	}
-	var cmd tea.Cmd
-	o.comp, cmd = o.comp.Update(msg)
-	return cmd
+// newComposer opens-ready composer overlay over c: it stays as it is while a
+// send is in flight, and submit is what its submit key does.
+func (m *panesModal) newComposer(c composer.Model, head string, verdict int, submit func(*composerOverlay) tea.Cmd) *composerOverlay {
+	return &composerOverlay{Comp: c, Head: head, Verdict: verdict, Busy: func() bool { return m.sending }, Submit: submit}
 }
