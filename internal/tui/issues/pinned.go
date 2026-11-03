@@ -68,7 +68,7 @@ func clampPinned(items []core.Issue) []core.Issue {
 // cachedPinned returns the pinned issues of the repository that the service
 // already has, for the first paint.
 func (s *Section) cachedPinned() []core.Issue {
-	if !s.hasRepo {
+	if !s.hasRepo || s.svc == nil {
 		return nil
 	}
 	items, _ := s.svc.CachedPinned(s.repo)
@@ -78,7 +78,7 @@ func (s *Section) cachedPinned() []core.Issue {
 // readPinned reads the pinned issues of the repository. A repository that
 // pins none, or one whose pins can't be read, shows no block.
 func (s *Section) readPinned() tea.Cmd {
-	if !s.live() {
+	if !s.live() || s.svc == nil {
 		return nil
 	}
 	ctx, svc, repo := s.ctx, s.svc, s.repo
