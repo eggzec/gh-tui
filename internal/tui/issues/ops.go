@@ -95,7 +95,7 @@ func (s *Section) setState(state core.State) tea.Cmd {
 		},
 		func(op *optimistic.Op, what string) tea.Cmd {
 			about := core.Target{Repo: s.repo, Number: it.Number}.String()
-			return tea.Batch(s.reload(), ui.Do(s.ctx, ui.IssuesTitle, ui.About(about, op), what))
+			return s.reload(ui.Do(s.ctx, ui.IssuesTitle, ui.About(about, op), what))
 		})
 	if !ok {
 		return refusal
@@ -117,7 +117,8 @@ func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
 	return s.reload()
 }
 
-// reload shows the list and the pinned issues from the cache again.
-func (s *Section) reload() tea.Cmd {
-	return tea.Batch(s.list.Reload(), s.readPinned())
+// reload shows the list and the pinned issues from the cache again, and runs
+// then as well. They share one batch, so the list is read before them.
+func (s *Section) reload(then ...tea.Cmd) tea.Cmd {
+	return tea.Batch(append([]tea.Cmd{s.list.Reload(), s.readPinned()}, then...)...)
 }

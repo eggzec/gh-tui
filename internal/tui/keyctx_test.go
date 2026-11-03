@@ -314,6 +314,10 @@ func (keyIssues) CachedTimeline(issuesvc.TimelineQuery) (core.Page[core.Timeline
 func (keyIssues) Timeline(context.Context, issuesvc.TimelineQuery) (core.Page[core.TimelineItem], error) {
 	return core.Page[core.TimelineItem]{}, nil
 }
+func (keyIssues) CachedPinned(core.RepoRef) ([]core.Issue, bool) { return nil, false }
+func (keyIssues) Pinned(context.Context, core.RepoRef) ([]core.Issue, error) {
+	return nil, nil
+}
 func (keyIssues) CurrentGet(core.RepoRef, int) bool { return true }
 
 func (keyIssues) CurrentComments(issuesvc.CommentsQuery) bool { return true }
