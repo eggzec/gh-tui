@@ -26,22 +26,25 @@ type pinKeys struct {
 	set atomic.Pointer[map[int]struct{}]
 }
 
-// store replaces the numbers with those of items, and reports whether any is
-// new.
-func (p *pinKeys) store(items []core.Issue) (added bool) {
+// store replaces the numbers with those of items, and reports whether the
+// set changed, by a number gained or lost.
+func (p *pinKeys) store(items []core.Issue) (changed bool) {
 	old := p.set.Load()
 	next := make(map[int]struct{}, len(items))
 	for i := range items {
 		n := items[i].Number
 		next[n] = struct{}{}
 		if old == nil {
-			added = true
+			changed = true
 		} else if _, ok := (*old)[n]; !ok {
-			added = true
+			changed = true
 		}
 	}
+	if old != nil && len(*old) != len(next) {
+		changed = true
+	}
 	p.set.Store(&next)
-	return added
+	return changed
 }
 
 // drop returns items without the pinned ones. It never changes items.
@@ -88,21 +91,22 @@ func (s *Section) readPinned() tea.Cmd {
 	}
 }
 
-// landPinned shows the pinned issues that were read. The list is read again
-// when a pinned issue is new to it, since its pages were fetched without
-// dropping that issue.
+// landPinned shows the pinned issues that were read, and none when the read
+// failed. The list is read again when the set of pinned issues changed, since
+// its pages were fetched with the old set dropped.
 func (s *Section) landPinned(msg pinnedMsg) tea.Cmd {
 	if !s.hasRepo || !msg.repo.Same(s.repo) {
 		return nil
 	}
+	var items []core.Issue
 	if msg.err != nil {
 		slog.WarnContext(s.ctx, "read pinned issues", "span", "tui.issues", "repo", msg.repo.String(), "err", msg.err)
-		return nil
+	} else {
+		items = clampPinned(msg.items)
 	}
-	items := clampPinned(msg.items)
-	added := s.pins.store(items)
+	changed := s.pins.store(items)
 	s.list.SetPinned(items)
-	if added && s.live() {
+	if changed && s.live() {
 		return s.list.Reload()
 	}
 	return nil

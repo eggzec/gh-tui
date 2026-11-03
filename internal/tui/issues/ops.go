@@ -118,7 +118,8 @@ func (s *Section) done(msg ui.DoneMsg) tea.Cmd {
 }
 
 // reload shows the list and the pinned issues from the cache again, and runs
-// then as well. They share one batch, so the list is read before them.
+// then as well, all in one batch. The batch runs concurrently, so a late
+// landPinned that changes the pinned set reads the list again.
 func (s *Section) reload(then ...tea.Cmd) tea.Cmd {
 	return tea.Batch(append([]tea.Cmd{s.list.Reload(), s.readPinned()}, then...)...)
 }
