@@ -77,6 +77,12 @@ type fakeService struct {
 	invalidated []invalidation
 	// nextComment numbers the comments posted.
 	nextComment int
+	// pinned are the pinned issues, warm whether the cache has them, pinnedErr
+	// the error of reading them and pinReads the reads.
+	pinned    []core.Issue
+	pinWarm   bool
+	pinnedErr error
+	pinReads  int
 }
 
 // invalidation is a call of Invalidate, with how many lists and gets were
@@ -521,11 +527,36 @@ func (f *fakeService) Invalidate(repo core.RepoRef) {
 	f.invalidated = append(f.invalidated, invalidation{repo, len(f.lists), len(f.gets)})
 }
 
-// CachedPinned and Pinned have nothing pinned.
-func (f *fakeService) CachedPinned(core.RepoRef) ([]core.Issue, bool) { return nil, false }
+// CachedPinned has the pinned issues once pin warms them, and Pinned always
+// has them, or pinnedErr.
+func (f *fakeService) CachedPinned(core.RepoRef) ([]core.Issue, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.pinWarm {
+		return nil, false
+	}
+	return slices.Clone(f.pinned), true
+}
 
 func (f *fakeService) Pinned(context.Context, core.RepoRef) ([]core.Issue, error) {
-	return nil, nil
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pinReads++
+	return slices.Clone(f.pinned), f.pinnedErr
+}
+
+// pin sets the pinned issues, and warms the cache with them.
+func (f *fakeService) pin(items ...core.Issue) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pinned, f.pinWarm = items, true
+}
+
+// pinnedReads is how many times the pinned issues were read.
+func (f *fakeService) pinnedReads() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pinReads
 }
 
 func (f *fakeService) invalidations() []invalidation {
