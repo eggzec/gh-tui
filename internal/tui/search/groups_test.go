@@ -21,6 +21,29 @@ func TestViewGrouped(t *testing.T) {
 	golden.RequireEqual(t, s.View())
 }
 
+// The group modal applies its choice from inside the modal, so the section
+// sees only the OrderedMsg after it: that alone must draw the groups, and one
+// alt+g must switch them off in the view.
+func TestGroupsShowAfterTheModalApplies(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	press(t, s, "esc")
+	flat := s.View()
+
+	s.setGroups([]orderpick.Choice{{Value: "owner"}})
+	s.Update(ui.OrderedMsg{})
+	grouped := s.View()
+	if grouped == flat {
+		t.Fatal("the view is still the flat list after the modal applied")
+	}
+
+	press(t, s, "alt+g")
+	if got := s.View(); got == grouped {
+		t.Error("alt+g left the grouped view on the screen")
+	}
+}
+
 // g opens the choice of the levels to group the repositories by, and alt+g
 // has nothing to switch while no level is chosen. Neither acts on the other
 // kinds.
