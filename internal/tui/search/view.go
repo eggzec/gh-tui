@@ -86,6 +86,8 @@ func (s *Section) render() {
 	// While the query completes, its candidates take the strip's row.
 	if row := s.completeRow(s.width); s.typing && row != "" {
 		lines = append(lines, fit(row, s.width))
+	} else if s.typing && s.comp.hint != "" {
+		lines = append(lines, fit(s.st.muted.render(s.comp.hint), s.width))
 	} else {
 		lines = append(lines, s.strip())
 	}

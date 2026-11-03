@@ -32,6 +32,8 @@ func (f *fakeRecall) Numbers(repo core.RepoRef) []Numbered {
 	return f.numbers[repo]
 }
 
+func (f *fakeRecall) Topics() []string { return nil }
+
 func (f *fakeRecall) Owners() []string {
 	f.calls++
 	return f.owners

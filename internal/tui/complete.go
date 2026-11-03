@@ -24,6 +24,9 @@ type Recall interface {
 	// Owners returns the logins of users and organizations the app knows
 	// of, such as the viewer's organizations, the most relevant first.
 	Owners() []string
+	// Topics returns the topics of the repositories the app has read, the
+	// most relevant first.
+	Topics() []string
 }
 
 // Numbered is an issue or pull request that goto completes.
@@ -324,6 +327,14 @@ func (v searchValues) Repos() []string {
 		out = append(out, r.String())
 	}
 	return out
+}
+
+// Topics returns the topics of the repositories read so far.
+func (v searchValues) Topics() []string {
+	if v.m.recall == nil {
+		return nil
+	}
+	return v.m.recall.Topics()
 }
 
 // Owners returns the known logins, leaving out the viewer's own as goto does.

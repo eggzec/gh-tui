@@ -342,8 +342,8 @@ func TestOpensInNormalMode(t *testing.T) {
 // the query; from the results, esc goes nowhere.
 func TestEscLeavesTypingForTheResults(t *testing.T) {
 	s := newSection(t, newFake(), 120, 30)
-	press(t, s, "/", "t", "tab")
-	if !s.Capturing() || s.area != inputArea || s.input.Value() != "t" {
+	press(t, s, "/", "z", "tab")
+	if !s.Capturing() || s.area != inputArea || s.input.Value() != "z" {
 		t.Errorf("tab while typing left the query: capturing %v, area %d, text %q", s.Capturing(), s.area, s.input.Value())
 	}
 	if got := press(t, s, "esc"); len(got) != 0 || s.area != resultsArea || s.Capturing() {

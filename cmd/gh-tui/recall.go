@@ -77,6 +77,24 @@ func (r recall) Numbers(repo core.RepoRef) []tui.Numbered {
 	return slices.CompactFunc(out, func(a, b tui.Numbered) bool { return a.Number == b.Number })
 }
 
+// Topics returns the topics of the viewer's repositories on the dashboard,
+// then of those the search modal starts with, as far as those lists carry
+// them. It may repeat one.
+func (r recall) Topics() []string {
+	var out []string
+	if p, ok := r.dash.CachedRepos(dashsvc.ReposQuery{Viewer: true}); ok {
+		for i := range p.Items {
+			out = append(out, p.Items[i].Topics...)
+		}
+	}
+	if p, ok := r.repos.CachedList(reposvc.ListQuery{}); ok {
+		for i := range p.Items {
+			out = append(out, p.Items[i].Topics...)
+		}
+	}
+	return out
+}
+
 // Owners returns the viewer's organizations, as the dashboard read them,
 // then the owners of the repositories Repos returns. It may repeat one.
 func (r recall) Owners() []string {
