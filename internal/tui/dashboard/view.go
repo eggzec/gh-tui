@@ -181,12 +181,34 @@ func (s *Section) reposCount() []string {
 	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil
 	}
-	n := strconv.Itoa(f.Shown())
-	noun := " repos"
-	if f.Shown() == 1 {
-		noun = " repo"
+	more := !f.Done()
+	loaded := ui.Count(f.Loaded(), more)
+	total := 0
+	if s.header.ok && s.repos.current().q.Viewer {
+		total = s.header.value.Profile.Repos
 	}
-	return []string{n + noun, n}
+	if total < f.Loaded() {
+		// The total is not known yet, or the pages outgrew it.
+		total = 0
+	}
+	shown := f.Shown()
+	if shown == f.Loaded() {
+		if total == 0 {
+			return []string{loaded}
+		}
+		all := ui.Count(total, false)
+		if f.Loaded() == total {
+			return []string{all}
+		}
+		return []string{all + " [" + loaded + "]", all}
+	}
+	// A quick filter keeps only some of the loaded rows.
+	matched := ui.Count(shown, false)
+	if total == 0 {
+		return []string{matched + " [" + loaded + "]", matched}
+	}
+	all := ui.Count(total, false)
+	return []string{matched + "/" + all + " [" + loaded + "]", matched + "/" + all, matched}
 }
 
 // stripForms are the forms of the pane names in the bottom edge of the one
@@ -238,7 +260,7 @@ func (s *Section) paneExtras(p paneID) string {
 		}
 	case workPane:
 		if s.work.ok {
-			text += s.icons.Separator + strconv.Itoa(s.tasks.count(s.work.value))
+			text += s.icons.Separator + ui.Count(s.tasks.count(s.work.value), false)
 		}
 	case inboxPane:
 		if n := s.unread(); n != "" {
@@ -330,11 +352,7 @@ func (s *Section) unread() string {
 	if n == 0 {
 		return ""
 	}
-	t := strconv.Itoa(n)
-	if !s.notes.value.Last() {
-		t += "+"
-	}
-	return t
+	return ui.Count(n, !s.notes.value.Last())
 }
 
 func (s *Section) pinnedBody(w, h int) []string {
