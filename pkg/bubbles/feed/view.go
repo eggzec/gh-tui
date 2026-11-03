@@ -11,14 +11,14 @@ import (
 // Loading reports whether the feed has nothing to show yet: no item, no
 // end and no error.
 func (m Model[T]) Loading() bool {
-	return m.Len() == 0 && !m.Done() && m.Err() == nil
+	return len(m.pinned) == 0 && m.Len() == 0 && !m.Done() && m.Err() == nil
 }
 
 // Dimmed returns the lines of View with their styling removed and drawn
 // with Styles.Stale, for a parent that keeps them on screen while new
 // items load. It is nil when the feed has no item.
 func (m Model[T]) Dimmed() []string {
-	if m.Len() == 0 {
+	if m.Len()+len(m.pinned) == 0 {
 		return nil
 	}
 	view := m.View()
@@ -142,11 +142,24 @@ func (m Model[T]) writePin(w *lineWriter, i int, selected bool, width int) {
 	if m.pinnedGutter != nil {
 		gutter = m.pinnedGutter(selected, m.focused)
 	}
+	// The text must start where the rows of the list do, whatever the gutter's
+	// width.
+	if gw, want := ansi.StringWidth(gutter), m.Gutter(); gw > want {
+		gutter = termtext.Truncate(gutter, want, "")
+	} else if gw < want {
+		gutter += strings.Repeat(" ", want-gw)
+	}
+	// With children, the items of the list make room for a fold marker.
+	fold := ""
+	if m.kids != nil {
+		width -= m.foldWidth
+		fold = m.blankFold
+	}
 	rest := m.render(m.pinned[i], selected, width)
 	for range m.itemHeight {
 		var text string
 		text, rest, _ = strings.Cut(rest, "\n")
-		w.line(gutter, text)
+		w.line(gutter, fold, text)
 	}
 }
 
