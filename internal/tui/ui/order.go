@@ -104,6 +104,12 @@ func newOrderModal(verb, heading, empty, section string, fields []orderpick.Item
 	return m
 }
 
+// OrderedMsg tells the sections that an order or grouping modal applied its
+// choice, so that those which keep a drawn view draw it again.
+type OrderedMsg struct{}
+
+func orderedCmd() tea.Msg { return OrderedMsg{} }
+
 // retitle words the title with the separator of the icons.
 func (m *OrderModal) retitle() {
 	m.title = m.verb + m.icons.Separator + m.section
@@ -127,7 +133,10 @@ func (m *OrderModal) Update(msg tea.Msg) tea.Cmd {
 		if msg.ID != m.pick.ID() {
 			return nil
 		}
-		return tea.Batch(LeaveModal(m), m.apply(msg.Choices))
+		// The apply changes a section's state from inside the modal, so the
+		// section never sees a message for it. OrderedMsg reaches every
+		// section, which draws its view again.
+		return tea.Batch(LeaveModal(m), m.apply(msg.Choices), orderedCmd)
 	case orderpick.CancelMsg:
 		if msg.ID != m.pick.ID() {
 			return nil

@@ -51,6 +51,22 @@ func TestGroupModalApplyingNoneFlattens(t *testing.T) {
 	}
 }
 
+// Applying tells the sections, so that those with a drawn view draw it again.
+func TestGroupModalApplyingSendsOrderedMsg(t *testing.T) {
+	m, _ := groupFixture()
+	var got bool
+	for _, msg := range drain(m.Update(keyOf("enter"))) {
+		for _, out := range drain(m.Update(msg)) {
+			if _, ok := out.(OrderedMsg); ok {
+				got = true
+			}
+		}
+	}
+	if !got {
+		t.Error("applying sent no OrderedMsg")
+	}
+}
+
 func TestGroupModalEscapeDoesNotApply(t *testing.T) {
 	m, applied := groupFixture(orderpick.Choice{Value: "type"})
 	sendGroup(m, "esc")

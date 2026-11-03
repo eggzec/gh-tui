@@ -61,6 +61,27 @@ func TestGroupKeys(t *testing.T) {
 	}
 }
 
+// The group modal applies its choice from inside the modal, so the section
+// sees only the OrderedMsg after it: that alone must draw the groups, and one
+// alt+g must switch them off in the view.
+func TestGroupsShowAfterTheModalApplies(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), "octocat", 100, 30)
+	flat := ansi.Strip(s.View())
+
+	s.setGroups([]orderpick.Choice{{Value: "owner"}})
+	s.Update(ui.OrderedMsg{})
+	grouped := ansi.Strip(s.View())
+	if grouped == flat {
+		t.Fatal("the view is still the flat list after the modal applied")
+	}
+
+	press(t, s, "alt+g")
+	if got := ansi.Strip(s.View()); got == grouped {
+		t.Error("alt+g left the grouped view on the screen")
+	}
+}
+
 func TestViewGrouped(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 100, 30)
