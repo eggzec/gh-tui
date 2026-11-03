@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -67,6 +68,34 @@ func TestReposColumnsLineUp(t *testing.T) {
 		if row := lines[5]; !strings.Contains(row, "12k") {
 			t.Errorf("%d columns: the stars are missing: %q", width, row)
 		}
+	}
+}
+
+func TestReposCountInTheTrim(t *testing.T) {
+	svc := newFake()
+	svc.repos["@me"] = repos("octocat", 30)
+	s := newSection(t, svc, nil, 140, 40)
+	if got := s.reposCount(); len(got) != 2 || got[0] != "30 repos" || got[1] != "30" {
+		t.Errorf("loaded: the forms are %q", got)
+	}
+	if top := ansi.Strip(s.frames[reposPane][0]); !strings.Contains(top, " 30 repos ─") {
+		t.Errorf("the count is not at the right of the title: %q", top)
+	}
+	// The count is what the list shows, so it follows the quick filter.
+	if got := s.reposCount(); got[1] != strconv.Itoa(s.repos.current().Feed.Shown()) {
+		t.Errorf("the count %q is not what the list shows", got)
+	}
+
+	svc.repos["@me"] = nil
+	s = newSection(t, svc, nil, 140, 40)
+	if got := s.reposCount(); len(got) != 2 || got[0] != "0 repos" {
+		t.Errorf("empty: the forms are %q", got)
+	}
+
+	svc.repos["@me"] = repos("octocat", 30)
+	s = newSection(t, svc, nil, 28, 40)
+	if top := ansi.Strip(s.frames[reposPane][0]); strings.Contains(top, "repos") || !strings.Contains(top, " 30 ─") {
+		t.Errorf("narrow: only the short form should show: %q", top)
 	}
 }
 
