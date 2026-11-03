@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -18,27 +19,7 @@ import (
 // overlay is a picker, a confirm or a viewer that the modal opens over its
 // panes. While one is open, the keys go to it alone, and the panes behind it
 // keep their focus, zoom and scroll.
-type overlay interface {
-	// Title is what the frame of the overlay says.
-	Title() string
-	// Kind is how the overlay is placed over the panes.
-	Kind() panes.OverlayKind
-	// Items is the number of rows of a picker, and Text the width of what a
-	// confirm asks.
-	Items() int
-	Text() int
-	// Update takes a key or a paste.
-	Update(tea.Msg) tea.Cmd
-	// View draws the inside of the frame, w by h cells.
-	View(w, h int) string
-	// Layers are the keys of the overlay, for the footer and the help.
-	Layers() []keyhelp.Layer
-	// Clear drops what is transient, such as a search, and reports whether
-	// there was any.
-	Clear() bool
-	// Closed reports that the overlay is done and takes no more keys.
-	Closed() bool
-}
+type overlay = prpanes.Overlay
 
 // openOverlay is an overlay on the stack, with whether it fills the area.
 type openOverlay struct {

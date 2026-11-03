@@ -5,16 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
-	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
@@ -91,7 +88,7 @@ func (m *panesModal) labelsRead(msg labelsReadMsg) tea.Cmd {
 // focusPicker focuses the picker that was just opened.
 func (m *panesModal) focusPicker() tea.Cmd {
 	if o, ok := m.top().(*labelsOverlay); ok {
-		return o.p.Focus()
+		return o.P.Focus()
 	}
 	return nil
 }
@@ -108,11 +105,11 @@ func (m *panesModal) showLabels(known []core.Label) {
 	}
 	labels := map[string]core.Label{}
 	o := &labelsOverlay{
-		heading: "Labels",
-		order:   strings.ToLower,
-		on:      map[string]bool{},
-		was:     map[string]bool{},
-		change: func(on, was map[string]bool) tea.Cmd {
+		Heading: "Labels",
+		Order:   strings.ToLower,
+		On:      map[string]bool{},
+		Was:     map[string]bool{},
+		Change: func(on, was map[string]bool) tea.Cmd {
 			var add []core.Label
 			var remove []string
 			for name, l := range labels {
@@ -140,14 +137,14 @@ func (m *panesModal) showLabels(known []core.Label) {
 		// The pull request's name may differ in case from the repository's.
 		for _, a := range all {
 			if strings.EqualFold(a.Name, l.Name) {
-				o.on[a.Name], o.was[a.Name] = true, true
+				o.On[a.Name], o.Was[a.Name] = true, true
 			}
 		}
 	}
 	st := m.theme.Picker(m.icons)
 	st.Frame = lipgloss.NewStyle()
-	o.rows = len(items)
-	o.p = picker.New(nil,
+	o.Rows = len(items)
+	o.P = picker.New(nil,
 		picker.WithContext(m.ctx),
 		picker.WithItems(items),
 		picker.WithGroupHeaders(false),
@@ -164,167 +161,17 @@ func (m *panesModal) showLabels(known []core.Label) {
 		picker.WithKeyMap(m.keys.pick),
 		picker.WithStyles(st),
 	)
-	o.p.SetMarked(o.marks())
+	o.P.SetMarked(o.Marks())
 	// The ticked labels are listed first, so the cursor starts on the first.
-	if first, ok := o.firstTicked(); ok {
-		o.p.Select(first)
+	if first, ok := o.FirstTicked(); ok {
+		o.P.Select(first)
 	}
 	m.open(o)
 }
 
 // labelsOverlay is the checklist of the labels of the pull request, keyed by
 // label name.
-type labelsOverlay = tickOverlay[string]
-
-// tickOverlay is a checklist of rows keyed by K, each the Value of a picker
-// item. Space ticks the highlighted row, enter hands the ticks to change, and
-// esc or backspace closes without applying.
-type tickOverlay[K comparable] struct {
-	p       picker.Model
-	heading string
-	rows    int
-	// on is which rows are ticked, and was which were when it opened.
-	on, was map[K]bool
-	// order names a key for the order of the first ticked row.
-	order func(K) string
-	// change turns the ticks into the command that applies them, or nil.
-	change func(on, was map[K]bool) tea.Cmd
-	// locked, when set, answers an attempt to change a locked row.
-	locked func(picker.Item) tea.Cmd
-	// flat is a short list that keeps its order: no rule between the ticked
-	// and the others, each move named in the footer, and the keys of the
-	// search not offered while typing.
-	flat bool
-	done bool
-}
-
-func (o *tickOverlay[K]) Title() string           { return o.p.Title(o.heading) }
-func (o *tickOverlay[K]) Kind() panes.OverlayKind { return panes.Picker }
-
-// items is the rows of the picker and the rule between the ticked and the
-// others.
-func (o *tickOverlay[K]) Items() int {
-	if o.flat {
-		return o.rows
-	}
-	return o.rows + 1
-}
-func (o *tickOverlay[K]) Text() int    { return 0 }
-func (o *tickOverlay[K]) Clear() bool  { return false }
-func (o *tickOverlay[K]) Closed() bool { return o.done }
-
-// typing says that the search takes the keys as text.
-func (o *tickOverlay[K]) Typing() bool { return o.p.Typing() }
-
-func (o *tickOverlay[K]) Layers() []keyhelp.Layer {
-	ctx := "picker_normal"
-	if o.p.Typing() && !o.flat {
-		ctx = "picker"
-	}
-	return []keyhelp.Layer{ui.ContextHelp(ctx, labelsHelp{&o.p, o.flat}, false)}
-}
-
-// labelsHelp is the picker's help with a footer that says what the keys do
-// here: space ticks a label and enter applies the ticks.
-type labelsHelp struct {
-	p    *picker.Model
-	flat bool
-}
-
-func (h labelsHelp) ShortHelp() []key.Binding {
-	if h.p.Typing() && !h.flat {
-		return h.p.ShortHelp()
-	}
-	k := h.p.KeyMap()
-	toggle := k.Normal.Toggle
-	toggle.SetHelp(toggle.Help().Key, "toggle")
-	apply := k.Choose
-	apply.SetHelp(apply.Help().Key, "apply")
-	if h.flat {
-		return []key.Binding{k.Normal.Up, k.Normal.Down, k.Normal.Search, toggle, apply, k.Cancel}
-	}
-	return []key.Binding{moving(k.Normal.Down, k.Normal.Up), k.Normal.Search, toggle, apply, k.Cancel}
-}
-
-// moving is the one hint for the keys that move, named by the first key of
-// each, such as "j/k"; a move that has no key is left out of the name.
-func moving(down, up key.Binding) key.Binding {
-	var names, keys []string
-	for _, b := range []key.Binding{down, up} {
-		ks := b.Keys()
-		if len(ks) == 0 {
-			continue
-		}
-		names = append(names, keymap.Label(ks[0]))
-		keys = append(keys, ks...)
-	}
-	// The keys are what makes the hint enabled; it is shown, never pressed.
-	hint := key.NewBinding(key.WithKeys(keys...), key.WithHelp(strings.Join(names, "/"), "move"))
-	hint.SetEnabled(len(keys) > 0)
-	return keymap.Derive(hint, down, up)
-}
-
-func (h labelsHelp) FullHelp() [][]key.Binding { return h.p.FullHelp() }
-
-func (o *tickOverlay[K]) View(w, h int) string {
-	// The frame keeps a cell of room on each side of what it holds.
-	o.p.SetSize(w-2, h)
-	return o.p.View()
-}
-
-// firstTicked returns the ticked key that is listed first, and whether there
-// is one.
-func (o *tickOverlay[K]) firstTicked() (K, bool) {
-	var first K
-	found := false
-	for k, on := range o.on {
-		if on && (!found || strings.ToLower(o.order(k)) < strings.ToLower(o.order(first))) {
-			first, found = k, true
-		}
-	}
-	return first, found
-}
-
-// marks returns the ticked keys.
-func (o *tickOverlay[K]) marks() []any {
-	var marked []any
-	for k, on := range o.on {
-		if on {
-			marked = append(marked, k)
-		}
-	}
-	return marked
-}
-
-func (o *tickOverlay[K]) Update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
-	case picker.ChosenMsg:
-		if msg.ID != o.p.ID() {
-			return nil
-		}
-		o.on = map[K]bool{}
-		for _, it := range msg.Ticked {
-			if k, ok := it.Value.(K); ok {
-				o.on[k] = true
-			}
-		}
-		o.done = true
-		return o.change(o.on, o.was)
-	case picker.LockedMsg:
-		if msg.ID != o.p.ID() || o.locked == nil {
-			return nil
-		}
-		return o.locked(msg.Item)
-	case picker.CancelMsg:
-		if msg.ID == o.p.ID() {
-			o.done = true
-		}
-		return nil
-	}
-	var cmd tea.Cmd
-	o.p, cmd = o.p.Update(msg)
-	return cmd
-}
+type labelsOverlay = prpanes.TickOverlay[string]
 
 // applyLabels changes the labels of the pull request, which the header shows
 // at once, and reads it again once the change went through or was rolled back.

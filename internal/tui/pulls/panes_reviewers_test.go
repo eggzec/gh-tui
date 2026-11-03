@@ -41,7 +41,7 @@ func reviewersOverlayOf(t *testing.T, m *panesModal) *reviewersOverlay {
 // toasts.
 func tickRow(t *testing.T, m *panesModal, title string) []string {
 	t.Helper()
-	if !reviewersOverlayOf(t, m).p.Select(title) {
+	if !reviewersOverlayOf(t, m).P.Select(title) {
 		t.Fatalf("no row for %s", title)
 	}
 	return run(m, m.Update(keyMsg("space")))
@@ -110,7 +110,7 @@ func TestReviewersLockedRowRefusesUntick(t *testing.T) {
 	if !slices.Contains(toasts, notPendingText) {
 		t.Errorf("toasts %q, want %q", toasts, notPendingText)
 	}
-	if !reviewersOverlayOf(t, m).on[userKey("dina")] {
+	if !reviewersOverlayOf(t, m).On[userKey("dina")] {
 		t.Error("the locked row was unticked")
 	}
 	settle(m, m.Update(keyMsg("enter")))
@@ -188,7 +188,7 @@ func TestReviewersRequeryKeepsTicks(t *testing.T) {
 	if m.top() == nil {
 		t.Fatal("esc closed the picker instead of clearing the query")
 	}
-	if !reviewersOverlayOf(t, m).on[userKey("rita")] {
+	if !reviewersOverlayOf(t, m).On[userKey("rita")] {
 		t.Error("the pending reviewer rita lost her tick after the query")
 	}
 	settle(m, m.Update(keyMsg("enter")))
@@ -214,7 +214,7 @@ func TestReviewersTeamSearchFiltersByText(t *testing.T) {
 		settle(m, m.Update(keyMsg(string(r))))
 	}
 	settle(m, m.Update(keyMsg("enter")))
-	if reviewersOverlayOf(t, m).p.Select(teamKey(repo.Owner + "/core")) {
+	if reviewersOverlayOf(t, m).P.Select(teamKey(repo.Owner + "/core")) {
 		t.Error("the team core is listed for the text doc")
 	}
 	tickRow(t, m, teamKey(repo.Owner+"/docs"))
@@ -239,7 +239,7 @@ func TestReviewersTeamSearchErrorKeepsPeople(t *testing.T) {
 	}
 	settle(m, m.Update(keyMsg("enter")))
 	tickRow(t, m, userKey("hubot"))
-	if !reviewersOverlayOf(t, m).p.Select(userKey("hubot")) {
+	if !reviewersOverlayOf(t, m).P.Select(userKey("hubot")) {
 		t.Error("the picker lost hubot when the team search failed")
 	}
 	settle(m, m.Update(keyMsg("enter")))

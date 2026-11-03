@@ -13,6 +13,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -83,7 +84,7 @@ func labelsOverlayOf(t *testing.T, m *panesModal) *labelsOverlay {
 
 func selectedLabel(t *testing.T, o *labelsOverlay) string {
 	t.Helper()
-	it, ok := o.p.Selected()
+	it, ok := o.P.Selected()
 	if !ok {
 		t.Fatal("no label is selected")
 	}
@@ -120,7 +121,7 @@ func TestLabelsFooter(t *testing.T) {
 	t.Parallel()
 	h, m := labeling(t, newFakeService())
 	press(t, h, "L")
-	help := labelsHelp{p: &labelsOverlayOf(t, m).p}
+	help := prpanes.TickHelp{P: &labelsOverlayOf(t, m).P}
 	shown := help.ShortHelp()
 	hints := make([]string, 0, len(shown))
 	for _, b := range shown {

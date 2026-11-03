@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
@@ -45,12 +46,12 @@ func (m *panesModal) openAssignees() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return tea.Batch(o.p.Focus(), o.p.Init())
+	return tea.Batch(o.P.Focus(), o.P.Init())
 }
 
 // assigneesOverlay is the checklist of the assignees of the pull request,
 // keyed by login.
-type assigneesOverlay = tickOverlay[string]
+type assigneesOverlay = prpanes.TickOverlay[string]
 
 // showAssignees opens the picker over the people of the repository.
 func (m *panesModal) showAssignees() {
@@ -69,12 +70,12 @@ func (m *panesModal) showAssignees() {
 	remember(have)
 
 	o := &assigneesOverlay{
-		heading: "Assignees",
-		order:   strings.ToLower,
-		on:      map[string]bool{},
-		was:     map[string]bool{},
-		rows:    len(have) + assigneeRows,
-		change: func(on, was map[string]bool) tea.Cmd {
+		Heading: "Assignees",
+		Order:   strings.ToLower,
+		On:      map[string]bool{},
+		Was:     map[string]bool{},
+		Rows:    len(have) + assigneeRows,
+		Change: func(on, was map[string]bool) tea.Cmd {
 			var add []core.User
 			var remove []string
 			mu.Lock()
@@ -98,7 +99,7 @@ func (m *panesModal) showAssignees() {
 		},
 	}
 	for _, u := range have {
-		o.on[u.Login], o.was[u.Login] = true, true
+		o.On[u.Login], o.Was[u.Login] = true, true
 	}
 
 	// The assignees are in every answer, so that a search that does not find
@@ -135,8 +136,8 @@ func (m *panesModal) showAssignees() {
 	st := m.theme.Picker(m.icons)
 	st.Frame = lipgloss.NewStyle()
 	opts = append(opts, picker.WithStyles(st))
-	o.p = picker.New(search, opts...)
-	o.p.SetMarked(o.marks())
+	o.P = picker.New(search, opts...)
+	o.P.SetMarked(o.Marks())
 	m.open(o)
 }
 

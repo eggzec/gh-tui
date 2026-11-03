@@ -78,11 +78,11 @@ func TestAssigneesTickDiff(t *testing.T) {
 			t.Parallel()
 			svc, m := assigning(t)
 			o := assigneesOverlayOf(t, m)
-			o.on = map[string]bool{}
+			o.On = map[string]bool{}
 			for _, l := range tt.on {
-				o.on[l] = true
+				o.On[l] = true
 			}
-			cmd := o.change(o.on, o.was)
+			cmd := o.Change(o.On, o.Was)
 			run(m, cmd)
 			got := svc.changes()
 			if tt.wantSent == "" {
@@ -195,7 +195,7 @@ func settle(m *panesModal, cmd tea.Cmd) {
 func tick(t *testing.T, m *panesModal, login string) {
 	t.Helper()
 	o := assigneesOverlayOf(t, m)
-	if !o.p.Select(login) {
+	if !o.P.Select(login) {
 		t.Fatalf("no row for %s", login)
 	}
 	run(m, m.Update(keyMsg("space")))
