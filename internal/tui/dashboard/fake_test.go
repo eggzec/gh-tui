@@ -21,12 +21,14 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
 	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	tuinotes "github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 var (
 	_ Service = (*dashboard.Service)(nil)
-	_ Inbox   = (*notifications.Service)(nil)
+	_ tuinotes.Service = (*notifications.Service)(nil)
+	_ tuinotes.Service = (*fakeInbox)(nil)
 )
 
 // now is the clock of every test, so ages are stable.
@@ -287,11 +289,6 @@ func (f *fakeService) count(what string) int {
 
 // fakeInbox serves the first page of the inbox, and caches it once read.
 // The notifications service marks the threads the pane opens read.
-var _ interface {
-	Inbox
-	Marker
-} = (*notifications.Service)(nil)
-
 type fakeInbox struct {
 	mu      sync.Mutex
 	threads []core.Notification
@@ -330,6 +327,17 @@ func (f *fakeInbox) MarkDone(id string) *optimistic.Op {
 	f.dones = append(f.dones, id)
 	f.threads = slices.DeleteFunc(slices.Clone(f.threads), func(n core.Notification) bool { return n.ID == id })
 	return optimistic.New(func(context.Context) error { return nil }, func() {})
+}
+
+// MarkAllRead and Invalidate are what the list needs besides.
+func (f *fakeInbox) MarkAllRead(time.Time) *optimistic.Op {
+	return optimistic.New(func(context.Context) error { return nil }, func() {})
+}
+
+func (f *fakeInbox) Invalidate() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.expired = true
 }
 
 func (f *fakeInbox) doneMarks() []string {
