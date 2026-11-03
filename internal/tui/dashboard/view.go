@@ -118,6 +118,9 @@ func (s *Section) renderPane(p paneID) {
 		return
 	}
 	c := panes.Content{TopLeft: s.titleForms(p), Body: strings.Join(body, "\n"), Focus: s.focused && p == s.focus}
+	if p == reposPane {
+		c.TopRight = s.reposCount()
+	}
 	if s.onePane() {
 		c.BottomLeft = s.stripForms()
 	}
@@ -168,6 +171,22 @@ func (s *Section) titleForms(p paneID) []string {
 		form(shortTitles[p]),
 	}
 	return slices.Compact(forms)
+}
+
+// reposCount is the forms of the count of rows the tab on view lists, longest
+// first, for the right of the pane's title. Rows the quick filter hides and
+// the pinned ones are not counted. There is none while the tab loads.
+func (s *Section) reposCount() []string {
+	f := &s.repos.current().Feed
+	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
+		return nil
+	}
+	n := strconv.Itoa(f.Shown())
+	noun := " repos"
+	if f.Shown() == 1 {
+		noun = " repo"
+	}
+	return []string{n + noun, n}
 }
 
 // stripForms are the forms of the pane names in the bottom edge of the one
