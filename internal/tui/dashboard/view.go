@@ -183,38 +183,17 @@ func (s *Section) reposCount() []string {
 	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil
 	}
-	more := !f.Done()
-	loaded := ui.Count(f.Loaded(), more)
 	total := 0
 	if s.header.ok && s.repos.current().q.Viewer {
 		total = s.header.value.Profile.Repos
 	}
-	if total < f.Loaded() {
-		// The total is not known yet, or the pages outgrew it.
-		total = 0
-	}
-	if !s.repos.current().Filter().Active() && f.FilterQuery() == "" {
-		if total == 0 {
-			return []string{loaded}
-		}
-		all := ui.Count(total, false)
-		if f.Loaded() == total {
-			return []string{all}
-		}
-		return []string{all + " [" + loaded + "]", all}
-	}
-	matched := ui.Count(f.Shown(), false)
-	if total == 0 {
-		if f.Shown() == f.Loaded() {
-			return []string{matched}
-		}
-		return []string{matched + " [" + loaded + "]", matched}
-	}
-	head := matched + "/" + ui.Count(total, false)
-	if f.Shown() == f.Loaded() {
-		return []string{head, matched}
-	}
-	return []string{head + " [" + loaded + "]", head, matched}
+	return ui.CountForms(ui.CountSpec{
+		Total:    total,
+		Loaded:   f.Loaded(),
+		Matched:  f.Shown(),
+		More:     !f.Done(),
+		Filtered: s.repos.current().Filter().Active() || f.FilterQuery() != "",
+	})
 }
 
 // stripForms are the forms of the pane names in the bottom edge of the one
