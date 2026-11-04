@@ -144,11 +144,13 @@ func (m *panesModal) convOptions() conv.Options {
 // restyleConv draws the rows again with the theme and the icons the modal has.
 func (m *panesModal) restyleConv() {
 	c := &m.conv
+	if c.md != nil {
+		c.md.SetStyle(m.theme.Thread(m.icons).Markdown)
+		c.md.SetGlyphs(m.icons.Markdown)
+	}
 	if !c.started {
 		return
 	}
-	c.md.SetStyle(m.theme.Thread(m.icons).Markdown)
-	c.md.SetGlyphs(m.icons.Markdown)
 	o := m.convOptions()
 	c.model.SetOptions(o)
 	c.model.SetStyles(o.Styles, treeview.DefaultStyles(m.theme.Dark))

@@ -38,7 +38,7 @@ func (m *panesModal) linksSynced(msg ui.SyncMsg) {
 	if m.links().Synced(msg, &m.desc.drew) {
 		m.desc.links++
 		m.desc.version++
-		if m.conv.started {
+		if m.conv.md != nil {
 			m.conv.md.SetAutolink(m.conv.seen.Func())
 			m.restyleConv()
 		}

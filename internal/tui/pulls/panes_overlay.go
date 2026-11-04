@@ -142,7 +142,7 @@ func (m *panesModal) covered(out string) string {
 		return strings.Join(lines, "\n")
 	}
 	o := m.top()
-	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.Title(), panes.Box{Rect: r}), Body: o.View(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.Title(), panes.Box{Rect: r}), Body: o.View(max(r.W-4, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
 	for i, row := range box {
 		y := r.Y + i
 		if y >= len(lines) {

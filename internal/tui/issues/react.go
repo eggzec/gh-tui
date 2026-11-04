@@ -108,7 +108,7 @@ func (m *detailModal) covered(v string) string {
 	}
 	if r.W > 0 && r.H > 0 {
 		top := m.headerRows()
-		box := strings.Split(m.frames.Frame(panes.Content{TopLeft: []string{m.over.Title()}, Body: m.over.View(max(r.W-2, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+		box := strings.Split(m.frames.Frame(panes.Content{TopLeft: []string{m.over.Title()}, Body: m.over.View(max(r.W-4, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
 		for i, row := range box {
 			y := top + r.Y + i
 			if y >= len(lines) {
