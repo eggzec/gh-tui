@@ -103,12 +103,24 @@ func (s *Section) countForms() []string {
 	if s.total == nil || f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil
 	}
+	// The feed shows the pinned issues above and counts none of them, yet
+	// the total and the pages hold them. They match the list, so they count
+	// as matched too unless a quick filter may hide them.
+	pins := 0
+	if s.pins != nil {
+		pins = s.pins.dropped()
+	}
+	quick := f.FilterQuery() != ""
+	matched := f.Shown()
+	if !quick {
+		matched += pins
+	}
 	return ui.CountForms(ui.CountSpec{
 		Total:    int(s.total.Load()),
-		Loaded:   f.Loaded(),
-		Matched:  f.Shown(),
+		Loaded:   f.Loaded() + pins,
+		Matched:  matched,
 		More:     !f.Done(),
-		Filtered: s.query != "" || f.FilterQuery() != "",
+		Filtered: s.query != "" || quick,
 	})
 }
 

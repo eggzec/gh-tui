@@ -259,7 +259,11 @@ func (s *Section) newList() feed.Model[core.Issue] {
 			total.Store(int64(p.Total))
 		}
 		// The pinned issues are shown above, also when the page was kept.
-		p.Items = pins.drop(p.Items)
+		kept := pins.drop(p.Items)
+		if err == nil {
+			pins.note(q.Cursor, len(p.Items)-len(kept))
+		}
+		p.Items = kept
 		return p, err
 	})
 	return feed.New(fetch, s.renderRow,
