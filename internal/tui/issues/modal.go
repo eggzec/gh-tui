@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -119,6 +119,13 @@ type detailModal struct {
 	icons         ui.Icons
 	dates         ui.Dates
 	chips         ui.LabelChips
+
+	// nav is the focused pane, zoom whether it fills the area, narrow whether
+	// the app asks for one pane at a time, and frames draws the boxes.
+	nav    panes.Nav
+	zoom   panes.Zoom
+	narrow bool
+	frames panes.Styles
 }
 
 // modalIDs numbers the modals.
@@ -160,6 +167,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		voice:   s.voice,
 	}
 	m.voice.Icons = &m.icons
+	m.nav.SetFocus(paneConversation)
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
 	if s.refs != nil {
@@ -237,6 +245,7 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
 	m.layout()
 	if m.refs != nil {
 		m.refs.SetSize(m.width, m.height)
@@ -254,6 +263,9 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 		m.refs.SetTheme(t)
 	}
 	m.confirmSt = t.Confirm(m.icons)
+	m.frames = panes.DefaultStyles(t.Dark)
+	m.frames.Ellipsis = m.icons.Ellipsis
+	m.frames.Separator = m.icons.Separator
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = m.rows.newChips()
 	m.restyleConv()
@@ -307,16 +319,11 @@ func (m *detailModal) source() conv.Source {
 	}
 }
 
-// decorate adds the issue's text to the first page and the comments being
-// sent to the last, on a copy.
-func (m *detailModal) decorate(p core.Page[core.TimelineItem], cursor string) core.Page[core.TimelineItem] {
+// decorate adds the comments being sent to the last page, on a copy.
+func (m *detailModal) decorate(p core.Page[core.TimelineItem], _ string) core.Page[core.TimelineItem] {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var items []core.TimelineItem
-	if cursor == "" && m.body != nil {
-		items = append(items, *m.body)
-	}
-	items = append(items, p.Items...)
+	items := slices.Clone(p.Items)
 	if p.Next == "" {
 		items = append(items, m.pending...)
 	}
@@ -333,37 +340,12 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.md = ui.NewMarkdown(m.theme, m.icons)
 	m.seen = m.links.Seen(m.repo.String())
 	m.md.SetAutolink(m.seen.Func())
-	m.conv = conv.New(m.source(), conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.width, m.convHeight())...)
+	m.conv = conv.New(m.source(), conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.convRect().W, m.convRect().H)...)
 	m.convOn = true
-	if m.composing == composeNone {
+	if m.composing == composeNone && m.nav.Focus() == paneConversation {
 		m.conv.Focus()
 	}
 	return m.conv.Init()
-}
-
-// setBody sets the issue's text as the first row of the conversation, and builds
-// the conversation again when it changed.
-func (m *detailModal) setBody() tea.Cmd {
-	it := m.issue
-	row := core.TimelineItem{Kind: core.TimelineComment, ID: "body", Actor: it.Author, At: it.CreatedAt, UpdatedAt: it.UpdatedAt, Body: it.Body, URL: it.URL}
-	m.mu.Lock()
-	same := m.body != nil && m.body.Body == row.Body && m.body.UpdatedAt.Equal(row.UpdatedAt) && m.body.Actor == row.Actor
-	m.body = &row
-	m.mu.Unlock()
-	if same || !m.convOn {
-		return nil
-	}
-	return m.buildConv()
-}
-
-// convHeight is what the conversation has of the modal: the rest after the
-// header and the prompt.
-func (m *detailModal) convHeight() int {
-	h := m.height - m.promptHeight()
-	if m.head != "" {
-		h -= strings.Count(m.head, "\n") + 1
-	}
-	return max(h, 0)
 }
 
 // View implements ui.Modal. It renders exactly the modal's size.
@@ -385,31 +367,6 @@ func (m *detailModal) View() string {
 		lines[i] = ansi.Truncate("  "+l, m.width, "")
 	}
 	return ui.OverLastLines(v, lines)
-}
-
-// composed renders the header and the conversation, and the prompt under them
-// while one is open.
-func (m *detailModal) composed() string {
-	var lines []string
-	if m.head != "" {
-		for l := range strings.SplitSeq(m.head, "\n") {
-			lines = append(lines, ui.Seal(l, m.width))
-		}
-	}
-	if m.convOn && m.convHeight() > 0 {
-		lines = append(lines, strings.Split(m.conv.View(), "\n")...)
-	}
-	if m.composing != composeNone {
-		lines = append(lines, strings.Split(m.prompt.View(), "\n")...)
-	}
-	if len(lines) > m.height {
-		lines = lines[:m.height]
-	}
-	blank := ui.Seal("", m.width)
-	for len(lines) < m.height {
-		lines = append(lines, blank)
-	}
-	return strings.Join(lines, "\n")
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
@@ -549,6 +506,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.refs.Update(msg)
 	}
 	k := m.keys
+	if cmd, ok := m.pressPane(msg); ok {
+		return cmd
+	}
 	switch {
 	case keymap.Matches(msg, k.References) && m.newRefs != nil:
 		return m.openRefs()
@@ -567,6 +527,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.buildConv(), m.get())
+	}
+	if m.nav.Focus() != paneConversation {
+		return nil
 	}
 	return m.convUpdate(msg)
 }
@@ -710,12 +673,11 @@ func (m *detailModal) reload() tea.Cmd {
 	return m.show()
 }
 
-// show draws the header from the issue and gives the conversation the issue's
-// text as its first row.
+// show draws the header from the issue; the Description pane shows its text.
 func (m *detailModal) show() tea.Cmd {
 	m.head = m.header(m.issue)
 	m.layout()
-	return m.setBody()
+	return nil
 }
 
 // header renders the head of the detail: the strip of the labels, or nothing

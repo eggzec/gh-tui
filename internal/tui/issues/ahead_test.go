@@ -140,6 +140,8 @@ func TestPrefetchedModalOpensAtOnce(t *testing.T) {
 	run(t, h, seq[1])
 	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
+	press(t, h, "1")
+	view += ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 999", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {
 			t.Errorf("modal lacks %q before any load:\n%s", want, view)
@@ -187,6 +189,8 @@ func TestNotificationReadAheadOpensAtOnce(t *testing.T) {
 	run(t, h, seq[1])
 	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
+	press(t, h, "1")
+	view += ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 997", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {
 			t.Errorf("modal lacks %q before any load:\n%s", want, view)

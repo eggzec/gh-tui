@@ -18,13 +18,13 @@ import (
 func TestComment(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
-	full := m.convHeight()
+	full := m.convRect().H
 
 	press(t, h, "c")
 	if m.composing != composeComment || !m.prompt.Focused() {
 		t.Fatal("c should open a focused comment prompt")
 	}
-	if h := m.convHeight(); h >= full || h+m.prompt.Height() != full {
+	if h := m.convRect().H; h >= full || h+m.prompt.Height() != full {
 		t.Errorf("conversation %d + prompt %d rows, want them to share %d", h, m.prompt.Height(), full)
 	}
 	assertFits(t, m.View(), 80, 30)
@@ -42,7 +42,7 @@ func TestComment(t *testing.T) {
 	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: Same here, fixed by the patch."}) {
 		t.Fatalf("changes = %v, want the comment", got)
 	}
-	if m.composing != composeNone || m.convHeight() != full {
+	if m.composing != composeNone || m.convRect().H != full {
 		t.Error("submitting should close the prompt and give the conversation its room back")
 	}
 	// The rebuilt conversation shows its comments collapsed again.

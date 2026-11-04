@@ -60,6 +60,10 @@ func TestCachedModalOpensAtOnce(t *testing.T) {
 	run(t, h, seq[1])
 	press(t, h, "*")
 	view := ansi.Strip(h.modal().View())
+	// At this width one pane shows at a time: the conversation, then the
+	// description.
+	press(t, h, "1")
+	view += ansi.Strip(h.modal().View())
 	for _, want := range []string{"Look at issue 1000", "I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(view, want) {
 			t.Errorf("modal lacks %q:\n%s", want, view)
@@ -189,7 +193,8 @@ func TestOpenUsesCachedIssue(t *testing.T) {
 	svc.getErr = errors.New("offline")
 	h := started(t, svc, 80, 20)
 	msgs := press(t, h, "down", "enter")
-	if v := ansi.Strip(h.modal().View()); !strings.Contains(v, "The cached body.") {
+	press(t, h, "1")
+	if v :=ansi.Strip(h.modal().View()); !strings.Contains(v, "The cached body.") {
 		t.Errorf("modal doesn't show the cached issue:\n%s", v)
 	}
 	if f, ok := has[ui.FailMsg](msgs); !ok || f.What != "load #999" || f.Err == nil {
@@ -253,6 +258,7 @@ func TestOpenFromSearch(t *testing.T) {
 		if got := m.Title(); got != "cli/cli#7" {
 			t.Errorf("title = %q", got)
 		}
+		press(t, h, "1")
 		if v := ansi.Strip(m.View()); !strings.Contains(v, "It never returns.") {
 			t.Errorf("modal:\n%s", v)
 		}
@@ -604,12 +610,15 @@ func topLine(view string) (line, word string) {
 // changes, as when the modal is maximized and restored.
 func TestModalKeepsItsScrollWhenResized(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
-	for i := range svc.issues {
-		svc.issues[i].Body = longBody()
+	long := sampleComments(3)
+	for i := range long {
+		long[i].Body = longBody()
 	}
+	svc.addComments(999, long...)
 	h := started(t, svc, 80, 30)
 	press(t, h, "down", "enter")
 	m := h.modal()
+	press(t, h, "*")
 	for range 12 {
 		press(t, h, "j")
 	}

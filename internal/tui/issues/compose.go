@@ -106,7 +106,8 @@ func (m *detailModal) layout() {
 		m.prompt.SetSize(m.width, ph)
 	}
 	if m.convOn {
-		m.conv.SetSize(m.width, m.convHeight())
+		r := m.convRect()
+		m.conv.SetSize(r.W, r.H)
 	}
 }
 

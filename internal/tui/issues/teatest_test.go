@@ -67,7 +67,7 @@ func TestProgram(t *testing.T) {
 
 	tm.Send(keyMsg("down"))
 	tm.Send(keyMsg("enter"))
-	waitFor("4 comments")
+	waitFor("3 comments")
 	tm.Send(keyMsg("*"))
 	waitFor("I can reproduce this")
 
@@ -110,7 +110,7 @@ func TestProgramComment(t *testing.T) {
 	waitFor("Crash when the config file")
 	tm.Send(keyMsg("down"))
 	tm.Send(keyMsg("enter"))
-	waitFor("4 comments")
+	waitFor("3 comments")
 	tm.Send(keyMsg("*"))
 	waitFor("I can reproduce this")
 
