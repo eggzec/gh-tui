@@ -55,6 +55,8 @@ var graphqlOperations = map[string]string{
 	"resolveThreadMutation":     resolveThreadMutation,
 	"unresolveThreadMutation":   unresolveThreadMutation,
 	"addReviewMutation":         addReviewMutation,
+	"addReactionMutation":       addReactionMutation,
+	"removeReactionMutation":    removeReactionMutation,
 	"addReviewFileMutation":     addReviewFileMutation,
 	"addReviewReplyMutation":    addReviewReplyMutation,
 	"submitReviewMutation":      submitReviewMutation,

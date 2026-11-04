@@ -48,6 +48,34 @@ const (
 }`
 )
 
+const (
+	addReactionMutation = `mutation AddReaction($id: ID!, $content: ReactionContent!) {
+  result: addReaction(input: {subjectId: $id, content: $content}) { reaction { content } }
+}`
+	removeReactionMutation = `mutation RemoveReaction($id: ID!, $content: ReactionContent!) {
+  result: removeReaction(input: {subjectId: $id, content: $content}) { reaction { content } }
+}`
+)
+
+// AddReaction gives the viewer's reaction, one of GitHub's ReactionContent
+// names, to the comment, review or issue with node ID id.
+func (c *Client) AddReaction(ctx context.Context, id, content string) error {
+	return c.react(ctx, addReactionMutation, id, content)
+}
+
+// RemoveReaction takes the viewer's reaction back from the node with ID id.
+func (c *Client) RemoveReaction(ctx context.Context, id, content string) error {
+	return c.react(ctx, removeReactionMutation, id, content)
+}
+
+func (c *Client) react(ctx context.Context, query, id, content string) error {
+	var data struct{}
+	if err := c.Query(ctx, query, map[string]any{"id": id, "content": content}, &data); err != nil {
+		return fmt.Errorf("react %s on %s: %w", content, id, err)
+	}
+	return nil
+}
+
 // errNoComment is returned when a mutation of a comment succeeds without
 // returning it, which GitHub should not do.
 var errNoComment = errors.New("response has no comment")
