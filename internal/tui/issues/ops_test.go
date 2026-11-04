@@ -271,12 +271,11 @@ func TestYesAsksAgain(t *testing.T) {
 	})
 }
 
-// shownState returns the state shown for issue number: the header's in the
-// modal, or the selected row's, which follows the issue.
+// shownState returns the state shown for issue number: the frame title's in
+// the modal, or the selected row's, which follows the issue.
 func shownState(s *host, number int) core.State {
 	if m := s.modal(); m != nil {
-		v := ansi.Strip(m.header(m.issue))
-		if strings.Contains(v, ui.NewIcons(config.IconsNerd).State(ui.IssueOpen)+" Open") {
+		if strings.Contains(ansi.Strip(m.TrimTitle().Lead), ui.NewIcons(config.IconsNerd).State(ui.IssueOpen)+" Open") {
 			return core.StateOpen
 		}
 		return core.StateClosed
