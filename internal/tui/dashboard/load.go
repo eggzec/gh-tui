@@ -8,6 +8,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/dashboard"
+	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -309,13 +310,24 @@ func (s *Section) Revisit() tea.Cmd {
 	if s.hasHere() && !s.hereRepo.loading && !s.hereRepos.FreshGet(s.here) {
 		cmds = append(cmds, s.readHere())
 	}
-	cmds = append(cmds, s.repos.revisit())
+	cmds = append(cmds, s.repos.revisit(), s.revisitInbox())
 	cmd := tea.Batch(cmds...)
 	if cmd != nil {
 		// What is being read again shows as updating.
 		s.render()
 	}
 	return cmd
+}
+
+// revisitInbox lists the inbox again when its first page went past its TTL.
+func (s *Section) revisitInbox() tea.Cmd {
+	f, ok := s.inbox.(interface {
+		FreshList(q notifications.ListQuery) bool
+	})
+	if !ok || s.notes == nil || f.FreshList(notifications.ListQuery{}) {
+		return nil
+	}
+	return s.notes.Refresh()
 }
 
 func (s *Section) setHeader() {
