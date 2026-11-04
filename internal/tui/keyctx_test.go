@@ -920,10 +920,10 @@ func TestContextChains(t *testing.T) {
 					}
 				}
 				want := config.Chain(c.context)
-					if c.chain != nil {
-						want = c.chain
-					}
-					if !slices.Equal(got, want) {
+				if c.chain != nil {
+					want = c.chain
+				}
+				if !slices.Equal(got, want) {
 					t.Errorf("the layers of %s have the contexts %q, want the chain %q", c.name, got, want)
 				}
 			})
