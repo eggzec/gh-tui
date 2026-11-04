@@ -1,8 +1,6 @@
 package issues
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
@@ -55,21 +53,9 @@ func (k paneKeys) digit(msg tea.KeyPressMsg) (panes.Pane, bool) {
 	return 0, false
 }
 
-// hintKeys joins the keys that bs show in a hint, leaving out each binding
-// that is disabled or has none.
-func hintKeys(bs ...key.Binding) string {
-	var keys []string
-	for _, b := range bs {
-		if b.Enabled() && len(b.Keys()) > 0 {
-			keys = append(keys, b.Help().Key)
-		}
-	}
-	return strings.Join(keys, "/")
-}
-
 // pressPane handles the keys that move between panes and zoom, and reports
 // whether msg was one.
-func (m *detailModal) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	k := m.keys.panes
 	l := m.paneLayout()
 	switch {
@@ -83,24 +69,24 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	default:
 		p, ok := k.digit(msg)
 		if !ok {
-			return nil, false
+			return false
 		}
 		m.nav.SetFocus(p)
 	}
-	return m.refocus(), true
+	m.refocus()
+	return true
 }
 
 // refocus gives the key focus to the conversation only while it is the
 // focused pane, and sizes it to its box.
-func (m *detailModal) refocus() tea.Cmd {
+func (m *detailModal) refocus() {
 	m.layout()
 	if !m.convOn || m.composing != composeNone {
-		return nil
+		return
 	}
 	if m.nav.Focus() == paneConversation {
 		m.conv.Focus()
 	} else {
 		m.conv.Blur()
 	}
-	return nil
 }

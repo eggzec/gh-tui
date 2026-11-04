@@ -526,8 +526,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.refs.Update(msg)
 	}
 	k := m.keys
-	if cmd, ok := m.pressPane(msg); ok {
-		return cmd
+	if m.pressPane(msg) {
+		return nil
 	}
 	switch {
 	case keymap.Matches(msg, k.References) && m.newRefs != nil:

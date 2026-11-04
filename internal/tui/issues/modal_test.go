@@ -194,7 +194,7 @@ func TestOpenUsesCachedIssue(t *testing.T) {
 	h := started(t, svc, 80, 20)
 	msgs := press(t, h, "down", "enter")
 	press(t, h, "1")
-	if v :=ansi.Strip(h.modal().View()); !strings.Contains(v, "The cached body.") {
+	if v := ansi.Strip(h.modal().View()); !strings.Contains(v, "The cached body.") {
 		t.Errorf("modal doesn't show the cached issue:\n%s", v)
 	}
 	if f, ok := has[ui.FailMsg](msgs); !ok || f.What != "load #999" || f.Err == nil {
