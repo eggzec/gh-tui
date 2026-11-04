@@ -97,7 +97,6 @@ func TestSettingsDateFormat(t *testing.T) {
 	if m == nil {
 		t.Fatal("enter didn't open the issue")
 	}
-	// The modal's own dates are told by its description pane, and a width
-	// check of its view stands in until then.
-	uitest.Dated(t, m.View(), 100)
+	press(t, h, "1")
+	uitest.Dated(t, h.modal().View(), 100, is[0].CreatedAt, is[0].UpdatedAt)
 }
