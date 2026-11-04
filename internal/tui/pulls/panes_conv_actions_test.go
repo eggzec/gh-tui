@@ -217,6 +217,39 @@ func TestConvDelete(t *testing.T) {
 	}
 }
 
+// A comment that GitHub hasn't confirmed has no real ID to delete.
+func TestConvDeleteRefusesUnconfirmed(t *testing.T) {
+	t.Parallel()
+	svc := convService()
+	h, m := convActions(t, svc, "dee", "pending:1", func(th *core.Thread) {
+		th.Comments = slices.Clone(th.Comments)
+		th.Comments[0].ID = "pending:1"
+	})
+	msgs := press(t, h, "D")
+	if got := toasts(msgs); !slices.Equal(got, []string{"the comment is still being sent"}) {
+		t.Errorf("toasts %v, want the refusal", got)
+	}
+	if asked(m) != "" || len(svc.changes()) != 0 {
+		t.Errorf("asked %q and changed %v, want neither", asked(m), svc.changes())
+	}
+}
+
+// Once a delete went through, the conversation reads its pages again.
+func TestConvDeleteReloads(t *testing.T) {
+	t.Parallel()
+	h, _ := convActions(t, convService(), "ann", "C1", nil)
+	press(t, h, "D")
+	var reload bool
+	for _, msg := range press(t, h, "y") {
+		if r, ok := msg.(convRecacheMsg); ok && r.reload {
+			reload = true
+		}
+	}
+	if !reload {
+		t.Error("a delete didn't have the conversation read again")
+	}
+}
+
 func TestConvDeleteWithoutReplies(t *testing.T) {
 	t.Parallel()
 	h, m := convActions(t, convService(), "dee", "T1-a", func(th *core.Thread) {
