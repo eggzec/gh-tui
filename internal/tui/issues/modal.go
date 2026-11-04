@@ -82,11 +82,13 @@ type detailModal struct {
 	voice  ui.Voice
 	md     *markdown.Renderer
 	seen   *ui.Seen
-	// mu guards body and pending, which the conversation's reads take from
-	// a command's goroutine. body is the issue's text as the first row, and
-	// pending the comments sent that GitHub hasn't confirmed.
+	// side holds the Involved and Development panes, and refSvc reads the
+	// links of the Development one.
+	side   *sidePanes
+	refSvc refs.Service
+	// mu guards pending, which the conversation's reads take from a command's
+	// goroutine: the comments sent that GitHub hasn't confirmed.
 	mu      sync.Mutex
-	body    *core.TimelineItem
 	pending []core.TimelineItem
 	sent    int
 	// newRefs makes the References step, which refs is while it shows in
@@ -168,6 +170,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	}
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
+	m.side, m.refSvc = newSide(s.rawKeys), s.refs
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
 	if s.refs != nil {
@@ -194,10 +197,10 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps, m.readLinks()))
 	}
 	// What is cached shows at once, and is read again behind it.
-	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps}
+	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps, m.readLinks()}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
@@ -269,6 +272,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.rows = newRowStyles(t, m.icons)
 	m.chips = m.rows.newChips()
 	m.restyleConv()
+	m.refreshSide()
 	if m.composing != composeNone {
 		m.prompt.SetStyles(t.Prompt(m.icons))
 	}
@@ -408,7 +412,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	case tea.KeyPressMsg:
 		return m.press(msg)
 	case issueMsg:
-		return m.gotIssue(msg)
+		cmd := m.gotIssue(msg)
+		m.refreshSide()
+		return cmd
 	case ui.SyncMsg:
 		if m.links.Synced(msg, &m.drew) {
 			if m.convOn {
@@ -445,6 +451,13 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case conv.EnterMsg:
 		return nil
+	case linksMsg:
+		m.receiveLinks(msg)
+		return nil
+	case treeview.OpenMsg:
+		if cmd := m.enterSide(msg); cmd != nil {
+			return cmd
+		}
 	case viewerMsg:
 		m.viewer = msg.login
 		return nil
@@ -527,6 +540,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.buildConv(), m.get())
+	}
+	if cmd, ok := m.pressSide(msg); ok {
+		return cmd
 	}
 	if m.nav.Focus() != paneConversation {
 		return nil
