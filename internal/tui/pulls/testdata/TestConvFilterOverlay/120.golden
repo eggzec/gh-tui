@@ -8,7 +8,7 @@ cache enhancement
 │  •  --no-disk  turns it off                                                      ││                                  │
 │                                    ╭─ Show ─────────────────────────────────────╮││                                  │
 ╰────────────────────────────────────│ › Search…                                  │╯│ ─────                            │
-╭─ [2] Conversation ─────────────────│                                  9 results │╮│ Update U                         │
+╭─ [2] Conversation ─────────────────│                                9 results   │╮│ Update U                         │
 │ ▌▾  bob                           │ ▌ [x] comments  1                          ││╰──────────────────────────────────╯
 │  ╰─ ▾  dee ● b.go:7  Why?         │   [x] reviews  1                           ││╭─ [4] Involved ───────────────────╮
 │     ╰─   bob  Because.             │   [x] pushes  0                            │││ ▌  Author octocat                │

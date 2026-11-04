@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -55,11 +56,19 @@ func (o *diffOverlay) findingBlock(path string, line int, notes []files.Note) di
 			bar := "  " + m.theme.Subtle.Render("▎ ")
 			rows := make([]string, 0, len(notes))
 			for _, n := range notes {
-				text := termtext.OneLine(n.Message)
+				text := n.Message
 				if n.App != "" {
 					text = termtext.OneLine(n.App) + ": " + text
 				}
-				rows = append(rows, ansi.Truncate(bar+st.Level(n.Level)+" "+m.theme.Subtle.Render(text), width, m.icons.Ellipsis))
+				head := bar + st.Level(n.Level) + " "
+				pad := strings.Repeat(" ", ansi.StringWidth(head))
+				for i, line := range m.diffMarkdown(text, width-ansi.StringWidth(head)) {
+					lead := pad
+					if i == 0 {
+						lead = head
+					}
+					rows = append(rows, ansi.Truncate(lead+line, width, m.icons.Ellipsis))
+				}
 			}
 			return rows
 		},
