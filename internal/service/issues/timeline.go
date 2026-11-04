@@ -9,6 +9,12 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/fallback"
 )
 
+// Dependencies returns the issues that block an issue (kind "blocked_by") or
+// that it blocks (kind "blocking"). The read is not cached.
+func (s *Service) Dependencies(ctx context.Context, repo core.RepoRef, number int, kind string) ([]core.Dependency, error) {
+	return s.api.ListIssueDependencies(ctx, repo, number, kind)
+}
+
 // TimelineQuery selects a page of the timeline of an issue: its comments and
 // events, oldest first.
 type TimelineQuery struct {

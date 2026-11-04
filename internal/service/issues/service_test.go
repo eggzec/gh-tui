@@ -108,6 +108,11 @@ func (f *fakeAPI) SearchIssues(_ context.Context, query, cursor string, perPage 
 	return f.search(query, cursor, perPage)
 }
 
+func (f *fakeAPI) ListIssueDependencies(_ context.Context, r core.RepoRef, _ int, _ string) ([]core.Dependency, error) {
+	f.checkRepo(r)
+	return nil, errUnexpected
+}
+
 func (f *fakeAPI) ListIssueTimeline(_ context.Context, r core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error) {
 	f.checkRepo(r)
 	if !f.record("ListIssueTimeline", f.timeline != nil) {
