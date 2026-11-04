@@ -162,6 +162,22 @@ func TestNarrowBreadcrumb(t *testing.T) {
 	}
 }
 
+// The title of the branches counts them the way the other lists do: 1.2k,
+// and a "+" while more pages are left.
+func TestBranchesTitleCount(t *testing.T) {
+	t.Parallel()
+	f := newFake()
+	items := make([]core.Branch, 1200)
+	for i := range items {
+		items[i] = core.Branch{Name: fmt.Sprintf("b%d", i)}
+	}
+	f.branchPages = map[string]core.Page[core.Branch]{"": {Items: items, Next: "more"}}
+	m, _ := newModal(t, f, wideW, wideH)
+	if s := screen(m); !strings.Contains(s, "Branches") || !strings.Contains(s, "1.2k+") {
+		t.Errorf("branches title lacks 1.2k+:\n%s", s)
+	}
+}
+
 func TestNarrowShowsOnePane(t *testing.T) {
 	m, h := newModal(t, newFake(), narrowW, narrowH)
 	if s := screen(m); strings.Contains(s, "fix/tabs") || !strings.Contains(s, "main: change 1") {

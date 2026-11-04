@@ -436,10 +436,7 @@ func countForms(n int, more bool, one, many string) []string {
 	if n == 0 {
 		return nil
 	}
-	s := strconv.Itoa(n)
-	if more {
-		s += "+"
-	}
+	s := ui.Count(n, more)
 	word := many
 	if n == 1 && !more {
 		word = one
