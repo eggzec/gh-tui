@@ -15,7 +15,7 @@ import (
 func TestDescriptionScrolls(t *testing.T) {
 	t.Parallel()
 	svc := newFakeService(sampleIssues(12))
-	var body []string
+	body := make([]string, 0, 60)
 	for i := range 60 {
 		body = append(body, fmt.Sprintf("paragraph %d", i))
 	}

@@ -309,8 +309,8 @@ func (m *detailModal) restyleConv() {
 	m.conv.SetStyles(o.Styles, treeview.DefaultStyles(m.theme.Dark))
 }
 
-// source reads the timeline of the issue, with its text as the first row and
-// the comments being sent as the last.
+// source reads the timeline of the issue, with the comments being sent as the
+// last rows.
 func (m *detailModal) source() conv.Source {
 	svc, repo, number := m.svc, m.repo, m.number
 	query := func(cursor string) issuesvc.TimelineQuery {
