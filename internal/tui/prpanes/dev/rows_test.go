@@ -130,11 +130,41 @@ func TestNoBlockersWhenUnsupported(t *testing.T) {
 	}
 }
 
-func TestEmptyLinkedHasNoRow(t *testing.T) {
+func TestEmptyLinkedShowsNone(t *testing.T) {
 	t.Parallel()
 	r := Build(core.PullLinks{BlockersSupported: true}, opts(config.IconsASCII))
-	if got, want := ids(r), []string{"header:closes", "none:closes", "header:linked"}; fmt.Sprint(got) != fmt.Sprint(want) {
+	if got, want := ids(r), []string{"header:closes", "none:closes", "header:linked", "none:linked"}; fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("rows = %v, want %v", got, want)
+	}
+}
+
+// An issue among the linked items is not a pull request, so it is left out of
+// the count and the rows; a pull request of another repository keeps its
+// repository in the name.
+func TestLinkedListsPullsOnly(t *testing.T) {
+	t.Parallel()
+	other := core.RepoRef{Owner: "acme", Name: "lib"}
+	foreign := core.Reference{Target: core.Target{Repo: other, Number: 5, Kind: core.KindPull}, Title: "Tracks it", State: core.StateOpen}
+	links := core.PullLinks{Linked: []core.Reference{issue(self, 3, "An issue", core.StateOpen), foreign}}
+	o := opts(config.IconsASCII)
+	o.HideCloses = true
+	got := text(Build(links, o), 120)
+	for _, want := range []string{"Linked PRs 1", "acme/lib#5 Tracks it"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "An issue") {
+		t.Errorf("an issue is listed as a pull request:\n%s", got)
+	}
+}
+
+func TestViewLoadingBeforeLinks(t *testing.T) {
+	t.Parallel()
+	m := New(Options{Styles: NewStyles(theme(), ui.NewIcons(config.IconsASCII))})
+	m.SetSize(40, 3)
+	if got := ansi.Strip(m.View()); !strings.Contains(got, "loading") {
+		t.Errorf("view before the links = %q, want a loading line", got)
 	}
 }
 

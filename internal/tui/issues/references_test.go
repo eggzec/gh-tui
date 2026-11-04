@@ -225,8 +225,34 @@ func TestIssueModalRereadsTheLinksForAChange(t *testing.T) {
 	changed := m.issue
 	changed.UpdatedAt = changed.UpdatedAt.Add(time.Hour)
 	run(t, h, m.Update(issueMsg{thread: m.id, issue: changed}))
-	if got := len(f.reads); got != reads+1 {
-		t.Errorf("a changed issue read the links %d more times, want 1", got-reads)
+	// The pane's read and the open step's.
+	if got := len(f.reads); got != reads+2 {
+		t.Errorf("a changed issue read the links %d more times, want 2", got-reads)
+	}
+	if last := f.reads[len(f.reads)-1]; !last.Updated.Equal(changed.UpdatedAt) && !f.reads[len(f.reads)-2].Updated.Equal(changed.UpdatedAt) {
+		t.Errorf("no read carried the update time %v: %+v", changed.UpdatedAt, f.reads[reads:])
+	}
+}
+
+// A kept value that comes back stale is read again with Again set, and the
+// pane lists the pull requests of other repositories by their repository.
+func TestIssueModalLinksStaleReadsAgain(t *testing.T) {
+	_, m, f := openedRefs(t)
+	other := core.RepoRef{Owner: "acme", Name: "lib"}
+	r := core.References{Stale: true, Closing: []core.Reference{{
+		Target: core.Target{Repo: other, Number: 5, Kind: core.KindPull}, Title: "Tracks it", State: core.StateOpen,
+	}}}
+	cmd := m.receiveLinks(linksMsg{id: m.id, refs: r})
+	if cmd == nil {
+		t.Fatal("a stale value wasn't read again")
+	}
+	cmd()
+	if last := f.reads[len(f.reads)-1]; !last.Again {
+		t.Errorf("the read after a stale value = %+v, want Again", last)
+	}
+	m.side.dev.SetSize(60, 6)
+	if v := ansi.Strip(m.side.dev.View()); !strings.Contains(v, "acme/lib#5 Tracks it") {
+		t.Errorf("the pane doesn't name the other repository:\n%s", v)
 	}
 }
 
