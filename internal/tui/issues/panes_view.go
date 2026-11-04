@@ -65,6 +65,11 @@ func (m *detailModal) composed() string {
 // panes on the border of a zoomed one.
 func (m *detailModal) drawPanes(l panes.Layout) string {
 	return m.frames.Draw(l, func(b panes.Box) panes.Content {
+		if b.Role == panes.Preview {
+			// The panes have no preview yet: the box stays empty, and the
+			// list box alone carries the title and the strip.
+			return panes.Content{}
+		}
 		c := panes.Content{Focus: b.Pane == l.Focus}
 		title := "[" + strconv.Itoa(int(b.Pane)) + "] " + paneName(b.Pane)
 		if l.Zoomed {

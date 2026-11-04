@@ -259,6 +259,10 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	if !m.nav.InPreview(m.paneLayout()) {
+		// A preview that a resize took away must not keep the focus.
+		m.nav.Reset()
+	}
 	m.layout()
 	if m.refs != nil {
 		m.refs.SetSize(m.width, m.height)
