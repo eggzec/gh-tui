@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
@@ -833,51 +831,6 @@ func TestInboxOpensAsTheNotificationsDo(t *testing.T) {
 	if h := (ui.Hints{Layers: s.KeyLayers()}).ShortHelp(); !slices.ContainsFunc(h, func(b key.Binding) bool { return b.Help().Desc == "open" }) {
 		t.Error("the help doesn't say enter opens without marking read")
 	}
-}
-
-// aheadPulls records the pull requests read ahead.
-type aheadPulls struct {
-	mu    sync.Mutex
-	reads []int
-}
-
-func (f *aheadPulls) Get(_ context.Context, _ core.RepoRef, number int) (core.PullRequestDetail, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.reads = append(f.reads, number)
-	return core.PullRequestDetail{}, nil
-}
-
-func (f *aheadPulls) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
-	return core.Page[core.Comment]{}, nil
-}
-
-func (f *aheadPulls) CurrentGet(_ core.RepoRef, number int) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Contains(f.reads, number)
-}
-
-// CurrentComments counts the comments as cached with the detail.
-func (f *aheadPulls) CurrentComments(q pulls.CommentsQuery) bool {
-	return f.CurrentGet(q.Repo, q.Number)
-}
-
-func (*aheadPulls) Changed(core.RepoRef, int, time.Time) {}
-
-func (f *aheadPulls) got() []int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.reads)
-}
-
-// inboxPrefetch returns the default settings of reading ahead, with the
-// inbox's window after threads below the cursor, read once the cursor
-// rests for rest.
-func inboxPrefetch(after int, rest time.Duration) config.PrefetchLayers {
-	p := config.Default().Prefetch
-	p.Dashboard.Inbox.Window.After, p.Dashboard.Inbox.Rest = &after, &rest
-	return p
 }
 
 // On an Enterprise host, a repository without a URL links to its pages.
