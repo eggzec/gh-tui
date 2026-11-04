@@ -105,6 +105,8 @@ type Options struct {
 	Styles Styles
 	// Width is the cells that a preview is drawn in, and zero for no limit.
 	Width int
+	// HideReviewers leaves out the reviewers group, for what has none.
+	HideReviewers bool
 }
 
 // Person is the person or team that a row stands for.
@@ -329,15 +331,17 @@ func build(d Data, o Options) (rows []treeview.Node, who map[string]Person) {
 		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.dim.Render("none (enter to " + hint + ")")}})
 	}
 
-	n := len(p.reviewers) + p.hidden
-	group(idReviewers, "Reviewers", n)
-	for _, r := range p.reviewers {
-		id := reviewerID(r)
-		who[id] = r
-		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.reviewer(r)}, Action: true})
-	}
-	if n == 0 {
-		empty(idEmptyReviewers, "request")
+	if !o.HideReviewers {
+		n := len(p.reviewers) + p.hidden
+		group(idReviewers, "Reviewers", n)
+		for _, r := range p.reviewers {
+			id := reviewerID(r)
+			who[id] = r
+			rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.reviewer(r)}, Action: true})
+		}
+		if n == 0 {
+			empty(idEmptyReviewers, "request")
+		}
 	}
 
 	group(idAssignees, "Assignees", len(p.assignees))

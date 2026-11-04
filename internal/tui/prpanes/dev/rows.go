@@ -15,6 +15,8 @@ type Options struct {
 	// by number alone, those in another by their repository too.
 	Repo   core.RepoRef
 	Styles Styles
+	// HideCloses leaves out the header of what is closed, for an issue.
+	HideCloses bool
 }
 
 // Rows are the rows of a tree, and what each stands for by the ID of the row.
@@ -34,7 +36,9 @@ const (
 // linked to it.
 func Build(links core.PullLinks, o Options) Rows {
 	b := builder{o: o, st: o.Styles, items: map[string]Item{}}
-	b.closes(links)
+	if !o.HideCloses {
+		b.closes(links)
+	}
 	b.linked(links)
 	return Rows{Rows: b.rows, Items: b.items}
 }
