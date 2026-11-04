@@ -118,8 +118,16 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.pressSearch(msg)
 	}
 	m.cancelPending()
+	m.flash = ""
+	if m.opt {
+		m.updateOption(msg)
+		return m.sync()
+	}
 	h := m.bodyHeight()
 	switch {
+	case keymap.Matches(msg, m.keyMap.Option):
+		m.opt = true
+		m.syncKeys()
 	case keymap.Matches(msg, m.keyMap.Up):
 		m.cursor--
 		m.passRows(-1)
@@ -298,24 +306,29 @@ func (m *Model) prevHunk() {
 // maxLeft is how far the rows in the window can be scrolled sideways: until
 // the widest of their lines ends at the right edge.
 func (m Model) maxLeft() int {
-	room := m.textWidth(m.numWidth())
-	widest := 0
+	room, blockRoom := m.textWidth(m.numWidth()), m.blockWidth()
+	over := 0
 	h := m.bodyHeight()
 	for r := m.top; r < min(m.top+h, m.layout.Len()); r++ {
-		if row, ok := m.layout.RowAt(r); ok && scrolls(row.Kind) {
-			widest = max(widest, ansi.StringWidth(termtext.Clean(row.Text, m.tabs)))
+		row, ok := m.layout.RowAt(r)
+		switch {
+		case !ok || !scrolls(row.Kind):
+		case row.Kind == KindBlock:
+			over = max(over, ansi.StringWidth(row.Text)-blockRoom)
+		default:
+			over = max(over, ansi.StringWidth(termtext.Clean(row.Text, m.tabs))-room)
 		}
 	}
-	return max(widest-room, 0)
+	return max(over, 0)
 }
 
 // scrolls reports whether rows of kind move with a sideways scroll: the
-// lines, but not the headers and the notes.
+// lines and the rows of blocks, but not the headers and the notes.
 func scrolls(k Kind) bool {
 	switch k {
-	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw:
+	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw, KindBlock:
 		return true
-	case KindFileHeader, KindHunkHeader, KindNote, KindBlock:
+	case KindFileHeader, KindHunkHeader, KindNote:
 	}
 	return false
 }

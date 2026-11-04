@@ -58,9 +58,10 @@ func (m Model) Query() string { return m.search.query }
 // fetched so far.
 func (m Model) Matches() int { return len(m.search.matches) }
 
-// Capturing reports whether the search input is open. It then takes every
-// key, so the parent should not act on keys of its own.
-func (m Model) Capturing() bool { return m.searching }
+// Capturing reports whether the search input is open, or the view waits for
+// the name of an option after the Option key. It then takes every key, so the
+// parent should not act on keys of its own.
+func (m Model) Capturing() bool { return m.searching || m.opt }
 
 func (m *Model) openSearch() tea.Cmd {
 	m.searching = true

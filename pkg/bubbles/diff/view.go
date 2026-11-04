@@ -78,6 +78,9 @@ func (m Model) statusLine() string {
 	if m.searching {
 		return fit(m.input.View(), m.width)
 	}
+	if m.flash != "" {
+		return fit(m.wrap.Status.on(fit(termtext.OneLine(m.flash), m.width)), m.width)
+	}
 	text, none := m.searchStatus()
 	if text == "" {
 		return fit(m.wrap.Status.on(fit(m.Status(), m.width)), m.width)
@@ -159,8 +162,12 @@ func (m Model) blockWidth() int {
 	return max(m.width-gutterWidth-m.numberCells(minNumberWidth), 0)
 }
 
-// numberCells is the width of the line numbers of the gutter.
+// numberCells is the width of the line numbers of the gutter, none when they
+// are hidden.
 func (m Model) numberCells(numW int) int {
+	if !m.lineNumbers {
+		return 0
+	}
 	if m.width >= twoNumbersFrom {
 		return 2*numW + 2
 	}
@@ -213,7 +220,12 @@ func (m Model) plainLine(v visible, numW int) string {
 	case KindBlock:
 		// The block's own styles end with its line, whatever it did.
 		blank := strings.Repeat(" ", min(m.numberCells(minNumberWidth), room))
-		return fit(gutter+blank+row.Text+"\x1b[m", m.width)
+		text := row.Text
+		if w := m.blockWidth(); ansi.StringWidth(text) > w {
+			// A row that fits stays put, so prose does not slide away.
+			text = ansi.Cut(text, m.left, m.left+w)
+		}
+		return fit(gutter+blank+text+"\x1b[m", m.width)
 	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw:
 	}
 	style, marker := m.wrap.Context, " "
@@ -256,6 +268,9 @@ func (m Model) plainLine(v visible, numW int) string {
 // numbers is the line numbers of the gutter for a line: the old and the
 // new one, or, in a narrow view, the new one, or the old of a deleted line.
 func (m Model) numbers(row Row, numW int) string {
+	if !m.lineNumbers {
+		return ""
+	}
 	if row.Kind == KindNoNewline || row.Kind == KindRaw {
 		return strings.Repeat(" ", m.numberCells(numW))
 	}

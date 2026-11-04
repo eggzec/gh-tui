@@ -35,6 +35,9 @@ Diff
   cancel | esc | esc | off
   next match | n | n | off
   prev match | N | N | off
+  option | - | - | on
+  line numbers | N | N | off
+  cancel | esc | esc | off
   whole patch | a | a | on
   full file | x | x | on
   mark viewed | v | v | on

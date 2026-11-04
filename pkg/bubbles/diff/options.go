@@ -20,6 +20,7 @@ type settings struct {
 	focused bool
 	tabs    int
 
+	lineNumbers    bool
 	highlightLimit int
 	headerMark     func(File) string
 	lineMark       func(Pos) string
@@ -40,6 +41,7 @@ func defaultSettings() settings {
 		styles: DefaultStyles(true),
 		tabs:   DefaultTabWidth,
 
+		lineNumbers:    true,
 		highlightLimit: DefaultHighlightLimit,
 	}
 }
@@ -89,6 +91,12 @@ func WithContext(ctx context.Context) Option {
 // WithTabWidth sets the width of a tab stop. The default is [DefaultTabWidth].
 func WithTabWidth(n int) Option {
 	return func(s *settings) { s.tabs = max(n, 1) }
+}
+
+// WithLineNumbers sets whether the gutter shows the line numbers. They show by
+// default.
+func WithLineNumbers(on bool) Option {
+	return func(s *settings) { s.lineNumbers = on }
 }
 
 // WithHeaderMark draws the string mark returns for a file at the end of the

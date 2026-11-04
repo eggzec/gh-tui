@@ -34,6 +34,10 @@ func TestView(t *testing.T) {
 				Patch: "@@ -1 +1,2 @@\n title\n+a line without a newline\n\\ No newline at end of file",
 			}}}, WithSize(80, 16))
 		}},
+		{"no_numbers", func(t *testing.T) Model {
+			t.Helper()
+			return load(t, &source{size: 5, files: []File{goFile("a.go", 2)}}, WithSize(80, 16), WithLineNumbers(false))
+		}},
 		{"collapsed", func(t *testing.T) Model {
 			t.Helper()
 			return load(t, &source{size: 5, files: []File{goFile("small.go", 1), goFile("big.go", 4), goFile("tail.go", 1)}},

@@ -65,8 +65,12 @@ type Model struct {
 	// searching is set while the search input is open, input is that
 	// input, and search is the search shown.
 	searching bool
-	input     textinput.Model
-	search    search
+	// opt is set while the name of an option is awaited, and flash is the
+	// note on an option, shown in the status line until the next key.
+	opt    bool
+	flash  string
+	input  textinput.Model
+	search search
 	// dirty asks the next Update to fetch what a new size or a seek shows.
 	dirty bool
 	// anchor is the line a selection started on, which reaches to the cursor.
@@ -260,7 +264,7 @@ func (m Model) FullHelp() [][]key.Binding {
 		for _, b := range []*key.Binding{
 			&k.Up, &k.Down, &k.PageUp, &k.PageDown, &k.HalfPageUp, &k.HalfPageDown, &k.Home, &k.End,
 			&k.Left, &k.Right, &k.NextFile, &k.PrevFile, &k.NextHunk, &k.PrevHunk, &k.Fold,
-			&k.Search, &k.Next, &k.Prev, &k.Retry,
+			&k.Search, &k.Next, &k.Prev, &k.Retry, &k.Option,
 		} {
 			b.SetEnabled(false)
 		}
@@ -279,6 +283,7 @@ func (m *Model) syncKeys() {
 	keymap.Enable(&m.keyMap.Confirm, m.searching)
 	keymap.Enable(&m.keyMap.CancelEmpty, m.searching)
 	keymap.Enable(&m.keyMap.Cancel, m.searching)
+	m.keyMap.Options.setEnabled(m.opt)
 }
 
 // SetStyles sets the styles and renders the fragments that depend on them.

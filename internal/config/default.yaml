@@ -1341,6 +1341,7 @@ keys:
   # The modal of a pull request: the diff of the files it changes. Enter
   # folds the file whose header the cursor is on.
   pull_diff:
+    option: ["-"]
     up: [up, k]
     down: [down, j]
     left: [left, h]
@@ -1434,6 +1435,11 @@ keys:
   # wrap long lines and show line numbers.
   log_option:
     chop: [S]
+    line_numbers: [N]
+    cancel: [esc]
+  # What names an option after a diff's option key: show or hide the line
+  # numbers.
+  diff_option:
     line_numbers: [N]
     cancel: [esc]
 

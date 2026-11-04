@@ -36,6 +36,10 @@ var testKeys = map[string][]string{
 	"global.select":  {"enter"},
 	"global.refresh": {"r"},
 
+	"option":                   {"-"},
+	"diff_option.line_numbers": {"N"},
+	"diff_option.cancel":       {"esc"},
+
 	"find":                       {"/"},
 	"next_match":                 {"n"},
 	"prev_match":                 {"N"},
