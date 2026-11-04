@@ -976,9 +976,12 @@ keys:
     comment: [c]
     labels: [L]
     # Edit your comment under the cursor in the Conversation pane.
-    edit: [e]
+    edit: [E]
     # Delete your comment under the cursor in the Conversation pane.
     delete: [D]
+    # Pick the reactions you give to the comment under the cursor in the
+    # Conversation pane.
+    react: [R]
     # Show the issues and pull requests linked to it, and those that mention
     # it.
     references: ["#"]

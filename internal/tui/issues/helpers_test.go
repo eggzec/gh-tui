@@ -248,6 +248,18 @@ func (f *fakeService) DeleteComment(_ core.RepoRef, number int, id string) *opti
 	})
 }
 
+// React records the reaction; the fake keeps no reactions.
+func (f *fakeService) React(_ core.RepoRef, number int, id, content string, add bool) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	verb := "react"
+	if !add {
+		verb = "unreact"
+	}
+	f.changes = append(f.changes, verb+" "+strconv.Itoa(number)+" "+id+" "+content)
+	return f.op(nil, func() {})
+}
+
 // mutate applies fn to the issue everywhere the fake keeps it. The caller
 // holds the lock.
 func (f *fakeService) mutate(number int, fn func(*core.Issue)) {
