@@ -17,7 +17,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
-// sideKeyContexts are the contexts whose tree keys the side panes use: the
+// ctxSideInvolved is the context whose tree keys the side panes use: the
 // trees are those of the pull request modal, so the keys are the same.
 const ctxSideInvolved = "pull_involved"
 
@@ -44,13 +44,12 @@ func (n noMark) Of(action string) []string {
 // sidePanes are the Involved and Development panes: the people of the issue,
 // and the pull requests that close it.
 type sidePanes struct {
-	inv    involved.Model
-	invSt  involved.Styles
-	dev    dev.Model
-	devSt  dev.Styles
-	linked bool
-	deps   treeview.Model
-	desc   descPane
+	inv   involved.Model
+	invSt involved.Styles
+	dev   dev.Model
+	devSt dev.Styles
+	deps  treeview.Model
+	desc  descPane
 }
 
 // linksMsg is what a read of the references of the issue brought.
@@ -120,7 +119,6 @@ func (m *detailModal) refreshSide() {
 
 func (p *sidePanes) setLinks(r core.References) {
 	p.dev.SetLinks(core.PullLinks{Linked: r.Closing})
-	p.linked = true
 }
 
 func (m *detailModal) refQuery(again bool) refssvc.Query {

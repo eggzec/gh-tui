@@ -59,9 +59,9 @@ func (m *detailModal) descBody(b panes.Box) string {
 	d.tree.SetSize(in.W, in.H)
 	k := descKey{text: strings.Join(m.metaLines(), "\n") + "\n" + m.issue.Body, width: in.W, look: d.look}
 	if !d.made || d.built != k {
-		set := config.IconsNerd
-		if m.icons.Ellipsis == "..." {
-			set = config.IconsASCII
+		set := m.icons.Set()
+		if set == "" {
+			set = config.IconsNerd
 		}
 		var rows []treeview.Node
 		for i, l := range m.metaLines() {
