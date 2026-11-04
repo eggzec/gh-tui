@@ -29,6 +29,8 @@ Issues
   close | esc | esc | off
   comment | c | c | off
   labels | L | L | off
+  edit comment | e | e | on
+  delete comment | D | D | on
   linked items | # | # | off
   close issue | X | X | on
   reopen issue | O | O | off

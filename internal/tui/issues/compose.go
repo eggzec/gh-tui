@@ -20,6 +20,7 @@ const (
 	composeNone composing = iota
 	composeComment
 	composeLabels
+	composeEdit
 )
 
 // Heights of the comment prompt, which takes a third of the modal within
@@ -45,6 +46,10 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 		opts = append(opts,
 			prompt.WithTitle("Comment on "+num),
 			prompt.WithPlaceholder("Write a comment in markdown."))
+	case composeEdit:
+		opts = append(opts,
+			prompt.WithTitle("Edit your comment on "+num),
+			prompt.WithValue(m.editFrom))
 	case composeLabels:
 		names := make([]string, len(m.issue.Labels))
 		for i, l := range m.issue.Labels {
@@ -70,7 +75,14 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 // HasDraft reports whether a comment is being written that the modal would
 // lose if it closed: the prompt keeps no draft.
 func (m *detailModal) HasDraft() bool {
-	return m.composing == composeComment && strings.TrimSpace(m.prompt.Value()) != ""
+	switch m.composing {
+	case composeComment:
+		return strings.TrimSpace(m.prompt.Value()) != ""
+	case composeEdit:
+		return !sameText(m.prompt.Value(), m.editFrom)
+	case composeNone, composeLabels:
+	}
+	return false
 }
 
 // closePrompt closes the prompt and gives the focus back to the thread.
@@ -90,7 +102,7 @@ func (m *detailModal) closePrompt() {
 func (m *detailModal) promptHeight() int {
 	h := m.height
 	switch m.composing {
-	case composeComment:
+	case composeComment, composeEdit:
 		return min(max(h/3, minCommentHeight), maxCommentHeight, h)
 	case composeLabels:
 		return min(prompt.SingleLineHeight, h)
@@ -129,8 +141,12 @@ func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 		if msg.ID != m.prompt.ID() || m.ask != nil {
 			return nil
 		}
-		if m.composing == composeComment {
+		switch m.composing {
+		case composeComment:
 			return m.submitComment(msg.Value)
+		case composeEdit:
+			return m.submitEdit(msg.Value)
+		case composeNone, composeLabels:
 		}
 		return m.submitLabels(msg.Value)
 	}

@@ -216,6 +216,22 @@ func (f *fakeService) RemoveLabel(_ core.RepoRef, number int, name string) *opti
 	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
 }
 
+// EditComment sets the body of the comment at once.
+func (f *fakeService) EditComment(_ core.RepoRef, number int, id, body string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "edit comment "+strconv.Itoa(number)+" "+id+": "+body)
+	prev := slices.Clone(f.comments[number])
+	next := slices.Clone(prev)
+	for i := range next {
+		if next[i].ID == id {
+			next[i].Body = body
+		}
+	}
+	f.comments[number] = next
+	return f.op(nil, func() { f.comments[number] = prev })
+}
+
 // DeleteComment removes the comment at once.
 func (f *fakeService) DeleteComment(_ core.RepoRef, number int, id string) *optimistic.Op {
 	f.mu.Lock()
