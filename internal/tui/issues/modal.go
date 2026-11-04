@@ -24,6 +24,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
@@ -116,6 +117,8 @@ type detailModal struct {
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask *confirm.Ask
+	// over is the picker open over the panes, which takes every key.
+	over reactOverlay
 	// armed is set once the question is armed: until then enter answers
 	// nothing.
 	armed     bool
@@ -369,6 +372,9 @@ func (m *detailModal) View() string {
 	if m.refs != nil {
 		v = m.refs.View()
 	}
+	if m.over != nil {
+		v = m.covered(v)
+	}
 	if m.ask == nil {
 		return v
 	}
@@ -413,6 +419,12 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	if ui.IsArm(msg) {
 		m.armed = m.ask != nil
 		return nil
+	}
+	if m.over != nil {
+		switch msg.(type) {
+		case picker.ChosenMsg, picker.CancelMsg, picker.LockedMsg, tea.PasteMsg:
+			return m.pressOver(msg)
+		}
 	}
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
@@ -531,6 +543,9 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.prompt, cmd = m.prompt.Update(msg)
 		return cmd
 	}
+	if m.over != nil {
+		return m.pressOver(msg)
+	}
 	if m.refs != nil {
 		// The links take every key; their own are the keys of the modal's
 		// that apply to them.
@@ -555,6 +570,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.editComment()
 	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
 		return m.deleteComment()
+	case keymap.Matches(msg, k.React) && m.nav.Focus() == paneConversation:
+		return m.openReact()
 	case keymap.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
 	case keymap.Matches(msg, k.Reopen):
@@ -586,6 +603,7 @@ func (m *detailModal) Discard() {
 		m.refs.Close()
 		m.refs = nil
 	}
+	m.over = nil
 	m.closed = true
 	m.cancel()
 	m.resume()

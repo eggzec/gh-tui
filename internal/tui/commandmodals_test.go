@@ -86,7 +86,7 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 		{"actions", []string{"repo.actions"}, "g", []string{"group_by", "group_toggle"}},
 		{"pull request", []string{"global.pane_2", "global.select"}, "co", []string{"collapse", "comment", "config ", "copy "}},
 		{"pull request", []string{"global.pane_2", "global.select"}, "r", []string{"react", "resolve", "review", "refresh"}},
-		{"issue", []string{"global.pane_3", "global.select"}, "r", []string{"reopen", "references", "refresh"}},
+		{"issue", []string{"global.pane_3", "global.select"}, "r", []string{"react", "reopen", "references", "refresh"}},
 		{"issue", []string{"global.pane_3", "global.select"}, "co", []string{"collapse", "comment", "config ", "copy "}},
 		{"preview", []string{"files.down", "global.select"}, "r", []string{"raw ", "refresh"}},
 		{"preview", []string{"files.down", "global.select"}, "co", []string{"config ", "copy "}},

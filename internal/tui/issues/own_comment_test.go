@@ -26,9 +26,9 @@ func ownModal(t *testing.T) (*fakeService, *host, *detailModal, *core.TimelineIt
 func TestEditOwnComment(t *testing.T) {
 	svc, h, m, it := ownModal(t)
 
-	press(t, h, "e")
+	press(t, h, "E")
 	if m.composing != composeEdit || !sameText(m.prompt.Value(), it.Body) {
-		t.Fatalf("e opened composing %v with %q, want the comment's text %q to edit", m.composing, m.prompt.Value(), it.Body)
+		t.Fatalf("E opened composing %v with %q, want the comment's text %q to edit", m.composing, m.prompt.Value(), it.Body)
 	}
 	if m.HasDraft() {
 		t.Error("an unchanged text is no draft")
@@ -54,9 +54,9 @@ func TestEditOwnComment(t *testing.T) {
 func TestEditOnlyOwnComment(t *testing.T) {
 	svc, h, m, _ := ownModal(t)
 	m.viewer = "someone-else"
-	press(t, h, "e")
+	press(t, h, "E")
 	if m.composing != composeNone {
-		t.Error("e opened the prompt on a comment that is not yours")
+		t.Error("E opened the prompt on a comment that is not yours")
 	}
 	if len(svc.changeCalls()) != 0 {
 		t.Errorf("changes = %v, want none", svc.changeCalls())
@@ -73,6 +73,44 @@ func TestDeleteOwnComment(t *testing.T) {
 	runHolding(t, h, h.Update(keyMsg("y")))
 	if got := svc.changeCalls(); len(got) != 1 || got[0] != "delete comment 999 "+it.ID {
 		t.Fatalf("changes = %v, want the delete of %s", got, it.ID)
+	}
+}
+
+func TestReactToComment(t *testing.T) {
+	svc, h, m, it := ownModal(t)
+
+	press(t, h, "R")
+	if m.over == nil {
+		t.Fatal("R opened no picker")
+	}
+	run(t, h, h.Update(keyMsg("space")))
+	run(t, h, h.Update(keyMsg("enter")))
+	got := svc.changeCalls()
+	if len(got) != 1 || !strings.HasPrefix(got[0], "react 999 "+it.ID+" ") {
+		t.Fatalf("changes = %v, want a reaction to %s", got, it.ID)
+	}
+	if m.over != nil {
+		t.Error("applying should close the picker")
+	}
+}
+
+func TestReactCancel(t *testing.T) {
+	svc, h, m, _ := ownModal(t)
+	press(t, h, "R", "esc")
+	if m.over != nil || len(svc.changeCalls()) != 0 {
+		t.Fatalf("esc left over=%v changes=%v", m.over != nil, svc.changeCalls())
+	}
+}
+
+func TestReactRemovesMine(t *testing.T) {
+	svc, h, m, it := ownModal(t)
+	it.Reactions = []core.Reaction{{Content: "THUMBS_UP", Count: 1, Mine: true}}
+	press(t, h, "R")
+	run(t, h, h.Update(keyMsg("space")))
+	run(t, h, h.Update(keyMsg("enter")))
+	got := svc.changeCalls()
+	if len(got) != 1 || got[0] != "unreact 999 "+it.ID+" THUMBS_UP" {
+		t.Fatalf("changes = %v, want the removal of the +1 on %s (over=%v)", got, it.ID, m.over != nil)
 	}
 }
 
@@ -117,7 +155,7 @@ func TestEditOwnCommentFails(t *testing.T) {
 	svc, h, _, it := ownModal(t)
 	svc.sendErr = errors.New("boom")
 
-	press(t, h, "e")
+	press(t, h, "E")
 	typeText(t, h, " Edited.")
 	press(t, h, "ctrl+s")
 	var failed bool

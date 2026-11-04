@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
@@ -46,6 +47,9 @@ type keyMap struct {
 	Edit key.Binding
 	// Delete asks to delete the viewer's comment under the cursor.
 	Delete key.Binding
+	// React picks the reactions the viewer gives the comment under the
+	// cursor.
+	React key.Binding
 	// References shows the issues and pull requests linked to the issue, in
 	// a step of its modal. The list has no such key.
 	References key.Binding
@@ -54,7 +58,9 @@ type keyMap struct {
 	confirm confirm.KeyMap
 	// prompt finishes the comment and labels prompts of the modal.
 	prompt prompt.KeyMap
-	feed   feed.KeyMap
+	// pick are the keys of the reaction picker.
+	pick picker.KeyMap
+	feed feed.KeyMap
 	// mark is the key that marks rows of the list.
 	mark feed.MarkKeys
 	// search are the keys of the prompt of the list's find and filter.
@@ -96,7 +102,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
 		Edit:         ui.In(keys, ctxModal).Binding("edit", "edit comment"),
 		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
+		React:        ui.In(keys, ctxModal).Binding("react", "react"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
+		pick:         picker.NewKeyMap(ui.Lookup(keys, "picker")),
 		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:        list.Binding("global.owner", "author"),
@@ -146,7 +154,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Edit, k.Delete, k.References, k.Close, k.Reopen, k.Refresh},
+		{k.Back, k.Comment, k.Label, k.Edit, k.Delete, k.React, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
@@ -183,7 +191,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Edit, &k.Delete} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Edit, &k.Delete, &k.React} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -200,6 +208,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.ContextHelp("prompt", m.prompt, true)}
 	case m.refs != nil:
 		return m.refs.KeyLayers()
+	case m.over != nil:
+		return m.over.Layers()
 	}
 	k := m.keys
 	g, it := m.gate(), &m.issue
@@ -211,6 +221,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	onConv := m.loaded && m.nav.Focus() == paneConversation
 	k.Edit.SetEnabled(k.Edit.Enabled() && onConv)
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
+	k.React.SetEnabled(k.React.Enabled() && onConv)
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.issue.Author) != "")
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)

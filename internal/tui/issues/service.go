@@ -48,4 +48,8 @@ type Service interface {
 	// DeleteComment removes the comment with the id from the cache at once
 	// and returns the op that deletes it.
 	DeleteComment(repo core.RepoRef, number int, id string) *optimistic.Op
+	// React gives the viewer's reaction of the kind content to the comment
+	// with the id, or takes it back when add is false, in the cache at once,
+	// and returns the op that sends it.
+	React(repo core.RepoRef, number int, id, content string, add bool) *optimistic.Op
 }
