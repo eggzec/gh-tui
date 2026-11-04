@@ -40,8 +40,10 @@ type fakeService struct {
 	issues   []core.Issue
 	pages    map[issuesvc.ListQuery]core.Page[core.Issue]
 	pageSize int
-	lists    []issuesvc.ListQuery
-	listErr  error
+	// total is the total of the lists served, 0 for unknown.
+	total   int
+	lists   []issuesvc.ListQuery
+	listErr error
 	// requests are the lists of pages not served yet, and listCtxs their
 	// contexts. stateErrs fail the lists of a state.
 	requests  []issuesvc.ListQuery
@@ -534,7 +536,7 @@ func matches(it *core.Issue, filter string) bool {
 // serve returns a copy of p as the fake serves it for q. The caller holds
 // the lock.
 func (f *fakeService) serve(q issuesvc.ListQuery, p core.Page[core.Issue]) core.Page[core.Issue] {
-	out := core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: p.Next, Offline: f.offline}
+	out := core.Page[core.Issue]{Items: slices.Clone(p.Items), Next: p.Next, Offline: f.offline, Total: f.total}
 	if f.stale && !f.servedStale[q] {
 		if f.servedStale == nil {
 			f.servedStale = make(map[issuesvc.ListQuery]bool)

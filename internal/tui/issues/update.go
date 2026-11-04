@@ -15,6 +15,10 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 		return s.ahead.Rested(msg)
 	}
 	cmd := s.update(msg)
+	// The count in the bar follows the list, which pages and filters change.
+	if s.hasRepo && s.width > 0 {
+		s.renderBar()
+	}
 	if ahead := s.readAhead(); ahead != nil {
 		cmd = tea.Batch(cmd, ahead)
 	}
