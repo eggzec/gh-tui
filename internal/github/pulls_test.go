@@ -229,6 +229,20 @@ func TestSearchPullRequests(t *testing.T) {
 	if page.Next != "Y3Vyc29yOjI=" {
 		t.Errorf("next = %q, want the end cursor", page.Next)
 	}
+	if page.Total != 37 {
+		t.Errorf("total = %d, want the search's issueCount 37", page.Total)
+	}
+}
+
+func TestListPullRequestsTotal(t *testing.T) {
+	c, _ := pullServer(t, "pulls_list.json")
+	page, err := c.ListPullRequests(t.Context(), pullsRepo, core.StateOpen, "", 30)
+	if err != nil {
+		t.Fatalf("ListPullRequests: %v", err)
+	}
+	if page.Total != 2000 {
+		t.Errorf("total = %d, want the list's totalCount 2000", page.Total)
+	}
 }
 
 func TestListPullRequestsUnknownState(t *testing.T) {

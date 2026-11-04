@@ -160,6 +160,7 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	*s.feed, cmd = s.feed.Update(msg)
+	s.renderHeader()
 	return cmd
 }
 
@@ -170,5 +171,6 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	*s.feed, cmd = s.feed.Update(msg)
+	s.renderHeader()
 	return cmd
 }

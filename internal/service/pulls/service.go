@@ -281,9 +281,9 @@ const (
 	kindOwners      = "pullowners"
 	kindBehind      = "pullbehind"
 
-	// listSchema 4 keeps the head commit of each pull request, and 5
-	// whether its author is an app.
-	listSchema = 5
+	// listSchema 4 keeps the head commit of each pull request, 5
+	// whether its author is an app, and 6 the total of the list.
+	listSchema = 6
 	// detailSchema 4 keeps the head commit, 5 whether the author is an
 	// app, and 6 the merge state, reviewers, review threads and failing
 	// checks, and 7 the commit of each review, the reviews that only

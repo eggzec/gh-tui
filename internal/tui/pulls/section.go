@@ -6,6 +6,7 @@ package pulls
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -229,6 +230,10 @@ type Section struct {
 	// section has started with a repository.
 	feed       *feed.Model[core.PullRequest]
 	cancelFeed context.CancelFunc
+	// total is the count of the pull requests the list holds, as the last
+	// page of feed told, or 0 while it is unknown. The feed's reads run in
+	// commands, so it is atomic, and each feed has its own.
+	total *atomic.Int64
 	// voice words the errors of the feed and of the comments.
 	voice ui.Voice
 
@@ -494,9 +499,14 @@ func (s *Section) newFeed() tea.Cmd {
 		q.Cursor = cursor
 		return q
 	}
+	total := new(atomic.Int64)
 	fetch := ui.FeedPages("list.pulls", query, func(ctx context.Context, q pulls.ListQuery, again bool) (core.Page[core.PullRequest], error) {
 		q.Again = again
-		return svc.List(ctx, q)
+		p, err := svc.List(ctx, q)
+		if err == nil && p.Total > 0 {
+			total.Store(int64(p.Total))
+		}
+		return p, err
 	})
 	f := feed.New(fetch, s.renderRow,
 		feed.WithContext(ctx),
@@ -509,7 +519,7 @@ func (s *Section) newFeed() tea.Cmd {
 		feed.WithEmptyText(s.emptyText()),
 		feed.WithErrorText(ui.ErrorText("load the pull requests", s.repo.String(), s.voice)),
 	)
-	s.feed, s.cancelFeed = &f, cancel
+	s.feed, s.cancelFeed, s.total = &f, cancel, total
 	s.layout()
 	s.renderHeader()
 	s.renderTitles()
