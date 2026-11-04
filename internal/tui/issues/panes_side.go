@@ -28,6 +28,7 @@ type sidePanes struct {
 	dev    dev.Model
 	devSt  dev.Styles
 	linked bool
+	deps   treeview.Model
 }
 
 // linksMsg is what a read of the references of the issue brought.
@@ -70,6 +71,7 @@ func (m *detailModal) refreshSide() {
 	}
 	p.invSt = involved.NewStyles(m.theme, m.icons)
 	p.inv.SetStyles(m.theme.Tree(m.icons))
+	p.deps.SetStyles(m.theme.Tree(m.icons))
 	d := involved.Data{Author: m.issue.Author, Assignees: m.issue.Assignees, Items: m.timelineItems()}
 	p.inv.SetData(d, involved.Options{Styles: p.invSt, HideReviewers: true})
 	p.devSt = dev.NewStyles(m.theme, m.icons)
@@ -119,7 +121,13 @@ func (m *detailModal) receiveLinks(msg linksMsg) {
 // sideBody is the body of the Involved or Development pane in box b.
 func (m *detailModal) sideBody(b panes.Box) (string, bool) {
 	p := m.side
-	if p == nil || (b.Pane != paneInvolved && b.Pane != paneDevelopment) {
+	if p == nil {
+		return "", false
+	}
+	if b.Pane == paneBlockers {
+		return m.depsBody(b), true
+	}
+	if b.Pane != paneInvolved && b.Pane != paneDevelopment {
 		return "", false
 	}
 	in := b.Rect.Inner()
@@ -158,6 +166,8 @@ func (m *detailModal) pressSide(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			return nil, false
 		}
 		p.dev, cmd = p.dev.Update(msg)
+	case paneBlockers:
+		p.deps, cmd = p.deps.Update(msg)
 	default:
 		return nil, false
 	}
@@ -175,6 +185,9 @@ func (m *detailModal) enterSide(msg treeview.OpenMsg) tea.Cmd {
 		var cmd tea.Cmd
 		p.inv, cmd = p.inv.Update(msg)
 		return cmd
+	}
+	if msg.Tree == p.deps.ID() {
+		return m.enterDeps(msg)
 	}
 	if msg.Tree != p.dev.ID() {
 		return nil
