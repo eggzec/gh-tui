@@ -96,22 +96,29 @@ func (s *Section) forward(msg tea.Msg) tea.Cmd {
 // don't move when the issues with the most labels are dropped as the list
 // scrolls.
 func (s *Section) scanLabels() {
-	if s.list.Pages() == s.scanned {
-		return
-	}
-	s.scanned = s.list.Pages()
 	full := labelRoom{labelsCap(1), labelsCap(2)}
 	room := s.room
-	for i := range s.list.Len() {
-		if room == full {
-			break
-		}
-		it, ok := s.list.LoadedItem(i)
-		if !ok || len(it.Labels) == 0 {
-			continue
-		}
+	grow := func(labels []core.Label) {
 		for n := range room {
-			room[n] = max(room[n], s.labelsWidth(it.Labels, n+1))
+			room[n] = max(room[n], s.labelsWidth(labels, n+1))
+		}
+	}
+	// The pinned issues are few and not pages of the list, so they count
+	// whenever the column is sized.
+	for i := range s.pinned {
+		if len(s.pinned[i].Labels) > 0 {
+			grow(s.pinned[i].Labels)
+		}
+	}
+	if s.list.Pages() != s.scanned {
+		s.scanned = s.list.Pages()
+		for i := range s.list.Len() {
+			if room == full {
+				break
+			}
+			if it, ok := s.list.LoadedItem(i); ok && len(it.Labels) > 0 {
+				grow(it.Labels)
+			}
 		}
 	}
 	if room != s.room {

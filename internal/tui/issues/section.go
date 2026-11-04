@@ -103,6 +103,9 @@ type Section struct {
 	colsWidth int
 	room      labelRoom
 	scanned   int
+	// pinned is the issues of the pinned block, whose labels the column has
+	// room for too.
+	pinned []core.Issue
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 	// autolinks confirms the references in the bodies of the modal.
@@ -249,6 +252,7 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	pins := &pinKeys{}
 	pins.store(pinned)
 	s.pins = pins
+	s.pinned = pinned
 	s.renderPinGutters()
 	total := &atomic.Int64{}
 	s.total = total
@@ -292,8 +296,9 @@ func (s *Section) listQuery(state core.StateFilter) issuesvc.ListQuery {
 // top, loading it if the section has started.
 func (s *Section) resetList() tea.Cmd {
 	s.list = s.newList()
-	// The new list has loaded no issue yet, so none with labels.
+	// The new list has loaded no issue yet, so only the pinned ones have labels.
 	s.room, s.scanned = labelRoom{}, 0
+	s.scanLabels()
 	s.renderChrome()
 	if !s.live() {
 		return nil

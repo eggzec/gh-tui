@@ -134,6 +134,8 @@ func (s *Section) landPinned(msg pinnedMsg) tea.Cmd {
 	}
 	changed := s.pins.store(items)
 	s.list.SetPinned(items)
+	s.pinned = items
+	s.scanLabels()
 	if changed && s.live() {
 		return s.list.Reload()
 	}

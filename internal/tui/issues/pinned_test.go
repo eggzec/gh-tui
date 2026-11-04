@@ -217,6 +217,27 @@ func TestCloseOnPinnedRowIgnoresMarks(t *testing.T) {
 	}
 }
 
+// A pinned issue with more labels than any loaded row widens the labels
+// column.
+func TestPinnedLabelsSizeTheColumn(t *testing.T) {
+	t.Parallel()
+	issues := sampleIssues(4)
+	for i := range issues {
+		issues[i].Labels = []core.Label{{Name: "bug", Color: "d73a4a"}}
+	}
+	h := started(t, newFakeService(issues), 120, 12)
+	before := h.cols.labels
+	pin := core.Issue{Number: 99, Title: "pinned", Repo: testRepo, Labels: []core.Label{
+		{Name: "documentation", Color: "0075ca"},
+		{Name: "good first issue", Color: "7057ff"},
+		{Name: "help wanted", Color: "008672"},
+	}}
+	h.landPinned(pinnedMsg{repo: testRepo, items: []core.Issue{pin}})
+	if h.cols.labels <= before {
+		t.Fatalf("labels column of %d cells with a wide pinned row, want more than %d", h.cols.labels, before)
+	}
+}
+
 func TestSectionWithoutServiceSurvivesPins(t *testing.T) {
 	t.Parallel()
 	s := New(t.Context(), nil, config.Default().Keys)
