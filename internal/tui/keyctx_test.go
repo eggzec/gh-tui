@@ -1248,7 +1248,7 @@ func keyContexts() []keyContext {
 		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "global, dashboard, dashboard_pinned"},
 		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "global, dashboard, dashboard_work"},
 		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "global, dashboard, dashboard_calendar"},
-		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "dashboard_inbox", want: "global, dashboard, dashboard_inbox"},
+		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "notifications", want: "global, dashboard, notifications"},
 		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
 		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "order_pick", want: "always, order_pick"},

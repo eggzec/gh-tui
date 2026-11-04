@@ -694,9 +694,6 @@ keys:
     right: [right, l]
     top: ["g g", home]
     bottom: [G, end]
-  # Dashboard: your newest notifications, which take the keys of the
-  # notifications list.
-  dashboard_inbox: {}
 
   # The repository screen, on any of its panes.
   repo:

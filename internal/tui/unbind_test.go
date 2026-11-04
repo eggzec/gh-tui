@@ -47,7 +47,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "dashboard pinned", steps: []string{config.ActionPane1}, want: "global, dashboard, dashboard_pinned"},
 		{name: "dashboard work", steps: []string{config.ActionPane3}, want: "global, dashboard, dashboard_work"},
 		{name: "dashboard calendar", steps: []string{config.ActionPane4}, want: "global, dashboard, dashboard_calendar"},
-		{name: "dashboard inbox", steps: []string{config.ActionPane5}, want: "global, dashboard, dashboard_inbox"},
+		{name: "dashboard inbox", steps: []string{config.ActionPane5}, want: "global, dashboard, notifications"},
 		{name: "dashboard zoomed", steps: []string{config.ActionZoom}, want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard filter", steps: []string{"dashboard_repos.filter"}, want: "global, filter"},
 		{name: "search", steps: []string{config.ActionSearch}, want: "global, search_modal"},
