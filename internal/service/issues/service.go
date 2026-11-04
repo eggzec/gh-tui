@@ -48,6 +48,7 @@ type API interface {
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)
 	ListIssueTimeline(ctx context.Context, repo core.RepoRef, number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 	PinnedIssues(ctx context.Context, repo core.RepoRef) ([]core.Issue, error)
+	ListIssueDependencies(ctx context.Context, repo core.RepoRef, number int, kind string) ([]core.Dependency, error)
 }
 
 // Access tells whether the token may do what an operation needs, as the
