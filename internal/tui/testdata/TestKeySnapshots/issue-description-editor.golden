@@ -1,0 +1,12 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Edit description (types)
+  save | ctrl+s | ^s | on
+  cancel | esc | esc | on
+  editor | ctrl+e | ^e | off
+  next field | tab | tab | on
+  previous field | shift+tab | shift+tab | on

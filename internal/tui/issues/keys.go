@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -73,12 +74,17 @@ type keyMap struct {
 	owner key.Binding
 	// panes are the keys that move between the panes of the modal.
 	panes paneKeys
+	// descEdit are the keys of the editor of the title and the description.
+	descEdit prpanes.DescEditKeys
 }
 
 // The contexts of the keys of issues: the list, and the modal of one.
 const (
 	ctxList  = "issues"
 	ctxModal = "issue_modal"
+	// ctxDescEdit is the editor of the title and the description, whose keys
+	// are control keys, since the letters are typed.
+	ctxDescEdit = "issue_desc_edit"
 )
 
 // newKeyMap returns the keys of the list of issues; the modal takes a copy
@@ -142,6 +148,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Reopen = modal.Binding("reopen", "reopen issue")
 	k.References = modal.Binding("references", "linked items")
 	k.panes = newPaneKeys(keys)
+	k.descEdit = prpanes.NewDescEditKeys(keys, ctxDescEdit)
 	return k
 }
 
@@ -219,7 +226,12 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
 	k.References.SetEnabled(k.References.Enabled() && m.newRefs != nil)
 	onConv := m.loaded && m.nav.Focus() == paneConversation
-	k.Edit.SetEnabled(k.Edit.Enabled() && onConv)
+	onDesc := m.loaded && m.nav.Focus() == paneDescription
+	k.Edit.SetEnabled(k.Edit.Enabled() && (onConv || onDesc))
+	if onDesc {
+		k.Edit.SetHelp(k.Edit.Help().Key, "edit description")
+		k.Edit = g.Gated(k.Edit, ui.ActDraft, it)
+	}
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
 	k.React.SetEnabled(k.React.Enabled() && onConv)
 	owner := m.keys.owner

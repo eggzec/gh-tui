@@ -42,6 +42,9 @@ type Service interface {
 	Comment(repo core.RepoRef, number int, body string) *optimistic.Op
 	AddLabels(repo core.RepoRef, number int, names []string) *optimistic.Op
 	RemoveLabel(repo core.RepoRef, number int, name string) *optimistic.Op
+	// EditIssue sets the title and the body of the issue in the cache at once
+	// and returns the op that sends them.
+	EditIssue(repo core.RepoRef, number int, title, body string) *optimistic.Op
 	// EditComment sets the body of the comment with the id in the cache at
 	// once and returns the op that sends it.
 	EditComment(repo core.RepoRef, number int, id, body string) *optimistic.Op

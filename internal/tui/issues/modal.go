@@ -568,6 +568,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.compose(composeLabels, ui.ActLabel)
 	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneConversation:
 		return m.editComment()
+	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneDescription:
+		return m.openDescEdit()
 	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
 		return m.deleteComment()
 	case keymap.Matches(msg, k.React) && m.nav.Focus() == paneConversation:
