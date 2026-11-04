@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
