@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
@@ -99,6 +101,24 @@ func TestReactCancel(t *testing.T) {
 	press(t, h, "R", "esc")
 	if m.over != nil || len(svc.changeCalls()) != 0 {
 		t.Fatalf("esc left over=%v changes=%v", m.over != nil, svc.changeCalls())
+	}
+}
+
+func TestReactMouseStaysInThePicker(t *testing.T) {
+	t.Parallel()
+	svc, h, m, _ := ownModal(t)
+	press(t, h, "R")
+	before := m.conv.View()
+	run(t, h, h.Update(tea.MouseWheelMsg{X: 0, Y: 0, Button: tea.MouseWheelDown}))
+	run(t, h, h.Update(tea.MouseClickMsg{X: 0, Y: 0, Button: tea.MouseLeft}))
+	if m.over == nil {
+		t.Fatal("a click outside closed or dropped the picker")
+	}
+	if got := m.conv.View(); got != before {
+		t.Error("a mouse event reached the thread under the picker")
+	}
+	if len(svc.changeCalls()) != 0 {
+		t.Fatalf("changes = %v, want none", svc.changeCalls())
 	}
 }
 
