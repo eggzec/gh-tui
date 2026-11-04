@@ -36,8 +36,9 @@ func TestReactSendsAddAndRemove(t *testing.T) {
 	if err := s.React(repo, 1, "c1", "EYES", false).Do(t.Context()); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	var got []string
-	for _, c := range api.callsOf() {
+	calls := api.callsOf()
+	got := make([]string, 0, len(calls))
+	for _, c := range calls {
 		got = append(got, c.method)
 	}
 	if want := []string{"AddReaction", "RemoveReaction"}; !slices.Equal(got, want) {
