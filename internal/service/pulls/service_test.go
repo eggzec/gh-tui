@@ -383,6 +383,26 @@ func TestListFreshHitMakesNoCall(t *testing.T) {
 	}
 }
 
+// The total GitHub told survives the fetch, the cached read and the kept page.
+func TestListKeepsTotal(t *testing.T) {
+	api := &fakeAPI{list: func(context.Context, core.RepoRef, core.State, string, int) (core.Page[core.PullRequest], error) {
+		return core.Page[core.PullRequest]{Items: []core.PullRequest{openPull(1)}, Total: 42}, nil
+	}}
+	s := New(api)
+	q := ListQuery{Repo: repo, State: core.StateOpen}
+
+	p, err := s.List(t.Context(), q)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if p.Total != 42 {
+		t.Errorf("List total = %d, want 42", p.Total)
+	}
+	if got, ok := s.CachedList(q); !ok || got.Total != 42 {
+		t.Errorf("CachedList = %+v, %v; want total 42", got, ok)
+	}
+}
+
 func TestListStaleRefetches(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		title := "before"

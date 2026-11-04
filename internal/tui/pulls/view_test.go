@@ -2,8 +2,10 @@ package pulls
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -40,6 +42,45 @@ func TestView(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			golden.RequireEqual(t, tt.view(t))
+		})
+	}
+}
+
+// The header shows the total GitHub told with the loaded count in brackets,
+// matched over total under a filter, and drops the count where the repository
+// and the tabs leave it no room.
+func TestHeaderCount(t *testing.T) {
+	tests := []struct {
+		name   string
+		width  int
+		filter string
+		want   string // "" when no count shows
+	}{
+		{"wide", 120, "", "250 ["},
+		{"wide filtered", 120, "is:merged author:hubot", "/250"},
+		{"narrow", 40, "", ""},
+		{"narrow filtered", 40, "is:merged author:hubot", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			s := started(t, newFakeService(), tt.width, 6)
+			s.total.Store(250)
+			if tt.filter != "" {
+				apply(t, s, tt.filter)
+				s.total.Store(250)
+			}
+			s.renderHeader()
+			got := ansi.Strip(s.header)
+			if tt.want == "" {
+				if strings.Contains(got, "250") {
+					t.Errorf("header %q shows the count, want none", got)
+				}
+				return
+			}
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("header %q lacks %q", got, tt.want)
+			}
 		})
 	}
 }
