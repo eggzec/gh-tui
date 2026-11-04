@@ -90,9 +90,13 @@ type Model struct {
 	panes []*pane
 	left  int
 	notif *pane
-	dash  *pane
-	srch  *pane
-	own   *pane
+	// prev is the preview box beside the zoomed pane splitOf, while that
+	// pane's section is a ui.Splitter that has room for one.
+	prev    *pane
+	splitOf *pane
+	dash    *pane
+	srch    *pane
+	own     *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
