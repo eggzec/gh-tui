@@ -896,6 +896,11 @@ func (f *fakeService) DeleteComment(_ core.RepoRef, _ int, id string) *optimisti
 	return f.convChange("delete comment "+id, undo)
 }
 
+// React records the reaction, and sets it on the comment in the kept pages.
+func (f *fakeService) React(_ core.RepoRef, _ int, id, content string, add bool) *optimistic.Op {
+	return f.convChange("react "+id+" "+content+" "+strconv.FormatBool(add), func() {})
+}
+
 // DeleteReviewComment drops the comment from its thread in the kept pages.
 func (f *fakeService) DeleteReviewComment(_ core.RepoRef, _ int, threadID, id string) *optimistic.Op {
 	undo := f.editThreads(func(t *core.Thread) {

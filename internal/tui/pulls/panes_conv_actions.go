@@ -21,6 +21,9 @@ type convEditor interface {
 	// false.
 	ResolveThread(repo core.RepoRef, number int, id string, resolved bool) *optimistic.Op
 	DeleteComment(repo core.RepoRef, number int, id string) *optimistic.Op
+	// React gives the viewer's reaction of the kind content to a comment of the
+	// timeline, or takes it back when add is false.
+	React(repo core.RepoRef, number int, id, content string, add bool) *optimistic.Op
 	DeleteReviewComment(repo core.RepoRef, number int, threadID, id string) *optimistic.Op
 }
 
