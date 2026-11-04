@@ -13,6 +13,9 @@ import (
 func (s *Section) configure(c config.Config) {
 	s.icons = ui.NewIcons(c.UI.Icons)
 	s.voice.Icons = &s.icons
+	if s.notes != nil {
+		s.notes.SetIcons(s.icons)
+	}
 	if d := ui.NewDates(c.UI.DateFormat); d != s.dates {
 		// The work wraps its titles around the dates, and the
 		// repositories keep a column as wide as the widest.

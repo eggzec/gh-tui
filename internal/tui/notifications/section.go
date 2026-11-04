@@ -381,6 +381,10 @@ func (s *Section) SetSize(width, height int) {
 	s.renderUnreadable()
 }
 
+// SetIcons changes the icons of the section, which the next SetTheme
+// draws with.
+func (s *Section) SetIcons(ic ui.Icons) { s.icons = ic }
+
 // SetTheme builds the styles of the rows and restyles the list.
 func (s *Section) SetTheme(t ui.Theme) {
 	s.voice.Icons = &s.icons
