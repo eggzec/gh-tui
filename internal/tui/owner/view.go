@@ -492,28 +492,62 @@ func (s *Section) tabsLine(w int) string {
 	if p.header.ok {
 		tabs = tabsOf(p.header.value.Kind)
 	}
-	return ui.SpreadDrop(" "+s.tabs(tabs, w-1), right, w, s.icons.Ellipsis)
+	// SpreadDrop keeps a cell between the tabs and the language, and the
+	// leading space is one more.
+	room := w - 1
+	if right != "" {
+		room -= ansi.StringWidth(right) + 1
+	}
+	return ui.SpreadDrop(" "+s.tabs(tabs, w-1, room), right, w, s.icons.Ellipsis)
 }
 
 // tabs renders tabs within w columns, by their titles with their counts once
-// the header says them, or by shorter forms where they don't fit.
-func (s *Section) tabs(tabs []tab, w int) string {
-	items := make([]tabrow.Item, len(tabs))
-	cur := 0
-	for i, t := range tabs {
-		items[i] = tabrow.Item{
-			Label: s.tabTitle(t, tabTitles),
-			Short: s.tabTitle(t, shortTabs),
-			Count: s.tabCount(t),
+// the header says them, or by shorter forms where they don't fit. The row
+// steps down the forms of the count until the titles fit in room, which
+// leaves space for what goes beside it; where even the bare count doesn't
+// leave that room, it steps down only as far as w asks.
+func (s *Section) tabs(tabs []tab, w, room int) string {
+	// The repositories count has several forms. The row takes the longest
+	// that leaves every title, in full or short, with the normal gaps, before
+	// it shrinks anything else.
+	steps := 1
+	if s.page.header.ok {
+		steps = max(len(s.repoCount(s.page.header.value.Profile.Repos)), 1)
+	}
+	build := func(k int) tabrow.Model {
+		items := make([]tabrow.Item, len(tabs))
+		cur := 0
+		for i, t := range tabs {
+			items[i] = tabrow.Item{
+				Label: s.tabTitle(t, tabTitles),
+				Short: s.tabTitle(t, shortTabs),
+				Count: s.tabCount(t, k),
+			}
+			if t == s.page.tab {
+				cur = i
+			}
 		}
-		if t == s.page.tab {
-			cur = i
+		row := tabrow.New(tabrow.WithStyles(s.st.row))
+		row.SetItems(items, cur)
+		row.SetWidth(w)
+		return row
+	}
+	for _, limit := range []int{room, w} {
+		for k := range steps {
+			row := build(k)
+			// Titles in full or short, with the normal gaps.
+			if ansi.StringWidth(row.Forms()[1]) > limit {
+				continue
+			}
+			// The row spreads over w, with its titles in full where they fit
+			// there, so what it takes is the trimmed row.
+			v := row.View()
+			if ansi.StringWidth(strings.TrimRight(ansi.Strip(v), " ")) <= limit {
+				return v
+			}
 		}
 	}
-	row := tabrow.New(tabrow.WithStyles(s.st.row))
-	row.SetItems(items, cur)
-	row.SetWidth(w)
-	return row.View()
+	return build(steps - 1).View()
 }
 
 // language renders the language of the repository under the cursor of l,
@@ -531,7 +565,7 @@ func (s *Section) language(l *tableTab) string {
 // user, which are counted once all are read, and for the teams of an
 // organization to someone outside it. Someone outside an organization
 // sees only its public members.
-func (s *Section) tabCount(t tab) string {
+func (s *Section) tabCount(t tab, form int) string {
 	p := s.page
 	if !p.header.ok {
 		return ""
@@ -541,8 +575,8 @@ func (s *Section) tabCount(t tab) string {
 	switch t {
 	case reposTab:
 		n = o.Profile.Repos
-		if c := s.repoCount(n); c != "" {
-			return c
+		if forms := s.repoCount(n); len(forms) > 0 {
+			return forms[min(form, len(forms)-1)]
 		}
 	case starsTab:
 		n = o.Stars
@@ -571,32 +605,28 @@ func (s *Section) tabCount(t tab) string {
 	return ui.Count(n, false)
 }
 
-// repoCount is the count of the repositories tab once its list is read: all
-// of them as the header says, with how many are loaded and, under a filter,
-// how many match, as "matched/all". It is "" while the list loads or failed,
-// and the caller shows the header's count. The header's total is the
+// repoCount is the forms of the count of the repositories tab once its list
+// is read, longest first: all of them as the header says, with how many are
+// loaded and, under a filter, how many match, as "matched/all". It is nil
+// while the list loads or failed, and the caller shows the header's count. The header's total is the
 // profile's, which counts what the viewer may not see too, so it may exceed
 // what the list ever holds.
-func (s *Section) repoCount(all int) string {
+func (s *Section) repoCount(all int) []string {
 	l, ok := s.page.lists[reposTab].(*repoList)
 	if !ok || !l.started() {
-		return ""
+		return nil
 	}
 	f := &l.Feed
 	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
-		return ""
+		return nil
 	}
-	forms := ui.CountForms(ui.CountSpec{
+	return ui.CountForms(ui.CountSpec{
 		Total:    all,
 		Loaded:   f.Loaded(),
 		Matched:  f.Shown(),
 		More:     !f.Done(),
 		Filtered: l.Filter().Active() || f.FilterQuery() != "",
 	})
-	if len(forms) == 0 {
-		return ""
-	}
-	return forms[0]
 }
 
 // failure renders err, which stopped action, in lines of w cells. The

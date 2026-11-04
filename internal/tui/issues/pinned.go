@@ -3,6 +3,7 @@ package issues
 import (
 	"log/slog"
 	"slices"
+	"sync"
 	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
@@ -24,6 +25,33 @@ type pinnedMsg struct {
 // reads it from another goroutine.
 type pinKeys struct {
 	set atomic.Pointer[map[int]struct{}]
+
+	mu sync.Mutex
+	// left is how many pinned issues each page, by its cursor, had taken out,
+	// so that the count of the list can add them back. A page read again
+	// replaces its entry rather than adding to it.
+	left map[string]int
+}
+
+// note records that the page at cursor had n pinned issues taken out.
+func (p *pinKeys) note(cursor string, n int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.left == nil {
+		p.left = map[string]int{}
+	}
+	p.left[cursor] = n
+}
+
+// dropped is how many pinned issues the pages read so far had taken out.
+func (p *pinKeys) dropped() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	n := 0
+	for _, v := range p.left {
+		n += v
+	}
+	return n
 }
 
 // store replaces the numbers with those of items, and reports whether the
