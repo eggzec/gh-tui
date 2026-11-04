@@ -111,6 +111,8 @@ type detailModal struct {
 	// thread, while composing says what for.
 	prompt    prompt.Model
 	composing composing
+	// editID and editFrom are the comment being edited and its body before.
+	editID, editFrom string
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask *confirm.Ask
@@ -549,6 +551,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.compose(composeComment, ui.ActComment)
 	case keymap.Matches(msg, k.Label):
 		return m.compose(composeLabels, ui.ActLabel)
+	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneConversation:
+		return m.editComment()
 	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
 		return m.deleteComment()
 	case keymap.Matches(msg, k.Close):

@@ -14,6 +14,8 @@ Issue
   close | esc | esc | on
   comment | c | c | on
   labels | L | L | on
+  edit comment | e | e | on
+  delete comment | D | D | on
   linked items | # | # | on
   close issue | X | X | on
   reopen issue | O | O | off

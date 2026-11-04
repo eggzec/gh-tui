@@ -42,6 +42,8 @@ type keyMap struct {
 	Reopen  key.Binding `menu:"item"`
 	Comment key.Binding
 	Label   key.Binding
+	// Edit rewrites the viewer's comment under the cursor.
+	Edit key.Binding
 	// Delete asks to delete the viewer's comment under the cursor.
 	Delete key.Binding
 	// References shows the issues and pull requests linked to the issue, in
@@ -92,6 +94,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:       list.Binding("reopen", "reopen issue"),
 		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
 		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
+		Edit:         ui.In(keys, ctxModal).Binding("edit", "edit comment"),
 		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
 		confirm:     confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
@@ -143,7 +146,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Delete, k.References, k.Close, k.Reopen, k.Refresh},
+		{k.Back, k.Comment, k.Label, k.Edit, k.Delete, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
