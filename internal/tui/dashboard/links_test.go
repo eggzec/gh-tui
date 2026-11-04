@@ -73,7 +73,7 @@ func TestInboxLinks(t *testing.T) {
 	s := newSection(t, newFake(), &fakeInbox{threads: []core.Notification{th}}, 140, 40)
 	setSize(s, 140, 40)
 	var rows []string
-	for _, l := range strings.SplitSeq(s.View(), "\n") {
+	for l := range strings.SplitSeq(s.View(), "\n") {
 		if strings.Contains(l, "\x1b]8;;"+th.Subject.WebURL) {
 			rows = append(rows, l)
 		}
