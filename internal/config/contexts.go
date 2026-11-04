@@ -141,6 +141,9 @@ var contexts = []Context{
 	// The editor of the title and the description of a pull request, with the
 	// keys of the merge dialog's fields.
 	{Name: "pull_desc_edit", Title: "Edit description", Reach: ReachCapture, Typing: true},
+	// The editor of the title and the description of an issue, with the same
+	// keys.
+	{Name: "issue_desc_edit", Title: "Edit description", Reach: ReachCapture, Typing: true},
 	{Name: "finder", Title: "Finder", Reach: ReachCapture, Parent: "repo", Typing: true},
 	{Name: "picker", Title: "Picker", Reach: ReachCapture, Typing: true},
 	// A picker in normal mode, where letters move and start its search

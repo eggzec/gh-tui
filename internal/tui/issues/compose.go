@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
@@ -75,6 +76,9 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 // HasDraft reports whether a comment is being written that the modal would
 // lose if it closed: the prompt keeps no draft.
 func (m *detailModal) HasDraft() bool {
+	if e, ok := m.over.(*prpanes.DescEdit); ok && e.Changed(m.issue.Title, m.issue.Body) {
+		return true
+	}
 	switch m.composing {
 	case composeComment:
 		return strings.TrimSpace(m.prompt.Value()) != ""

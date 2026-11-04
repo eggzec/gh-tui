@@ -218,6 +218,21 @@ func (f *fakeService) RemoveLabel(_ core.RepoRef, number int, name string) *opti
 	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
 }
 
+// EditIssue sets the title and the body of the issue at once.
+func (f *fakeService) EditIssue(_ core.RepoRef, number int, title, body string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "edit issue "+strconv.Itoa(number)+" "+title+": "+body)
+	var prevTitle, prevBody string
+	f.mutate(number, func(it *core.Issue) {
+		prevTitle, prevBody = it.Title, it.Body
+		it.Title, it.Body = title, body
+	})
+	return f.op(nil, func() {
+		f.mutate(number, func(it *core.Issue) { it.Title, it.Body = prevTitle, prevBody })
+	})
+}
+
 // EditComment sets the body of the comment at once.
 func (f *fakeService) EditComment(_ core.RepoRef, number int, id, body string) *optimistic.Op {
 	f.mu.Lock()

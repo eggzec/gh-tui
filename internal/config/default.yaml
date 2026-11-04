@@ -975,7 +975,8 @@ keys:
     reopen: [O]
     comment: [c]
     labels: [L]
-    # Edit your comment under the cursor in the Conversation pane.
+    # Edit your comment under the cursor in the Conversation pane, or the
+    # title and the description in the Description pane.
     edit: [E]
     # Delete your comment under the cursor in the Conversation pane.
     delete: [D]
@@ -1523,6 +1524,18 @@ keys:
   # The editor of the title and the description of a pull request. The
   # letters are typed, so its keys are control keys.
   pull_desc_edit:
+    # Save the title and the description.
+    submit: [ctrl+s]
+    # Close the editor without saving.
+    cancel: [esc]
+    # Edit the description in your editor ($VISUAL or $EDITOR).
+    edit: [ctrl+e]
+    # Move the cursor between the title and the description.
+    next_field: [tab]
+    prev_field: [shift+tab]
+  # The editor of the title and the description of an issue. The letters are
+  # typed, so its keys are control keys.
+  issue_desc_edit:
     # Save the title and the description.
     submit: [ctrl+s]
     # Close the editor without saving.
