@@ -34,6 +34,7 @@ type fakeAPI struct {
 	updateText      func(number int, title, body string) (core.Issue, error)
 	editComment     func(id, body string) (core.Edited, error)
 	deleteComment   func(id string) error
+	react           func(id, content string, add bool) error
 	addAssignees    func(number int, logins []string) (core.Issue, error)
 	removeAssignees func(number int, logins []string) (core.Issue, error)
 	filterIssues    func(f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
@@ -191,6 +192,20 @@ func (f *fakeAPI) EditIssueComment(_ context.Context, id, body string) (core.Edi
 		return core.Edited{}, errUnexpected
 	}
 	return f.editComment(id, body)
+}
+
+func (f *fakeAPI) AddReaction(_ context.Context, id, content string) error {
+	if !f.record("AddReaction", f.react != nil) {
+		return errUnexpected
+	}
+	return f.react(id, content, true)
+}
+
+func (f *fakeAPI) RemoveReaction(_ context.Context, id, content string) error {
+	if !f.record("RemoveReaction", f.react != nil) {
+		return errUnexpected
+	}
+	return f.react(id, content, false)
 }
 
 func (f *fakeAPI) DeleteIssueComment(_ context.Context, id string) error {
