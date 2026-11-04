@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -47,7 +48,7 @@ type panesKeys struct {
 	// editDesc edits the title and the description, quoteDesc quotes the
 	// description in a new comment, and descEdit is the keys of the editor.
 	editDesc, quoteDesc key.Binding
-	descEdit            descEditKeys
+	descEdit            prpanes.DescEditKeys
 	// review opens the verdicts, choose takes the one under the cursor and
 	// cancel steps back out of them. composer is the keys of the summary.
 	review, choose, cancel key.Binding
@@ -136,7 +137,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 
 		editDesc:  ui.In(keys, ctxDescription).Binding("edit", "edit"),
 		quoteDesc: ui.In(keys, ctxDescription).Binding("comment", "quote"),
-		descEdit:  newDescEditKeys(keys),
+		descEdit:  prpanes.NewDescEditKeys(keys, ctxDescEdit),
 	}
 	for i, a := range [paneCount]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5", "global.pane_6"} {
 		k.pane[i] = modal.Binding(a, paneName(panes.Pane(i+1)))

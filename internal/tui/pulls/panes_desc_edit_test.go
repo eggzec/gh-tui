@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -40,12 +41,12 @@ func TestDescriptionEditSaves(t *testing.T) {
 	t.Parallel()
 	m, svc := descPanes(t, "Old", "text")
 	m.Update(keyMsg("e"))
-	o, ok := m.top().(*descEditOverlay)
+	o, ok := m.top().(*prpanes.DescEdit)
 	if !ok {
 		t.Fatalf("e opened %T, want the editor", m.top())
 	}
-	if o.titleF.Value() != "Old" || o.bodyF.Value() != "text" {
-		t.Fatalf("the editor holds %q and %q", o.titleF.Value(), o.bodyF.Value())
+	if o.Changed("Old", "text") {
+		t.Fatal("the editor does not hold the title and the description")
 	}
 	typeText(m, "!")
 	m.Update(keyMsg("tab"))
