@@ -963,7 +963,9 @@ var idleRows = map[string]string{
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
-	"issue_modal expand": "the issue has no comments yet, so the conversation has no fold to open",
+	"issue_modal expand":   "the issue has no comments yet, so the conversation has no fold to open",
+	"issue_modal collapse": "the issue has no comments yet, so the conversation has no fold to close",
+	"issue_modal all":      "the issue has no comments yet, so the conversation has no folds to toggle",
 
 	"pull_involved expand":     "the cursor starts on the author, which is no group to open",
 	"pull_involved collapse":   "the cursor starts on the author, which is no group to close",
