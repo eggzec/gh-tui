@@ -297,6 +297,36 @@ func underlined(inner string) string {
 	return on + strings.TrimSuffix(inner, on) + "\x1b[24m"
 }
 
+// carryLinks closes a link at the end of each line it runs over and opens
+// it again at the start of the next, past the indent, so that each line has
+// whole links: wrapping the lines again, as a hanging indent does, can cut
+// a link between its characters.
+func carryLinks(lines []string) {
+	cur := -1
+	for i, l := range lines {
+		if cur < 0 && !strings.ContainsFunc(l, isLinkRune) {
+			continue
+		}
+		if cur >= 0 && strings.TrimSpace(l) != "" {
+			lead := len(l) - len(strings.TrimLeft(l, " "))
+			l = l[:lead] + string(linkOpen+rune(cur)) + l[lead:]
+		}
+		for _, c := range l {
+			switch {
+			case c == linkClose:
+				cur = -1
+			case c >= linkOpen && c < linkOpen+maxLinks:
+				cur = int(c - linkOpen)
+			}
+		}
+		if cur >= 0 && strings.TrimSpace(l) != "" {
+			t := strings.TrimRight(l, " ")
+			l = t + string(linkClose) + l[len(t):]
+		}
+		lines[i] = l
+	}
+}
+
 // relink returns line, made safe, with the characters of each link of the
 // render as a hyperlink.
 func (r *Renderer) relink(line string) string {
