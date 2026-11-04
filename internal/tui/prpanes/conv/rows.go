@@ -140,7 +140,7 @@ func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 }
 
 // reactions returns the counts of a comment's reactions, such as
-// "👍 3  ❤ 1", dim, or "" when it has none.
+// "👍 3  ❤ 1", dim and bold for those the viewer gave, or "" when it has none.
 func (b *builder) reactions(rs []core.Reaction) string {
 	parts := make([]string, 0, len(rs))
 	for _, r := range rs {
@@ -148,12 +148,19 @@ func (b *builder) reactions(rs []core.Reaction) string {
 		if !ok || r.Count <= 0 {
 			continue
 		}
-		parts = append(parts, mark+" "+strconv.Itoa(r.Count))
+		part := mark + " " + strconv.Itoa(r.Count)
+		if r.Mine {
+			// The reactions of the viewer stand out from the dim others.
+			part = b.st.bold.Render(part)
+		} else {
+			part = b.st.dim.Render(part)
+		}
+		parts = append(parts, part)
 	}
 	if len(parts) == 0 {
 		return ""
 	}
-	return b.st.dim.Render(strings.Join(parts, "  "))
+	return strings.Join(parts, "  ")
 }
 
 // review draws a review, a fold when it holds threads.

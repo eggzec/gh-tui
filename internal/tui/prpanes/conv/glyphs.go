@@ -25,6 +25,9 @@ type Glyphs struct {
 	Reactions map[string]string
 }
 
+// ReactionOrder lists the kinds of a reaction in the order GitHub shows them.
+var ReactionOrder = []string{"THUMBS_UP", "THUMBS_DOWN", "LAUGH", "HOORAY", "CONFUSED", "HEART", "ROCKET", "EYES"}
+
 var emojiReactions = map[string]string{
 	"THUMBS_UP": "👍", "THUMBS_DOWN": "👎", "LAUGH": "😄", "HOORAY": "🎉",
 	"CONFUSED": "😕", "HEART": "❤", "ROCKET": "🚀", "EYES": "👀",

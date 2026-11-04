@@ -76,7 +76,9 @@ type panesKeys struct {
 	convResolve, convDelete key.Binding
 	// convComment writes a new comment on the pull request.
 	convComment key.Binding
-	pick        picker.KeyMap
+	// convReact opens the reactions of the comment under the cursor.
+	convReact key.Binding
+	pick       picker.KeyMap
 	// inv is the keys of the involved pane's rows.
 	inv treeview.KeyMap
 	// rerequest asks the person under the cursor for a review again.
@@ -120,6 +122,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		convResolve: ui.In(keys, ctxConversation).Binding("resolve", "resolve"),
 		convDelete:  ui.In(keys, ctxConversation).Binding("delete", "delete"),
 		convComment: ui.In(keys, ctxConversation).Binding("comment", "comment"),
+		convReact:   ui.In(keys, ctxConversation).Binding("react", "react"),
 
 		rerequest: ui.In(keys, ctxInvolved).Binding("rerequest", "re-request"),
 		edit:      ui.In(keys, ctxInvolved).Binding("edit", "edit"),
@@ -245,7 +248,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 				}
 			}
 		}
-		all = append(all, k.convFilter, k.convSort, k.convResolve, k.convDelete, k.convComment)
+		all = append(all, k.convFilter, k.convSort, k.convResolve, k.convDelete, k.convComment, k.convReact)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.tree.ShortHelp())}
 	}
 	if ctx == ctxInvolved {

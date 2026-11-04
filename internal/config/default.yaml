@@ -1260,6 +1260,8 @@ keys:
     delete: [D]
     # Write a comment on the pull request, after a question.
     comment: [c]
+    # Pick the reactions you give to the comment under the cursor.
+    react: [e]
   # The modal of a pull request: the preview beside the list of a zoomed
   # pane. It only scrolls.
   pull_preview:
