@@ -479,6 +479,24 @@ func (s *Section) indent() string {
 	return strings.Repeat(" ", s.feed.Gutter())
 }
 
+// countForms is the forms of the count of the pull requests, longest first:
+// "all [loaded]" with the total GitHub told, or the loaded count alone while
+// it is unknown. Under a filter it is "matched/all". There is none while the
+// list loads.
+func (s *Section) countForms() []string {
+	f := s.feed
+	if f == nil || s.total == nil || f.Len() == 0 && (!f.Done() || f.Err() != nil) {
+		return nil
+	}
+	return ui.CountForms(ui.CountSpec{
+		Total:    int(s.total.Load()),
+		Loaded:   f.Loaded(),
+		Matched:  f.Shown(),
+		More:     !f.Done(),
+		Filtered: s.query != "" || f.FilterQuery() != "",
+	})
+}
+
 // renderHeader renders the line above the list: the repository on the left
 // and the tabs of the states on the right, the one shown highlighted.
 func (s *Section) renderHeader() {
@@ -500,10 +518,20 @@ func (s *Section) renderHeader() {
 	}
 	left := s.indent() + st.repo.Render(s.repo.String())
 	lw := ansi.StringWidth(left)
+	forms := s.countForms()
 	// Narrow panes name only the tab shown, and the narrowest only the
-	// repository.
-	if gap := s.width - lw - ansi.StringWidth(right.String()); gap >= 2 {
-		s.header = left + strings.Repeat(" ", gap) + right.String()
+	// repository. The count takes the longest form that leaves the rest its
+	// room, and goes when none does.
+	tabsRight := right.String()
+	for _, c := range forms {
+		cw := ansi.StringWidth(c) + 2
+		if gap := s.width - lw - cw - ansi.StringWidth(tabsRight); gap >= 2 {
+			s.header = left + strings.Repeat(" ", gap) + st.filterOff.Render(c) + "  " + tabsRight
+			return
+		}
+	}
+	if gap := s.width - lw - ansi.StringWidth(tabsRight); gap >= 2 {
+		s.header = left + strings.Repeat(" ", gap) + tabsRight
 		return
 	}
 	label := tabLabel(s.tab)
