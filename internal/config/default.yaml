@@ -975,6 +975,8 @@ keys:
     reopen: [O]
     comment: [c]
     labels: [L]
+    # Delete your comment under the cursor in the Conversation pane.
+    delete: [D]
     # Show the issues and pull requests linked to it, and those that mention
     # it.
     references: ["#"]

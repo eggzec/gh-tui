@@ -42,4 +42,7 @@ type Service interface {
 	Comment(repo core.RepoRef, number int, body string) *optimistic.Op
 	AddLabels(repo core.RepoRef, number int, names []string) *optimistic.Op
 	RemoveLabel(repo core.RepoRef, number int, name string) *optimistic.Op
+	// DeleteComment removes the comment with the id from the cache at once
+	// and returns the op that deletes it.
+	DeleteComment(repo core.RepoRef, number int, id string) *optimistic.Op
 }

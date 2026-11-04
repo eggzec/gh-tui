@@ -216,6 +216,20 @@ func (f *fakeService) RemoveLabel(_ core.RepoRef, number int, name string) *opti
 	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
 }
 
+// DeleteComment removes the comment at once.
+func (f *fakeService) DeleteComment(_ core.RepoRef, number int, id string) *optimistic.Op {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes = append(f.changes, "delete comment "+strconv.Itoa(number)+" "+id)
+	prev := slices.Clone(f.comments[number])
+	f.comments[number] = slices.DeleteFunc(slices.Clone(prev), func(c core.Comment) bool { return c.ID == id })
+	f.mutate(number, func(it *core.Issue) { it.Comments-- })
+	return f.op(nil, func() {
+		f.comments[number] = prev
+		f.mutate(number, func(it *core.Issue) { it.Comments++ })
+	})
+}
+
 // mutate applies fn to the issue everywhere the fake keeps it. The caller
 // holds the lock.
 func (f *fakeService) mutate(number int, fn func(*core.Issue)) {

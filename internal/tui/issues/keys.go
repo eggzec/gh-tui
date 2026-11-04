@@ -42,6 +42,8 @@ type keyMap struct {
 	Reopen  key.Binding `menu:"item"`
 	Comment key.Binding
 	Label   key.Binding
+	// Delete asks to delete the viewer's comment under the cursor.
+	Delete key.Binding
 	// References shows the issues and pull requests linked to the issue, in
 	// a step of its modal. The list has no such key.
 	References key.Binding
@@ -90,8 +92,9 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Reopen:       list.Binding("reopen", "reopen issue"),
 		Comment:      ui.In(keys, ctxModal).Binding("comment", "comment"),
 		Label:        ui.In(keys, ctxModal).Binding("labels", "labels"),
+		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
-		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
+		confirm:     confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
@@ -140,7 +143,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.References, k.Close, k.Reopen, k.Refresh},
+		{k.Back, k.Comment, k.Label, k.Delete, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
