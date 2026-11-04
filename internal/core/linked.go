@@ -26,6 +26,12 @@ type PullLinks struct {
 	// LinkedCapped reports that an issue has more pull requests that close
 	// it than were read.
 	LinkedCapped bool
+	// Mentioned are the first pull requests and issues that mention the item,
+	// newest first, MentionedTotal how many do when GitHub says, and
+	// MentionedCapped that more were left unread.
+	Mentioned       []Reference
+	MentionedTotal  int
+	MentionedCapped bool
 	// BlockersSupported is false on a server without issue dependencies,
 	// which the blockers are left empty for.
 	BlockersSupported bool

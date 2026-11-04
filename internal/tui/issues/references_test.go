@@ -13,12 +13,16 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // fakeRefs serves the links of every issue: a pull request that closed it.
-type fakeRefs struct{ reads []refssvc.Query }
+type fakeRefs struct {
+	reads    []refssvc.Query
+	mentions []core.Reference
+}
 
 func (f *fakeRefs) CachedReferences(refssvc.Query) (core.References, bool) {
 	return core.References{}, false
@@ -34,7 +38,7 @@ func (f *fakeRefs) CachedMentions(refssvc.MentionsQuery) (core.Page[core.Referen
 	return core.Page[core.Reference]{}, false
 }
 func (f *fakeRefs) Mentions(context.Context, refssvc.MentionsQuery) (core.Page[core.Reference], error) {
-	return core.Page[core.Reference]{}, nil
+	return core.Page[core.Reference]{Items: f.mentions}, nil
 }
 func (f *fakeRefs) Invalidate(core.RepoRef, int) {}
 
@@ -229,7 +233,7 @@ func TestIssueModalRereadsTheLinksForAChange(t *testing.T) {
 	if got := len(f.reads); got != reads+2 {
 		t.Errorf("a changed issue read the links %d more times, want 2", got-reads)
 	}
-	if last := f.reads[len(f.reads)-1]; !last.Updated.Equal(changed.UpdatedAt) && !f.reads[len(f.reads)-2].Updated.Equal(changed.UpdatedAt) {
+	if !slices.ContainsFunc(f.reads[reads:], func(q refssvc.Query) bool { return q.Updated.Equal(changed.UpdatedAt) }) {
 		t.Errorf("no read carried the update time %v: %+v", changed.UpdatedAt, f.reads[reads:])
 	}
 }
@@ -237,7 +241,7 @@ func TestIssueModalRereadsTheLinksForAChange(t *testing.T) {
 // A kept value that comes back stale is read again with Again set, and the
 // pane lists the pull requests of other repositories by their repository.
 func TestIssueModalLinksStaleReadsAgain(t *testing.T) {
-	_, m, f := openedRefs(t)
+	h, m, f := openedRefs(t)
 	other := core.RepoRef{Owner: "acme", Name: "lib"}
 	r := core.References{Stale: true, Closing: []core.Reference{{
 		Target: core.Target{Repo: other, Number: 5, Kind: core.KindPull}, Title: "Tracks it", State: core.StateOpen,
@@ -246,13 +250,39 @@ func TestIssueModalLinksStaleReadsAgain(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("a stale value wasn't read again")
 	}
-	cmd()
-	if last := f.reads[len(f.reads)-1]; !last.Again {
-		t.Errorf("the read after a stale value = %+v, want Again", last)
-	}
 	m.side.dev.SetSize(60, 6)
 	if v := ansi.Strip(m.side.dev.View()); !strings.Contains(v, "acme/lib#5 Tracks it") {
 		t.Errorf("the pane doesn't name the other repository:\n%s", v)
+	}
+	run(t, h, cmd)
+	if last := f.reads[len(f.reads)-1]; !last.Again {
+		t.Errorf("the read after a stale value = %+v, want Again", last)
+	}
+}
+
+// The Development pane lists what mentions the issue under Mentioned, each of
+// its own kind: bare in this repository and with its repository in another.
+func TestIssueModalListsMentions(t *testing.T) {
+	h, m, f := openedRefs(t)
+	other := core.RepoRef{Owner: "acme", Name: "lib"}
+	f.mentions = []core.Reference{
+		{Target: core.Target{Repo: other, Number: 8, Kind: core.KindIssue}, Title: "Same bug", State: core.StateOpen},
+		{Target: core.Target{Repo: testRepo, Number: 14, Kind: core.KindPull}, Title: "Touches it", State: core.StateOpen},
+	}
+	run(t, h, m.receiveLinks(linksMsg{id: m.id, refs: core.References{Mentioned: 5}}))
+	m.side.dev.SetSize(60, 8)
+	v := ansi.Strip(m.side.dev.View())
+	for _, want := range []string{"Mentioned 2", "acme/lib#8 Same bug", " #14 Touches it"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the pane lacks %q:\n%s", want, v)
+		}
+	}
+	it, ok := m.side.dev.Item("mention:" + core.RefKey(f.mentions[0].Target))
+	if !ok || it.Kind != dev.Issue || it.Ref.Target.Repo != other {
+		t.Errorf("the mentioned issue is %+v, %v", it, ok)
+	}
+	if it, ok := m.side.dev.Item("mention:" + core.RefKey(f.mentions[1].Target)); !ok || it.Kind != dev.Pull {
+		t.Errorf("the mentioned pull request is %+v, %v", it, ok)
 	}
 }
 

@@ -62,4 +62,6 @@ type Item struct {
 const (
 	GroupCloses = "closes"
 	GroupLinked = "linked"
+	// GroupMentioned lists the items that mention the one shown.
+	GroupMentioned = "mentioned"
 )
