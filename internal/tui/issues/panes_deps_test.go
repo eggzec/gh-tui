@@ -14,8 +14,9 @@ import (
 func TestDepRows(t *testing.T) {
 	t.Parallel()
 	other := core.RepoRef{Owner: "acme", Name: "lib"}
-	root := depNode{kind: depBlockedBy, trail: []int{999}}
-	rows := depRows("blocked_by", root, []core.Dependency{
+	home := core.RepoRef{Owner: "acme", Name: "app"}
+	root := depNode{kind: depBlockedBy, trail: []depRef{{home, 999}}}
+	rows := depRows(home, "blocked_by", root, []core.Dependency{
 		{Number: 5, Title: "Plain"},
 		{Number: 999, Title: "Itself"},
 		{Number: 7, Title: "Elsewhere", Repo: other, IsPullRequest: true},
@@ -35,17 +36,45 @@ func TestDepRows(t *testing.T) {
 	}
 }
 
+// A blocker of another repository with the number of the issue, or of its
+// sibling, is another issue: no cycle, and no clash of the row IDs.
+func TestDepRowsAcrossRepos(t *testing.T) {
+	t.Parallel()
+	home := core.RepoRef{Owner: "o", Name: "a"}
+	other := core.RepoRef{Owner: "o", Name: "b"}
+	root := depNode{kind: depBlockedBy, trail: []depRef{{home, 5}}}
+	rows := depRows(home, "blocked_by", root, []core.Dependency{
+		{Number: 5, Title: "Same number elsewhere", Repo: other},
+		{Number: 7, Title: "Here", Repo: home},
+		{Number: 7, Title: "There", Repo: other},
+		{Number: 5, Title: "Itself", Repo: home},
+	})
+	if r := rows[0]; r.Right != "" || !r.Branch {
+		t.Errorf("o/b#5 under o/a#5 = %+v, want a plain row", r)
+	}
+	if rows[1].ID == rows[2].ID {
+		t.Errorf("o/a#7 and o/b#7 share the ID %q", rows[1].ID)
+	}
+	if rows[2].Name != "o/b#7 There" || rows[1].Name != "#7 Here" {
+		t.Errorf("names = %q, %q", rows[1].Name, rows[2].Name)
+	}
+	if rows[3].Right != "cycle" {
+		t.Errorf("the issue itself = %+v, want a cycle", rows[3])
+	}
+}
+
 func TestDepRowsDepthCap(t *testing.T) {
 	t.Parallel()
-	trail := make([]int, maxDepDepth)
+	home := core.RepoRef{Owner: "acme", Name: "app"}
+	trail := make([]depRef, maxDepDepth)
 	for i := range trail {
-		trail[i] = i + 1
+		trail[i] = depRef{home, i + 1}
 	}
-	rows := depRows("x", depNode{kind: depBlocking, trail: trail}, []core.Dependency{{Number: 100, Title: "Deep"}})
+	rows := depRows(home, "x", depNode{kind: depBlocking, trail: trail}, []core.Dependency{{Number: 100, Title: "Deep"}})
 	if rows[0].Right != "deeper" || rows[0].Branch {
 		t.Errorf("row past the depth cap = %+v, want a closed row", rows[0])
 	}
-	rows = depRows("x", depNode{kind: depBlocking, trail: trail[:maxDepDepth-1]}, []core.Dependency{{Number: 100, Title: "Last"}})
+	rows = depRows(home, "x", depNode{kind: depBlocking, trail: trail[:maxDepDepth-1]}, []core.Dependency{{Number: 100, Title: "Last"}})
 	if rows[0].Right != "" || !rows[0].Branch {
 		t.Errorf("row at the depth cap = %+v, want an open row", rows[0])
 	}

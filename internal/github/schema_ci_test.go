@@ -74,7 +74,7 @@ func TestSchema(t *testing.T) {
 				if err != nil {
 					t.Fatalf("load %s: %v", s.openapi, err)
 				}
-				for _, p := range checkREST(doc, restCalls) {
+				for _, p := range checkREST(doc, restCallsFor(s.dotcom)) {
 					t.Error(p)
 				}
 			})
@@ -94,6 +94,24 @@ func graphqlOperationsFor(dotcom bool) map[string]string {
 	for name, op := range graphqlOperations {
 		if dotcom || !slices.Contains(graphqlDotComOnly, name) {
 			out[name] = op
+		}
+	}
+	return out
+}
+
+// restDotComOnly are the funcs of restCalls whose endpoints Enterprise
+// Server's OpenAPI description lacks (issue dependencies). The client may
+// still send them there: a 404 reads as no dependencies, so only this check
+// leaves them out.
+var restDotComOnly = []string{"ListIssueDependencies"}
+
+// restCallsFor returns restCalls without those of restDotComOnly, unless
+// dotcom is set.
+func restCallsFor(dotcom bool) []restCall {
+	out := make([]restCall, 0, len(restCalls))
+	for _, c := range restCalls {
+		if dotcom || !slices.Contains(restDotComOnly, c.Func) {
+			out = append(out, c)
 		}
 	}
 	return out

@@ -91,6 +91,10 @@ type detailModal struct {
 	mu      sync.Mutex
 	pending []core.TimelineItem
 	sent    int
+	// pagesRead counts the timeline pages the conversation read, and pages is
+	// the count the Involved pane shows.
+	pagesRead atomic.Int64
+	pages     int64
 	// newRefs makes the References step, which refs is while it shows in
 	// place of the thread; newRefs is nil without a service for the links.
 	newRefs func() *refs.Step
@@ -319,6 +323,7 @@ func (m *detailModal) source() conv.Source {
 		},
 		Timeline: func(ctx context.Context, cursor string) (core.Page[core.TimelineItem], error) {
 			p, err := svc.Timeline(ctx, query(cursor))
+			m.pagesRead.Add(1)
 			return m.decorate(p, cursor), err
 		},
 	}
@@ -378,6 +383,10 @@ func (m *detailModal) View() string {
 // arrives late.
 func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 	cmd := m.update(msg)
+	if m.pagesRead.Load() != m.pages {
+		// A page of the timeline came in after the issue: its commenters.
+		m.refreshInvolved()
+	}
 	if !m.convOn {
 		return cmd
 	}
