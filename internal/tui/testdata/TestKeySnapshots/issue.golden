@@ -27,6 +27,14 @@ Issue
   sort | s | s | off
   sort on/off | alt+s | alt+s | on
   author | @ | @ | on
+  next pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
+  zoom | z | z | on
+  Description | 1 | 1 | on
+  Conversation | 2 | 2 | on
+  Involved | 3 | 3 | on
+  Development | 4 | 4 | on
+  Blockers | 5 | 5 | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on

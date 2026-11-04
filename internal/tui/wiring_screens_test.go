@@ -220,7 +220,7 @@ func TestIssueModalFromTheList(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		m := keysAfter(t, true, "global.pane_3", "global.select")
 		got := screenText(m)
-		for _, want := range []string{"#1", "Keys collide", "0 comments", "c comment", "X close issue"} {
+		for _, want := range []string{"#1", "Keys collide", "2 Conversation", "c comment", "X close issue"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("the issue modal lacks %q:\n%s", want, got)
 			}

@@ -1299,7 +1299,7 @@ func keyContexts() []keyContext {
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},
-		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
+		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_2"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
 		{name: "issue: references", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references"}, context: "references", want: "global, references"},
 		{name: "issue: references filter", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
