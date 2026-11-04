@@ -65,16 +65,3 @@ func count(n int) string {
 	}
 	return strconv.Itoa(n/1_000_000) + "m"
 }
-
-// commas formats n with a comma between each group of three digits.
-func commas(n int) string {
-	s := strconv.Itoa(n)
-	var b strings.Builder
-	for i, r := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			b.WriteByte(',')
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
