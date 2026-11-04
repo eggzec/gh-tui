@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
@@ -30,12 +29,6 @@ func TestViewCleansHostileIssues(t *testing.T) {
 		m := s.modal()
 		m.SetSize(w, 20)
 		v := m.View()
-		if !strings.Contains(v, "moved") {
-			t.Fatalf("the detail doesn't show the title: %q", v)
-		}
-		if w == 200 && !strings.Contains(ansi.Strip(v), "assigned to "+termtexttest.CleanLogin) {
-			t.Errorf("the detail doesn't show the assignee cleaned: %q", v)
-		}
 		termtexttest.AssertClean(t, v, w)
 	}
 }

@@ -85,10 +85,14 @@ func TestOpenAndClose(t *testing.T) {
 	if strings.Contains(v, "another issue") {
 		t.Errorf("modal of #999 shows a comment on #1000:\n%s", v)
 	}
-	for _, want := range []string{"Support GitHub Enterprise hosts", ui.NewIcons(config.IconsNerd).State(ui.IssueOpen) + " Open", "hubot opened", "I can reproduce this", "Thanks! Fixed on main."} {
+	for _, want := range []string{"I can reproduce this", "Thanks! Fixed on main."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("modal lacks %q:\n%s", want, v)
 		}
+	}
+	tt := m.TrimTitle()
+	if tt.Detail != "Support GitHub Enterprise hosts in the repository picker" || !strings.Contains(tt.Lead, ui.NewIcons(config.IconsNerd).State(ui.IssueOpen)) {
+		t.Errorf("trim title = %+v, want the open glyph and the title", tt)
 	}
 	if got, want := m.Title(), "#999"; got != want {
 		t.Errorf("title = %q, want %q", got, want)
@@ -275,7 +279,7 @@ func TestOpenFromSearch(t *testing.T) {
 		h := newSection(t, svc, 80, 20)
 		run(t, h, h.Update(ui.OpenIssueMsg{Repo: testRepo, Number: 999}))
 		m := h.modal()
-		if m == nil || !strings.Contains(ansi.Strip(m.View()), "Support GitHub Enterprise hosts") {
+		if m == nil || m.TrimTitle().Detail != "Support GitHub Enterprise hosts in the repository picker" {
 			t.Fatal("OpenIssueMsg before Init didn't open the issue")
 		}
 		if len(svc.listCalls()) != 0 {
@@ -511,18 +515,13 @@ func TestModalFailureToasts(t *testing.T) {
 	}
 }
 
-// The header wraps a title longer than the modal is wide, whole, since the
-// frame holds only the issue's number.
-func TestModalWrapsLongTitle(t *testing.T) {
+// The frame trim holds the title, whole; the modal stays within its width.
+func TestModalTrimHoldsTitle(t *testing.T) {
 	_, m := opened(t, newFakeService(sampleIssues(12)), 30)
 	m.SetSize(30, 20)
-	words := strings.Fields(ansi.Strip(m.View()))
 	const title = "Support GitHub Enterprise hosts in the repository picker"
-	if got := strings.Join(words, " "); !strings.Contains(got, title) {
-		t.Errorf("the header lacks the whole title %q:\n%s", title, ansi.Strip(m.View()))
-	}
-	if v := ansi.Strip(m.View()); !strings.Contains(v, "#999") {
-		t.Errorf("the header lacks the number:\n%s", v)
+	if got := m.TrimTitle(); got.Detail != title || got.Name != "#999" {
+		t.Errorf("trim title = %+v, want #999 and %q", got, title)
 	}
 	for l := range strings.SplitSeq(ansi.Strip(m.View()), "\n") {
 		if w := ansi.StringWidth(l); w > 30 {

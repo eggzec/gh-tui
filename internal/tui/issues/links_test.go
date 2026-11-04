@@ -21,21 +21,17 @@ func TestRowLinks(t *testing.T) {
 	}
 }
 
-// The title and the number in the header link to the issue's page.
-func TestHeaderLinks(t *testing.T) {
+// The header holds the labels only, cleaned of a hostile name's escapes.
+func TestHeaderCleansLabels(t *testing.T) {
 	_, m := opened(t, newFakeService(sampleIssues(3)), 24)
-	for _, host := range uitest.Hosts {
-		it := m.issue
-		it.URL, it.Title = ui.WebURL(host, "o/r/issues/3"), uitest.HostileTitle
-		it.Author = core.User{Login: "octo-cat"}
-		it.Assignees = []core.User{{Login: "ann"}, {Login: "bo[bot]"}}
-		h := m.header(it)
-		want := []string{it.URL, ui.WebURL(host, "octo-cat"), ui.WebURL(host, "ann"), ui.WebURL(host, "apps/bo")}
-		if links := uitest.Links(t, h); strings.Join(links, " ") != strings.Join(want, " ") {
-			t.Errorf("%s: header links to %q, want %q", host, links, want)
-		}
-		if strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
-			t.Errorf("%s: header carries the title's escapes: %q", host, h)
-		}
+	it := m.issue
+	it.Labels = []core.Label{{Name: uitest.HostileTitle}}
+	h := m.header(it)
+	if strings.Contains(h, "evil.test") || strings.Contains(h, "\x1b[2J") {
+		t.Errorf("header carries the label's escapes: %q", h)
+	}
+	it.Labels = nil
+	if h := m.header(it); h != "" {
+		t.Errorf("header without labels = %q, want empty", h)
 	}
 }

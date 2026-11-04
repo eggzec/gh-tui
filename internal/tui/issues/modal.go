@@ -27,7 +27,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
-	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // issueMsg carries the issue that Get read for the thread that asked.
@@ -719,57 +718,25 @@ func (m *detailModal) show() tea.Cmd {
 	return m.setBody()
 }
 
-// header renders the head of the detail: the title, the state, who opened
-// it and when, the counts, the labels and the assignees.
+// header renders the head of the detail: the strip of the labels, or nothing
+// for an issue without any. The state, the number and the title are in the
+// top edge of the frame.
 func (m *detailModal) header(it core.Issue) string {
-	t := m.theme
-	now := m.now()
-	dot := t.Subtle.Render(m.icons.Separator)
-	var b strings.Builder
+	if len(it.Labels) == 0 {
+		return ""
+	}
+	return "  " + ui.LabelStrip(it.Labels, m.chips, max(m.width-4, 1), func(s string) string { return m.theme.Subtle.Render(s) })
+}
 
-	// The title links to the issue's page. A long title wraps.
-	for l := range strings.SplitSeq(ansi.Wrap(ui.OneLine(it.Title), max(m.width-4, 1), ""), "\n") {
-		b.WriteString("  ")
-		b.WriteString(termtext.Link(it.URL, t.Title.Render(l)))
-		b.WriteString("\n")
+// TrimTitle implements ui.Trimmed: the state and the title join the number in
+// the top edge of the frame, once they are known.
+func (m *detailModal) TrimTitle() ui.TrimTitle {
+	t := ui.TrimTitle{Name: m.Title()}
+	if m.loaded {
+		t.Lead = m.rows.badges[ui.IssueState(m.issue)]
+		t.Detail = m.issue.Title
 	}
-	b.WriteString("  ")
-
-	b.WriteString(m.rows.badges[ui.IssueState(it)])
-	b.WriteString("  ")
-	// The number sits by the state, as in the pull request's header.
-	b.WriteString(t.Muted.Render("#" + strconv.Itoa(it.Number)))
-	b.WriteString(dot)
-	b.WriteString(termtext.Link(ui.PageProfileURL(it.URL, it.Author.Login), t.Muted.Render(login(it.Author))))
-	b.WriteString(t.Subtle.Render(" opened " + m.dates.Prose(it.CreatedAt, now)))
-	if it.UpdatedAt.After(it.CreatedAt) {
-		b.WriteString(dot)
-		b.WriteString(t.Subtle.Render("updated " + m.dates.Prose(it.UpdatedAt, now)))
-	}
-	b.WriteString(dot)
-	b.WriteString(t.Muted.Render(m.rows.comment + plural(it.Comments, "comment")))
-
-	if len(it.Labels) > 0 {
-		b.WriteString("\n  ")
-		for i, l := range it.Labels {
-			if i > 0 {
-				b.WriteByte(' ')
-			}
-			text, _ := m.chips.Get(l)
-			b.WriteString(text)
-		}
-	}
-	if len(it.Assignees) > 0 {
-		b.WriteString("\n  ")
-		b.WriteString(t.Subtle.Render("assigned to "))
-		for i, u := range it.Assignees {
-			if i > 0 {
-				b.WriteString(t.Muted.Render(", "))
-			}
-			b.WriteString(termtext.Link(ui.PageProfileURL(it.URL, u.Login), t.Muted.Render(login(u))))
-		}
-	}
-	return b.String()
+	return t
 }
 
 // login is how a user shows: their login, cleaned since it comes from
