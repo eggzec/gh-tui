@@ -100,6 +100,8 @@ type Reaction struct {
 	// THUMBS_DOWN, LAUGH, HOORAY, CONFUSED, HEART, ROCKET or EYES.
 	Content string
 	Count   int
+	// Mine is whether the viewer gave this reaction.
+	Mine bool
 }
 
 // Milestone is a milestone of a repository, which issues and pull requests

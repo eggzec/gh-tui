@@ -11,7 +11,7 @@ import (
 func TestTimelineReactions(t *testing.T) {
 	var n timelineNode
 	src := `{"__typename":"IssueComment","id":"IC_1","body":"b","reactionGroups":[
-		{"content":"THUMBS_UP","reactors":{"totalCount":3}},
+		{"content":"THUMBS_UP","viewerHasReacted":true,"reactors":{"totalCount":3}},
 		{"content":"HEART","reactors":{"totalCount":0}},
 		{"content":"EYES","reactors":{"totalCount":1}}]}`
 	if err := json.Unmarshal([]byte(src), &n); err != nil {
@@ -21,7 +21,7 @@ func TestTimelineReactions(t *testing.T) {
 	if !ok {
 		t.Fatal("comment dropped")
 	}
-	want := []core.Reaction{{Content: "THUMBS_UP", Count: 3}, {Content: "EYES", Count: 1}}
+	want := []core.Reaction{{Content: "THUMBS_UP", Count: 3, Mine: true}, {Content: "EYES", Count: 1}}
 	if !reflect.DeepEqual(it.Reactions, want) {
 		t.Errorf("Reactions = %+v, want %+v", it.Reactions, want)
 	}
