@@ -411,6 +411,7 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 		sp = spliced{}
 	}
 	lines, front := trimBlank(lines)
+	carryLinks(lines)
 	for i, l := range lines {
 		lines[i] = r.relink(safe(tidy(quoteBars(unspan(l), g))))
 	}
