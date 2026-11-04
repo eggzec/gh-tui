@@ -27,8 +27,9 @@ type Rows struct {
 
 // The IDs of the headers and of the notes.
 const (
-	closesID = "header:closes"
-	linkedID = "header:linked"
+	closesID    = "header:closes"
+	linkedID    = "header:linked"
+	mentionedID = "header:mentioned"
 )
 
 // Build returns the rows of links: a header for what the pull request closes
@@ -40,6 +41,7 @@ func Build(links core.PullLinks, o Options) Rows {
 		b.closes(links)
 	}
 	b.linked(links)
+	b.mentioned(links)
 	return Rows{Rows: b.rows, Items: b.items}
 }
 
@@ -96,21 +98,44 @@ func (b *builder) linked(links core.PullLinks) {
 	// Only pull requests are listed: an issue connected to this item is not
 	// one, and an item of unknown kind is shown as it may be.
 	var pulls []core.Reference
-	for _, r := range links.Linked {
-		if r.Target.Kind != core.KindIssue {
-			pulls = append(pulls, r)
+	for i := range links.Linked {
+		if links.Linked[i].Target.Kind != core.KindIssue {
+			pulls = append(pulls, links.Linked[i])
 		}
 	}
 	b.header(linkedID, GroupLinked, "Linked PRs "+strconv.Itoa(len(pulls)))
 	if len(pulls) == 0 && !links.LinkedCapped {
 		b.note("none:linked", 1, None, "none")
 	}
-	for _, r := range pulls {
-		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(r)}, Action: true},
-			Item{Kind: Pull, Ref: r})
+	for i := range pulls {
+		r := &pulls[i]
+		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
+			Item{Kind: Pull, Ref: *r})
 	}
 	if links.LinkedCapped {
 		b.note("more:linked", 1, More, "more on GitHub")
+	}
+}
+
+// mentioned lists the items that mention this one, each of its true kind, and
+// is left out when none does. The header counts the rows loaded, with a plus
+// while more may come.
+func (b *builder) mentioned(links core.PullLinks) {
+	if len(links.Mentioned) == 0 && links.MentionedTotal == 0 {
+		return
+	}
+	b.header(mentionedID, GroupMentioned, "Mentioned "+ui.Count(len(links.Mentioned), links.MentionedCapped))
+	for i := range links.Mentioned {
+		r := &links.Mentioned[i]
+		kind := Pull
+		if r.Target.Kind == core.KindIssue {
+			kind = Issue
+		}
+		b.add(treeview.Node{ID: "mention:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
+			Item{Kind: kind, Ref: *r})
+	}
+	if links.MentionedCapped {
+		b.note("more:mentioned", 1, More, "more on GitHub")
 	}
 }
 

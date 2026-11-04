@@ -53,7 +53,13 @@ func fixture() core.PullLinks {
 			pull(30, "Follow-up cleanup", core.StateOpen, true),
 			pull(31, "Merged sibling", core.StateMerged, false),
 		},
-		LinkedCapped:      true,
+		LinkedCapped: true,
+		Mentioned: []core.Reference{
+			issue(other, 4, "Same crash elsewhere", core.StateOpen),
+			pull(33, "Mentions it in passing", core.StateOpen, false),
+		},
+		MentionedTotal:    40,
+		MentionedCapped:   true,
 		BlockersSupported: true,
 	}
 }

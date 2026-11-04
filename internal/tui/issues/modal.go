@@ -484,6 +484,8 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case linksMsg:
 		return m.receiveLinks(msg)
+	case mentionsMsg:
+		return m.receiveMentions(msg)
 	case treeview.OpenMsg:
 		if cmd := m.enterSide(msg); cmd != nil {
 			return cmd

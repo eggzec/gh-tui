@@ -50,12 +50,22 @@ type sidePanes struct {
 	devSt dev.Styles
 	deps  treeview.Model
 	desc  descPane
+	// refs and mentions are what the Development pane lists.
+	refs     core.References
+	mentions core.Page[core.Reference]
 }
 
 // linksMsg is what a read of the references of the issue brought.
 type linksMsg struct {
 	id   int64
 	refs core.References
+	err  error
+}
+
+// mentionsMsg is what a read of the mentions of the issue brought.
+type mentionsMsg struct {
+	id   int64
+	page core.Page[core.Reference]
 	err  error
 }
 
@@ -111,6 +121,9 @@ func (m *detailModal) refreshSide() {
 	p.devSt = dev.NewStyles(m.theme, m.icons)
 	p.dev.SetStyles(p.devSt)
 	if m.refSvc != nil {
+		if pg, ok := m.refSvc.CachedMentions(m.mentionsQuery(false)); ok {
+			p.mentions = pg
+		}
 		if r, ok := m.refSvc.CachedReferences(m.refQuery(false)); ok {
 			p.setLinks(r)
 		}
@@ -118,7 +131,49 @@ func (m *detailModal) refreshSide() {
 }
 
 func (p *sidePanes) setLinks(r core.References) {
-	p.dev.SetLinks(core.PullLinks{Linked: r.Closing})
+	p.refs = r
+	p.showLinks()
+}
+
+// showLinks lists the pull requests that close the issue and the items that
+// mention it, of the first page read.
+func (p *sidePanes) showLinks() {
+	p.dev.SetLinks(core.PullLinks{
+		Linked:          p.refs.Closing,
+		Mentioned:       p.mentions.Items,
+		MentionedTotal:  p.refs.Mentioned,
+		MentionedCapped: p.mentions.Next != "",
+	})
+}
+
+func (m *detailModal) mentionsQuery(again bool) refssvc.MentionsQuery {
+	return refssvc.MentionsQuery{Repo: m.repo, Number: m.number, Again: again}
+}
+
+// readMentions reads the first page of the items that mention the issue.
+func (m *detailModal) readMentions(again bool) tea.Cmd {
+	if m.refSvc == nil {
+		return nil
+	}
+	svc, ctx, id, q := m.refSvc, m.ctx, m.id, m.mentionsQuery(again)
+	return func() tea.Msg {
+		pg, err := svc.Mentions(ctx, q)
+		return mentionsMsg{id: id, page: pg, err: err}
+	}
+}
+
+// receiveMentions takes the page of mentions that a read brought. A failed
+// read leaves the group out; the closing links are shown without it.
+func (m *detailModal) receiveMentions(msg mentionsMsg) tea.Cmd {
+	if m.side == nil || msg.id != m.id || msg.err != nil {
+		return nil
+	}
+	m.side.mentions = msg.page
+	m.side.showLinks()
+	if msg.page.Stale {
+		return m.readMentions(true)
+	}
+	return nil
 }
 
 func (m *detailModal) refQuery(again bool) refssvc.Query {
@@ -151,9 +206,10 @@ func (m *detailModal) receiveLinks(msg linksMsg) tea.Cmd {
 	}
 	m.side.setLinks(msg.refs)
 	if msg.refs.Stale {
+		// The read again brings the value that reads the mentions.
 		return m.readLinks(true)
 	}
-	return nil
+	return m.readMentions(false)
 }
 
 // sideBody is the body of the Involved or Development pane in box b.
@@ -248,8 +304,9 @@ func (m *detailModal) enterSide(msg treeview.OpenMsg) tea.Cmd {
 	if r.Problem != "" {
 		return ui.Notify(0, fmt.Sprintf("Can't read %s: %s.", r.Target, r.Problem))
 	}
-	if r.Target.Kind == core.KindPull {
-		return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
+	// An item of unknown kind opens as a pull request, as its row shows it.
+	if r.Target.Kind == core.KindIssue {
+		return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
 	}
-	return func() tea.Msg { return ui.OpenIssueMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
+	return func() tea.Msg { return ui.OpenPullMsg{Repo: r.Target.Repo, Number: r.Target.Number, Over: m} }
 }
