@@ -13,7 +13,7 @@ func TestReact(t *testing.T) {
 	s := prime(t, api)
 	primeTimeline(t, s, api)
 	var sent []string
-	api.react = func(id, content string, add bool) error {
+	api.react = func(id, content string, _ bool) error {
 		sent = append(sent, id, content)
 		return nil
 	}

@@ -78,7 +78,7 @@ type panesKeys struct {
 	convComment key.Binding
 	// convReact opens the reactions of the comment under the cursor.
 	convReact key.Binding
-	pick       picker.KeyMap
+	pick      picker.KeyMap
 	// inv is the keys of the involved pane's rows.
 	inv treeview.KeyMap
 	// rerequest asks the person under the cursor for a review again.
