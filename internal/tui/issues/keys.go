@@ -97,7 +97,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Edit:         ui.In(keys, ctxModal).Binding("edit", "edit comment"),
 		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
-		confirm:     confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
+		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
 		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
