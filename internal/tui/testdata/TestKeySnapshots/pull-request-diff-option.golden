@@ -1,0 +1,32 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | off
+
+Option (types)
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  top | g g home | gg/home | on
+  bottom | G end | G/end | on
+  next file | J | J | on
+  prev file | K | K | on
+  next hunk | } | } | on
+  prev hunk | { | { | on
+  fold | enter | ↵ | on
+  retry | r | r | off
+  search | / | / | on
+  search | enter | ↵ | off
+  cancel | esc | esc | off
+  cancel | backspace ctrl+h | backspace/^h | off
+  next match | n | n | off
+  prev match | N | N | off
+  option | - | - | on
+  line numbers | N | N | on
+  cancel | esc | esc | on

@@ -16,7 +16,7 @@ type KeyMap struct {
 	HalfPageDown key.Binding `keymap:"half_page_down" help:"½ page down"`
 	Home         key.Binding `keymap:"top" help:"top"`
 	End          key.Binding `keymap:"bottom" help:"bottom"`
-	// Left and Right scroll sideways; lines are never wrapped.
+	// Left and Right scroll sideways, over the lines too wide to fit.
 	Left  key.Binding `keymap:"left" help:"left"`
 	Right key.Binding `keymap:"right" help:"right"`
 	// NextFile moves to the header of the next file, and PrevFile to the
@@ -48,6 +48,10 @@ type KeyMap struct {
 	// Retry repeats a failed fetch. The view enables it only while a fetch
 	// has failed, so help shows it only when it does something.
 	Retry key.Binding `keymap:"global.refresh" help:"retry"`
+	// Option waits for a key that names an option to change, and Options
+	// holds those keys. The view enables them only while it waits.
+	Option  key.Binding  `keymap:"option" help:"option"`
+	Options OptionKeyMap `keymap:"diff_option"`
 }
 
 // NewKeyMap returns the key bindings that look gives the keys of, such as
@@ -61,6 +65,7 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	for _, b := range []*key.Binding{&k.Confirm, &k.Cancel, &k.CancelEmpty, &k.Next, &k.Prev} {
 		b.SetEnabled(false)
 	}
+	k.Options.setEnabled(false)
 	return k
 }
 
@@ -79,5 +84,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
 		{k.NextFile, k.PrevFile, k.NextHunk, k.PrevHunk, k.Fold, k.Retry},
 		{k.Search, k.Confirm, k.Cancel, k.CancelEmpty, k.Next, k.Prev},
+		{k.Option, k.Options.LineNumbers, k.Options.Cancel},
 	}
 }

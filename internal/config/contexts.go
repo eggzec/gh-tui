@@ -158,6 +158,9 @@ var contexts = []Context{
 	// What names an option after a log's option key: it takes one key and
 	// types nothing.
 	{Name: "log_option", Title: "Option", Reach: ReachCapture},
+	// What names an option after a diff's option key: it takes one key and
+	// types nothing.
+	{Name: "diff_option", Title: "Option", Reach: ReachCapture},
 	// The query line of the filter form, and the editor of a text field.
 	{Name: "filter_query", Title: "Filter query", Reach: ReachCapture, Typing: true},
 }

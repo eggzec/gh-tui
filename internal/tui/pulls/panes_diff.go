@@ -33,8 +33,11 @@ type diffOverlay struct {
 	// opened from a thread leaves the selection as it is.
 	follow bool
 	d      diff.Model
-	keys   diffKeys
-	mode   diffview.Mode
+	// numbers is whether the diff shows its line numbers, which the diff
+	// keeps across the views built over it and loses when the overlay closes.
+	numbers bool
+	keys    diffKeys
+	mode    diffview.Mode
 	// path is the file shown while the diff is of one file.
 	path string
 	// w and h are the size of the last drawing, for a view built after it.
@@ -74,7 +77,7 @@ func (m *panesModal) openDiff(path string) tea.Cmd {
 // it is, and the diff does not follow it until the caller sets follow.
 func (m *panesModal) openDiffOf(path string, src *diffSource, at string) (*diffOverlay, tea.Cmd) {
 	ctx, cancel := context.WithCancel(m.ctx)
-	o := &diffOverlay{m: m, src: src, at: at, keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
+	o := &diffOverlay{m: m, src: src, at: at, numbers: true, keys: m.keys.diff, mode: diffview.ThisFile, path: path, ctx: ctx, cancel: cancel}
 	o.showCachedViewed()
 	o.drafts = m.reviewDrafts()
 	// The threads come before the first build, so that cached ones are drawn
@@ -103,6 +106,7 @@ func (o *diffOverlay) build() tea.Cmd {
 		diff.WithKeyMap(o.keys.diff),
 		diff.WithStyles(o.m.theme.Diff(o.m.icons)),
 		diff.WithFocused(true),
+		diff.WithLineNumbers(o.numbers),
 	)
 	if o.w > 0 && o.h > 0 {
 		o.d.SetSize(o.w, o.h)
@@ -213,6 +217,9 @@ func (o *diffOverlay) Finish() {
 }
 
 func (o *diffOverlay) Layers() []keyhelp.Layer {
+	if o.d.ChoosingOption() {
+		return []keyhelp.Layer{ui.ContextHelp("diff_option", o.d, true)}
+	}
 	if o.d.Capturing() {
 		return []keyhelp.Layer{ui.ContextHelp("search_prompt", o.d, true)}
 	}
@@ -268,6 +275,7 @@ func (o *diffOverlay) Update(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	o.d, cmd = o.d.Update(msg)
+	o.numbers = o.d.LineNumbers()
 	if fm, ok := msg.(diff.FilesMsg); ok && fm.ID == o.d.ID() {
 		cmd = tea.Batch(cmd, o.reapplyFull(fm.Files))
 	}
