@@ -61,6 +61,8 @@ type keyMap struct {
 	// key to the app, which does it from the selection, so only the
 	// modal's help lists it.
 	owner key.Binding
+	// panes are the keys that move between the panes of the modal.
+	panes paneKeys
 }
 
 // The contexts of the keys of issues: the list, and the modal of one.
@@ -125,6 +127,7 @@ func (k keyMap) forModal(keys config.Keymap) keyMap {
 	k.Close = modal.Binding("close", "close issue")
 	k.Reopen = modal.Binding("reopen", "reopen issue")
 	k.References = modal.Binding("references", "linked items")
+	k.panes = newPaneKeys(keys)
 	return k
 }
 
@@ -208,6 +211,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	}
 	own := keyhelp.FromHelp("", k, false)
 	own.Bindings = append(own.Bindings, owner)
+	own.Bindings = append(own.Bindings, m.keys.panes.bindings()...)
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.
 	tree := keyhelp.FromHelp("", m.keys.tree, false)
