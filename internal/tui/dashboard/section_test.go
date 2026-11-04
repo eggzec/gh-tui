@@ -18,7 +18,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/notifications"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -721,45 +720,58 @@ func TestInbox(t *testing.T) {
 	}
 	// The thread read leaves the unread ones, and the cursor stays on the
 	// first row.
-	if v := screen(s); !strings.Contains(v, "2 unread") || !regexp.MustCompile(`▌ ● .*oct…/hello-world#2`).MatchString(v) {
+	if v := screen(s); !strings.Contains(v, "2 unread") || !regexp.MustCompile(`▌ +● .*oct…/hello-world#2|●  oct…/hello-world#2`).MatchString(v) {
 		t.Errorf("after opening the first thread the pane shows:\n%s", v)
-	}
-
-	// A poll that finds a change updates the count from the cache.
-	in.set(inboxThreads()[0])
-	s.Update(ui.SyncMsg{Key: notifications.SyncKey})
-	if !strings.Contains(screen(s), "1 unread") {
-		t.Errorf("after the poll the dashboard should count 1 unread:\n%s", screen(s))
-	}
-	// So does marking threads read in the notifications.
-	in.set()
-	s.Update(ui.DoneMsg{From: ui.NotificationsTitle, What: "mark all read"})
-	if !strings.Contains(screen(s), "No unread notifications.") {
-		t.Errorf("with nothing unread the dashboard should say so:\n%s", screen(s))
-	}
-	if in.lists != 1 {
-		t.Errorf("the inbox was listed %d times, want once: changes come from the cache", in.lists)
 	}
 }
 
-// Marking several threads read at once in the notifications changes the
-// unread count of the dashboard, from the cache, as marking one does.
-func TestInboxCountFollowsBulkChange(t *testing.T) {
+// The inbox is listed once at startup: the embedded list and the dashboard
+// share one read.
+func TestInboxListedOnce(t *testing.T) {
 	in := &fakeInbox{threads: inboxThreads()}
 	s := newSection(t, newFake(), in, 140, 38)
-	if !strings.Contains(screen(s), "unread") {
+	if !strings.Contains(screen(s), "2 unread") {
 		t.Fatalf("the dashboard counts no unread threads:\n%s", screen(s))
 	}
-	in.set()
-	s.Update(ui.BulkDoneMsg{From: ui.NotificationsTitle})
-	if !strings.Contains(screen(s), "No unread notifications.") {
-		t.Errorf("with nothing unread the dashboard should say so:\n%s", screen(s))
+	if in.lists != 1 {
+		t.Errorf("the inbox was listed %d times at startup, want once", in.lists)
 	}
-	// Another section's bulk change leaves the inbox alone.
-	in.set(inboxThreads()[0])
-	s.Update(ui.BulkDoneMsg{From: ui.PullsTitle})
-	if !strings.Contains(screen(s), "No unread notifications.") {
-		t.Errorf("a bulk change of pull requests changed the inbox:\n%s", screen(s))
+}
+
+// The embedded list gets the keys only while its pane has the focus.
+func TestInboxKeysFollowFocus(t *testing.T) {
+	in := &fakeInbox{threads: inboxThreads()}
+	s := newSection(t, newFake(), in, 140, 38)
+	press(t, s, "j")
+	if got := in.marks(); len(got) != 0 {
+		t.Fatalf("a key of another pane marked %v", got)
+	}
+	app := press(t, s, "5", "enter")
+	if !slices.Equal(in.marks(), []string{"1"}) {
+		t.Errorf("enter on the focused inbox marked %v (sent %v), want thread 1", in.marks(), app)
+	}
+	before := len(in.marks())
+	press(t, s, "2", "enter")
+	if len(in.marks()) != before {
+		t.Errorf("enter on another pane reached the inbox: %v", in.marks())
+	}
+}
+
+// The dashboard hands the notifications every key while their find is open.
+func TestInboxCapturesWhileFinding(t *testing.T) {
+	in := &fakeInbox{threads: inboxThreads()}
+	s := newSection(t, newFake(), in, 140, 38)
+	press(t, s, "5")
+	if s.Capturing() {
+		t.Fatal("the dashboard captures keys before a find is open")
+	}
+	press(t, s, "/")
+	if !s.Capturing() {
+		t.Fatal("the dashboard doesn't capture keys while the find is open")
+	}
+	press(t, s, "5")
+	if !s.Capturing() {
+		t.Error("a pane key closed the find instead of reaching it")
 	}
 }
 

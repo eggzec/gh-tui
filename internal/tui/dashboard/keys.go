@@ -81,7 +81,7 @@ type KeyMap struct {
 const ctxDashboard = "dashboard"
 
 // paneContext names the context of the keys of each pane.
-var paneContext = [numPanes]string{"dashboard_pinned", "dashboard_repos", "dashboard_work", "dashboard_calendar", "dashboard_inbox"}
+var paneContext = [numPanes]string{"dashboard_pinned", "dashboard_repos", "dashboard_work", "dashboard_calendar", "notifications"}
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	screen, repos, work := ui.In(keys, ctxDashboard), ui.In(keys, paneContext[reposPane]), ui.In(keys, paneContext[workPane])
