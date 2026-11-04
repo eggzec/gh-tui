@@ -7,7 +7,6 @@ import (
 	"context"
 	"log/slog"
 	"slices"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -363,11 +362,7 @@ func (s *Section) Badge() string {
 	if n == 0 {
 		return ""
 	}
-	b := strconv.Itoa(n)
-	if !p.Last() {
-		b += "+"
-	}
-	return b
+	return ui.Count(n, !p.Last())
 }
 
 // All reports whether the section shows read threads too.

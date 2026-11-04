@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -228,6 +229,10 @@ func TestBadge(t *testing.T) {
 		return ns
 	}
 	read := thread("r", "o/r", core.SubjectIssue, "t", "mention", false, time.Hour)
+	ids := make([]string, 1200)
+	for i := range ids {
+		ids[i] = strconv.Itoa(i)
+	}
 	tests := []struct {
 		name   string
 		cached bool
@@ -238,6 +243,8 @@ func TestBadge(t *testing.T) {
 		{"nothing unread", true, core.Page[core.Notification]{Items: []core.Notification{read}}, ""},
 		{"unread", true, core.Page[core.Notification]{Items: append(unread("1", "2", "3"), read)}, "3"},
 		{"more pages", true, core.Page[core.Notification]{Items: unread("1", "2"), Next: "2"}, "2+"},
+		{"shortened like the other counts", true, core.Page[core.Notification]{Items: unread(ids...)}, "1.2k"},
+		{"shortened with more pages", true, core.Page[core.Notification]{Items: unread(ids...), Next: "2"}, "1.2k+"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
