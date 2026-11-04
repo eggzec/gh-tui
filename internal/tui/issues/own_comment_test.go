@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -72,6 +73,67 @@ func TestDeleteOwnComment(t *testing.T) {
 	runHolding(t, h, h.Update(keyMsg("y")))
 	if got := svc.changeCalls(); len(got) != 1 || got[0] != "delete comment 999 "+it.ID {
 		t.Fatalf("changes = %v, want the delete of %s", got, it.ID)
+	}
+}
+
+// hasComment reports whether the fake still holds the comment, with body.
+func hasComment(svc *fakeService, id string) (core.Comment, bool) {
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	cs := svc.comments[999]
+	for i := range cs {
+		if cs[i].ID == id {
+			return cs[i], true
+		}
+	}
+	return core.Comment{}, false
+}
+
+func TestDeleteOwnCommentFails(t *testing.T) {
+	t.Parallel()
+	svc, h, _, it := ownModal(t)
+	svc.sendErr = errors.New("boom")
+
+	press(t, h, "D")
+	var failed bool
+	for _, d := range runHolding(t, h, h.Update(keyMsg("y"))) {
+		failed = failed || d.Err != nil
+		run(t, h, h.Update(d))
+	}
+	if !failed {
+		t.Error("the failed delete reported no error")
+	}
+	if _, ok := hasComment(svc, it.ID); !ok {
+		t.Error("the failed delete left the comment gone")
+	}
+	press(t, h, "l", "j", "j")
+	if s, ok := h.modal().conv.Current(); !ok || s.Item == nil || s.Item.ID != it.ID {
+		t.Errorf("the conversation shows %+v, want the comment %s back", s, it.ID)
+	}
+}
+
+func TestEditOwnCommentFails(t *testing.T) {
+	t.Parallel()
+	svc, h, _, it := ownModal(t)
+	svc.sendErr = errors.New("boom")
+
+	press(t, h, "e")
+	typeText(t, h, " Edited.")
+	press(t, h, "ctrl+s")
+	var failed bool
+	for _, d := range runHolding(t, h, h.Update(keyMsg("y"))) {
+		failed = failed || d.Err != nil
+		run(t, h, h.Update(d))
+	}
+	if !failed {
+		t.Error("the failed edit reported no error")
+	}
+	if c, ok := hasComment(svc, it.ID); !ok || c.Body != it.Body {
+		t.Errorf("the comment reads %q after the failed edit, want %q", c.Body, it.Body)
+	}
+	press(t, h, "l", "j", "j")
+	if s, ok := h.modal().conv.Current(); !ok || s.Item == nil || s.Item.Body != it.Body {
+		t.Errorf("the conversation shows %+v, want the old body", s)
 	}
 }
 
