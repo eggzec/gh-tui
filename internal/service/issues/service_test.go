@@ -42,9 +42,23 @@ type fakeAPI struct {
 	viewerLogin     func() (string, error)
 	timeline        func(number int, cursor string, first int) (core.Page[core.TimelineItem], error)
 	pinnedIssues    func() ([]core.Issue, error)
+	// count answers the total probe; without it the probe fails, as a
+	// refused one does. The probe is kept out of calls and counted here.
+	count func(query string) (int, error)
 
-	mu    sync.Mutex
-	calls []string
+	mu      sync.Mutex
+	calls   []string
+	counted []string
+}
+
+func (f *fakeAPI) CountIssues(_ context.Context, query string) (int, error) {
+	f.mu.Lock()
+	f.counted = append(f.counted, query)
+	f.mu.Unlock()
+	if f.count == nil {
+		return 0, errUnexpected
+	}
+	return f.count(query)
 }
 
 // record logs a call to name and reports whether the test set up an answer.
