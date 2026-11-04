@@ -41,6 +41,7 @@ var graphqlOperations = map[string]string{
 	"repoUsersQuery":            repoUsersQuery,
 	"viewerLoginQuery":          viewerLoginQuery,
 	"multiSearchQuery":          multiSearchQuery,
+	"countIssuesQuery":          countIssuesQuery,
 	"listPullsQuery":            listPullsQuery,
 	"getPullQuery":              getPullQuery,
 	"pullThreadsQuery":          pullThreadsQuery,

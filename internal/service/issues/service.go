@@ -30,6 +30,7 @@ type API interface {
 	ListIssues(ctx context.Context, repo core.RepoRef, state core.StateFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	FilterIssues(ctx context.Context, repo core.RepoRef, f github.IssueFilter, cursor string, perPage int, cond github.Conditional) (core.Page[core.Issue], github.Response, error)
 	SearchIssues(ctx context.Context, query, cursor string, perPage int) (core.Page[core.SearchHit], error)
+	CountIssues(ctx context.Context, query string) (int, error)
 	ViewerLogin(ctx context.Context) (string, error)
 	GetIssue(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.Issue, github.Response, error)
 	GetIssueKind(ctx context.Context, repo core.RepoRef, number int, cond github.Conditional) (core.NumberKind, core.Issue, github.Response, error)
@@ -162,8 +163,8 @@ const (
 	kindTimeline   = "issuetimeline"
 	timelineSchema = 3
 	// schema 4 keeps whether the author of each issue is an app, and 5 when
-	// its description was edited.
-	schema = 5
+	// its description was edited, and 6 the total of a list.
+	schema = 6
 	// commentsSchema 4 keeps the avatar of each comment's author, and 5 the
 	// reactions.
 	commentsSchema = 5

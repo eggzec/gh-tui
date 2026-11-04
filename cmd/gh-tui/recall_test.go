@@ -114,6 +114,8 @@ func (issueLister) ListIssues(_ context.Context, r core.RepoRef, _ core.StateFil
 	return core.Page[core.Issue]{Items: []core.Issue{{Repo: r, Number: 3, Title: "Parser"}}}, github.Response{StatusCode: 200}, nil
 }
 
+func (issueLister) CountIssues(context.Context, string) (int, error) { return 1, nil }
+
 // GitHub ignores the case of names, so the command line completes the
 // numbers the panes read under any spelling of the repository.
 func TestRecallNumbersIgnoreCase(t *testing.T) {

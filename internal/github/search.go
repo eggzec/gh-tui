@@ -158,6 +158,27 @@ func (c *Client) SearchIssues(ctx context.Context, query, cursor string, perPage
 	return core.Page[core.SearchHit]{Items: convert(body.Items, searchIssue.core), Next: next}, nil
 }
 
+// countIssuesQuery asks how many issues and pull requests a search finds,
+// and reads none of them.
+const countIssuesQuery = `query CountIssues($query: String!) {
+  search(type: ISSUE, query: $query, first: 1) { issueCount }
+}`
+
+// CountIssues returns how many issues and pull requests match query, as
+// GitHub counts them (it caps the count of a broad search). It uses one point
+// of the GraphQL quota, and leaves the REST search limit alone.
+func (c *Client) CountIssues(ctx context.Context, query string) (int, error) {
+	var data struct {
+		Search struct {
+			IssueCount int `json:"issueCount"`
+		} `json:"search"`
+	}
+	if err := c.Query(ctx, countIssuesQuery, map[string]any{"query": query}, &data); err != nil {
+		return 0, fmt.Errorf("count issues: %w", err)
+	}
+	return data.Search.IssueCount, nil
+}
+
 // search reads one page of a search endpoint into v and returns the cursor
 // of the next page.
 func (c *Client) search(ctx context.Context, endpoint, query, cursor string, perPage int, v any) (string, error) {

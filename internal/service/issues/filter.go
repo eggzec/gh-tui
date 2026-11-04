@@ -11,7 +11,35 @@ import (
 
 // readList reads the page of q from the repository's list when it can
 // select what the filter asks for, and with a search otherwise.
+//
+// The first page carries the number of issues the whole list holds, which
+// neither the list nor a REST search tells, from a GraphQL search of the
+// same text as the list's (searchQuery), asked for while the page is read. If
+// it fails the page has no total. Known gaps: a milestone: filter names a
+// title for a search, as the list does, and GitHub caps the count of a broad
+// search; the number is shown as given. A page revalidated with a 304 keeps
+// the total it was stored with.
 func (s *Service) readList(ctx context.Context, q ListQuery, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
+	if q.Cursor != "" {
+		return s.readPage(ctx, q, cond)
+	}
+	total := make(chan int, 1)
+	go func() {
+		n, err := s.api.CountIssues(ctx, searchQuery(q))
+		if err != nil {
+			n = 0
+		}
+		total <- n
+	}()
+	page, res, err := s.readPage(ctx, q, cond)
+	if n := <-total; err == nil {
+		page.Total = n
+	}
+	return page, res, err
+}
+
+// readPage reads the page of q, without a total.
+func (s *Service) readPage(ctx context.Context, q ListQuery, cond github.Conditional) (core.Page[core.Issue], github.Response, error) {
 	if q.Filter == "" {
 		return s.api.ListIssues(ctx, q.Repo, q.State, q.Cursor, q.PageSize, cond)
 	}
@@ -117,7 +145,9 @@ func searchQuery(q ListQuery) string {
 		parts = append(parts, "is:closed")
 	default:
 	}
-	parts = append(parts, q.Filter)
+	if q.Filter != "" {
+		parts = append(parts, q.Filter)
+	}
 	if !sorted(q.Filter) {
 		parts = append(parts, "sort:updated-desc")
 	}
