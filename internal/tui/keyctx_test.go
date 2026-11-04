@@ -719,6 +719,9 @@ type keyContext struct {
 	// layers must make (TestContextChains), or empty for a state of what
 	// takes every key that is no context of its own.
 	context string
+	// chain, if set, is the chain the layers make instead of context's: the
+	// notifications embedded in the dashboard nest over its keys.
+	chain []string
 }
 
 // typedStep starts a step that types text, which typed makes.
@@ -916,7 +919,11 @@ func TestContextChains(t *testing.T) {
 						reached[l.Context] = true
 					}
 				}
-				if want := config.Chain(c.context); !slices.Equal(got, want) {
+				want := config.Chain(c.context)
+					if c.chain != nil {
+						want = c.chain
+					}
+					if !slices.Equal(got, want) {
 					t.Errorf("the layers of %s have the contexts %q, want the chain %q", c.name, got, want)
 				}
 			})
@@ -1248,7 +1255,7 @@ func keyContexts() []keyContext {
 		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "global, dashboard, dashboard_pinned"},
 		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "global, dashboard, dashboard_work"},
 		{name: "dashboard: calendar", steps: []string{"global.pane_4"}, context: "dashboard_calendar", want: "global, dashboard, dashboard_calendar"},
-		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "notifications", want: "global, dashboard, notifications"},
+		{name: "dashboard: inbox", steps: []string{"global.pane_5"}, context: "notifications", chain: []string{"global", "dashboard", "notifications"}, want: "global, dashboard, notifications"},
 		{name: "dashboard: zoomed", steps: []string{"global.zoom"}, context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: filter", steps: []string{"dashboard_repos.filter"}, context: "filter", want: "global, filter"},
 		{name: "dashboard: sort", steps: []string{"dashboard_repos.sort"}, context: "order_pick", want: "always, order_pick"},

@@ -72,7 +72,6 @@ var contexts = []Context{
 	{Name: "dashboard_repos", Title: "Repositories", Reach: ReachPane, Parent: "dashboard"},
 	{Name: "dashboard_work", Title: "Work", Reach: ReachPane, Parent: "dashboard"},
 	{Name: "dashboard_calendar", Title: "Contributions", Reach: ReachPane, Parent: "dashboard"},
-	{Name: "dashboard_inbox", Title: "Notifications", Reach: ReachPane, Parent: "dashboard"},
 
 	{Name: "repo", Title: "Repository", Reach: ReachScreen},
 	{Name: "files", Title: "Files", Reach: ReachPane, Parent: "repo"},
