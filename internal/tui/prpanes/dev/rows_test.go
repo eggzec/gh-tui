@@ -2,6 +2,7 @@ package dev
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -85,6 +86,19 @@ func TestRowsGolden(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestHideCloses(t *testing.T) {
+	t.Parallel()
+	o := opts(config.IconsASCII)
+	if !slices.Contains(ids(Build(fixture(), o)), closesID) {
+		t.Fatal("closes header missing without HideCloses")
+	}
+	o.HideCloses = true
+	got := ids(Build(fixture(), o))
+	if slices.Contains(got, closesID) || !slices.Contains(got, linkedID) {
+		t.Errorf("ids = %v, want the linked header and no closes header", got)
 	}
 }
 

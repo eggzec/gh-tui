@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )

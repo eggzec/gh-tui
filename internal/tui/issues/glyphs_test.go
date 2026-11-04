@@ -122,7 +122,9 @@ func TestDetailASCII(t *testing.T) {
 	}
 	v := ansi.Strip(m.header(m.issue) + "\n" + m.View())
 	// The conversation's tree and cursor are drawn with box glyphs.
-	if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII && !strings.ContainsRune("▌▸▾▏├╰│─╭╮╯", r) }) {
+	if strings.ContainsFunc(v, func(r rune) bool {
+		return r > unicode.MaxASCII && !strings.ContainsRune("▌▸▾▏├╰│─╭╮╯", r)
+	}) {
 		t.Errorf("detail isn't ASCII:\n%s", v)
 	}
 }

@@ -34,6 +34,21 @@ func said(u core.User, minutes int) core.TimelineItem {
 	return core.TimelineItem{Kind: core.TimelineComment, Actor: u, At: t0.Add(time.Duration(minutes) * time.Minute)}
 }
 
+func TestHideReviewers(t *testing.T) {
+	t.Parallel()
+	o := Options{Styles: styles(t, true)}
+	has := func(rows []treeview.Node) bool {
+		return slices.ContainsFunc(rows, func(n treeview.Node) bool { return n.ID == idReviewers })
+	}
+	if !has(Rows(everything(), o)) {
+		t.Fatal("reviewers group missing without HideReviewers")
+	}
+	o.HideReviewers = true
+	if has(Rows(everything(), o)) {
+		t.Error("reviewers group shown with HideReviewers")
+	}
+}
+
 func verdict(u core.User, s core.ReviewState) core.Verdict { return core.Verdict{Author: u, State: s} }
 
 // everything has a reviewer in each state, a team, a bot, assignees and four

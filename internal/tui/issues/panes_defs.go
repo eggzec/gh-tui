@@ -45,11 +45,6 @@ func paneName(p panes.Pane) string {
 	return paneDefs[p-1].Name
 }
 
-// paneTitle is the digit and the name, such as "2 Conversation".
-func paneTitle(p panes.Pane) string {
-	return panes.Layout{Panes: paneDefs}.Title(p)
-}
-
 // issueLayout lays out an area of w by h cells: two columns from wideMin
 // columns, unless zoom asks for the focus alone, and otherwise the zoomed
 // layout of the bubble.

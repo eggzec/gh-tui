@@ -42,7 +42,7 @@ func TestDepRowsDepthCap(t *testing.T) {
 		trail[i] = i + 1
 	}
 	rows := depRows("x", depNode{kind: depBlocking, trail: trail}, []core.Dependency{{Number: 100, Title: "Deep"}})
-	if rows[0].Right != "deeper"|| rows[0].Branch {
+	if rows[0].Right != "deeper" || rows[0].Branch {
 		t.Errorf("row past the depth cap = %+v, want a closed row", rows[0])
 	}
 	rows = depRows("x", depNode{kind: depBlocking, trail: trail[:maxDepDepth-1]}, []core.Dependency{{Number: 100, Title: "Last"}})
