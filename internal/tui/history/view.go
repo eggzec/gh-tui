@@ -115,10 +115,7 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	case branchPane:
 		spec.Name = "Branches"
 		if n := m.branches.feed.Len(); n > 0 {
-			spec.Count = strconv.Itoa(n)
-			if !m.branches.feed.Done() {
-				spec.Count += "+"
-			}
+			spec.Count = ui.Count(n, !m.branches.feed.Done())
 		}
 	case graphPane:
 		spec.Name = ui.OneLine(m.graphName())
