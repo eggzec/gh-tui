@@ -42,7 +42,7 @@ func TestDepRowsDepthCap(t *testing.T) {
 		trail[i] = i + 1
 	}
 	rows := depRows("x", depNode{kind: depBlocking, trail: trail}, []core.Dependency{{Number: 100, Title: "Deep"}})
-	if rows[0].Right != "..." || rows[0].Branch {
+	if rows[0].Right != "deeper"|| rows[0].Branch {
 		t.Errorf("row past the depth cap = %+v, want a closed row", rows[0])
 	}
 	rows = depRows("x", depNode{kind: depBlocking, trail: trail[:maxDepDepth-1]}, []core.Dependency{{Number: 100, Title: "Last"}})
@@ -94,10 +94,18 @@ func TestBlockerEnterOpensIssue(t *testing.T) {
 	h := started(t, blockedSvc(), 120, 30)
 	press(t, h, "down", "enter")
 	m := h.modal()
-	press(t, h, "*", "5", "l", "down")
+	press(t, h, "*", "5")
+	m.View() // sizes the tree, which takes no row moves before it has a size
+	press(t, h, "l", "down")
 	cmd := m.Update(keyMsg("enter"))
 	if cmd == nil {
 		t.Fatal("enter on a blocker did nothing")
+	}
+	// The tree answers with its own open message, which the modal turns
+	// into the request to open the issue.
+	cmd = m.Update(cmd())
+	if cmd == nil {
+		t.Fatal("the tree's open message did nothing")
 	}
 	open, ok := cmd().(ui.OpenIssueMsg)
 	if !ok || open.Number != 12 || open.Over == nil {
