@@ -115,7 +115,7 @@ func TestCounts(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	for _, want := range []string{"[1] Repositories", "2 Issues", "3 Pull requests", "4 Code", "43 results"} {
+	for _, want := range []string{"[1] Repositories", "2 Issues", "3 Pull requests", "4 Code", "43 [30+]"} {
 		if !strings.Contains(flat(s), want) {
 			t.Errorf("the page doesn't show %q:\n%s", want, screen(s))
 		}

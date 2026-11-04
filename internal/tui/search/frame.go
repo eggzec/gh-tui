@@ -41,9 +41,7 @@ func (s *Section) panes() []string {
 			Body:    strings.Join(s.results(rw, rh), "\n"),
 			Focus:   s.focused && s.area == resultsArea && !s.preview,
 		}
-		if n := s.countLabel(); n != "" {
-			c.TopRight = []string{n}
-		}
+		c.TopRight = s.countForms()
 		return strings.Split(s.st.frames.Frame(c, w, rh+2), "\n")
 	}
 	preview := func(w int) []string {

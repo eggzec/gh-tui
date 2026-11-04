@@ -218,24 +218,27 @@ func kindStripForms(st panes.Styles, kinds []core.SearchKind, keys []string, cur
 	return forms
 }
 
-// countLabel is the count of the results on view for the right of the
-// top edge of the results, such as "1,234 results": only the kinds the
-// search API counts have one.
-func (s *Section) countLabel() string {
+// countForms are the forms of the count of the results on view for the
+// right of the top edge of the results, longest first, such as "12k [100]":
+// only the kinds the search API counts have one. The total is the one the
+// API reported, and the loaded count shows beside it while pages remain.
+func (s *Section) countForms() []string {
 	if s.text == "" || s.kind == core.SearchCode {
-		return ""
+		return nil
 	}
 	if _, ok := s.staleView(); ok {
-		return ""
+		return nil
 	}
-	n, ok := s.counts[s.kind]
+	total, ok := s.counts[s.kind]
 	if !ok {
-		return ""
+		return nil
 	}
-	if n == 1 {
-		return commas(n) + " result"
+	spec := ui.CountSpec{Total: total, Loaded: total}
+	if l, ok := s.visibleHits(); ok {
+		spec.Loaded = l.feed.Len()
+		spec.More = !l.feed.Done()
 	}
-	return commas(n) + " results"
+	return ui.CountForms(spec)
 }
 
 // resultsLabel names the results on view.

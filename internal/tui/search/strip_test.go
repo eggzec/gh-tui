@@ -1,6 +1,7 @@
 package search
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -40,16 +41,41 @@ func TestCountOnlyForCountedKinds(t *testing.T) {
 	s.text = "go"
 	s.counts = map[core.SearchKind]int{core.SearchRepos: 1234, core.SearchIssues: 5, core.SearchCode: 9}
 	s.kind = core.SearchRepos
-	if got := s.countLabel(); got != "1,234 results" {
-		t.Errorf("repositories count %q, want %q", got, "1,234 results")
+	if got := s.countForms(); !slices.Equal(got, []string{"1.2k"}) {
+		t.Errorf("repositories count %q, want [1.2k]", got)
 	}
 	s.kind = core.SearchIssues
-	if got := s.countLabel(); got != "5 results" {
-		t.Errorf("issues count %q, want %q", got, "5 results")
+	if got := s.countForms(); !slices.Equal(got, []string{"5"}) {
+		t.Errorf("issues count %q, want [5]", got)
 	}
 	s.kind = core.SearchCode
-	if got := s.countLabel(); got != "" {
+	if got := s.countForms(); got != nil {
 		t.Errorf("code count %q, want none", got)
+	}
+}
+
+// The count is the total the search reported, with the loaded count in
+// brackets while pages remain.
+func TestCountFormsOfTotals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		total int
+		want  []string
+	}{
+		{0, []string{"0"}},
+		{1, []string{"1"}},
+		{999, []string{"999"}},
+		{1000, []string{"1k"}},
+		{12345, []string{"12k"}},
+	} {
+		s := newSection(t, newFake(), 120, 30)
+		s.text = "go"
+		s.kind = core.SearchRepos
+		s.counts = map[core.SearchKind]int{core.SearchRepos: tc.total}
+		got := s.countForms()
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("total %d: forms %q, want %q", tc.total, got, tc.want)
+		}
 	}
 }
 
