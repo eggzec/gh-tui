@@ -66,3 +66,13 @@ type FileFinder interface {
 type Capturer interface {
 	Capturing() bool
 }
+
+// Splitter is a Section that, while it is zoomed on a terminal that is not
+// narrow, shows a read-only preview in a box beside its own. The app gives
+// the box its size, 0 by 0 when there is none, and draws its title and the
+// view in a frame. The view does no I/O and returns no command.
+type Splitter interface {
+	SetPreviewSize(width, height int)
+	PreviewTitle() string
+	PreviewView() string
+}

@@ -40,6 +40,9 @@ const (
 // bare one, which fills its place and draws its own frames.
 type pane struct {
 	section ui.Section
+	// preview, when set, makes the pane the preview box beside a zoomed
+	// section: it has no section, and shows what the splitter gives.
+	preview ui.Splitter
 	// label is the name shown in the top edge, such as "Files", with the
 	// pane's key before it, "[1] Files", unless the pane is zoomed: then
 	// its key is in the bottom edge, among those of the other panes.
@@ -75,6 +78,10 @@ func (p *pane) setFocus(focused bool) {
 // frame.
 func (p *pane) resize(width, height int) {
 	p.width, p.height = max(width, 0), max(height, 0)
+	if p.preview != nil {
+		p.preview.SetPreviewSize(max(p.width-2, 0), max(p.height-2, 0))
+		return
+	}
 	if p.bare {
 		p.section.SetSize(p.width, p.height)
 		return
@@ -106,7 +113,13 @@ func (p *pane) appendLines(dst []string) []string {
 		return dst
 	}
 	dst = append(dst, p.top)
-	body, inner := p.section.View(), p.width-2
+	var body string
+	if p.preview != nil {
+		body = p.preview.PreviewView()
+	} else {
+		body = p.section.View()
+	}
+	inner := p.width - 2
 	for range p.height - 2 {
 		var line string
 		line, body, _ = strings.Cut(body, "\n")
@@ -174,6 +187,9 @@ func (m *Model) drawFrame(p *pane) {
 	frames.Separator = m.icons.Separator
 	zoomed := m.zoom.Zoomed() && p.key != ""
 	text := p.label
+	if p.preview != nil {
+		text = p.preview.PreviewTitle()
+	}
 	if p.key != "" && !zoomed {
 		text = "[" + p.key + "] " + text
 	}
@@ -206,6 +222,9 @@ func (m *Model) foot(p *pane, frames panes.Styles) []string {
 func (m *Model) drawFrames() {
 	for _, p := range m.all {
 		m.drawFrame(p)
+	}
+	if m.prev != nil {
+		m.drawFrame(m.prev)
 	}
 }
 
@@ -327,8 +346,10 @@ func (m *Model) arrange(height int) {
 		for _, p := range m.panes {
 			p.resize(m.width, height)
 		}
+		m.split(height)
 		return
 	}
+	m.endSplit()
 	left, right := m.panes[:m.left], m.panes[m.left:]
 	lw := 0
 	switch {
@@ -339,6 +360,52 @@ func (m *Model) arrange(height int) {
 	}
 	stack(left, lw, height)
 	stack(right, m.width-lw, height)
+}
+
+// split lays the zoomed pane out beside a preview box when its section is a
+// ui.Splitter and the terminal is not narrow, and otherwise tells the section
+// there is no preview box.
+func (m *Model) split(height int) {
+	p := m.panes[m.focus]
+	s, ok := p.section.(ui.Splitter)
+	if !ok || m.narrow() {
+		m.endSplit()
+		return
+	}
+	if m.splitOf != nil && m.splitOf != p {
+		m.endSplit()
+	}
+	defs := make([]panes.Def, len(m.panes))
+	for i, q := range m.panes {
+		defs[i] = panes.Def{Name: q.label, Short: q.label, Split: q == p}
+	}
+	focus := panes.Pane(m.focus + 1)
+	lay := panes.Compute(panes.Spec{
+		Width: m.width, Height: height, Panes: defs, Focus: focus, Zoom: true,
+		SplitMin: m.wide.Width,
+	})
+	list, hasList := lay.Box(focus, panes.List)
+	box, hasPreview := lay.Box(focus, panes.Preview)
+	if !hasList || !hasPreview {
+		m.endSplit()
+		return
+	}
+	p.resize(list.Rect.W, list.Rect.H)
+	if m.prev == nil {
+		m.prev = &pane{}
+	}
+	m.splitOf = p
+	m.prev.preview = s
+	m.prev.resize(box.Rect.W, box.Rect.H)
+}
+
+// endSplit drops the preview box, and tells the section that had one.
+func (m *Model) endSplit() {
+	if m.prev == nil {
+		return
+	}
+	m.prev.preview.SetPreviewSize(0, 0)
+	m.prev, m.splitOf = nil, nil
 }
 
 // stack shares height between ps evenly, from the top.
@@ -366,7 +433,15 @@ func (m *Model) body() []string {
 		return nil
 	}
 	if m.onePane() {
-		return m.panes[m.focus].appendLines(nil)
+		lines := m.panes[m.focus].appendLines(nil)
+		if m.prev == nil {
+			return lines
+		}
+		right := m.prev.appendLines(nil)
+		for i := range min(len(lines), len(right)) {
+			lines[i] += right[i]
+		}
+		return lines
 	}
 	h := m.contentHeight()
 	left := make([]string, 0, h)
