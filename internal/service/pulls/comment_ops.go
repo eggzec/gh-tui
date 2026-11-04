@@ -26,6 +26,8 @@ type commentOpsAPI interface {
 	EditReview(ctx context.Context, id, body string) (core.Edited, error)
 	DeleteIssueComment(ctx context.Context, id string) error
 	DeleteReviewComment(ctx context.Context, id string) error
+	AddReaction(ctx context.Context, id, content string) error
+	RemoveReaction(ctx context.Context, id, content string) error
 }
 
 var (
@@ -186,6 +188,38 @@ func onThread(id string, f func(*core.Thread)) func(core.ThreadPage) (core.Threa
 		p.Threads = threads
 		return p, ok
 	}
+}
+
+// React gives the viewer's reaction content to comment id of the conversation
+// of pull request number of repo in the cached comments and timeline at once,
+// or takes it back when add is false. The returned Op sends it. GitHub's
+// answer holds nothing to store, so the kept copies, which lack the change,
+// are dropped.
+func (s *Service) React(repo core.RepoRef, number int, id, content string, add bool) *optimistic.Op {
+	if err := s.refusedComment(repo, "react on comment on pull %s#%d: %w", number, id); err != nil {
+		return optimistic.Refused(err)
+	}
+	key := detailKey(repo, number)
+	undoComments := s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
+		items, ok := edit.Patch(p.Items, func(c core.Comment) bool { return c.ID == id }, func(c *core.Comment) {
+			c.Reactions = edit.Reacted(c.Reactions, content, add)
+		})
+		p.Items = items
+		return p, ok
+	}))
+	undoTimeline := s.timelines.MutateTag(key, edit.ReactOnTimeline(id, content, add))
+	return optimistic.New(func(ctx context.Context) error {
+		send := s.api.AddReaction
+		if !add {
+			send = s.api.RemoveReaction
+		}
+		if err := send(ctx, id, content); err != nil {
+			return fmt.Errorf("react on comment on pull %s#%d: %w", repo, number, err)
+		}
+		edit.Unkeep(s.comments, s.keptComments, key)
+		edit.Unkeep(s.timelines, s.keptTimelines, key)
+		return nil
+	}, func() { undoTimeline(); undoComments() })
 }
 
 // EditComment sets the body of comment id, a comment of the conversation of
