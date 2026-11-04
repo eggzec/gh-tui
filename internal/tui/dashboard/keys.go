@@ -155,9 +155,14 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // keys of the pinned cards, the work or the notifications.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
-	screen := ui.ContextLayer(ctxDashboard,
-		[]key.Binding{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump},
-		[]key.Binding{k.Next, k.Jump, k.Zoom, k.Refresh})
+	screenKeys := []key.Binding{k.Next, k.Prev, k.Zoom, k.Refresh, k.Jump}
+	screenShort := []key.Binding{k.Next, k.Jump, k.Zoom, k.Refresh}
+	if s.focus == inboxPane && s.notes != nil {
+		// The notifications list lists the refresh key itself.
+		screenKeys = []key.Binding{k.Next, k.Prev, k.Zoom, k.Jump}
+		screenShort = []key.Binding{k.Next, k.Jump, k.Zoom}
+	}
+	screen := ui.ContextLayer(ctxDashboard, screenKeys, screenShort)
 	ctx := paneContext[s.focus]
 	own := keyhelp.Layer{Bindings: k.paneKeys(s.focus), Short: k.paneShort(s.focus)}
 	switch s.focus {

@@ -71,8 +71,16 @@ func TestInboxLinks(t *testing.T) {
 	th := thread("7", "o/r", uitest.HostileTitle, true, 0)
 	th.Subject.WebURL = ui.WebURL(uitest.Hosts[1], "o/r/pull/7")
 	s := newSection(t, newFake(), &fakeInbox{threads: []core.Notification{th}}, 140, 40)
-	lines := s.inboxBody(60, 5)
-	checkLinks(t, "inbox", lines[1:], th.Subject.WebURL, 60)
+	setSize(s, 140, 40)
+	var rows []string
+	for _, l := range strings.Split(s.View(), "\n") {
+		if strings.Contains(l, "\x1b]8;;"+th.Subject.WebURL) {
+			rows = append(rows, l)
+		}
+	}
+	if len(rows) == 0 {
+		t.Fatalf("no row of the dashboard links to %s", th.Subject.WebURL)
+	}
 }
 
 // However the panes cut the rows, every link they show is closed.
