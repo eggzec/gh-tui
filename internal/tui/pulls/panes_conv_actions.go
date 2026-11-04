@@ -7,6 +7,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -150,6 +151,9 @@ func (m *panesModal) deleteConv() tea.Cmd {
 			return ui.Notify(toast.Info, "you can only delete your own comments")
 		}
 		id := s.Item.ID
+		if pulls.Unconfirmed(id) {
+			return ui.Notify(toast.Info, "the comment is still being sent")
+		}
 		question = "Delete your comment?"
 		run = func() tea.Cmd { return m.deleteWith(m.svc.DeleteComment(m.repo, m.number, id)) }
 	case (s.Kind == conv.KindThread || s.Kind == conv.KindReply) && s.Thread != nil && s.Comment != nil:
@@ -157,6 +161,9 @@ func (m *panesModal) deleteConv() tea.Cmd {
 			return ui.Notify(toast.Info, "you can only delete your own comments")
 		}
 		threadID, id := s.Thread.ID, s.Comment.ID
+		if pulls.Unconfirmed(id) {
+			return ui.Notify(toast.Info, "the comment is still being sent")
+		}
 		question = "Delete your reply?"
 		if s.Kind == conv.KindThread {
 			question = "Delete your comment?"
@@ -174,6 +181,6 @@ func (m *panesModal) deleteConv() tea.Cmd {
 
 // deleteWith sends the deletion op made, after the conversation shows it gone.
 func (m *panesModal) deleteWith(op *optimistic.Op) tea.Cmd {
-	send := m.sendConvOp(op, "delete comment", "comment deleted")
+	send := m.sendConv(op, "delete comment", "comment deleted", true)
 	return tea.Batch(m.recacheConv(), send)
 }
