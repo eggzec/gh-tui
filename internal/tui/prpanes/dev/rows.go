@@ -93,9 +93,19 @@ func (b *builder) closes(links core.PullLinks) {
 }
 
 func (b *builder) linked(links core.PullLinks) {
-	b.header(linkedID, GroupLinked, "Linked PRs "+strconv.Itoa(len(links.Linked)))
-	for i := range links.Linked {
-		r := links.Linked[i]
+	// Only pull requests are listed: an issue connected to this item is not
+	// one, and an item of unknown kind is shown as it may be.
+	var pulls []core.Reference
+	for _, r := range links.Linked {
+		if r.Target.Kind != core.KindIssue {
+			pulls = append(pulls, r)
+		}
+	}
+	b.header(linkedID, GroupLinked, "Linked PRs "+strconv.Itoa(len(pulls)))
+	if len(pulls) == 0 && !links.LinkedCapped {
+		b.note("none:linked", 1, None, "none")
+	}
+	for _, r := range pulls {
 		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(r)}, Action: true},
 			Item{Kind: Pull, Ref: r})
 	}

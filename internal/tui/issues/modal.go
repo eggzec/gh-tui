@@ -180,6 +180,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
+	m.side.dev.SetRepo(repo)
 	m.side.deps = m.newDeps(s.rawKeys)
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
@@ -207,10 +208,10 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps, m.readLinks(), m.side.deps.Init()))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps, m.readLinks(false), m.side.deps.Init()))
 	}
 	// What is cached shows at once, and is read again behind it.
-	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps, m.readLinks(), m.side.deps.Init()}
+	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps, m.readLinks(false), m.side.deps.Init()}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
@@ -482,8 +483,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	case conv.EnterMsg:
 		return nil
 	case linksMsg:
-		m.receiveLinks(msg)
-		return nil
+		return m.receiveLinks(msg)
 	case treeview.OpenMsg:
 		if cmd := m.enterSide(msg); cmd != nil {
 			return cmd
@@ -659,9 +659,13 @@ func (m *detailModal) gotIssue(msg issueMsg) tea.Cmd {
 	}
 	newer := m.loaded && msg.issue.UpdatedAt.After(m.issue.UpdatedAt)
 	m.issue, m.loaded, m.failed = msg.issue, true, nil
-	if m.refs != nil && newer {
-		// The links are read again for what changed.
-		return tea.Batch(m.show(), m.refs.Reread())
+	if newer {
+		// The links are read again for what changed: the pane's, by the
+		// update time in its query, and the step's if it is open.
+		if m.refs != nil {
+			return tea.Batch(m.show(), m.refs.Reread(), m.readLinks(false))
+		}
+		return tea.Batch(m.show(), m.readLinks(false))
 	}
 	return m.show()
 }

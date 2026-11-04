@@ -122,15 +122,16 @@ func (p *sidePanes) setLinks(r core.References) {
 }
 
 func (m *detailModal) refQuery(again bool) refssvc.Query {
-	return refssvc.Query{Repo: m.repo, Number: m.number, Again: again}
+	return refssvc.Query{Repo: m.repo, Number: m.number, Updated: m.issue.UpdatedAt, Again: again}
 }
 
-// readLinks reads the pull requests that close the issue.
-func (m *detailModal) readLinks() tea.Cmd {
+// readLinks reads the pull requests that close the issue. A read after a
+// value that came back stale sets again, or it is served the kept value.
+func (m *detailModal) readLinks(again bool) tea.Cmd {
 	if m.refSvc == nil {
 		return nil
 	}
-	svc, ctx, id, q := m.refSvc, m.ctx, m.id, m.refQuery(false)
+	svc, ctx, id, q := m.refSvc, m.ctx, m.id, m.refQuery(again)
 	return func() tea.Msg {
 		r, err := svc.References(ctx, q)
 		return linksMsg{id: id, refs: r, err: err}
@@ -138,17 +139,21 @@ func (m *detailModal) readLinks() tea.Cmd {
 }
 
 // receiveLinks takes the references that a read brought.
-func (m *detailModal) receiveLinks(msg linksMsg) {
+func (m *detailModal) receiveLinks(msg linksMsg) tea.Cmd {
 	if m.side == nil || msg.id != m.id {
-		return
+		return nil
 	}
 	if msg.err != nil {
 		if m.ctx.Err() == nil {
 			m.side.dev.SetError(msg.err)
 		}
-		return
+		return nil
 	}
 	m.side.setLinks(msg.refs)
+	if msg.refs.Stale {
+		return m.readLinks(true)
+	}
+	return nil
 }
 
 // sideBody is the body of the Involved or Development pane in box b.
