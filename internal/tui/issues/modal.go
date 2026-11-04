@@ -422,7 +422,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	}
 	if m.over != nil {
 		switch msg.(type) {
-		case picker.ChosenMsg, picker.CancelMsg, picker.LockedMsg, tea.PasteMsg:
+		case picker.ChosenMsg, picker.CancelMsg, picker.LockedMsg, tea.PasteMsg, tea.MouseMsg:
+			// A mouse event goes to the overlay too, so none reaches the
+			// panes it covers.
 			return m.pressOver(msg)
 		}
 	}

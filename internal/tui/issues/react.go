@@ -54,9 +54,12 @@ func (m *detailModal) openReact() tea.Cmd {
 				continue
 			}
 			op := m.svc.React(m.repo, m.number, id, content, on[content])
-			cmds = append(cmds, m.buildConv(), m.changed(), m.send(op, "react to comment"))
+			cmds = append(cmds, m.changed(), m.send(op, "react to comment"))
 		}
-		return tea.Batch(cmds...)
+		if len(cmds) == 0 {
+			return nil
+		}
+		return tea.Batch(append(cmds, m.buildConv())...)
 	}
 	items := make([]picker.Item, len(conv.ReactionOrder))
 	var marked []any
