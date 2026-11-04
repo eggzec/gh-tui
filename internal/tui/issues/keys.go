@@ -183,7 +183,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Edit, &k.Delete} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -208,6 +208,9 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
 	k.References.SetEnabled(k.References.Enabled() && m.newRefs != nil)
+	onConv := m.loaded && m.nav.Focus() == paneConversation
+	k.Edit.SetEnabled(k.Edit.Enabled() && onConv)
+	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.issue.Author) != "")
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)

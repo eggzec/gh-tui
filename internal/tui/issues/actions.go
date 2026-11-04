@@ -73,12 +73,15 @@ func (m *detailModal) deleteComment() tea.Cmd {
 	if it == nil {
 		return refusal
 	}
+	if strings.HasPrefix(it.ID, "pending:") {
+		return ui.Notify(toast.Info, "the comment is still being sent")
+	}
 	id := it.ID
 	return m.asks(confirm.Ask{
 		Question: "Delete your comment?",
 		Run: func() tea.Cmd {
 			op := m.svc.DeleteComment(m.repo, m.number, id)
-			return tea.Batch(m.buildConv(), m.changed(), m.send(op, "delete comment"))
+			return tea.Batch(m.reload(), m.buildConv(), m.changed(), m.send(op, "delete comment"))
 		},
 	})
 }
