@@ -13,6 +13,7 @@ import (
 var searchPullsQuery = `query SearchPulls($query: String!, $first: Int!, $after: String) {
   ` + rateLimitField + `
   search(type: ISSUE, query: $query, first: $first, after: $after) {
+    issueCount
     nodes { ... on PullRequest { ...pullFields } }
     pageInfo { hasNextPage endCursor }
   }
@@ -31,14 +32,15 @@ func (c *Client) SearchPullRequests(ctx context.Context, query, cursor string, f
 	}
 	var data struct {
 		Search struct {
-			Nodes    []pull   `json:"nodes"`
-			PageInfo pageInfo `json:"pageInfo"`
+			IssueCount int      `json:"issueCount"`
+			Nodes      []pull   `json:"nodes"`
+			PageInfo   pageInfo `json:"pageInfo"`
 		} `json:"search"`
 	}
 	if err := c.Query(ctx, searchPullsQuery, vars, &data); err != nil {
 		return core.Page[core.PullRequest]{}, fmt.Errorf("search pull requests: %w", err)
 	}
-	page := core.Page[core.PullRequest]{Next: data.Search.PageInfo.next()}
+	page := core.Page[core.PullRequest]{Next: data.Search.PageInfo.next(), Total: data.Search.IssueCount}
 	for i := range data.Search.Nodes {
 		// An issue matches no fragment, so it decodes empty.
 		if n := &data.Search.Nodes[i]; n.ID != "" {

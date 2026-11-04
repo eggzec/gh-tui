@@ -20,6 +20,10 @@ type Page[T any] struct {
 	// the API serves no more than a limit. A list sets it on its first
 	// page, where the API tells how far the pages go.
 	Truncated bool
+	// Total is the number of items the whole list holds, as the API counts
+	// them, or 0 when the page doesn't tell. A list the API says is empty has
+	// no page to count, so 0 is never a count worth showing.
+	Total int
 }
 
 // Last reports whether this is the final page.

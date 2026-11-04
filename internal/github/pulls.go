@@ -67,6 +67,7 @@ var listPullsQuery = `query ListPulls($owner: String!, $name: String!, $states: 
   ` + rateLimitField + `
   repository(owner: $owner, name: $name) {
     pullRequests(states: $states, labels: $labels, baseRefName: $base, headRefName: $head, orderBy: $order, first: $first, after: $after) {
+      totalCount
       nodes { ...pullFields }
       pageInfo { hasNextPage endCursor }
     }
@@ -326,8 +327,9 @@ func (c *Client) FilterPullRequests(ctx context.Context, repo core.RepoRef, f Pu
 	var data struct {
 		Repository *struct {
 			PullRequests struct {
-				Nodes    []pull   `json:"nodes"`
-				PageInfo pageInfo `json:"pageInfo"`
+				TotalCount int      `json:"totalCount"`
+				Nodes      []pull   `json:"nodes"`
+				PageInfo   pageInfo `json:"pageInfo"`
 			} `json:"pullRequests"`
 		} `json:"repository"`
 	}
@@ -341,6 +343,7 @@ func (c *Client) FilterPullRequests(ctx context.Context, repo core.RepoRef, f Pu
 	return core.Page[core.PullRequest]{
 		Items: convert(conn.Nodes, pull.core),
 		Next:  conn.PageInfo.next(),
+		Total: conn.TotalCount,
 	}, nil
 }
 
