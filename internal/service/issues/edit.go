@@ -132,6 +132,38 @@ func (s *Service) EditComment(repo core.RepoRef, number int, id, body string) *o
 	}, undo)
 }
 
+// React gives the viewer's reaction content to comment id of issue number of
+// repo in the cached comments and timeline at once, or takes it back when add
+// is false. The returned Op sends it. GitHub's answer holds nothing to store,
+// so the kept copies are dropped, which lack the change.
+func (s *Service) React(repo core.RepoRef, number int, id, content string, add bool) *optimistic.Op {
+	what := "react"
+	if err := s.refusedComment(repo, what, number, id); err != nil {
+		return optimistic.Refused(err)
+	}
+	key := issueKey(repo, number)
+	undoComments := s.comments.MutateTag(key, pages(func(p core.Page[core.Comment]) (core.Page[core.Comment], bool) {
+		items, ok := edit.Patch(p.Items, func(c core.Comment) bool { return c.ID == id }, func(c *core.Comment) {
+			c.Reactions = edit.Reacted(c.Reactions, content, add)
+		})
+		p.Items = items
+		return p, ok
+	}))
+	undoTimeline := s.timelines.MutateTag(key, edit.ReactOnTimeline(id, content, add))
+	return optimistic.New(func(ctx context.Context) error {
+		send := s.api.AddReaction
+		if !add {
+			send = s.api.RemoveReaction
+		}
+		if err := send(ctx, id, content); err != nil {
+			return fmt.Errorf("react on comment of issue %s#%d: %w", repo, number, err)
+		}
+		edit.Unkeep(s.comments, s.keptComments, key)
+		edit.Unkeep(s.timelines, s.keptTimelines, key)
+		return nil
+	}, func() { undoTimeline(); undoComments() })
+}
+
 // DeleteComment takes comment id out of the cached comments and timeline of
 // issue number of repo at once, and counts one comment less. The returned Op
 // sends it, and when GitHub accepts it, the lists, which count the comment,

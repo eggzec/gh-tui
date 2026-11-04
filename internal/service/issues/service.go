@@ -41,6 +41,8 @@ type API interface {
 	CreateIssueComment(ctx context.Context, repo core.RepoRef, number int, body string) (core.Comment, error)
 	EditIssueComment(ctx context.Context, id, body string) (core.Edited, error)
 	DeleteIssueComment(ctx context.Context, id string) error
+	AddReaction(ctx context.Context, id, content string) error
+	RemoveReaction(ctx context.Context, id, content string) error
 	AddIssueAssignees(ctx context.Context, repo core.RepoRef, number int, logins []string) (core.Issue, error)
 	RemoveIssueAssignees(ctx context.Context, repo core.RepoRef, number int, logins []string) (core.Issue, error)
 	ProbeIssues(ctx context.Context, repo core.RepoRef, cond github.Conditional) (github.Response, error)

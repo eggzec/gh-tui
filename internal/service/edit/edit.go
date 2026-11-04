@@ -44,6 +44,41 @@ func OnTimeline(id, body string, at time.Time) func(core.Page[core.TimelineItem]
 	}
 }
 
+// Reacted returns reactions with the viewer's reaction of kind content given
+// or taken back, on a copy: Mine is set, the count moves by one, and a kind
+// that nobody gave any more is dropped. A kind that is given and not there yet
+// goes at the end.
+func Reacted(reactions []core.Reaction, content string, add bool) []core.Reaction {
+	out := slices.Clone(reactions)
+	i := slices.IndexFunc(out, func(r core.Reaction) bool { return r.Content == content })
+	switch {
+	case i < 0 && add:
+		return append(out, core.Reaction{Content: content, Count: 1, Mine: true})
+	case i < 0:
+		return out
+	case add && !out[i].Mine:
+		out[i].Count, out[i].Mine = out[i].Count+1, true
+	case !add && out[i].Mine:
+		out[i].Count, out[i].Mine = out[i].Count-1, false
+	}
+	if out[i].Count <= 0 {
+		out = slices.Delete(out, i, i+1)
+	}
+	return out
+}
+
+// ReactOnTimeline returns the change of a cached timeline page that gives or
+// takes back the viewer's reaction content on item id.
+func ReactOnTimeline(id, content string, add bool) func(core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
+	return func(p core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
+		items, ok := Patch(p.Items, func(it core.TimelineItem) bool { return it.ID == id }, func(it *core.TimelineItem) {
+			it.Reactions = Reacted(it.Reactions, content, add)
+		})
+		p.Items = items
+		return p, ok
+	}
+}
+
 // DropFromTimeline returns the change of a cached timeline page that removes
 // item id.
 func DropFromTimeline(id string) func(core.Page[core.TimelineItem]) (core.Page[core.TimelineItem], bool) {
