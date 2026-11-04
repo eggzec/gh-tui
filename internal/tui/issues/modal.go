@@ -549,6 +549,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.compose(composeComment, ui.ActComment)
 	case keymap.Matches(msg, k.Label):
 		return m.compose(composeLabels, ui.ActLabel)
+	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
+		return m.deleteComment()
 	case keymap.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
 	case keymap.Matches(msg, k.Reopen):
