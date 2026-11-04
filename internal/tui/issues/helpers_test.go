@@ -65,6 +65,8 @@ type fakeService struct {
 	// ones served, which CachedComments then serves.
 	commentQueries []issuesvc.CommentsQuery
 	commented      map[issuesvc.CommentsQuery]bool
+	// deps serves Dependencies, and none found if nil.
+	deps func(ctx context.Context, repo core.RepoRef, n int, kind string) ([]core.Dependency, error)
 	// timelined holds the issues whose timeline was served.
 	timelined map[int]bool
 	// changes are the state changes asked for, such as "close 999", and
@@ -151,6 +153,14 @@ func (f *fakeService) setState(_ core.RepoRef, number int, state core.State) *op
 		defer f.mu.Unlock()
 		apply(was)
 	})
+}
+
+// Dependencies serves the dependencies the test set, or none.
+func (f *fakeService) Dependencies(ctx context.Context, repo core.RepoRef, n int, kind string) ([]core.Dependency, error) {
+	if f.deps == nil {
+		return nil, nil
+	}
+	return f.deps(ctx, repo, n, kind)
 }
 
 // Comment shows body at the end of the issue's comments at once, as

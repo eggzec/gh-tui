@@ -171,6 +171,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
+	m.side.deps = m.newDeps(s.rawKeys)
 	m.confirmSt = s.theme.Confirm(s.icons)
 	m.keys.References.SetEnabled(m.keys.References.Enabled() && s.refs != nil)
 	if s.refs != nil {
@@ -197,10 +198,10 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	if !m.loaded {
 		// The loads start once the modal is open, so that the app has it
 		// to pass their results to.
-		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps, m.readLinks()))
+		return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(m.buildConv(), m.get(), caps, m.readLinks(), m.side.deps.Init()))
 	}
 	// What is cached shows at once, and is read again behind it.
-	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps, m.readLinks()}
+	loads := []tea.Cmd{m.show(), m.buildConv(), m.get(), caps, m.readLinks(), m.side.deps.Init()}
 	return tea.Sequence(ui.OpenModalOver(m, back), tea.Batch(loads...))
 }
 
@@ -496,6 +497,12 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	cmd := m.convUpdate(msg)
+	if m.side != nil {
+		// The loads and the spinner of the Blockers tree.
+		var deps tea.Cmd
+		m.side.deps, deps = m.side.deps.Update(msg)
+		cmd = tea.Batch(cmd, deps)
+	}
 	if m.refs != nil {
 		cmd = tea.Batch(cmd, m.refs.Update(msg))
 	}

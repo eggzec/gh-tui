@@ -103,7 +103,6 @@ func (m *detailModal) paneBody(b panes.Box) string {
 	if s, ok := m.sideBody(b); ok {
 		return s
 	}
-	// Blockers shows its list in a later change.
 	return m.theme.Muted.Render("none")
 }
 
