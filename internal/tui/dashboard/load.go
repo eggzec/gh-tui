@@ -208,6 +208,8 @@ func (s *Section) loaded(msg loadedMsg) tea.Cmd {
 			s.pinned.HereRepo = s.hereRepo.value
 			s.setPinned(s.header.value.Pinned)
 		}
+	case kindInbox:
+		// The embedded notifications list reads its own pages.
 	}
 	return nil
 }

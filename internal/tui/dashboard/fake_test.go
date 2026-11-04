@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	_ Service = (*dashboard.Service)(nil)
+	_ Service          = (*dashboard.Service)(nil)
 	_ tuinotes.Service = (*notifications.Service)(nil)
 	_ tuinotes.Service = (*fakeInbox)(nil)
 )
@@ -340,12 +340,6 @@ func (f *fakeInbox) Invalidate() {
 	f.expired = true
 }
 
-func (f *fakeInbox) doneMarks() []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Clone(f.dones)
-}
-
 func (f *fakeInbox) marks() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -376,12 +370,6 @@ func (f *fakeInbox) List(context.Context, notifications.ListQuery) (core.Page[co
 		return core.Page[core.Notification]{}, f.err
 	}
 	return core.Page[core.Notification]{Items: slices.Clone(f.threads)}, nil
-}
-
-func (f *fakeInbox) set(threads ...core.Notification) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.threads = threads
 }
 
 var here = core.RepoRef{Owner: "octocat", Name: "hello-world"}

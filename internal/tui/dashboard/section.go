@@ -175,9 +175,9 @@ var lastID atomic.Int64
 
 // Section is the dashboard. Create one with New.
 type Section struct {
-	id     int64
-	ctx    context.Context
-	svc    Service
+	id  int64
+	ctx context.Context
+	svc Service
 	// inbox is the service the notifications pane reads through, and notes
 	// the notifications list in the pane, which is nil without it. The list
 	// is the only reader of the inbox.

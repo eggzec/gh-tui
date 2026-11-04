@@ -54,12 +54,12 @@ type KeyMap struct {
 	Checks key.Binding
 	// Up, Down, Left and Right move through the cards, WorkUp and WorkDown
 	// through the work, each with the keys of its pane.
-	Up        key.Binding `keymap:"dashboard_pinned.up" help:"up"`
-	Down      key.Binding `keymap:"dashboard_pinned.down" help:"down"`
-	Left      key.Binding `keymap:"dashboard_pinned.left" help:"left"`
-	Right     key.Binding `keymap:"dashboard_pinned.right" help:"right"`
-	WorkUp    key.Binding `keymap:"dashboard_work.up" help:"up"`
-	WorkDown  key.Binding `keymap:"dashboard_work.down" help:"down"`
+	Up       key.Binding `keymap:"dashboard_pinned.up" help:"up"`
+	Down     key.Binding `keymap:"dashboard_pinned.down" help:"down"`
+	Left     key.Binding `keymap:"dashboard_pinned.left" help:"left"`
+	Right    key.Binding `keymap:"dashboard_pinned.right" help:"right"`
+	WorkUp   key.Binding `keymap:"dashboard_work.up" help:"up"`
+	WorkDown key.Binding `keymap:"dashboard_work.down" help:"down"`
 
 	// Jump holds the keys of Panes, which it stands for in help.
 	Jump key.Binding
