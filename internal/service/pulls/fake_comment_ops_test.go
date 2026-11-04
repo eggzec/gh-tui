@@ -97,6 +97,14 @@ func (f *commentOpsFake) DeleteIssueComment(_ context.Context, id string) error 
 	return f.record("DeleteIssueComment", id)
 }
 
+func (f *commentOpsFake) AddReaction(_ context.Context, id, content string) error {
+	return f.record("AddReaction", id, content)
+}
+
+func (f *commentOpsFake) RemoveReaction(_ context.Context, id, content string) error {
+	return f.record("RemoveReaction", id, content)
+}
+
 func (f *commentOpsFake) DeleteReviewComment(_ context.Context, id string) error {
 	return f.record("DeleteReviewComment", id)
 }
