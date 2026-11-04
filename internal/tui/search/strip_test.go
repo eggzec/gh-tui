@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -76,6 +77,59 @@ func TestCountFormsOfTotals(t *testing.T) {
 		if !slices.Equal(got, tc.want) {
 			t.Errorf("total %d: forms %q, want %q", tc.total, got, tc.want)
 		}
+	}
+}
+
+// A quick filter on the results on view shows the rows it keeps over the
+// rows known, then the total with the loaded count beside it.
+func TestCountFormsUnderAQuickFilter(t *testing.T) {
+	svc := newFake()
+	s := newSection(t, svc, 120, 30)
+	typeText(t, s, "tea")
+	if got := s.countForms(); !slices.Equal(got, []string{"43 [30+]", "43"}) {
+		t.Fatalf("forms %q before the filter, want [43 [30+] 43]", got)
+	}
+	typed := strings.Split(svc.repos[0].Repo.Ref.String(), "")
+	keys := append([]string{"&"}, typed...)
+	press(t, s, append(keys, "enter")...)
+	l, _ := s.visibleHits()
+	shown := l.feed.Shown()
+	if shown == 0 || shown >= l.feed.Loaded() {
+		t.Fatalf("the filter keeps %d of %d rows, want some but not all", shown, l.feed.Loaded())
+	}
+	want := fmt.Sprintf("%d/43 [30+]", shown)
+	if got := s.countForms(); len(got) == 0 || got[0] != want {
+		t.Errorf("forms %q under the filter, want %q first", got, want)
+	}
+}
+
+// There is no count while the results on view load or failed to load.
+func TestCountFormsWhileLoading(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), 120, 30)
+	s.text = "go"
+	s.kind = core.SearchIssues
+	s.counts = map[core.SearchKind]int{core.SearchIssues: 2}
+	s.hits[core.SearchIssues] = &hitList{text: "go", kind: core.SearchIssues}
+	if l, ok := s.visibleHits(); !ok || l.feed.Len() != 0 {
+		t.Fatal("want a visible feed with nothing loaded")
+	}
+	if got := s.countForms(); got != nil {
+		t.Errorf("forms %q while the list loads, want none", got)
+	}
+}
+
+// The narrow results pane keeps the total alone, and a total below what is
+// loaded, which the search can't know, shows the loaded count alone.
+func TestCountFormsNarrowAndUnknown(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
+	typeText(t, s, "tea")
+	if got := s.countForms(); !slices.Equal(got, []string{"43 [30+]", "43"}) {
+		t.Fatalf("forms %q, want [43 [30+] 43]", got)
+	}
+	s.counts[core.SearchRepos] = 3
+	if got := s.countForms(); !slices.Equal(got, []string{"30+"}) {
+		t.Errorf("forms %q for a total below the loaded count, want [30+]", got)
 	}
 }
 
