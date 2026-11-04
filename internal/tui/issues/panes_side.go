@@ -50,6 +50,7 @@ type sidePanes struct {
 	devSt  dev.Styles
 	linked bool
 	deps   treeview.Model
+	desc   descPane
 }
 
 // linksMsg is what a read of the references of the issue brought.
@@ -62,6 +63,7 @@ type linksMsg struct {
 // newSide makes the panes with the keys of the trees.
 func newSide(keys config.Keymap) *sidePanes {
 	p := &sidePanes{inv: involved.New(), dev: dev.New(dev.Options{HideCloses: true})}
+	p.desc.tree = newDesc(keys)
 	p.inv.SetKeyMap(sideKeys(keys))
 	p.dev.SetKeyMap(dev.NewKeyMap(keys))
 	return p
@@ -84,17 +86,29 @@ func (m *detailModal) timelineItems() []core.TimelineItem {
 	}
 }
 
+// refreshInvolved lists the people of the issue and of the timeline pages
+// read so far.
+func (m *detailModal) refreshInvolved() {
+	p := m.side
+	if p == nil {
+		return
+	}
+	m.pages = m.pagesRead.Load()
+	d := involved.Data{Author: m.issue.Author, Assignees: m.issue.Assignees, Items: m.timelineItems()}
+	p.inv.SetData(d, involved.Options{Styles: p.invSt, HideReviewers: true})
+}
+
 // refreshSide shows the people and the links the modal has now.
 func (m *detailModal) refreshSide() {
 	p := m.side
 	if p == nil {
 		return
 	}
+	p.desc.look++
 	p.invSt = involved.NewStyles(m.theme, m.icons)
 	p.inv.SetStyles(m.theme.Tree(m.icons))
 	p.deps.SetStyles(m.theme.Tree(m.icons))
-	d := involved.Data{Author: m.issue.Author, Assignees: m.issue.Assignees, Items: m.timelineItems()}
-	p.inv.SetData(d, involved.Options{Styles: p.invSt, HideReviewers: true})
+	m.refreshInvolved()
 	p.devSt = dev.NewStyles(m.theme, m.icons)
 	p.dev.SetStyles(p.devSt)
 	if m.refSvc != nil {
@@ -180,6 +194,8 @@ func (m *detailModal) pressSide(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	var cmd tea.Cmd
 	switch m.nav.Focus() {
+	case paneDescription:
+		p.desc.tree, cmd = p.desc.tree.Update(msg)
 	case paneInvolved:
 		p.inv, cmd = p.inv.Update(msg)
 	case paneDevelopment:
@@ -200,6 +216,9 @@ func (m *detailModal) pressSide(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 func (m *detailModal) enterSide(msg treeview.OpenMsg) tea.Cmd {
 	p := m.side
 	if p == nil {
+		return nil
+	}
+	if msg.Tree == p.desc.tree.ID() {
 		return nil
 	}
 	if msg.Tree == p.inv.ID() {

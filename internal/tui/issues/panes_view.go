@@ -93,7 +93,7 @@ func (m *detailModal) paneBody(b panes.Box) string {
 	in := b.Rect.Inner()
 	switch b.Pane {
 	case paneDescription:
-		return m.describe(in.W)
+		return m.descBody(b)
 	case paneConversation:
 		if m.convOn && in.H > 0 {
 			return m.conv.View()
@@ -104,31 +104,4 @@ func (m *detailModal) paneBody(b panes.Box) string {
 		return s
 	}
 	return m.theme.Muted.Render("none")
-}
-
-// describe renders who wrote the issue and when, whom it is assigned to, how
-// many comments it has, and its text.
-func (m *detailModal) describe(w int) string {
-	if !m.loaded || w <= 0 {
-		return ""
-	}
-	it := m.issue
-	now := m.now()
-	meta := login(it.Author) + " opened " + m.dates.Prose(it.CreatedAt, now)
-	if it.UpdatedAt.After(it.CreatedAt) {
-		meta += ", updated " + m.dates.Prose(it.UpdatedAt, now)
-	}
-	lines := []string{m.theme.Subtle.Render(meta)}
-	if len(it.Assignees) > 0 {
-		names := make([]string, len(it.Assignees))
-		for i, a := range it.Assignees {
-			names[i] = login(a)
-		}
-		lines = append(lines, m.theme.Subtle.Render("assigned to "+strings.Join(names, ", ")))
-	}
-	lines = append(lines, m.theme.Subtle.Render(plural(it.Comments, "comment")), "")
-	if strings.TrimSpace(it.Body) != "" {
-		lines = append(lines, m.md.Render(it.Body, w))
-	}
-	return strings.Join(lines, "\n")
 }

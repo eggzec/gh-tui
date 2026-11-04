@@ -34,7 +34,32 @@ const (
 type depNode struct {
 	kind  string
 	dep   core.Dependency
-	trail []int
+	trail []depRef
+}
+
+// depRef names an issue by its repository too, since a blocker may be in
+// another one, where the same number is another issue.
+type depRef struct {
+	repo core.RepoRef
+	n    int
+}
+
+// refOf is the issue d names, a dependency without a repository being one of
+// home.
+func refOf(home core.RepoRef, d core.Dependency) depRef {
+	if d.Repo == (core.RepoRef{}) {
+		return depRef{home, d.Number}
+	}
+	return depRef{d.Repo, d.Number}
+}
+
+// label is the issue as a row names it: the number alone in home, the
+// repository's name before it elsewhere.
+func (r depRef) label(home core.RepoRef) string {
+	if r.repo == home {
+		return "#" + strconv.Itoa(r.n)
+	}
+	return r.repo.String() + "#" + strconv.Itoa(r.n)
 }
 
 // newDeps makes the Blockers tree, which reads the issues that wait for this
@@ -69,55 +94,53 @@ func depState(d core.Dependency) ui.State {
 // below a root or an issue the issues it waits for or blocks.
 func (m *detailModal) depChildren(ctx context.Context, parent treeview.Node) ([]treeview.Node, error) {
 	if parent.ID == "" {
-		return depRoots(m.number), nil
+		return depRoots(depRef{m.repo, m.number}), nil
 	}
 	pn, ok := parent.Value.(depNode)
 	if !ok || len(pn.trail) == 0 {
 		return nil, nil
 	}
-	repo := pn.dep.Repo
-	if repo == (core.RepoRef{}) {
-		repo = m.repo
-	}
+	at := pn.trail[len(pn.trail)-1]
 	ds, ok := m.svc.(depser)
 	if !ok {
 		return nil, errors.New("dependencies are not available")
 	}
-	deps, err := ds.Dependencies(ctx, repo, pn.trail[len(pn.trail)-1], pn.kind)
+	deps, err := ds.Dependencies(ctx, at.repo, at.n, pn.kind)
 	if errors.Is(err, core.ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return depRows(parent.ID, pn, deps), nil
+	return depRows(m.repo, parent.ID, pn, deps), nil
 }
 
-// depRoots are the two top rows of the tree.
-func depRoots(self int) []treeview.Node {
+// depRoots are the two top rows of the tree, for the issue self.
+func depRoots(self depRef) []treeview.Node {
 	return []treeview.Node{
-		{ID: depBlockedBy, Name: "Blocked by", Branch: true, Value: depNode{kind: depBlockedBy, trail: []int{self}}},
-		{ID: depBlocking, Name: "Blocking", Branch: true, Value: depNode{kind: depBlocking, trail: []int{self}}},
+		{ID: depBlockedBy, Name: "Blocked by", Branch: true, Value: depNode{kind: depBlockedBy, trail: []depRef{self}}},
+		{ID: depBlocking, Name: "Blocking", Branch: true, Value: depNode{kind: depBlocking, trail: []depRef{self}}},
 	}
 }
 
 // depRows are the rows for the dependencies deps of the row pn with the ID
-// id. An issue already on the trail is a cycle, and one past maxDepDepth
-// levels is cut: neither opens further.
-func depRows(id string, pn depNode, deps []core.Dependency) []treeview.Node {
+// id, in the repository home. An issue already on the trail is a cycle, and
+// one past maxDepDepth levels is cut: neither opens further.
+func depRows(home core.RepoRef, id string, pn depNode, deps []core.Dependency) []treeview.Node {
 	out := make([]treeview.Node, 0, len(deps))
 	for _, d := range deps {
-		trail := append(slices.Clone(pn.trail), d.Number)
+		ref := refOf(home, d)
+		trail := append(slices.Clone(pn.trail), ref)
 		right := ""
 		switch {
-		case slices.Contains(pn.trail, d.Number):
+		case slices.Contains(pn.trail, ref):
 			right = "cycle"
 		case len(trail) > maxDepDepth:
 			right = "deeper"
 		}
 		out = append(out, treeview.Node{
-			ID:     id + ">#" + strconv.Itoa(d.Number),
-			Name:   "#" + strconv.Itoa(d.Number) + " " + ui.OneLine(d.Title),
+			ID:     id + ">" + ref.label(home),
+			Name:   ref.label(home) + " " + ui.OneLine(d.Title),
 			Right:  right,
 			Branch: right == "",
 			Action: true,
@@ -142,9 +165,8 @@ func (m *detailModal) depsBody(b panes.Box) string {
 }
 
 // enterDeps handles enter on a row of the Blockers tree: an issue or pull
-// request opens over the modal, and a root folds or unfolds.
+// request opens over the modal; enter on a root does nothing.
 func (m *detailModal) enterDeps(msg treeview.OpenMsg) tea.Cmd {
-	p := m.side
 	if v, ok := msg.Node.Value.(depNode); ok && v.dep.Number != 0 {
 		d := v.dep
 		repo := d.Repo
@@ -156,7 +178,5 @@ func (m *detailModal) enterDeps(msg treeview.OpenMsg) tea.Cmd {
 		}
 		return func() tea.Msg { return ui.OpenIssueMsg{Repo: repo, Number: d.Number, Over: m} }
 	}
-	var cmd tea.Cmd
-	p.deps, cmd = p.deps.Update(msg)
-	return cmd
+	return nil
 }
