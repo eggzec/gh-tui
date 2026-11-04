@@ -39,9 +39,10 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 	return k
 }
 
-// bindings lists every pane key once, for the help.
+// bindings lists every pane key once, for the help. The jump stands for the
+// digits in the hints only, so the help lists the digits themselves.
 func (k paneKeys) bindings() []key.Binding {
-	return append([]key.Binding{k.next, k.prev, k.zoom, k.jump}, k.pane[:]...)
+	return append([]key.Binding{k.next, k.prev, k.zoom}, k.pane[:]...)
 }
 
 // digit returns the pane whose digit msg is, if it is one.

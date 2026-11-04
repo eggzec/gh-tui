@@ -106,13 +106,6 @@ var contexts = []Context{
 	// The diff of a file or of the whole patch, over the panes.
 	{Name: "pull_diff", Title: "Diff", Reach: ReachPane, Parent: "pull_modal"},
 	{Name: "issue_modal", Title: "Issue", Reach: ReachScreen, Modal: true},
-	{Name: "issue_description", Title: "Description", Reach: ReachPane, Parent: "issue_modal"},
-	{Name: "issue_conversation", Title: "Conversation", Reach: ReachPane, Parent: "issue_modal"},
-	{Name: "issue_involved", Title: "Involved", Reach: ReachPane, Parent: "issue_modal"},
-	{Name: "issue_development", Title: "Development", Reach: ReachPane, Parent: "issue_modal"},
-	{Name: "issue_blockers", Title: "Blockers", Reach: ReachPane, Parent: "issue_modal"},
-	// The preview beside or under a pane's list, in a zoomed pane.
-	{Name: "issue_preview", Title: "Preview", Reach: ReachPane, Parent: "issue_modal"},
 	// The links of a pull request or an issue show in place of what its
 	// modal showed, so its keys are a layer of their own and the modal's
 	// don't work.
