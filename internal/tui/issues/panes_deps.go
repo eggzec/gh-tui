@@ -42,7 +42,7 @@ type depNode struct {
 func (m *detailModal) newDeps(keys config.Keymap) treeview.Model {
 	t := treeview.New(treeview.Lazy(m.depChildren),
 		treeview.WithContext(m.ctx),
-		treeview.WithKeyMap(treeview.NewKeyMap(ui.Lookup(keys, ctxSideInvolved))),
+		treeview.WithKeyMap(sideKeys(keys)),
 		treeview.WithStyles(m.theme.Tree(m.icons)),
 		treeview.WithIcons(m.depIcon),
 		treeview.WithEmpty("none", ""),
@@ -113,7 +113,7 @@ func depRows(id string, pn depNode, deps []core.Dependency) []treeview.Node {
 		case slices.Contains(pn.trail, d.Number):
 			right = "cycle"
 		case len(trail) > maxDepDepth:
-			right = "..."
+			right = "deeper"
 		}
 		out = append(out, treeview.Node{
 			ID:     id + ">#" + strconv.Itoa(d.Number),

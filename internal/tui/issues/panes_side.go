@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
@@ -19,6 +20,26 @@ import (
 // sideKeyContexts are the contexts whose tree keys the side panes use: the
 // trees are those of the pull request modal, so the keys are the same.
 const ctxSideInvolved = "pull_involved"
+
+// sideKeys returns the tree keys of the side panes: the context has no mark
+// action, which a tree of people or issues has nothing to mark for.
+func sideKeys(keys config.Keymap) treeview.KeyMap {
+	look := ui.Lookup(keys, ctxSideInvolved)
+	if s, ok := look.(keymap.Scoped); ok {
+		look = noMark{s}
+	}
+	return treeview.NewKeyMap(look)
+}
+
+// noMark is a lookup that gives no keys to the mark action.
+type noMark struct{ keymap.Scoped }
+
+func (n noMark) Of(action string) []string {
+	if action == "mark" {
+		return nil
+	}
+	return n.Scoped.Of(action)
+}
 
 // sidePanes are the Involved and Development panes: the people of the issue,
 // and the pull requests that close it.
@@ -41,7 +62,7 @@ type linksMsg struct {
 // newSide makes the panes with the keys of the trees.
 func newSide(keys config.Keymap) *sidePanes {
 	p := &sidePanes{inv: involved.New(), dev: dev.New(dev.Options{HideCloses: true})}
-	p.inv.SetKeyMap(treeview.NewKeyMap(ui.Lookup(keys, ctxSideInvolved)))
+	p.inv.SetKeyMap(sideKeys(keys))
 	p.dev.SetKeyMap(dev.NewKeyMap(keys))
 	return p
 }

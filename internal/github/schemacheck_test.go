@@ -156,6 +156,8 @@ var restCalls = []restCall{
 	{Func: "GetIssue", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}", Decode: restIssue{}},
 	{Func: "GetIssueKind", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}", Decode: restIssue{}},
 	{Func: "ListIssueComments", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}/comments", Query: []string{"per_page"}, Decode: []issueComment{}},
+	{Func: "ListIssueDependencies", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by", Query: []string{"per_page"}, Decode: []issueDependency{}},
+	{Func: "ListIssueDependencies", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking", Query: []string{"per_page"}, Decode: []issueDependency{}},
 	{Func: "ProbeIssues", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/issues", Query: []string{"state", "sort", "direction", "per_page"}},
 	{Func: "ProbePullRequests", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/pulls", Query: []string{"state", "sort", "direction", "per_page"}},
 	{Func: "SetIssueState", Method: http.MethodPatch, Path: "/repos/{owner}/{repo}/issues/{issue_number}", Decode: restIssue{}},
