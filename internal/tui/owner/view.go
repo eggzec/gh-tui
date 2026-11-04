@@ -541,6 +541,9 @@ func (s *Section) tabCount(t tab) string {
 	switch t {
 	case reposTab:
 		n = o.Profile.Repos
+		if c := s.repoCount(n); c != "" {
+			return c
+		}
 	case starsTab:
 		n = o.Stars
 	case followersTab:
@@ -566,6 +569,34 @@ func (s *Section) tabCount(t tab) string {
 	default:
 	}
 	return ui.Count(n, false)
+}
+
+// repoCount is the count of the repositories tab once its list is read: all
+// of them as the header says, with how many are loaded and, under a filter,
+// how many match, as "matched/all". It is "" while the list loads or failed,
+// and the caller shows the header's count. The header's total is the
+// profile's, which counts what the viewer may not see too, so it may exceed
+// what the list ever holds.
+func (s *Section) repoCount(all int) string {
+	l, ok := s.page.lists[reposTab].(*repoList)
+	if !ok || !l.started() {
+		return ""
+	}
+	f := &l.Feed
+	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
+		return ""
+	}
+	forms := ui.CountForms(ui.CountSpec{
+		Total:    all,
+		Loaded:   f.Loaded(),
+		Matched:  f.Shown(),
+		More:     !f.Done(),
+		Filtered: l.Filter().Active() || f.FilterQuery() != "",
+	})
+	if len(forms) == 0 {
+		return ""
+	}
+	return forms[0]
 }
 
 // failure renders err, which stopped action, in lines of w cells. The
