@@ -37,11 +37,11 @@ func (s *Section) panes() []string {
 	results := func() []string {
 		w := rw + framePad
 		c := panes.Content{
-			TopLeft: s.titleForms(s.resultsLabel(), w),
-			Body:    strings.Join(s.results(rw, rh), "\n"),
-			Focus:   s.focused && s.area == resultsArea && !s.preview,
+			TopLeft:  s.titleForms(s.resultsLabel(), w),
+			TopRight: s.countForms(),
+			Body:     strings.Join(s.results(rw, rh), "\n"),
+			Focus:    s.focused && s.area == resultsArea && !s.preview,
 		}
-		c.TopRight = s.countForms()
 		return strings.Split(s.st.frames.Frame(c, w, rh+2), "\n")
 	}
 	preview := func(w int) []string {

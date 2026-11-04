@@ -222,6 +222,8 @@ func kindStripForms(st panes.Styles, kinds []core.SearchKind, keys []string, cur
 // right of the top edge of the results, longest first, such as "12k [100]":
 // only the kinds the search API counts have one. The total is the one the
 // API reported, and the loaded count shows beside it while pages remain.
+// Under a quick filter it is "matched/all". There is none while the list
+// loads.
 func (s *Section) countForms() []string {
 	if s.text == "" || s.kind == core.SearchCode {
 		return nil
@@ -235,8 +237,14 @@ func (s *Section) countForms() []string {
 	}
 	spec := ui.CountSpec{Total: total, Loaded: total}
 	if l, ok := s.visibleHits(); ok {
-		spec.Loaded = l.feed.Len()
-		spec.More = !l.feed.Done()
+		f := l.feed
+		if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
+			return nil
+		}
+		spec.Loaded = f.Loaded()
+		spec.Matched = f.Shown()
+		spec.More = !f.Done()
+		spec.Filtered = f.FilterQuery() != ""
 	}
 	return ui.CountForms(spec)
 }
