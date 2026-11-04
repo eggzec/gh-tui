@@ -78,13 +78,38 @@ func (s *Section) renderBar() {
 		}
 		right.WriteString(st.Render(tb.label))
 	}
-	// Narrow panes name only the tab shown, and the narrowest only the
-	// repository.
-	if rw := ansi.StringWidth(right.String()); ansi.StringWidth(left)+rw+2 > s.width {
-		right.Reset()
-		right.WriteString(t.Accent.Render(tabLabel(s.tab)))
+	// The count takes the longest form that leaves the rest its room. Narrow
+	// panes name only the tab shown, and the narrowest only the repository.
+	lw, tabsRight := ansi.StringWidth(left), right.String()
+	for _, c := range s.countForms() {
+		if lw+ansi.StringWidth(c)+2+ansi.StringWidth(tabsRight)+2 <= s.width {
+			s.bar = spread(left, t.Subtle.Render(c)+"  "+tabsRight, s.width, s.icons.Ellipsis)
+			return
+		}
 	}
-	s.bar = spread(left, right.String(), s.width, s.icons.Ellipsis)
+	if lw+ansi.StringWidth(tabsRight)+2 > s.width {
+		tabsRight = t.Accent.Render(tabLabel(s.tab))
+	}
+	s.bar = spread(left, tabsRight, s.width, s.icons.Ellipsis)
+}
+
+// countForms is the forms of the count of the issues, longest first: "all
+// [loaded]" with the total GitHub told, or the loaded count alone while it is
+// unknown. Under a filter it is "matched/all". There is none while the list
+// loads. The total counts what a search of the list's text finds, which for a
+// milestone filter may differ from the list.
+func (s *Section) countForms() []string {
+	f := &s.list
+	if s.total == nil || f.Len() == 0 && (!f.Done() || f.Err() != nil) {
+		return nil
+	}
+	return ui.CountForms(ui.CountSpec{
+		Total:    int(s.total.Load()),
+		Loaded:   f.Loaded(),
+		Matched:  f.Shown(),
+		More:     !f.Done(),
+		Filtered: s.query != "" || f.FilterQuery() != "",
+	})
 }
 
 // spread puts left and right at the two ends of a line width cells wide,

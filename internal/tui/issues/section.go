@@ -5,6 +5,7 @@ package issues
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -62,6 +63,9 @@ type Section struct {
 	// never reads the section from another goroutine.
 	list       feed.Model[core.Issue]
 	cancelList context.CancelFunc
+	// total is the number of issues GitHub says the list holds, 0 while
+	// unknown; the list's fetch stores it from its first page.
+	total *atomic.Int64
 	// pins are the numbers of the pinned issues shown above list, and
 	// pinGutters the gutters of their rows.
 	pins       *pinKeys
@@ -246,9 +250,14 @@ func (s *Section) newList() feed.Model[core.Issue] {
 	pins.store(pinned)
 	s.pins = pins
 	s.renderPinGutters()
+	total := &atomic.Int64{}
+	s.total = total
 	fetch := ui.FeedPages("list.issues", query, func(ctx context.Context, q issuesvc.ListQuery, again bool) (core.Page[core.Issue], error) {
 		q.Again = again
 		p, err := svc.List(ctx, q)
+		if p.Total > 0 {
+			total.Store(int64(p.Total))
+		}
 		// The pinned issues are shown above, also when the page was kept.
 		p.Items = pins.drop(p.Items)
 		return p, err
