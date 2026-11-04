@@ -11,9 +11,9 @@ func TestConvReactTicksAndSends(t *testing.T) {
 	t.Parallel()
 	svc := convService()
 	h, m := convActions(t, svc, "ann", "C1", nil)
-	press(t, h, "e")
+	press(t, h, "R")
 	if _, ok := m.top().(*prpanes.TickOverlay[string]); !ok {
-		t.Fatalf("e opens %T, want the reactions checklist", m.top())
+		t.Fatalf("R opens %T, want the reactions checklist", m.top())
 	}
 	press(t, h, "space")
 	if got := svc.changes(); len(got) != 0 {
@@ -32,7 +32,7 @@ func TestConvReactNeedsAComment(t *testing.T) {
 	t.Parallel()
 	svc := convService()
 	h, m := convActions(t, svc, "ann", "R1", nil)
-	msgs := press(t, h, "e")
+	msgs := press(t, h, "R")
 	if got := toasts(msgs); !slices.Equal(got, []string{"select a comment to react to"}) {
 		t.Errorf("toasts %v, want the hint", got)
 	}

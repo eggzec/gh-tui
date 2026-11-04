@@ -45,4 +45,4 @@ Conversation
   resolve | T | T | on
   delete | D | D | on
   comment | c | c | on
-  react | e | e | on
+  react | R | R | on
