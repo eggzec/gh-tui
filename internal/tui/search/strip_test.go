@@ -119,9 +119,10 @@ func TestCountFormsWhileLoading(t *testing.T) {
 	}
 }
 
-// The narrow results pane keeps the total alone, and a total below what is
-// loaded, which the search can't know, shows the loaded count alone.
-func TestCountFormsNarrowAndUnknown(t *testing.T) {
+// A total below what is loaded, which the search can't know, shows the
+// loaded count alone.
+func TestCountFormsUnknownTotal(t *testing.T) {
+	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
 	if got := s.countForms(); !slices.Equal(got, []string{"43 [30+]", "43"}) {
@@ -130,6 +131,40 @@ func TestCountFormsNarrowAndUnknown(t *testing.T) {
 	s.counts[core.SearchRepos] = 3
 	if got := s.countForms(); !slices.Equal(got, []string{"30+"}) {
 		t.Errorf("forms %q for a total below the loaded count, want [30+]", got)
+	}
+}
+
+// The count on the results frame steps down through its forms as the
+// section narrows, and is never cut mid-form.
+func TestCountRendersNarrow(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		width int
+		want  string
+	}{
+		{120, "43 [30+]"},
+		{80, "43 [30+]"},
+		{26, "43"},
+	} {
+		s := newSection(t, newFake(), tc.width, 24)
+		typeText(t, s, "tea")
+		var title string
+		for line := range strings.Lines(ansi.Strip(s.View())) {
+			if strings.Contains(line, "Repositories") && strings.Contains(line, "43") {
+				title = line
+				break
+			}
+		}
+		if title == "" {
+			t.Errorf("width %d: no results title with the count, view:\n%s", tc.width, ansi.Strip(s.View()))
+			continue
+		}
+		if !strings.Contains(title, tc.want) {
+			t.Errorf("width %d: title %q lacks %q", tc.width, title, tc.want)
+		}
+		if tc.want == "43" && strings.Contains(title, "[") {
+			t.Errorf("width %d: title %q keeps the loaded form", tc.width, title)
+		}
 	}
 }
 
