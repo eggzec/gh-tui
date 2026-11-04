@@ -170,18 +170,25 @@ func (r *Renderer) swapLinks(out string) string {
 		b.WriteString(out[pos:sp.start])
 		pos = sp.end
 		b.WriteString(r.stand(addr, sp.inner))
-		if n := r.printed(out, all[k:]); n > 0 {
+		if n, paren := r.printed(out, all[k:]); n > 0 {
 			prev := sp
 			for _, next := range all[k+1 : k+1+n] {
 				gap := out[prev.end:next.start]
 				if prev == sp && !strings.Contains(gap, "\n") {
 					gap = strings.Replace(gap, " ", "", 1)
 				}
+				if prev == sp && paren {
+					gap = strings.Replace(gap, "(", "", 1)
+				}
 				b.WriteString(gap)
 				b.WriteRune(goneMark)
 				prev = next
 			}
 			pos = prev.end
+			if paren {
+				// The closing parenthesis of an image's address.
+				pos++
+			}
 			k += n
 		}
 	}
@@ -192,25 +199,35 @@ func (r *Renderer) swapLinks(out string) string {
 // printed returns how many of the spans after the first of spans are the
 // address glamour printed after its text: the same address, shown as it is,
 // with only space between. A long address wrapped over lines is one span
-// per line. It returns 0 if they aren't.
-func (r *Renderer) printed(out string, spans []span) int {
+// per line. It returns 0 if they aren't. An image's text is followed by its
+// address within parentheses: paren is set if they were there, and the
+// closing one comes right after the last span.
+func (r *Renderer) printed(out string, spans []span) (n int, paren bool) {
 	sp := spans[0]
 	want := r.bare(sp.url)
 	var got strings.Builder
 	for i := 1; i < len(spans); i++ {
 		next := spans[i]
-		if next.url != sp.url || r.bare(out[spans[i-1].end:next.start]) != "" {
-			return 0
+		gap := r.bare(out[spans[i-1].end:next.start])
+		if i == 1 && gap == "(" {
+			paren = true
+			gap = ""
+		}
+		if next.url != sp.url || gap != "" {
+			return 0, false
 		}
 		got.WriteString(r.bare(next.inner))
 		if got.String() == want {
-			return i
+			if paren && !strings.HasPrefix(out[next.end:], ")") {
+				return 0, false
+			}
+			return i, paren
 		}
 		if !strings.HasPrefix(want, got.String()) {
-			return 0
+			return 0, false
 		}
 	}
-	return 0
+	return 0, false
 }
 
 // stand returns inner, the text of a link to addr, within the characters

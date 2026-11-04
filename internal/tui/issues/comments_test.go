@@ -67,7 +67,7 @@ func TestCommentsShowAsMarkdown(t *testing.T) {
 		"The modal shows raw markdown",
 		"instead of rendering it.",
 		"[✓] I searched the issues",
-		"🖼 screenshot (https://github.com/user-",
+		"🖼 screenshot",
 		"Stack trace",
 		"◆ flowchart · 2 lines · View diagram ↗",
 	} {
