@@ -33,7 +33,9 @@ var listFindCases = []listFindCase{
 
 func (c listFindCase) context(t *testing.T) keyContext {
 	t.Helper()
-	for _, kc := range keyContexts() {
+	all := keyContexts()
+	for i := range all {
+		kc := all[i]
 		if kc.name == c.name {
 			if c.zoom {
 				kc.steps = append(slices.Clone(kc.steps), "global.zoom")
