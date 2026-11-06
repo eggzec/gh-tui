@@ -102,6 +102,40 @@ func BenchmarkPreviewUpdate(b *testing.B) {
 	}
 }
 
+// benchPeek returns a section with a preview box of 80 by 38 over a cached
+// Go file.
+func benchPeek(b *testing.B) *Section {
+	b.Helper()
+	f := sampleFake()
+	f.addBlob(file("AGENTS.md", 0), strings.Repeat(mainGo, 250))
+	f.cachedBlobs[file("AGENTS.md", 0).SHA] = true
+	s := loaded(b, f, 40, 40)
+	s.SetPreviewSize(80, 38)
+	for range 8 {
+		if s.PreviewTitle() == "AGENTS.md" {
+			break
+		}
+		keys(s, "down")
+	}
+	return s
+}
+
+func BenchmarkPeekView(b *testing.B) {
+	s := benchPeek(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = s.PreviewView()
+	}
+}
+
+func BenchmarkPeekSync(b *testing.B) {
+	s := benchPeek(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		s.syncPeek(false)
+	}
+}
+
 // benchFinder returns the finder open at 148 by 38, the room
 // inside the frame of a terminal of 190 by 50, over a listing of 50,000
 // files, with a query typed and the cursor a few rows down.

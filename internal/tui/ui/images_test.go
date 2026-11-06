@@ -679,6 +679,36 @@ func TestFitArrives(t *testing.T) {
 	}
 }
 
+// Cached draws only an image already on the terminal, and asks for nothing.
+func TestCachedAsksForNothing(t *testing.T) {
+	t.Parallel()
+	f := &fakeFetch{}
+	a := newTestAvatars(f, Graphics{Images: true, Cell: testCell})
+	src, box := fileOf("abc"), ImageSize{Cols: 40, Rows: 30}
+	if rows, st := a.Cached(src, box); rows != nil || st != ImageOff {
+		t.Fatalf("Cached of an unknown image = %q, %d, want nothing, off", rows, st)
+	}
+	if cmd, _ := a.Load(); cmd != nil {
+		t.Fatal("Cached queued a fetch")
+	}
+	a.Fit(src, box)
+	load(t, a)
+	rows, st := a.Cached(src, box)
+	if st != ImageShown || len(rows) != 10 {
+		t.Fatalf("Cached of a sent image = %d lines, %d, want 10 lines shown", len(rows), st)
+	}
+	if _, st := a.Cached(src, ImageSize{Cols: 20, Rows: 30}); st != ImageOff {
+		t.Errorf("Cached of another box = %d, want off", st)
+	}
+	var none *Images
+	if _, st := none.Cached(src, box); st != ImageOff {
+		t.Errorf("nil Cached = %d, want off", st)
+	}
+	if len(f.srcs) != 1 {
+		t.Errorf("fetched %d images, want the one Fit asked for", len(f.srcs))
+	}
+}
+
 // Fit draws nothing where images aren't drawn, and of no image, but draws
 // files where the config wants no avatars.
 func TestFitNotShown(t *testing.T) {
