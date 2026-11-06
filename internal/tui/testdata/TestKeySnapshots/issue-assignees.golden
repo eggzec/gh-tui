@@ -1,0 +1,22 @@
+# label | keys | help key | on or off
+
+always
+  quit | ctrl+c | ^c | on
+  help | ? | ? | on
+
+Picker (normal mode)
+  up | k up | k/↑ | on
+  down | j down | j/↓ | on
+  page up | ctrl+b pgup | ^b/pgup | on
+  page down | ctrl+f pgdown | ^f/pgdn | on
+  half page up | ctrl+u | ^u | on
+  half page down | ctrl+d | ^d | on
+  top | g g home | gg/home | on
+  bottom | G end | G/end | on
+  choose | enter | ↵ | on
+  close | esc | esc | on
+  scope | tab | tab | off
+  previous scope | shift+tab | shift+tab | off
+  search | / | / | on
+  toggle | space | space | on
+  back | backspace | backspace | on

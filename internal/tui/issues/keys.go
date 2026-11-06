@@ -55,6 +55,9 @@ type keyMap struct {
 	// a step of its modal. The list has no such key.
 	References key.Binding
 
+	// assign picks the assignees of the issue, on the Assignees group of the
+	// Involved pane.
+	Assign key.Binding
 	// confirm answers the question that close and reopen ask.
 	confirm confirm.KeyMap
 	// composer are the keys of the comment composer.
@@ -110,6 +113,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
 		React:        ui.In(keys, ctxModal).Binding("react", "react"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
+		Assign:       ui.In(keys, ctxSideInvolved).Binding("edit", "assignees"),
 		pick:         picker.NewKeyMap(ui.Lookup(keys, "picker")),
 		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		composer:     composer.NewKeyMap(ui.Lookup(keys, "composer")),
@@ -161,7 +165,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Edit, k.Delete, k.React, k.References, k.Close, k.Reopen, k.Refresh},
+		{k.Back, k.Comment, k.Label, k.Edit, k.Assign, k.Delete, k.React, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
@@ -198,7 +202,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Edit, &k.Delete, &k.React} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Assign, &k.Edit, &k.Delete, &k.React} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -230,6 +234,9 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		k.Edit.SetHelp(k.Edit.Help().Key, "edit description")
 		k.Edit = g.Gated(k.Edit, ui.ActDraft, it)
 	}
+	onPeople := m.loaded && m.side != nil && m.nav.Focus() == paneInvolved && m.side.inv.OnAssignees()
+	k.Assign.SetEnabled(k.Assign.Enabled() && onPeople)
+	k.Assign = g.Gated(k.Assign, ui.ActAssign, it)
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
 	k.React.SetEnabled(k.React.Enabled() && onConv)
 	owner := m.keys.owner

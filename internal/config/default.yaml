@@ -1320,10 +1320,11 @@ keys:
     prev_file: [K]
     # Select the commits made since your last review.
     since_review: [w]
-  # The modal of a pull request: the people on it. Expand and collapse fold
-  # the groups; enter on a person shows their latest comment. Re-request asks a
-  # reviewer who has already reviewed for another review. Edit opens the picker
-  # of the assignees or of the reviewers, from the group or one of its rows.
+  # The people on a pull request or an issue, in the Involved pane of its
+  # modal. Expand and collapse fold the groups; enter on a person shows their
+  # latest comment. Re-request asks a reviewer who has already reviewed for
+  # another review. Edit opens the picker of the assignees or of the reviewers,
+  # from the group or one of its rows; an issue has assignees only.
   pull_involved:
     up: [up, k]
     down: [down, j]
