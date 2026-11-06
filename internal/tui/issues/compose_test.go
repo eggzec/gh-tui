@@ -12,20 +12,16 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 )
 
 func TestComment(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
-	full := m.convRect().H
 
 	press(t, h, "c")
-	if m.composing != composeComment || !m.prompt.Focused() {
-		t.Fatal("c should open a focused comment prompt")
-	}
-	if h := m.convRect().H; h >= full || h+m.prompt.Height() != full {
-		t.Errorf("conversation %d + prompt %d rows, want them to share %d", h, m.prompt.Height(), full)
+	if m.composerOpen() == nil {
+		t.Fatal("c should open the composer")
 	}
 	assertFits(t, m.View(), 80, 30)
 
@@ -42,8 +38,8 @@ func TestComment(t *testing.T) {
 	if got := svc.changeCalls(); !slices.Equal(got, []string{"comment 999: Same here, fixed by the patch."}) {
 		t.Fatalf("changes = %v, want the comment", got)
 	}
-	if m.composing != composeNone || m.convRect().H != full {
-		t.Error("submitting should close the prompt and give the conversation its room back")
+	if m.composerOpen() != nil {
+		t.Error("submitting should close the composer")
 	}
 	// The rebuilt conversation shows its comments collapsed again.
 	press(t, h, "*", "G")
@@ -85,28 +81,28 @@ func TestEmptyCommentIsIgnored(t *testing.T) {
 	if got := svc.changeCalls(); len(got) != 0 || question(h) != "" {
 		t.Errorf("an empty comment asked %q and sent %v", question(h), got)
 	}
-	if m.composing != composeComment {
-		t.Error("an empty comment closed the prompt")
+	if m.composerOpen() == nil {
+		t.Error("an empty comment closed the composer")
 	}
 }
 
-// While the prompt is open, the modal's keys are text, esc included, which
-// cancels the prompt before a second esc closes the modal.
+// While the composer is open, the modal's keys are text, esc included, which
+// cancels the composer before a second esc closes the modal.
 func TestKeysWhileComposing(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
 	press(t, h, "c")
 	msgs := typeText(t, h, "qxXrofclG")
-	if got := m.prompt.Value(); got != "qxXrofclG" {
-		t.Errorf("prompt value = %q, want every key typed", got)
+	if got := m.composerOpen().Comp.Value(); got != "qxXrofclG" {
+		t.Errorf("composer value = %q, want every key typed", got)
 	}
 	if _, ok := has[ui.OpenMsg](msgs); ok || len(svc.changeCalls()) != 0 || len(svc.getCalls()) != 1 {
 		t.Errorf("keys acted on the issue: changes %v, gets %v", svc.changeCalls(), svc.getCalls())
 	}
 
 	press(t, h, "esc")
-	if h.modal() != m || m.composing != composeNone {
-		t.Error("esc should cancel the prompt, keeping the modal open")
+	if h.modal() != m || m.composerOpen() != nil {
+		t.Error("esc should cancel the composer, keeping the modal open")
 	}
 	if got := svc.changeCalls(); len(got) != 0 {
 		t.Errorf("cancel sent %v", got)
@@ -120,8 +116,8 @@ func TestKeysWhileComposing(t *testing.T) {
 func TestComposeResize(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(12)), 30)
 	press(t, h, "c")
-	if !m.prompt.Focused() {
-		t.Error("the prompt should have the focus")
+	if m.composerOpen() == nil {
+		t.Error("the composer should be open")
 	}
 	m.SetSize(60, 12)
 	assertFits(t, m.View(), 60, 12)
@@ -225,21 +221,22 @@ func TestLabelsReadLateOpensNothing(t *testing.T) {
 	h, m := openedWith(t, &fakeFacets{})
 	read := h.Update(keyMsg("L"))
 	press(t, h, "c")
-	if m.composing == composeNone {
-		t.Fatal("c opened no prompt")
+	if m.composerOpen() == nil {
+		t.Fatal("c opened no composer")
 	}
 	run(t, h, read)
-	if m.over != nil || m.composing != composeComment {
-		t.Errorf("picker open %v, composing %v", m.over != nil, m.composing)
+	o := m.composerOpen()
+	if o == nil || m.over != reactOverlay(o) {
+		t.Errorf("composer open %v, over is %T", o != nil, m.over)
 	}
 }
 
-// A question about what the prompt sends takes every key: y sends it
-// once, and n or esc go back to the prompt with the text kept.
+// A question about what the composer sends takes every key: y sends it
+// once, and n or esc go back to the composer with the text kept.
 func TestComposeAnswers(t *testing.T) {
 	tests := []struct {
 		name string
-		// open opens the prompt, and typed is what the test submits.
+		// open opens the composer, and typed is what the test submits.
 		open, typed, question string
 		want                  []string
 	}{
@@ -251,7 +248,7 @@ func TestComposeAnswers(t *testing.T) {
 				svc := newFakeService(sampleIssues(12))
 				h, m := opened(t, svc, 30)
 				press(t, h, tt.open)
-				m.prompt.SetValue(tt.typed)
+				m.composerOpen().Comp.SetValue(tt.typed)
 				press(t, h, "ctrl+s")
 				if got := question(h); got != tt.question {
 					t.Fatalf("asks %q, want %q", got, tt.question)
@@ -262,9 +259,9 @@ func TestComposeAnswers(t *testing.T) {
 				// answers the default, which is no here.
 				press(t, h, "x", "q", "ctrl+s")
 				run(t, h, h.Update(tea.PasteMsg{Content: "pasted"}))
-				run(t, h, h.Update(prompt.SubmitMsg{ID: m.prompt.ID(), Value: tt.typed}))
-				if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 || m.prompt.Value() != tt.typed {
-					t.Fatalf("after other keys asks %q with %q typed and changes %v", got, m.prompt.Value(), svc.changeCalls())
+				run(t, h, h.Update(composer.SubmitMsg{ID: m.composerOpen().Comp.ID()}))
+				if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 || m.composerOpen().Comp.Value() != tt.typed {
+					t.Fatalf("after other keys asks %q with %q typed and changes %v", got, m.composerOpen().Comp.Value(), svc.changeCalls())
 				}
 				// The answers arrive before what the first starts runs, as
 				// a repeated key does.
@@ -281,21 +278,21 @@ func TestComposeAnswers(t *testing.T) {
 				got := svc.changeCalls()
 				slices.Sort(got)
 				if answer[0] == "y" {
-					if !slices.Equal(got, tt.want) || m.composing != composeNone {
-						t.Errorf("sent %v with the prompt open %v, want %v sent once and the prompt closed", got, m.composing != composeNone, tt.want)
+					if !slices.Equal(got, tt.want) || m.composerOpen() != nil {
+						t.Errorf("sent %v with the composer open %v, want %v sent once and the composer closed", got, m.composerOpen() != nil, tt.want)
 					}
 					return
 				}
 				if len(got) != 0 {
 					t.Errorf("%v sent %v", answer, got)
 				}
-				if m.composing == composeNone || !m.prompt.Focused() || m.prompt.Value() != tt.typed {
-					t.Fatalf("%v didn't go back to the prompt with %q, has %q", answer, tt.typed, m.prompt.Value())
+				if m.composerOpen() == nil || m.composerOpen().Comp.Value() != tt.typed {
+					t.Fatalf("%v didn't go back to the composer with %q, has %q", answer, tt.typed, m.composerOpen().Comp.Value())
 				}
-				// Back at the prompt, keys are text again.
+				// Back at the composer, keys are text again.
 				press(t, h, "!")
-				if m.prompt.Value() != tt.typed+"!" {
-					t.Errorf("typing after %v gave %q", answer, m.prompt.Value())
+				if m.composerOpen().Comp.Value() != tt.typed+"!" {
+					t.Errorf("typing after %v gave %q", answer, m.composerOpen().Comp.Value())
 				}
 			})
 		}
@@ -325,7 +322,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			name: "the comment changed behind the question", open: "c", typed: "Same here.",
 			meddle: func(t *testing.T, _ *host, _ *fakeService, m *detailModal) {
 				t.Helper()
-				m.prompt.SetValue("Something else.")
+				m.composerOpen().Comp.SetValue("Something else.")
 			},
 			want: info("#999 changed meanwhile, so nothing was sent."),
 		},
@@ -335,7 +332,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			svc := newFakeService(sampleIssues(12))
 			h, m := opened(t, svc, 30)
 			press(t, h, tt.open)
-			m.prompt.SetValue(tt.typed)
+			m.composerOpen().Comp.SetValue(tt.typed)
 			press(t, h, "ctrl+s")
 			if question(h) == "" {
 				t.Fatal("the submit asked nothing")
@@ -346,8 +343,8 @@ func TestComposeAsksAgain(t *testing.T) {
 				t.Errorf("sent %v and showed %v, want only %v", svc.changeCalls(), msgs, tt.want)
 			}
 			// Nothing typed is lost.
-			if m.composing == composeNone || question(h) != "" {
-				t.Errorf("the prompt closed, or still asks %q", question(h))
+			if m.composerOpen() == nil || question(h) != "" {
+				t.Errorf("the composer closed, or still asks %q", question(h))
 			}
 		})
 	}
@@ -378,8 +375,8 @@ func TestHelpWhileComposing(t *testing.T) {
 		t.Errorf("modal help = %v, want comment and labels", got)
 	}
 	press(t, h, "c")
-	if got := enabled(m.KeyLayers()); !slices.Equal(got, []string{"submit", "cancel"}) {
-		t.Errorf("help while composing = %v, want submit and cancel", got)
+	if got := enabled(m.KeyLayers()); !slices.Equal(got, []string{"submit", "editor", "cancel"}) {
+		t.Errorf("help while composing = %v, want submit, editor and cancel", got)
 	}
 	press(t, h, "esc", "esc")
 	if got := enabled(h.KeyLayers()); slices.Contains(got, "comment") {

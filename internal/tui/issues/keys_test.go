@@ -24,7 +24,7 @@ func winner(layers []keyhelp.Layer, k string) string {
 }
 
 // The layers take a key in the order the list and the modal do: their
-// own keys before the feed's and the thread's, and the prompt alone while
+// own keys before the feed's and the thread's, and the composer alone while
 // it is open.
 func TestKeyLayersOrder(t *testing.T) {
 	h := started(t, newFakeService(sampleIssues(12)), 80, 20)
@@ -51,15 +51,15 @@ func TestKeyLayersOrder(t *testing.T) {
 		}
 	}
 	press(t, h, "c")
-	if m.composing != composeComment {
-		t.Fatal("c didn't open the prompt")
+	if m.composerOpen() == nil {
+		t.Fatal("c didn't open the composer")
 	}
 	if got := winner(m.KeyLayers(), "j"); got != "nothing" {
-		t.Errorf("j reaches %q in the prompt, want it typed", got)
+		t.Errorf("j reaches %q in the composer, want it typed", got)
 	}
 	press(t, h, "esc")
-	if m.composing != composeNone || h.modal() != m {
-		t.Error("esc in the prompt didn't just close it")
+	if m.composerOpen() != nil || h.modal() != m {
+		t.Error("esc in the composer didn't just close it")
 	}
 }
 

@@ -310,7 +310,7 @@ func TestOpenFromSearch(t *testing.T) {
 			t.Fatalf("modal = %v, want eggzec/gh-tui#999 before its title is read", m)
 		}
 		press(t, h, "X", "c", "L")
-		if len(svc.changeCalls()) != 0 || m.composing != composeNone {
+		if len(svc.changeCalls()) != 0 || m.composerOpen() != nil {
 			t.Error("keys acted before the issue arrived")
 		}
 		assertFits(t, m.View(), 80, 20)
@@ -539,8 +539,8 @@ func TestOwnerKeyInModal(t *testing.T) {
 		t.Errorf("modal help = %v, want the author key", got)
 	}
 	press(t, h, "c", "@")
-	if h.modal() != m || !strings.Contains(m.prompt.Value(), "@") {
-		t.Fatalf("@ didn't type into the comment: %q", m.prompt.Value())
+	if h.modal() != m || !strings.Contains(m.composerOpen().Comp.Value(), "@") {
+		t.Fatalf("@ didn't type into the comment: %q", m.composerOpen().Comp.Value())
 	}
 	press(t, h, "esc")
 	login := m.issue.Author.Login

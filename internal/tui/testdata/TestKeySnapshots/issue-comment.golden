@@ -4,7 +4,7 @@ always
   quit | ctrl+c | ^c | on
   help | ? | ? | off
 
-Prompt (types)
+Composer (types)
   submit | ctrl+s | ^s | on
-  submit | enter | ↵ | off
+  editor | ctrl+e | ^e | on
   cancel | esc | esc | on

@@ -21,11 +21,11 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 )
@@ -113,12 +113,10 @@ type detailModal struct {
 	// loaded or the modal closed.
 	resume func()
 
-	// prompt is where a comment or the labels are written, under the
-	// thread, while composing says what for.
-	prompt    prompt.Model
-	composing composing
-	// editID and editFrom are the comment being edited and its body before.
-	editID, editFrom string
+	// edit is the comment the open composer rewrites, or nil for a new one.
+	edit *editing
+	// drafts keeps the text of a comment between sessions, or is nil.
+	drafts composer.Drafts
 	// ask is the change waiting for the user to confirm it, on the last
 	// line, in the styles of confirmSt.
 	ask *confirm.Ask
@@ -185,6 +183,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		id:      modalIDs.Add(1),
 		voice:   s.voice,
 		facets:  s.facets,
+		drafts:  s.drafts,
 	}
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
@@ -290,6 +289,9 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 		m.refs.SetTheme(t)
 	}
 	m.confirmSt = t.Confirm(m.icons)
+	if o := m.composerOpen(); o != nil {
+		o.Comp.SetStyles(t.Prompt(m.icons))
+	}
 	m.frames = panes.DefaultStyles(t.Dark)
 	m.frames.Ellipsis = m.icons.Ellipsis
 	m.frames.Separator = m.icons.Separator
@@ -297,9 +299,6 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	m.chips = m.rows.newChips()
 	m.restyleConv()
 	m.refreshSide()
-	if m.composing != composeNone {
-		m.prompt.SetStyles(t.Prompt(m.icons))
-	}
 	if m.loaded {
 		// The header is styled too.
 		_ = m.show()
@@ -375,7 +374,7 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.convOn = true
 	m.peekStamp = m.conv.Version()
 	m.peekVer++
-	if m.composing == composeNone && m.nav.Focus() == paneConversation {
+	if m.composerOpen() == nil && m.nav.Focus() == paneConversation {
 		m.conv.Focus()
 	}
 	return m.conv.Init()
@@ -539,25 +538,20 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 			m.svc.Invalidate(m.repo)
 		}
 		return tea.Batch(m.reload(), m.buildConv())
-	case prompt.SubmitMsg, prompt.CancelMsg:
-		return m.promptDone(msg)
-	case tea.PasteMsg:
-		if m.composing != composeNone {
-			// A paste while the prompt's text is being confirmed would
-			// change what the question asks about.
-			if m.ask != nil {
-				return nil
-			}
-			var cmd tea.Cmd
-			m.prompt, cmd = m.prompt.Update(msg)
-			return cmd
-		}
+	case composer.DiscardedMsg:
+		return nil
 	}
 	if _, ok := msg.(tea.MouseMsg); ok && m.refs != nil {
 		// The links cover the thread, which would scroll under the mouse.
 		return nil
 	}
-	cmd := m.convUpdate(msg)
+	var over tea.Cmd
+	if m.composerOpen() != nil {
+		// The composer's own messages (its submit, its cancel, a draft
+		// read, the cursor) come back here and belong to it.
+		over = m.pressOver(msg)
+	}
+	cmd := tea.Batch(over, m.convUpdate(msg))
 	if m.side != nil {
 		// The loads and the spinner of the Blockers tree.
 		var deps tea.Cmd
@@ -573,13 +567,6 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if m.ask != nil {
 		return m.answer(msg)
-	}
-	if m.composing != composeNone {
-		// Every key is typing, even the modal's own; esc cancels the
-		// prompt, not the modal.
-		var cmd tea.Cmd
-		m.prompt, cmd = m.prompt.Update(msg)
-		return cmd
 	}
 	if m.over != nil {
 		return m.pressOver(msg)
@@ -601,7 +588,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.owner) && ui.Author(m.issue.Author) != "":
 		return m.author()
 	case keymap.Matches(msg, k.Comment):
-		return m.compose(composeComment, ui.ActComment)
+		return m.openComposer(nil)
 	case keymap.Matches(msg, k.Label):
 		return m.openLabels()
 	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneConversation:

@@ -80,7 +80,7 @@ func TestIssueModalReferencesKey(t *testing.T) {
 	}
 	// The keys of the issue don't act on the links behind them.
 	press(t, h, "X", "c")
-	if m.ask != nil || m.composing != composeNone {
+	if m.ask != nil || m.composerOpen() != nil {
 		t.Error("a key of the issue acted while the links show")
 	}
 	// Back steps back to the thread, and esc closes the modal.
@@ -130,14 +130,14 @@ func TestIssueModalReferencesPickOpensWithBack(t *testing.T) {
 func TestIssueModalReferencesKeyOffWhileComposing(t *testing.T) {
 	h, m, _ := openedRefs(t)
 	press(t, h, "c")
-	if m.composing == composeNone {
+	if m.composerOpen() == nil {
 		t.Fatal("c didn't open the prompt")
 	}
 	press(t, h, "#")
 	if m.refs != nil {
 		t.Error("# showed the links over the prompt")
 	}
-	if got := m.prompt.Value(); !strings.Contains(got, "#") {
+	if got := m.composerOpen().Comp.Value(); !strings.Contains(got, "#") {
 		t.Errorf("# wasn't typed: %q", got)
 	}
 	if cmd, ok := m.ShowReferences(); !ok || cmd != nil || m.refs != nil {

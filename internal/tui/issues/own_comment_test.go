@@ -29,8 +29,11 @@ func TestEditOwnComment(t *testing.T) {
 	svc, h, m, it := ownModal(t)
 
 	press(t, h, "E")
-	if m.composing != composeEdit || !sameText(m.prompt.Value(), it.Body) {
-		t.Fatalf("E opened composing %v with %q, want the comment's text %q to edit", m.composing, m.prompt.Value(), it.Body)
+	if m.composerOpen() == nil {
+		t.Fatal("E opened no composer")
+	}
+	if !sameText(m.composerOpen().Comp.Value(), it.Body) {
+		t.Fatalf("E opened with %q, want the comment's text %q to edit", m.composerOpen().Comp.Value(), it.Body)
 	}
 	if m.HasDraft() {
 		t.Error("an unchanged text is no draft")
@@ -48,8 +51,8 @@ func TestEditOwnComment(t *testing.T) {
 	if len(got) != 1 || !strings.HasPrefix(got[0], "edit comment 999 "+it.ID+": ") || !strings.HasSuffix(got[0], " Edited.") {
 		t.Fatalf("changes = %v, want the edit of %s", got, it.ID)
 	}
-	if m.composing != composeNone {
-		t.Error("saving should close the prompt")
+	if m.composerOpen() != nil {
+		t.Error("saving should close the composer")
 	}
 }
 
@@ -57,7 +60,7 @@ func TestEditOnlyOwnComment(t *testing.T) {
 	svc, h, m, _ := ownModal(t)
 	m.viewer = "someone-else"
 	press(t, h, "E")
-	if m.composing != composeNone {
+	if m.composerOpen() != nil {
 		t.Error("E opened the prompt on a comment that is not yours")
 	}
 	if len(svc.changeCalls()) != 0 {

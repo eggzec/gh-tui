@@ -91,7 +91,7 @@ func TestEditOnConversationStillEditsComment(t *testing.T) {
 	t.Parallel()
 	_, h, m, _ := ownModal(t)
 	press(t, h, "E")
-	if m.composing != composeEdit || m.over != nil {
-		t.Errorf("E in the Conversation opened composing %v over %v, want the comment prompt", m.composing, m.over)
+	if m.composerOpen() == nil {
+		t.Errorf("E in the Conversation opened %v, want the comment composer", m.over)
 	}
 }

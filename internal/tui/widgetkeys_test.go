@@ -16,7 +16,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
 
 // TestWidgetActionsAreInTheConfig checks that every action the key maps of
@@ -32,7 +31,6 @@ func TestWidgetActionsAreInTheConfig(t *testing.T) {
 	}{
 		{"command_line", cmdline.KeyMap{}},
 		{"help", keyhelp.KeyMap{}},
-		{"prompt", prompt.KeyMap{}},
 		{"composer", composer.KeyMap{}},
 		{"finder", finder.KeyMap{}},
 		{"picker", picker.KeyMap{}},

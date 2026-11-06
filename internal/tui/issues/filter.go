@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/filterform"
 )
 
@@ -29,6 +30,12 @@ type Facets interface {
 // typed.
 func WithFacets(f Facets) Option {
 	return func(s *Section) { s.facets = f }
+}
+
+// WithDrafts keeps the text of an unsent comment in d, so a closed composer
+// finds it again.
+func WithDrafts(d composer.Drafts) Option {
+	return func(s *Section) { s.drafts = d }
 }
 
 // tab is a state the list shows, as a tab in its bar.

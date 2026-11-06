@@ -25,7 +25,7 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 		m.closeRefs()
 		return nil, true
 	case "owner":
-		if m.ask != nil || m.refs != nil || m.composing != composeNone {
+		if m.ask != nil || m.refs != nil || m.over != nil {
 			return nil, false
 		}
 		return m.author(), true
