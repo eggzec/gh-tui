@@ -16,7 +16,6 @@ func TestHasDraft(t *testing.T) {
 		{"no prompt", composeNone, "", false},
 		{"an empty comment", composeComment, "  ", false},
 		{"a typed comment", composeComment, "On it.", true},
-		{"typed labels are no draft", composeLabels, "bug", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -83,7 +83,7 @@ func TestChangesAreCapitals(t *testing.T) {
 		svc := newFakeService(sampleIssues(12))
 		h, m := opened(t, svc, 30)
 		press(t, h, key)
-		if got := m.composing == composeLabels; got != want {
+		if got := m.over != nil; got != want {
 			t.Errorf("%s opens the labels prompt: %v, want %v", key, got, want)
 		}
 	}

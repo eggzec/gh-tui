@@ -414,13 +414,6 @@ func TestViewModal(t *testing.T) {
 		assertFits(t, v, 80, 24)
 		golden.RequireEqual(t, v)
 	})
-	t.Run("labels prompt", func(t *testing.T) {
-		press(t, h, "L")
-		defer press(t, h, "esc")
-		v := m.View()
-		assertFits(t, v, 80, 24)
-		golden.RequireEqual(t, v)
-	})
 	t.Run("closed header", func(t *testing.T) {
 		it := m.issue
 		it.State = core.StateClosed
@@ -487,11 +480,9 @@ func TestModalFailureToasts(t *testing.T) {
 			typeText(t, h, "Nope")
 			return press(t, h, "ctrl+s", "y")
 		}},
-		{"labels", "add bug to #999", func(t *testing.T, h *host, m *detailModal) []tea.Msg {
+		{"labels", "labels on #999", func(t *testing.T, h *host, _ *detailModal) []tea.Msg {
 			t.Helper()
-			press(t, h, "L")
-			m.prompt.SetValue("enhancement, help wanted, bug")
-			return press(t, h, "enter", "y")
+			return press(t, h, "L", "space", "enter", "y")
 		}},
 	}
 	for _, f := range uitest.Failures() {

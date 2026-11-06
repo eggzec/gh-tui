@@ -613,7 +613,7 @@ func TestMutationCommandsCompleteWhereTheyWork(t *testing.T) {
 }
 
 // TestLabelsCommandOpensTheEditor checks that labels, with the key unbound,
-// opens the label editor of the issue, whose submit asks before it sends.
+// opens the labels picker of the issue.
 func TestLabelsCommandOpensTheEditor(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
@@ -633,13 +633,8 @@ func TestLabelsCommandOpensTheEditor(t *testing.T) {
 					}
 				}
 				runCommand(t, m, "labels")
-				if got := layerNames(m.keyLayers()); got != "always, prompt (types)" {
-					t.Fatalf(":labels reached %q, want the editor: toasts %s", got, toasted(m))
-				}
-				typeKeys(m, ", extra")
-				driveKeys(t, m, m.key(enter))
-				if got := layerNames(m.keyLayers()); got != "always, confirm" {
-					t.Errorf("submitting the labels reached %q, want the question", got)
+				if got := layerNames(m.keyLayers()); got != "always, picker_normal" {
+					t.Fatalf(":labels reached %q, want the picker: toasts %s", got, toasted(m))
 				}
 			})
 		})

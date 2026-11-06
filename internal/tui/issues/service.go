@@ -37,11 +37,14 @@ type Service interface {
 	// the op that sends it.
 	Close(repo core.RepoRef, number int) *optimistic.Op
 	Reopen(repo core.RepoRef, number int) *optimistic.Op
-	// Comment, AddLabels and RemoveLabel do the same for a new comment
-	// and for labels.
+	// Comment does the same for a new comment.
 	Comment(repo core.RepoRef, number int, body string) *optimistic.Op
-	AddLabels(repo core.RepoRef, number int, names []string) *optimistic.Op
-	RemoveLabel(repo core.RepoRef, number int, name string) *optimistic.Op
+	// EditLabels adds the labels add and removes those named in remove in the
+	// cache at once and returns the op that sends the change.
+	EditLabels(repo core.RepoRef, number int, add []core.Label, remove []string) *optimistic.Op
+	// EditAssignees changes who the issue is assigned to in the cache at once
+	// and returns the op that sends the change.
+	EditAssignees(repo core.RepoRef, number int, add []core.User, remove []string) *optimistic.Op
 	// EditIssue sets the title and the body of the issue in the cache at once
 	// and returns the op that sends them.
 	EditIssue(repo core.RepoRef, number int, title, body string) *optimistic.Op
