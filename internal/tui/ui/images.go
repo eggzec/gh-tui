@@ -455,6 +455,25 @@ func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
 	return nil, ImageLoading
 }
 
+// Cached is Fit for a view that asks for nothing: it returns the lines of
+// the image of src only if the image of this fit is already on the
+// terminal, and otherwise none and ImageOff. It queues no fetch and no send.
+func (a *Images) Cached(src ImageSource, size ImageSize) ([]string, ImageState) {
+	if !a.drawing() || !src.file() {
+		return nil, ImageOff
+	}
+	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells)}
+	animate := a.animate && a.g.Animate
+	e, ok := a.byKey[imageKey(src, size, true, animate)]
+	if !ok || e.state != imageReady || !e.sent {
+		return nil, ImageOff
+	}
+	// Drawn in this update, so that it is not pruned from under the view.
+	e.drawn = a.gen
+	c := e.cells()
+	return termimg.Rows(e.id, c.Cols, c.Rows), ImageShown
+}
+
 // want returns the image of src in a box of size, drawn in this update,
 // and asks for it if it is still to be fetched or sent.
 func (a *Images) want(src ImageSource, size ImageSize, fit bool) *entry {
