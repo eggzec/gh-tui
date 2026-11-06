@@ -61,6 +61,9 @@ type fileImage struct {
 	pic   []string
 	// ellipsis ends the text shown while the image loads.
 	ellipsis string
+	// cached draws only an image that is already on the terminal, and asks
+	// for none, as a passive preview does.
+	cached bool
 }
 
 // set takes the file the pager shows from now: e, whose content is b, or
@@ -141,6 +144,9 @@ func (fi *fileImage) rows(pg *pager.Model) ([]string, ui.ImageState) {
 		return nil, ui.ImageOff
 	}
 	src := ui.ImageSource{Repo: fi.repo, SHA: fi.entry.SHA, Size: fi.blob.Size}
+	if fi.cached {
+		return fi.images.Cached(src, ui.ImageSize{Cols: w, Rows: h})
+	}
 	return fi.images.Fit(src, ui.ImageSize{Cols: w, Rows: h})
 }
 

@@ -86,6 +86,9 @@ type Section struct {
 	dirs     *ui.Ahead[filesvc.TreeQuery]
 	slots    *ui.Slots
 
+	// peek is the passive preview beside the zoomed tree.
+	peek *peek
+
 	width, height int
 	focused       bool
 	theme         ui.Theme
@@ -123,6 +126,7 @@ func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *
 	// Bubbles copy the voice, and read the icons through it.
 	s.voice.Icons = &s.icons
 	s.newAheads()
+	s.peek = s.newPeek()
 	s.fileIcons = newFileIcons(s.icons, s.theme)
 	s.hint = "Search for a repository to browse its files."
 	if k := ui.Binding(keys, config.ActionSearch, "search").Help().Key; k != "" {
@@ -211,9 +215,18 @@ func (s *Section) Init() tea.Cmd {
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
 	if s.tree == nil {
+		s.syncPeek(false)
 		return cmd
 	}
-	return tea.Batch(cmd, s.observe(), s.readAhead())
+	cmd = tea.Batch(cmd, s.observe(), s.readAhead())
+	// What changes the cache or the look draws the peek again.
+	switch msg.(type) {
+	case ui.AheadMsg, ui.OnlineMsg, ui.SettingsMsg, ui.ImagesMsg, ui.SyncMsg:
+		s.syncPeek(true)
+	default:
+		s.syncPeek(false)
+	}
+	return cmd
 }
 
 func (s *Section) update(msg tea.Msg) tea.Cmd {
@@ -502,6 +515,7 @@ func (s *Section) SetTheme(t ui.Theme) {
 	}
 	s.blank.SetStyles(s.styles)
 	s.blank.SetEmpty("No repository selected", s.hint)
+	s.setPeekTheme(t)
 }
 
 // Focus makes the section react to keys.
