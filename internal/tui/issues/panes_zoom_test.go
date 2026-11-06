@@ -6,9 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -100,6 +102,110 @@ func TestPreviewFocusDropsOnResize(t *testing.T) {
 	m.SetSize(110, 30)
 	if m.nav.InPreview(m.paneLayout()) {
 		t.Error("the preview took the focus back on a wider window")
+	}
+}
+
+func TestInvolvedPreviewDrawsConversation(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	svc.addComments(999, core.Comment{ID: "IC_p", Author: core.User{Login: "ann"}, Body: "Peeked at."})
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	l := m.paneLayout()
+	b, ok := l.Box(paneInvolved, panes.Preview)
+	if !ok {
+		t.Fatal("the zoomed Involved pane has no preview")
+	}
+	body, ok := m.peekBody(b.Rect.Inner().W)
+	if !ok || body == "" {
+		t.Fatalf("the conversation isn't drawn: %q", body)
+	}
+	if again, _ := m.peekBody(b.Rect.Inner().W); again != body {
+		t.Error("a second draw at the same width differs")
+	}
+	v := m.View()
+	assertFits(t, v, 110, 30)
+	if !strings.Contains(ansi.Strip(v), "Peeked at.") {
+		t.Errorf("the preview lacks the comment:\n%s", ansi.Strip(v))
+	}
+}
+
+type strayMsg struct{}
+
+func TestPreviewKeepsDrawnOnStrayMessage(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	svc.addComments(999, core.Comment{ID: "IC_p", Author: core.User{Login: "ann"}, Body: "Peeked at."})
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	// The first message settles the stamp of what the conversation draws.
+	m.Update(strayMsg{})
+	m.View()
+	ver := m.peekVer
+	m.Update(strayMsg{})
+	m.Update(strayMsg{})
+	m.View()
+	if m.peekVer != ver {
+		t.Errorf("a message the conversation ignores drew the preview again: %d, was %d", m.peekVer, ver)
+	}
+}
+
+func TestPreviewDrawsChangePastViewport(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	for i := range 40 {
+		svc.addComments(999, core.Comment{ID: fmt.Sprintf("IC_%d", i), Author: core.User{Login: "ann"}, Body: fmt.Sprintf("Early %d.", i)})
+	}
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	m.Update(strayMsg{})
+	m.View()
+	ver := m.peekVer
+	// A comment below the fold: the viewport of the conversation keeps its rows.
+	svc.addComments(999, core.Comment{ID: "IC_late", Author: core.User{Login: "bob"}, Body: "Added below the fold."})
+	_, cmd := m.conv.Recache()
+	// Feed each read's message through the modal.
+	var feed func(c tea.Cmd)
+	feed = func(c tea.Cmd) {
+		if c == nil {
+			return
+		}
+		msg := c()
+		if b, ok := msg.(tea.BatchMsg); ok {
+			for _, x := range b {
+				feed(x)
+			}
+			return
+		}
+		m.Update(msg)
+	}
+	feed(cmd)
+	if m.peekVer == ver {
+		t.Fatal("a comment past the viewport didn't draw the preview again")
+	}
+	l := m.paneLayout()
+	b, ok := l.Box(paneInvolved, panes.Preview)
+	if !ok {
+		t.Fatal("the zoomed Involved pane has no preview")
+	}
+	body, _ := m.peekBody(b.Rect.Inner().W)
+	if !strings.Contains(ansi.Strip(body), "Added below the fold.") {
+		t.Errorf("the preview lacks the new comment:\n%s", ansi.Strip(body))
 	}
 }
 
