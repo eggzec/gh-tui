@@ -36,8 +36,10 @@ type diffOverlay struct {
 	// numbers is whether the diff shows its line numbers, which the diff
 	// keeps across the views built over it and loses when the overlay closes.
 	numbers bool
-	keys    diffKeys
-	mode    diffview.Mode
+	// wrap is whether long lines wrap, kept the same way.
+	wrap bool
+	keys diffKeys
+	mode diffview.Mode
 	// path is the file shown while the diff is of one file.
 	path string
 	// w and h are the size of the last drawing, for a view built after it.
@@ -107,6 +109,7 @@ func (o *diffOverlay) build() tea.Cmd {
 		diff.WithStyles(o.m.theme.Diff(o.m.icons)),
 		diff.WithFocused(true),
 		diff.WithLineNumbers(o.numbers),
+		diff.WithWrap(o.wrap),
 	)
 	if o.w > 0 && o.h > 0 {
 		o.d.SetSize(o.w, o.h)
@@ -276,6 +279,7 @@ func (o *diffOverlay) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	o.d, cmd = o.d.Update(msg)
 	o.numbers = o.d.LineNumbers()
+	o.wrap = o.d.Wrap()
 	if fm, ok := msg.(diff.FilesMsg); ok && fm.ID == o.d.ID() {
 		cmd = tea.Batch(cmd, o.reapplyFull(fm.Files))
 	}

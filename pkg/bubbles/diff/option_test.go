@@ -133,6 +133,17 @@ func TestOptionKeys(t *testing.T) {
 			t.Errorf("after -N again: numbers %v, flash %q", m.LineNumbers(), m.flash)
 		}
 	})
+	t.Run("wrap", func(t *testing.T) {
+		t.Parallel()
+		m := keys(t, load1(t), "-", "S")
+		if !m.Wrap() || m.flash != noteWrap {
+			t.Errorf("after -S: wrap %v, flash %q", m.Wrap(), m.flash)
+		}
+		m = keys(t, m, "-", "S")
+		if m.Wrap() || m.flash != noteChop {
+			t.Errorf("after -S again: wrap %v, flash %q", m.Wrap(), m.flash)
+		}
+	})
 	t.Run("no such option", func(t *testing.T) {
 		t.Parallel()
 		m := keys(t, load1(t), "-", "z")

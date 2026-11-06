@@ -28,5 +28,6 @@ Option (types)
   next match | n | n | off
   prev match | N | N | off
   option | - | - | on
+  chop or wrap long lines | S | S | on
   line numbers | N | N | on
   cancel | esc | esc | on
