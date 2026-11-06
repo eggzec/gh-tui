@@ -47,6 +47,29 @@ func NextRow(s string, i, cols int) (j, used int) {
 	return j, used
 }
 
+// Rows returns how many rows s takes when wrapped to cols cells: one for an
+// empty line.
+func Rows(s string, cols int) int {
+	n := 1
+	for j, _ := NextRow(s, 0, cols); j < len(s); j, _ = NextRow(s, j, cols) {
+		n++
+	}
+	return n
+}
+
+// Segment returns the bytes [a, e) of the wrapped row of s with index row
+// (the first is 0), and its width. A row past the end is empty.
+func Segment(s string, row, cols int) (a, e, used int) {
+	for range row {
+		if a >= len(s) {
+			return len(s), len(s), 0
+		}
+		a, _ = NextRow(s, a, cols)
+	}
+	e, used = NextRow(s, a, cols)
+	return a, e, used
+}
+
 // LeftEdge returns the first byte of s shown when scrolled left columns
 // sideways, and the blank cells before it where a wide grapheme is cut in
 // half.

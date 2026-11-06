@@ -21,6 +21,7 @@ type settings struct {
 	tabs    int
 
 	lineNumbers    bool
+	wrapOn         bool
 	highlightLimit int
 	headerMark     func(File) string
 	lineMark       func(Pos) string
@@ -44,6 +45,12 @@ func defaultSettings() settings {
 		lineNumbers:    true,
 		highlightLimit: DefaultHighlightLimit,
 	}
+}
+
+// WithWrap makes a line that does not fit continue on the rows below it,
+// instead of being cut at the edge and scrolled sideways.
+func WithWrap(on bool) Option {
+	return func(s *settings) { s.wrapOn = on }
 }
 
 // WithCollapseOver makes a file whose patch has more than lines lines start

@@ -306,9 +306,7 @@ func (m *Model) jump(i int) {
 	start, _ := m.layout.FileRow(x.file)
 	row := start + 1 + x.row
 	m.cursor = row
-	if h := m.bodyHeight(); row < m.top || row >= m.top+h {
-		m.top = row - h/2
-	}
+	m.centre(row)
 	m.dirty = true
 	m.scroll()
 	r, ok := m.layout.RowAt(row)

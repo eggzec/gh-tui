@@ -22,6 +22,7 @@ const minNumberWidth = 3
 type visible struct {
 	row    Row
 	index  int  // the row's number; -1 for none
+	sub    int  // the visual row of a wrapped line
 	status bool // the loading, error or empty row
 	sticky bool // the header that stands in for the file's rows above
 	// selected is set for a line between the anchor and the cursor.
@@ -38,24 +39,31 @@ func (m Model) View() string {
 	rows := make([]visible, h)
 	sticky := m.sticky()
 	lo, hi := m.selection()
+	r, sub := m.top, m.sub
+	numW := m.numWidth()
 	for s := range rows {
-		r := m.top + s
 		switch {
-		case s == 0 && sticky:
+		case r < n:
+			row, _ := m.layout.RowAt(r)
+			rows[s] = visible{row: row, index: r, sub: sub, selected: r >= lo && r <= hi}
+			sub++
+			if sub >= m.rowsIn(r, numW) {
+				r, sub = r+1, 0
+			}
+		case r == n && m.hasStatus():
+			rows[s] = visible{index: -1, status: true}
+			r++
+		default:
+			rows[s] = visible{index: -1}
+		}
+		// The walk above still steps over the row that the header replaces.
+		if s == 0 && sticky {
 			f, _ := m.layout.FileAt(m.top)
 			start, _ := m.layout.FileRow(f)
 			row, _ := m.layout.RowAt(start)
 			rows[s] = visible{row: row, index: start, sticky: true}
-		case r < n:
-			row, _ := m.layout.RowAt(r)
-			rows[s] = visible{row: row, index: r, selected: r >= lo && r <= hi}
-		case r == n && m.hasStatus():
-			rows[s] = visible{index: -1, status: true}
-		default:
-			rows[s] = visible{index: -1}
 		}
 	}
-	numW := m.numWidth()
 
 	var b strings.Builder
 	b.Grow(m.height * (m.width + 32))
@@ -240,16 +248,21 @@ func (m Model) plainLine(v visible, numW int) string {
 		marker = ""
 	case KindFileHeader, KindHunkHeader, KindContext, KindNote, KindBlock:
 	}
-	if mark := m.markOf(row); mark != "" {
+	numbers := m.numbers(row, numW)
+	seg := m.segmentOf(row, numW, v.sub)
+	if v.sub > 0 {
+		// A continuation row has no mark, no numbers and no marker of its own.
+		numbers = strings.Repeat(" ", m.numberCells(numW))
+		marker = strings.Repeat(" ", len(marker))
+	} else if mark := m.markOf(row); mark != "" {
 		gutter = strings.TrimSuffix(gutter, " ") + mark
 	}
-	numbers := m.numbers(row, numW)
-	width := max(m.textWidth(numW)+1-len(marker), 0)
+	width := m.textCols(row, numW)
 	hits := m.rowHits(row, v.index)
 	spans := m.rowSpans(row, v.index)
 	if spans == nil && hits != nil {
 		// The line shows plain, in the style of its marker.
-		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, nil, tokenStyles{text: style}, width, hits), m.width)
+		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, nil, tokenStyles{text: style}, width, hits, seg), m.width)
 	}
 	if spans != nil {
 		code := m.wrap.code[codeContext]
@@ -260,9 +273,9 @@ func (m Model) plainLine(v visible, numW int) string {
 			code = m.wrap.code[codeDeleted]
 		case KindFileHeader, KindHunkHeader, KindContext, KindNoNewline, KindNote, KindRaw, KindBlock:
 		}
-		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width, hits), m.width)
+		return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker)+m.coloured(row, spans, code, width, hits, seg), m.width)
 	}
-	return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker+m.text(row, width)), m.width)
+	return fit(gutter+m.wrap.LineNumber.on(numbers)+style.on(marker+m.text(row, width, seg)), m.width)
 }
 
 // numbers is the line numbers of the gutter for a line: the old and the
@@ -297,8 +310,11 @@ func padNumber(n, w int) string {
 
 // text is the text of a line, cleaned and scrolled sideways, padded to
 // width cells.
-func (m Model) text(row Row, width int) string {
+func (m Model) text(row Row, width int, seg segment) string {
 	s := termtext.Clean(row.Text, m.tabs)
+	if seg.on {
+		return fit(s[seg.a:seg.e], width)
+	}
 	if m.left > 0 || ansi.StringWidth(s) > width {
 		s = ansi.Cut(s, m.left, m.left+width)
 	}
@@ -308,10 +324,21 @@ func (m Model) text(row Row, width int) string {
 // coloured is the text of a line in the colors of its spans, cleaned and
 // scrolled sideways like [Model.text], and padded to width cells in the
 // style of the line, with the matches of a search in hits over them.
-func (m Model) coloured(row Row, spans []syntax.Span, code tokenStyles, width int, hits []hit) string {
+func (m Model) coloured(row Row, spans []syntax.Span, code tokenStyles, width int, hits []hit, seg segment) string {
 	s := termtext.Clean(row.Text, m.tabs)
 	sw := ansi.StringWidth(s)
 	out := code.paint(s, spans, hits, m.wrap.match, m.wrap.current)
+	if seg.on {
+		// Painted whole, then cut at the cells of the segment, so a match or a
+		// token that crosses its edge keeps its colour on both rows.
+		from := ansi.StringWidth(s[:seg.a])
+		used := min(ansi.StringWidth(s[seg.a:seg.e]), width)
+		out = ansi.Cut(out, from, from+used)
+		if used < width {
+			out += code.text.on(strings.Repeat(" ", width-used))
+		}
+		return out
+	}
 	if m.left > 0 || sw > width {
 		out = ansi.Cut(out, m.left, m.left+width)
 		sw = ansi.StringWidth(out)

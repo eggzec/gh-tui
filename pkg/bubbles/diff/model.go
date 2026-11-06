@@ -61,6 +61,7 @@ type Model struct {
 	// for), and left the cells scrolled sideways.
 	cursor int
 	top    int
+	sub    int // the visual row of line top that the window starts at, when wrapping
 	left   int
 	// searching is set while the search input is open, input is that
 	// input, and search is the search shown.
@@ -180,7 +181,7 @@ func (m *Model) seek(p Pos, file bool) bool {
 		// The file starts the window, even when its header is already in
 		// it, so that the rows shown are the file's and not those of the
 		// file above.
-		m.top = row
+		m.top, m.sub = row, 0
 		m.moveTo(row)
 		return true
 	}
@@ -194,9 +195,7 @@ func (m *Model) seek(p Pos, file bool) bool {
 // view, so that a jump shows what is around the row.
 func (m *Model) moveTo(row int) {
 	m.cursor = row
-	if h := m.bodyHeight(); row < m.top || row >= m.top+h {
-		m.top = row - h/2
-	}
+	m.centre(row)
 	m.left = 0
 	m.dirty = true
 	m.scroll()
@@ -280,6 +279,8 @@ func (m *Model) syncKeys() {
 	found := len(m.search.matches) > 0
 	keymap.Enable(&m.keyMap.Next, found)
 	keymap.Enable(&m.keyMap.Prev, found)
+	keymap.Enable(&m.keyMap.Left, !m.wrapOn)
+	keymap.Enable(&m.keyMap.Right, !m.wrapOn)
 	keymap.Enable(&m.keyMap.Confirm, m.searching)
 	keymap.Enable(&m.keyMap.CancelEmpty, m.searching)
 	keymap.Enable(&m.keyMap.Cancel, m.searching)

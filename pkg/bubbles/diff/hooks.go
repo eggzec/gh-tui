@@ -86,6 +86,9 @@ func (m Model) FileEndVisible() bool {
 		return false
 	}
 	next, _ := m.layout.FileRow(f + 1)
+	if m.wrapOn {
+		return next <= m.top || m.reaches(next-1, m.bodyHeight(), m.numWidth())
+	}
 	return next <= m.top+m.bodyHeight()
 }
 
@@ -93,7 +96,7 @@ func (m Model) FileEndVisible() bool {
 // returns the command that fetches what the window then shows.
 func (m *Model) PageDown() tea.Cmd {
 	m.cancelPending()
-	m.cursor += m.bodyHeight()
+	m.cursor = m.cursorBy(m.bodyHeight())
 	return m.sync()
 }
 
@@ -104,7 +107,7 @@ func (m *Model) PageDown() tea.Cmd {
 func (m *Model) PageDownWithinFile() tea.Cmd {
 	if f, ok := m.layout.FileAt(m.cursor); ok && !m.FileEndVisible() {
 		next, _ := m.layout.FileRow(f + 1)
-		if m.cursor+m.bodyHeight() >= next {
+		if m.cursorBy(m.bodyHeight()) >= next {
 			m.cancelPending()
 			m.cursor = next - 1
 			return m.sync()

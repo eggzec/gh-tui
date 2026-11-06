@@ -54,6 +54,16 @@ func benchBlockView(b *testing.B) Model {
 	return run(b, m, m.sync())
 }
 
+func BenchmarkViewWrap(b *testing.B) {
+	m := benchView(b)
+	m.SetWrap(true)
+	m = run(b, m, m.sync())
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = m.View()
+	}
+}
+
 func BenchmarkViewBlocks(b *testing.B) {
 	m := benchBlockView(b)
 	b.ReportAllocs()

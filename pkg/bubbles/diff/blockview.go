@@ -12,7 +12,10 @@ func (m *Model) SetBlocks(blocks []Block) {
 	m.searchRefile(files...)
 	m.restore(h)
 	if below > 0 {
-		m.top = max(m.cursor-below, 0)
+		// The window keeps its first visual row when it still starts on the same line.
+		if top := max(m.cursor-below, 0); top != m.top {
+			m.top, m.sub = top, 0
+		}
 		m.scroll()
 	}
 	m.dirty = true
@@ -108,17 +111,20 @@ func (m *Model) PrevBlock(pred func(Block) bool) bool {
 // held names the rows the cursor and the top of the window are on. It is a
 // value, not a closure over the model, so that the model does not escape to
 // the heap on every Update.
-type held struct{ cursor, top rowRef }
+type held struct {
+	cursor, top rowRef
+	sub         int
+}
 
 // holdRows names the rows the cursor and the top of the window are on now.
 func (m *Model) holdRows() held {
-	return held{m.layout.refOf(m.cursor), m.layout.refOf(m.top)}
+	return held{m.layout.refOf(m.cursor), m.layout.refOf(m.top), m.sub}
 }
 
 // restore puts the cursor and the top of the window back on the rows h names,
 // whichever rows moved since.
 func (m *Model) restore(h held) {
-	m.cursor, m.top = m.layout.rowOf(h.cursor), m.layout.rowOf(h.top)
+	m.cursor, m.top, m.sub = m.layout.rowOf(h.cursor), m.layout.rowOf(h.top), h.sub
 	m.scroll()
 }
 
