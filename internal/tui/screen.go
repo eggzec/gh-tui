@@ -47,9 +47,11 @@ type pane struct {
 	// pane's key before it, "[1] Files", unless the pane is zoomed: then
 	// its key is in the bottom edge, among those of the other panes.
 	label, key string
-	bare       bool
-	started    bool
-	focused    bool
+	// previewTitle is the title the preview's top edge was last drawn with.
+	previewTitle string
+	bare         bool
+	started      bool
+	focused      bool
 	// width and height are the outer size, frame included.
 	width, height int
 	// The edges of the frame, drawn for the size, focus and theme.
