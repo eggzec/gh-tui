@@ -44,9 +44,9 @@ func (m *detailModal) openLabels() tea.Cmd {
 }
 
 // busy reports whether something else is open over the conversation: an
-// overlay, a question, a prompt or the references.
+// overlay, a question, or the references.
 func (m *detailModal) busy() bool {
-	return m.over != nil || m.ask != nil || m.composing != composeNone || m.refs != nil
+	return m.over != nil || m.ask != nil || m.refs != nil
 }
 
 // labelsRead opens the picker over the labels read, unless the modal has

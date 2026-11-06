@@ -288,7 +288,9 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		}
 	)
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
-		pullOpts = append(pullOpts, pulls.WithDrafts(drafts.New(dir), client.Host()+"/"+client.Account()))
+		store := drafts.New(dir)
+		pullOpts = append(pullOpts, pulls.WithDrafts(store, client.Host()+"/"+client.Account()))
+		issueOpts = append(issueOpts, issues.WithDrafts(store))
 	}
 	if dir, err := reviewDraftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {
 		pullOpts = append(pullOpts, pulls.WithReviewDrafts(tray.New(dir)))

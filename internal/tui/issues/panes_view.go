@@ -21,7 +21,7 @@ func (m *detailModal) headerRows() int {
 
 // paneLayout lays the panes out in what the header and the prompt leave.
 func (m *detailModal) paneLayout() panes.Layout {
-	h := max(m.height-m.promptHeight()-m.headerRows(), 0)
+	h := max(m.height-m.headerRows(), 0)
 	return issueLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed())
 }
 
@@ -33,6 +33,14 @@ func (m *detailModal) convRect() panes.Rect {
 		return panes.Rect{}
 	}
 	return b.Rect.Inner()
+}
+
+// layout sizes the conversation to its box.
+func (m *detailModal) layout() {
+	if m.convOn {
+		r := m.convRect()
+		m.conv.SetSize(r.W, r.H)
+	}
 }
 
 // composed renders the header, the panes and the prompt under them while one
@@ -47,9 +55,6 @@ func (m *detailModal) composed() string {
 	l := m.paneLayout()
 	if l.Height > 0 {
 		lines = append(lines, strings.Split(m.drawPanes(l), "\n")...)
-	}
-	if m.composing != composeNone {
-		lines = append(lines, strings.Split(m.prompt.View(), "\n")...)
 	}
 	if len(lines) > m.height {
 		lines = lines[:m.height]

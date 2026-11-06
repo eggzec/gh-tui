@@ -1314,7 +1314,7 @@ func keyContexts() []keyContext {
 		{name: "issue", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_2"}, after: []string{"issue_modal.half_page_down"}, context: "issue_modal", want: "global, issue_modal"},
 		{name: "issue: references", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references"}, context: "references", want: "global, references"},
 		{name: "issue: references filter", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
-		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
+		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "composer", want: "always, composer (types)"},
 		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "picker_normal", want: "always, picker_normal"},
 		{name: "issue: description editor", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_1", "issue_modal.edit"}, context: "issue_desc_edit", want: "always, issue_desc_edit (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},

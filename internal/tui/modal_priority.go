@@ -61,12 +61,12 @@ func (m *Model) priorityOf(mod ui.Modal) (modals.Priority, bool) {
 
 // guardOf returns the guard of mod: a modal that holds text the user wrote
 // saves it when dismissed, and when the app quits it closes without asking.
-// An issue modal, which can keep no draft, stays open instead of losing a
-// comment being written.
+// An issue modal with unsent text, such as an edit, which keeps no draft,
+// stays open instead of losing it.
 func (m *Model) guardOf(mod ui.Modal) modals.Guard {
 	if d, ok := mod.(*issues.Detail); ok {
-		// The comment prompt keeps no draft, so the modal stays until the
-		// comment is sent or dropped.
+		// An edit keeps no draft, and a modal with unsent text stays until
+		// the text is sent or dropped.
 		return func(_ modals.Reason) modals.Closing {
 			// :q asks too, so it stays open on a draft; ctrl+c quits
 			// without asking (Model.quitNow) and must always quit.

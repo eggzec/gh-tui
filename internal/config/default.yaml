@@ -1494,12 +1494,6 @@ keys:
     "no": [n, esc]
     # Gives the answer the question shows as its default.
     default: [enter]
-  # A prompt, such as the composer of a comment.
-  prompt:
-    submit: [ctrl+s]
-    # Also submits a prompt of one line.
-    submit_line: [enter]
-    cancel: [esc]
   # The composer of a comment or a review. Enter starts a new line.
   composer:
     # Send the text; empty text can't be sent.

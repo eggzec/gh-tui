@@ -70,7 +70,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "checks", repo: true, steps: []string{config.ActionPane2, "pulls.checks"}, want: "global, pull_modal, pull_merge"},
 		{name: "issues", repo: true, steps: []string{config.ActionPane3}, want: "global, repo, issues"},
 		{name: "issue", repo: true, steps: []string{config.ActionPane3, config.ActionSelect}, want: "global, issue_modal"},
-		{name: "issue comment", repo: true, steps: []string{config.ActionPane3, config.ActionSelect, "issue_modal.comment"}, want: "always, prompt (types)"},
+		{name: "issue comment", repo: true, steps: []string{config.ActionPane3, config.ActionSelect, "issue_modal.comment"}, want: "always, composer (types)"},
 		{name: "history", repo: true, steps: []string{config.ActionHistory}, want: "global, history, history_graph"},
 		{name: "history branches", repo: true, steps: []string{config.ActionHistory, config.ActionPrevPane}, want: "global, history, history_branches"},
 		{name: "history files", repo: true, steps: []string{config.ActionHistory, config.ActionSelect}, want: "global, history, history_files"},

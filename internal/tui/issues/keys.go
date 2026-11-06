@@ -11,12 +11,12 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
@@ -57,8 +57,8 @@ type keyMap struct {
 
 	// confirm answers the question that close and reopen ask.
 	confirm confirm.KeyMap
-	// prompt finishes the comment and labels prompts of the modal.
-	prompt prompt.KeyMap
+	// composer are the keys of the comment composer.
+	composer composer.KeyMap
 	// pick are the keys of the reaction picker.
 	pick picker.KeyMap
 	feed feed.KeyMap
@@ -112,7 +112,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
 		pick:         picker.NewKeyMap(ui.Lookup(keys, "picker")),
 		confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
-		prompt:       prompt.NewKeyMap(ui.Lookup(keys, "prompt")),
+		composer:     composer.NewKeyMap(ui.Lookup(keys, "composer")),
 		owner:        list.Binding("global.owner", "author"),
 		// The section and the modal match their own keys first, so the feed
 		// and the thread get only the keys they leave them.
@@ -211,8 +211,6 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	switch {
 	case m.ask != nil:
 		return []keyhelp.Layer{ui.ConfirmLayer(m.keys.confirm)}
-	case m.composing != composeNone:
-		return []keyhelp.Layer{ui.ContextHelp("prompt", m.prompt, true)}
 	case m.refs != nil:
 		return m.refs.KeyLayers()
 	case m.over != nil:

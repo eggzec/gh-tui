@@ -116,7 +116,7 @@ func TestProgramComment(t *testing.T) {
 
 	// The q and X in the comment are text, not quit and close.
 	tm.Send(keyMsg("c"))
-	waitFor("Comment on #999")
+	waitFor("Write a comment in markdown.")
 	tm.Type("quite fixed X")
 	tm.Send(keyMsg("ctrl+s"))
 	waitFor("Post this comment on #999?")

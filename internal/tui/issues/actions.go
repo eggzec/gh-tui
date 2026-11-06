@@ -25,7 +25,7 @@ func (m *detailModal) ownComment(verb string) (*core.TimelineItem, tea.Cmd) {
 	return s.Item, nil
 }
 
-// editComment opens the prompt with the viewer's comment under the cursor.
+// editComment opens the composer with the viewer's comment under the cursor.
 func (m *detailModal) editComment() tea.Cmd {
 	it, refusal := m.ownComment("edit")
 	if it == nil {
@@ -34,11 +34,10 @@ func (m *detailModal) editComment() tea.Cmd {
 	if strings.HasPrefix(it.ID, "pending:") {
 		return ui.Notify(toast.Info, "the comment is still being sent")
 	}
-	m.editID, m.editFrom = it.ID, it.Body
-	return m.compose(composeEdit, ui.ActComment)
+	return m.openComposer(&editing{id: it.ID, from: it.Body})
 }
 
-// sameText reports whether two bodies read the same: the prompt widens tabs
+// sameText reports whether two bodies read the same: the composer widens tabs
 // and drops surrounding blank space, which is no edit.
 func sameText(a, b string) bool {
 	norm := func(s string) string {
@@ -48,18 +47,18 @@ func sameText(a, b string) bool {
 }
 
 // submitEdit asks to save typed as the body of the comment being edited.
-// An empty or unchanged body asks nothing and closes the prompt.
-func (m *detailModal) submitEdit(typed string) tea.Cmd {
-	body := strings.TrimSpace(typed)
-	if body == "" || sameText(body, m.editFrom) {
-		m.closePrompt()
+// An empty or unchanged body asks nothing and closes the composer.
+func (m *detailModal) submitEdit(o *composerOverlay, e editing) tea.Cmd {
+	body := strings.TrimSpace(o.Comp.Value())
+	if body == "" || sameText(body, e.from) {
+		m.closeComposer(o)
 		return nil
 	}
-	id := m.editID
+	id := e.id
 	return m.asks(confirm.Ask{
 		Question: "Save your changes to the comment?",
 		Run: func() tea.Cmd {
-			m.closePrompt()
+			m.closeComposer(o)
 			op := m.svc.EditComment(m.repo, m.number, id, body)
 			return tea.Batch(m.buildConv(), m.changed(), m.send(op, "edit comment"))
 		},

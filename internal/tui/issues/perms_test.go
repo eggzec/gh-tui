@@ -104,7 +104,7 @@ func TestGatedChanges(t *testing.T) {
 			if tt.why != "" && !slices.Contains(msgs, info(tt.why)) {
 				t.Errorf("messages %v, want the toast %q", msgs, tt.why)
 			}
-			if m := h.modal(); m != nil && tt.why != "" && m.composing != composeNone {
+			if m := h.modal(); m != nil && tt.why != "" && m.composerOpen() != nil {
 				t.Error("the prompt opened although the change is refused")
 			}
 		})

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -57,6 +58,7 @@ type Section struct {
 	// facets offer what the filter chooses from, and milestonesRead is
 	// set once the milestones of repo were read ahead.
 	facets         Facets
+	drafts         composer.Drafts
 	milestonesRead bool
 
 	// list is rebuilt for every repository, tab and filter, so its Fetch

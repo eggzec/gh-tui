@@ -131,7 +131,6 @@ var contexts = []Context{
 	// ? closes the help while its query is empty, and is typed otherwise.
 	{Name: "help", Title: "Help", Reach: ReachCapture, Typing: true, Printable: []string{"close"}},
 	{Name: "confirm", Title: "Confirm", Reach: ReachCapture},
-	{Name: "prompt", Title: "Prompt", Reach: ReachCapture, Typing: true},
 	// The editor of a comment. Its keys are control keys, since the letters
 	// are typed.
 	{Name: "composer", Title: "Composer", Reach: ReachCapture, Typing: true},

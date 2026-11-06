@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -9,162 +10,141 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
-	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
 
-// composing is what the prompt under the thread of a modal is for.
-type composing int
+// composerOverlay is the composer of a comment, over the panes.
+type composerOverlay = prpanes.ComposerOverlay
 
-const (
-	composeNone composing = iota
-	composeComment
-	composeEdit
-)
+// editing is the comment an open composer rewrites: its ID and its body
+// before. A composer of a new comment has none.
+type editing struct{ id, from string }
 
-// Heights of the comment prompt, which takes a third of the modal within
-// these bounds.
-const (
-	minCommentHeight = 5
-	maxCommentHeight = 10
-)
-
-// compose opens the prompt for what under the thread, and gives it the
-// focus, if the viewer may take a, what the prompt sends.
-func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
+// openComposer opens the composer over the panes, for a new comment or, with
+// edit set, for the rewrite of one, if the viewer may comment.
+func (m *detailModal) openComposer(edit *editing) tea.Cmd {
 	if !m.loaded {
 		return nil
 	}
-	if cmd, refused := m.gate().Refuse(a, &m.issue); refused {
+	if cmd, refused := m.gate().Refuse(ui.ActComment, &m.issue); refused {
 		return cmd
 	}
 	num := "#" + strconv.Itoa(m.number)
-	opts := []prompt.Option{prompt.WithStyles(m.theme.Prompt(m.icons)), prompt.WithKeyMap(m.keys.prompt)}
-	switch what {
-	case composeComment:
+	opts := []composer.Option{
+		composer.WithKeyMap(m.keys.composer),
+		composer.WithStyles(m.theme.Prompt(m.icons)),
+		composer.WithSize(m.width, max(m.height/2, 1)),
+		// The frame's title names the action, so the row inside names what
+		// is commented on; left out, it would be a blank row.
+		composer.WithTitle(m.issue.Title),
+	}
+	var key, head string
+	if edit == nil {
+		key = "comment/" + m.repo.String() + "/" + strconv.Itoa(m.number)
+		head = "Comment on " + num
 		opts = append(opts,
-			prompt.WithTitle("Comment on "+num),
-			prompt.WithPlaceholder("Write a comment in markdown."))
-	case composeEdit:
-		opts = append(opts,
-			prompt.WithTitle("Edit your comment on "+num),
-			prompt.WithValue(m.editFrom))
-	default:
-		return nil
+			composer.WithPlaceholder("Write a comment in markdown."),
+			composer.WithDrafts(m.drafts))
+	} else {
+		// The text starts as the comment, so what is kept as a draft would be
+		// the comment itself: an edit keeps none.
+		key = "edit/" + m.repo.String() + "/" + strconv.Itoa(m.number) + "/" + edit.id
+		head = "Edit your comment on " + num
+		opts = append(opts, composer.WithDrafts(nil))
 	}
-	m.prompt = prompt.New(opts...)
-	m.composing = what
-	m.layout()
-	if m.convOn {
-		m.conv.Blur()
+	c := composer.New(key, opts...)
+	if edit != nil {
+		c.SetValue(edit.from)
+		m.edit = edit
+	} else {
+		m.edit = nil
 	}
-	return m.prompt.Focus()
+	o := &composerOverlay{Comp: c, Head: head, Busy: func() bool { return m.ask != nil }}
+	o.Submit = m.submitComposer
+	m.over = o
+	return tea.Batch(o.Comp.Init(), o.Comp.Focus())
 }
 
-// HasDraft reports whether a comment is being written that the modal would
-// lose if it closed: the prompt keeps no draft.
-func (m *detailModal) HasDraft() bool {
-	if e, ok := m.over.(*prpanes.DescEdit); ok && e.Changed(m.issue.Title, m.issue.Body) {
-		return true
-	}
-	switch m.composing {
-	case composeComment:
-		return strings.TrimSpace(m.prompt.Value()) != ""
-	case composeEdit:
-		return !sameText(m.prompt.Value(), m.editFrom)
-	case composeNone:
-	}
-	return false
-}
-
-// closePrompt closes the prompt and gives the focus back to the thread.
-func (m *detailModal) closePrompt() {
-	if m.composing == composeNone {
-		return
-	}
-	m.composing = composeNone
-	m.prompt.Blur()
-	m.layout()
-	if m.convOn {
-		m.conv.Focus()
-	}
-}
-
-// promptHeight is the height of the prompt, or 0 while none is open.
-func (m *detailModal) promptHeight() int {
-	h := m.height
-	switch m.composing {
-	case composeComment, composeEdit:
-		return min(max(h/3, minCommentHeight), maxCommentHeight, h)
-	case composeNone:
-	}
-	return 0
-}
-
-// layout shares the height of the modal between the header, the conversation
-// and the prompt, if it is open.
-func (m *detailModal) layout() {
-	if ph := m.promptHeight(); ph > 0 {
-		m.prompt.SetSize(m.width, ph)
-	}
-	if m.convOn {
-		r := m.convRect()
-		m.conv.SetSize(r.W, r.H)
-	}
-}
-
-// promptDone handles what the prompt reports, if it is this modal's. A
-// submit asks the user to confirm what it sends, and the prompt stays
-// open with the text behind the question, so that a no goes back to it.
-func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
-	if m.composing == composeNone {
-		return nil
-	}
-	switch msg := msg.(type) {
-	case prompt.CancelMsg:
-		if msg.ID == m.prompt.ID() {
-			m.closePrompt()
-		}
-	case prompt.SubmitMsg:
-		// A second submit, such as a repeated key, arrives while the first
-		// one asks.
-		if msg.ID != m.prompt.ID() || m.ask != nil {
-			return nil
-		}
-		switch m.composing {
-		case composeComment:
-			return m.submitComment(msg.Value)
-		case composeEdit:
-			return m.submitEdit(msg.Value)
-		case composeNone:
-		}
+// composerOpen returns the composer over the panes, or nil.
+func (m *detailModal) composerOpen() *composerOverlay {
+	if o, ok := m.over.(*composerOverlay); ok && !o.Closed() {
+		return o
 	}
 	return nil
 }
 
-// submitComment asks to post typed as a comment on the issue. An empty
-// comment asks nothing, and the prompt stays open.
-func (m *detailModal) submitComment(typed string) tea.Cmd {
-	body := strings.TrimSpace(typed)
-	c, ok, refusal := m.comment(body)
+// HasDraft reports whether text is being written that the modal would lose
+// if it closed: a comment that is not blank, or an edit that changed.
+func (m *detailModal) HasDraft() bool {
+	if e, ok := m.over.(*prpanes.DescEdit); ok && e.Changed(m.issue.Title, m.issue.Body) {
+		return true
+	}
+	o := m.composerOpen()
+	if o == nil {
+		return false
+	}
+	if m.edit != nil {
+		return !sameText(o.Comp.Value(), m.edit.from)
+	}
+	return strings.TrimSpace(o.Comp.Value()) != ""
+}
+
+// Save keeps the text of the open comment as its draft, so that a modal the
+// app closes on its own account, or quits with, loses nothing. It implements
+// ui.Saver.
+func (m *detailModal) Save() error {
+	o := m.composerOpen()
+	if o == nil {
+		return nil
+	}
+	return errors.Join(o.Comp.Save())
+}
+
+// closeComposer closes the composer and gives the focus back to the thread.
+func (m *detailModal) closeComposer(o *composerOverlay) {
+	o.Close()
+	if m.over == reactOverlay(o) {
+		m.over = nil
+	}
+	m.edit = nil
+}
+
+// submitComposer asks to send what the composer holds. A second submit, such
+// as a repeated key, arrives while the first one asks.
+func (m *detailModal) submitComposer(o *composerOverlay) tea.Cmd {
+	if m.ask != nil {
+		return nil
+	}
+	if m.edit != nil {
+		return m.submitEdit(o, *m.edit)
+	}
+	return m.submitComment(o)
+}
+
+// submitComment asks to post what the composer holds as a comment on the
+// issue. An empty comment asks nothing, and the composer stays open.
+func (m *detailModal) submitComment(o *composerOverlay) tea.Cmd {
+	body := strings.TrimSpace(o.Comp.Value())
+	c, ok, refusal := m.comment(o, body)
 	if !ok {
 		return refusal
 	}
 	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
-		if m.composing != composeComment || strings.TrimSpace(m.prompt.Value()) != body {
+		if m.over != reactOverlay(o) || strings.TrimSpace(o.Comp.Value()) != body {
 			return confirm.Ask{}, false, nil
 		}
-		return m.comment(body)
+		return m.comment(o, body)
 	})
 	return m.asks(ask)
 }
 
 // comment returns posting body as a comment on the issue as a question,
 // or ok unset when there is nothing to post or the viewer may not, which
-// refusal then says. Its run closes the prompt, and the service shows the
-// comment in the cache at once, as sending, so the thread reloads to show
-// it.
-func (m *detailModal) comment(body string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
+// refusal then says. Its run closes the composer and drops its draft, and the
+// service shows the comment in the cache at once, as sending, so the thread
+// reloads to show it.
+func (m *detailModal) comment(o *composerOverlay, body string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
 	if body == "" || !m.loaded {
 		return confirm.Ask{}, false, nil
 	}
@@ -176,10 +156,10 @@ func (m *detailModal) comment(body string) (c confirm.Ask, ok bool, refusal tea.
 	return confirm.Ask{
 		Question: "Post this comment on " + num + "?",
 		Run: func() tea.Cmd {
-			m.closePrompt()
+			m.closeComposer(o)
 			op := m.svc.Comment(m.repo, n, body)
 			m.addPending(body)
-			return tea.Batch(m.reload(), m.buildConv(), m.changed(),
+			return tea.Batch(o.Comp.Discard(), m.reload(), m.buildConv(), m.changed(),
 				m.send(op, "comment on "+num))
 		},
 	}, true, nil

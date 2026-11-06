@@ -81,7 +81,7 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 // focused pane, and sizes it to its box.
 func (m *detailModal) refocus() {
 	m.layout()
-	if !m.convOn || m.composing != composeNone {
+	if !m.convOn || m.composerOpen() != nil {
 		return
 	}
 	if m.nav.Focus() == paneConversation {
