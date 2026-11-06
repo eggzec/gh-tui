@@ -230,8 +230,14 @@ func (m Model) plainLine(v visible, numW int) string {
 		blank := strings.Repeat(" ", min(m.numberCells(minNumberWidth), room))
 		text := row.Text
 		if w := m.blockWidth(); ansi.StringWidth(text) > w {
-			// A row that fits stays put, so prose does not slide away.
-			text = ansi.Cut(text, m.left, m.left+w)
+			// A row that fits stays put, so prose does not slide away. A row
+			// of a fence that does not fit scrolls, or with wrapping on
+			// continues on the rows below it.
+			from := m.left
+			if m.wrapOn {
+				from = v.sub * w
+			}
+			text = ansi.Cut(text, from, from+w)
 		}
 		return fit(gutter+blank+text+"\x1b[m", m.width)
 	case KindContext, KindAdded, KindDeleted, KindNoNewline, KindRaw:

@@ -1,6 +1,8 @@
 package diff
 
 import (
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/eggzec/gh-tui/pkg/bubbles/internal/wrap"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -24,6 +26,17 @@ func (m Model) wrapped(row Row) bool {
 	return m.wrapOn && scrolls(row.Kind) && row.Kind != KindBlock
 }
 
+// blockRows is the number of visual rows of a row of a block. Prose fits the
+// width and takes one; a line of a code fence, which a block may leave wider,
+// continues on the rows below it, cut every blockWidth cells.
+func (m Model) blockRows(row Row) int {
+	w := m.blockWidth()
+	if !m.wrapOn || w <= 0 {
+		return 1
+	}
+	return max((ansi.StringWidth(row.Text)+w-1)/w, 1)
+}
+
 // textCols is the width of the text of a line in a row, after its marker: a
 // raw line has no marker, so its text has the blank the others give to it.
 func (m Model) textCols(row Row, numW int) int {
@@ -41,6 +54,9 @@ func (m Model) rowsIn(r, numW int) int {
 		return 1
 	}
 	row, ok := m.layout.RowAt(r)
+	if ok && row.Kind == KindBlock {
+		return m.blockRows(row)
+	}
 	if !ok || !m.wrapped(row) {
 		return 1
 	}

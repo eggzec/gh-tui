@@ -67,7 +67,7 @@ func (o *diffOverlay) findingBlock(path string, line int, notes []files.Note) di
 					if i == 0 {
 						lead = head
 					}
-					rows = append(rows, ansi.Truncate(lead+line, width, m.icons.Ellipsis))
+					rows = append(rows, m.diffRow(lead, line, width))
 				}
 			}
 			return rows

@@ -54,6 +54,38 @@ func TestWideBlockScrolls(t *testing.T) {
 	}
 }
 
+func TestWideBlockWraps(t *testing.T) {
+	t.Parallel()
+	m := withBlocks(t, blockFiles(), 60, 24, wideBlock(nil))
+	m.SetWrap(true)
+	w := m.blockWidth()
+	if ansi.StringWidth(ruler) < 2*w {
+		t.Fatalf("setup: ruler of %d cells is not 2 rows at width %d", ansi.StringWidth(ruler), w)
+	}
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "prose here") {
+		t.Errorf("the prose row is missing:\n%s", v)
+	}
+	// Every part of the code line shows, on rows of their own.
+	var got strings.Builder
+	for l := range strings.SplitSeq(v, "\n") {
+		if i := strings.Index(l, "ABC"); i >= 0 {
+			l = l[i:]
+		} else if !strings.Contains(l, "0123456789") {
+			continue
+		}
+		got.WriteString(strings.TrimSpace(l))
+	}
+	if !strings.Contains(got.String(), ruler) {
+		t.Errorf("the wrapped rows do not hold the whole code line %q:\n%s", ruler, v)
+	}
+	assertFits(t, m.View(), 60, 24)
+	m = keys(t, m, "l")
+	if m.left != 0 {
+		t.Errorf("l scrolled a wrapped view to %d", m.left)
+	}
+}
+
 func TestLineNumbersBlockWidth(t *testing.T) {
 	t.Parallel()
 	var seen int
