@@ -232,7 +232,8 @@ func (o *diffOverlay) threadsFailedBlock() diff.Block {
 }
 
 // diffMarkdown draws a comment or note body as markdown, the way the
-// Conversation pane does, as rows of at most width cells. It shares that
+// Conversation pane does, as rows of at most width cells, but for the lines
+// of code, which are never cut. It shares that
 // pane's renderer so a theme, icon or link change reaches both from the one
 // place that applies it, and the renderer's cache serves a redraw.
 func (m *panesModal) diffMarkdown(body string, width int) []string {
@@ -245,6 +246,15 @@ func (m *panesModal) diffMarkdown(body string, width int) []string {
 	width = max(width, 1)
 	out := strings.Trim(c.md.Render(strings.ReplaceAll(strings.TrimSpace(body), "\r", ""), width), "\n")
 	return strings.Split(out, "\n")
+}
+
+// diffRow is a lead and a line of diffMarkdown as a row of a block: cut to
+// width, except a line of code, which the diff scrolls sideways or wraps.
+func (m *panesModal) diffRow(lead, line string, width int) string {
+	if m.conv.md != nil && m.conv.md.IsCode(line) {
+		return lead + line
+	}
+	return ansi.Truncate(lead+line, width, m.icons.Ellipsis)
 }
 
 // threadBlock is the rows that show a review thread: who wrote it and when,
@@ -277,7 +287,7 @@ func (o *diffOverlay) threadBlock(t *core.Thread) diff.Block {
 				}
 				add(bar + head)
 				for _, line := range m.diffMarkdown(c.Body, width-ansi.StringWidth(bar)) {
-					add(bar + line)
+					rows = append(rows, m.diffRow(bar, line, width))
 				}
 			}
 			return rows

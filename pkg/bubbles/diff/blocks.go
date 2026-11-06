@@ -23,7 +23,8 @@ type Block struct {
 	// Render returns the lines of the block, with their own styles. A line of
 	// prose is at most width cells. A line of a code fence may be wider, so
 	// that it scrolls sideways with the lines of the diff (the view cuts it at
-	// the scroll offset); a line that fits stays where it is. The rows are not
+	// the scroll offset), or, with wrapping on, continues on the rows below
+	// it, cut every width cells; a line that fits stays where it is. The rows are not
 	// sanitized, so the lines must hold no control characters but escape
 	// sequences, and no newlines (a line that has some is split in them). A
 	// folded block is usually one line. A block that renders no line shows one

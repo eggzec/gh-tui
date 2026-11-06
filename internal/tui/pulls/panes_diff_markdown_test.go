@@ -69,6 +69,34 @@ func TestFindingBlockWrapsALongMessageWithoutEllipsis(t *testing.T) {
 	}
 }
 
+func TestBlocksKeepACodeFenceWide(t *testing.T) {
+	t.Parallel()
+	_, _, o := findingDiff(t, diffFindingChecks(), false)
+	code := "x := " + strings.Repeat("abcdefghij", 8)
+	body := "some prose " + strings.Repeat("word ", 20) + "\n\n```go\n" + code + "\n```"
+	check := func(name string, rows []string) {
+		t.Helper()
+		var wide bool
+		for _, r := range plainRows(rows) {
+			w := ansi.StringWidth(r)
+			switch {
+			case strings.Contains(r, code):
+				wide = true
+			case w > 40:
+				t.Errorf("%s: row %q is %d cells, want prose to fit 40", name, r, w)
+			}
+			if strings.Contains(r, "…") {
+				t.Errorf("%s: row %q is cut with an ellipsis", name, r)
+			}
+		}
+		if !wide {
+			t.Errorf("%s: no row holds the whole code line:\n%s", name, strings.Join(plainRows(rows), "\n"))
+		}
+	}
+	check("thread", threadRows(o, body, 40))
+	check("finding", o.findingBlock("a.go", 2, []files.Note{{Line: 2, Level: core.AnnotationWarning, App: "Actions", Message: body}}).Render(40, false))
+}
+
 func TestThreadBlockDrawsMarkdown(t *testing.T) {
 	t.Parallel()
 	_, _, o := findingDiff(t, diffFindingChecks(), false)
