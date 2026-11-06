@@ -206,6 +206,11 @@ func (m *Model) Focus() {
 	}
 }
 
+// Version counts the changes of what the conversation holds and how it draws
+// it, whether or not they show in the viewport, so that a copy of its rows can
+// tell when it is out of date.
+func (m Model) Version() int { return m.version + m.optsVer }
+
 // Blur makes the conversation ignore keys.
 func (m *Model) Blur() {
 	m.focused = false

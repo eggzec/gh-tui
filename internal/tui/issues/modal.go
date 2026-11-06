@@ -79,10 +79,15 @@ type detailModal struct {
 	id     int64
 	conv   conv.Model
 	convOn bool
-	head   string
-	voice  ui.Voice
-	md     *markdown.Renderer
-	seen   *ui.Seen
+	// peek is the conversation drawn as a preview, and peekVer counts the
+	// changes of the conversation that draw it again.
+	peek      drawnPeek
+	peekVer   uint64
+	peekStamp int
+	head      string
+	voice     ui.Voice
+	md        *markdown.Renderer
+	seen      *ui.Seen
 	// side holds the Involved and Development panes, and refSvc reads the
 	// links of the Development one.
 	side   *sidePanes
@@ -314,9 +319,11 @@ func (m *detailModal) restyleConv() {
 	}
 	m.md.SetStyle(m.theme.Thread(m.icons).Markdown)
 	m.md.SetGlyphs(m.icons.Markdown)
+	m.peekVer++
 	o := m.convOptions()
 	m.conv.SetOptions(o)
 	m.conv.SetStyles(o.Styles, treeview.DefaultStyles(m.theme.Dark))
+	m.peekStamp = m.conv.Version()
 }
 
 // source reads the timeline of the issue, with the comments being sent as the
@@ -362,6 +369,8 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.md.SetAutolink(m.seen.Func())
 	m.conv = conv.New(m.source(), conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.convRect().W, m.convRect().H)...)
 	m.convOn = true
+	m.peekStamp = m.conv.Version()
+	m.peekVer++
 	if m.composing == composeNone && m.nav.Focus() == paneConversation {
 		m.conv.Focus()
 	}
@@ -414,7 +423,21 @@ func (m *detailModal) convUpdate(msg tea.Msg) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	m.conv, cmd = m.conv.Update(msg)
+	m.convChanged()
 	return cmd
+}
+
+// convChanged counts a change of what the conversation draws, which the
+// preview then draws again. A message that leaves the view as it was counts
+// for nothing.
+func (m *detailModal) convChanged() {
+	if !m.convOn {
+		return
+	}
+	if stamp := m.conv.Version(); stamp != m.peekStamp {
+		m.peekStamp = stamp
+		m.peekVer++
+	}
 }
 
 func (m *detailModal) update(msg tea.Msg) tea.Cmd {
@@ -450,6 +473,7 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if m.links.Synced(msg, &m.drew) {
 			if m.convOn {
 				m.conv.SetOptions(m.convOptions())
+				m.peekVer++
 			}
 			return nil
 		}

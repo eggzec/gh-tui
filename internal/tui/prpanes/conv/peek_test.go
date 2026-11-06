@@ -6,6 +6,20 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
+func TestVersion(t *testing.T) {
+	t.Parallel()
+	d := newDriver(t, conversation())
+	d.all()
+	v := d.m.Version()
+	if d.m.Version() != v {
+		t.Error("Version moved with no change")
+	}
+	d.m.SetOptions(Options{})
+	if d.m.Version() == v {
+		t.Error("Version stayed after the options changed")
+	}
+}
+
 func TestPeek(t *testing.T) {
 	t.Parallel()
 	review1 := Narrow{
