@@ -10,6 +10,8 @@ import (
 
 // Notes on the options, shown in the status line until the next key.
 const (
+	noteChop      = "Chop long lines"
+	noteWrap      = "Wrap long lines"
 	noteNumbers   = "Show line numbers"
 	noteNoNumbers = "Hide line numbers"
 	noteNoOption  = "No such option: "
@@ -18,6 +20,8 @@ const (
 // OptionKeyMap holds the keys that name an option, after the view's Option
 // key. The view enables them only while it waits for one.
 type OptionKeyMap struct {
+	// Chop chops or wraps long lines.
+	Chop key.Binding `keymap:"chop" help:"chop or wrap long lines"`
 	// LineNumbers shows or hides the line numbers.
 	LineNumbers key.Binding `keymap:"line_numbers" help:"line numbers"`
 	// Cancel chooses no option.
@@ -26,7 +30,7 @@ type OptionKeyMap struct {
 
 // setEnabled enables or disables every option key.
 func (o *OptionKeyMap) setEnabled(on bool) {
-	for _, b := range []*key.Binding{&o.LineNumbers, &o.Cancel} {
+	for _, b := range []*key.Binding{&o.Chop, &o.LineNumbers, &o.Cancel} {
 		keymap.Enable(b, on)
 	}
 }
@@ -36,7 +40,8 @@ func (o *OptionKeyMap) setEnabled(on bool) {
 func (m Model) ChoosingOption() bool { return m.opt }
 
 // updateOption toggles the option named by the key after the one bound to
-// Option, as less's - does: by default N shows or hides the line numbers.
+// Option, as less's - does: by default S chops or wraps long lines and N shows or hides the line
+// numbers.
 // The cancel key does nothing, and any other key says there is no such
 // option.
 func (m *Model) updateOption(k tea.KeyPressMsg) {
@@ -44,6 +49,9 @@ func (m *Model) updateOption(k tea.KeyPressMsg) {
 	m.opt = false
 	m.syncKeys()
 	switch {
+	case keymap.Matches(k, o.Chop):
+		m.SetWrap(!m.wrapOn)
+		m.flash = either(m.wrapOn, noteWrap, noteChop)
 	case keymap.Matches(k, o.LineNumbers):
 		m.SetLineNumbers(!m.lineNumbers)
 		m.flash = either(m.lineNumbers, noteNumbers, noteNoNumbers)

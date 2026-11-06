@@ -84,6 +84,6 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End},
 		{k.NextFile, k.PrevFile, k.NextHunk, k.PrevHunk, k.Fold, k.Retry},
 		{k.Search, k.Confirm, k.Cancel, k.CancelEmpty, k.Next, k.Prev},
-		{k.Option, k.Options.LineNumbers, k.Options.Cancel},
+		{k.Option, k.Options.Chop, k.Options.LineNumbers, k.Options.Cancel},
 	}
 }

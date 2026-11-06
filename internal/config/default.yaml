@@ -1437,9 +1437,10 @@ keys:
     chop: [S]
     line_numbers: [N]
     cancel: [esc]
-  # What names an option after a diff's option key: show or hide the line
-  # numbers.
+  # What names an option after a diff's option key: chop or wrap long lines
+  # and show or hide the line numbers.
   diff_option:
+    chop: [S]
     line_numbers: [N]
     cancel: [esc]
 
