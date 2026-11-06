@@ -15,6 +15,7 @@ Issue
   comment | c | c | on
   labels | L | L | on
   edit comment | E | E | on
+  assignees | e | e | off
   delete comment | D | D | on
   react | R | R | on
   linked items | # | # | on

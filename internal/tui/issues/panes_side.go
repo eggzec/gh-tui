@@ -256,6 +256,12 @@ func (m *detailModal) pressSide(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case paneDescription:
 		p.desc.tree, cmd = p.desc.tree.Update(msg)
 	case paneInvolved:
+		if keymap.Matches(msg, m.keys.Assign) {
+			if p.inv.OnAssignees() {
+				return m.openAssignees(), true
+			}
+			return nil, true
+		}
 		p.inv, cmd = p.inv.Update(msg)
 	case paneDevelopment:
 		if !p.dev.Loaded() {

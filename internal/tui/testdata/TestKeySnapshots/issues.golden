@@ -30,6 +30,7 @@ Issues
   comment | c | c | off
   labels | L | L | off
   edit comment | E | E | off
+  assignees | e | e | off
   delete comment | D | D | off
   react | R | R | off
   linked items | # | # | off

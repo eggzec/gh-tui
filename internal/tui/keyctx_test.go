@@ -1316,6 +1316,7 @@ func keyContexts() []keyContext {
 		{name: "issue: references filter", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "composer", want: "always, composer (types)"},
 		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "picker_normal", want: "always, picker_normal"},
+		{name: "issue: assignees", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_3", "pull_involved.down", "pull_involved.edit"}, context: "picker_normal", want: "always, picker_normal"},
 		{name: "issue: description editor", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_1", "issue_modal.edit"}, context: "issue_desc_edit", want: "always, issue_desc_edit (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: zoomed", repo: true, steps: []string{"repo.history", "global.zoom"}, context: "history_graph", want: "global, history, history_graph"},

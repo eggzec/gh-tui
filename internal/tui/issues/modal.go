@@ -561,6 +561,12 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 	if m.refs != nil {
 		cmd = tea.Batch(cmd, m.refs.Update(msg))
 	}
+	if m.over != nil {
+		// Every other message reaches the open overlay: the answers of the search
+		// of a picker, and the blink and editor results of the description's
+		// fields, which were dropped before.
+		cmd = tea.Batch(cmd, m.pressOver(msg))
+	}
 	return cmd
 }
 
