@@ -188,34 +188,36 @@ func (f *fakeService) Comment(_ core.RepoRef, number int, body string) *optimist
 	})
 }
 
-// AddLabels adds the labels at once, with their names only.
-func (f *fakeService) AddLabels(_ core.RepoRef, number int, names []string) *optimistic.Op {
+// EditLabels adds and removes the labels at once.
+func (f *fakeService) EditLabels(_ core.RepoRef, number int, add []core.Label, remove []string) *optimistic.Op {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.changes = append(f.changes, "label "+strconv.Itoa(number)+" +"+strings.Join(names, ","))
+	names := make([]string, len(add))
+	for i, l := range add {
+		names[i] = l.Name
+	}
+	f.changes = append(f.changes, "labels "+strconv.Itoa(number)+" +"+strings.Join(names, ",")+" -"+strings.Join(remove, ","))
 	var prev []core.Label
 	f.mutate(number, func(it *core.Issue) {
 		prev = it.Labels
-		labels := slices.Clone(it.Labels)
-		for _, n := range names {
-			labels = append(labels, core.Label{Name: n})
-		}
-		it.Labels = labels
+		labels := slices.DeleteFunc(slices.Clone(it.Labels), func(l core.Label) bool {
+			return slices.ContainsFunc(remove, func(n string) bool { return strings.EqualFold(l.Name, n) })
+		})
+		it.Labels = slices.Concat(labels, add)
 	})
 	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
 }
 
-// RemoveLabel removes the label at once.
-func (f *fakeService) RemoveLabel(_ core.RepoRef, number int, name string) *optimistic.Op {
+// EditAssignees records the change.
+func (f *fakeService) EditAssignees(_ core.RepoRef, number int, add []core.User, remove []string) *optimistic.Op {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.changes = append(f.changes, "unlabel "+strconv.Itoa(number)+" -"+name)
-	var prev []core.Label
-	f.mutate(number, func(it *core.Issue) {
-		prev = it.Labels
-		it.Labels = slices.DeleteFunc(slices.Clone(it.Labels), func(l core.Label) bool { return strings.EqualFold(l.Name, name) })
-	})
-	return f.op(nil, func() { f.mutate(number, func(it *core.Issue) { it.Labels = prev }) })
+	names := make([]string, len(add))
+	for i, u := range add {
+		names[i] = u.Login
+	}
+	f.changes = append(f.changes, "assign "+strconv.Itoa(number)+" +"+strings.Join(names, ",")+" -"+strings.Join(remove, ","))
+	return f.op(nil, func() {})
 }
 
 // EditIssue sets the title and the body of the issue at once.

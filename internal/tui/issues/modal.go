@@ -124,6 +124,9 @@ type detailModal struct {
 	ask *confirm.Ask
 	// over is the picker open over the panes, which takes every key.
 	over reactOverlay
+	// facets reads the labels of the repository for the labels picker, or is
+	// nil when the section has no source for them.
+	facets Facets
 	// armed is set once the question is armed: until then enter answers
 	// nothing.
 	armed     bool
@@ -181,6 +184,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		chips:   s.rows.newChips(),
 		id:      modalIDs.Add(1),
 		voice:   s.voice,
+		facets:  s.facets,
 	}
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
@@ -465,6 +469,8 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyPressMsg:
 		return m.press(msg)
+	case labelsReadMsg:
+		return m.labelsRead(msg)
 	case issueMsg:
 		cmd := m.gotIssue(msg)
 		m.refreshSide()
@@ -597,7 +603,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Comment):
 		return m.compose(composeComment, ui.ActComment)
 	case keymap.Matches(msg, k.Label):
-		return m.compose(composeLabels, ui.ActLabel)
+		return m.openLabels()
 	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneConversation:
 		return m.editComment()
 	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneDescription:

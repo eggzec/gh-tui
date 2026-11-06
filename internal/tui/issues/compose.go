@@ -1,7 +1,6 @@
 package issues
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 
@@ -20,7 +19,6 @@ type composing int
 const (
 	composeNone composing = iota
 	composeComment
-	composeLabels
 	composeEdit
 )
 
@@ -51,16 +49,6 @@ func (m *detailModal) compose(what composing, a ui.Action) tea.Cmd {
 		opts = append(opts,
 			prompt.WithTitle("Edit your comment on "+num),
 			prompt.WithValue(m.editFrom))
-	case composeLabels:
-		names := make([]string, len(m.issue.Labels))
-		for i, l := range m.issue.Labels {
-			names[i] = l.Name
-		}
-		opts = append(opts,
-			prompt.WithMode(prompt.SingleLine),
-			prompt.WithTitle("Labels of "+num),
-			prompt.WithPlaceholder("Comma-separated, such as bug, help wanted"),
-			prompt.WithValue(strings.Join(names, ", ")))
 	default:
 		return nil
 	}
@@ -84,7 +72,7 @@ func (m *detailModal) HasDraft() bool {
 		return strings.TrimSpace(m.prompt.Value()) != ""
 	case composeEdit:
 		return !sameText(m.prompt.Value(), m.editFrom)
-	case composeNone, composeLabels:
+	case composeNone:
 	}
 	return false
 }
@@ -108,8 +96,6 @@ func (m *detailModal) promptHeight() int {
 	switch m.composing {
 	case composeComment, composeEdit:
 		return min(max(h/3, minCommentHeight), maxCommentHeight, h)
-	case composeLabels:
-		return min(prompt.SingleLineHeight, h)
 	case composeNone:
 	}
 	return 0
@@ -150,9 +136,8 @@ func (m *detailModal) promptDone(msg tea.Msg) tea.Cmd {
 			return m.submitComment(msg.Value)
 		case composeEdit:
 			return m.submitEdit(msg.Value)
-		case composeNone, composeLabels:
+		case composeNone:
 		}
-		return m.submitLabels(msg.Value)
 	}
 	return nil
 }
@@ -215,133 +200,4 @@ func (m *detailModal) addPending(body string) {
 		Kind: core.TimelineComment, ID: "pending:" + strconv.Itoa(m.sent),
 		Actor: core.User{Login: who}, At: now, UpdatedAt: now, Body: body,
 	})
-}
-
-// submitLabels asks to make the issue's labels the comma-separated names
-// in typed. When they are the labels it has, it closes the prompt and
-// asks nothing.
-func (m *detailModal) submitLabels(typed string) tea.Cmd {
-	c, ok, refusal := m.labels(typed)
-	switch {
-	case refusal != nil:
-		return refusal
-	case !ok:
-		m.closePrompt()
-		return nil
-	}
-	// Label names may hold ", ", so two changes can read the same: the
-	// yes compares what they add and remove too.
-	added, removed := labelDiff(m.issue.Labels, typed)
-	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
-		if m.composing != composeLabels || m.prompt.Value() != typed {
-			return confirm.Ask{}, false, nil
-		}
-		a, r := labelDiff(m.issue.Labels, typed)
-		if !sameNames(a, added) || !sameNames(r, removed) {
-			return confirm.Ask{}, false, nil
-		}
-		return m.labels(typed)
-	})
-	return m.asks(ask)
-}
-
-// labels returns making the issue's labels the names in typed as a
-// question, which names what it adds and removes, or ok unset when that
-// changes nothing or the viewer may not, which refusal then says. Its run
-// closes the prompt, adds the new labels in one change and removes each
-// dropped one. The changes go one after another, so each answer from
-// GitHub, which holds every label, includes the changes before it.
-func (m *detailModal) labels(typed string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
-	if !m.loaded {
-		return confirm.Ask{}, false, nil
-	}
-	if cmd, refused := m.gate().Refuse(ui.ActLabel, &m.issue); refused {
-		return confirm.Ask{}, false, cmd
-	}
-	added, removed := labelDiff(m.issue.Labels, typed)
-	if len(added) == 0 && len(removed) == 0 {
-		return confirm.Ask{}, false, nil
-	}
-	n := m.number
-	num := "#" + strconv.Itoa(n)
-	return confirm.Ask{
-		Question: labelQuestion(num, added, removed),
-		Run: func() tea.Cmd {
-			m.closePrompt()
-			cmds := make([]tea.Cmd, 0, len(removed)+1)
-			if len(added) > 0 {
-				op := m.svc.AddLabels(m.repo, n, added)
-				cmds = append(cmds, m.send(op, "add "+strings.Join(added, ", ")+" to "+num))
-			}
-			for _, name := range removed {
-				op := m.svc.RemoveLabel(m.repo, n, name)
-				cmds = append(cmds, m.send(op, "remove "+name+" from "+num))
-			}
-			return tea.Batch(m.reload(), m.changed(), tea.Sequence(cmds...))
-		},
-	}, true, nil
-}
-
-// labelQuestion asks to add and remove the labels of issue num, such as
-// "Add the label bug to #12 and remove wontfix?".
-func labelQuestion(num string, added, removed []string) string {
-	switch {
-	case len(removed) == 0:
-		return "Add " + labelNames(added) + " to " + num + "?"
-	case len(added) == 0:
-		return "Remove " + labelNames(removed) + " from " + num + "?"
-	}
-	return "Add " + labelNames(added) + " to " + num + " and remove " + oneLine(removed) + "?"
-}
-
-// labelNames names labels in a question, such as "the labels bug, ui".
-func labelNames(names []string) string {
-	if len(names) == 1 {
-		return "the label " + oneLine(names)
-	}
-	return "the labels " + oneLine(names)
-}
-
-// oneLine joins names on one line, which a name with a line break of its
-// own would break.
-func oneLine(names []string) string {
-	return ui.OneLine(strings.Join(names, ", "))
-}
-
-// labelDiff compares the comma-separated label names in typed with the
-// labels an issue has. GitHub treats names that differ only in case as the
-// same label, so the comparison does too, and space around names doesn't
-// count. Added names keep their order and removed ones the issue's.
-func labelDiff(have []core.Label, typed string) (added, removed []string) {
-	var want []string
-	for name := range strings.SplitSeq(typed, ",") {
-		name = strings.TrimSpace(name)
-		if name != "" && !slices.ContainsFunc(want, sameLabel(name)) {
-			want = append(want, name)
-		}
-	}
-	for _, name := range want {
-		if !slices.ContainsFunc(have, func(l core.Label) bool { return sameLabel(name)(l.Name) }) {
-			added = append(added, name)
-		}
-	}
-	for _, l := range have {
-		if !slices.ContainsFunc(want, sameLabel(l.Name)) {
-			removed = append(removed, l.Name)
-		}
-	}
-	return added, removed
-}
-
-// sameNames reports whether a and b hold the same label names, in any
-// order.
-func sameNames(a, b []string) bool {
-	a, b = slices.Clone(a), slices.Clone(b)
-	slices.Sort(a)
-	slices.Sort(b)
-	return slices.Equal(a, b)
-}
-
-func sameLabel(name string) func(string) bool {
-	return func(other string) bool { return strings.EqualFold(strings.TrimSpace(other), name) }
 }

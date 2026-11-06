@@ -1,6 +1,7 @@
 package issues
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/prompt"
 )
@@ -133,112 +133,104 @@ func TestComposeResize(t *testing.T) {
 	assertFits(t, m.View(), 80, 30)
 }
 
-func TestLabels(t *testing.T) {
-	// #999 has enhancement and help wanted.
-	tests := []struct {
-		name  string
-		typed string
-		// question is what the submit asks, "" when it changes nothing.
-		question string
-		want     []string
-		// wantShown are the labels the header shows before GitHub answers.
-		wantShown []string
-	}{
-		{"unchanged", "enhancement, help wanted", "", nil, []string{"enhancement", "help wanted"}},
-		{"case and space differ", " Enhancement ,HELP WANTED,, ", "", nil, []string{"enhancement", "help wanted"}},
-		{
-			"added", "enhancement, help wanted, bug, ui", "Add the labels bug, ui to #999?",
-			[]string{"label 999 +bug,ui"}, []string{"enhancement", "help wanted", "bug", "ui"},
-		},
-		{"removed", "help wanted", "Remove the label enhancement from #999?", []string{"unlabel 999 -enhancement"}, []string{"help wanted"}},
-		{
-			"all removed", "", "Remove the labels enhancement, help wanted from #999?",
-			[]string{"unlabel 999 -enhancement", "unlabel 999 -help wanted"}, nil,
-		},
-		{
-			"added and removed", "bug, Help Wanted, BUG", "Add the label bug to #999 and remove enhancement?",
-			[]string{"label 999 +bug", "unlabel 999 -enhancement"}, []string{"help wanted", "bug"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newFakeService(sampleIssues(12))
-			h, m := opened(t, svc, 30)
-			press(t, h, "L")
-			if m.composing != composeLabels || m.prompt.Value() != "enhancement, help wanted" {
-				t.Fatalf("l opened %v with %q, want the labels prompt with the issue's labels", m.composing, m.prompt.Value())
-			}
-			m.prompt.SetValue(tt.typed)
-			press(t, h, "enter")
-			if got := question(h); got != tt.question || len(svc.changeCalls()) != 0 {
-				t.Fatalf("submit asked %q and sent %v, want the question %q", got, svc.changeCalls(), tt.question)
-			}
-			var done []ui.DoneMsg
-			if tt.question != "" {
-				done = runHolding(t, h, h.Update(keyMsg("y")))
-			}
-			if m.composing != composeNone {
-				t.Error("submit didn't close the prompt")
-			}
-			got := svc.changeCalls()
-			slices.Sort(got)
-			if !slices.Equal(got, tt.want) {
-				t.Errorf("changes = %v, want %v", got, tt.want)
-			}
-			if len(done) != len(tt.want) {
-				t.Errorf("%d ops sent, want %d", len(done), len(tt.want))
-			}
-			shown := make([]string, 0, len(m.issue.Labels))
-			for _, l := range m.issue.Labels {
-				shown = append(shown, l.Name)
-			}
-			if !slices.Equal(shown, tt.wantShown) {
-				t.Errorf("labels shown = %v, want %v", shown, tt.wantShown)
-			}
-			for _, d := range done {
-				run(t, h, h.Update(d))
-			}
-		})
-	}
-}
-
-// The label changes go to GitHub one after another: the added labels,
-// then each removed one, in the issue's order.
-func TestLabelOpsRunInOrder(t *testing.T) {
+// The labels picker ticks the issue's labels, and applying a change asks
+// before it sends.
+func TestLabelsPicker(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
 	press(t, h, "L")
-	m.prompt.SetValue("bug")
-	submit, ok := h.Update(keyMsg("enter"))().(prompt.SubmitMsg)
+	if m.over == nil {
+		t.Fatal("L opened no picker")
+	}
+	// The ticked labels come first, so the cursor is on enhancement.
+	press(t, h, "space", "enter")
+	if got, want := question(h), "Remove the label enhancement from #999?"; got != want {
+		t.Fatalf("applying asked %q, want %q", got, want)
+	}
+	if len(svc.changeCalls()) != 0 {
+		t.Fatalf("sent %v before the answer", svc.changeCalls())
+	}
+	for _, d := range runHolding(t, h, h.Update(keyMsg("y"))) {
+		run(t, h, h.Update(d))
+	}
+	if got := svc.changeCalls(); !slices.Equal(got, []string{"labels 999 + -enhancement"}) {
+		t.Errorf("changes = %v", got)
+	}
+}
+
+// Applying the picker with nothing changed asks nothing.
+func TestLabelsPickerUnchanged(t *testing.T) {
+	svc := newFakeService(sampleIssues(12))
+	h, m := opened(t, svc, 30)
+	press(t, h, "L", "enter")
+	if question(h) != "" || len(svc.changeCalls()) != 0 || m.over != nil {
+		t.Errorf("asked %q, sent %v, picker open %v", question(h), svc.changeCalls(), m.over != nil)
+	}
+}
+
+// failingLabels is a source of facets whose read of the labels fails.
+type failingLabels struct{ fakeFacets }
+
+func (*failingLabels) Labels(context.Context, core.RepoRef) ([]core.Label, error) {
+	return nil, errors.New("boom")
+}
+
+// openedWith is opened for a section that has f as its source of facets.
+func openedWith(t *testing.T, f Facets) (*host, *detailModal) {
+	t.Helper()
+	svc := newFakeService(sampleIssues(12))
+	svc.addComments(999, sampleComments(3)...)
+	h := started(t, svc, 80, 30, WithFacets(f))
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "*")
+	return h, m
+}
+
+// The picker offers the labels of the repository read from the facets along
+// with the issue's own.
+func TestLabelsPickerFromFacets(t *testing.T) {
+	t.Parallel()
+	h, m := openedWith(t, &fakeFacets{})
+	press(t, h, "L")
+	o, ok := m.over.(*labelsOverlay)
 	if !ok {
-		t.Fatal("enter didn't submit the labels")
+		t.Fatalf("L opened %T, want the labels picker", m.over)
 	}
-	// The command that comes back only arms the question; it sends nothing.
-	h.Update(submit)
-	if question(h) == "" {
-		t.Fatal("submitting didn't ask first")
+	// bug and ui from the repository, the rest from the issue.
+	if want := 2 + len(m.issue.Labels); o.Rows != want {
+		t.Errorf("the picker offers %d labels, want %d", o.Rows, want)
 	}
-	batch, ok := h.Update(keyMsg("y"))().(tea.BatchMsg)
-	if !ok {
-		t.Fatal("submitting didn't return a batch of the reload and the changes")
+}
+
+// A failed read of the labels shows an error and opens no picker.
+func TestLabelsPickerReadFails(t *testing.T) {
+	t.Parallel()
+	h, m := openedWith(t, &failingLabels{})
+	msgs := press(t, h, "L")
+	if m.over != nil {
+		t.Error("the picker opened though the read failed")
 	}
-	var seq []tea.Cmd
-	for _, c := range batch {
-		if c == nil {
-			continue
-		}
-		if cmds, ok := sequence(c()); ok {
-			seq = cmds
-		}
+	if len(msgs) < 2 {
+		t.Errorf("fed %v, want the read and an error toast", msgs)
 	}
-	want := []string{"add bug to #999", "remove enhancement from #999", "remove help wanted from #999"}
-	if len(seq) != len(want) {
-		t.Fatalf("sequence of %d changes, want %d", len(seq), len(want))
+}
+
+// Labels read while something else was opened do not open the picker over it.
+func TestLabelsReadLateOpensNothing(t *testing.T) {
+	t.Parallel()
+	h, m := openedWith(t, &fakeFacets{})
+	read := h.Update(keyMsg("L"))
+	press(t, h, "c")
+	if m.composing == composeNone {
+		t.Fatal("c opened no prompt")
 	}
-	for i, c := range seq {
-		if d, ok := c().(ui.DoneMsg); !ok || d.What != want[i] {
-			t.Errorf("change %d = %#v, want %q", i, d, want[i])
-		}
+	run(t, h, read)
+	if m.over != nil || m.composing != composeComment {
+		t.Errorf("picker open %v, composing %v", m.over != nil, m.composing)
 	}
 }
 
@@ -252,9 +244,6 @@ func TestComposeAnswers(t *testing.T) {
 		want                  []string
 	}{
 		{"comment", "c", "Same here.", "Post this comment on #999?", []string{"comment 999: Same here."}},
-		{"labels", "L", "bug", "Add the label bug to #999 and remove enhancement, help wanted?", []string{
-			"label 999 +bug", "unlabel 999 -enhancement", "unlabel 999 -help wanted",
-		}},
 	}
 	for _, tt := range tests {
 		for _, answer := range [][]string{{"y"}, {"n"}, {"esc"}, {"y", "y"}} {
@@ -320,53 +309,12 @@ func TestComposeAsksAgain(t *testing.T) {
 		name  string
 		open  string
 		typed string
-		// setup readies the issue before it opens, and meddle changes what
-		// the question is about before the answer.
-		setup  func(svc *fakeService)
+		// meddle changes what the question is about before the answer.
 		meddle func(t *testing.T, h *host, svc *fakeService, m *detailModal)
 		want   tea.Msg
 	}{
 		{
 			name: "comment in an archived repository", open: "c", typed: "Same here.",
-			meddle: func(t *testing.T, h *host, _ *fakeService, _ *detailModal) {
-				t.Helper()
-				run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: archived}))
-			},
-			want: info("eggzec/gh-tui is archived, so it's read-only."),
-		},
-		{
-			name: "labels changed elsewhere", open: "L", typed: "bug",
-			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
-				t.Helper()
-				svc.set(999, func(it *core.Issue) { it.Labels = append(it.Labels, core.Label{Name: "ui"}) })
-				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
-			},
-			want: info("#999 changed meanwhile, so nothing was sent."),
-		},
-		{
-			name: "labels made what was typed elsewhere", open: "L", typed: "bug",
-			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
-				t.Helper()
-				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "bug"}} })
-				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
-			},
-			want: info("#999 changed meanwhile, so nothing was sent."),
-		},
-		{
-			// Removing "a, b" and "c" reads as removing "a" and "b, c".
-			name: "labels that read the same", open: "L", typed: "",
-			meddle: func(t *testing.T, h *host, svc *fakeService, _ *detailModal) {
-				t.Helper()
-				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "a"}, {Name: "b, c"}} })
-				run(t, h, h.Update(ui.SyncMsg{Key: issuesvc.SyncKey(testRepo)}))
-			},
-			setup: func(svc *fakeService) {
-				svc.set(999, func(it *core.Issue) { it.Labels = []core.Label{{Name: "a, b"}, {Name: "c"}} })
-			},
-			want: info("#999 changed meanwhile, so nothing was sent."),
-		},
-		{
-			name: "labels in an archived repository", open: "L", typed: "bug",
 			meddle: func(t *testing.T, h *host, _ *fakeService, _ *detailModal) {
 				t.Helper()
 				run(t, h, h.Update(ui.CapsMsg{Repo: testRepo, Caps: archived}))
@@ -385,9 +333,6 @@ func TestComposeAsksAgain(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := newFakeService(sampleIssues(12))
-			if tt.setup != nil {
-				tt.setup(svc)
-			}
 			h, m := opened(t, svc, 30)
 			press(t, h, tt.open)
 			m.prompt.SetValue(tt.typed)
@@ -395,13 +340,7 @@ func TestComposeAsksAgain(t *testing.T) {
 			if question(h) == "" {
 				t.Fatal("the submit asked nothing")
 			}
-			asked := question(h)
 			tt.meddle(t, h, svc, m)
-			if tt.setup != nil {
-				if again, _, _ := m.labels(tt.typed); again.Question != asked {
-					t.Fatalf("the change now asks %q, want it to read as %q", again.Question, asked)
-				}
-			}
 			msgs := press(t, h, "y")
 			if len(svc.changeCalls()) != 0 || !slices.Contains(msgs, tt.want) {
 				t.Errorf("sent %v and showed %v, want only %v", svc.changeCalls(), msgs, tt.want)
@@ -430,36 +369,6 @@ func TestLabelQuestion(t *testing.T) {
 		if got := labelQuestion("#12", tt.added, tt.removed); got != tt.want {
 			t.Errorf("labelQuestion(+%v -%v) = %q, want %q", tt.added, tt.removed, got, tt.want)
 		}
-	}
-}
-
-func TestLabelDiff(t *testing.T) {
-	have := []core.Label{{Name: "bug"}, {Name: "Help Wanted"}, {Name: "ui"}}
-	tests := []struct {
-		name           string
-		typed          string
-		added, removed []string
-	}{
-		{"unchanged", "bug, Help Wanted, ui", nil, nil},
-		{"reordered", "ui,bug,Help Wanted", nil, nil},
-		{"case differs", "BUG, help wanted, UI", nil, nil},
-		{"space differs", "  bug ,  Help Wanted,ui  ,", nil, nil},
-		{"added", "bug, Help Wanted, ui, docs, good first issue", []string{"docs", "good first issue"}, nil},
-		{"added once", "bug, Help Wanted, ui, docs, Docs", []string{"docs"}, nil},
-		{"removed", "bug", nil, []string{"Help Wanted", "ui"}},
-		{"all removed", " , ", nil, []string{"bug", "Help Wanted", "ui"}},
-		{"both", "ui, docs", []string{"docs"}, []string{"bug", "Help Wanted"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			added, removed := labelDiff(have, tt.typed)
-			if !slices.Equal(added, tt.added) || !slices.Equal(removed, tt.removed) {
-				t.Errorf("labelDiff(%q) = +%v -%v, want +%v -%v", tt.typed, added, removed, tt.added, tt.removed)
-			}
-		})
-	}
-	if added, removed := labelDiff(nil, "bug"); !slices.Equal(added, []string{"bug"}) || removed != nil {
-		t.Errorf("labelDiff(nil, bug) = +%v -%v", added, removed)
 	}
 }
 

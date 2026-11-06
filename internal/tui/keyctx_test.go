@@ -967,6 +967,8 @@ var idleRows = map[string]string{
 	"global notifications": "the modal that shows the notifications is not there yet",
 	"global menu":          "a view with no item selected, such as the calendar, has no menu to open",
 
+	"picker_normal toggle": "the fixture repo has no labels, so the issue labels picker has no row to tick",
+
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
 
@@ -1313,7 +1315,7 @@ func keyContexts() []keyContext {
 		{name: "issue: references", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references"}, context: "references", want: "global, references"},
 		{name: "issue: references filter", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.references", "references.quick_filter"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "issue: comment", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.comment"}, context: "prompt", want: "always, prompt (types)"},
-		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "prompt", want: "always, prompt (types)"},
+		{name: "issue: labels", repo: true, steps: []string{"global.pane_3", "global.select", "issue_modal.labels"}, context: "picker_normal", want: "always, picker_normal"},
 		{name: "issue: description editor", repo: true, steps: []string{"global.pane_3", "global.select", "global.pane_1", "issue_modal.edit"}, context: "issue_desc_edit", want: "always, issue_desc_edit (types)"},
 		{name: "history", repo: true, steps: []string{"repo.history"}, context: "history_graph", want: "global, history, history_graph"},
 		{name: "history: zoomed", repo: true, steps: []string{"repo.history", "global.zoom"}, context: "history_graph", want: "global, history, history_graph"},
