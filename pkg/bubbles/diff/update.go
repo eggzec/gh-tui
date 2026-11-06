@@ -135,16 +135,16 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.cursor++
 		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.PageUp):
-		m.cursor -= h
+		m.cursor = m.cursorBy(-h)
 		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.PageDown):
-		m.cursor += h
+		m.cursor = m.cursorBy(h)
 		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.HalfPageUp):
-		m.cursor -= max(h/2, 1)
+		m.cursor = m.cursorBy(-max(h/2, 1))
 		m.passRows(-1)
 	case keymap.Matches(msg, m.keyMap.HalfPageDown):
-		m.cursor += max(h/2, 1)
+		m.cursor = m.cursorBy(max(h/2, 1))
 		m.passRows(1)
 	case keymap.Matches(msg, m.keyMap.Home):
 		m.cursor = 0
@@ -306,6 +306,9 @@ func (m *Model) prevHunk() {
 // maxLeft is how far the rows in the window can be scrolled sideways: until
 // the widest of their lines ends at the right edge.
 func (m Model) maxLeft() int {
+	if m.wrapOn {
+		return 0
+	}
 	room, blockRoom := m.textWidth(m.numWidth()), m.blockWidth()
 	over := 0
 	h := m.bodyHeight()
@@ -396,6 +399,10 @@ func (m *Model) scroll() {
 	total := n
 	if m.hasStatus() {
 		total++
+	}
+	if m.wrapOn {
+		m.wrapScroll(h, n, total)
+		return
 	}
 	m.top = max(min(m.top, total-h), 0)
 	m.top = min(m.top, m.cursor)

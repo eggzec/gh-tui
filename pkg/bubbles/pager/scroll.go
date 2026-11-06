@@ -69,12 +69,7 @@ func (m *Model) rowsIn(p int) int {
 	if _, ok := m.header(m.at(p)); ok {
 		return 1
 	}
-	s, tw := m.rows.Text(m.at(p)), m.widthOf(m.at(p))
-	n := 1
-	for j, _ := wrap.NextRow(s, 0, tw); j < len(s); j, _ = wrap.NextRow(s, j, tw) {
-		n++
-	}
-	return n
+	return wrap.Rows(m.rows.Text(m.at(p)), m.widthOf(m.at(p)))
 }
 
 // rowOf returns the row of the line shown at p that holds byte b.

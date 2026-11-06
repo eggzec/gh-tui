@@ -1,0 +1,14 @@
+  ▾ a.go +2 -1                          
+      @@ -1,4 +1,5 @@                   
+       ctx one                          
+      -old                              
+▌     +alpha beta gamma delta alpha beta
+▌      gamma delta alpha beta gamma delt
+▌     a alpha beta gamma delta wordacros
+▌     s edge here                       
+      +alpha beta gamma delta alpha beta
+       gamma delta alpha beta gamma delt
+      a alpha beta gamma delta wordacros
+      s edge here                       
+       ctx two                          
+file 1/1 · match 1/2                    

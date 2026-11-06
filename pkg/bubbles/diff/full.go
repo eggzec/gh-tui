@@ -192,7 +192,7 @@ func (m *Model) reflow(path string, change func() bool, nearest bool) bool {
 			row = min(row, newEnd-1)
 		}
 		m.cursor = row
-		m.top = max(row-offset, 0)
+		m.top, m.sub = max(row-offset, 0), 0
 	case m.cursor >= end:
 		m.cursor += newEnd - end
 		if m.top >= end {
