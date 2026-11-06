@@ -612,6 +612,14 @@ func (m *Model) updateOwner() {
 // its title, such as the filters of its list, and redraws the frames whose
 // titles changed.
 func (m *Model) updateChips() {
+	// The box of a preview is titled with what it shows, which moves with
+	// the cursor.
+	if p := m.prev; p != nil && p.preview != nil {
+		if t := p.preview.PreviewTitle(); t != p.previewTitle {
+			p.previewTitle = t
+			m.drawFrame(p)
+		}
+	}
 	for _, p := range m.panes {
 		c, ok := p.section.(ui.Chipper)
 		if !ok {
