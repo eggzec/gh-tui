@@ -23,6 +23,9 @@ func TestOpen(t *testing.T) {
 	runs.Subject.Title = "ci workflow run failed for feat/search-page branch"
 	badRun := note(core.SubjectCheckSuite, 10, 0)
 	badRun.Subject.Title = "CI run failed on main"
+	resolved := note(core.SubjectCheckSuite, 12, 0)
+	resolved.Subject.Title = "ci workflow run, Attempt #2 failed for feat/search-page branch"
+	resolved.Subject.WebURL = "https://github.com/charmbracelet/glow/actions/runs/777"
 	discussion := note(core.SubjectDiscussion, 0, 0)
 	discussion.Subject.WebURL = discussions
 	alert := note("RepositoryVulnerabilityAlert", 11, 0)
@@ -38,6 +41,7 @@ func TestOpen(t *testing.T) {
 		{"release", note(core.SubjectRelease, 368759772, 0), ui.OpenReleaseMsg{Repo: glow, ID: 368759772, URL: "https://github.com/charmbracelet/glow/368759772"}, ""},
 		{"commit", note(core.SubjectCommit, 7, 0), ui.OpenCommitMsg{Repo: glow, SHA: "c0ffee7"}, ""},
 		{"run", runs, ui.OpenActionsMsg{Repo: glow, Filter: core.RunFilter{Branch: "feat/search-page", Status: "failure"}}, ""},
+		{"resolved re-run", resolved, ui.OpenActionsMsg{Repo: glow, Filter: core.RunFilter{Branch: "feat/search-page"}, At: ui.ActionsAt{Run: 777}}, ""},
 		{"discussion", discussion, ui.OpenMsg{URL: discussions}, "Opened in the browser — gh-tui has no discussion view yet"},
 		{"run without a branch", badRun, ui.OpenMsg{URL: badRun.Subject.WebURL}, "Opened in the browser — gh-tui has no view of it yet"},
 		{"other", alert, ui.OpenMsg{URL: alert.Subject.WebURL}, "Opened in the browser — gh-tui has no view of it yet"},
@@ -69,6 +73,9 @@ func TestRunFilter(t *testing.T) {
 		{"Build workflow run cancelled for release/v2 branch", core.RunFilter{Branch: "release/v2", Status: "cancelled"}, true},
 		{"ci workflow run failed for feat/search-page branch", core.RunFilter{Branch: "feat/search-page", Status: "failure"}, true},
 		{"CI run failed on main", core.RunFilter{}, false},
+		{"CI workflow run, Attempt #2 failed for main branch", core.RunFilter{Branch: "main", Status: "failure"}, true},
+		{"CI workflow run canceled for main branch", core.RunFilter{Branch: "main", Status: "cancelled"}, true},
+		{"CI workflow run timed out for main branch", core.RunFilter{Branch: "main", Status: "timed_out"}, true},
 	} {
 		if f, ok := runFilter(core.Subject{Type: core.SubjectCheckSuite, Title: tt.title}); f != tt.f || ok != tt.ok {
 			t.Errorf("runFilter(%q) = %+v, %v", tt.title, f, ok)

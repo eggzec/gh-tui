@@ -145,7 +145,9 @@ func (c *Client) ResolveSubjectURL(ctx context.Context, n core.Notification) (st
 
 // runTitle is the title GitHub gives a notification of a workflow run, such
 // as "CI workflow run failed for main branch".
-var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
+// A re-run says its attempt: "CI workflow run, Attempt #2 failed for main
+// branch".
+var runTitle = regexp.MustCompile(`^(.+?) workflow run(?:, Attempt #\d+)? ([\w ]+?) for (.+) branch$`)
 
 // runOfTitle finds the run that the title of a check suite notification
 // names, which GitHub gives no URL: among the runs of that branch that ended
@@ -162,8 +164,10 @@ func (c *Client) runOfTitle(ctx context.Context, n core.Notification) (string, e
 		q.Set("status", string(core.ConclusionFailure))
 	case "succeeded":
 		q.Set("status", string(core.ConclusionSuccess))
-	case "cancelled":
+	case "cancelled", "canceled":
 		q.Set("status", string(core.ConclusionCancelled))
+	case "timed out":
+		q.Set("status", string(core.ConclusionTimedOut))
 	}
 	var body restRuns
 	if _, err := c.Get(ctx, actionsPath(n.Repo)+"/runs?"+q.Encode(), Conditional{}, &body); err != nil {
