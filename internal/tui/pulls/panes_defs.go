@@ -1,6 +1,9 @@
 package pulls
 
-import "github.com/eggzec/gh-tui/pkg/bubbles/panes"
+import (
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+)
 
 // The panes of the pull request modal, in digit order.
 const (
@@ -56,8 +59,8 @@ func paneTitle(p panes.Pane) string {
 // columns, unless zoom asks for the focus alone, and otherwise the zoomed
 // layout of the bubble. devRows is the rows the Development pane has with
 // every fold in its default state, not its current one.
-func prLayout(w, h int, focus panes.Pane, zoom bool, devRows int) panes.Layout {
-	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom)}
+func prLayout(w, h int, focus panes.Pane, zoom bool, devRows int, d *ui.Dividers) panes.Layout {
+	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom), ListWidth: listSplit(d, w)}
 	if spec.Zoom {
 		return panes.Compute(spec)
 	}
@@ -65,15 +68,33 @@ func prLayout(w, h int, focus panes.Pane, zoom bool, devRows int) panes.Layout {
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneDescription
 	}
-	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, devRows)}
+	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, devRows, sideSplit(d, w))}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clampRect(l.Boxes[i].Rect, w, h)
 	}
 	return l
 }
 
-func wideBoxes(w, h, devRows int) []panes.Box {
-	left := w - sideWidth
+// sideSplit is the width of the right column in an area w wide, where d may
+// have moved it from sideWidth; a nil d leaves it.
+func sideSplit(d *ui.Dividers, w int) int {
+	if d == nil {
+		return sideWidth
+	}
+	return w - d.Side.Of(w-sideWidth, panes.MinWidth, w-panes.MinWidth)
+}
+
+// listSplit is the width of the list of a zoomed pane beside its preview in an
+// area w wide, or 0 for the bubble's default, which a nil d leaves.
+func listSplit(d *ui.Dividers, w int) int {
+	if d == nil {
+		return 0
+	}
+	return d.List.Of(panes.DefaultListWidth, panes.MinWidth, w-panes.MinWidth)
+}
+
+func wideBoxes(w, h, devRows, side int) []panes.Box {
+	left := w - side
 	desc := descriptionHeight(h)
 	merge, inv, dev, files := rightHeights(h, 0, devRows)
 	boxes := make([]panes.Box, 0, paneCount)
@@ -86,7 +107,7 @@ func wideBoxes(w, h, devRows int) []panes.Box {
 		p panes.Pane
 		h int
 	}{{paneMerge, merge}, {paneInvolved, inv}, {paneDevelopment, dev}, {paneFiles, files}} {
-		boxes = append(boxes, panes.Box{Pane: c.p, Rect: panes.Rect{X: left, Y: y, W: sideWidth, H: c.h}})
+		boxes = append(boxes, panes.Box{Pane: c.p, Rect: panes.Rect{X: left, Y: y, W: side, H: c.h}})
 		y += c.h
 	}
 	return boxes

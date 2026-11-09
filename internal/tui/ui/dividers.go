@@ -8,13 +8,14 @@ type Dividers struct {
 	// Step is ui.divider_step, how far a press moves a divider.
 	Step int
 	// Files is the divider between the files column and the right one of the
-	// repository screen, and List the one between a list and its preview.
-	Files, List panes.Size
+	// repository screen, List the one between a list and its preview, and
+	// Side the one between the main column of a modal and its side column.
+	Files, List, Side panes.Size
 }
 
 // Moved reports whether the user moved any divider.
 func (d *Dividers) Moved() bool {
-	return d.Files.Moved() || d.List.Moved()
+	return d.Files.Moved() || d.List.Moved() || d.Side.Moved()
 }
 
 // Move moves s by steps presses, then keeps both of its panes within lo and
