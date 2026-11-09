@@ -140,6 +140,10 @@ func (s *Service) SendReview(ctx context.Context, repo core.RepoRef, number int,
 	if !errors.Is(err, ErrPendingAppeared) {
 		return err
 	}
+	if body == "" && event == core.ReviewEventApprove {
+		// The summary written on the web would be replaced by an empty one.
+		return err
+	}
 	pending, found, rerr := s.PendingReview(ctx, repo, number)
 	if rerr != nil || !found {
 		return err
