@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // assigneeRows is how many rows the picker counts besides the assignees: what
@@ -31,7 +32,10 @@ type assigneesOverlay = prpanes.TickOverlay[string]
 // the people the repository offers as the user types, and keeps the current
 // assignees listed, ticked, whatever the search returns.
 func (m *detailModal) openAssignees() tea.Cmd {
-	if !m.loaded || m.busy() {
+	if !m.loaded {
+		return ui.Notify(toast.Info, "Still reading #"+strconv.Itoa(m.number)+".")
+	}
+	if m.busy() {
 		return nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActAssign, &m.issue); refused {
