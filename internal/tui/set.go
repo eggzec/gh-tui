@@ -116,7 +116,7 @@ func (m *Model) applySettings() tea.Cmd {
 	// The screens are laid out again now: the line that set it has been
 	// laid out before it ran, so no resize would follow.
 	m.wide = m.cfg.UI.Wide
-	m.dividerStep = m.cfg.UI.DividerStep
+	m.dividers.Step = m.cfg.UI.DividerStep
 	defer m.layout()
 	if m.settings != nil {
 		m.settings(m.cfg)

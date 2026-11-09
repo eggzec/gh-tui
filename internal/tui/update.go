@@ -411,14 +411,14 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.zoom.Toggle()
 		m.layout()
 		return nil
-	case m.divider() != nil && keymap.Matches(msg, m.keys.DividerLeft):
-		m.moveDivider(-m.dividerStep)
+	case m.canDivide() && keymap.Matches(msg, m.keys.DividerLeft):
+		m.moveDivider(-m.dividers.Step)
 		return nil
-	case m.divider() != nil && keymap.Matches(msg, m.keys.DividerRight):
-		m.moveDivider(m.dividerStep)
+	case m.canDivide() && keymap.Matches(msg, m.keys.DividerRight):
+		m.moveDivider(m.dividers.Step)
 		return nil
-	case m.filesSize.Moved() && keymap.Matches(msg, m.keys.DividerReset):
-		m.filesSize.Reset()
+	case m.dividers.Moved() && keymap.Matches(msg, m.keys.DividerReset):
+		m.dividers.Reset()
 		m.layout()
 		return nil
 	case keymap.Matches(msg, m.keys.Back):

@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 var (
@@ -53,21 +55,21 @@ func TestDividerStopsAtBounds(t *testing.T) {
 	for range 60 {
 		run(m, m.key(ctrlLeft))
 	}
-	if column(files) != minFilesWidth {
-		t.Fatalf("files width = %d, want the minimum %d", column(files), minFilesWidth)
+	if column(files) != panes.MinWidth {
+		t.Fatalf("files width = %d, want the minimum %d", column(files), panes.MinWidth)
 	}
 	run(m, m.key(ctrlRight))
-	if column(files) != minFilesWidth+2 {
-		t.Errorf("one press back from the minimum = %d, want %d", column(files), minFilesWidth+2)
+	if column(files) != panes.MinWidth+2 {
+		t.Errorf("one press back from the minimum = %d, want %d", column(files), panes.MinWidth+2)
 	}
 	for range 100 {
 		run(m, m.key(ctrlRight))
 	}
-	if want := 120 - minFilesWidth; column(files) != want {
+	if want := 120 - panes.MinWidth; column(files) != want {
 		t.Fatalf("files width = %d, want the maximum %d", column(files), want)
 	}
 	run(m, m.key(ctrlLeft))
-	if want := 120 - minFilesWidth - 2; column(files) != want {
+	if want := 120 - panes.MinWidth - 2; column(files) != want {
 		t.Errorf("one press back from the maximum = %d, want %d", column(files), want)
 	}
 }
@@ -76,13 +78,13 @@ func TestDividerReset(t *testing.T) {
 	t.Parallel()
 	m, files := newSplitApp(t, 120, 40)
 	run(m, m.key(press("=")))
-	if m.filesSize.Moved() {
+	if m.dividers.Moved() {
 		t.Fatal("reset moved an unmoved divider")
 	}
 	run(m, m.key(ctrlRight))
 	run(m, m.key(ctrlRight))
 	run(m, m.key(press("=")))
-	if column(files) != filesWidth(120) || m.filesSize.Moved() {
+	if column(files) != filesWidth(120) || m.dividers.Moved() {
 		t.Errorf("after reset files width = %d, want %d", column(files), filesWidth(120))
 	}
 }
@@ -96,7 +98,7 @@ func TestDividerNarrowAndResize(t *testing.T) {
 		t.Error("the divider keys are enabled on a narrow terminal")
 	}
 	run(m, m.key(ctrlRight))
-	if m.divider() != nil {
+	if m.canDivide() {
 		t.Error("a narrow terminal has a divider")
 	}
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
@@ -116,7 +118,7 @@ func TestDividerKeysGoToWhatCapturesThem(t *testing.T) {
 		m, files := newSplitApp(t, 120, 40)
 		run(m, m.key(press(open)))
 		run(m, m.key(ctrlRight))
-		if m.filesSize.Moved() || column(files) != filesWidth(120) {
+		if m.dividers.Moved() || column(files) != filesWidth(120) {
 			t.Errorf("%q open: ctrl+right moved the divider", open)
 		}
 	}
@@ -128,4 +130,76 @@ func TestDividerFrame(t *testing.T) {
 	run(m, m.key(ctrlRight))
 	run(m, m.key(ctrlRight))
 	golden.RequireEqual(t, m.View().Content)
+}
+
+// preview is the width of the preview box the section was last given.
+func preview(f *splitFake) int { return f.sizes[len(f.sizes)-1][0] }
+
+func TestZoomedDividerMoves(t *testing.T) {
+	t.Parallel()
+	m, files := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	def := preview(files)
+	run(m, m.key(ctrlRight))
+	if got := preview(files); got != def-2 {
+		t.Errorf("after ctrl+right the preview is %d wide, want %d", got, def-2)
+	}
+	run(m, m.key(ctrlLeft))
+	run(m, m.key(ctrlLeft))
+	if got := preview(files); got != def+2 {
+		t.Errorf("after two ctrl+left the preview is %d wide, want %d", got, def+2)
+	}
+	if m.dividers.Files.Moved() {
+		t.Error("the zoomed divider moved the files column")
+	}
+}
+
+func TestZoomedDividerStopsAtBounds(t *testing.T) {
+	t.Parallel()
+	m, files := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	for range 60 {
+		run(m, m.key(ctrlLeft))
+	}
+	if column(files) != panes.MinWidth {
+		t.Fatalf("list width = %d, want the minimum %d", column(files), panes.MinWidth)
+	}
+	run(m, m.key(ctrlLeft))
+	if column(files) != panes.MinWidth {
+		t.Error("a press at the limit changed the layout")
+	}
+	for range 100 {
+		run(m, m.key(ctrlRight))
+	}
+	if want := 120 - panes.MinWidth; column(files) != want {
+		t.Fatalf("list width = %d, want the maximum %d", column(files), want)
+	}
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	if want := 100 - panes.MinWidth; column(files) != want {
+		t.Errorf("list width after shrinking = %d, want %d", column(files), want)
+	}
+}
+
+func TestDividerResetBoth(t *testing.T) {
+	t.Parallel()
+	m, files := newSplitApp(t, 120, 40)
+	run(m, m.key(ctrlRight))
+	run(m, m.key(press("z")))
+	run(m, m.key(ctrlRight))
+	if !m.dividers.Files.Moved() || !m.dividers.List.Moved() {
+		t.Fatal("both dividers should be moved")
+	}
+	run(m, m.key(press("=")))
+	if m.dividers.Moved() || column(files) != panes.DefaultListWidth {
+		t.Errorf("after reset moved=%v list=%d", m.dividers.Moved(), column(files))
+	}
+}
+
+func TestZoomedDividerDisabledWhenNarrow(t *testing.T) {
+	t.Parallel()
+	m, _ := newSplitApp(t, 80, 24)
+	run(m, m.key(press("z")))
+	if k := m.keys.state(m); k.DividerLeft.Enabled() || k.DividerRight.Enabled() {
+		t.Error("the divider keys are enabled on a narrow zoom")
+	}
 }

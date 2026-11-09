@@ -38,6 +38,8 @@ const (
 	// DefaultListWidth is the width of the list beside a preview, when
 	// Spec.ListWidth is not set.
 	DefaultListWidth = 46
+	// MinWidth is the fewest columns a pane keeps when a divider moves.
+	MinWidth = 24
 )
 
 // Rect is a rectangle of cells in the area, from its top left cell.
