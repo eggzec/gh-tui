@@ -248,7 +248,12 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	}
 	own := keyhelp.FromHelp("", k, false)
 	own.Bindings = append(own.Bindings, owner)
-	own.Bindings = append(own.Bindings, m.keys.panes.bindings()...)
+	pk := m.keys.panes
+	can := m.canDivide()
+	pk.dividerLeft.SetEnabled(pk.dividerLeft.Enabled() && can)
+	pk.dividerRight.SetEnabled(pk.dividerRight.Enabled() && can)
+	pk.dividerReset.SetEnabled(pk.dividerReset.Enabled() && can && m.dividers.Moved())
+	own.Bindings = append(own.Bindings, pk.bindings()...)
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.
 	tree := keyhelp.FromHelp("", m.keys.tree, false)

@@ -1,6 +1,9 @@
 package issues
 
-import "github.com/eggzec/gh-tui/pkg/bubbles/panes"
+import (
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+)
 
 // The panes of the issue modal, in digit order.
 const (
@@ -48,8 +51,8 @@ func paneName(p panes.Pane) string {
 // issueLayout lays out an area of w by h cells: two columns from wideMin
 // columns, unless zoom asks for the focus alone, and otherwise the zoomed
 // layout of the bubble.
-func issueLayout(w, h int, focus panes.Pane, zoom bool) panes.Layout {
-	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom)}
+func issueLayout(w, h int, focus panes.Pane, zoom bool, d *ui.Dividers) panes.Layout {
+	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom), ListWidth: listSplit(d, w)}
 	if spec.Zoom {
 		return panes.Compute(spec)
 	}
@@ -57,24 +60,42 @@ func issueLayout(w, h int, focus panes.Pane, zoom bool) panes.Layout {
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneDescription
 	}
-	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h)}
+	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, sideSplit(d, w))}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clampRect(l.Boxes[i].Rect, w, h)
 	}
 	return l
 }
 
-func wideBoxes(w, h int) []panes.Box {
-	left := w - sideWidth
+// sideSplit is the width of the side column: sideWidth until the user moves
+// the divider, which keeps MinWidth columns on each side.
+func sideSplit(d *ui.Dividers, w int) int {
+	if d == nil {
+		return sideWidth
+	}
+	return w - d.Side.Of(w-sideWidth, panes.MinWidth, w-panes.MinWidth)
+}
+
+// listSplit is the width of the list beside the preview of a zoomed pane, or 0
+// for the bubble's default.
+func listSplit(d *ui.Dividers, w int) int {
+	if d == nil {
+		return 0
+	}
+	return d.List.Of(panes.DefaultListWidth, panes.MinWidth, w-panes.MinWidth)
+}
+
+func wideBoxes(w, h, side int) []panes.Box {
+	left := w - side
 	desc := descriptionHeight(h)
 	// The right column is three stacked thirds; the last takes the rest.
 	third := h / 3
 	return []panes.Box{
 		{Pane: paneDescription, Rect: panes.Rect{X: 0, Y: 0, W: left, H: desc}},
 		{Pane: paneConversation, Rect: panes.Rect{X: 0, Y: desc, W: left, H: h - desc}},
-		{Pane: paneInvolved, Rect: panes.Rect{X: left, Y: 0, W: sideWidth, H: third}},
-		{Pane: paneDevelopment, Rect: panes.Rect{X: left, Y: third, W: sideWidth, H: third}},
-		{Pane: paneBlockers, Rect: panes.Rect{X: left, Y: 2 * third, W: sideWidth, H: h - 2*third}},
+		{Pane: paneInvolved, Rect: panes.Rect{X: left, Y: 0, W: side, H: third}},
+		{Pane: paneDevelopment, Rect: panes.Rect{X: left, Y: third, W: side, H: third}},
+		{Pane: paneBlockers, Rect: panes.Rect{X: left, Y: 2 * third, W: side, H: h - 2*third}},
 	}
 }
 

@@ -22,7 +22,7 @@ func (m *detailModal) headerRows() int {
 // paneLayout lays the panes out in what the header and the prompt leave.
 func (m *detailModal) paneLayout() panes.Layout {
 	h := max(m.height-m.headerRows(), 0)
-	return issueLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed())
+	return issueLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.dividers)
 }
 
 // convRect is the room of the conversation: the inside of its box, which is

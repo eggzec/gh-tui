@@ -57,8 +57,11 @@ type Section struct {
 	focused    bool
 	// facets offer what the filter chooses from, and milestonesRead is
 	// set once the milestones of repo were read ahead.
-	facets         Facets
-	drafts         composer.Drafts
+	facets Facets
+	drafts composer.Drafts
+	// dividers are the dividers shared with the other views; nil leaves the
+	// modal's where they start.
+	dividers       *ui.Dividers
 	milestonesRead bool
 
 	// list is rebuilt for every repository, tab and filter, so its Fetch
