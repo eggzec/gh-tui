@@ -20,6 +20,9 @@ Search
   show kind | 1 2 3 4 5 6 7 | 1-7 | on
   scroll preview down | J | J | on
   scroll preview up | K | K | on
+  divider left | ctrl+left | ^left | off
+  divider right | ctrl+right | ^right | off
+  reset dividers | = | = | off
 
 Results
   open | enter | ↵ | on

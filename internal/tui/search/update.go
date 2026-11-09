@@ -103,6 +103,19 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		s.pv, cmd = s.pv.Update(msg)
 		return cmd
 	}
+	if s.canDivide() {
+		switch {
+		case keymap.Matches(msg, k.DividerLeft):
+			s.moveDivider(-1, false)
+			return nil
+		case keymap.Matches(msg, k.DividerRight):
+			s.moveDivider(1, false)
+			return nil
+		case s.dividers.Moved() && keymap.Matches(msg, k.DividerReset):
+			s.moveDivider(0, true)
+			return nil
+		}
+	}
 	switch {
 	case k.kindOf(msg) >= 0:
 		return s.pickKind(k.kindOf(msg))

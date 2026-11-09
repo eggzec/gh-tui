@@ -126,6 +126,9 @@ type Section struct {
 	start Start
 	keys  KeyMap
 	now   func() time.Time
+	// dividers are the dividers the user moved, shared with the other views;
+	// nil leaves the line where it starts.
+	dividers *ui.Dividers
 	// host is the web host of the user's GitHub, for the links it opens.
 	host string
 	// voice words the errors of the results.

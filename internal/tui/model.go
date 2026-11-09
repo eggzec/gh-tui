@@ -111,7 +111,7 @@ type Model struct {
 	zoom panes.Zoom
 	// dividers are the dividers the user moved. They last the session, across
 	// repositories.
-	dividers ui.Dividers
+	dividers *ui.Dividers
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd
@@ -385,7 +385,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		chordWait:  cfg.UI.ChordWait,
 		wide:       cfg.UI.Wide,
 
-		dividers:   ui.Dividers{Step: cfg.UI.DividerStep},
+		dividers:   &ui.Dividers{Step: cfg.UI.DividerStep},
 		keyhelp:    newHelp(cfg.Keys),
 		status:     statusbar.New(),
 		line:       newLine(cfg.Keys, cfg.Commands.History),
@@ -433,6 +433,9 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	m.line.SetComplete(m.complete)
 	if s, ok := layout.Search.(interface{ SetValues(search.Values) }); ok {
 		s.SetValues(searchValues{m})
+	}
+	if s, ok := layout.Search.(interface{ SetDividers(*ui.Dividers) }); ok {
+		s.SetDividers(m.dividers)
 	}
 
 	switch {

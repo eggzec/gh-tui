@@ -25,10 +25,40 @@ func (s *Section) split() bool {
 // listOuter is the width of the results' frame.
 func (s *Section) listOuter() int {
 	if s.split() {
-		return listWidth
+		return s.listSplit()
 	}
 	return s.width
 }
+
+// listSplit is the width of the results' frame beside the preview: its
+// default, moved by the user's divider, each pane keeping panes.MinWidth.
+func (s *Section) listSplit() int {
+	if s.dividers == nil {
+		return listWidth
+	}
+	return s.dividers.List.Of(listWidth, panes.MinWidth, s.width-panes.MinWidth)
+}
+
+// SetDividers gives the page the dividers the user moved, which it shares
+// with the other views. With none the line stays where it starts.
+func (s *Section) SetDividers(d *ui.Dividers) {
+	s.dividers = d
+	s.layout()
+}
+
+// moveDivider moves the line between the results and the preview by dx
+// steps, or puts every divider back.
+func (s *Section) moveDivider(dx int, reset bool) {
+	if reset {
+		s.dividers.Reset()
+	} else {
+		s.dividers.Move(&s.dividers.List, dx, listWidth, panes.MinWidth, s.width-panes.MinWidth)
+	}
+	s.layout()
+}
+
+// canDivide reports whether a line between the panes shows now.
+func (s *Section) canDivide() bool { return s.dividers != nil && s.split() }
 
 // panes draws the results and the preview below the query: side by side
 // where the page is large enough, else the one that has the focus.
@@ -54,7 +84,7 @@ func (s *Section) panes() []string {
 	}
 	switch {
 	case s.split():
-		return ui.Beside(nil, results(), preview(s.width-listWidth))
+		return ui.Beside(nil, results(), preview(s.width-s.listOuter()))
 	case s.preview:
 		return preview(s.width)
 	default:

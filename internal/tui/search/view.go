@@ -52,7 +52,7 @@ func (s *Section) layout() {
 	s.starts.resize(h)
 	w := s.width - framePad
 	if s.split() {
-		w -= listWidth
+		w -= s.listOuter()
 	}
 	s.pv.SetSize(max(w, 0), h)
 }

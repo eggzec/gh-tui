@@ -52,6 +52,9 @@ type KeyMap struct {
 	ScrollOtherDown key.Binding
 	ScrollOtherUp   key.Binding
 
+	// DividerLeft, DividerRight and DividerReset move the line between the
+	// results and the preview, and put every divider back.
+	DividerLeft, DividerRight, DividerReset key.Binding
 	// order are the keys of the picker of the levels to group by.
 	order orderpick.KeyMap
 	// query holds the keys of the query while it types.
@@ -114,7 +117,10 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		GroupBy:      results.Binding("group_by", "group by"),
 		ToggleGroups: results.Binding("group_toggle", "group on/off"),
 
-		order: ui.OrderPickKeys(keys),
+		DividerLeft:  ui.Binding(keys, config.ActionDividerLeft, "divider left"),
+		DividerRight: ui.Binding(keys, config.ActionDividerRight, "divider right"),
+		DividerReset: ui.Binding(keys, config.ActionDividerReset, "reset dividers"),
+		order:        ui.OrderPickKeys(keys),
 		// The page matches these keys first, so the results get only the keys
 		// it leaves them.
 		feed:   feed.NewKeyMap(results),
@@ -138,11 +144,17 @@ func newKeyMap(keys config.Keymap) KeyMap {
 
 // own returns the keys of the page, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
-	return []key.Binding{
+	return slices.Concat([]key.Binding{
 		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
 		k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
 		k.ScrollOtherDown, k.ScrollOtherUp,
-	}
+	}, k.dividers())
+}
+
+// dividers returns the keys that move the line between the panes, in the
+// order the page shows them.
+func (k KeyMap) dividers() []key.Binding {
+	return []key.Binding{k.DividerLeft, k.DividerRight, k.DividerReset}
 }
 
 // ShortHelp implements help.KeyMap.
@@ -172,13 +184,14 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	k := s.keys.state(s)
 	if s.preview && s.area == resultsArea {
-		screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.ScrollOtherDown, k.ScrollOtherUp}
+		screen := slices.Concat([]key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.ScrollOtherDown, k.ScrollOtherUp}, k.dividers())
 		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next}), s.previewLayer()}
 	}
 	screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
 	if s.area != inputArea {
 		screen = append(screen, k.ScrollOtherDown, k.ScrollOtherUp)
 	}
+	screen = append(screen, k.dividers()...)
 	if s.area == inputArea {
 		// The query has no pane keys of its own: what acts on a result or
 		// the list waits for the results.
@@ -206,6 +219,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 // state returns k as the query or the results take it, named for what the
 // keys do there.
 func (k KeyMap) state(s *Section) KeyMap {
+	can := s.canDivide()
+	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)
+	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && can)
+	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && can && s.dividers.Moved())
 	topics := s.kind == core.SearchTopics
 	k.Filter.SetEnabled(k.Filter.Enabled() && !topics)
 	k.Sort.SetEnabled(k.Sort.Enabled() && s.kind != core.SearchCode && !topics)
