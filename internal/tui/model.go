@@ -109,6 +109,11 @@ type Model struct {
 	// user's choice or because the terminal is narrow. The dashboard and the
 	// owner page keep their own.
 	zoom panes.Zoom
+	// filesSize is how far the user moved the divider between the files
+	// column and the right one. It lasts the session, across repositories.
+	filesSize panes.Size
+	// dividerStep is how many cells a press moves a divider.
+	dividerStep int
 	// pending holds the commands the sections returned for the repository
 	// of WithRepo, for Init to run.
 	pending tea.Cmd
@@ -381,15 +386,17 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		toastTimes: cfg.UI.Toast,
 		chordWait:  cfg.UI.ChordWait,
 		wide:       cfg.UI.Wide,
-		keyhelp:    newHelp(cfg.Keys),
-		status:     statusbar.New(),
-		line:       newLine(cfg.Keys, cfg.Commands.History),
-		spin:       newSpinner(),
-		voice:      ui.NewVoice(cfg.Keys, ""),
-		images:     newImageProbe(cfg.Images.Enabled),
-		after:      tick,
-		modals:     modals.New(maxHeldModals),
-		priorities: maps.Clone(modalPriorities),
+
+		dividerStep: cfg.UI.DividerStep,
+		keyhelp:     newHelp(cfg.Keys),
+		status:      statusbar.New(),
+		line:        newLine(cfg.Keys, cfg.Commands.History),
+		spin:        newSpinner(),
+		voice:       ui.NewVoice(cfg.Keys, ""),
+		images:      newImageProbe(cfg.Images.Enabled),
+		after:       tick,
+		modals:      modals.New(maxHeldModals),
+		priorities:  maps.Clone(modalPriorities),
 	}
 	if layout.Files != nil {
 		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1

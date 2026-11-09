@@ -89,6 +89,11 @@ const (
 	// ActionMaximize toggles the open modal between its size and the
 	// whole screen.
 	ActionMaximize = "global.maximize"
+	// ActionDividerLeft and ActionDividerRight move the divider beside the
+	// focused pane, and ActionDividerReset puts every divider back.
+	ActionDividerLeft  = "global.divider_left"
+	ActionDividerRight = "global.divider_right"
+	ActionDividerReset = "global.divider_reset"
 )
 
 // Actions of the repository screen, whose keys the app itself takes. The

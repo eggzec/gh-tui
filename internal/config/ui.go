@@ -38,6 +38,8 @@ type UI struct {
 	// Wide is the size from which the screens show their panes side by
 	// side. A terminal narrower or lower shows one pane at a time.
 	Wide Wide `yaml:"wide"`
+	// DividerStep is how many cells a press of a divider key moves it.
+	DividerStep int `yaml:"divider_step"`
 }
 
 // Wide is the size of a terminal that is wide enough for the panes of a
@@ -101,6 +103,9 @@ func (u UI) validate() error {
 	}
 	if u.Wide.Height < minWideHeight {
 		errs = append(errs, fmt.Errorf("ui.wide.height: must be at least %d, got %d", minWideHeight, u.Wide.Height))
+	}
+	if u.DividerStep < 1 {
+		errs = append(errs, fmt.Errorf("ui.divider_step: must be at least 1, got %d", u.DividerStep))
 	}
 	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate())
 	return errors.Join(errs...)

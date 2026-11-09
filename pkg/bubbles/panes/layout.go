@@ -6,7 +6,8 @@
 // titled. The package knows one rule of its own: a zoomed layout shows the
 // focused pane alone, or its list beside its preview. Any other arrangement
 // is built by the caller out of the same Box and Layout types, so that the
-// frames and overlays stay shared. Pane sizes are fixed: content scrolls
+// frames and overlays stay shared. The caller sets the sizes of the panes,
+// and may keep a Size for each divider the user moves; content scrolls
 // inside a pane.
 package panes
 

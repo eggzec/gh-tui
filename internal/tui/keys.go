@@ -60,6 +60,9 @@ type KeyMap struct {
 	// Zoom shows the focused pane of the repository screen alone, or
 	// every pane again.
 	Zoom key.Binding
+	// DividerLeft and DividerRight move the divider between the files column
+	// and the right one, and DividerReset puts every divider back.
+	DividerLeft, DividerRight, DividerReset key.Binding
 	// Back goes back through the owner pages and the screens shown.
 	Back key.Binding
 	// Maximize toggles the open modal between its size and the whole
@@ -106,6 +109,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next:          ui.Binding(keys, config.ActionNextPane, "next pane"),
 		Prev:          ui.Binding(keys, config.ActionPrevPane, "previous pane"),
 		Zoom:          ui.Binding(keys, config.ActionZoom, "zoom"),
+		DividerLeft:   ui.Binding(keys, config.ActionDividerLeft, "divider left"),
+		DividerRight:  ui.Binding(keys, config.ActionDividerRight, "divider right"),
+		DividerReset:  ui.Binding(keys, config.ActionDividerReset, "reset dividers"),
 		Back:          ui.Binding(keys, config.ActionBack, "back"),
 		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
 		Dismiss:       ui.Binding(keys, config.ActionDismiss, "dismiss"),
@@ -148,7 +154,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Menu, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
+		k.Zoom, k.DividerLeft, k.DividerRight, k.DividerReset, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -190,6 +196,9 @@ func (k KeyMap) state(m *Model) KeyMap {
 	if m.canZoom() && m.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}
+	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && m.divider() != nil)
+	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && m.divider() != nil)
+	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && m.filesSize.Moved())
 	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modals.Top() != nil && m.canMaximize())
 	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && (m.toast.Has(toast.Error) || m.going != nil))
