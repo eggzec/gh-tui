@@ -31,10 +31,7 @@ const (
 // don't fit side by side, so the screen shows the focused pane alone, at
 // full size, and the pane keys switch between them. Above it, the files
 // take two fifths of the width, within the bounds.
-const (
-	minFilesWidth = 24
-	maxFilesWidth = 60
-)
+const maxFilesWidth = 60
 
 // pane is a section in a frame whose top edge carries its label, or a
 // bare one, which fills its place and draws its own frames.
@@ -324,38 +321,61 @@ func (m *Model) zoomed() bool { return m.zoom.User() && m.zoom.CanZoom() }
 // filesWidth is the files column's width when the user has not moved its
 // divider.
 func filesWidth(width int) int {
-	return min(max(width*2/5, minFilesWidth), maxFilesWidth)
+	return min(max(width*2/5, panes.MinWidth), maxFilesWidth)
 }
 
-// filesBounds returns the narrowest and widest the files column may be: the
-// right column keeps at least minFilesWidth cells.
-func (m *Model) filesBounds() (lo, hi int) { return minFilesWidth, m.width - minFilesWidth }
+// bounds returns the narrowest and widest a divider's first pane may be: the
+// other keeps at least panes.MinWidth cells.
+func (m *Model) bounds() (lo, hi int) { return panes.MinWidth, m.width - panes.MinWidth }
 
 // filesDivider is the files column's width with the user's move applied.
 func (m *Model) filesDivider() int {
-	lo, hi := m.filesBounds()
-	return m.filesSize.Of(filesWidth(m.width), lo, hi)
+	lo, hi := m.bounds()
+	return m.dividers.Files.Of(filesWidth(m.width), lo, hi)
 }
 
-// divider returns the size of the divider that the divider keys move, or nil
-// when the screen shows none: it shows the files column beside the right
-// one, not zoomed or narrow.
-func (m *Model) divider() *panes.Size {
-	if m.screen != repoScreen || m.onePane() || m.left == 0 || m.left >= len(m.panes) {
-		return nil
+// listWidth is the list's width beside its preview, with the user's move
+// applied.
+func (m *Model) listWidth() int {
+	lo, hi := m.bounds()
+	return m.dividers.List.Of(panes.DefaultListWidth, lo, hi)
+}
+
+// divider returns the size of the divider that the divider keys move, with
+// its default, or nil when the screen shows none. The repository screen shows
+// the files column beside the right one, or, zoomed on a section with a
+// preview, that section's list beside it.
+func (m *Model) divider() (s *panes.Size, def int) {
+	if m.screen != repoScreen {
+		return nil, 0
 	}
-	return &m.filesSize
+	if m.onePane() {
+		if m.splitOf == nil {
+			return nil, 0
+		}
+		return &m.dividers.List, panes.DefaultListWidth
+	}
+	if m.left == 0 || m.left >= len(m.panes) {
+		return nil, 0
+	}
+	return &m.dividers.Files, filesWidth(m.width)
+}
+
+// canDivide reports whether the divider keys have a divider to move.
+func (m *Model) canDivide() bool {
+	s, _ := m.divider()
+	return s != nil
 }
 
 // moveDivider moves the divider by delta cells and lays the panes out again.
 func (m *Model) moveDivider(delta int) {
-	s := m.divider()
+	s, def := m.divider()
 	if s == nil {
 		return
 	}
-	lo, hi := m.filesBounds()
+	lo, hi := m.bounds()
 	s.Move(delta)
-	s.Settle(filesWidth(m.width), lo, hi)
+	s.Settle(def, lo, hi)
 	m.layout()
 }
 
@@ -418,7 +438,7 @@ func (m *Model) split(height int) {
 	focus := panes.Pane(m.focus + 1)
 	lay := panes.Compute(panes.Spec{
 		Width: m.width, Height: height, Panes: defs, Focus: focus, Zoom: true,
-		SplitMin: m.wide.Width,
+		SplitMin: m.wide.Width, ListWidth: m.listWidth(),
 	})
 	list, hasList := lay.Box(focus, panes.List)
 	box, hasPreview := lay.Box(focus, panes.Preview)

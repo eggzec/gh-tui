@@ -196,9 +196,9 @@ func (k KeyMap) state(m *Model) KeyMap {
 	if m.canZoom() && m.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}
-	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && m.divider() != nil)
-	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && m.divider() != nil)
-	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && m.filesSize.Moved())
+	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && m.canDivide())
+	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && m.canDivide())
+	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && m.dividers.Moved())
 	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modals.Top() != nil && m.canMaximize())
 	k.Dismiss.SetEnabled(k.Dismiss.Enabled() && (m.toast.Has(toast.Error) || m.going != nil))

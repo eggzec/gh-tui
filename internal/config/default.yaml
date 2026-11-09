@@ -616,9 +616,9 @@ keys:
     # Toggle the open modal between its size and the whole screen. It is
     # typed, not taken, while an input has the keys.
     maximize: [Z]
-    # Move the divider between the files column and the pull requests and
-    # issues to the left or right, by ui.divider_step cells. The reset key
-    # puts every divider back. Some terminals take ctrl+arrows for themselves.
+    # Move the divider of the view (the files column beside the pull requests
+    # and issues, or a list beside its preview when zoomed) to the left or
+    # right, by ui.divider_step cells. The reset key puts every divider back. Some terminals take ctrl+arrows for themselves.
     divider_left: [ctrl+left]
     divider_right: [ctrl+right]
     divider_reset: ["="]
