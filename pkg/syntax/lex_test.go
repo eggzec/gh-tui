@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"runtime"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -84,6 +85,55 @@ func TestHeadCutsSlowLexersShort(t *testing.T) {
 	idle(t)
 	if toks, err := Head(t.Context(), l, slow, time.Second); text(toks) != slow || err != nil {
 		t.Errorf("gave %q, %v the second time", text(toks), err)
+	}
+}
+
+// A lexer that runs beside another that has not overrun waits for it, as
+// renders that meet do, instead of leaving its code plain.
+func TestTokeniseWaitsForALexerThatHasNotOverrun(t *testing.T) {
+	idle(t)
+	l := newStalling()
+	held := make(chan struct{})
+	go func() {
+		defer close(held)
+		_, _, _ = Tokenise(l, unique(t, "held"), time.Hour)
+	}()
+	for l.runs.Load() == 0 {
+		runtime.Gosched()
+	}
+	time.AfterFunc(20*time.Millisecond, func() { close(l.release) })
+	toks, _, err := Tokenise(Lexer("go"), "x := 1", time.Second)
+	if err != nil || text(toks) != "x := 1" {
+		t.Errorf("gave %q, %v, want the code lexed once the other lexer ended", text(toks), err)
+	}
+	<-held
+}
+
+// The wait for a lexer that has not overrun counts in the time Tokenise
+// returns and is cut at the limit, so a caller that spends one budget on
+// several blocks waits no longer than the budget in all.
+func TestTokeniseWaitIsBoundedByTheLimit(t *testing.T) {
+	idle(t)
+	gate := Lexing()
+	gate <- struct{}{}
+	defer func() { <-gate }()
+	budget := 60 * time.Millisecond
+	start := time.Now()
+	for range 10 {
+		if budget <= 0 {
+			break
+		}
+		_, took, err := Tokenise(Lexer("go"), "x := 1", budget)
+		if !errors.Is(err, ErrBusy) || took <= 0 {
+			t.Fatalf("gave %v after %v, want ErrBusy and the time waited", err, took)
+		}
+		budget -= took
+	}
+	if d := time.Since(start); d > 5*time.Second/10 {
+		t.Errorf("ten blocks waited %v for a held lexer, want about the budget", d)
+	}
+	if budget > 0 {
+		t.Errorf("%v of the budget is left after the waits", budget)
 	}
 }
 

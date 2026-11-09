@@ -310,9 +310,28 @@ func TestHighlightingIsBounded(t *testing.T) {
 	}
 }
 
+// A render with several fences beside a lexer that holds the token waits
+// for it no longer than its budget in all.
+func TestRenderWaitIsBounded(t *testing.T) {
+	wallClock(t)
+	idle(t)
+	r := New(DefaultStyle(true))
+	src := strings.Repeat("```go\nx := 1\n```\n\n", 10)
+	lexing <- struct{}{}
+	defer func() { <-lexing }()
+	start := time.Now()
+	r.Render(src, 40)
+	if d := time.Since(start); d > 5*renderLexLimit {
+		t.Errorf("the render waited %v, want about %v", d, renderLexLimit)
+	}
+}
+
 // Code left plain while a lexer that overran still runs highlights once
 // it ends, at the same width: the render that left it plain isn't kept.
 func TestBusyLexingIsntKept(t *testing.T) {
+	// The wait for the lexer that holds the token is timed by the clock,
+	// which would never end it under the stopped one.
+	wallClock(t)
 	idle(t)
 	r := New(DefaultStyle(true))
 	src := "```go\nx := 1\n```"

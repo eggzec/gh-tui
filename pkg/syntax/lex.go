@@ -7,6 +7,7 @@ import (
 	"hash/maphash"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alecthomas/chroma/v2"
@@ -64,8 +65,9 @@ func remember(k key) {
 	overruns[k] = true
 }
 
-// ErrBusy is the error of a lexer that didn't run because one that
-// overran still does. Code it leaves plain may highlight later.
+// ErrBusy is the error of a lexer that didn't run because another still
+// does, one that overran or one that didn't end in time to be waited for.
+// Code it leaves plain may highlight later.
 var ErrBusy = errors.New("syntax: a lexer that overran still runs")
 
 // ErrOverran is the error of a lexer that overran on the code, now or
@@ -73,18 +75,25 @@ var ErrBusy = errors.New("syntax: a lexer that overran still runs")
 var ErrOverran = errors.New("syntax: the lexer overran")
 
 // Tokenise returns the tokens of code if l tokenises all of it within
-// limit, and how long it took; a lexer that doesn't isn't waited for. If
-// limit is at least Limit, l isn't run on code again once it overran. It
-// returns ErrOverran without running l, and no time, if l overran on code
-// before, and ErrBusy if a lexer that overran still runs.
+// limit, and how long it took, the wait for the lexer that runs first
+// included; a lexer that doesn't finish isn't waited for. If limit is at
+// least Limit, l isn't run on code again once it overran. It returns
+// ErrOverran without running l, and no time, if l overran on code before.
+// If another lexer runs it waits for it up to Wait, or limit if that is
+// less, unless that one overran, and returns ErrBusy and the time waited
+// if it doesn't end.
 func Tokenise(l chroma.Lexer, code string, limit time.Duration) (toks []chroma.Token, took time.Duration, err error) {
 	k := keyOf(l, code)
 	if overran(k) {
 		return nil, 0, ErrOverran
 	}
 	r := lex(l, code, k)
+	var waited time.Duration
 	if r == nil {
-		return nil, 0, ErrBusy
+		var err error
+		if r, waited, err = lexAfter(l, code, k, min(Wait, limit)); err != nil {
+			return nil, waited, err
+		}
 	}
 	select {
 	case <-r.done:
@@ -92,10 +101,10 @@ func Tokenise(l chroma.Lexer, code string, limit time.Duration) (toks []chroma.T
 		toks, err := r.result()
 		if err != nil {
 			remember(k)
-			return nil, r.took(), fmt.Errorf("tokenise: %w", err)
+			return nil, waited + r.took(), fmt.Errorf("tokenise: %w", err)
 		}
-		return toks, r.took(), nil
-	case <-r.clock.After(limit):
+		return toks, waited + r.took(), nil
+	case <-r.clock.After(max(limit-waited, 0)):
 		r.halt()
 		if limit >= Limit {
 			remember(k)
@@ -123,18 +132,9 @@ func Head(ctx context.Context, l chroma.Lexer, code string, limit time.Duration)
 	}
 	r := lex(l, code, k)
 	if r == nil {
-		select {
-		case lexing <- struct{}{}:
-			// The lexer waited for may have overrun on this code.
-			if overran(k) {
-				<-lexing
-				return nil, ErrOverran
-			}
-			r = start(l, code, k)
-		case <-now().After(Wait):
-			return nil, ErrBusy
-		case <-ctx.Done():
-			return nil, ErrBusy
+		var err error
+		if r, err = await(ctx, l, code, k, Wait); err != nil {
+			return nil, err
 		}
 	}
 	select {
@@ -180,6 +180,45 @@ func lex(l chroma.Lexer, code string, k key) *run {
 	}
 }
 
+// overrunning is how many lexers were asked to stop and still run.
+var overrunning atomic.Int32
+
+// await starts l on code once the lexer that holds the token ends, waiting
+// at most wait by the lexers' clock or until ctx is done. It returns
+// ErrBusy if the token isn't free by then, and ErrOverran if l overran on
+// code while it waited.
+func await(ctx context.Context, l chroma.Lexer, code string, k key, wait time.Duration) (*run, error) {
+	select {
+	case lexing <- struct{}{}:
+		if overran(k) {
+			<-lexing
+			return nil, ErrOverran
+		}
+		return start(l, code, k), nil
+	case <-now().After(wait):
+		return nil, ErrBusy
+	case <-ctx.Done():
+		return nil, ErrBusy
+	}
+}
+
+// lexAfter starts l on code once the lexer that holds the token ends, if
+// that one has not overrun, as another render that lexes at the same time
+// does: it ends within its limit, so it is waited for, and code that
+// highlights alone doesn't show plain because two renders met. It waits at
+// most wait, which is what the caller can spend, and returns how long it
+// waited. A lexer that overran at the start is not waited for, and one that
+// overruns during the wait only ends it at wait.
+func lexAfter(l chroma.Lexer, code string, k key, wait time.Duration) (*run, time.Duration, error) {
+	if overrunning.Load() > 0 {
+		return nil, 0, ErrBusy
+	}
+	c := now()
+	t0 := c.Now()
+	r, err := await(context.Background(), l, code, k, wait)
+	return r, c.Now().Sub(t0), err
+}
+
 // start starts l on code with the lexing token the caller took, which
 // the lexer holds until it ends, or whoever waits for it until then.
 func start(l chroma.Lexer, code string, k key) *run {
@@ -190,6 +229,7 @@ func start(l chroma.Lexer, code string, k key) *run {
 		// is never given back: a recover added here would call it with
 		// an error.
 		if halted := r.finish(r.lex(l, code, k)); halted {
+			overrunning.Add(-1)
 			<-lexing
 		}
 	}()
@@ -261,6 +301,7 @@ func (r *run) halt() {
 		return
 	}
 	r.halted = r.clock.Now()
+	overrunning.Add(1)
 }
 
 // took returns how long the lexer has run.
