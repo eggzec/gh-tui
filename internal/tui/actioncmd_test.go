@@ -612,9 +612,9 @@ func TestMutationCommandsCompleteWhereTheyWork(t *testing.T) {
 	}
 }
 
-// TestLabelsCommandOpensTheEditor checks that labels, with the key unbound,
+// TestLabelsCommandOpensThePicker checks that labels, with the key unbound,
 // opens the labels picker of the issue.
-func TestLabelsCommandOpensTheEditor(t *testing.T) {
+func TestLabelsCommandOpensThePicker(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		action string

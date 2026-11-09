@@ -13,6 +13,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
+	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
 // labelsReadMsg is the labels of the repository, read for the picker of the
@@ -27,7 +28,10 @@ type labelsReadMsg struct {
 // those the issue has. The repository's labels are read first, if the section
 // has a source for them.
 func (m *detailModal) openLabels() tea.Cmd {
-	if !m.loaded || m.busy() {
+	if !m.loaded {
+		return ui.Notify(toast.Info, "Still reading #"+strconv.Itoa(m.number)+".")
+	}
+	if m.busy() {
 		return nil
 	}
 	if cmd, refused := m.gate().Refuse(ui.ActLabel, &m.issue); refused {

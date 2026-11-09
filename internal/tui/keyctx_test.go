@@ -967,7 +967,7 @@ var idleRows = map[string]string{
 	"global notifications": "the modal that shows the notifications is not there yet",
 	"global menu":          "a view with no item selected, such as the calendar, has no menu to open",
 
-	"picker_normal toggle": "the fixture repo has no labels, so the issue labels picker has no row to tick",
+	"picker_normal toggle": "the fixture issue has no labels and the root wires no label source, so the issue labels picker has no row to tick",
 
 	"actions pane left":  "the runs are the leftmost pane",
 	"actions pane right": "the log is the rightmost pane",
