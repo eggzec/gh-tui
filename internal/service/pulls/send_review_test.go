@@ -42,6 +42,23 @@ func TestSendReviewSubmitsThePendingReview(t *testing.T) {
 	}
 }
 
+func TestSendReviewEmptyApproveKeepsAPendingSummary(t *testing.T) {
+	api := &fakeAPI{submitErr: github.ErrPendingReview}
+	s := reviewReads(t, api)
+	if _, ok, err := s.PendingReview(t.Context(), repo, 1); err != nil || ok {
+		t.Fatalf("PendingReview = %v, %v; want none", ok, err)
+	}
+	api.pendingReview, api.pendingFound = pendingOnHead(), true
+
+	err := s.SendReview(t.Context(), repo, 1, "abc123", core.ReviewEventApprove, "")
+	if !errors.Is(err, ErrPendingAppeared) {
+		t.Fatalf("SendReview = %v, want ErrPendingAppeared", err)
+	}
+	if api.count("submitpending") != 0 {
+		t.Errorf("submitpending calls = %d, want none: the web summary must not be replaced", api.count("submitpending"))
+	}
+}
+
 func TestSendReviewUsesAPendingReviewThatAppeared(t *testing.T) {
 	api := &fakeAPI{submitErr: github.ErrPendingReview}
 	s := reviewReads(t, api)
