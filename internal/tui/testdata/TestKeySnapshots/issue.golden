@@ -34,6 +34,9 @@ Issue
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   zoom | z | z | on
+  divider left | ctrl+left | ^left | off
+  divider right | ctrl+right | ^right | off
+  reset dividers | = | = | off
   Description | 1 | 1 | on
   Conversation | 2 | 2 | on
   Involved | 3 | 3 | on

@@ -20,6 +20,9 @@ type paneKeys struct {
 	jump       key.Binding
 	// zoom shows the focused pane alone.
 	zoom key.Binding
+	// dividerLeft and dividerRight move the divider the modal shows, and
+	// dividerReset puts every divider back.
+	dividerLeft, dividerRight, dividerReset key.Binding
 }
 
 // newPaneKeys makes the pane keys of the modal from keys.
@@ -29,6 +32,10 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 		next: modal.Binding("global.next_pane", "next pane"),
 		prev: modal.Binding("global.prev_pane", "previous pane"),
 		zoom: modal.Binding("global.zoom", "zoom"),
+
+		dividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
+		dividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
+		dividerReset: modal.Binding(config.ActionDividerReset, "reset dividers"),
 	}
 	for i, a := range [paneCount]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4", "global.pane_5"} {
 		k.pane[i] = modal.Binding(a, paneName(panes.Pane(i+1)))
@@ -40,7 +47,7 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 // bindings lists every pane key once, for the help. The jump stands for the
 // digits in the hints only, so the help lists the digits themselves.
 func (k paneKeys) bindings() []key.Binding {
-	return append([]key.Binding{k.next, k.prev, k.zoom}, k.pane[:]...)
+	return append([]key.Binding{k.next, k.prev, k.zoom, k.dividerLeft, k.dividerRight, k.dividerReset}, k.pane[:]...)
 }
 
 // digit returns the pane whose digit msg is, if it is one.
@@ -59,6 +66,12 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	k := m.keys.panes
 	l := m.paneLayout()
 	switch {
+	case keymap.Matches(msg, k.dividerLeft) && m.canDivide():
+		m.moveDivider(-1)
+	case keymap.Matches(msg, k.dividerRight) && m.canDivide():
+		m.moveDivider(1)
+	case keymap.Matches(msg, k.dividerReset) && m.canDivide() && m.dividers.Moved():
+		m.dividers.Reset()
 	case keymap.Matches(msg, k.next):
 		m.nav.Step(l, 1)
 	case keymap.Matches(msg, k.prev):

@@ -437,8 +437,10 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	if s, ok := layout.Search.(interface{ SetDividers(*ui.Dividers) }); ok {
 		s.SetDividers(m.dividers)
 	}
-	if s, ok := layout.Pulls.(interface{ SetDividers(*ui.Dividers) }); ok {
-		s.SetDividers(m.dividers)
+	for _, sec := range []ui.Section{layout.Pulls, layout.Issues} {
+		if s, ok := sec.(interface{ SetDividers(*ui.Dividers) }); ok {
+			s.SetDividers(m.dividers)
+		}
 	}
 
 	switch {

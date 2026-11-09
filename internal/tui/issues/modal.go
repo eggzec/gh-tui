@@ -143,6 +143,8 @@ type detailModal struct {
 	zoom   panes.Zoom
 	narrow bool
 	frames panes.Styles
+	// dividers are the dividers shared with the other views, or nil.
+	dividers *ui.Dividers
 }
 
 // modalIDs numbers the modals.
@@ -184,6 +186,8 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		voice:   s.voice,
 		facets:  s.facets,
 		drafts:  s.drafts,
+
+		dividers: s.dividers,
 	}
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
@@ -268,6 +272,7 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	m.settleDividers()
 	if !m.nav.InPreview(m.paneLayout()) {
 		// A preview that a resize took away must not keep the focus.
 		m.nav.Reset()
