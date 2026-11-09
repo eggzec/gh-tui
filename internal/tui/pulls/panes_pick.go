@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
@@ -125,7 +126,7 @@ func (m *panesModal) showLabels(known []core.Label) {
 			}
 			slices.SortFunc(add, func(a, b core.Label) int { return strings.Compare(a.Name, b.Name) })
 			slices.Sort(remove)
-			return m.applyLabels(add, remove)
+			return m.askLabels(add, remove)
 		},
 	}
 	items := make([]picker.Item, len(all))
@@ -172,6 +173,68 @@ func (m *panesModal) showLabels(known []core.Label) {
 // labelsOverlay is the checklist of the labels of the pull request, keyed by
 // label name.
 type labelsOverlay = prpanes.TickOverlay[string]
+
+// askLabels asks to add and remove labels on the pull request, naming each.
+// By the time the user says yes the viewer may have lost the right, so the
+// question is made again, and put only if it is still there.
+func (m *panesModal) askLabels(add []core.Label, remove []string) tea.Cmd {
+	c, ok, refusal := m.labelsAsk(add, remove)
+	if !ok {
+		return refusal
+	}
+	m.ask(ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
+		if m.closed {
+			return confirm.Ask{}, false, nil
+		}
+		return m.labelsAsk(add, remove)
+	}))
+	return nil
+}
+
+// labelsAsk returns the change as a question, or ok unset when there is
+// nothing to change or the viewer may not, which refusal then says.
+func (m *panesModal) labelsAsk(add []core.Label, remove []string) (c confirm.Ask, ok bool, refusal tea.Cmd) {
+	if !m.loaded || (len(add) == 0 && len(remove) == 0) {
+		return confirm.Ask{}, false, nil
+	}
+	if cmd, refused := m.gate().Refuse(ui.ActLabel, &m.detail.Issue); refused {
+		return confirm.Ask{}, false, cmd
+	}
+	names := make([]string, len(add))
+	for i, l := range add {
+		names[i] = l.Name
+	}
+	return confirm.Ask{
+		Question: labelQuestion("#"+strconv.Itoa(m.number), names, remove),
+		Run:      func() tea.Cmd { return m.applyLabels(add, remove) },
+	}, true, nil
+}
+
+// labelQuestion asks to add and remove the labels of pull request num, such
+// as "Add the label bug to #12 and remove wontfix?".
+func labelQuestion(num string, added, removed []string) string {
+	switch {
+	case len(removed) == 0:
+		return "Add " + labelList(added) + " to " + num + "?"
+	case len(added) == 0:
+		return "Remove " + labelList(removed) + " from " + num + "?"
+	}
+	return "Add " + labelList(added) + " to " + num + " and remove " + joinNames(removed) + "?"
+}
+
+// labelList names labels in a question, such as "the labels bug, ui".
+func labelList(names []string) string {
+	if len(names) == 1 {
+		return "the label " + joinNames(names)
+	}
+	return "the labels " + joinNames(names)
+}
+
+// joinNames joins names on one line, which a name with a line break of its
+// own would break.
+func joinNames(names []string) string {
+	return ui.OneLine(strings.Join(names, ", "))
+}
 
 // applyLabels changes the labels of the pull request, which the header shows
 // at once, and reads it again once the change went through or was rolled back.

@@ -209,6 +209,10 @@ func TestLabelsEnterApplies(t *testing.T) {
 	press(t, h, "down")
 	press(t, h, "space")
 	press(t, h, "enter")
+	if got := svc.changes(); len(got) != 0 {
+		t.Fatalf("enter sent %q before the answer", got)
+	}
+	press(t, h, "y")
 
 	if m.top() != nil {
 		t.Error("enter left the picker open")
@@ -218,6 +222,42 @@ func TestLabelsEnterApplies(t *testing.T) {
 	}
 	if names := labelNames(m.detail.Labels); !slices.Equal(names, []string{"bug"}) {
 		t.Errorf("the header has labels %v, want [bug]", names)
+	}
+}
+
+func TestLabelsNoSendsNothing(t *testing.T) {
+	t.Parallel()
+	svc := newFakeService()
+	h, m := labeling(t, svc)
+	press(t, h, "L")
+	press(t, h, "down")
+	press(t, h, "space")
+	press(t, h, "enter")
+	press(t, h, "n")
+	if got := svc.changes(); len(got) != 0 {
+		t.Errorf("no sent %q", got)
+	}
+	if names := labelNames(m.detail.Labels); !slices.Equal(names, []string{"cache"}) {
+		t.Errorf("the header has labels %v after no, want [cache]", names)
+	}
+}
+
+func TestLabelQuestion(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		added, removed []string
+		want           string
+	}{
+		{[]string{"bug"}, nil, "Add the label bug to #12?"},
+		{[]string{"bug", "help wanted"}, nil, "Add the labels bug, help wanted to #12?"},
+		{nil, []string{"wontfix"}, "Remove the label wontfix from #12?"},
+		{nil, []string{"wontfix", "ui"}, "Remove the labels wontfix, ui from #12?"},
+		{[]string{"bug"}, []string{"wontfix", "ui"}, "Add the label bug to #12 and remove wontfix, ui?"},
+		{[]string{"a\x1b[31mb"}, nil, "Add the label ab to #12?"},
+	} {
+		if got := labelQuestion("#12", tt.added, tt.removed); got != tt.want {
+			t.Errorf("labelQuestion(%q, %q) = %q, want %q", tt.added, tt.removed, got, tt.want)
+		}
 	}
 }
 
@@ -257,7 +297,8 @@ func TestLabelsFailureRollsBack(t *testing.T) {
 	press(t, h, "L")
 	press(t, h, "down")
 	press(t, h, "space")
-	msgs := press(t, h, "enter")
+	press(t, h, "enter")
+	msgs := press(t, h, "y")
 
 	var failed bool
 	for _, msg := range msgs {
