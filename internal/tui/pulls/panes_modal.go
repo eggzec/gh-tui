@@ -287,6 +287,7 @@ func (m *panesModal) Selected() (ui.Selection, bool) {
 func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	m.settleDividers()
 	m.resizeFilesDiff()
 }
 
@@ -520,6 +521,12 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.nav.Step(l, -1)
 	case isDigit:
 		m.nav.SetFocus(p)
+	case keymap.Matches(msg, k.dividerLeft) && m.canDivide():
+		m.moveDivider(-1)
+	case keymap.Matches(msg, k.dividerRight) && m.canDivide():
+		m.moveDivider(1)
+	case keymap.Matches(msg, k.dividerReset) && m.canDivide() && m.dividers().Moved():
+		m.dividers().Reset()
 	case keymap.Matches(msg, k.zoom):
 		if m.zoom.CanZoom() {
 			m.zoom.Toggle()
@@ -592,7 +599,7 @@ func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
 	h := m.areaHeight()
-	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows())
+	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows(), m.dividers())
 }
 
 // context returns the context of the keys of what has the focus in l.

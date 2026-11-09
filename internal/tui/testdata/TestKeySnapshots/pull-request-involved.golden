@@ -20,6 +20,9 @@ Pull request
   Development | 5 | 5 | on
   Files | 6 | 6 | on
   zoom | z | z | off
+  divider left | ctrl+left | ^left | off
+  divider right | ctrl+right | ^right | off
+  reset dividers | = | = | off
   close | esc | esc | on
   author | @ | @ | on
   review |  |  | off

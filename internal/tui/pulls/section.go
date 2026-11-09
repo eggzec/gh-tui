@@ -263,7 +263,10 @@ type Section struct {
 	convOpt conv.Option
 	// avatars draws the authors' avatars in the comments of the modal.
 	avatars *ui.Images
-	cols    columns
+	// dividers are the dividers the user moved, shared with the other views;
+	// nil leaves the modal's dividers where they start.
+	dividers *ui.Dividers
+	cols     columns
 	// links keeps the links of the rows, which are drawn on every frame.
 	links  termtext.Links
 	header string

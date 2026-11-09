@@ -63,7 +63,7 @@ func TestWideLayout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := layoutRects(prLayout(tt.w, tt.h, tt.focus, tt.zoom, tt.devRows))
+			got := layoutRects(prLayout(tt.w, tt.h, tt.focus, tt.zoom, tt.devRows, nil))
 			for p, want := range tt.want {
 				if got[p] != want {
 					t.Errorf("%s = %+v, want %+v", paneTitle(p), got[p], want)

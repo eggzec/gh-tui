@@ -33,6 +33,9 @@ type panesKeys struct {
 	// zoom shows the focused pane alone, back closes the modal, and help
 	// is the key the footer names for the help.
 	zoom, back, help key.Binding
+	// dividerLeft and dividerRight move the divider the modal shows, and
+	// dividerReset puts every divider back.
+	dividerLeft, dividerRight, dividerReset key.Binding
 	// owner shows the page of the author, which the app's key for the owner
 	// page asks of the modal.
 	owner key.Binding
@@ -102,6 +105,10 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		back:  modal.Binding("global.dismiss", "close"),
 		help:  modal.Binding("global.help", "help"),
 		owner: modal.Binding("global.owner", "author"),
+
+		dividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
+		dividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
+		dividerReset: modal.Binding(config.ActionDividerReset, "reset dividers"),
 
 		review:   modal.Binding("review", "review"),
 		merge:    modal.Binding("merge", "merge"),
@@ -214,7 +221,11 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.find.SetEnabled(k.find.Enabled() && m.canFind())
 	k.merge.SetEnabled(k.merge.Enabled() && m.loaded && m.detail.State == core.StateOpen)
 	k.labels.SetEnabled(k.labels.Enabled() && m.loaded)
-	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.back, k.owner, k.review, k.merge, k.labels, k.find})
+	can := m.canDivide()
+	k.dividerLeft.SetEnabled(k.dividerLeft.Enabled() && can)
+	k.dividerRight.SetEnabled(k.dividerRight.Enabled() && can)
+	k.dividerReset.SetEnabled(k.dividerReset.Enabled() && can && m.dividers().Moved())
+	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.dividerLeft, k.dividerRight, k.dividerReset, k.back, k.owner, k.review, k.merge, k.labels, k.find})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
 	if m.filesDiffFocused() {
