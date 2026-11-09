@@ -68,8 +68,8 @@ type cursorRef struct {
 // set the feed counts lines, headers and items, rather than items, and a quick
 // filter narrows the items before they are grouped, so the headers count
 // only the rows it keeps. A feed whose items are not all loaded ends in a row
-// that stands for the rest, which is not an item: see [Model.Activate] and
-// [Model.SetTotal].
+// that stands for the rest, which is not an item: see [Model.Activate]. The
+// row says only that more are not loaded, not how many.
 func (m *Model[T]) SetGroups(groups []Group[T]) tea.Cmd {
 	ref := m.cursor()
 	m.groups = m.groups[:0:0]
