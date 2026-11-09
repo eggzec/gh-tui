@@ -8,6 +8,9 @@ global
   search | S | S | on
   find file | ctrl+p | ^p | off
   unzoom | z | z | on
+  divider left | ctrl+left | ^left | off
+  divider right | ctrl+right | ^right | off
+  reset dividers | = | = | off
   maximize | Z | Z | off
   dismiss | esc | esc | off
   back | backspace | backspace | on

@@ -419,7 +419,8 @@ func TestHelpOverStatusBar(t *testing.T) {
 	m, _ := newTestApp(t)
 	drive(m, m.key(press("?")))
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "dashboard") || !strings.Contains(ansi.Strip(lastLine(m)), "tab find a key") {
+	// The list is longer than the screen, so check a row near its top.
+	if !strings.Contains(v, "reset dividers") || !strings.Contains(ansi.Strip(lastLine(m)), "tab find a key") {
 		t.Errorf("? should list every key over the screen, and the bar the help's:\n%s", v)
 	}
 	if got := strings.Count(v, "\n") + 1; got != 24 {

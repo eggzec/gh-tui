@@ -321,8 +321,42 @@ func (m *Model) canZoom() bool {
 // keep their other uses.
 func (m *Model) zoomed() bool { return m.zoom.User() && m.zoom.CanZoom() }
 
+// filesWidth is the files column's width when the user has not moved its
+// divider.
 func filesWidth(width int) int {
 	return min(max(width*2/5, minFilesWidth), maxFilesWidth)
+}
+
+// filesBounds returns the narrowest and widest the files column may be: the
+// right column keeps at least minFilesWidth cells.
+func (m *Model) filesBounds() (lo, hi int) { return minFilesWidth, m.width - minFilesWidth }
+
+// filesDivider is the files column's width with the user's move applied.
+func (m *Model) filesDivider() int {
+	lo, hi := m.filesBounds()
+	return m.filesSize.Of(filesWidth(m.width), lo, hi)
+}
+
+// divider returns the size of the divider that the divider keys move, or nil
+// when the screen shows none: it shows the files column beside the right
+// one, not zoomed or narrow.
+func (m *Model) divider() *panes.Size {
+	if m.screen != repoScreen || m.onePane() || m.left == 0 || m.left >= len(m.panes) {
+		return nil
+	}
+	return &m.filesSize
+}
+
+// moveDivider moves the divider by delta cells and lays the panes out again.
+func (m *Model) moveDivider(delta int) {
+	s := m.divider()
+	if s == nil {
+		return
+	}
+	lo, hi := m.filesBounds()
+	s.Move(delta)
+	s.Settle(filesWidth(m.width), lo, hi)
+	m.layout()
 }
 
 // arrange sizes the panes for the terminal.
@@ -358,7 +392,7 @@ func (m *Model) arrange(height int) {
 	case len(right) == 0:
 		lw = m.width
 	case len(left) > 0:
-		lw = filesWidth(m.width)
+		lw = m.filesDivider()
 	}
 	stack(left, lw, height)
 	stack(right, m.width-lw, height)

@@ -70,6 +70,9 @@ ui:
   wide:
     width: 100
     height: 30
+  # How many cells a press of a divider key moves a divider between panes.
+  # At least 1.
+  divider_step: 2
 
 # Images drawn inline, such as avatars and the images of comments, with
 # kitty's graphics protocol. Only kitty 0.28 or newer and Ghostty show them
@@ -613,6 +616,12 @@ keys:
     # Toggle the open modal between its size and the whole screen. It is
     # typed, not taken, while an input has the keys.
     maximize: [Z]
+    # Move the divider between the files column and the pull requests and
+    # issues to the left or right, by ui.divider_step cells. The reset key
+    # puts every divider back. Some terminals take ctrl+arrows for themselves.
+    divider_left: [ctrl+left]
+    divider_right: [ctrl+right]
+    divider_reset: ["="]
     # Cycle the focus through the panes of the screen, or of a modal with
     # panes.
     next_pane: [tab]
