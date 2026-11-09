@@ -9,6 +9,7 @@ package threads
 import (
 	"context"
 	"regexp"
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -224,7 +225,15 @@ func (o *Opener) Open(n core.Notification) tea.Cmd {
 		}
 	case core.SubjectCheckSuite:
 		if f, ok := runFilter(sub); ok {
-			msg = ui.OpenActionsMsg{Repo: n.Repo, Filter: f}
+			open := ui.OpenActionsMsg{Repo: n.Repo, Filter: f}
+			if id := runID(sub.WebURL); id > 0 {
+				// The run is known, so land on it. A re-run may have ended
+				// otherwise than the title says, so its status no longer
+				// filters.
+				open.At = ui.ActionsAt{Run: id}
+				open.Filter.Status = ""
+			}
+			msg = open
 		}
 	case core.SubjectCommit:
 		if sub.SHA != "" {
@@ -268,7 +277,23 @@ func browserText(typ core.SubjectType, ic ui.Icons) string {
 
 // runTitle is the title GitHub gives a notification of a workflow run,
 // such as "CI workflow run failed for main branch".
-var runTitle = regexp.MustCompile(`^(.+) workflow run (\w+) for (.+) branch$`)
+// A re-run says its attempt: "CI workflow run, Attempt #2 failed for main
+// branch".
+var runTitle = regexp.MustCompile(`^(.+?) workflow run(?:, Attempt #\d+)? ([\w ]+?) for (.+) branch$`)
+
+// runURL is the page of a workflow run, whose ID ends its path.
+var runURL = regexp.MustCompile(`/actions/runs/(\d+)(?:/|$|\?)`)
+
+// runID returns the ID of the run whose page is url, or 0 for another page,
+// such as the list of runs a notification names until it is resolved.
+func runID(url string) int64 {
+	m := runURL.FindStringSubmatch(url)
+	if m == nil {
+		return 0
+	}
+	id, _ := strconv.ParseInt(m[1], 10, 64)
+	return id
+}
 
 // runFilter selects the runs a notification of a check suite is about: its
 // subject has no URL, but its title names the branch and how the run
@@ -284,8 +309,10 @@ func runFilter(sub core.Subject) (core.RunFilter, bool) {
 		f.Status = string(core.ConclusionFailure)
 	case "succeeded":
 		f.Status = string(core.ConclusionSuccess)
-	case "cancelled":
+	case "cancelled", "canceled":
 		f.Status = string(core.ConclusionCancelled)
+	case "timed out":
+		f.Status = string(core.ConclusionTimedOut)
 	}
 	return f, true
 }
