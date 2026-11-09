@@ -2,20 +2,15 @@ package pulls
 
 import (
 	"context"
-	"slices"
 	"strconv"
-	"strings"
-	"sync"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/facets"
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
 // assigneeEditor is what the assignees picker needs to change the assignees.
@@ -25,11 +20,6 @@ type assigneeEditor interface {
 	// The returned Op sends the change.
 	EditAssignees(repo core.RepoRef, number int, add []core.User, remove []string) *optimistic.Op
 }
-
-// assigneeRows is how many rows the picker counts besides the assignees: what
-// a search of the people of the repository lists at most, which is the limit
-// of facets.Service.People (peopleLimit there, unexported).
-const assigneeRows = 20
 
 // openAssignees opens the picker of the assignees of the pull request. It
 // searches the people the repository offers as the user types, and keeps the
@@ -55,90 +45,22 @@ type assigneesOverlay = prpanes.TickOverlay[string]
 
 // showAssignees opens the picker over the people of the repository.
 func (m *panesModal) showAssignees() {
-	have := slices.Clone(m.detail.Assignees)
-	// The search runs in a command, off the update loop, while the change reads
-	// the people in it.
-	var mu sync.Mutex
-	people := map[string]core.User{}
-	remember := func(users []core.User) {
-		mu.Lock()
-		defer mu.Unlock()
-		for _, u := range users {
-			people[u.Login] = u
-		}
+	spec := prpanes.AssigneesSpec{
+		Ctx:    m.ctx,
+		Have:   m.detail.Assignees,
+		Styles: m.theme.Picker(m.icons),
+		Keys:   m.keys.pick,
+		On:     kindOn,
+		Off:    kindOff,
+		Apply:  m.applyAssignees,
 	}
-	remember(have)
-
-	o := &assigneesOverlay{
-		Heading: "Assignees",
-		Order:   strings.ToLower,
-		On:      map[string]bool{},
-		Was:     map[string]bool{},
-		Rows:    len(have) + assigneeRows,
-		Change: func(on, was map[string]bool) tea.Cmd {
-			var add []core.User
-			var remove []string
-			mu.Lock()
-			for login := range on {
-				if !was[login] {
-					add = append(add, people[login])
-				}
-			}
-			mu.Unlock()
-			for login := range was {
-				if !on[login] {
-					remove = append(remove, login)
-				}
-			}
-			if len(add) == 0 && len(remove) == 0 {
-				return nil
-			}
-			slices.SortFunc(add, func(a, b core.User) int { return strings.Compare(a.Login, b.Login) })
-			slices.Sort(remove)
-			return m.applyAssignees(add, remove)
-		},
-	}
-	for _, u := range have {
-		o.On[u.Login], o.Was[u.Login] = true, true
-	}
-
-	// The assignees are in every answer, so that a search that does not find
-	// them leaves them listed, and ticked.
-	rows := func(found []core.User) []picker.Item {
-		all := slices.Clone(have)
-		for _, u := range found {
-			if !slices.ContainsFunc(all, func(o core.User) bool { return strings.EqualFold(o.Login, u.Login) }) {
-				all = append(all, u)
-			}
-		}
-		remember(all)
-		items := make([]picker.Item, 0, len(all))
-		for _, it := range ui.PersonItems(all, "") {
-			items = append(items, picker.Item{Title: it.Label, Detail: it.Detail, Value: it.Value})
-		}
-		return items
-	}
-
-	var search picker.Search
-	opts := m.pickerOptions(rows(nil))
 	if f := m.list.facets; f != nil {
 		repo := m.repo
-		search = func(ctx context.Context, q picker.Query) ([]picker.Item, error) {
-			found, err := f.People(ctx, facets.PeopleQuery{Repo: repo, Text: q.Text})
-			if err != nil {
-				return nil, err
-			}
-			return rows(found), nil
+		spec.Search = func(ctx context.Context, text string) ([]core.User, error) {
+			return f.People(ctx, facets.PeopleQuery{Repo: repo, Text: text})
 		}
-	} else {
-		opts = append(opts, picker.WithItems(rows(nil)))
 	}
-	st := m.theme.Picker(m.icons)
-	st.Frame = lipgloss.NewStyle()
-	opts = append(opts, picker.WithStyles(st))
-	o.P = picker.New(search, opts...)
-	o.P.SetMarked(o.Marks())
-	m.open(o)
+	m.open(prpanes.NewAssignees(spec))
 }
 
 // applyAssignees changes the assignees of the pull request, which the pane of
