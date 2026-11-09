@@ -367,15 +367,14 @@ func (m *Model) canDivide() bool {
 	return s != nil
 }
 
-// moveDivider moves the divider by delta cells and lays the panes out again.
-func (m *Model) moveDivider(delta int) {
+// moveDivider moves the divider by steps presses and lays the panes out again.
+func (m *Model) moveDivider(steps int) {
 	s, def := m.divider()
 	if s == nil {
 		return
 	}
 	lo, hi := m.bounds()
-	s.Move(delta)
-	s.Settle(def, lo, hi)
+	m.dividers.Move(s, steps, def, lo, hi)
 	m.layout()
 }
 

@@ -154,6 +154,26 @@ func TestZoomedDividerMoves(t *testing.T) {
 	}
 }
 
+// The search shares the list divider, so a move made there reaches the
+// zoomed list under it without any other key.
+func TestSearchMovesZoomedDivider(t *testing.T) {
+	t.Parallel()
+	m, files := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	def := preview(files)
+	run(m, m.key(press("S")))
+	for range 3 {
+		run(m, m.key(ctrlRight))
+	}
+	run(m, m.key(tea.KeyPressMsg{Code: tea.KeyEscape}))
+	if !m.dividers.List.Moved() {
+		t.Fatal("the search did not move the shared divider")
+	}
+	if got := preview(files); got != def-6 {
+		t.Errorf("after three presses in the search the preview is %d wide, want %d", got, def-6)
+	}
+}
+
 func TestZoomedDividerStopsAtBounds(t *testing.T) {
 	t.Parallel()
 	m, files := newSplitApp(t, 120, 40)

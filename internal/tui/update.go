@@ -376,7 +376,12 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 				return cmd
 			}
 		}
+		// A modal may move the dividers it shares with the screens.
+		before := *m.dividers
 		cmd := mod.Update(msg)
+		if *m.dividers != before {
+			m.layout()
+		}
 		m.updateBadges()
 		return cmd
 	}
@@ -412,10 +417,10 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.layout()
 		return nil
 	case m.canDivide() && keymap.Matches(msg, m.keys.DividerLeft):
-		m.moveDivider(-m.dividers.Step)
+		m.moveDivider(-1)
 		return nil
 	case m.canDivide() && keymap.Matches(msg, m.keys.DividerRight):
-		m.moveDivider(m.dividers.Step)
+		m.moveDivider(1)
 		return nil
 	case m.dividers.Moved() && keymap.Matches(msg, m.keys.DividerReset):
 		m.dividers.Reset()
