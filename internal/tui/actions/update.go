@@ -408,6 +408,9 @@ func (m *Modal) openLoaded() []core.Run {
 
 // rereadRun reads the jobs of an open run that isn't shown again.
 func (m *Modal) rereadRun(r core.Run) tea.Cmd {
+	// The flag is the in-flight guard: online skips a run that is already
+	// loading, so coming back online never starts a second read. No spinner
+	// row shows for a run that isn't the shown one.
 	m.jobsOf[r.ID].loading = true
 	return tea.Batch(m.readJobs(r), m.spin.Start())
 }
