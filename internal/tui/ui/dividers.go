@@ -11,11 +11,14 @@ type Dividers struct {
 	// repository screen, List the one between a list and its preview, and
 	// Side the one between the main column of a modal and its side column.
 	Files, List, Side panes.Size
+	// Page is the divider between the two columns of the dashboard and of the
+	// owner page, which move together.
+	Page panes.Size
 }
 
 // Moved reports whether the user moved any divider.
 func (d *Dividers) Moved() bool {
-	return d.Files.Moved() || d.List.Moved() || d.Side.Moved()
+	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved()
 }
 
 // Move moves s by steps presses, then keeps both of its panes within lo and

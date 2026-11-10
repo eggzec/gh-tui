@@ -236,6 +236,9 @@ type Section struct {
 	cal    calendar.Model
 
 	width, height int
+	// split is the width of the repositories column the root asked for, 0 for
+	// the default.
+	split int
 	// zoom shows the focused pane alone, as a narrow dashboard does.
 	zoom panes.Zoom
 	// head is the profile above the panes, boxes are the sizes of the
@@ -355,6 +358,21 @@ func (s *Section) SetSize(width, height int) {
 	s.layout()
 	s.render()
 }
+
+// SetSplit sets the width of the repositories column beside the work one, or
+// leaves the default when it is 0. It takes effect at the next SetSize.
+func (s *Section) SetSplit(width int) { s.split = width }
+
+// leftWidth is the width of the repositories column.
+func (s *Section) leftWidth() int {
+	if s.split > 0 {
+		return min(s.split, s.width)
+	}
+	return s.width * 11 / 20
+}
+
+// OnePane reports whether the dashboard shows one pane alone.
+func (s *Section) OnePane() bool { return s.onePane() }
 
 // SetNarrow tells the dashboard that the terminal is too small for every
 // pane at once. It takes effect at the next SetSize.

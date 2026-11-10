@@ -44,7 +44,7 @@ func (s *Section) layout() {
 	var b [numPanes]box
 	if !s.onePane() {
 		mid := max(rest-pinnedHeight-calendarHeight, 0)
-		lw := s.width * 11 / 20
+		lw := s.leftWidth()
 		b[pinnedPane] = box{s.width, pinnedHeight}
 		b[reposPane] = box{lw, mid}
 		b[workPane] = box{s.width - lw, mid}

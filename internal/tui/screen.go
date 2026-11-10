@@ -341,12 +341,54 @@ func (m *Model) listWidth() int {
 	return m.dividers.List.Of(panes.DefaultListWidth, lo, hi)
 }
 
+// pageWidth is the width of the first column of the dashboard and of the owner
+// page when the user has not moved their divider.
+func pageWidth(width int) int { return width * 11 / 20 }
+
+// pageDivider is the first column's width of the dashboard and the owner page
+// with the user's move applied.
+func (m *Model) pageDivider() int {
+	lo, hi := m.bounds()
+	return m.dividers.Page.Of(pageWidth(m.width), lo, hi)
+}
+
+// pageSection is what the root needs of the dashboard and the owner page to
+// move their divider.
+type pageSection interface {
+	SetSplit(width int)
+	OnePane() bool
+}
+
+// pageOf returns the pane of the dashboard or the owner page, or nil for any
+// other screen.
+func (m *Model) pageOf(s screen) *pane {
+	switch s {
+	case dashScreen:
+		return m.dash
+	case ownerScreen:
+		return m.own
+	case repoScreen:
+	}
+	return nil
+}
+
+// pageShowsTwo reports whether the page shows its two columns side by side, so
+// that there is a divider between them.
+func (m *Model) pageShowsTwo(p *pane) bool {
+	s, ok := p.section.(pageSection)
+	lo, hi := m.bounds()
+	return ok && !s.OnePane() && !m.narrow() && hi >= lo
+}
+
 // divider returns the size of the divider that the divider keys move, with
 // its default, or nil when the screen shows none. The repository screen shows
 // the files column beside the right one, or, zoomed on a section with a
 // preview, that section's list beside it.
 func (m *Model) divider() (s *panes.Size, def int) {
 	if m.screen != repoScreen {
+		if p := m.pageOf(m.screen); p != nil && m.pageShowsTwo(p) {
+			return &m.dividers.Page, pageWidth(m.width)
+		}
 		return nil, 0
 	}
 	if m.onePane() {
@@ -391,6 +433,9 @@ func (m *Model) arrange(height int) {
 		}
 		if s, ok := p.section.(interface{ SetNarrow(bool) }); ok {
 			s.SetNarrow(narrow)
+		}
+		if s, ok := p.section.(pageSection); ok {
+			s.SetSplit(m.pageDivider())
 		}
 		p.resize(m.width, height)
 	}
