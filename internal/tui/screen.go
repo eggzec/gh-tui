@@ -189,6 +189,9 @@ func (m *Model) drawFrame(p *pane) {
 	if p.preview != nil {
 		text = p.preview.PreviewTitle()
 	}
+	if p.preview == nil {
+		text = m.linkTitle(text)
+	}
 	if p.key != "" && !zoomed {
 		text = "[" + p.key + "] " + text
 	}
@@ -201,6 +204,21 @@ func (m *Model) drawFrame(p *pane) {
 	}
 	p.top, p.bottom = frames.Edges(c, w)
 	p.side, _ = frames.Sides(p.focused)
+}
+
+// linkTitle links the name that starts a pane's label, on the repository
+// screen, to the page on GitHub that lists what the pane shows: the pull
+// requests and the issues of the repository.
+func (m *Model) linkTitle(label string) string {
+	if m.screen != repoScreen || m.repo.Owner == "" {
+		return label
+	}
+	for name, page := range map[string]string{ui.PullsTitle: "pulls", ui.IssuesTitle: "issues"} {
+		if rest, ok := strings.CutPrefix(label, name); ok && (rest == "" || strings.HasPrefix(rest, m.icons.Separator)) {
+			return termtext.Link(ui.WebURL(m.host, m.repo.String()+"/"+page), name) + rest
+		}
+	}
+	return label
 }
 
 // foot is the forms of the strip of the keys of the panes of the repository
@@ -278,7 +296,8 @@ func (m *Model) drawHeader() {
 		if m.badge == "1" {
 			noun = " notification"
 		}
-		right = m.st.dot.Render(m.icons.Dot) + " " + m.st.badge.Render(m.badge+noun)
+		// The count links to the inbox on GitHub.
+		right = m.st.dot.Render(m.icons.Dot) + " " + termtext.Link(ui.WebURL(m.host, "notifications"), m.st.badge.Render(m.badge+noun))
 	}
 	// Two cells of rule and a space on each side frame the text.
 	lw, rw := ansi.StringWidth(left), ansi.StringWidth(right)
