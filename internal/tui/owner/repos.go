@@ -61,7 +61,7 @@ func (l *tableTab) header(s *Section) string {
 	if l.Feed.Len() == 0 {
 		return ""
 	}
-	return strings.Repeat(" ", gutterWidth) + s.st.shared.Muted.Render(l.Cols().Header(s.icons.Star, s.icons.Ellipsis))
+	return strings.Repeat(" ", gutterWidth+l.Feed.Indent()) + s.st.shared.Muted.Render(l.Cols().Header(s.icons.Star, s.icons.Ellipsis))
 }
 
 func (l *tableTab) remeasure(s *Section) bool { return l.Remeasure(s.icons) }
@@ -164,6 +164,9 @@ func (s *Section) regroup() tea.Cmd {
 				cmds = append(cmds, t.Feed.SetGroups(groups))
 			case *starList:
 				cmds = append(cmds, t.Feed.SetGroups(groups))
+			}
+			if t != nil {
+				s.layoutList(t)
 			}
 		}
 	}

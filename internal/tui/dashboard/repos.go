@@ -145,6 +145,7 @@ func (t *repoTabs) regroup() tea.Cmd {
 	cmds := make([]tea.Cmd, len(t.tabs))
 	for i, o := range t.tabs {
 		cmds[i] = o.Feed.SetGroups(groups)
+		t.layout(o)
 	}
 	return tea.Batch(cmds...)
 }
