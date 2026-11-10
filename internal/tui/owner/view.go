@@ -40,7 +40,7 @@ func (s *Section) layout() {
 		}
 	} else {
 		mid := max(rest-pinnedHeight, 0)
-		lw := s.width * 11 / 20
+		lw := s.leftWidth()
 		b[pinnedPane] = box{s.width, pinnedHeight}
 		b[listPane] = box{lw, mid}
 		b[readmePane] = box{s.width - lw, mid}
