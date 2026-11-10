@@ -17,8 +17,6 @@ import (
 const (
 	// tabStop is the stop that tabs in a body expand to.
 	tabStop = 4
-	// guide is the cells of one level of the guides of a tree.
-	guide = 3
 	// untitled is the title of a block that has no summary.
 	untitled = "Details"
 )
@@ -119,7 +117,7 @@ func (b *builder) head(block *Block, lines, depth int) treeview.Node {
 // text returns the rows of the markdown src at depth, whose IDs start with
 // prefix, and how many lines they come to with every diagram open.
 func (b *builder) text(src, prefix string, depth int) (rows []treeview.Node, total int) {
-	room := markdown.Room(b.o.Width-1, guide*depth)
+	room := markdown.Room(b.o.Width-1, treeview.GuideWidth*depth)
 	if room == 0 {
 		return nil, 0
 	}

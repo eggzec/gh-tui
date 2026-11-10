@@ -3,8 +3,8 @@
 │       ╭─ ↣ #2 Match keys by order ───────────────────────────────────╮d · All│
 │     # │ ╭─ Conversation ────────────── 2 of 2 shown · filter: all ─╮ │Updated│
 │▌  ↣ #2│ │ ▌▾ ○ bob                                             now │ │now    │
-│       │ │  ╰─ ▾ ● dee ● b.go:7  Why?                           now │ │       │
-│       │ │     ╰─   bob  Because.                               now │ │       │
+│       │ │  ╰─▾ ● dee ● b.go:7  Why?                            now │ │       │
+│       │ │    ╰─  bob  Because.                                 now │ │       │
 │       │ │                                                          │ │       │
 │       │ │    ann  Looks good.                                  now │ │       │
 │       │ │                                                          │ │       │

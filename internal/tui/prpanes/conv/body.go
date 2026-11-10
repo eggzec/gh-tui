@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/markdown"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
@@ -17,8 +18,6 @@ const (
 	// maxBodyLines is the most lines of a body a row holds, which guards
 	// against very long ones.
 	maxBodyLines = 200
-	// guide is the cells of one level of the guides of a tree.
-	guide = 3
 	// arrow is the cells of the fold arrow that the tree puts before a row
 	// with lines under its head.
 	arrow = 2
@@ -143,7 +142,7 @@ type column struct {
 // column returns where the text of a row with prefix sits, at depth and with
 // or without children.
 func (b *builder) column(prefix string, depth int, kids bool) column {
-	limit := b.width - 1 - guide*depth - arrow
+	limit := b.width - 1 - treeview.GuideWidth*depth - arrow
 	pw := ansi.StringWidth(prefix)
 	// A prefix that takes much of the row leaves the text no room beside it:
 	// the text goes under it instead.
@@ -158,8 +157,8 @@ func (b *builder) column(prefix string, depth int, kids bool) column {
 	col := hang
 	pad := hang + arrow
 	if kids {
-		col = max(hang, guide)
-		pad = col - guide + arrow
+		col = max(hang, treeview.GuideWidth)
+		pad = col - treeview.GuideWidth + arrow
 	}
 	return column{limit: limit, pw: pw, lead: lead, pad: pad, room: markdown.Room(limit, col)}
 }

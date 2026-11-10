@@ -31,7 +31,7 @@ func TestThemeTreeView(t *testing.T) {
 	if s.CursorGlyph != ic.Cursor || s.OpenGlyph != ic.Unfolded || s.ClosedGlyph != ic.Folded {
 		t.Errorf("glyphs = %q %q %q, want the icons'", s.CursorGlyph, s.OpenGlyph, s.ClosedGlyph)
 	}
-	if got := th.Tree(NewIcons(config.IconsASCII)).Branch; got != "|- " {
+	if got := th.Tree(NewIcons(config.IconsASCII)).Branch; got != "|-" {
 		t.Errorf("ASCII branch = %q, want an ASCII connector", got)
 	}
 }

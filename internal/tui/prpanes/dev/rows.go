@@ -170,7 +170,7 @@ func (b *builder) text(r core.Reference) string {
 
 // line is the row of an item: glyph, name and title, as a link.
 func (b *builder) line(r core.Reference) string {
-	return b.glyph(r) + " " + termtext.Link(r.URL, b.text(r))
+	return b.glyph(r) + " " + termtext.Link(r.URL, b.st.Tree.Name.Render(b.text(r)))
 }
 
 // blocker is the row of what blocks an issue, dim.

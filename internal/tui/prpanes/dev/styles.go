@@ -52,7 +52,7 @@ func NewStyles(t ui.Theme, ic ui.Icons) Styles {
 		Glyphs: newGlyphs(ic),
 		Tree:   t.Tree(ic),
 		icons:  ic,
-		bold:   t.Text.Bold(true),
+		bold:   t.Tree(ic).FoldName,
 		dim:    t.Subtle,
 		warn:   t.Warning,
 		chips:  ui.NewLabelChips(t.Subtle.Padding(0, 1), t.Dark, ic.Ellipsis, labelNameWidth),

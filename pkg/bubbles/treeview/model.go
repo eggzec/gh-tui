@@ -27,8 +27,9 @@ import (
 // never shifts a guide or the right-aligned part of a row.
 const tabWidth = 4
 
-// guideWidth is the cells of one level of connector guides.
-const guideWidth = 3
+// GuideWidth is the cells of one level of connector guides; panes that lay
+// text out beside a tree measure its levels with it.
+const GuideWidth = 2
 
 // defaultIndent is the cells of one level in [Indent] mode when
 // [Styles.IndentWidth] is not positive.

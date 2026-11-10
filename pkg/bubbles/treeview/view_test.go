@@ -109,7 +109,7 @@ func TestViewFoldArrows(t *testing.T) {
 	}
 	got := strings.Split(plain(newTree(rows, WithSize(14, 3), WithFocused(false)).View()), "\n")
 	// A leaf keeps the two cells of the arrow, so that siblings line up.
-	want := []string{"▌▸ closed", " ▾ open", " ╰─   child"}
+	want := []string{"▌▸ closed", " ▾ open", " ╰─  child"}
 	for i := range want {
 		if strings.TrimRight(got[i], " ") != want[i] {
 			t.Errorf("line %d = %q, want %q", i, got[i], want[i])
