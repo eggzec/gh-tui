@@ -270,6 +270,23 @@ func (ic Icons) Flags(r core.Repo) []string {
 	return flags
 }
 
+// Flag returns the one glyph that marks r most, in the order private, fork,
+// template, archived, mirror, or "" if r has no flag.
+func (ic Icons) Flag(r core.Repo) string {
+	for _, f := range []struct {
+		on    bool
+		glyph string
+	}{
+		{r.Private, ic.Private}, {r.Fork, ic.Fork}, {r.Template, ic.Template},
+		{r.Archived, ic.Archived}, {r.Mirror, ic.Mirror},
+	} {
+		if f.on {
+			return f.glyph
+		}
+	}
+	return ""
+}
+
 // IssueState returns the state of issue is.
 func IssueState(is core.Issue) State {
 	switch {

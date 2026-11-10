@@ -40,8 +40,8 @@ type Cols struct {
 	full bool
 }
 
-// Measure is what the repositories read so far need: the widest name, the
-// most flags and the widest count of stars. It only grows, so the columns
+// Measure is what the repositories read so far need: the widest name, whether
+// any has a flag (flags is then 1) and the widest count of stars. It only grows, so the columns
 // don't jump as the list scrolls.
 type Measure struct {
 	name, flags, stars int
@@ -55,7 +55,9 @@ func (m *Measure) Add(r core.Repo, icons ui.Icons) { m.add(r, icons, false) }
 // add measures r too, named by owner and name if full is set.
 func (m *Measure) add(r core.Repo, icons ui.Icons, full bool) {
 	m.name = max(m.name, ansi.StringWidth(repoName(r, full)))
-	m.flags = max(m.flags, len(icons.Flags(r)))
+	if icons.Flag(r) != "" {
+		m.flags = 1
+	}
 	m.stars = max(m.stars, len(ui.Count(r.Stars, false)))
 }
 
@@ -68,7 +70,7 @@ func LayoutCols(width int, m Measure, star string, age int) Cols {
 		age:   max(len(ui.AgeTitle), age),
 	}
 	if m.flags > 0 {
-		c.flags = 2*m.flags - 1
+		c.flags = 1
 	}
 	name := max(m.name, len(nameHeader))
 	c.name = min(name, max(width*2/5, minName), maxName)
@@ -130,16 +132,9 @@ func (d Drawer) Row(c Cols, r core.Repo, look int, dates ui.Dates, now func() ti
 	}
 	if c.flags > 0 {
 		gap()
-		used := 0
-		for i, f := range d.Icons.Flags(r) {
-			if i > 0 {
-				b.WriteByte(' ')
-				used++
-			}
-			st.Subtle.Write(&b, f)
-			used += ansi.StringWidth(f)
-		}
-		b.WriteString(strings.Repeat(" ", max(c.flags-used, 0)))
+		f := d.Icons.Flag(r)
+		st.Subtle.Write(&b, f)
+		b.WriteString(strings.Repeat(" ", max(c.flags-ansi.StringWidth(f), 0)))
 	}
 	if c.name > 0 {
 		gap()
