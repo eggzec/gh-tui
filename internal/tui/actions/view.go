@@ -25,6 +25,9 @@ func (m *Modal) View() string {
 	}
 	w := m.width
 	lines := m.framed()
+	if m.ask != nil {
+		return ui.OverCentred(strings.Join(lines, "\n"), *m.ask, m.st.confirm, m.keys.Confirm, w, len(lines))
+	}
 	if p := m.prompt(w); p != "" {
 		lines[len(lines)-1] = p
 	}
@@ -280,8 +283,6 @@ func (m *Modal) paneTitle(p pane, w int) string {
 // there is one.
 func (m *Modal) prompt(w int) string {
 	switch {
-	case m.ask != nil:
-		return m.ask.Line(m.st.confirm, m.keys.Confirm, w)
 	case m.notice != "":
 		return ui.Fit(m.st.Warning.Render(termtext.Truncate(m.notice, w, m.st.ic.Ellipsis)), w)
 	case m.workflows.wanted && m.workflows.loading:

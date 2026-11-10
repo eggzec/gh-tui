@@ -48,7 +48,10 @@ type authModal struct {
 	// armed is set once the arm message came, so that an enter held from
 	// before the question shows answers nothing.
 	armed bool
-	voice ui.Voice
+	// choice is the question of running the command, which holds the choice
+	// the user switched to.
+	choice confirm.Ask
+	voice  ui.Voice
 	// icons mark what the token may do, and why it couldn't be read, in
 	// errs.
 	icons ui.Icons
@@ -121,9 +124,10 @@ func (m *authModal) Update(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 	if m.asks() {
-		c := confirm.Ask{Run: func() tea.Cmd { return m.run(m.plan.Cmd, m.access) }}
-		cmd, done := m.confirm.Answer(c, k, m.armed)
+		m.choice.Run = func() tea.Cmd { return m.run(m.plan.Cmd, m.access) }
+		cmd, done := m.confirm.Answer(&m.choice, k, m.armed)
 		if !done {
+			m.render()
 			return nil
 		}
 		// The terminal is gh's once the modal is gone.
@@ -225,8 +229,8 @@ func (m *authModal) lines(w int) []string {
 		lines = append(lines, m.links.Link(u, st.text.Render(termtext.Truncate(u, w, ic.Ellipsis))))
 	}
 	if m.asks() {
-		q := confirm.Ask{Question: "Run " + commandLine(m.plan.Cmd, m.gh) + "?"}
-		lines = append(lines, q.Lines(m.cst, m.confirm, w, confirm.MaxLines)...)
+		m.choice.Question = "Run " + commandLine(m.plan.Cmd, m.gh) + "?"
+		lines = append(lines, m.choice.Box(m.cst, m.confirm, w)...)
 	}
 	return lines
 }

@@ -54,6 +54,7 @@ func stateChange(svc Service, g ui.Gate, it core.Issue, state core.State,
 	n := "#" + strconv.Itoa(number)
 	return confirm.Ask{
 		Question: verb + " issue " + n + "?",
+		Danger:   state == core.StateClosed,
 		Run: func() tea.Cmd {
 			it, g, found := now()
 			var applies bool

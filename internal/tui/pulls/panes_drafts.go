@@ -308,7 +308,7 @@ func (o *diffOverlay) askDelete() tea.Cmd {
 	if !ok {
 		return ui.Notify(toast.Info, "Move to a draft to delete it.")
 	}
-	o.m.ask(confirm.Ask{Question: "Delete the draft " + draftWhere(d) + "?", Run: func() tea.Cmd {
+	o.m.ask(confirm.Ask{Question: "Delete the draft " + draftWhere(d) + "?", Danger: true, Run: func() tea.Cmd {
 		if err := o.m.draftStore().Remove(o.m.draftKey(), d.ID); err != nil {
 			return ui.Fail("delete the draft", err)
 		}

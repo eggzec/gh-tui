@@ -156,7 +156,7 @@ func (k KeyMap) ShortHelp() []key.Binding {
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding {
-	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Confirm.Yes, k.Confirm.No, k.Confirm.Default}}, k.Runs.FullHelp(), k.Log.FullHelp())
+	return slices.Concat([][]key.Binding{k.own(), {k.Filter, k.ClearFilter, k.ToggleFilter, k.GroupBy, k.ToggleGroups, k.Sort, k.ToggleSort, k.Confirm.Yes, k.Confirm.No, k.Confirm.Switch, k.Confirm.Default}}, k.Runs.FullHelp(), k.Log.FullHelp())
 }
 
 // relabel returns b described as desc.

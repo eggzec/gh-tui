@@ -11,7 +11,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
@@ -398,13 +397,8 @@ func (m *detailModal) View() string {
 	if m.ask == nil {
 		return v
 	}
-	// The question lines up with the issue, two cells in. Over a prompt,
-	// it takes the place of the prompt's keys, which wait for the answer.
-	lines := m.ask.Lines(m.confirmSt, m.keys.confirm, max(m.width-2, 0), min(m.height, confirm.MaxLines))
-	for i, l := range lines {
-		lines[i] = ansi.Truncate("  "+l, m.width, "")
-	}
-	return ui.OverLastLines(v, lines)
+	// The question is centred over the modal, as in the pull request's.
+	return ui.OverCentred(v, *m.ask, m.confirmSt, m.keys.confirm, m.width, m.height)
 }
 
 // Update implements ui.Modal. After the modal closed, it ignores what
@@ -728,7 +722,7 @@ func (m *detailModal) asks(c confirm.Ask) tea.Cmd {
 // answer takes the answer to the question on the last line: yes makes the
 // change, and no steps back to the issue. Other keys do nothing.
 func (m *detailModal) answer(msg tea.KeyPressMsg) tea.Cmd {
-	cmd, done := m.keys.confirm.Answer(*m.ask, msg, m.armed)
+	cmd, done := m.keys.confirm.Answer(m.ask, msg, m.armed)
 	if done {
 		m.ask = nil
 	}

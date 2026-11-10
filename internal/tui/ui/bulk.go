@@ -172,7 +172,7 @@ func mapSlice[T, U any](s []T, f func(T) U) []U {
 // only if that is still the plan asked; otherwise nothing is sent, and the
 // user is told so. ok is unset when now has no plan any more.
 func (p BulkPlan) Confirm(now func() (BulkPlan, bool), run func(BulkPlan) tea.Cmd) confirm.Ask {
-	return confirm.Ask{Question: p.Question(), Run: func() tea.Cmd {
+	return confirm.Ask{Question: p.Question(), Danger: strings.EqualFold(p.Verb, "close"), Run: func() tea.Cmd {
 		if again, ok := now(); ok && again.Same(p) {
 			return run(again)
 		}

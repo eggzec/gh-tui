@@ -59,6 +59,8 @@ type change struct {
 	of                   changeOf
 	msg                  core.MergeMessage
 	chooses              bool
+	// danger says that the question is of something hard to take back.
+	danger bool
 	// queued says that a merge queue merges as it is set up, so the method
 	// is shown but not the user's to pick.
 	queued bool
@@ -133,6 +135,7 @@ func (k keyMap) change(svc Service, g ui.Gate, how mergeAs, d core.PullRequestDe
 		return change{
 			of:       of,
 			question: "Close PR " + n + "?",
+			danger:   true,
 			what:     "close " + n,
 			start:    func() *optimistic.Op { return svc.Close(repo, number) },
 		}, true, nil
@@ -240,7 +243,7 @@ func (k keyMap) ask(svc Service, c change, msg tea.KeyPressMsg,
 	now func() (core.PullRequestDetail, ui.Gate, bool), send func(c change, op *optimistic.Op) tea.Cmd,
 	again *rereader,
 ) confirm.Ask {
-	return confirm.Ask{Question: c.question, Run: k.confirmed(svc, c, msg, now, send, again)}
+	return confirm.Ask{Question: c.question, Danger: c.danger, Run: k.confirmed(svc, c, msg, now, send, again)}
 }
 
 // mutate starts the change that msg asks of the selected pull request, if

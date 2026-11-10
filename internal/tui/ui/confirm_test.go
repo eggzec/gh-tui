@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -97,21 +98,23 @@ func TestRecheck(t *testing.T) {
 	}
 }
 
-func TestOverLastLines(t *testing.T) {
-	for _, tt := range []struct {
-		view  string
-		lines []string
-		want  string
-	}{
-		{"a\nb\nc", []string{"Q"}, "a\nb\nQ"},
-		{"a\nb\nc", []string{"Q", "R"}, "a\nQ\nR"},
-		{"a", []string{"Q"}, "Q"},
-		{"", []string{"Q"}, "Q"},
-		{"a\n", []string{"Q"}, "a\nQ"},
-	} {
-		if got := OverLastLines(tt.view, tt.lines); got != tt.want {
-			t.Errorf("OverLastLines(%q, %q) = %q, want %q", tt.view, tt.lines, got, tt.want)
+func TestOverCentred(t *testing.T) {
+	const w, h = 60, 12
+	view := strings.TrimSuffix(strings.Repeat(strings.Repeat(".", w)+"\n", h), "\n")
+	got := strings.Split(OverCentred(view, confirm.Ask{Question: "Close it?"}, confirm.Styles{}, confirm.KeyMap{}, w, h), "\n")
+	if len(got) != h {
+		t.Fatalf("got %d lines, want %d", len(got), h)
+	}
+	if got[0] != strings.Repeat(".", w) || got[h-1] != strings.Repeat(".", w) {
+		t.Errorf("the box reached the first or last line:\n%s", strings.Join(got, "\n"))
+	}
+	for i, l := range got {
+		if ansi.StringWidth(l) != w {
+			t.Errorf("line %d is %d cells, want %d", i, ansi.StringWidth(l), w)
 		}
+	}
+	if !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "[ No ]") {
+		t.Errorf("no choice shown:\n%s", strings.Join(got, "\n"))
 	}
 }
 
@@ -155,15 +158,19 @@ func TestConfirmModal(t *testing.T) {
 
 func TestConfirmModalFits(t *testing.T) {
 	m := NewConfirmModal(confirm.Ask{Question: "Close issue #12?"}, confirm.NewKeyMap(Lookup(config.Default().Keys, "confirm")), NewIcons(config.IconsUnicode))
-	if w, h := m.Fit(100, 20); w != 29 || h != 1 {
-		t.Errorf("Fit = %d×%d, want the question and its keys on one line", w, h)
+	// The box has its own border, so the modal is the question and the choices
+	// inside it: two rows, and the four cells of the border are not counted.
+	if w, h := m.Fit(100, 20); w != 32 || h != 2 {
+		t.Errorf("Fit = %d×%d, want the question and the choices in a box", w, h)
 	}
 	if w, _ := m.Fit(10, 20); w != 10 {
 		t.Errorf("Fit in 10 columns = %d wide", w)
 	}
-	m.SetSize(29, 1)
-	if got, want := m.View(), "Close issue #12?  y/n · ↵: no"; got != want {
-		t.Errorf("View = %q, want %q", got, want)
+	m.SetSize(32, 2)
+	view := ansi.Strip(m.View())
+	lines := strings.Split(view, "\n")
+	if len(lines) != 4 || !strings.Contains(lines[1], "Close issue #12?") || !strings.Contains(lines[2], "Yes") {
+		t.Errorf("View = %q, want a box of four lines holding the question and the choices", view)
 	}
 	if m.Title() != "Confirm" || m.Question() != "Close issue #12?" {
 		t.Errorf("titled %q asking %q", m.Title(), m.Question())
@@ -222,7 +229,8 @@ func TestConfirmKeysFollowTheConfig(t *testing.T) {
 	} {
 		t.Run(tt.key, func(t *testing.T) {
 			var r ran
-			cmd, done := k.Answer(r.confirm("Close issue #12?"), press(tt.key), true)
+			ask := r.confirm("Close issue #12?")
+			cmd, done := k.Answer(&ask, press(tt.key), true)
 			if done != tt.done || (r.n == 1) != tt.run || (cmd != nil) != tt.run {
 				t.Errorf("%s: done %v, ran %d times; want done %v and run %v", tt.key, done, r.n, tt.done, tt.run)
 			}

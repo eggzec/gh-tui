@@ -206,7 +206,7 @@ func TestOverlayPlacement(t *testing.T) {
 			}{
 				{"Viewer", func(m *panesModal) { m.open(&stubOverlay{k: panes.Viewer, name: "Viewer"}) }, panes.Overlay{Kind: panes.Viewer, InsetMin: wideMin}},
 				{"Picker", func(m *panesModal) { m.open(&stubOverlay{k: panes.Picker, name: "Picker", rows: 5}) }, panes.Overlay{Kind: panes.Picker, Items: 5, InsetMin: wideMin}},
-				{"Confirm", func(m *panesModal) { m.ask(confirm.Ask{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Text: len("Merge?"), InsetMin: wideMin}},
+				{"Confirm", func(m *panesModal) { m.ask(confirm.Ask{Question: "Merge?"}) }, panes.Overlay{Kind: panes.Confirm, Items: confirm.Ask{Question: "Merge?"}.Height(40), Text: len("Merge?"), InsetMin: wideMin}},
 			} {
 				w, h := size[0], size[1]
 				m := sizedPanes(t, w, h)
@@ -233,8 +233,13 @@ func TestOverlayPlacement(t *testing.T) {
 						t.Errorf("%s at %dx%d: line %d is %d cells wide", tc.name, w, h, i, got)
 					}
 				}
-				if !strings.Contains(ansi.Strip(lines[hr+r.Y]), tc.name) {
-					t.Errorf("%s at %dx%d: no title on line %d, the top of the box (header rows %d): %q", tc.name, w, h, hr+r.Y, hr, ansi.Strip(lines[hr+r.Y]))
+				top, text := hr+r.Y, tc.name
+				if tc.name == "Confirm" {
+					// The question's row is under the box's top edge.
+					top, text = top+1, "Merge?"
+				}
+				if !strings.Contains(ansi.Strip(lines[top]), text) {
+					t.Errorf("%s at %dx%d: no %q on line %d (header rows %d): %q", tc.name, w, h, text, top, hr, ansi.Strip(lines[top]))
 				}
 				if labelled && !strings.Contains(ansi.Strip(lines[0]), "cache") {
 					t.Errorf("%s at %dx%d: the labels header is gone: %q", tc.name, w, h, ansi.Strip(lines[0]))

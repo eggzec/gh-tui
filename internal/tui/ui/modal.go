@@ -180,6 +180,14 @@ func (t TrimTitle) Fit(width int, style lipgloss.Style, ellipsis string) string 
 	return lead + style.Render(body)
 }
 
+// Boxed is a Modal that draws its own border, so the frame leaves its view
+// as it is. Its view is four cells wider and two lines higher than the size
+// it is given, which is the room the frame would have taken.
+type Boxed interface {
+	// Boxed marks the modal.
+	Boxed()
+}
+
 // Edged is a Modal that fills the bottom edge of its frame.
 type Edged interface {
 	// Edges returns what the bottom edge shows.

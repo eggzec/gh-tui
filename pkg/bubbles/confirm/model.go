@@ -10,9 +10,8 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// Model shows an [Ask] on as many lines as fit its size, and answers it
-// from its keys. It holds no state of the answer: the parent closes the
-// question once [Model.Answer] says it is done.
+// Model shows an [Ask] as a box that fits its size, and answers it from its
+// keys. The parent closes the question once [Model.Answer] says it is done.
 type Model struct {
 	ask           Ask
 	keys          KeyMap
@@ -55,26 +54,27 @@ func (m *Model) SetStyles(st Styles) { m.st = st }
 func (m *Model) SetSize(width, height int) { m.width, m.height = max(width, 0), max(height, 0) }
 
 // Answer takes msg as the answer: see [KeyMap.Answer].
-func (m Model) Answer(msg tea.KeyPressMsg, armed bool) (cmd tea.Cmd, done bool) {
-	return m.keys.Answer(m.ask, msg, armed)
+func (m *Model) Answer(msg tea.KeyPressMsg, armed bool) (cmd tea.Cmd, done bool) {
+	return m.keys.Answer(&m.ask, msg, armed)
 }
 
-// Size returns the size that fits the question and its keys within
-// maxWidth and maxHeight: as wide as the question and its keys, or as wide
-// as there is room for, and on as many lines as the question wraps to.
+// Size returns the size that fits the box within maxWidth and maxHeight: as
+// wide as the question and the keys on its bottom edge, or as wide as there
+// is room for, and as high as the question wraps to.
 func (m Model) Size(maxWidth, maxHeight int) (width, height int) {
-	plain, _ := m.ask.keys(m.st, m.keys)
-	w := min(maxWidth, ansi.StringWidth(m.ask.Question)+2+ansi.StringWidth(plain))
-	return w, min(maxHeight, len(m.ask.Lines(m.st, m.keys, w, MaxLines)))
+	w := max(ansi.StringWidth(termtext.OneLine(m.ask.Question)), ansi.StringWidth(m.ask.hint(m.st, m.keys))+2) + 4
+	w = min(maxWidth, max(w, minWidth))
+	return w, min(maxHeight, m.ask.Height(w))
 }
 
-// View renders the question on exactly the size of the model, blank where
-// the question leaves room.
+// View renders the box on exactly the size of the model, blank where the
+// box leaves room.
 func (m Model) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
-	lines := termtext.PadLines(m.ask.Lines(m.st, m.keys, m.width, min(m.height, MaxLines)), m.width, m.height)
+	box := m.ask.Box(m.st, m.keys, m.width)
+	lines := termtext.PadLines(box[:min(len(box), m.height)], m.width, m.height)
 	return strings.Join(lines, "\n")
 }
 

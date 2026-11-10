@@ -403,6 +403,9 @@ func (m *Model) frame(mod ui.Modal) string {
 	if w < 4 {
 		return ""
 	}
+	if _, ok := mod.(ui.Boxed); ok {
+		return mod.View()
+	}
 	var tabs string
 	if t, ok := mod.(ui.Tabbed); ok {
 		tabs = m.tabs(t, w)

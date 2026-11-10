@@ -175,7 +175,7 @@ func (m *panesModal) deleteConv() tea.Cmd {
 	default:
 		return ui.Notify(toast.Info, "select your comment or reply to delete")
 	}
-	m.ask(confirm.Ask{Question: question, Run: run})
+	m.ask(confirm.Ask{Question: question, Run: run, Danger: true})
 	return nil
 }
 
