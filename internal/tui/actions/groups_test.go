@@ -224,9 +224,13 @@ func jobsPaneRows(m *Modal) []string {
 	var rows []string
 	for _, l := range lines {
 		// The outline's guides are drawn, not read, so they drop out.
-		words := slices.DeleteFunc(strings.Fields(ansi.Strip(l)), func(w string) bool {
-			return strings.Trim(w, "│├└╰─") == ""
-		})
+		// A guide is two cells and touches the text it leads, so it comes off
+		// the front of a word.
+		words := strings.Fields(ansi.Strip(l))
+		for i, w := range words {
+			words[i] = strings.TrimLeft(w, "│├└╰─")
+		}
+		words = slices.DeleteFunc(words, func(w string) bool { return w == "" })
 		if len(words) > 0 {
 			rows = append(rows, strings.Join(words, " "))
 		}

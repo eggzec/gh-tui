@@ -13,7 +13,7 @@ import (
 type GuideMode int
 
 const (
-	// Connectors hangs children off their parent with ├─, ╰─ and │, three
+	// Connectors hangs children off their parent with ├─, ╰─ and │, two
 	// cells per level.
 	Connectors GuideMode = iota
 	// Indent draws [Styles.IndentWidth] blank cells per level, and ignores
@@ -44,8 +44,8 @@ type Styles struct {
 	Guide lipgloss.Style
 	// Branch draws a child with siblings after it, Last the last child,
 	// Line the guide that goes on past a row, and Gap its place when it
-	// does not. Each is cut or padded to 3 cells. The defaults are "├─ ",
-	// "╰─ ", "│  " and three spaces.
+	// does not. Each is cut or padded to [GuideWidth] cells. The defaults are
+	// "├─", "╰─", "│ " and two spaces.
 	Branch, Last, Line, Gap string
 	// Arrow styles the OpenGlyph and ClosedGlyph before the text of a fold
 	// row, each cut or padded to one cell. The defaults are "▾" and "▸".
@@ -91,10 +91,10 @@ func DefaultStyles(isDark bool) Styles {
 		CursorRow:     lipgloss.NewStyle().Background(rowBG),
 		Pinned:        lipgloss.NewStyle().Background(pinBG),
 		Guide:         lipgloss.NewStyle().Foreground(dim),
-		Branch:        "├─ ",
-		Last:          "╰─ ",
-		Line:          "│  ",
-		Gap:           "   ",
+		Branch:        "├─",
+		Last:          "╰─",
+		Line:          "│ ",
+		Gap:           "  ",
 		Arrow:         lipgloss.NewStyle().Foreground(dim),
 		OpenGlyph:     "▾",
 		ClosedGlyph:   "▸",
@@ -151,7 +151,7 @@ func newLook(s Styles) look {
 		closed:  s.Arrow.Render(termtext.Cells(s.ClosedGlyph, 1)),
 		bg:      background(s.CursorRow),
 		pin:     background(s.Pinned),
-		level:   guideWidth,
+		level:   GuideWidth,
 	}
 	for _, f := range s.SpinnerFrames {
 		l.spin = append(l.spin, s.Spinner.Render(termtext.Cells(f, 1)))
@@ -165,9 +165,9 @@ func newLook(s Styles) look {
 		l.branch, l.last, l.line, l.none = blank, blank, blank, blank
 		return l
 	}
-	cells := func(g string) string { return s.Guide.Render(termtext.Cells(g, guideWidth)) }
+	cells := func(g string) string { return s.Guide.Render(termtext.Cells(g, GuideWidth)) }
 	l.branch, l.last, l.line = cells(s.Branch), cells(s.Last), cells(s.Line)
-	l.none = termtext.Cells(s.Gap, guideWidth)
+	l.none = termtext.Cells(s.Gap, GuideWidth)
 	return l
 }
 

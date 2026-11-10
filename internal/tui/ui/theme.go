@@ -204,7 +204,7 @@ func (t Theme) Tree(ic Icons) treeview.Styles {
 	s.SpinnerFrames = ic.SpinnerOr(spinner.MiniDot).Frames
 	s.LoadingText = "Loading" + ic.Ellipsis
 	if ic.Set() == config.IconsASCII {
-		s.Branch, s.Last, s.Line = "|- ", "`- ", "|  "
+		s.Branch, s.Last, s.Line = "|-", "`-", "| "
 	}
 	s.Cursor = s.Cursor.Foreground(lipgloss.Color(t.Palette.Accent))
 	s.BlurredCursor = s.BlurredCursor.Foreground(lipgloss.Color(t.Palette.Subtle))

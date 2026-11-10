@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 // overlay returns the modal the last key opened over the actions modal.
@@ -214,14 +215,14 @@ func TestGroupedJobsNestUnderRun(t *testing.T) {
 				if fold < 0 || !strings.Contains(row, "#") {
 					continue
 				}
-				// The job's state sits a level of guides (3 cells) right of the run's,
-				// which follows the run's fold marker.
+				// The job's state sits a level of guides right of the run's,
+				// which follows the run's fold marker and a space.
 				state := col(rows[i+1], "✓✗⊖◐")
 				if state < 0 {
 					t.Fatalf("no job under the run in:\n%s", strings.Join(rows, "\n"))
 				}
-				if state != fold+5 {
-					t.Errorf("job state at column %d, run marker at %d, want 5 cells right:\n%s", state, fold, strings.Join(rows[i:i+2], "\n"))
+				if want := fold + 2 + treeview.GuideWidth; state != want {
+					t.Errorf("job state at column %d, run marker at %d, want %d cells right:\n%s", state, fold, want-fold, strings.Join(rows[i:i+2], "\n"))
 				}
 				return
 			}

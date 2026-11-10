@@ -313,7 +313,7 @@ func build(d Data, o Options) (rows []treeview.Node, who map[string]Person) {
 
 	rows = []treeview.Node{{
 		ID:     idAuthor,
-		Lines:  []string{st.dim.Render("Author ") + conv.Name(d.Author)},
+		Lines:  []string{st.dim.Render("Author ") + st.name.Render(conv.Name(d.Author))},
 		Action: true,
 	}}
 	who[idAuthor] = Person{Login: d.Author.Login, Name: conv.Name(d.Author)}
@@ -348,7 +348,7 @@ func build(d Data, o Options) (rows []treeview.Node, who map[string]Person) {
 	for _, a := range p.assignees {
 		id := assigneeID(a.Login)
 		who[id] = Person{Login: a.Login, Name: conv.Name(a)}
-		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{conv.Name(a)}, Action: true})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.name.Render(conv.Name(a))}, Action: true})
 	}
 	if len(p.assignees) == 0 {
 		empty(idEmptyAssignees, "assign")
@@ -358,7 +358,7 @@ func build(d Data, o Options) (rows []treeview.Node, who map[string]Person) {
 	for _, c := range p.commenters {
 		id := commenterID(c.Login)
 		who[id] = Person{Login: c.Login, Name: conv.Name(c)}
-		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{conv.Name(c)}, Action: true})
+		rows = append(rows, treeview.Node{ID: id, Depth: 1, Lines: []string{st.name.Render(conv.Name(c))}, Action: true})
 	}
 	if len(p.commenters) == 0 {
 		rows = append(rows, treeview.Node{ID: idEmptyCommenters, Depth: 1, Lines: []string{st.dim.Render("none")}})

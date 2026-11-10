@@ -6,16 +6,16 @@
 │               │ ╭─ [1] Description ─────────────────────────────────────────────────────────────── 0% ─╮╭─ [3] Merge ────────── 1 blocker ─╮ │               │
 │               │ │ ▌▸ Notes  ⋯ 1 line                                                                   ││ keys → main                      │ │               │
 │               │ │    Paragraph 1. Keys match by order. Keys match by order. Keys match by order. Keys  ││ ▌▾ ✗ Checks failing 1            │ │               │
-│               │ │    match by order. Keys match by order. Keys match by order.                         ││  ╰─ ▾ ✗ ▣ Codecov         failed │ │               │
-│               │ │                                                                                      ││     ╰─   ✗ coverage… failed · 0s │ │               │
+│               │ │    match by order. Keys match by order. Keys match by order.                         ││  ╰─▾ ✗ ▣ Codecov          failed │ │               │
+│               │ │                                                                                      ││    ╰─  ✗ coverage/p… failed · 0s │ │               │
 │               │ │    Paragraph 2. Keys match by order. Keys match by order. Keys match by order. Keys  ││                                  │ │               │
 │               │ │    match by order. Keys match by order. Keys match by order.                         ││                                  │ │               │
 │               │ │                                                                                      ││                                  │ │               │
 │               │ ╰──────────────────────────────────────────────────────────────────────────────────────╯│ ─────                            │ │               │
 │               │ ╭─ [2] Conversation ────────────────────────────────────── 2 of 2 shown · filter: all ─╮│ Update U                         │ │               │
 │               │ │ ▌▾ ○ bob                                                                         now │╰──────────────────────────────────╯ │               │
-│               │ │  ╰─ ▾ ● dee ● b.go:7  Why?                                                       now │╭─ [4] Involved ───────────────────╮ │               │
-│               │ │     ╰─   bob  Because.                                                           now ││ ▌  Author octocat                │ │               │
+│               │ │  ╰─▾ ● dee ● b.go:7  Why?                                                        now │╭─ [4] Involved ───────────────────╮ │               │
+│               │ │    ╰─  bob  Because.                                                             now ││ ▌  Author octocat                │ │               │
 │               │ │                                                                                      ││  ▾ Reviewers 0                   │ │               │
 │               │ │    ann  Looks good.                                                              now │╰──────────────────────────────────╯ │───────────────╯
 │               │ │                                                                                      │╭─ [5] Development ────────────────╮ │───────────────╮
@@ -25,12 +25,12 @@
 │               │ │                                                                                      ││ ▌▸ Commits all 1 commits  ▸      │ │               │
 │               │ │                                                                                      ││    ───────────────────────────── │ │               │
 │               │ │                                                                                      ││  ▾ Files                         │ │               │
-│               │ │                                                                                      ││  ├─ ▾ cmd/                       │ │               │
-│               │ │                                                                                      ││  │  ├─   main              +6 −3 │ │               │
-│               │ │                                                                                      ││  │  ╰─   run               +6 −3 │ │               │
-│               │ │                                                                                      ││  ├─ ▾ internal/                  │ │               │
-│               │ │                                                                                      ││  │  ╰─ ▾ keys/                   │ │               │
-│               │ │                                                                                      ││  │     ╰─   match          +6 −3 │ │               │
+│               │ │                                                                                      ││  ├─▾ cmd/                        │ │               │
+│               │ │                                                                                      ││  │ ├─  main                +6 −3 │ │               │
+│               │ │                                                                                      ││  │ ╰─  run                 +6 −3 │ │               │
+│               │ │                                                                                      ││  ├─▾ internal/                   │ │               │
+│               │ │                                                                                      ││  │ ╰─▾ keys/                     │ │               │
+│               │ │                                                                                      ││  │   ╰─  match             +6 −3 │ │               │
 │               │ ╰──────────────────────────────────────────────────────────────────────────────────────╯╰──────────────────────────────────╯ │               │
 │               │ tab/1-6 focus · z zoom · c comment · ? help                                                                                  │               │
 │               ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯               │

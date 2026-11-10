@@ -10,8 +10,9 @@ import (
 // and again when the theme or the icons change.
 type Styles struct {
 	glyphs ui.GlyphStyles
-	dim    lipgloss.Style
-	bold   lipgloss.Style
+	// dim, bold and name are the tree's own styles for a hint, a heading
+	// and the text of a row.
+	dim, bold, name lipgloss.Style
 	// sep joins the roles of a person, and ellipsis ends a line that was cut.
 	sep, ellipsis string
 	// icons draw the rules.
@@ -20,10 +21,12 @@ type Styles struct {
 
 // NewStyles returns the styles for theme t and the icons ic.
 func NewStyles(t ui.Theme, ic ui.Icons) Styles {
+	tree := t.Tree(ic)
 	return Styles{
 		glyphs: ui.NewGlyphStyles(t, ic),
 		dim:    t.Subtle,
-		bold:   lipgloss.NewStyle().Bold(true),
+		bold:   tree.FoldName,
+		name:   tree.Name,
 		sep:    ic.Separator, ellipsis: ic.Ellipsis,
 		icons: ic,
 	}
@@ -51,7 +54,7 @@ func glyphOf(s State) ui.Glyph {
 // reviewer returns the line of a reviewer: the glyph of their state, their
 // name, and the state in words.
 func (s *Styles) reviewer(p Person) string {
-	line := s.glyphs.Render(glyphOf(p.State)) + " " + p.Name
+	line := s.glyphs.Render(glyphOf(p.State)) + " " + s.name.Render(p.Name)
 	if p.Team != "" {
 		line += s.dim.Render(" team")
 	}

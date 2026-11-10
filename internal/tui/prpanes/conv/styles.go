@@ -23,7 +23,10 @@ type Styles struct {
 	icons  ui.Icons
 	bold   lipgloss.Style
 	dim    lipgloss.Style
-	warn   lipgloss.Style
+	// guide draws the bar and corner beside a details block, in the colour
+	// of the tree's guides.
+	guide lipgloss.Style
+	warn  lipgloss.Style
 	// sha draws the short SHA of a commit.
 	sha lipgloss.Style
 	// chips draws the labels of the events, and keeps what it drew.
@@ -47,6 +50,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		icons:  ic,
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
+		guide:  t.Tree(ic).Guide,
 		warn:   t.Warning,
 		sha:    t.Subtle.Bold(true),
 		chips:  &chips,

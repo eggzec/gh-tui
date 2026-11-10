@@ -280,14 +280,14 @@ func nodesOf(rows []treeview.Node) []treeview.Node {
 }
 
 // widest is the width that cuts none of rows, for a tree where the host has
-// no limit. Each level takes four cells for its guides, cursor and arrow, and
+// no limit. Each level takes its guides and a cell pair for the arrow, and
 // two more are left for the marker's gap.
 func widest(rows []treeview.Node) int {
 	w := 0
 	for j := range rows {
 		r := &rows[j]
 		for i, l := range r.Lines {
-			n := (r.Depth+1)*4 + ansi.StringWidth(l)
+			n := (r.Depth+1)*(treeview.GuideWidth+2) + ansi.StringWidth(l)
 			if i == 0 {
 				n += 2 + ansi.StringWidth(r.Marker) + ansi.StringWidth(r.Right)
 			}

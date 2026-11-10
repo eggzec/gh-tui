@@ -58,7 +58,7 @@ func (b *builder) nodes(owner, scope string, nodes []desc.Node, first int, col c
 		rows = append(rows, kids...)
 		rows = append(rows, treeview.Node{
 			ID: id + "/end", Depth: depth + 1, Inline: true, Skip: true, Kind: KindSegment,
-			Lines: []string{b.lead(col, level) + b.st.dim.Render(b.st.Glyphs.Corner)},
+			Lines: []string{b.lead(col, level) + b.st.guide.Render(b.st.Glyphs.Corner)},
 		})
 		total += lines + 2
 	}
@@ -70,7 +70,7 @@ func (b *builder) nodes(owner, scope string, nodes []desc.Node, first int, col c
 func (b *builder) lead(col column, level int) string {
 	s := strings.Repeat(" ", col.pad)
 	if level > 0 {
-		s += b.st.dim.Render(strings.Repeat(b.st.Glyphs.Bar, level))
+		s += b.st.guide.Render(strings.Repeat(b.st.Glyphs.Bar, level))
 	}
 	return s
 }
