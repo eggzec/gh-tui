@@ -150,7 +150,7 @@ func TestFilterModalApplies(t *testing.T) {
 	if got := m.panes[1].label; got != "Pull requests · is:open" {
 		t.Errorf("pane label = %q, want the chips after the title", got)
 	}
-	if !strings.Contains(m.panes[1].top, "Pull requests · is:open") {
+	if !strings.Contains(ansi.Strip(m.panes[1].top), "Pull requests · is:open") {
 		t.Errorf("frame top = %q, want it redrawn with the chips", m.panes[1].top)
 	}
 }

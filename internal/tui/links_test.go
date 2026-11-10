@@ -74,13 +74,43 @@ func TestHeaderLinks(t *testing.T) {
 		for _, width := range []int{120, 40, 10} {
 			m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
 			want := ui.WebURL(host, testRepo.String())
-			if links := uitest.Links(t, m.header); len(links) != 1 || links[0] != want {
-				t.Errorf("%s at %d: header links to %q, want %q once", host, width, links, want)
+			links := uitest.Links(t, m.header)
+			if len(links) == 0 || links[0] != want {
+				t.Errorf("%s at %d: header links to %q, want %q first", host, width, links, want)
+			}
+			// The count of notifications links to the inbox while it fits.
+			if width == 120 && !slices.Contains(links, ui.WebURL(host, "notifications")) {
+				t.Errorf("%s at %d: header links to %q, not to the inbox", host, width, links)
 			}
 		}
+		m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
 		run(m, m.showScreen(dashScreen, 0))
-		if links := uitest.Links(t, m.header); len(links) != 0 {
-			t.Errorf("%s: the dashboard's header links to %q", host, links)
+		if links := uitest.Links(t, m.header); !slices.Equal(links, []string{ui.WebURL(host, "notifications")}) {
+			t.Errorf("%s: the dashboard's header links to %q, want the inbox only", host, links)
+		}
+	}
+}
+
+// The titles of the pull requests and the issues link to their pages on the
+// repository, the others to nothing.
+func TestPaneTitleLinks(t *testing.T) {
+	t.Parallel()
+	for _, host := range uitest.Hosts {
+		m, _ := newTestApp(t, WithHost(host))
+		m.Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+		want := map[string]string{
+			"Pull requests": ui.WebURL(host, testRepo.String()+"/pulls"),
+			"Issues":        ui.WebURL(host, testRepo.String()+"/issues"),
+		}
+		for _, p := range m.panes {
+			links := uitest.Links(t, p.top)
+			if w, ok := want[p.section.Title()]; ok {
+				if len(links) != 1 || links[0] != w {
+					t.Errorf("%s: %s links to %q, want %q", host, p.label, links, w)
+				}
+			} else if len(links) != 0 {
+				t.Errorf("%s: %s links to %q", host, p.label, links)
+			}
 		}
 	}
 }
