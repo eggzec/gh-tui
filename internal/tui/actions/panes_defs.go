@@ -1,6 +1,9 @@
 package actions
 
-import "github.com/eggzec/gh-tui/pkg/bubbles/panes"
+import (
+	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+)
 
 // The panes of the modal, in digit order.
 const (
@@ -41,7 +44,7 @@ func paneName(p panes.Pane) string {
 // paneLayout lays out an area of w by h cells: the runs beside the
 // annotations from wideMin columns, unless zoom asks for the focus alone,
 // and otherwise the zoomed layout of the bubble.
-func paneLayout(w, h int, focus panes.Pane, zoom bool) panes.Layout {
+func paneLayout(w, h int, focus panes.Pane, zoom bool, d *ui.Dividers) panes.Layout {
 	spec := panes.Spec{Width: w, Height: h, Panes: paneDefs, Focus: focus, Zoom: showsOne(w, zoom)}
 	if spec.Zoom {
 		return panes.Compute(spec)
@@ -50,7 +53,7 @@ func paneLayout(w, h int, focus panes.Pane, zoom bool) panes.Layout {
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneRuns
 	}
-	left := min(runsWidth, w)
+	left := runsSplit(d, w)
 	return panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: []panes.Box{
 		{Pane: paneRuns, Rect: panes.Rect{W: left, H: h}},
 		{Pane: paneNotes, Rect: panes.Rect{X: left, W: w - left, H: h}},

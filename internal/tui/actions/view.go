@@ -34,7 +34,7 @@ func (m *Modal) View() string {
 // framed renders the boxes, the strip and the footer: m.height lines.
 func (m *Modal) framed() []string {
 	aw, ah := m.area()
-	l := paneLayout(aw, ah, m.box(), m.zoom)
+	l := paneLayout(aw, ah, m.box(), m.zoom, m.dividers)
 	out := m.frames.Draw(l, func(b panes.Box) panes.Content {
 		c := panes.Content{Focus: b.Pane == l.Focus}
 		title := l.Title(b.Pane)
@@ -134,7 +134,7 @@ func (m *Modal) rowsOf(p pane) int { return m.rows[p] }
 // layout sizes the bubbles to their panes.
 func (m *Modal) layout() {
 	aw, ah := m.area()
-	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom).Box(paneRuns, panes.Whole); ok {
+	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom, m.dividers).Box(paneRuns, panes.Whole); ok {
 		in := b.Rect.Inner()
 		m.inner = in.W
 		m.rows[runsPane] = max(in.H-1, 0)

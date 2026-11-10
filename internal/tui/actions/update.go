@@ -167,6 +167,15 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.switchTab(1)
 	case keymap.Matches(msg, k.PrevTab):
 		return m.switchTab(-1)
+	case keymap.Matches(msg, k.DividerLeft) && m.canDivide():
+		m.moveDivider(-1)
+		return nil
+	case keymap.Matches(msg, k.DividerRight) && m.canDivide():
+		m.moveDivider(1)
+		return nil
+	case keymap.Matches(msg, k.DividerReset) && m.canDivide() && m.dividers.Moved():
+		m.resetDividers()
+		return nil
 	case keymap.Matches(msg, k.Next):
 		return m.moveFocus(1)
 	case keymap.Matches(msg, k.Prev):

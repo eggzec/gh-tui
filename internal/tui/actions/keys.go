@@ -30,6 +30,9 @@ type KeyMap struct {
 	Panes      [numPanes]key.Binding
 	// Zoom shows the focused box alone, and the boxes again.
 	Zoom key.Binding
+	// DividerLeft and DividerRight move the line between the runs and the
+	// annotations, and DividerReset puts every divider back.
+	DividerLeft, DividerRight, DividerReset key.Binding
 	// NextTab and PrevTab switch between All, Failing, Running and Mine.
 	NextTab, PrevTab key.Binding
 	// Select drills into the pane after the focused one.
@@ -99,6 +102,9 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Rerun:        modal.Binding("rerun", "rerun all"),
 		RerunJob:     modal.Binding("rerun_job", "rerun job"),
 		Zoom:         modal.Binding("global.zoom", "zoom"),
+		DividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
+		DividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
+		DividerReset: modal.Binding(config.ActionDividerReset, "reset dividers"),
 		Cancel:       modal.Binding("cancel", "cancel run"),
 		Confirm:      confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		form:         ui.FilterFormKeys(keys, "filter"),
@@ -132,7 +138,7 @@ func (k KeyMap) own() []key.Binding {
 // matches them.
 func (k KeyMap) screen() []key.Binding {
 	return []key.Binding{
-		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.ViewFile,
+		k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.Zoom, k.DividerLeft, k.DividerRight, k.DividerReset, k.ViewFile,
 		k.RerunFailed, k.Rerun, k.Cancel, k.Refresh, k.Dismiss, k.Back,
 	}
 }

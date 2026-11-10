@@ -323,6 +323,9 @@ func (m *Model) openActionsOn(msg ui.OpenActionsMsg) tea.Cmd {
 	if mod == nil {
 		return nil
 	}
+	if s, ok := mod.(interface{ SetDividers(*ui.Dividers) }); ok {
+		s.SetDividers(m.dividers)
+	}
 	return m.openLoading(mod, msg.Over, load)
 }
 
