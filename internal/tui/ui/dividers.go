@@ -20,11 +20,15 @@ type Dividers struct {
 	// Desc is the divider between the Description and the Conversation of the
 	// pull request and issue modals, which share it; positive is down.
 	Desc panes.Size
+	// Info holds the two dividers of the issue modal's side column: Info[0] lies
+	// between Involved and Development, Info[1] between Development and
+	// Blockers; positive is down.
+	Info [2]panes.Size
 }
 
 // Moved reports whether the user moved any divider.
 func (d *Dividers) Moved() bool {
-	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved() || d.Stack.Moved() || d.Desc.Moved()
+	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved() || d.Stack.Moved() || d.Desc.Moved() || d.Info[0].Moved() || d.Info[1].Moved()
 }
 
 // Move moves s by steps presses, then keeps both of its panes within lo and

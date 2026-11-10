@@ -49,25 +49,48 @@ func (m *detailModal) moveDivider(steps int) {
 	}
 }
 
-// stack is the divider between the Description and the Conversation, with its
-// default height of the Description and the bounds of it. ok is false when the
-// wide layout does not show them both, or the focus is on another pane.
-func (m *detailModal) stack() (s *panes.Size, def, lo, hi int, ok bool) {
-	if m.dividers == nil {
-		return nil, 0, 0, 0, false
-	}
-	if f := m.nav.Focus(); f != paneDescription && f != paneConversation {
-		return nil, 0, 0, 0, false
-	}
-	if m.paneLayout().Zoomed {
-		return nil, 0, 0, 0, false
+// stack is the divider that growing the focused pane of a stack moves: the one
+// between the Description and the Conversation, or one of the side column's,
+// with the default position of its cut, the bounds of it and the sign that
+// makes the focused pane grow. ok is false in the narrow or zoomed layout, and
+// when the area is too short to keep MinHeight rows in each pane.
+func (m *detailModal) stack() (st stackDivider, ok bool) {
+	if m.dividers == nil || m.paneLayout().Zoomed {
+		return stackDivider{}, false
 	}
 	h := max(m.height-m.headerRows(), 0)
-	lo, hi = panes.MinHeight, h-panes.MinHeight
-	if hi < lo {
+	f := m.nav.Focus()
+	if f == paneDescription || f == paneConversation {
+		_, st.sign = panes.Grow(int(f-paneDescription), 2)
+		st.s, st.def, st.lo, st.hi, ok = m.descDivider(h)
+		return st, ok
+	}
+	i, sign := panes.Grow(int(f-paneInvolved), 3)
+	st.sign = sign
+	st.s, st.def, st.lo, st.hi, ok = m.infoDivider(h, i)
+	return st, ok
+}
+
+// stackDivider is a divider of a stack with its default cut, the bounds of it
+// and the sign of a move that makes the focused pane grow.
+type stackDivider struct {
+	s           *panes.Size
+	sign        int
+	def, lo, hi int
+}
+
+// infoDivider is divider i of the side column in an area h high, with its
+// default cut and the bounds of it: the cut above it and the one below it, as
+// they show now, stay MinHeight rows away.
+func (m *detailModal) infoDivider(h, i int) (s *panes.Size, def, lo, hi int, ok bool) {
+	if m.dividers == nil || h < 3*panes.MinHeight {
 		return nil, 0, 0, 0, false
 	}
-	return &m.dividers.Desc, descriptionHeight(h), lo, hi, true
+	first, second := infoCuts(m.dividers, h)
+	if i == 0 {
+		return &m.dividers.Info[0], h / 3, panes.MinHeight, second - panes.MinHeight, true
+	}
+	return &m.dividers.Info[1], 2 * (h / 3), first + panes.MinHeight, h - panes.MinHeight, true
 }
 
 // canStack reports whether the modal shows a stack divider that a key moves.
@@ -75,19 +98,18 @@ func (m *detailModal) canStack() bool {
 	if m.ask != nil || m.over != nil || m.refs != nil {
 		return false
 	}
-	_, _, _, _, ok := m.stack()
+	_, ok := m.stack()
 	return ok
 }
 
-// growPane grows the focused pane of the Description over the Conversation by
-// dir presses, or shrinks it when dir is negative.
+// growPane grows the focused pane of a stack by dir presses, or shrinks it when
+// dir is negative.
 func (m *detailModal) growPane(dir int) {
-	s, def, lo, hi, ok := m.stack()
+	st, ok := m.stack()
 	if !ok {
 		return
 	}
-	_, sign := panes.Grow(int(m.nav.Focus())-int(paneDescription), 2)
-	m.dividers.Move(s, dir*sign, def, lo, hi)
+	m.dividers.Move(st.s, dir*st.sign, st.def, st.lo, st.hi)
 }
 
 // settleDividers keeps the dividers that show within their bounds after a
@@ -96,7 +118,27 @@ func (m *detailModal) settleDividers() {
 	if s, def, lo, hi, ok := m.divider(); ok {
 		s.Settle(def, lo, hi)
 	}
-	if s, def, lo, hi, ok := m.stack(); ok {
+	if m.dividers == nil || m.paneLayout().Zoomed {
+		return
+	}
+	h := max(m.height-m.headerRows(), 0)
+	if s, def, lo, hi, ok := m.descDivider(h); ok {
 		s.Settle(def, lo, hi)
 	}
+	// The cuts settle from the top, as they are placed.
+	for i := range m.dividers.Info {
+		if s, def, lo, hi, ok := m.infoDivider(h, i); ok {
+			s.Settle(def, lo, hi)
+		}
+	}
+}
+
+// descDivider is the divider between the Description and the Conversation in
+// an area h high, with its default and bounds.
+func (m *detailModal) descDivider(h int) (s *panes.Size, def, lo, hi int, ok bool) {
+	lo, hi = panes.MinHeight, h-panes.MinHeight
+	if m.dividers == nil || hi < lo {
+		return nil, 0, 0, 0, false
+	}
+	return &m.dividers.Desc, descriptionHeight(h), lo, hi, true
 }

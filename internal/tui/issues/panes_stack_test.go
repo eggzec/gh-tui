@@ -89,12 +89,13 @@ func TestDescriptionSettlesOnResize(t *testing.T) {
 func TestDescriptionKeysDoNothingWithoutADivider(t *testing.T) {
 	t.Parallel()
 	h, m, d := dividedModal(t, 160, false)
-	// The modal starts on Development, in the side column.
+	// The modal starts on Development, in the side column, whose dividers
+	// are not the Description's.
 	press(t, h, "ctrl+up")
-	if d.Moved() || m.canStack() {
+	if d.Desc.Moved() {
 		t.Error("the side column moved the stack divider")
 	}
-	press(t, h, "1", "z")
+	press(t, h, "=", "1", "z")
 	press(t, h, "ctrl+up")
 	if d.Moved() || m.canStack() {
 		t.Error("a zoomed pane moved the stack divider")
@@ -134,10 +135,14 @@ func TestDescriptionHelpRowsFollowTheFocus(t *testing.T) {
 		t.Fatal("no grow row")
 		return false
 	}
-	if enabled() {
-		t.Error("grow is enabled on the side column")
+	if !enabled() {
+		t.Error("grow is disabled on the side column")
 	}
-	press(t, h, "1")
+	press(t, h, "1", "z")
+	if enabled() {
+		t.Error("grow is enabled on a zoomed pane")
+	}
+	press(t, h, "z")
 	if !enabled() {
 		t.Error("grow is disabled on the Description")
 	}
