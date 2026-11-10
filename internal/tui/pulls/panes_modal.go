@@ -107,6 +107,10 @@ type panesModal struct {
 	// findErr says why the changed files couldn't be listed.
 	found   string
 	findErr func(error) (text, hint string)
+	// findFrom is the pane that had the focus when the finder opened, which
+	// gets it back once the diff of the file chosen closes. It is nil when the
+	// diff was not opened from the finder.
+	findFrom *panes.Pane
 
 	// files is the Files pane: the commits and the range of them selected.
 	// dates tells their ages.

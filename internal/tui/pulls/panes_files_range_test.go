@@ -182,7 +182,7 @@ func TestFilesPaneTitleTotals(t *testing.T) {
 func TestFilesPaneFoundSelectsFile(t *testing.T) {
 	t.Parallel()
 	h, m, _ := rangePanes(t, sampleCommits(nil), func(svc *fakeService) { svc.changed = changedFiles() })
-	m.chooseFile("internal/b.go")
+	m.chooseFile("internal/b.go", m.nav.Focus())
 	modalScreen(t, h)
 	if path, ok := m.hoveredFile(); !ok || path != "internal/b.go" {
 		t.Errorf("hovered = %q %v, want the file found", path, ok)
@@ -190,7 +190,7 @@ func TestFilesPaneFoundSelectsFile(t *testing.T) {
 	if m.found != "" {
 		t.Errorf("found = %q, want it taken", m.found)
 	}
-	m.chooseFile("gone.go")
+	m.chooseFile("gone.go", m.nav.Focus())
 	modalScreen(t, h)
 	if m.found != "" {
 		t.Errorf("found = %q, want a file the range doesn't have forgotten", m.found)

@@ -81,6 +81,10 @@ func (m *panesModal) pop() {
 	if f, ok := o.(interface{ Finish() }); ok {
 		f.Finish()
 	}
+	if _, ok := o.(*diffOverlay); ok && m.findFrom != nil {
+		m.nav.SetFocus(*m.findFrom)
+		m.findFrom = nil
+	}
 }
 
 // pressOverlay gives msg to the overlay on top.
