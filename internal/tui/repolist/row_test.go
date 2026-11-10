@@ -40,15 +40,15 @@ func TestRowFlagsBeforeName(t *testing.T) {
 	if w := ansi.StringWidth(row); w != c.Width() {
 		t.Errorf("the row is %d cells, want the %d of its columns", w, c.Width())
 	}
-	flags := icons.Flags(r)
-	if len(flags) == 0 {
-		t.Fatal("the repository has no flags")
+	if c.flags != 1 {
+		t.Errorf("the flags column is %d cells, want 1", c.flags)
 	}
 	name := strings.Index(row, "tea")
-	for _, f := range flags {
-		if i := strings.Index(row, f); i < 0 || i > name {
-			t.Errorf("row %q: flag %q at %d, want it before the name at %d", row, f, i, name)
-		}
+	if f := icons.Flag(r); f == "" || strings.Index(row, f) != 0 || name != 1+colGap {
+		t.Errorf("row %q: want flag %q in the one cell before the name at %d", row, f, name)
+	}
+	if icons.Flag(r) != icons.Fork || strings.Contains(row, icons.Archived) {
+		t.Errorf("row %q, want only the fork flag of a fork that is archived", row)
 	}
 	if !strings.Contains(row, icons.Ellipsis) || !strings.Contains(row, "Every mark") || !strings.Contains(row, "middle") {
 		t.Errorf("row %q, want the description cut in the middle", row)

@@ -63,8 +63,8 @@ func TestReposColumnsLineUp(t *testing.T) {
 				t.Errorf("%d columns: the age doesn't start under its header:\n%s\n%s", width, head, l)
 			}
 		}
-		if row := lines[2]; !strings.Contains(row, "F T  repo-001  ") {
-			t.Errorf("%d columns: the fork and template flags are missing: %q", width, row)
+		if row := lines[2]; !strings.Contains(row, "F  repo-001  ") {
+			t.Errorf("%d columns: the most telling flag, fork, is missing: %q", width, row)
 		}
 		if row := lines[5]; !strings.Contains(row, "12k") {
 			t.Errorf("%d columns: the stars are missing: %q", width, row)
