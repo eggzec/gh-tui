@@ -685,6 +685,22 @@ func (m *Model) scroll() {
 	if len(m.pins) < taken {
 		m.pull(e, from)
 	}
+	if m.off > 0 && e <= m.height && m.onlySkipAbove() {
+		// Rows the cursor may not rest on would stay out of reach above the
+		// first one it can, so the window goes back to the top for them.
+		m.off, m.pins = 0, m.pinsAt(0)
+	}
+}
+
+// onlySkipAbove reports whether every row above the cursor is one it may not
+// rest on.
+func (m *Model) onlySkipAbove() bool {
+	for i := range m.cur {
+		if !m.row(i).Skip {
+			return false
+		}
+	}
+	return true
 }
 
 // pull moves the window up, a line at a time, while the row that ends at line

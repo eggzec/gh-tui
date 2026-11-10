@@ -45,6 +45,17 @@ type drawKey struct {
 	edited int64
 	// header is the rows above the panes.
 	header int
+	// div is the side, list and description dividers, which any view of the
+	// shared dividers may move.
+	div [3]panes.Size
+}
+
+// dividerSizes are the dividers the drawn panes depend on.
+func (m *panesModal) dividerSizes() (s [3]panes.Size) {
+	if d := m.dividers(); d != nil {
+		s = [3]panes.Size{d.Side, d.List, d.Desc}
+	}
+	return s
 }
 
 // SetTheme implements ui.Modal.
@@ -98,7 +109,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows()}
+	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows(), m.dividerSizes()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}

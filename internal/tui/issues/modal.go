@@ -798,19 +798,3 @@ func (m *detailModal) TrimTitle() ui.TrimTitle {
 	}
 	return t
 }
-
-// login is how a user shows: their login, cleaned since it comes from
-// GitHub, or "ghost" for a deleted account.
-func login(u core.User) string {
-	if u.Login == "" {
-		return "ghost"
-	}
-	return ui.OneLine(u.Login)
-}
-
-func plural(n int, noun string) string {
-	if n == 1 {
-		return "1 " + noun
-	}
-	return strconv.Itoa(n) + " " + noun + "s"
-}
