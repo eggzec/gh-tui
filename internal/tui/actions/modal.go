@@ -137,9 +137,11 @@ type Modal struct {
 	spin ui.Spinner
 
 	width, height int
-	theme         ui.Theme
-	st            styles
-	errs          ui.ErrorStyles
+	// dividers are the dividers shared with the other views, or nil.
+	dividers *ui.Dividers
+	theme    ui.Theme
+	st       styles
+	errs     ui.ErrorStyles
 	// links keeps the links of the rows, which are drawn on every frame.
 	links termtext.Links
 }
@@ -239,6 +241,7 @@ func (m *Modal) Tabs() (names []string, active int) {
 // SetSize sizes the panes to the room inside the frame.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.settleDividers()
 	m.layout()
 }
 
@@ -353,6 +356,10 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		k.Back = relabel(k.Back, paneTitles[runsPane])
 	}
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
+	can := m.canDivide()
+	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)
+	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && can)
+	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && can && m.dividers.Moved())
 	g := m.gate()
 	done := m.hasRun && m.run.Done()
 	k.Cancel.SetEnabled(k.Cancel.Enabled() && m.hasRun && !m.run.Done())

@@ -17,6 +17,9 @@ Actions
   previous pane | shift+tab | shift+tab | on
   focus pane | 1 2 | 1/2 | on
   zoom | z | z | off
+  divider left | ctrl+left | ^left | off
+  divider right | ctrl+right | ^right | off
+  reset dividers | = | = | off
   view workflow file | v | v | on
   rerun failed | R | R | on
   rerun all |  |  | off
