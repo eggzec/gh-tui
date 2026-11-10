@@ -623,6 +623,10 @@ keys:
     divider_left: [ctrl+left]
     divider_right: [ctrl+right]
     divider_reset: ["="]
+    # Grow the focused pane of the pull requests over the issues, or shrink
+    # it, by ui.divider_step lines. The rows come from the other pane.
+    divider_up: [ctrl+up]
+    divider_down: [ctrl+down]
     # Cycle the focus through the panes of the screen, or of a modal with
     # panes.
     next_pane: [tab]

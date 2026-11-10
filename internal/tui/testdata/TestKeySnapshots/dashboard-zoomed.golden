@@ -10,6 +10,8 @@ global
   unzoom | z | z | on
   divider left | ctrl+left | ^left | off
   divider right | ctrl+right | ^right | off
+  grow pane | ctrl+up | ^up | off
+  shrink pane | ctrl+down | ^down | off
   reset dividers | = | = | off
   maximize | Z | Z | off
   dismiss | esc | esc | off
