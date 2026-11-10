@@ -253,6 +253,9 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	pk.dividerLeft.SetEnabled(pk.dividerLeft.Enabled() && can)
 	pk.dividerRight.SetEnabled(pk.dividerRight.Enabled() && can)
 	pk.dividerReset.SetEnabled(pk.dividerReset.Enabled() && can && m.dividers.Moved())
+	stack := m.canStack()
+	pk.dividerUp.SetEnabled(pk.dividerUp.Enabled() && stack)
+	pk.dividerDown.SetEnabled(pk.dividerDown.Enabled() && stack)
 	own.Bindings = append(own.Bindings, pk.bindings()...)
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.

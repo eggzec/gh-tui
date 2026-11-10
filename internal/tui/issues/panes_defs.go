@@ -60,7 +60,7 @@ func issueLayout(w, h int, focus panes.Pane, zoom bool, d *ui.Dividers) panes.La
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneDescription
 	}
-	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, sideSplit(d, w))}
+	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, sideSplit(d, w), descSplit(d, h))}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clampRect(l.Boxes[i].Rect, w, h)
 	}
@@ -85,9 +85,17 @@ func listSplit(d *ui.Dividers, w int) int {
 	return d.List.Of(panes.DefaultListWidth, panes.MinWidth, w-panes.MinWidth)
 }
 
-func wideBoxes(w, h, side int) []panes.Box {
+// descSplit is the height of the Description in an area h high, where d may
+// have moved it from descriptionHeight; a nil d leaves it.
+func descSplit(d *ui.Dividers, h int) int {
+	if d == nil {
+		return descriptionHeight(h)
+	}
+	return d.Desc.Of(descriptionHeight(h), panes.MinHeight, h-panes.MinHeight)
+}
+
+func wideBoxes(w, h, side, desc int) []panes.Box {
 	left := w - side
-	desc := descriptionHeight(h)
 	// The right column is three stacked thirds; the last takes the rest.
 	third := h / 3
 	return []panes.Box{

@@ -22,6 +22,8 @@ Pull request
   zoom | z | z | off
   divider left | ctrl+left | ^left | off
   divider right | ctrl+right | ^right | off
+  grow pane | ctrl+up | ^up | off
+  shrink pane | ctrl+down | ^down | off
   reset dividers | = | = | off
   close | esc | esc | on
   author | @ | @ | on

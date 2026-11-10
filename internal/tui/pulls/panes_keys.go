@@ -36,6 +36,9 @@ type panesKeys struct {
 	// dividerLeft and dividerRight move the divider the modal shows, and
 	// dividerReset puts every divider back.
 	dividerLeft, dividerRight, dividerReset key.Binding
+	// dividerUp and dividerDown grow and shrink the focused pane of the
+	// Description over the Conversation.
+	dividerUp, dividerDown key.Binding
 	// owner shows the page of the author, which the app's key for the owner
 	// page asks of the modal.
 	owner key.Binding
@@ -109,6 +112,8 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		dividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
 		dividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
 		dividerReset: modal.Binding(config.ActionDividerReset, "reset dividers"),
+		dividerUp:    modal.Binding(config.ActionDividerUp, "grow pane"),
+		dividerDown:  modal.Binding(config.ActionDividerDown, "shrink pane"),
 
 		review:   modal.Binding("review", "review"),
 		merge:    modal.Binding("merge", "merge"),
@@ -225,7 +230,10 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.dividerLeft.SetEnabled(k.dividerLeft.Enabled() && can)
 	k.dividerRight.SetEnabled(k.dividerRight.Enabled() && can)
 	k.dividerReset.SetEnabled(k.dividerReset.Enabled() && can && m.dividers().Moved())
-	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.dividerLeft, k.dividerRight, k.dividerReset, k.back, k.owner, k.review, k.merge, k.labels, k.find})
+	stack := m.canStack()
+	k.dividerUp.SetEnabled(k.dividerUp.Enabled() && stack)
+	k.dividerDown.SetEnabled(k.dividerDown.Enabled() && stack)
+	bindings := slices.Concat([]key.Binding{k.next, k.prev}, k.pane[:], []key.Binding{k.zoom, k.dividerLeft, k.dividerRight, k.dividerUp, k.dividerDown, k.dividerReset, k.back, k.owner, k.review, k.merge, k.labels, k.find})
 	own := ui.ContextLayer(ctxModal, bindings, []key.Binding{k.next, k.jump, k.zoom})
 	ctx := m.context(l)
 	if m.filesDiffFocused() {

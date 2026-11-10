@@ -58,10 +58,55 @@ func (m *panesModal) moveDivider(steps int) {
 	}
 }
 
-// settleDividers keeps the divider that shows within its bounds after a
+// stack is the divider between the Description and the Conversation, with its
+// default height of the Description and the bounds of it. ok is false when the
+// wide layout does not show them both, or the focus is on another pane.
+func (m *panesModal) stack() (s *panes.Size, def, lo, hi int, ok bool) {
+	d := m.dividers()
+	if d == nil {
+		return nil, 0, 0, 0, false
+	}
+	if f := m.nav.Focus(); f != paneDescription && f != paneConversation {
+		return nil, 0, 0, 0, false
+	}
+	if m.layout().Zoomed {
+		return nil, 0, 0, 0, false
+	}
+	h := m.areaHeight()
+	lo, hi = panes.MinHeight, h-panes.MinHeight
+	if hi < lo {
+		return nil, 0, 0, 0, false
+	}
+	return &d.Desc, descriptionHeight(h), lo, hi, true
+}
+
+// canStack reports whether the modal shows a stack divider that a key moves.
+func (m *panesModal) canStack() bool {
+	if m.top() != nil {
+		return false
+	}
+	_, _, _, _, ok := m.stack()
+	return ok
+}
+
+// growPane grows the focused pane of the Description over the Conversation by
+// dir presses, or shrinks it when dir is negative.
+func (m *panesModal) growPane(dir int) {
+	s, def, lo, hi, ok := m.stack()
+	if !ok {
+		return
+	}
+	_, sign := panes.Grow(int(m.nav.Focus())-int(paneDescription), 2)
+	m.dividers().Move(s, dir*sign, def, lo, hi)
+}
+
+// settleDividers keeps the dividers that show within their bounds after a
 // resize, so that presses at a limit never pile up out of sight.
 func (m *panesModal) settleDividers() {
 	if s, def, lo, hi, ok := m.divider(); ok {
+		s.Settle(def, lo, hi)
+	}
+	if s, def, lo, hi, ok := m.stack(); ok {
 		s.Settle(def, lo, hi)
 	}
 }
