@@ -48,6 +48,15 @@ func DefaultStyles(isDark bool) Styles {
 	}
 }
 
+// WithAccent returns s with the focused border, the focused title (bold) and
+// the current pane of the strip in accent, a style that sets a foreground.
+func (s Styles) WithAccent(accent lipgloss.Style) Styles {
+	s.EdgeFocus = accent
+	s.TitleFocus = accent.Bold(true)
+	s.StripCurrent = accent.Bold(true)
+	return s
+}
+
 func (s Styles) edge(focus bool) lipgloss.Style {
 	if focus {
 		return s.EdgeFocus

@@ -153,9 +153,8 @@ type styles struct {
 
 func newStyles(t ui.Theme) styles {
 	border := lipgloss.NewStyle().Foreground(lipgloss.Color(t.Palette.Border))
-	frame := panes.DefaultStyles(t.Dark)
-	frame.Edge, frame.EdgeFocus = border, t.Accent
-	frame.Title, frame.TitleFocus = t.Muted, t.Accent.Bold(true)
+	frame := panes.DefaultStyles(t.Dark).WithAccent(t.Accent)
+	frame.Edge, frame.Title = border, t.Muted
 	// The strip's forms carry their own styles.
 	frame.Info = lipgloss.NewStyle()
 	return styles{

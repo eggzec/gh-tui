@@ -101,6 +101,11 @@ func (m *panesModal) restyleInvolved() {
 func (m *panesModal) involvedContent(b panes.Box) panes.Content {
 	in := b.Rect.Inner()
 	m.inv.tree.SetSize(in.W, in.H)
+	if m.nav.Focus() == paneInvolved {
+		m.inv.tree.Focus()
+	} else {
+		m.inv.tree.Blur()
+	}
 	return panes.Content{Body: m.inv.tree.View()}
 }
 

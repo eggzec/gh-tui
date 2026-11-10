@@ -297,7 +297,7 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 	if o := m.composerOpen(); o != nil {
 		o.Comp.SetStyles(t.Prompt(m.icons))
 	}
-	m.frames = panes.DefaultStyles(t.Dark)
+	m.frames = panes.DefaultStyles(t.Dark).WithAccent(t.Accent)
 	m.frames.Ellipsis = m.icons.Ellipsis
 	m.frames.Separator = m.icons.Separator
 	m.rows = newRowStyles(t, m.icons)
@@ -379,9 +379,7 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.convOn = true
 	m.peekStamp = m.conv.Version()
 	m.peekVer++
-	if m.composerOpen() == nil && m.nav.Focus() == paneConversation {
-		m.conv.Focus()
-	}
+	m.syncConvFocus()
 	return m.conv.Init()
 }
 

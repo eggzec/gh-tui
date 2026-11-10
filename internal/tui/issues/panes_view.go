@@ -104,6 +104,7 @@ func (m *detailModal) paneBody(b panes.Box) string {
 		return m.descBody(b)
 	case paneConversation:
 		if m.convOn && in.H > 0 {
+			m.syncConvFocus()
 			return m.conv.View()
 		}
 		return ""

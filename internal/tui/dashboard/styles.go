@@ -36,7 +36,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 	for i := range states {
 		states[i] = ui.NewPaint(t.State(ui.State(i)))
 	}
-	frames := panes.DefaultStyles(t.Dark)
+	frames := panes.DefaultStyles(t.Dark).WithAccent(t.Accent)
 	frames.Border = ic.Border
 	frames.Ellipsis = ic.Ellipsis
 	frames.Separator = ic.Separator
