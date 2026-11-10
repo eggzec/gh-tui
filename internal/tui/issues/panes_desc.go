@@ -28,26 +28,6 @@ type descKey struct {
 	look  int
 }
 
-// metaLines are the lines above the body: who opened the issue and when,
-// whom it is assigned to, and how many comments it has.
-func (m *detailModal) metaLines() []string {
-	it := m.issue
-	now := m.now()
-	meta := login(it.Author) + " opened " + m.dates.Prose(it.CreatedAt, now)
-	if it.UpdatedAt.After(it.CreatedAt) {
-		meta += ", updated " + m.dates.Prose(it.UpdatedAt, now)
-	}
-	lines := []string{m.theme.Subtle.Render(meta)}
-	if len(it.Assignees) > 0 {
-		names := make([]string, len(it.Assignees))
-		for i, a := range it.Assignees {
-			names[i] = login(a)
-		}
-		lines = append(lines, m.theme.Subtle.Render("assigned to "+strings.Join(names, ", ")))
-	}
-	return append(lines, m.theme.Subtle.Render(plural(it.Comments, "comment")), "")
-}
-
 // descBody is the body of the Description pane in box b.
 func (m *detailModal) descBody(b panes.Box) string {
 	in := b.Rect.Inner()
@@ -57,16 +37,13 @@ func (m *detailModal) descBody(b panes.Box) string {
 	}
 	d := &p.desc
 	d.tree.SetSize(in.W, in.H)
-	k := descKey{text: strings.Join(m.metaLines(), "\n") + "\n" + m.issue.Body, width: in.W, look: d.look}
+	k := descKey{text: m.issue.Body, width: in.W, look: d.look}
 	if !d.made || d.built != k {
 		set := m.icons.Set()
 		if set == "" {
 			set = config.IconsNerd
 		}
 		var rows []treeview.Node
-		for i, l := range m.metaLines() {
-			rows = append(rows, treeview.Node{ID: "~meta" + string(rune('a'+i)), Lines: []string{l}, Skip: true})
-		}
 		if strings.TrimSpace(m.issue.Body) != "" {
 			rows = append(rows, desc.Rows(m.issue.Body, desc.Options{Width: in.W, Styles: desc.NewStyles(m.theme, m.icons, set), MD: m.md})...)
 		}

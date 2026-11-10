@@ -48,6 +48,30 @@ func TestSideDividerMoves(t *testing.T) {
 	}
 }
 
+// A move of the divider shows at once, not only after the focus changes: the
+// panes are drawn again, not taken from the last draw.
+func TestDividerMoveRedraws(t *testing.T) {
+	t.Parallel()
+	m, _ := dividedPanes(t, 160)
+	before := m.View()
+	m.press(keyMsg("ctrl+left"))
+	if m.View() == before {
+		t.Error("the view did not change after the side divider moved")
+	}
+}
+
+// The stack divider shows at once too.
+func TestStackDividerMoveRedraws(t *testing.T) {
+	t.Parallel()
+	m, _ := dividedPanes(t, 160)
+	m.nav.SetFocus(paneDescription)
+	before := m.View()
+	m.press(keyMsg("ctrl+up"))
+	if m.View() == before {
+		t.Error("the view did not change after the stack divider moved")
+	}
+}
+
 func TestSideDividerStopsAtMinimum(t *testing.T) {
 	t.Parallel()
 	m, _ := dividedPanes(t, 120)

@@ -83,8 +83,7 @@ func TestSettingsPrefetchOnReadsTheListShown(t *testing.T) {
 }
 
 // Setting the date format tells the dates of the rows in it at once, in a
-// column that keeps room for the widest, and those of the modal opened
-// after.
+// column that keeps room for the widest.
 func TestSettingsDateFormat(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h := started(t, svc, 100, 30)
@@ -92,11 +91,4 @@ func TestSettingsDateFormat(t *testing.T) {
 	h.SetTheme(testTheme())
 	is := sampleIssues(12)
 	uitest.Dated(t, h.View(), 100, is[0].UpdatedAt, is[1].UpdatedAt)
-	press(t, h, "enter")
-	m := h.modal()
-	if m == nil {
-		t.Fatal("enter didn't open the issue")
-	}
-	press(t, h, "1")
-	uitest.Dated(t, h.modal().View(), 100, is[0].CreatedAt, is[0].UpdatedAt)
 }
