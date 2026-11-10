@@ -12,6 +12,23 @@ func screenLines(h *host) []string {
 	return strings.Split(ansi.Strip(h.View()), "\n")
 }
 
+// The screen's header names the repository, so the bar over the list doesn't.
+func TestBarLeavesOutTheRepository(t *testing.T) {
+	t.Parallel()
+	for _, width := range []int{140, 80, 40, 20, 12} {
+		svc := newFakeService()
+		svc.pulls = manyPulls(12)
+		h := started(t, svc, width, 10)
+		bar := screenLines(h)[0]
+		if strings.Contains(bar, "/") {
+			t.Errorf("width %d: bar %q names the repository", width, bar)
+		}
+		if !strings.Contains(bar, "Open") {
+			t.Errorf("width %d: bar %q lacks the tab", width, bar)
+		}
+	}
+}
+
 func TestHeadsNameTheColumns(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
