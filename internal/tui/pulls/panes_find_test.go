@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // changedPanes returns the modal of the first pull request, opened over a
@@ -65,8 +66,50 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 	if finderTop(m) != nil || len(m.overlays) != 1 {
 		t.Error("choosing a file left the finder open")
 	}
+	if _, ok := m.top().(*diffOverlay); !ok {
+		t.Errorf("the top overlay is %T, want the diff", m.top())
+	}
 	if m.nav.Focus() != paneFiles || m.found != "internal/config/default.yaml" {
 		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.nav.Focus(), m.found)
+	}
+	m.Act(ui.ActDismiss)
+	if m.top() != nil {
+		t.Fatal("dismiss left the diff open")
+	}
+	if m.nav.Focus() != paneConversation {
+		t.Errorf("focus %v after the diff closed, want the pane the finder was opened from", m.nav.Focus())
+	}
+}
+
+func TestFindFromDescriptionReturnsToIt(t *testing.T) {
+	t.Parallel()
+	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
+	m.nav.SetFocus(paneDescription)
+	press(t, h, "ctrl+p")
+	typeQuery(t, h, "yaml")
+	press(t, h, "enter")
+	if m.nav.Focus() != paneFiles || m.found == "" {
+		t.Errorf("focus %v and found %q while the diff is open, want the file shown in Files", m.nav.Focus(), m.found)
+	}
+	m.Act(ui.ActDismiss)
+	if m.top() != nil || m.nav.Focus() != paneDescription {
+		t.Errorf("after the diff closed focus is %v, want the Description pane", m.nav.Focus())
+	}
+}
+
+func TestFindFromFilesKeepsFilesFocused(t *testing.T) {
+	t.Parallel()
+	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
+	m.nav.SetFocus(paneFiles)
+	press(t, h, "ctrl+p")
+	typeQuery(t, h, "yaml")
+	press(t, h, "enter")
+	if _, ok := m.top().(*diffOverlay); !ok {
+		t.Fatalf("the top overlay is %T, want the diff", m.top())
+	}
+	m.Act(ui.ActDismiss)
+	if m.top() != nil || m.nav.Focus() != paneFiles {
+		t.Errorf("after the diff closed focus is %v, want the Files pane", m.nav.Focus())
 	}
 }
 

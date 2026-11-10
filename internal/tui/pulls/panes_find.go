@@ -41,7 +41,7 @@ func (m *panesModal) openFind() tea.Cmd {
 		finder.WithErrorText(m.findErr),
 	)
 	f.Focus()
-	o := &finderOverlay{m: m, f: f, head: head, stop: stop}
+	o := &finderOverlay{m: m, f: f, head: head, from: m.nav.Focus(), stop: stop}
 	m.open(o)
 	return o.f.Init()
 }
@@ -133,19 +133,21 @@ func changeText(f core.CommitFile, minus string) string {
 	return strings.Join(parts, " ")
 }
 
-// chooseFile focuses the Files pane, zoomed or not as it was, and keeps path
-// for the pane to select once it lists the files.
-func (m *panesModal) chooseFile(path string) {
+// chooseFile reveals path in the Files pane, zoomed or not as it was, and keeps path
+// for the pane to select once it lists the files. from is the pane that had
+// the focus before, which gets it back when the diff closes.
+func (m *panesModal) chooseFile(path string, from panes.Pane) {
 	m.found = path
 	// The pane is drawn again to select it, even when it had the focus.
 	m.files.seq++
+	m.findFrom = &from
 	m.nav.SetFocus(paneFiles)
 }
 
 // openFound shows the file the finder chose in the Files pane, and its diff
-// over it.
-func (m *panesModal) openFound(path string) tea.Cmd {
-	m.chooseFile(path)
+// over it. The focus goes back to from when the diff closes.
+func (m *panesModal) openFound(path string, from panes.Pane) tea.Cmd {
+	m.chooseFile(path, from)
 	return m.openDiff(path)
 }
 
@@ -155,6 +157,8 @@ type finderOverlay struct {
 	m    *panesModal
 	f    finder.Model
 	head string
+	// from is the pane that had the focus when the finder opened.
+	from panes.Pane
 	stop context.CancelFunc
 	done bool
 }
@@ -200,7 +204,7 @@ func (o *finderOverlay) Update(msg tea.Msg) tea.Cmd {
 		}
 		// The finder gives way to the diff, which opens above it.
 		o.m.pop()
-		return o.m.openFound(msg.Item.Path)
+		return o.m.openFound(msg.Item.Path, o.from)
 	case finder.CancelMsg:
 		if msg.ID == o.f.ID() {
 			o.Finish()
