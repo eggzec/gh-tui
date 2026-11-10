@@ -99,14 +99,20 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	return true
 }
 
-// refocus gives the key focus to the conversation only while it is the
-// focused pane, and sizes it to its box.
+// refocus sizes the panes and syncs the conversation's focus.
 func (m *detailModal) refocus() {
 	m.layout()
-	if !m.convOn || m.composerOpen() != nil {
+	m.syncConvFocus()
+}
+
+// syncConvFocus gives the key focus to the conversation only while it is the
+// focused pane and no composer is open. A drawn conversation follows it, so
+// a rebuilt one never stays blurred under the focus.
+func (m *detailModal) syncConvFocus() {
+	if !m.convOn {
 		return
 	}
-	if m.nav.Focus() == paneConversation {
+	if m.nav.Focus() == paneConversation && m.composerOpen() == nil {
 		m.conv.Focus()
 	} else {
 		m.conv.Blur()

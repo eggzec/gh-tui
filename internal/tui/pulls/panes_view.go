@@ -62,7 +62,7 @@ func (m *panesModal) dividerSizes() (s [3]panes.Size) {
 func (m *panesModal) SetTheme(t ui.Theme) {
 	m.theme = t
 	m.st = newStyles(t, m.icons)
-	m.frames = panes.DefaultStyles(t.Dark)
+	m.frames = panes.DefaultStyles(t.Dark).WithAccent(t.Accent)
 	m.frames.Border = m.icons.Border
 	m.frames.Ellipsis = m.icons.Ellipsis
 	m.frames.Separator = m.icons.Separator
