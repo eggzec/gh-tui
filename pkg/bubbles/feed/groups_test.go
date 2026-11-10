@@ -67,6 +67,23 @@ func applyGroups(t *testing.T, m Model[item], groups []Group[item]) Model[item] 
 	return apply(t, m, func(m *Model[item]) tea.Cmd { return m.SetGroups(groups) })
 }
 
+// TestIndent checks that a renderer that lays its columns out ahead of the
+// rows can learn how much room the groups take.
+func TestIndent(t *testing.T) {
+	m := load(t, newSource(6, 6))
+	if got := m.Indent(); got != 0 {
+		t.Fatalf("flat Indent() = %d, want 0", got)
+	}
+	m = applyGroups(t, m, []Group[item]{{Key: parity}})
+	if got := m.Indent(); got != 2 {
+		t.Fatalf("one level Indent() = %d, want 2", got)
+	}
+	m = applyGroups(t, m, []Group[item]{{Key: parity}, {Key: third}})
+	if got := m.Indent(); got != 4 {
+		t.Fatalf("two levels Indent() = %d, want 4", got)
+	}
+}
+
 func TestGroupsOneLevel(t *testing.T) {
 	m := load(t, newSource(6, 6), WithSize(40, 20))
 	m = applyGroups(t, m, []Group[item]{{Key: parity}})

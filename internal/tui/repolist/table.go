@@ -254,8 +254,9 @@ func (t *Table) Remeasure(icons ui.Icons) bool {
 }
 
 // Layout fits the columns in width cells, the stars' headed by star and
-// the dates age cells at most.
+// the dates age cells at most. The indent of grouped rows comes out of the
+// name and description, so the counts and dates keep their right edge.
 func (t *Table) Layout(width int, star string, age int) {
-	t.cols = LayoutCols(width, t.measure, star, age)
+	t.cols = LayoutCols(max(width-t.Feed.Indent(), 0), t.measure, star, age)
 	t.cols.full = t.FullNames
 }

@@ -1,6 +1,7 @@
 package owner
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -86,5 +87,37 @@ func TestViewGrouped(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 100, 30)
 	run(t, s, s.setGroups([]orderpick.Choice{{Value: "owner"}}))
+	run(t, s, s.Update(ui.OrderedMsg{}))
 	golden.RequireEqual(t, s.View())
 }
+
+func TestViewGroupedNarrow(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), "octocat", 80, 24)
+	run(t, s, s.setGroups([]orderpick.Choice{{Value: "owner"}}))
+	run(t, s, s.Update(ui.OrderedMsg{}))
+	view := ansi.Strip(s.View())
+
+	if !strings.Contains(view, "Updated") {
+		t.Errorf("the Updated header is cut off:\n%s", view)
+	}
+	rows := 0
+	for line := range strings.SplitSeq(view, "\n") {
+		if w := ansi.StringWidth(line); w > 80 {
+			t.Errorf("line is %d cells wide, want at most 80: %q", w, line)
+		}
+		if !strings.Contains(line, "Repository number") {
+			continue
+		}
+		rows++
+		if !ageEnd.MatchString(line) {
+			t.Errorf("row does not end with its age before the border: %q", line)
+		}
+	}
+	if rows == 0 {
+		t.Fatalf("no repository rows on the screen:\n%s", view)
+	}
+}
+
+// ageEnd matches a row that ends with an age cell and then the right border.
+var ageEnd = regexp.MustCompile(`(now|\d+[smhdwy])\s*│$`)

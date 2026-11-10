@@ -140,6 +140,14 @@ func (m Model[T]) Grouped() bool {
 	return len(m.groups) > 0 || m.less != nil
 }
 
+// Indent is how many cells the groups indent the items: two for each level
+// of groups. It is the indent of the items, not of the rows of the groups
+// themselves. A renderer that lays its columns out ahead of the rows takes it
+// from their width.
+func (m Model[T]) Indent() int {
+	return 2 * len(m.groups)
+}
+
 // lined reports whether the rows are lines: grouped or sorted, or with items
 // that own children.
 func (m Model[T]) lined() bool {
