@@ -459,7 +459,48 @@ func (m *Model) arrange(height int) {
 		lw = m.filesDivider()
 	}
 	stack(left, lw, height)
+	if len(right) == 2 {
+		top := m.stackTop(height)
+		right[0].resize(m.width-lw, top)
+		right[1].resize(m.width-lw, height-top)
+		return
+	}
 	stack(right, m.width-lw, height)
+}
+
+// stackBounds returns the height the pull requests have unmoved, over the
+// issues, and the least and most the user may give them.
+func stackBounds(height int) (def, lo, hi int) {
+	return (height + 1) / 2, panes.MinHeight, height - panes.MinHeight
+}
+
+// stackTop is the height of the pull requests, the top pane of the stack on
+// the repository screen, with the user's move applied.
+func (m *Model) stackTop(height int) int {
+	def, lo, hi := stackBounds(height)
+	return m.dividers.Stack.Of(def, lo, hi)
+}
+
+// canStack reports whether the stack keys have a divider to move: the repository
+// screen shows the pull requests over the issues, and one of them has the focus.
+func (m *Model) canStack() bool {
+	if m.screen != repoScreen || m.onePane() || len(m.panes)-m.left != 2 || m.focus < m.left {
+		return false
+	}
+	_, lo, hi := stackBounds(m.contentHeight())
+	return hi >= lo
+}
+
+// growPane grows the focused pane of the stack by dir presses, or shrinks it
+// when dir is negative, and lays the panes out again.
+func (m *Model) growPane(dir int) {
+	if !m.canStack() {
+		return
+	}
+	_, sign := panes.Grow(m.focus-m.left, 2)
+	def, lo, hi := stackBounds(m.contentHeight())
+	m.dividers.Move(&m.dividers.Stack, dir*sign, def, lo, hi)
+	m.layout()
 }
 
 // split lays the zoomed pane out beside a preview box when its section is a

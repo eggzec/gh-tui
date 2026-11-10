@@ -422,6 +422,12 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case m.canDivide() && keymap.Matches(msg, m.keys.DividerRight):
 		m.moveDivider(1)
 		return nil
+	case m.canStack() && keymap.Matches(msg, m.keys.DividerUp):
+		m.growPane(1)
+		return nil
+	case m.canStack() && keymap.Matches(msg, m.keys.DividerDown):
+		m.growPane(-1)
+		return nil
 	case m.dividers.Moved() && keymap.Matches(msg, m.keys.DividerReset):
 		m.dividers.Reset()
 		m.layout()

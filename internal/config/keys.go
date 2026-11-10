@@ -94,6 +94,10 @@ const (
 	ActionDividerLeft  = "global.divider_left"
 	ActionDividerRight = "global.divider_right"
 	ActionDividerReset = "global.divider_reset"
+	// ActionDividerUp and ActionDividerDown grow and shrink the focused pane
+	// of a stack.
+	ActionDividerUp   = "global.divider_up"
+	ActionDividerDown = "global.divider_down"
 )
 
 // Actions of the repository screen, whose keys the app itself takes. The

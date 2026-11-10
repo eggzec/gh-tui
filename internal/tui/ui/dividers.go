@@ -14,15 +14,18 @@ type Dividers struct {
 	// Page is the divider between the two columns of the dashboard and of the
 	// owner page, which move together.
 	Page panes.Size
+	// Stack is the divider between the pull requests and the issues of the
+	// repository screen; positive is down.
+	Stack panes.Size
 }
 
 // Moved reports whether the user moved any divider.
 func (d *Dividers) Moved() bool {
-	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved()
+	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved() || d.Stack.Moved()
 }
 
 // Move moves s by steps presses, then keeps both of its panes within lo and
-// hi, with def the width it has unmoved.
+// hi, with def the width (or height) it has unmoved.
 func (d *Dividers) Move(s *panes.Size, steps, def, lo, hi int) {
 	s.Move(steps * d.Step)
 	s.Settle(def, lo, hi)

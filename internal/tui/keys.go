@@ -63,6 +63,9 @@ type KeyMap struct {
 	// DividerLeft and DividerRight move the divider between the files column
 	// and the right one, and DividerReset puts every divider back.
 	DividerLeft, DividerRight, DividerReset key.Binding
+	// DividerUp and DividerDown grow and shrink the focused pane of the pull
+	// requests over the issues.
+	DividerUp, DividerDown key.Binding
 	// Back goes back through the owner pages and the screens shown.
 	Back key.Binding
 	// Maximize toggles the open modal between its size and the whole
@@ -112,6 +115,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		DividerLeft:   ui.Binding(keys, config.ActionDividerLeft, "divider left"),
 		DividerRight:  ui.Binding(keys, config.ActionDividerRight, "divider right"),
 		DividerReset:  ui.Binding(keys, config.ActionDividerReset, "reset dividers"),
+		DividerUp:     ui.Binding(keys, config.ActionDividerUp, "grow pane"),
+		DividerDown:   ui.Binding(keys, config.ActionDividerDown, "shrink pane"),
 		Back:          ui.Binding(keys, config.ActionBack, "back"),
 		Maximize:      ui.Binding(keys, config.ActionMaximize, "maximize"),
 		Dismiss:       ui.Binding(keys, config.ActionDismiss, "dismiss"),
@@ -154,7 +159,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
 		k.Command, k.Menu, k.Quit, k.Help, k.Search, k.FindFile,
-		k.Zoom, k.DividerLeft, k.DividerRight, k.DividerReset, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
+		k.Zoom, k.DividerLeft, k.DividerRight, k.DividerUp, k.DividerDown, k.DividerReset, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
 }
@@ -198,6 +203,8 @@ func (k KeyMap) state(m *Model) KeyMap {
 	}
 	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && m.canDivide())
 	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && m.canDivide())
+	k.DividerUp.SetEnabled(k.DividerUp.Enabled() && m.canStack())
+	k.DividerDown.SetEnabled(k.DividerDown.Enabled() && m.canStack())
 	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && m.dividers.Moved())
 	k.Back.SetEnabled(k.Back.Enabled() && m.canGoBack())
 	k.Maximize.SetEnabled(k.Maximize.Enabled() && m.modals.Top() != nil && m.canMaximize())
