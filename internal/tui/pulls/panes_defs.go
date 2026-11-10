@@ -68,7 +68,7 @@ func prLayout(w, h int, focus panes.Pane, zoom bool, devRows int, d *ui.Dividers
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneDescription
 	}
-	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, devRows, sideSplit(d, w))}
+	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, devRows, sideSplit(d, w), descSplit(d, h))}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clampRect(l.Boxes[i].Rect, w, h)
 	}
@@ -93,9 +93,17 @@ func listSplit(d *ui.Dividers, w int) int {
 	return d.List.Of(panes.DefaultListWidth, panes.MinWidth, w-panes.MinWidth)
 }
 
-func wideBoxes(w, h, devRows, side int) []panes.Box {
+// descSplit is the height of the Description in an area h high, where d may
+// have moved it from descriptionHeight; a nil d leaves it.
+func descSplit(d *ui.Dividers, h int) int {
+	if d == nil {
+		return descriptionHeight(h)
+	}
+	return d.Desc.Of(descriptionHeight(h), panes.MinHeight, h-panes.MinHeight)
+}
+
+func wideBoxes(w, h, devRows, side, desc int) []panes.Box {
 	left := w - side
-	desc := descriptionHeight(h)
 	merge, inv, dev, files := rightHeights(h, 0, devRows)
 	boxes := make([]panes.Box, 0, paneCount)
 	boxes = append(boxes,

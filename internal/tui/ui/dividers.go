@@ -17,11 +17,14 @@ type Dividers struct {
 	// Stack is the divider between the pull requests and the issues of the
 	// repository screen; positive is down.
 	Stack panes.Size
+	// Desc is the divider between the Description and the Conversation of the
+	// pull request and issue modals, which share it; positive is down.
+	Desc panes.Size
 }
 
 // Moved reports whether the user moved any divider.
 func (d *Dividers) Moved() bool {
-	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved() || d.Stack.Moved()
+	return d.Files.Moved() || d.List.Moved() || d.Side.Moved() || d.Page.Moved() || d.Stack.Moved() || d.Desc.Moved()
 }
 
 // Move moves s by steps presses, then keeps both of its panes within lo and

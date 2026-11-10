@@ -529,6 +529,10 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.moveDivider(-1)
 	case keymap.Matches(msg, k.dividerRight) && m.canDivide():
 		m.moveDivider(1)
+	case keymap.Matches(msg, k.dividerUp) && m.canStack():
+		m.growPane(1)
+	case keymap.Matches(msg, k.dividerDown) && m.canStack():
+		m.growPane(-1)
 	case keymap.Matches(msg, k.dividerReset) && m.canDivide() && m.dividers().Moved():
 		m.dividers().Reset()
 	case keymap.Matches(msg, k.zoom):
