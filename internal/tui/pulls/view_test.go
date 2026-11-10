@@ -47,8 +47,8 @@ func TestView(t *testing.T) {
 }
 
 // The header shows the total GitHub told with the loaded count in brackets,
-// matched over total under a filter, and drops the count where the repository
-// and the tabs leave it no room.
+// matched over total under a filter, and drops the count where the tabs
+// leave it no room.
 func TestHeaderCount(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -58,8 +58,8 @@ func TestHeaderCount(t *testing.T) {
 	}{
 		{"wide", 120, "", "250 ["},
 		{"wide filtered", 120, "is:merged author:hubot", "/250"},
-		{"narrow", 40, "", ""},
-		{"narrow filtered", 40, "is:merged author:hubot", ""},
+		{"narrow", 30, "", ""},
+		{"narrow filtered", 30, "is:merged author:hubot", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

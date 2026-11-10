@@ -158,6 +158,20 @@ func TestFilter(t *testing.T) {
 	}
 }
 
+// The screen's header names the repository, so the bar over the list doesn't.
+func TestBarLeavesOutTheRepository(t *testing.T) {
+	for _, width := range []int{120, 80, 40, 20, 12} {
+		s := started(t, newFakeService(sampleIssues(20)), width, 10)
+		bar := ansi.Strip(strings.SplitN(s.View(), "\n", 2)[0])
+		if strings.Contains(bar, s.repo.String()) || strings.Contains(bar, "/") {
+			t.Errorf("width %d: bar %q names the repository", width, bar)
+		}
+		if !strings.Contains(bar, "Open") {
+			t.Errorf("width %d: bar %q lacks the tab", width, bar)
+		}
+	}
+}
+
 func TestRefresh(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	s := started(t, svc, 80, 20)

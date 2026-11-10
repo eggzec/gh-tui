@@ -87,7 +87,7 @@ func TestCountNarrowDropsToBareOrNone(t *testing.T) {
 	svc := newFakeService(sampleIssues(5))
 	svc.total = 40
 	h := started(t, svc, 120, 12)
-	for _, w := range []int{40, 30} {
+	for _, w := range []int{30, 24} {
 		h.SetSize(w, 12)
 		if got := bar(h); strings.Contains(got, "[") {
 			t.Errorf("width %d shows the long form: %q", w, got)

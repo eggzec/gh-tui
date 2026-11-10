@@ -53,7 +53,7 @@ func (s *Section) renderHeads() {
 }
 
 // renderChrome renders what surrounds the bubbles: the bar over the list,
-// with the repository and the tabs, and the empty state.
+// with the count and the tabs, and the empty state.
 func (s *Section) renderChrome() {
 	// The rows get the width less what the list draws before them.
 	w := max(s.width-s.list.Gutter(), 0)
@@ -66,7 +66,7 @@ func (s *Section) renderChrome() {
 
 func (s *Section) renderBar() {
 	t := s.theme
-	left := strings.Repeat(" ", s.list.Gutter()) + t.Muted.Render(s.repo.String())
+	left := strings.Repeat(" ", s.list.Gutter())
 	var right strings.Builder
 	for i, tb := range tabs {
 		if i > 0 {
@@ -79,7 +79,7 @@ func (s *Section) renderBar() {
 		right.WriteString(st.Render(tb.label))
 	}
 	// The count takes the longest form that leaves the rest its room. Narrow
-	// panes name only the tab shown, and the narrowest only the repository.
+	// panes name only the tab shown.
 	lw, tabsRight := ansi.StringWidth(left), right.String()
 	for _, c := range s.countForms() {
 		if lw+ansi.StringWidth(c)+2+ansi.StringWidth(tabsRight)+2 <= s.width {

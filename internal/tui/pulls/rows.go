@@ -13,8 +13,8 @@ import (
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// headerHeight is the height of the line above the list that names the
-// repository and holds the tabs.
+// headerHeight is the height of the line above the list that holds the
+// tabs and the count.
 const headerHeight = 1
 
 // headsHeight is the height of the line under it that names the columns.
@@ -110,8 +110,8 @@ type styles struct {
 	// chips draw the labels of a row. Their cache is made with the styles.
 	chips ui.LabelChips
 
-	repo, filterOn, filterOff, sep lipgloss.Style
-	empty                          lipgloss.Style
+	filterOn, filterOff, sep lipgloss.Style
+	empty                    lipgloss.Style
 
 	// The detail header and the comments.
 	added, deleted, label, rule, commenter lipgloss.Style
@@ -195,7 +195,6 @@ func newStyles(t ui.Theme, icons ui.Icons) styles {
 		checksOK:      t.Success.Render(icons.Run(ui.RunSuccess)),
 		checksFail:    t.Error.Render(icons.Run(ui.RunFailure)),
 		checksPending: t.Warning.Render(icons.Run(ui.RunQueued)),
-		repo:          t.Title,
 		filterOn:      t.Accent.Bold(true),
 		filterOff:     t.Subtle,
 		sep:           t.Subtle,
@@ -497,8 +496,8 @@ func (s *Section) countForms() []string {
 	})
 }
 
-// renderHeader renders the line above the list: the repository on the left
-// and the tabs of the states on the right, the one shown highlighted.
+// renderHeader renders the line above the list: the count and the tabs of
+// the states on the right, the one shown highlighted.
 func (s *Section) renderHeader() {
 	if s.width <= 0 {
 		s.header = ""
@@ -516,12 +515,11 @@ func (s *Section) renderHeader() {
 			right.WriteString(st.filterOff.Render(t.label))
 		}
 	}
-	left := s.indent() + st.repo.Render(s.repo.String())
+	left := s.indent()
 	lw := ansi.StringWidth(left)
 	forms := s.countForms()
-	// Narrow panes name only the tab shown, and the narrowest only the
-	// repository. The count takes the longest form that leaves the rest its
-	// room, and goes when none does.
+	// Narrow panes name only the tab shown. The count takes the longest form
+	// that leaves the rest its room, and goes when none does.
 	tabsRight := right.String()
 	for _, c := range forms {
 		cw := ansi.StringWidth(c) + 2
@@ -535,11 +533,11 @@ func (s *Section) renderHeader() {
 		return
 	}
 	label := tabLabel(s.tab)
-	if gap := s.width - lw - len(label); gap >= 2 {
+	if gap := s.width - lw - len(label); gap >= 0 {
 		s.header = left + strings.Repeat(" ", gap) + st.filterOn.Render(label)
 		return
 	}
-	s.header = termtext.Truncate(left, s.width, st.ic.Ellipsis)
+	s.header = termtext.Truncate(left+st.filterOn.Render(label), s.width, st.ic.Ellipsis)
 	s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
 }
 
