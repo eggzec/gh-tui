@@ -146,7 +146,13 @@ func (m *panesModal) covered(out string) string {
 		return strings.Join(lines, "\n")
 	}
 	o := m.top()
-	box := strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.Title(), panes.Box{Rect: r}), Body: o.View(max(r.W-4, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+	var box []string
+	if _, ok := o.(*confirmOverlay); ok {
+		// The question has a border of its own.
+		box = strings.Split(o.View(r.W, r.H), "\n")
+	} else {
+		box = strings.Split(m.frames.Frame(panes.Content{TopLeft: m.titleForms(o.Title(), panes.Box{Rect: r}), Body: o.View(max(r.W-4, 0), max(r.H-2, 0)), Focus: true}, r.W, r.H), "\n")
+	}
 	for i, row := range box {
 		y := r.Y + i
 		if y >= len(lines) {
@@ -182,11 +188,15 @@ type confirmOverlay struct {
 
 func (o *confirmOverlay) Title() string           { return "Confirm" }
 func (o *confirmOverlay) Kind() panes.OverlayKind { return panes.Confirm }
-func (o *confirmOverlay) Items() int              { return 0 }
-func (o *confirmOverlay) Text() int               { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
-func (o *confirmOverlay) Clear() bool             { return false }
-func (o *confirmOverlay) Closed() bool            { return o.done }
-func (o *confirmOverlay) View(w, _ int) string    { return o.c.Line(o.m.cst, o.m.keys.confirm, w) }
+func (o *confirmOverlay) Items() int {
+	return o.c.Height(min(o.m.width-2, max(40, o.Text()+8)))
+}
+func (o *confirmOverlay) Text() int    { return ansi.StringWidth(ui.OneLine(o.c.Question)) }
+func (o *confirmOverlay) Clear() bool  { return false }
+func (o *confirmOverlay) Closed() bool { return o.done }
+func (o *confirmOverlay) View(w, _ int) string {
+	return strings.Join(o.c.Box(o.m.cst, o.m.keys.confirm, w), "\n")
+}
 
 // layers are the keys that answer, and the quit key, which closes the whole
 // modal: the question takes every key, so the app never sees that one.
@@ -210,7 +220,7 @@ func (o *confirmOverlay) Update(msg tea.Msg) tea.Cmd {
 		o.done = true
 		return o.m.close()
 	}
-	cmd, done := o.m.keys.confirm.Answer(o.c, press, o.armed)
+	cmd, done := o.m.keys.confirm.Answer(&o.c, press, o.armed)
 	o.done = done
 	return cmd
 }

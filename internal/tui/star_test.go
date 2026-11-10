@@ -127,7 +127,7 @@ func TestStarDefaultsToYes(t *testing.T) {
 				f := &fakeStar{known: true, starred: tt.starred}
 				m := starApp(t, f)
 				runCommand(t, m, "star")
-				if view := ansi.Strip(m.View().Content); !strings.Contains(view, "↵: yes") {
+				if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[ Yes ]") {
 					t.Errorf("the question doesn't show yes as its default:\n%s", view)
 				}
 				answerQuestion(t, m, "enter")

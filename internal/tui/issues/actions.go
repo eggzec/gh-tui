@@ -77,7 +77,7 @@ func (m *detailModal) deleteComment() tea.Cmd {
 	}
 	id := it.ID
 	return m.asks(confirm.Ask{
-		Question: "Delete your comment?",
+		Question: "Delete your comment?", Danger: true,
 		Run: func() tea.Cmd {
 			op := m.svc.DeleteComment(m.repo, m.number, id)
 			return tea.Batch(m.reload(), m.buildConv(), m.changed(), m.send(op, "delete comment"))

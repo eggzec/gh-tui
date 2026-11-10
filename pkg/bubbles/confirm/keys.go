@@ -14,8 +14,11 @@ import (
 type KeyMap struct {
 	Yes key.Binding `keymap:"yes" help:"yes"`
 	No  key.Binding `keymap:"no" help:"no"`
-	// Default gives the answer that the question shows as its default.
-	Default key.Binding `keymap:"default" help:"answer the default"`
+	// Switch moves the choice between yes and no.
+	Switch key.Binding `keymap:"switch" help:"switch"`
+	// Default gives the choice that is picked, which starts as the default
+	// of the question.
+	Default key.Binding `keymap:"default" help:"confirm"`
 }
 
 // NewKeyMap returns the keys that answer a question, as look gives them for
@@ -28,7 +31,7 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 	keymap.Fill(&k, look)
 	// The answers are named by their first key, as the line that asks has
 	// little room.
-	for _, b := range []*key.Binding{&k.Yes, &k.No, &k.Default} {
+	for _, b := range []*key.Binding{&k.Yes, &k.No, &k.Switch, &k.Default} {
 		if ks := b.Keys(); len(ks) > 0 {
 			b.SetHelp(keymap.Label(ks[0]), b.Help().Desc)
 		}
@@ -37,24 +40,26 @@ func NewKeyMap(look keymap.Lookup) KeyMap {
 }
 
 // ShortHelp implements help.KeyMap.
-func (k KeyMap) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.No, k.Default} }
+func (k KeyMap) ShortHelp() []key.Binding { return []key.Binding{k.Yes, k.No, k.Switch, k.Default} }
 
 // FullHelp implements help.KeyMap.
 func (k KeyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
 // Answer takes msg as the answer to a: yes runs a and returns what sends
-// the change, and no drops it. The default key gives the default of a, but
-// only once the question is armed and not for a repeated press. Either way
-// done is set, and the question closes. Any other key does nothing and
-// leaves the question open.
-func (k KeyMap) Answer(a Ask, msg tea.KeyPressMsg, armed bool) (cmd tea.Cmd, done bool) {
+// the change, and no drops it. The switch key moves the choice of a, and
+// the default key gives the choice, but only once the question is armed and
+// not for a repeated press. Either way done is set, and the question
+// closes. Any other key does nothing and leaves the question open.
+func (k KeyMap) Answer(a *Ask, msg tea.KeyPressMsg, armed bool) (cmd tea.Cmd, done bool) {
 	switch {
 	case key.Matches(msg, k.Yes):
 		return a.Run(), true
 	case key.Matches(msg, k.No):
 		return nil, true
+	case key.Matches(msg, k.Switch):
+		a.Switch()
 	case key.Matches(msg, k.Default) && armed && !msg.IsRepeat:
-		if a.Default {
+		if a.Yes() {
 			return a.Run(), true
 		}
 		return nil, true

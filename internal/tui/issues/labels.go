@@ -156,9 +156,11 @@ func (m *detailModal) askLabels(add []core.Label, remove []string) tea.Cmd {
 	if !ok {
 		return refusal
 	}
-	return m.asks(ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
 		return m.labels(add, remove)
-	}))
+	})
+	ask.Danger = len(remove) > 0
+	return m.asks(ask)
 }
 
 // labels returns adding and removing the labels as a question, or ok unset

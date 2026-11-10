@@ -1507,7 +1507,9 @@ keys:
   confirm:
     "yes": [y]
     "no": [n, esc]
-    # Gives the answer the question shows as its default.
+    # Move the choice between yes and no.
+    switch: [tab, shift+tab, left, right, h, l]
+    # Give the picked choice, which starts as the question's default.
     default: [enter]
   # The composer of a comment or a review. Enter starts a new line.
   composer:

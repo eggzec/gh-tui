@@ -1222,7 +1222,7 @@ func TestHelpNamesWhatTheKeysDo(t *testing.T) {
 			h.keys("j")
 			h.openLogOf(t, "lint")
 		}, ""},
-		{"cancel", keys("backspace", "backspace", "X"), "y yes, n no, ↵ answer the default"},
+		{"cancel", keys("backspace", "backspace", "X"), "y yes, n no, tab switch, ↵ confirm"},
 	}
 	for _, s := range steps {
 		s.do()

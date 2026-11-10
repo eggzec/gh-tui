@@ -4,9 +4,11 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
 
@@ -58,24 +60,40 @@ func ConfirmLayer(k confirm.KeyMap) keyhelp.Layer {
 	return ContextHelp("confirm", k, false)
 }
 
-// Confirm returns the styles of a confirmation: the question in the
-// accent, and the keys that answer it muted, cut with the ellipsis of ic.
+// Confirm returns the styles of a confirmation: the box and the picked
+// choice in the accent, and the keys that answer it muted, cut with the
+// ellipsis of ic. A destructive question is in the error colour.
 func (t Theme) Confirm(ic Icons) confirm.Styles {
-	return confirm.Styles{Question: t.Accent.Bold(true), Keys: t.Muted, DefaultKey: t.Accent, Ellipsis: ic.Ellipsis, Separator: ic.Separator, Key: ic.Key}
+	return confirm.Styles{
+		Question: t.Accent.Bold(true), Keys: t.Muted,
+		Border: t.Accent, Title: t.Accent.Bold(true), Selected: t.Accent.Bold(true),
+		Danger: t.Error, DangerTitle: t.Error.Bold(true), DangerSelected: t.Error.Bold(true),
+		Ellipsis: ic.Ellipsis, Separator: ic.Separator, Key: ic.Key,
+		Glyphs: ic.Border,
+	}
 }
 
-// OverLastLines returns view with its last lines replaced by lines, such
-// as the question of a Confirm over the bottom of a modal.
-func OverLastLines(view string, lines []string) string {
-	end := len(view)
-	for range lines {
-		i := strings.LastIndexByte(view[:end], '\n')
-		if i < 0 {
-			return strings.Join(lines, "\n")
-		}
-		end = i
+// OverCentred returns view, of w by h cells, with the box of a centred over
+// it, placed as the overlays of the panes place a question.
+func OverCentred(view string, a confirm.Ask, st confirm.Styles, k confirm.KeyMap, w, h int) string {
+	text := ansi.StringWidth(OneLine(a.Question))
+	r := panes.OverlayRect(panes.Overlay{
+		Kind:  panes.Confirm,
+		Items: a.Height(min(w-2, max(40, text+8))),
+		Text:  text,
+	}, w, h)
+	if r.W <= 0 || r.H <= 0 {
+		return view
 	}
-	return view[:end+1] + strings.Join(lines, "\n")
+	lines := strings.Split(view, "\n")
+	for i, row := range a.Box(st, k, r.W) {
+		y := r.Y + i
+		if y >= len(lines) {
+			break
+		}
+		lines[y] = ansi.Cut(lines[y], 0, r.X) + "\x1b[m" + row + "\x1b[m" + ansi.Cut(lines[y], r.X+r.W, w)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // ConfirmModal asks a Confirm in a small modal of its own, for a change
@@ -129,6 +147,8 @@ func (m *ConfirmModal) Update(msg tea.Msg) tea.Cmd {
 	}
 	cmd, done := m.ask.Answer(k, m.armed)
 	if !done {
+		// The switch key moves the choice, which the box shows.
+		m.render()
 		return nil
 	}
 	m.answered = true
@@ -145,11 +165,20 @@ func (m *ConfirmModal) SetSize(width, height int) {
 	m.render()
 }
 
+// Boxed implements Boxed: the box is the border of the modal.
+func (m *ConfirmModal) Boxed() {}
+
 // Fit implements Fitter: as wide as the question and its keys, or as wide
-// as there is room for and on as many lines as the question wraps to.
+// as there is room for and on as many lines as the question wraps to, less
+// the cells the frame would take, since the box has its own border.
 func (m *ConfirmModal) Fit(maxWidth, maxHeight int) (width, height int) {
-	return m.ask.Size(maxWidth, maxHeight)
+	w, h := m.ask.Size(maxWidth+boxCols, maxHeight+boxRows)
+	return max(w-boxCols, 0), max(h-boxRows, 0)
 }
+
+// boxCols and boxRows are the cells a modal's frame takes, which the box
+// of the question takes in its place.
+const boxCols, boxRows = 4, 2
 
 // SetTheme implements Modal.
 func (m *ConfirmModal) SetTheme(t Theme) {
@@ -166,6 +195,6 @@ func (m *ConfirmModal) KeyLayers() []keyhelp.Layer {
 }
 
 func (m *ConfirmModal) render() {
-	m.ask.SetSize(m.width, m.height)
+	m.ask.SetSize(m.width+boxCols, m.height+boxRows)
 	m.view = m.ask.View()
 }

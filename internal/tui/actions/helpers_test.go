@@ -341,9 +341,27 @@ func (h *host) toJob(tb testing.TB, name string) {
 	tb.Fatalf("the cursor never reached the job %q", name)
 }
 
-// lastLine is the last line of the view, without styles, trimmed.
+// lastLine is the last line of the view, without styles, trimmed. While a
+// question is open it is the question's row of the box over the bottom.
 func lastLine(m *Modal) string {
 	lines := strings.Split(screen(m), "\n")
+	for i, l := range lines {
+		before, _, found := strings.Cut(l, "╭─ Confirm")
+		if !found || i+1 >= len(lines) {
+			continue
+		}
+		// The box is centred, with panes on both sides of it.
+		col := len([]rune(before))
+		row := []rune(lines[i+1])
+		if col+1 >= len(row) {
+			continue
+		}
+		inner := string(row[col+1:])
+		if end := strings.Index(inner, "│"); end >= 0 {
+			inner = inner[:end]
+		}
+		return strings.TrimSpace(inner)
+	}
 	return strings.TrimSpace(lines[len(lines)-1])
 }
 

@@ -10,7 +10,7 @@ const (
 	Viewer OverlayKind = iota
 	// Picker is a list to choose from, centred on a wide area.
 	Picker
-	// Confirm is a three-line prompt, centred at any width.
+	// Confirm is a bordered prompt, centred at any width.
 	Confirm
 )
 
@@ -27,7 +27,8 @@ const minViewerHeight = 5
 // Overlay describes an overlay to place.
 type Overlay struct {
 	Kind OverlayKind
-	// Items is the number of rows of a Picker.
+	// Items is the number of rows of a Picker, and the lines of a Confirm
+	// with its border.
 	Items int
 	// Text is the width of the text of a Confirm.
 	Text int
@@ -65,7 +66,7 @@ func OverlayRect(o Overlay, w, h int) Rect {
 		}
 		r = centred(min(pickerWidth, w-4), min(o.Items+4, pickerHeight), w, h)
 	case Confirm:
-		r = centred(min(w-2, max(40, o.Text+8)), 3, w, h)
+		r = centred(min(w-2, max(40, o.Text+8)), max(o.Items, 3), w, h)
 	}
 	return clamp(r, w, h)
 }

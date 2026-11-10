@@ -326,6 +326,26 @@ func TestAuthModalView(t *testing.T) {
 	}
 }
 
+// TestAuthModalShowsTheSwitchedChoice checks that the tab key moves the
+// choice in the view the modal shows, not only in its state.
+func TestAuthModalShowsTheSwitchedChoice(t *testing.T) {
+	t.Parallel()
+	tok := uitest.Token(&uitest.Checker{A: core.Access{}})
+	mod := newAuthModal(config.Default().Keys, "octocat@github.com", core.Access{}, access.Plan{}, tok, nil)
+	mod.checked(core.Access{}, access.Plan{Cmd: []string{"gh", "auth", "refresh"}}, nil)
+	w, h := mod.Fit(72, 30)
+	mod.SetSize(w, h)
+	before := ansi.Strip(mod.View())
+	mod.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	after := ansi.Strip(mod.View())
+	if before == after {
+		t.Errorf("the view did not change after tab:\n%s", after)
+	}
+	if strings.Contains(before, "[ Yes ]") == strings.Contains(after, "[ Yes ]") {
+		t.Errorf("[ Yes ] did not flip after tab:\n%s\n%s", before, after)
+	}
+}
+
 // TestSetIconsInOpenAuthModal checks that the modal open draws with the
 // icon set that a setting changed it to, not the one it opened with.
 func TestSetIconsInOpenAuthModal(t *testing.T) {

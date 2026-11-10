@@ -376,6 +376,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	// Only a question takes the answers.
 	k.Confirm.Yes.SetEnabled(false)
 	k.Confirm.No.SetEnabled(false)
+	k.Confirm.Switch.SetEnabled(false)
 	return k
 }
 

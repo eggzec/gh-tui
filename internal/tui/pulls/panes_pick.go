@@ -182,12 +182,14 @@ func (m *panesModal) askLabels(add []core.Label, remove []string) tea.Cmd {
 	if !ok {
 		return refusal
 	}
-	m.ask(ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
+	ask := ui.Recheck(c.Question, "#"+strconv.Itoa(m.number), func() (confirm.Ask, bool, tea.Cmd) {
 		if m.closed {
 			return confirm.Ask{}, false, nil
 		}
 		return m.labelsAsk(add, remove)
-	}))
+	})
+	ask.Danger = len(remove) > 0
+	m.ask(ask)
 	return nil
 }
 

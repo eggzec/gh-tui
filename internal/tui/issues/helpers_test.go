@@ -743,7 +743,13 @@ func (h *host) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.OpenModalMsg:
 		msg.Modal.SetTheme(h.theme)
-		msg.Modal.SetSize(h.width, h.height)
+		w, ht := h.width, h.height
+		if f, ok := msg.Modal.(ui.Fitter); ok {
+			// A modal that fits its content, such as a confirmation, is
+			// no larger than that, so that its box is not taller than the screen.
+			w, ht = f.Fit(w, ht)
+		}
+		msg.Modal.SetSize(w, ht)
 		h.modals = append(h.modals, msg.Modal)
 		return nil
 	case ui.CloseModalMsg:
