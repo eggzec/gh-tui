@@ -60,7 +60,8 @@ func issueLayout(w, h int, focus panes.Pane, zoom bool, d *ui.Dividers) panes.La
 	if focus < 1 || int(focus) > paneCount {
 		focus = paneDescription
 	}
-	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, sideSplit(d, w), descSplit(d, h))}
+	first, second := infoCuts(d, h)
+	l := panes.Layout{Width: w, Height: h, Focus: focus, Panes: paneDefs, Boxes: wideBoxes(w, h, sideSplit(d, w), descSplit(d, h), first, second)}
 	for i := range l.Boxes {
 		l.Boxes[i].Rect = clampRect(l.Boxes[i].Rect, w, h)
 	}
@@ -94,16 +95,27 @@ func descSplit(d *ui.Dividers, h int) int {
 	return d.Desc.Of(descriptionHeight(h), panes.MinHeight, h-panes.MinHeight)
 }
 
-func wideBoxes(w, h, side, desc int) []panes.Box {
+// infoCuts are the rows where the side column's panes start below the first:
+// the thirds of an h high column until the user moves a divider. Each cut keeps
+// MinHeight rows for the pane above it and for every pane below.
+func infoCuts(d *ui.Dividers, h int) (first, second int) {
+	first, second = h/3, 2*(h/3)
+	if d == nil || h < 3*panes.MinHeight {
+		return first, second
+	}
+	first = d.Info[0].Of(first, panes.MinHeight, h-2*panes.MinHeight)
+	second = d.Info[1].Of(second, first+panes.MinHeight, h-panes.MinHeight)
+	return first, second
+}
+
+func wideBoxes(w, h, side, desc, first, second int) []panes.Box {
 	left := w - side
-	// The right column is three stacked thirds; the last takes the rest.
-	third := h / 3
 	return []panes.Box{
 		{Pane: paneDescription, Rect: panes.Rect{X: 0, Y: 0, W: left, H: desc}},
 		{Pane: paneConversation, Rect: panes.Rect{X: 0, Y: desc, W: left, H: h - desc}},
-		{Pane: paneInvolved, Rect: panes.Rect{X: left, Y: 0, W: side, H: third}},
-		{Pane: paneDevelopment, Rect: panes.Rect{X: left, Y: third, W: side, H: third}},
-		{Pane: paneBlockers, Rect: panes.Rect{X: left, Y: 2 * third, W: side, H: h - 2*third}},
+		{Pane: paneInvolved, Rect: panes.Rect{X: left, Y: 0, W: side, H: first}},
+		{Pane: paneDevelopment, Rect: panes.Rect{X: left, Y: first, W: side, H: second - first}},
+		{Pane: paneBlockers, Rect: panes.Rect{X: left, Y: second, W: side, H: h - second}},
 	}
 }
 
