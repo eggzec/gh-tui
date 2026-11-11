@@ -30,7 +30,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		langs:   map[string]ui.Paint{},
 		frames:  frames,
 		warning: ui.NewPaint(t.Warning),
-		row:     tabrow.Styles{Current: t.Accent.Bold(true), Other: t.Muted, Marker: t.Subtle},
+		row:     tabrow.PillStyles(t.Accent, t.Muted),
 		shared: ui.ListStyles{
 			Name:    ui.NewPaint(t.Title),
 			Login:   ui.NewPaint(t.Muted),

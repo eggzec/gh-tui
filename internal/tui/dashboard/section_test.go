@@ -31,7 +31,7 @@ func TestInitLoadsEverything(t *testing.T) {
 	for _, want := range []string{
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
 		ui.NewIcons(config.IconsNerd).Here, "spoon-knife", "Yours", "github", "charmbracelet",
-		"repo-000", "Reviews", "#1402", "Mine",
+		"repo-000", "Review requests", "#1402", "Your pull requests",
 		"Render only the cells that changed", "contributions in the last 90 days",
 	} {
 		if !strings.Contains(view, want) {
@@ -93,7 +93,7 @@ func TestCachedPaintsAtOnce(t *testing.T) {
 	svc.cached = true
 	s := New(t.Context(), svc, nil)
 	setSize(s, 140, 38)
-	if view := screen(s); !strings.Contains(view, "Mona Lisa Octocat") || !strings.Contains(view, "Reviews") {
+	if view := screen(s); !strings.Contains(view, "Mona Lisa Octocat") || !strings.Contains(view, "Review requests") {
 		t.Errorf("before any read the dashboard should show the cache:\n%s", view)
 	}
 	if len(svc.calls) != 0 {
@@ -391,13 +391,13 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
 			press(t, s, "z", "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() || !strings.Contains(screen(s), "Reviews") {
+			if s.zoom.User() || !strings.Contains(screen(s), "repo-000") {
 				t.Errorf("zoom %v after z twice; want every pane", s.zoom.User())
 			}
 			setSize(s, 140, tt.height)
 			press(t, s, "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Reviews") != !tt.zoom {
+			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
 				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom.User(), tt.zoom, screen(s))
 			}
 		})

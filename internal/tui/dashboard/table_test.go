@@ -22,7 +22,7 @@ func reposLines(s *Section) []string {
 	}
 	body := s.reposBody(b.w-2, b.h-2)
 	out := make([]string, 0, len(body))
-	for _, l := range body[3:] {
+	for _, l := range body[1:] {
 		out = append(out, ansi.Strip(l))
 	}
 	return out
@@ -172,13 +172,5 @@ func TestReposLanguage(t *testing.T) {
 	lines := reposLines(s)
 	if !strings.Contains(lines[1], nerd.Language("Go")) || strings.Contains(lines[1], "Go") {
 		t.Errorf("the row should show the glyph of Go, not its name: %q", lines[1])
-	}
-	// The tabs name the language of the repository under the cursor.
-	if tabs := ansi.Strip(s.tabsLine(80)); !strings.Contains(tabs, nerd.Language("Go")+" Go") {
-		t.Errorf("the tabs end in %q, want the language under the cursor", tabs)
-	}
-	press(t, s, "down")
-	if tabs := ansi.Strip(s.tabsLine(80)); !strings.Contains(tabs, nerd.Language("Jupyter Notebook")+" Jupyter Notebook") {
-		t.Errorf("the tabs end in %q, want Jupyter Notebook", tabs)
 	}
 }

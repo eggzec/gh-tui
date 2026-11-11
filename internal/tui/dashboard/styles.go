@@ -52,7 +52,7 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		langs:      map[string]ui.Paint{},
 		frames:     frames,
 		focusTitle: ui.NewPaint(t.Accent.Bold(true)),
-		row:        tabrow.Styles{Current: t.Accent.Bold(true), Other: t.Muted, Marker: t.Subtle},
+		row:        tabrow.PillStyles(t.Accent, t.Muted),
 		success:    ui.NewPaint(t.Success),
 		warning:    ui.NewPaint(t.Warning),
 		shared: ui.ListStyles{

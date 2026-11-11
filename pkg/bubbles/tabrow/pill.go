@@ -19,7 +19,6 @@ func PillStyles(accent, muted lipgloss.Style) Styles {
 
 // pilled draws the tabs as padded cells from the left edge. Where they don't
 // fit the width, only the tab on view is drawn, cut to the width if need be.
-// With an aside, the row is padded so the aside ends at the right edge.
 func (m Model) pilled() string {
 	cell := func(i int) string { return m.paint(i, " "+m.name(i, false)+" ") }
 	var b strings.Builder
@@ -29,10 +28,6 @@ func (m Model) pilled() string {
 	row := b.String()
 	if ansi.StringWidth(row) > m.width {
 		row = ansi.Truncate(cell(min(max(m.cur, 0), len(m.items)-1)), m.width, "")
-	}
-	aw := ansi.StringWidth(m.aside)
-	if gap := m.width - ansi.StringWidth(row) - aw; m.aside != "" && gap >= 1 {
-		row += strings.Repeat(" ", gap) + m.aside
 	}
 	return row
 }
