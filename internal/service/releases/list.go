@@ -94,6 +94,14 @@ func (s *Service) List(ctx context.Context, q ListQuery) (core.Page[core.Release
 	return p, nil
 }
 
+// Invalidate marks the cached list pages of repo stale. They are still served
+// by CachedList, and the next List of each asks GitHub, conditionally, so a
+// refresh reaches the server even while the pages are fresh, and costs no
+// rate limit if nothing changed.
+func (s *Service) Invalidate(repo core.RepoRef) {
+	s.lists.InvalidateTag("repo:" + repoID(repo))
+}
+
 // AssetURL returns where GitHub serves file assetID of the releases of repo
 // from. The address is signed and short-lived, so it is never cached.
 func (s *Service) AssetURL(ctx context.Context, repo core.RepoRef, assetID int64) (string, error) {

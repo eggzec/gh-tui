@@ -29,6 +29,7 @@ import (
 	ownersvc "github.com/eggzec/gh-tui/internal/service/owners"
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
+	releasessvc "github.com/eggzec/gh-tui/internal/service/releases"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
@@ -39,6 +40,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
 	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
+	"github.com/eggzec/gh-tui/internal/tui/releaselist"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -697,6 +699,15 @@ func (keyReleases) Get(context.Context, core.RepoRef, int64) (core.Release, erro
 	return keyRelease, nil
 }
 
+// keyReleaseList serves the release list one release.
+type keyReleaseList struct{}
+
+func (keyReleaseList) Invalidate(core.RepoRef) {}
+
+func (keyReleaseList) List(context.Context, releasessvc.ListQuery) (core.Page[core.Release], error) {
+	return core.Page[core.Release]{Items: []core.Release{keyRelease}}, nil
+}
+
 // keyContext is somewhere keys reach in the app: a screen and its focused
 // pane, a modal and each of its steps and panes, what takes every key
 // while it types, the help and the command line.
@@ -1155,6 +1166,7 @@ func newKeysAppPulls(t *testing.T, repo bool, edit func(*config.Config), inbox k
 			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}),
 			pulls.WithReviewDrafts(keyReviewDrafts())}, pullOpts...)...),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
+		Releases:      releaselist.New(ctx, keyReleaseList{}, cfg.Keys),
 		Notifications: notifications.New(ctx, inbox, cfg.Keys, notifications.WithVoice(v), notifications.WithIcons(ic)),
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
@@ -1311,6 +1323,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: help", repo: true, steps: []string{"global.pane_2", "global.select", "global.help"}, context: "help", want: "always, help (types)"},
 		{name: "pull request: review", repo: true, steps: []string{"global.pane_2", "global.select", "global.command", typed("review"), "command_line.run", "global.select"}, context: "composer", want: "always, composer (types)"},
 		{name: "issues", repo: true, steps: []string{"global.pane_3"}, context: "issues", want: "global, repo, issues"},
+		{name: "releases", repo: true, steps: []string{"global.pane_4"}, context: "releases", want: "global, repo, releases"},
 		{name: "issues: filter", repo: true, steps: []string{"global.pane_3", "issues.filter"}, context: "filter", want: "global, filter"},
 		{name: "issues: sort", repo: true, steps: []string{"global.pane_3", "issues.sort"}, context: "order_pick", want: "always, order_pick"},
 		{name: "issues: close", repo: true, steps: []string{"global.pane_3", "issues.close"}, context: "confirm", want: "always, confirm"},

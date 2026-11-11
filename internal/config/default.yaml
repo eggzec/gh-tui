@@ -647,7 +647,7 @@ keys:
     next_tab: ["]"]
     prev_tab: ["["]
     # Focus the pane with that number on the screen or modal on view: files,
-    # pull requests and issues on the repository screen; pinned,
+    # pull requests, issues and releases on the repository screen; pinned,
     # repositories, work, contributions and notifications on the dashboard;
     # pinned, the list, the README and a user's contributions on the page of
     # a user or an organization; the kinds of results in the search modal,
@@ -833,6 +833,24 @@ keys:
     mark: [space]
     close: [X]
     reopen: [O]
+
+  # The releases of the repository screen. Enter opens the release.
+  releases:
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+    up: [up, k]
+    down: [down, j]
+    page_up: [ctrl+b, pgup]
+    page_down: [ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: ["g g", home]
+    bottom: [G, end]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
 
   # The notifications modal.
   notifications:

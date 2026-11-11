@@ -40,6 +40,9 @@ type Layout struct {
 	// Files fills the left of the repository screen, and Pulls and Issues
 	// share its right, one above the other. They are panes 1, 2 and 3.
 	Files, Pulls, Issues ui.Section
+	// Releases is pane 4. It sits under Files, on the left, with a third of
+	// the height.
+	Releases ui.Section
 	// Notifications feeds the badge and the notifications modal.
 	Notifications ui.Section
 	// Dashboard fills the dashboard, which the app opens on unless it is
@@ -86,10 +89,11 @@ type Model struct {
 	after func(d time.Duration, msg tea.Msg) tea.Cmd
 
 	// panes are those of the repository screen, in the order focus cycles
-	// through them. The first left of them are on the left.
-	panes []*pane
-	left  int
-	notif *pane
+	// through them, which is the order of their digits. Their columns are
+	// apart: Files and Releases are on the left, the rest on the right.
+	panes       []*pane
+	leftC, rigC []*pane
+	notif       *pane
 	// prev is the preview box beside the zoomed pane splitOf, while that
 	// pane's section is a ui.Splitter that has room for one.
 	prev    *pane
@@ -426,12 +430,19 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		modals:     modals.New(maxHeldModals),
 		priorities: maps.Clone(modalPriorities),
 	}
-	if layout.Files != nil {
-		m.panes, m.left = append(m.panes, &pane{section: layout.Files}), 1
-	}
-	for _, s := range []ui.Section{layout.Pulls, layout.Issues} {
-		if s != nil {
-			m.panes = append(m.panes, &pane{section: s})
+	for _, c := range []struct {
+		s    ui.Section
+		left bool
+	}{{layout.Files, true}, {layout.Pulls, false}, {layout.Issues, false}, {layout.Releases, true}} {
+		if c.s == nil {
+			continue
+		}
+		p := &pane{section: c.s}
+		m.panes = append(m.panes, p)
+		if c.left {
+			m.leftC = append(m.leftC, p)
+		} else {
+			m.rigC = append(m.rigC, p)
 		}
 	}
 	for i, p := range m.panes {
@@ -467,7 +478,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 	if s, ok := layout.Search.(interface{ SetDividers(*ui.Dividers) }); ok {
 		s.SetDividers(m.dividers)
 	}
-	for _, sec := range []ui.Section{layout.Pulls, layout.Issues} {
+	for _, sec := range []ui.Section{layout.Pulls, layout.Issues, layout.Releases} {
 		if s, ok := sec.(interface{ SetDividers(*ui.Dividers) }); ok {
 			s.SetDividers(m.dividers)
 		}
