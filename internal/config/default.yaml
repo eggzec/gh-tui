@@ -1459,6 +1459,10 @@ keys:
     bottom: [G, end]
     # Open the release on GitHub.
     open: [o]
+    # Pick a folder, then save the file under the cursor, or every file of the
+    # release.
+    download: [d]
+    download_all: [D]
     # Expand the row under the cursor, or go to its first child when it is
     # open; collapse it, or go to its parent. The toggle expands every row, or
     # collapses them all when all are expanded.

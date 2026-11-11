@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
@@ -26,6 +27,8 @@ import (
 type Service interface {
 	CachedGet(repo core.RepoRef, id int64) (core.Release, bool)
 	Get(ctx context.Context, repo core.RepoRef, id int64) (core.Release, error)
+	// AssetURL resolves the address a file of the release is read from.
+	AssetURL(ctx context.Context, repo core.RepoRef, id int64) (string, error)
 }
 
 // Option configures the modal.
@@ -43,6 +46,8 @@ type options struct {
 	icons ui.Icons
 	// links confirms the references of the release's notes.
 	links *ui.Autolinks
+	// downloader saves the files; without it the download keys do nothing.
+	downloader Downloader
 }
 
 // WithAutolinks links the references (#N, @login, hashes) of the release's
@@ -134,6 +139,13 @@ type Modal struct {
 	// icons draw the modal and mark what failed to load.
 	icons ui.Icons
 
+	// dl saves the files, and pick is the folder picker that shows while a
+	// download waits for its folder.
+	dl          Downloader
+	pick        *picking
+	pickKeys    pickKeys
+	confirmKeys confirm.KeyMap
+
 	width, height int
 	theme         ui.Theme
 	errs          ui.ErrorStyles
@@ -181,6 +193,10 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		voice:  *o.voice,
 		icons:  o.icons,
 		links:  o.links,
+
+		dl:          o.downloader,
+		pickKeys:    newPickKeys(keys),
+		confirmKeys: confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 	}
 	// The voice reads the icons of the modal itself, not of the options,
 	// which go out of use.
@@ -325,6 +341,9 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.resize()
+	if m.pick != nil {
+		m.pick.fp.SetHeight(m.pickHeight())
+	}
 }
 
 // SetTheme implements ui.Modal.
@@ -352,6 +371,17 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
+	if _, isKey := msg.(tea.KeyPressMsg); !isKey && m.pick != nil {
+		// The picker reads its folder in a command, and the answer comes
+		// back as a message of its own. The modal still takes its own
+		// messages, which the picker ignores.
+		return tea.Batch(m.updatePick(msg), m.update(msg))
+	}
+	return m.update(msg)
+}
+
+// update handles one message of the modal.
+func (m *Modal) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case ui.SettingsMsg:
 		msg.ReloadIcons(&m.icons, &m.voice)
@@ -378,7 +408,11 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 // read failed, and then the thread's, which take no keys while nothing
 // shows.
 func (m *Modal) KeyLayers() []keyhelp.Layer {
+	if m.pick != nil {
+		return []keyhelp.Layer{ui.MergeLayers(ctxModal, keyhelp.FromHelp("", m.pickKeys, false))}
+	}
 	k := m.keys
+	k.Select.SetEnabled(k.Select.Enabled() && m.nav.Focus() == paneFiles)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
 	if m.failed() {
 		k.offFailed()
