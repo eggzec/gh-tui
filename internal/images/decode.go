@@ -59,10 +59,12 @@ const (
 // pixels. An image is scaled down to fit, keeping its aspect, never up.
 // A side of 0 cells doesn't limit the image; a cell size of 0 is 8 by 16.
 // Animate asks for every frame of an animated GIF, rather than the first.
+// Round makes what lies outside the inscribed circle transparent.
 type Box struct {
 	Cols, Rows            int
 	CellWidth, CellHeight int
 	Animate               bool
+	Round                 bool
 }
 
 func (b Box) cell() (w, h int) {
@@ -187,6 +189,9 @@ func decode(data []byte, box Box) (_ Image, err error) {
 	// the final scaling allocates.
 	s := scaler{sharp: true}
 	dst := s.scale(src, img.Width, img.Height)
+	if box.Round {
+		roundOff(dst)
+	}
 	var out bytes.Buffer
 	if err := png.Encode(&out, dst); err != nil {
 		return Image{}, fmt.Errorf("encode image: %w", err)
@@ -223,6 +228,34 @@ func (s *scaler) scale(src image.Image, w, h int) *image.RGBA {
 	}
 	k.Scale(s.dst, s.dst.Bounds(), src, sb, draw.Src, nil)
 	return s.dst
+}
+
+// roundOff makes everything of img outside the circle inscribed in it
+// transparent, softening the edge by a pixel. The pixels are premultiplied,
+// so scaling all four channels by the coverage keeps them valid.
+func roundOff(img *image.RGBA) {
+	b := img.Bounds()
+	cx, cy := float64(b.Dx())/2, float64(b.Dy())/2
+	radius := min(cx, cy)
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		dy := float64(y-b.Min.Y) + 0.5 - cy
+		row := img.Pix[(y-b.Min.Y)*img.Stride:]
+		for x := b.Min.X; x < b.Max.X; x++ {
+			dx := float64(x-b.Min.X) + 0.5 - cx
+			cover := radius - math.Hypot(dx, dy) + 0.5
+			if cover >= 1 {
+				continue
+			}
+			px := row[(x-b.Min.X)*4 : (x-b.Min.X)*4+4]
+			if cover <= 0 {
+				clear(px)
+				continue
+			}
+			for i := range px {
+				px[i] = uint8(float64(px[i]) * cover)
+			}
+		}
+	}
 }
 
 // shrink returns src scaled down to at most twice w by h, without the

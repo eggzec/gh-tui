@@ -130,6 +130,9 @@ func (f *Fetcher) Fetch(ctx context.Context, src Source, box Box) (Image, error)
 	if box.Animate {
 		key += " animated"
 	}
+	if box.Round {
+		key += " round"
+	}
 	f.mu.Lock()
 	img, ok := f.mem.get(key)
 	failed := f.failed.get(src.URL, f.now())
