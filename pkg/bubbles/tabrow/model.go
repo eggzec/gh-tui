@@ -41,7 +41,9 @@ type Model struct {
 	// box draws the row in three lines, with a box around the tab on view.
 	box    bool
 	border lipgloss.Border
-	aside  string
+	// pill draws every tab as a padded cell, the one on view solid.
+	pill  bool
+	aside string
 }
 
 // Option configures a Model.
@@ -77,6 +79,14 @@ func WithBox(b lipgloss.Border) Option {
 	}
 }
 
+// WithPill draws the row on one line as padded cells, " Open ", the tab on
+// view in the Current style of s, which the caller makes solid (see
+// PillStyles), the others in Other. The row is left-aligned and has no
+// separator. Where the cells don't fit, only the tab on view is drawn.
+func WithPill(s Styles) Option {
+	return func(m *Model) { m.pill, m.styles = true, s }
+}
+
 // New returns a tab row.
 func New(opts ...Option) Model {
 	m := Model{styles: DefaultStyles(true), sep: DefaultSeparator}
@@ -90,8 +100,8 @@ func New(opts ...Option) Model {
 }
 
 // SetAside sets styled text drawn at the right end of the label line of a
-// boxed row, which the tabs leave its width and a blank. It is dropped where
-// even the scrolled tabs can't leave room for it. Flat rows ignore it.
+// boxed or pill row, which the tabs leave its width and a blank. It is dropped
+// where even the scrolled tabs can't leave room for it. Flat rows ignore it.
 func (m *Model) SetAside(s string) { m.aside = s }
 
 // Height returns how many lines View returns: three for a boxed row, else one.
@@ -133,6 +143,9 @@ func (m Model) View() string {
 	}
 	if m.box {
 		return m.boxed()
+	}
+	if m.pill {
+		return m.pilled()
 	}
 	if m.scroll {
 		return m.scrolled()

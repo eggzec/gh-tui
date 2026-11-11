@@ -14,7 +14,24 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 )
+
+// The pill tabs take one row, as the plain ones did: the view keeps its
+// height, with the tabs on the first line and the column titles under them.
+func TestTabsTakeOneRow(t *testing.T) {
+	t.Parallel()
+	for _, height := range []int{1, 2, 3, 12} {
+		s := started(t, newFakeService(), 80, height)
+		lines := strings.Split(s.View(), "\n")
+		if len(lines) != height {
+			t.Fatalf("height %d: view has %d lines", height, len(lines))
+		}
+		if first := ansi.Strip(lines[0]); !strings.Contains(first, " Open  Closed ") {
+			t.Errorf("height %d: first line %q lacks the tabs", height, first)
+		}
+	}
+}
 
 // The real service is what the app passes in.
 var _ Service = (*pulls.Service)(nil)
@@ -60,7 +77,7 @@ func TestUpdateList(t *testing.T) {
 				if !strings.Contains(screen(s), "#86") || strings.Contains(screen(s), "#142") {
 					t.Errorf("closed tab shows\n%s", screen(s))
 				}
-				if !strings.Contains(s.header, s.st.filterOn.Render("Closed")) {
+				if !strings.Contains(s.header, tabrow.PillStyles(s.st.filterOn, s.st.filterOff).Current.Render(" Closed ")) {
 					t.Errorf("header %q doesn't highlight Closed", s.header)
 				}
 			},

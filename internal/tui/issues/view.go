@@ -8,6 +8,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -67,23 +68,18 @@ func (s *Section) renderChrome() {
 func (s *Section) renderBar() {
 	t := s.theme
 	left := strings.Repeat(" ", s.list.Gutter())
-	var right strings.Builder
+	items, cur := make([]tabrow.Item, len(tabs)), 0
 	for i, tb := range tabs {
-		if i > 0 {
-			right.WriteString(t.Subtle.Render(s.icons.Separator))
-		}
-		st := t.Subtle
+		items[i] = tabrow.Item{Label: tb.label}
 		if tb.state == s.tab {
-			st = t.Accent
+			cur = i
 		}
-		right.WriteString(st.Render(tb.label))
 	}
-	// Narrow panes name only the tab shown.
-	lw, tabsRight := ansi.StringWidth(left), right.String()
-	if lw+ansi.StringWidth(tabsRight)+2 > s.width {
-		tabsRight = t.Accent.Render(tabLabel(s.tab))
-	}
-	s.bar = spread(left, tabsRight, s.width, s.icons.Ellipsis)
+	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(t.Accent, t.Subtle)))
+	row.SetItems(items, cur)
+	row.SetWidth(s.width - ansi.StringWidth(left))
+	s.bar = ansi.Truncate(left+row.View(), s.width, "")
+	s.bar += strings.Repeat(" ", max(s.width-ansi.StringWidth(s.bar), 0))
 }
 
 // CountForms is the forms of the count of the issues for the pane's frame,
@@ -114,17 +110,6 @@ func (s *Section) CountForms() []string {
 		More:     !f.Done(),
 		Filtered: s.query != "" || quick,
 	})
-}
-
-// spread puts left and right at the two ends of a line width cells wide,
-// cutting left to end in tail if both don't fit.
-func spread(left, right string, width int, tail string) string {
-	rw := ansi.StringWidth(right)
-	if rw+1 > width {
-		return termtext.Fit(left, width, tail)
-	}
-	left = termtext.Truncate(left, width-rw-1, tail)
-	return left + strings.Repeat(" ", width-ansi.StringWidth(left)-rw) + right
 }
 
 // renderEmpty renders the state shown before a repository is selected,
