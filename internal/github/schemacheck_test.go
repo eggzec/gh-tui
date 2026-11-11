@@ -170,6 +170,7 @@ var restCalls = []restCall{
 	{Func: "CreateIssueComment", Method: http.MethodPost, Path: "/repos/{owner}/{repo}/issues/{issue_number}/comments", Decode: issueComment{}},
 	{Func: "ListCommits", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits", Query: []string{"sha", "per_page"}, Decode: []restCommit{}},
 	{Func: "GetCommit", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restCommitDetail{}},
+	{Func: "CommitOf", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restCommit{}},
 	{Func: "ListCommitFiles", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/commits/{ref}", Decode: restCommitFiles{}},
 	{Func: "ListPullRequestFiles", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/pulls/{pull_number}/files", Query: []string{"per_page"}, Decode: []commitFile{}},
 	{Func: "CompareFiles", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/compare/{basehead}", Query: []string{"per_page"}, Decode: restCompareFiles{}},

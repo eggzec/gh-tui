@@ -92,6 +92,32 @@ func Refs(src string) []Ref {
 	return all
 }
 
+// Mentions returns the logins that src mentions with @login, in the order
+// they first come, without repeats whatever their case, at most [maxRefs].
+// Those in code, in links, in HTML and in addresses aren't, and neither are
+// the parts of an email address.
+func Mentions(src string) []string {
+	var all []string
+	seen := map[string]bool{}
+	var st refScan
+	scan(src, "", Glyphs{}.orDefault(), 0, func(l string, text bool) {
+		if !text {
+			st = refScan{}
+			return
+		}
+		for _, m := range st.find(unspan(l)) {
+			if m.ref.Kind != RefUser || len(all) >= maxRefs {
+				continue
+			}
+			if low := strings.ToLower(m.ref.Ref); !seen[low] {
+				seen[low] = true
+				all = append(all, m.ref.Ref)
+			}
+		}
+	}, func(int, Block) { st = refScan{} })
+	return all
+}
+
 // linkRefs returns line with each reference that r.autolink says exists as
 // a markdown link, and records the answers in seen. st follows the code
 // spans across the lines of a text.

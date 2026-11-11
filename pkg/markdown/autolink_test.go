@@ -10,6 +10,44 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
+func TestMentions(t *testing.T) {
+	many := new(strings.Builder)
+	for i := range 120 {
+		fmt.Fprintf(many, "@u%d ", i)
+	}
+	tests := []struct {
+		name, in string
+		want     []string
+	}{
+		{"none", "no one here #1", nil},
+		{"order", "thanks @b and @a", []string{"b", "a"}},
+		{"dupes by case", "@Octo @octo @OCTO @x", []string{"Octo", "x"}},
+		{"code span", "`@a` @b", []string{"b"}},
+		{"fence", "```\n@a\n```\n@b", []string{"b"}},
+		{"email", "me@example.com @c", []string{"c"}},
+		{"underscore", "@bad_name @ok", []string{"ok"}},
+		{"too long", "@" + strings.Repeat("a", 40) + " @d", []string{"d"}},
+		{"team", "@org/team @e", []string{"e"}},
+		{"link", "[@a](https://x.y) @f", []string{"f"}},
+		{"html", "<a href=\"@a\">x</a> @g", []string{"g"}},
+		{"cap", many.String(), nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Mentions(tt.in)
+			if tt.name == "cap" {
+				if len(got) != maxRefs || got[0] != "u0" {
+					t.Errorf("Mentions = %d logins starting %v, want %d from u0", len(got), got[:1], maxRefs)
+				}
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Mentions(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRefs(t *testing.T) {
 	issue := func(n string) Ref { return Ref{RefIssue, n} }
 	user := func(n string) Ref { return Ref{RefUser, n} }

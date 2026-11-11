@@ -16,6 +16,12 @@ type Release struct {
 	Latest bool
 	// Author is who published it, often a bot.
 	Author User
+	// AuthorAvatar is the address of the author's picture, empty if the
+	// release names none.
+	AuthorAvatar string
+	// Immutable reports that the release can no longer be changed. Servers
+	// that don't say read as false.
+	Immutable bool
 	// Body is the release notes, in markdown.
 	Body string
 	// URL is the page of the release.
@@ -26,6 +32,22 @@ type Release struct {
 	// PublishedAt is zero for a draft.
 	PublishedAt time.Time
 	Assets      []ReleaseAsset
+}
+
+// ReleaseExtra is what a release's header shows beyond the release itself,
+// read with requests of their own.
+type ReleaseExtra struct {
+	// TagSHA is the commit the tag names.
+	TagSHA string
+	// Verified reports that GitHub verified the signature of that commit.
+	Verified bool
+	// AheadBy is how many commits the default branch has since the tag, or
+	// -1 if that is unknown, such as for a deleted tag.
+	AheadBy int
+	// Default is the name of the default branch, empty if unknown.
+	Default string
+	// Mentions are the logins the notes mention, in order of appearance.
+	Mentions []string
 }
 
 // ReleaseAsset is a file uploaded with a release.

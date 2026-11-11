@@ -81,6 +81,16 @@ func (API) ReleaseAssetURL(_ context.Context, _ core.RepoRef, assetID int64) (st
 	return "", core.ErrNotFound
 }
 
+// CommitOf returns a verified commit for any ref.
+func (API) CommitOf(_ context.Context, _ core.RepoRef, _ string, _ github.Conditional) (core.Commit, github.Response, error) {
+	return core.Commit{SHA: "0123456789abcdef0123456789abcdef01234567", Verification: core.Verification{Verified: true}}, github.Response{}, nil
+}
+
+// Compare returns a branch a few commits ahead of any tag.
+func (API) Compare(context.Context, core.RepoRef, string, string, github.Conditional) (core.Compare, github.Response, error) {
+	return core.Compare{Status: core.CompareAhead, AheadBy: 7}, github.Response{}, nil
+}
+
 func asset(id int64, tag, name string, size int64, downloads int) core.ReleaseAsset {
 	return core.ReleaseAsset{
 		ID: id, Name: name, Size: size, Downloads: downloads,

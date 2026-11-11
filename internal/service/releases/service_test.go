@@ -27,6 +27,12 @@ type fakeAPI struct {
 	mu    sync.Mutex
 	conds []github.Conditional
 	err   error
+
+	refs       []string
+	heads      []string
+	compareErr error
+	commitErr  error
+	body       string // the notes of v3 when set
 }
 
 func (f *fakeAPI) GetRelease(_ context.Context, r core.RepoRef, id int64, cond github.Conditional) (core.Release, github.Response, error) {
@@ -41,7 +47,11 @@ func (f *fakeAPI) GetRelease(_ context.Context, r core.RepoRef, id int64, cond g
 	case cond.ETag == `"r1"`:
 		return core.Release{}, github.Response{NotModified: true, ETag: `"r1"`}, nil
 	}
-	return v3, github.Response{ETag: `"r1"`}, nil
+	rel := v3
+	if f.body != "" {
+		rel.Body = f.body
+	}
+	return rel, github.Response{ETag: `"r1"`}, nil
 }
 
 func (f *fakeAPI) ListReleases(context.Context, core.RepoRef, string, int, github.Conditional) (core.Page[core.Release], github.Response, error) {
@@ -54,6 +64,36 @@ func (f *fakeAPI) LatestRelease(context.Context, core.RepoRef) (core.Release, bo
 
 func (f *fakeAPI) ReleaseAssetURL(context.Context, core.RepoRef, int64) (string, error) {
 	return "", core.ErrNotFound
+}
+
+// CommitOf serves a verified commit with the ETag "c1", and a 304 to it. The
+// refs and heads asked for are kept.
+func (f *fakeAPI) CommitOf(_ context.Context, _ core.RepoRef, ref string, cond github.Conditional) (core.Commit, github.Response, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.refs = append(f.refs, ref)
+	if f.commitErr != nil {
+		return core.Commit{}, github.Response{}, f.commitErr
+	}
+	if cond.ETag == `"c1"` {
+		return core.Commit{}, github.Response{NotModified: true}, nil
+	}
+	return core.Commit{SHA: "abc123", Verification: core.Verification{Verified: true}}, github.Response{ETag: `"c1"`}, nil
+}
+
+// Compare serves a branch 5 commits ahead with the ETag "p1", and a 304 to
+// it, or the error of compareErr.
+func (f *fakeAPI) Compare(_ context.Context, _ core.RepoRef, _, head string, cond github.Conditional) (core.Compare, github.Response, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.heads = append(f.heads, head)
+	switch {
+	case f.compareErr != nil:
+		return core.Compare{}, github.Response{}, f.compareErr
+	case cond.ETag == `"p1"`:
+		return core.Compare{}, github.Response{NotModified: true}, nil
+	}
+	return core.Compare{AheadBy: 5}, github.Response{ETag: `"p1"`}, nil
 }
 
 func (f *fakeAPI) calls() []github.Conditional {
