@@ -10,6 +10,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/tabrow"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
@@ -494,40 +495,27 @@ func (s *Section) CountForms() []string {
 	})
 }
 
-// renderHeader renders the line above the list: the tabs of the states on the
-// right, the one shown highlighted.
+// renderHeader renders the line above the list: the tabs of the states as
+// pills from the left, the one shown solid.
 func (s *Section) renderHeader() {
 	if s.width <= 0 {
 		s.header = ""
 		return
 	}
 	st := &s.st
-	var right strings.Builder
+	items, cur := make([]tabrow.Item, len(tabs)), 0
 	for i, t := range tabs {
-		if i > 0 {
-			right.WriteString(st.sep.Render(st.ic.Separator))
-		}
+		items[i] = tabrow.Item{Label: t.label}
 		if t.state == s.tab {
-			right.WriteString(st.filterOn.Render(t.label))
-		} else {
-			right.WriteString(st.filterOff.Render(t.label))
+			cur = i
 		}
 	}
 	left := s.indent()
-	lw := ansi.StringWidth(left)
-	// Narrow panes name only the tab shown.
-	tabsRight := right.String()
-	if gap := s.width - lw - ansi.StringWidth(tabsRight); gap >= 2 {
-		s.header = left + strings.Repeat(" ", gap) + tabsRight
-		return
-	}
-	label := tabLabel(s.tab)
-	if gap := s.width - lw - len(label); gap >= 0 {
-		s.header = left + strings.Repeat(" ", gap) + st.filterOn.Render(label)
-		return
-	}
-	s.header = termtext.Truncate(left+st.filterOn.Render(label), s.width, st.ic.Ellipsis)
-	s.header += strings.Repeat(" ", s.width-ansi.StringWidth(s.header))
+	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(st.filterOn, st.filterOff)))
+	row.SetItems(items, cur)
+	row.SetWidth(s.width - ansi.StringWidth(left))
+	s.header = ansi.Truncate(left+row.View(), s.width, "")
+	s.header += strings.Repeat(" ", max(s.width-ansi.StringWidth(s.header), 0))
 }
 
 // emptyText is what the feed says when no pull request is in the tab, with

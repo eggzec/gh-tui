@@ -151,7 +151,7 @@ func TestFilter(t *testing.T) {
 				t.Errorf("a new filter kept the selection at %d", s.list.Index())
 			}
 			bar := ansi.Strip(strings.SplitN(s.View(), "\n", 2)[0])
-			if !strings.Contains(bar, "Open · Closed · All") {
+			if !strings.Contains(bar, " Open  Closed  All ") {
 				t.Errorf("bar = %q, want the tabs", bar)
 			}
 		})

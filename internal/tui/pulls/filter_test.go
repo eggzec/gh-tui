@@ -287,7 +287,7 @@ func TestAnotherRepositoryOpensOnTheDefaults(t *testing.T) {
 		if f, _ := h.Filter(); f.Query != "is:open" {
 			t.Errorf("Filter = %q in %s, want the defaults", f.Query, r)
 		}
-		if got := screen(h); !strings.Contains(got, "Open · Closed") {
+		if got := screen(h); !strings.Contains(got, " Open  Closed ") {
 			t.Errorf("header lacks the tabs in %s:\n%s", r, got)
 		}
 	}
