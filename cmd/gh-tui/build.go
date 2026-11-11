@@ -404,7 +404,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithRelease(func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
 			o := []releases.Option{
 				releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), releases.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
-				releases.WithAutolinks(links), releases.WithDownloader(releaseDownloads{dl}),
+				releases.WithAutolinks(links), releases.WithDownloader(releaseDownloads{dl}), releases.WithAvatars(pics),
 			}
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
 		}),
