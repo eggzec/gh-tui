@@ -99,9 +99,10 @@ func (s *Service) loadExtra(ctx context.Context, repo core.RepoRef, rel core.Rel
 	entry := cache.Entry[extra]{}
 	commit, res, err := s.api.CommitOf(ctx, repo, rel.Tag, condCommit)
 	var apiErr *github.Error
-	if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+	if noCommit(err) {
 		// A deleted tag, or the tag of a draft, which exists once it is
 		// published: there is no commit to show and nothing to compare.
+		// GitHub answers 422, not 404, for a ref it doesn't have.
 		if ok && prev.Value.TagSHA == "" && prev.Value.AheadBy == -1 && prev.Value.Default == def {
 			return cache.Entry[extra]{}, cache.ErrNotModified
 		}
@@ -136,4 +137,12 @@ func (s *Service) loadExtra(ctx context.Context, repo core.RepoRef, rel core.Rel
 	}
 	entry.Value = out
 	return entry, nil
+}
+
+// noCommit reports whether err says the tag has no commit: GitHub answers
+// 404 for some missing refs and 422 for others.
+func noCommit(err error) bool {
+	var apiErr *github.Error
+	return errors.As(err, &apiErr) &&
+		(apiErr.StatusCode == http.StatusNotFound || apiErr.StatusCode == http.StatusUnprocessableEntity)
 }
