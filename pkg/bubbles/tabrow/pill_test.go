@@ -23,7 +23,9 @@ func TestPillFitsAndIsLeftAligned(t *testing.T) {
 	plain := ansi.Strip(got)
 	var sb strings.Builder
 	for _, it := range items {
-		sb.WriteString(" " + it.Label + " ")
+		sb.WriteString(" ")
+		sb.WriteString(it.Label)
+		sb.WriteString(" ")
 	}
 	if want := sb.String(); plain != want {
 		t.Fatalf("got %q, want %q", plain, want)
