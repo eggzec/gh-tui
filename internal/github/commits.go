@@ -224,6 +224,22 @@ func (c *Client) GetCommit(ctx context.Context, repo core.RepoRef, sha string) (
 	}, nil
 }
 
+// CommitOf returns the commit that ref names, a tag, a branch or a SHA,
+// without its files. Unlike GetCommit it is conditional, since a ref may
+// move. If cond is current, the Response has NotModified set and the commit
+// is empty.
+func (c *Client) CommitOf(ctx context.Context, repo core.RepoRef, ref string, cond Conditional) (core.Commit, Response, error) {
+	var d restCommit
+	res, err := c.Get(ctx, commitPath(repo, ref), cond, &d)
+	if err != nil {
+		return core.Commit{}, res, fmt.Errorf("get commit %s: %w", ref, err)
+	}
+	if res.NotModified {
+		return core.Commit{}, res, nil
+	}
+	return d.core(), res, nil
+}
+
 // ListCommitFiles returns a page of the files that the commit sha changed.
 // Cursor is the FilesNext of GetCommit, or the Next of the previous page;
 // empty reads the first page. Each page is a request for the whole commit,

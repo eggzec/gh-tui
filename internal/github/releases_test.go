@@ -55,6 +55,45 @@ func TestGetRelease(t *testing.T) {
 	}
 }
 
+func TestGetReleaseImmutableAvatar(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":1,"tag_name":"v1","author":{"login":"octocat","avatar_url":"https://avatars.githubusercontent.com/u/1"},"immutable":true,"assets":[]}`))
+	}))
+	got, _, err := c.GetRelease(t.Context(), core.RepoRef{Owner: "o", Name: "r"}, 1, Conditional{})
+	if err != nil {
+		t.Fatalf("GetRelease: %v", err)
+	}
+	if !got.Immutable || got.AuthorAvatar != "https://avatars.githubusercontent.com/u/1" || got.Author.Login != "octocat" {
+		t.Errorf("release = %+v, want immutable with the author's avatar", got)
+	}
+}
+
+func TestCommitOf(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/repos/o/r/commits/v1.2.0" {
+			t.Errorf("request = %s %s, want GET /repos/o/r/commits/v1.2.0", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("If-None-Match") == `W/"c1"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", `W/"c1"`)
+		_, _ = w.Write([]byte(`{"sha":"abc123","commit":{"message":"release","verification":{"verified":true,"reason":"valid","signature":"sig"}},"parents":[]}`))
+	}))
+	repo := core.RepoRef{Owner: "o", Name: "r"}
+	got, res, err := c.CommitOf(t.Context(), repo, "v1.2.0", Conditional{})
+	if err != nil {
+		t.Fatalf("CommitOf: %v", err)
+	}
+	if got.SHA != "abc123" || !got.Verification.Verified || res.ETag != `W/"c1"` {
+		t.Errorf("commit = %+v, ETag %q; want abc123, verified", got, res.ETag)
+	}
+	got, res, err = c.CommitOf(t.Context(), repo, "v1.2.0", Conditional{ETag: res.ETag})
+	if err != nil || !res.NotModified || got.SHA != "" {
+		t.Errorf("conditional CommitOf = %+v, %+v, %v; want not modified and empty", got, res, err)
+	}
+}
+
 func TestGetReleaseNotFound(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

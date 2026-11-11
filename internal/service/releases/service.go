@@ -27,6 +27,8 @@ type API interface {
 	ListReleases(ctx context.Context, repo core.RepoRef, cursor string, perPage int, cond github.Conditional) (core.Page[core.Release], github.Response, error)
 	LatestRelease(ctx context.Context, repo core.RepoRef) (core.Release, bool, error)
 	ReleaseAssetURL(ctx context.Context, repo core.RepoRef, assetID int64) (string, error)
+	CommitOf(ctx context.Context, repo core.RepoRef, ref string, cond github.Conditional) (core.Commit, github.Response, error)
+	Compare(ctx context.Context, repo core.RepoRef, base, head string, cond github.Conditional) (core.Compare, github.Response, error)
 }
 
 // Service reads releases. It is safe for concurrent use.
@@ -46,6 +48,12 @@ type Service struct {
 	// so what is cached never holds a mark that has gone stale.
 	latestMu sync.Mutex
 	latest   map[string]int64
+
+	// extras are what the headers show beyond the release, kept as releases
+	// are.
+	extras        *cache.Cache[extra]
+	keptExtras    *cache.Shelf[extra]
+	defaultBranch DefaultBranch
 }
 
 // Option configures a Service.
@@ -56,6 +64,8 @@ type options struct {
 	capacity int
 	store    cache.Store
 	pageSize int
+
+	defaultBranch DefaultBranch
 }
 
 // WithPageSize sets how many releases a page of a list holds. Without it,
@@ -100,7 +110,7 @@ func WithStore(store cache.Store) Option {
 // of core.Release they hold. Bump it when the type changes shape.
 const (
 	kind   = "release"
-	schema = 2
+	schema = 3
 	// kindList is what pages of releases are kept as.
 	kindList = "releaselist"
 )
@@ -123,6 +133,10 @@ func New(api API, opts ...Option) *Service {
 		keptLists: cache.NewShelf[core.Page[core.Release]](o.store, kindList, schema),
 		pageSize:  cmp.Or(o.pageSize, config.Default().PageSize.Releases),
 		latest:    map[string]int64{},
+
+		extras:        cache.New[extra](cache.WithTTL(ttl), cache.WithCapacity(capacity)),
+		keptExtras:    cache.NewShelf[extra](o.store, kindExtra, extraSchema),
+		defaultBranch: o.defaultBranch,
 	}
 }
 

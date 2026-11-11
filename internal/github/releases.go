@@ -15,11 +15,16 @@ import (
 // and revalidates them for free with their ETag.
 
 type restRelease struct {
-	ID          int64     `json:"id"`
-	TagName     string    `json:"tag_name"`
-	Name        string    `json:"name"`
-	Target      string    `json:"target_commitish"`
-	Author      user      `json:"author"`
+	ID      int64  `json:"id"`
+	TagName string `json:"tag_name"`
+	Name    string `json:"name"`
+	Target  string `json:"target_commitish"`
+	Author  struct {
+		user
+		AvatarURL string `json:"avatar_url"`
+	} `json:"author"`
+	// Immutable is absent before GitHub Enterprise Server supports it.
+	Immutable   bool      `json:"immutable" schema:"optional"`
 	Body        string    `json:"body"`
 	HTMLURL     string    `json:"html_url"`
 	Draft       bool      `json:"draft"`
@@ -37,17 +42,19 @@ type restRelease struct {
 
 func (r restRelease) core() core.Release {
 	rel := core.Release{
-		ID:          r.ID,
-		Tag:         r.TagName,
-		Name:        r.Name,
-		Target:      r.Target,
-		Author:      r.Author.core(),
-		Body:        r.Body,
-		URL:         r.HTMLURL,
-		Draft:       r.Draft,
-		Prerelease:  r.Prerelease,
-		CreatedAt:   r.CreatedAt,
-		PublishedAt: r.PublishedAt,
+		ID:           r.ID,
+		Tag:          r.TagName,
+		Name:         r.Name,
+		Target:       r.Target,
+		Author:       r.Author.core(),
+		AuthorAvatar: r.Author.AvatarURL,
+		Immutable:    r.Immutable,
+		Body:         r.Body,
+		URL:          r.HTMLURL,
+		Draft:        r.Draft,
+		Prerelease:   r.Prerelease,
+		CreatedAt:    r.CreatedAt,
+		PublishedAt:  r.PublishedAt,
 	}
 	for _, a := range r.Assets {
 		rel.Assets = append(rel.Assets, core.ReleaseAsset{ID: a.ID, Name: a.Name, Size: a.Size, Downloads: a.DownloadCount, URL: a.URL})
