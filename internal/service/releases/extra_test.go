@@ -95,18 +95,28 @@ func TestExtraMentions(t *testing.T) {
 // A tag that does not exist, such as that of a draft, is no error: the
 // header shows the release without a commit.
 func TestExtraTagNotFound(t *testing.T) {
-	api := &fakeAPI{commitErr: &github.Error{StatusCode: http.StatusNotFound}}
-	s := New(api, WithDefaultBranch(defaultMain))
-	want := core.ReleaseExtra{AheadBy: -1, Default: "main"}
-	if x := extraOf(t, s); !equal(x, want) {
-		t.Errorf("Extra = %+v, want %+v", x, want)
-	}
-	if len(api.heads) != 0 {
-		t.Errorf("compared %v, want no comparison without a tag", api.heads)
-	}
-	// Asked again, the same answer is a 304 of sorts and keeps the entry.
-	if x := extraOf(t, s); !equal(x, want) {
-		t.Errorf("Extra again = %+v, want %+v", x, want)
+	for _, status := range []int{http.StatusNotFound, http.StatusUnprocessableEntity} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				api := &fakeAPI{commitErr: &github.Error{StatusCode: status}}
+				s := New(api, WithDefaultBranch(defaultMain))
+				want := core.ReleaseExtra{AheadBy: -1, Default: "main"}
+				if x := extraOf(t, s); !equal(x, want) {
+					t.Errorf("Extra = %+v, want %+v", x, want)
+				}
+				if len(api.heads) != 0 {
+					t.Errorf("compared %v, want no comparison without a tag", api.heads)
+				}
+				// Past the TTL the same answer keeps the entry.
+				time.Sleep(config.Default().Cache.TTL.Releases)
+				if x := extraOf(t, s); !equal(x, want) {
+					t.Errorf("Extra again = %+v, want %+v", x, want)
+				}
+				if len(api.refs) != 2 {
+					t.Errorf("asked %v, want the tag twice", api.refs)
+				}
+			})
+		})
 	}
 }
 
