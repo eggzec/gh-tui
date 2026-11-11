@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -26,6 +27,9 @@ type owner struct {
 	q     dashboard.ReposQuery
 	// started is set once the feed has fetched its first page.
 	started bool
+	// total is the owner's repository count that the last page told, or 0.
+	// The feed reads run off the update loop, so it is atomic.
+	total atomic.Int64
 	// Table lists the owner's repositories, filtered by the pane's
 	// filter.
 	repolist.Table
@@ -88,13 +92,20 @@ func (t *repoTabs) newOwner(label string, q dashboard.ReposQuery) *owner {
 	read := func(ctx context.Context, q dashboard.ReposQuery, again bool) (core.Page[core.Repo], error) {
 		q.Again = again
 		f := o.Filter()
-		if !f.Active() {
-			return s.svc.Repos(ctx, q)
+		var p core.Page[core.Repo]
+		var err error
+		if f.Active() {
+			// The filter runs over every repository, so that it sorts
+			// them all. The pages the list read are cached and cost
+			// nothing.
+			p, err = s.svc.AllRepos(ctx, q, dashboard.MaxOwnerRepos)
+			p.Items, p.Next = f.Apply(p.Items), ""
+		} else {
+			p, err = s.svc.Repos(ctx, q)
 		}
-		// The filter runs over every repository, so that it sorts them
-		// all. The pages the list read are cached and cost nothing.
-		p, err := s.svc.AllRepos(ctx, q, dashboard.MaxOwnerRepos)
-		p.Items, p.Next = f.Apply(p.Items), ""
+		if p.Total > 0 {
+			o.total.Store(int64(p.Total))
+		}
 		return p, err
 	}
 	clearKey := ui.KeyOf(s.icons, s.keys.ClearFilter)
