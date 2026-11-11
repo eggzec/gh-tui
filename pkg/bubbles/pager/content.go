@@ -149,7 +149,6 @@ func (m *Model) reset(name string, s state, err error) {
 	if s == stateFailed {
 		m.errText, m.errHint = m.errorWords()
 	}
-	m.renderName()
 	m.rows, m.spans, m.vis, m.pvis, m.mask, m.maskAnchor, m.size = noRows, nil, nil, nil, nil, nil, 0
 	m.seen, m.follow = 0, false
 	m.anchor = anchor{}
@@ -160,10 +159,4 @@ func (m *Model) reset(name string, s state, err error) {
 	m.opt = false
 	m.clearSearch()
 	m.clearProjection()
-}
-
-// renderName renders the name for the status line, on one line and without
-// escape sequences.
-func (m *Model) renderName() {
-	m.nameView = m.styles.Name.Render(strings.Join(strings.Fields(termtext.OneLine(m.name)), " "))
 }

@@ -29,7 +29,7 @@ func Example() {
 	// 2
 	// 3 func main() {}
 	//
-	// hello.go                  line 1/3  100%
+	//                           line 1/3  100%
 }
 
 // modal is a root model that shows a file in a pager over the rest of the
@@ -105,7 +105,7 @@ func Example_modal() {
 	//      │                                      │
 	//      │                                      │
 	//      │                                      │
-	//      │ notes.txt             line 1/1  100% │
+	//      │                       line 1/1  100% │
 	//      ╰──────────────────────────────────────╯
 	//
 	// open: false

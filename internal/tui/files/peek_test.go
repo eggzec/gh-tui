@@ -111,7 +111,6 @@ func TestPeekPlaceholders(t *testing.T) {
 		{"go.mod", "Not read yet."},
 		{"vendor-lib", "is a submodule"},
 		{"cmd", "cmd"},
-		{"README with spaces.md", "README with spaces.md"},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			t.Parallel()

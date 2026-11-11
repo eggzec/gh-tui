@@ -258,7 +258,6 @@ func (t Theme) Pager(ic Icons) pager.Styles {
 	s.Ellipsis = ic.Ellipsis
 	s.Text = s.Text.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.LineNumber = s.LineNumber.Foreground(lipgloss.Color(t.Palette.Subtle))
-	s.Name = s.Name.Foreground(lipgloss.Color(t.Palette.Foreground))
 	s.Status = s.Status.Foreground(lipgloss.Color(t.Palette.Muted))
 	s.Notice = s.Notice.Foreground(lipgloss.Color(t.Palette.Error))
 	s.Message = s.Message.Foreground(lipgloss.Color(t.Palette.Muted))

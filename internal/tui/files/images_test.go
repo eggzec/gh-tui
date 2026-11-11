@@ -65,8 +65,8 @@ func TestPreviewImage(t *testing.T) {
 	if n := uitest.Placeholders(t, v); n != 40*11 {
 		t.Errorf("%d cells show the image, want %d", n, 40*11)
 	}
-	if last := ansi.Strip(v[strings.LastIndexByte(v, '\n')+1:]); !strings.Contains(last, "docs/logo.PNG") {
-		t.Errorf("status line = %q, want the file's name", last)
+	if last := ansi.Strip(v[strings.LastIndexByte(v, '\n')+1:]); strings.Contains(last, "docs/logo.PNG") {
+		t.Errorf("status line = %q, want no name: the title has it", last)
 	}
 
 	p.SetSize(30, 8)

@@ -201,7 +201,6 @@ func (m *Model) load() tea.Cmd {
 	m.top, m.row, m.left, m.mark, m.cursor = d.top, d.row, d.left, d.mark, d.cursor
 	m.search, m.hits = d.search, d.hits
 	m.seen, m.follow = d.seen, d.follow
-	m.renderName()
 	if m.render != nil {
 		// It was fitted to the width at the time, so it fits again once, at
 		// the width now, keeping its place.

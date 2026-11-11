@@ -189,11 +189,9 @@ func TestViewWrapsMessages(t *testing.T) {
 	if got := strings.TrimSpace(lines[0]) + " " + strings.TrimSpace(lines[1]); got != "This diff is too large to show here." {
 		t.Errorf("message reads %q over two lines, want it whole", got)
 	}
-	// What doesn't fit the height is cut, and the status line stays.
+	// What doesn't fit the height is cut.
 	m.SetSize(8, 2)
-	if v := m.View(); !strings.Contains(ansi.Strip(v), "big.go") {
-		t.Errorf("status line lost: %q", ansi.Strip(v))
-	}
+	assertFits(t, m.View(), 8, 2)
 }
 
 func TestErrorText(t *testing.T) {
@@ -216,8 +214,8 @@ func TestErrorText(t *testing.T) {
 			if got := strings.TrimRight(lines[0], " "); got != tt.want {
 				t.Errorf("first row = %q, want %q", got, tt.want)
 			}
-			if got := lines[len(lines)-1]; !strings.HasPrefix(got, "main.go") {
-				t.Errorf("status line = %q, want the name", got)
+			if got := strings.TrimSpace(lines[len(lines)-1]); got != "" {
+				t.Errorf("status line = %q, want it blank: the title has the name", got)
 			}
 		})
 	}
@@ -280,14 +278,11 @@ func TestSetErrorText(t *testing.T) {
 	}
 }
 
-// The status line ends a cut name with the ellipsis of the styles.
-func TestViewEllipsis(t *testing.T) {
-	st := DefaultStyles(true)
-	st.Ellipsis = "..."
-	name := strings.Repeat("a-very-long-directory/", 6) + "main.go"
-	m := open(t, name, goSource, WithSize(40, 4), WithStyles(st))
+// The status line holds no name: the frame's title shows it.
+func TestViewStatusHasNoName(t *testing.T) {
+	m := open(t, "main.go", goSource, WithSize(40, 4))
 	lines := strings.Split(plain(m), "\n")
-	if last := lines[len(lines)-1]; !strings.Contains(last, "...") || strings.Contains(last, "…") {
-		t.Errorf("status line %q, want the name cut with ...", last)
+	if last := lines[len(lines)-1]; strings.Contains(last, "main.go") || !strings.Contains(last, "line 1/") {
+		t.Errorf("status line %q, want the position and no name", last)
 	}
 }
