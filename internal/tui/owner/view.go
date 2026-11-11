@@ -495,7 +495,7 @@ func (s *Section) tabs(tabs []tab, w int) string {
 	items := make([]tabrow.Item, len(tabs))
 	cur := 0
 	for i, t := range tabs {
-		items[i] = tabrow.Item{Label: s.tabTitle(t, tabTitles)}
+		items[i] = tabrow.Item{Label: s.tabTitle(t, tabTitles), Short: s.tabTitle(t, shortTabs)}
 		if t == s.page.tab {
 			cur = i
 		}

@@ -181,9 +181,12 @@ func (s *Section) reposEmpty(l *repoList) string {
 	return ui.None("repositories you can see")
 }
 
-// listTop is how many lines the boxed tabs (three) and the headers of the
-// columns (one) take above the list.
-const listTop = 4
+// tabRows is how many lines the row of tab pills takes.
+const tabRows = 1
+
+// listTop is how many lines the tabs and the headers of the columns (one)
+// take above the list.
+const listTop = tabRows + 1
 
 // gutterWidth is the room the list leaves for its cursor.
 const gutterWidth = 2
