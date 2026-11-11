@@ -48,6 +48,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	refsui "github.com/eggzec/gh-tui/internal/tui/refs"
+	"github.com/eggzec/gh-tui/internal/tui/releaselist"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/threads"
@@ -345,9 +346,10 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		})),
 	}
 	layout := tui.Layout{
-		Files:  files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
-		Pulls:  pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
-		Issues: issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
+		Files:    files.New(ctx, fileSvc, cfg.Keys, fileOpts...),
+		Pulls:    pulls.New(ctx, pullSvc, cfg.Keys, pullOpts...),
+		Issues:   issues.New(ctx, issueSvc, cfg.Keys, issueOpts...),
+		Releases: releaselist.New(ctx, releaseSvc, cfg.Keys),
 		Notifications: notifications.New(ctx, notifSvc, cfg.Keys,
 			notifications.WithStates(notifSvc),
 			notifications.WithVoice(voice), notifications.WithOpener(opener),

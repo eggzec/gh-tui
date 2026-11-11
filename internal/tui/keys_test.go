@@ -151,7 +151,7 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		winner, want string
 	}{
 		{"repo: tab", true, nil, "repo: Files", "tab", "global: next pane", "repo: Pull requests"},
-		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "global: previous pane", "repo: Issues"},
+		{"repo: shift+tab", true, nil, "repo: Files", "shift+tab", "global: previous pane", "repo: Releases"},
 		{"repo: ]", true, nil, "repo: Files", "]", "nothing", "repo: Files"},
 		{"repo: [", true, nil, "repo: Files", "[", "nothing", "repo: Files"},
 

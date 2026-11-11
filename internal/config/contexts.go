@@ -77,6 +77,7 @@ var contexts = []Context{
 	{Name: "files", Title: "Files", Reach: ReachPane, Parent: "repo"},
 	{Name: "pulls", Title: "Pull requests", Reach: ReachPane, Parent: "repo"},
 	{Name: "issues", Title: "Issues", Reach: ReachPane, Parent: "repo"},
+	{Name: "releases", Title: "Releases", Reach: ReachPane, Parent: "repo"},
 
 	{Name: "notifications", Title: "Notifications", Reach: ReachScreen, Modal: true},
 

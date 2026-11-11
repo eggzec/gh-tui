@@ -124,6 +124,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 			ui.Binding(keys, config.ActionPane1, "files"),
 			ui.Binding(keys, config.ActionPane2, "pull requests"),
 			ui.Binding(keys, config.ActionPane3, "issues"),
+			ui.Binding(keys, config.ActionPane4, "releases"),
 		},
 	}
 	k.Jump = ui.Jump(k.Panes...)

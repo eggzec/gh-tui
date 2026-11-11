@@ -108,6 +108,31 @@ func TestListMarksLatest(t *testing.T) {
 	})
 }
 
+func TestInvalidateMakesTheNextListAsk(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		api := &listAPI{}
+		s := New(api, WithTTL(time.Minute))
+		if _, err := s.List(t.Context(), ListQuery{Repo: repo}); err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		s.Invalidate(core.RepoRef{Owner: "other", Name: "repo"})
+		if _, err := s.List(t.Context(), ListQuery{Repo: repo}); err != nil || api.lists != 1 {
+			t.Fatalf("after another repo's Invalidate: lists = %d, err = %v; want 1", api.lists, err)
+		}
+		s.Invalidate(repo)
+		if _, ok := s.CachedList(ListQuery{Repo: repo}); !ok {
+			t.Error("CachedList lost the page, which Invalidate only marks stale")
+		}
+		p, err := s.List(t.Context(), ListQuery{Repo: repo})
+		if err != nil || len(p.Items) != 2 {
+			t.Fatalf("List = %+v, %v; want the page", p, err)
+		}
+		if api.lists != 2 {
+			t.Errorf("lists = %d, want 2: Invalidate must make the next List ask", api.lists)
+		}
+	})
+}
+
 // keptStore returns a store that holds a page an earlier session read, aged
 // past the TTL. It must run inside a synctest bubble.
 func keptStore(t *testing.T, ttl time.Duration, q ListQuery) *disk.Store {

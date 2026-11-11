@@ -1094,7 +1094,7 @@ func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 	}
 	height := fakes[0].height
 	rows := helpRows(t, m)
-	for _, want := range []string{"tab next pane", "1 2 3 focus pane", "Z close", "? help"} {
+	for _, want := range []string{"tab next pane", "1 2 3 4 focus pane", "Z close", "? help"} {
 		if !slices.Contains(rows, want) {
 			t.Errorf("the help lacks %q: %q", want, rows)
 		}

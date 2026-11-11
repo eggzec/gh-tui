@@ -422,7 +422,7 @@ func (m *Model) divider() (s *panes.Size, def int) {
 		}
 		return &m.dividers.List, panes.DefaultListWidth
 	}
-	if m.left == 0 || m.left >= len(m.panes) {
+	if len(m.leftC) == 0 || len(m.rigC) == 0 {
 		return nil, 0
 	}
 	return &m.dividers.Files, filesWidth(m.width)
@@ -475,7 +475,7 @@ func (m *Model) arrange(height int) {
 		return
 	}
 	m.endSplit()
-	left, right := m.panes[:m.left], m.panes[m.left:]
+	left, right := m.leftC, m.rigC
 	lw := 0
 	switch {
 	case len(right) == 0:
@@ -483,7 +483,14 @@ func (m *Model) arrange(height int) {
 	case len(left) > 0:
 		lw = m.filesDivider()
 	}
-	stack(left, lw, height)
+	if len(left) == 2 {
+		// Files over the releases, which have a third of the height.
+		top := height - height/3
+		left[0].resize(lw, top)
+		left[1].resize(lw, height-top)
+	} else {
+		stack(left, lw, height)
+	}
 	if len(right) == 2 {
 		top := m.stackTop(height)
 		right[0].resize(m.width-lw, top)
@@ -509,7 +516,7 @@ func (m *Model) stackTop(height int) int {
 // canStack reports whether the stack keys have a divider to move: the repository
 // screen shows the pull requests over the issues, and one of them has the focus.
 func (m *Model) canStack() bool {
-	if m.screen != repoScreen || m.onePane() || len(m.panes)-m.left != 2 || m.focus < m.left {
+	if m.screen != repoScreen || m.onePane() || len(m.rigC) != 2 || !slices.Contains(m.rigC, m.panes[m.focus]) {
 		return false
 	}
 	_, lo, hi := stackBounds(m.contentHeight())
@@ -522,7 +529,7 @@ func (m *Model) growPane(dir int) {
 	if !m.canStack() {
 		return
 	}
-	_, sign := panes.Grow(m.focus-m.left, 2)
+	_, sign := panes.Grow(slices.Index(m.rigC, m.panes[m.focus]), 2)
 	def, lo, hi := stackBounds(m.contentHeight())
 	m.dividers.Move(&m.dividers.Stack, dir*sign, def, lo, hi)
 	m.layout()
@@ -611,11 +618,11 @@ func (m *Model) body() []string {
 	}
 	h := m.contentHeight()
 	left := make([]string, 0, h)
-	for _, p := range m.panes[:m.left] {
+	for _, p := range m.leftC {
 		left = p.appendLines(left)
 	}
 	right := make([]string, 0, h)
-	for _, p := range m.panes[m.left:] {
+	for _, p := range m.rigC {
 		right = p.appendLines(right)
 	}
 	if len(left) == 0 {
