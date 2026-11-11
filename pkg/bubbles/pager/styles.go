@@ -31,8 +31,6 @@ type Styles struct {
 	// last jump went to. They replace the syntax colors of the match.
 	Match        lipgloss.Style
 	CurrentMatch lipgloss.Style
-	// Name styles the name of the content in the status line.
-	Name lipgloss.Style
 	// Status styles the position, filter and match count in the status
 	// line, and the notes that aren't errors, such as an option's new
 	// value.
@@ -91,7 +89,6 @@ func DefaultStyles(isDark bool) Styles {
 		LineNumber:     lipgloss.NewStyle().Foreground(subtle),
 		Match:          lipgloss.NewStyle().Foreground(text).Background(match),
 		CurrentMatch:   lipgloss.NewStyle().Foreground(onCurrent).Background(current),
-		Name:           lipgloss.NewStyle().Foreground(text).Bold(true),
 		Status:         lipgloss.NewStyle().Foreground(muted),
 		Notice:         lipgloss.NewStyle().Foreground(errColor),
 		Message:        lipgloss.NewStyle().Foreground(muted),
@@ -119,7 +116,6 @@ func (m *Model) SetStyles(s Styles) {
 	if len(s.SpinnerFrames.Frames) > 0 {
 		m.spin.Spinner = s.SpinnerFrames
 	}
-	m.renderName()
 	m.prompt.SetStyles(cmdline.Styles{
 		Prompt:      s.Prompt,
 		Text:        s.Text,

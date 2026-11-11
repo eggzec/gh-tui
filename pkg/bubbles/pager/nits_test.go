@@ -1,6 +1,22 @@
 package pager
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestCutNoteEndsWithTheStylesEllipsis(t *testing.T) {
+	m := fresh(t, WithSize(20, 4), WithRows(liveOf(30, "row")))
+	st := DefaultStyles(true)
+	st.Ellipsis = "..."
+	m.SetStyles(st)
+	m.flash = "a note that is far too long for the status line"
+	lines := strings.Split(plain(m), "\n")
+	last := lines[len(lines)-1]
+	if !strings.Contains(last, "...") || strings.Contains(last, "…") {
+		t.Errorf("status line %q, want the note cut with \"...\"", last)
+	}
+}
 
 func TestSetCursorWithWrapKeepsTheCursorInView(t *testing.T) {
 	for _, row := range []int{20, 29, 0} {

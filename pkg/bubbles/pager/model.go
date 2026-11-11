@@ -159,8 +159,7 @@ type Model struct {
 	cur  int
 
 	// Rendered once in SetStyles, so View only copies them.
-	esc      esc
-	nameView string
+	esc esc
 }
 
 // New returns a blurred, empty pager.

@@ -256,9 +256,9 @@ func (m Model) writeSpan(b *strings.Builder, i, a, e int) {
 	}
 }
 
-// statusLine renders the name, or a note on the last search or filter,
-// on the left, and the filter, the search and where the window is on the
-// right, or the prompt while it is open.
+// statusLine renders a note on the last search or filter, or the option
+// being set, on the left, and the filter, the search and where the window
+// is on the right, or the prompt while it is open.
 func (m Model) statusLine() string {
 	if m.prompt.Focused() {
 		return m.fit(m.prompt.View(), m.width)
@@ -284,7 +284,9 @@ func (m Model) statusLine() string {
 		pct := (m.at(m.bottom()) + 1) * 100 / m.rows.Len()
 		parts = append(parts, m.esc.status.wrap(fmt.Sprintf("line %d/%d  %d%%", m.topLine()+1, m.rows.Len(), pct)))
 	}
-	left := m.nameView
+	// The name is in the title of the frame around the pager, so the left
+	// side is blank unless an option or a note is showing.
+	var left string
 	switch {
 	case m.opt:
 		left = m.esc.prompt.wrap("-")
