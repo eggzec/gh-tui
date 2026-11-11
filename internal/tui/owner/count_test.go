@@ -71,28 +71,17 @@ func TestListPaneBorderCount(t *testing.T) {
 	}
 }
 
-// The tabs line is boxed, three lines of the width asked, and shows the
-// language at its right while there is room.
-func TestTabsLineBoxed(t *testing.T) {
+// The tabs line is one line of pills, no wider than the width asked.
+func TestTabsLinePills(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 120, 40)
-	l, ok := s.page.list().(*repoList)
-	if !ok {
-		t.Skip("repositories list not on view")
-	}
-	lang := ansi.Strip(s.language(&l.tableTab))
 	for _, w := range []int{120, 60, 30} {
 		lines := strings.Split(s.tabsLine(w), "\n")
-		if len(lines) != 3 {
-			t.Fatalf("width %d: %d lines, want 3", w, len(lines))
+		if len(lines) != 1 {
+			t.Fatalf("width %d: %d lines, want 1", w, len(lines))
 		}
-		for _, ln := range lines {
-			if got := ansi.StringWidth(ln); got != w {
-				t.Errorf("width %d: line %q is %d wide", w, ansi.Strip(ln), got)
-			}
+		if got := ansi.StringWidth(lines[0]); got > w {
+			t.Errorf("width %d: line %q is %d wide", w, ansi.Strip(lines[0]), got)
 		}
-	}
-	if lang != "" && !strings.Contains(ansi.Strip(s.tabsLine(120)), lang) {
-		t.Errorf("wide tabs lack the language %q", lang)
 	}
 }

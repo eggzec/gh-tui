@@ -402,22 +402,15 @@ func (s *Section) reposBody(w, h int) []string {
 	return lines
 }
 
-// tabsLine renders the boxed tabs of the owners, scrolled to show the one on
-// view, and on the right the language of the repository under the cursor,
-// which the list shows as a glyph.
+// tabsLine renders the tabs of the owners as one row of pills.
 func (s *Section) tabsLine(w int) string {
-	st, t := &s.st, &s.repos
-	var right string
-	if r, ok := t.selected(); ok && r.Language != "" {
-		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.shared.Muted.Render(r.Language)
-	}
+	t := &s.repos
 	items := make([]tabrow.Item, len(t.tabs))
 	for i, o := range t.tabs {
 		items[i] = tabrow.Item{Label: o.label}
 	}
-	row := tabrow.New(tabrow.WithStyles(st.row), tabrow.WithBox(st.frames.Border), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
+	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, t.cur)
-	row.SetAside(right)
 	row.SetWidth(w)
 	return row.View()
 }
@@ -463,15 +456,21 @@ func (s *Section) workBody(w, h int) []string {
 	return append(lines, status...)
 }
 
-// workTabs renders the tabs of the lists of work, by their short titles when
-// the full ones don't fit in w cells.
+// workTabs renders the tabs of the lists of work as one row of pills.
 func (s *Section) workTabs(w int) string {
 	l := &s.tasks
 	items := make([]tabrow.Item, len(workLists))
+	full := 0
 	for i, wl := range workLists {
-		items[i] = tabrow.Item{Label: wl.title, Short: wl.short}
+		items[i] = tabrow.Item{Label: wl.title}
+		full += ansi.StringWidth(wl.title) + 2
 	}
-	row := tabrow.New(tabrow.WithStyles(s.st.row), tabrow.WithBox(s.st.frames.Border), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
+	if full > w {
+		for i, wl := range workLists {
+			items[i].Label = wl.short
+		}
+	}
+	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, l.cur)
 	row.SetWidth(w)
 	return row.View()

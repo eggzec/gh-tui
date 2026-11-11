@@ -16,10 +16,10 @@ func pillRow(w, cur int) Model {
 
 func TestPillFitsAndIsLeftAligned(t *testing.T) {
 	m := pillRow(80, 1)
-	if m.Height() != 1 {
-		t.Fatalf("height %d", m.Height())
-	}
 	got := m.View()
+	if strings.Contains(got, "\n") {
+		t.Fatalf("pill row spans lines: %q", got)
+	}
 	plain := ansi.Strip(got)
 	var sb strings.Builder
 	for _, it := range items {
@@ -66,19 +66,5 @@ func TestPillCurrentIsSolid(t *testing.T) {
 	}
 	if !st.Current.GetReverse() || !st.Current.GetBold() {
 		t.Fatal("current pill is not reverse and bold")
-	}
-}
-
-func TestPillAside(t *testing.T) {
-	m := pillRow(120, 0)
-	m.SetAside("Go")
-	got := m.View()
-	if ansi.StringWidth(got) != 120 || !strings.HasSuffix(got, "Go") {
-		t.Fatalf("aside not at the right edge: %q", got)
-	}
-	m = pillRow(5, 0)
-	m.SetAside("Go")
-	if strings.Contains(m.View(), "Go") {
-		t.Fatal("aside kept without room")
 	}
 }

@@ -479,52 +479,31 @@ func (s *Section) listBody(w, h int) []string {
 	return lines
 }
 
-// tabsLine renders the tabs of the list pane, each with its count once the
-// header says it, and on the right the language of the repository under
-// the cursor, which the list shows as a glyph. The tabs go by their short
-// titles where their titles don't fit.
+// tabsLine renders the tabs of the list pane as one row of pills, each
+// with its count once the header says it.
 func (s *Section) tabsLine(w int) string {
 	p := s.page
-	var right string
-	switch l := p.list().(type) {
-	case *repoList:
-		right = s.language(&l.tableTab)
-	case *starList:
-		right = s.language(&l.tableTab)
-	}
 	tabs := []tab{p.tab}
 	if p.header.ok {
 		tabs = tabsOf(p.header.value.Kind)
 	}
-	return s.tabs(tabs, right, w)
+	return s.tabs(tabs, w)
 }
 
-// tabs renders tabs boxed within w columns, by their titles or, where those
-// don't fit, by shorter forms, with aside at the right end of the labels.
-func (s *Section) tabs(tabs []tab, aside string, w int) string {
+// tabs renders tabs as one row of pills within w columns.
+func (s *Section) tabs(tabs []tab, w int) string {
 	items := make([]tabrow.Item, len(tabs))
 	cur := 0
 	for i, t := range tabs {
-		items[i] = tabrow.Item{Label: s.tabTitle(t, tabTitles), Short: s.tabTitle(t, shortTabs)}
+		items[i] = tabrow.Item{Label: s.tabTitle(t, tabTitles)}
 		if t == s.page.tab {
 			cur = i
 		}
 	}
-	row := tabrow.New(tabrow.WithStyles(s.st.row), tabrow.WithBox(s.st.frames.Border), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
+	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, cur)
-	row.SetAside(aside)
 	row.SetWidth(w)
 	return row.View()
-}
-
-// language renders the language of the repository under the cursor of l,
-// or "" when it has none.
-func (s *Section) language(l *tableTab) string {
-	r, ok := l.Feed.Selected()
-	if !ok || r.Language == "" {
-		return ""
-	}
-	return s.langPaint(r.Language, r.LanguageColor).Render(s.icons.Language(r.Language)) + " " + s.st.shared.Muted.Render(r.Language)
 }
 
 // listCount is the forms of the count in the top-right of the list pane, longest

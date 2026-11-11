@@ -77,12 +77,12 @@ func TestWorkColumns(t *testing.T) {
 	s := newSection(t, svc, nil, 220, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "3", "]")
 	lines := workLines(s)
-	// The boxed tabs (three lines), the header, and a line for each of the three items.
-	if len(lines) != 7 {
-		t.Fatalf("the pane shows %d lines, want 7:\n%s", len(lines), strings.Join(lines, "\n"))
+	// The pill tabs (one line), the header, and a line for each of the three items.
+	if len(lines) != 5 {
+		t.Fatalf("the pane shows %d lines, want 5:\n%s", len(lines), strings.Join(lines, "\n"))
 	}
-	header := lines[3]
-	for _, l := range lines[3:] {
+	header := lines[1]
+	for _, l := range lines[1:] {
 		if w := ansi.StringWidth(l); w > s.boxes[workPane].w-2 {
 			t.Errorf("%q takes %d cells, more than the pane", l, w)
 		}
@@ -91,7 +91,7 @@ func TestWorkColumns(t *testing.T) {
 	if strings.Index(header, refHeader) != workIndent || titleAt < 0 || ageAt < titleAt {
 		t.Fatalf("the header %q doesn't name the columns in order", header)
 	}
-	rows := lines[4:]
+	rows := lines[2:]
 	for i, want := range []struct{ ref, title, age string }{
 		{"eggzec/slk#239", "fix(ui): preserve scroll position in messages.Model on resize; throttle the redraws", "1h"},
 		{"eggzec/playground#3", "Add initial sample README content", "9mo"},
