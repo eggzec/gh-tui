@@ -53,6 +53,13 @@ func TestPillNarrowShowsOnlyCurrent(t *testing.T) {
 	}
 }
 
+func TestPillShortLabels(t *testing.T) {
+	m := pillRow(45, 2)
+	if got, want := ansi.Strip(m.View()), " Repos  Stars  Followers  Following  Orgs "; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestPillCurrentIsSolid(t *testing.T) {
 	m := pillRow(80, 0)
 	st := m.Styles()

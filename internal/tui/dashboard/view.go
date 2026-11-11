@@ -460,15 +460,8 @@ func (s *Section) workBody(w, h int) []string {
 func (s *Section) workTabs(w int) string {
 	l := &s.tasks
 	items := make([]tabrow.Item, len(workLists))
-	full := 0
 	for i, wl := range workLists {
-		items[i] = tabrow.Item{Label: wl.title}
-		full += ansi.StringWidth(wl.title) + 2
-	}
-	if full > w {
-		for i, wl := range workLists {
-			items[i].Label = wl.short
-		}
+		items[i] = tabrow.Item{Label: wl.title, Short: wl.short}
 	}
 	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, l.cur)

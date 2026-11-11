@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -82,6 +83,21 @@ func TestViewTabStates(t *testing.T) {
 			press(t, s, tt.keys...)
 			golden.RequireEqual(t, s.View())
 		})
+	}
+}
+
+// A long list fills the frame: the rows the tab pills leave are all used, so
+// no blank line trails the list.
+func TestListFillsFrame(t *testing.T) {
+	t.Parallel()
+	s := newSection(t, newFake(), "octocat", 80, 24)
+	lines := strings.Split(ansi.Strip(s.View()), "\n")
+	if len(lines) != 24 {
+		t.Fatalf("view has %d lines, want 24", len(lines))
+	}
+	i := slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "╰") })
+	if i < 1 || !strings.Contains(lines[i-1], "repo-") {
+		t.Errorf("the row above the frame's foot is %q, want a repository", lines[max(i-1, 0)])
 	}
 }
 
