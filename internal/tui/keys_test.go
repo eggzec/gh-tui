@@ -133,8 +133,7 @@ func focusOf(m *Model) string {
 // Tab and shift+tab cycle the panes of the repository screen, which the
 // app does, and reach the section on the search modal, which does what it
 // defines for them: the search modal moves between its results and preview,
-// and its ] and [ show the next and the previous kind without moving the
-// focus; the query types them, and once text is typed it keeps tab and
+// and its ] and [ do nothing; the query types them, and once text is typed it keeps tab and
 // shift+tab to complete the word at the cursor. The help credits each key to
 // what it reaches.
 func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
@@ -157,8 +156,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 
 		{"search query: tab", false, []string{"S"}, `search: query ""`, "tab", "Search: next", `search: results ""`},
 		{"search query: shift+tab", false, []string{"S"}, `search: query ""`, "shift+tab", "Search: previous", `search: results ""`},
-		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "Search: next kind", `search: query ""`},
-		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "Search: previous kind", `search: query ""`},
+		{"search query: ]", false, []string{"S"}, `search: query ""`, "]", "nothing", `search: query ""`},
+		{"search query: [", false, []string{"S"}, `search: query ""`, "[", "nothing", `search: query ""`},
 
 		{"search typing: tab", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "tab", "Query: complete", `search: typing "key"`},
 		{"search typing: shift+tab", false, []string{"S", "/", "k", "e", "y"}, `search: typing "key"`, "shift+tab", "Query: previous completion", `search: typing "key"`},
@@ -169,8 +168,8 @@ func TestNextAndPrevKeysOnEachScreen(t *testing.T) {
 		// Tab moves on to the preview beside the results, which is part of the results' area.
 		{"search results: tab", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "tab", "Search: next", `search: preview "key"`},
 		{"search results: shift+tab", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "shift+tab", "Search: previous", `search: preview "key"`},
-		{"search results: ]", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "Search: next kind", `search: results "key"`},
-		{"search results: [", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "Search: previous kind", `search: results "key"`},
+		{"search results: ]", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "]", "nothing", `search: results "key"`},
+		{"search results: [", false, []string{"S", "/", "k", "e", "y", "enter"}, `search: results "key"`, "[", "nothing", `search: results "key"`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {

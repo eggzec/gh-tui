@@ -30,9 +30,6 @@ type KeyMap struct {
 	Jump key.Binding
 	// Insert starts typing in the query.
 	Insert key.Binding
-	// NextTab and PrevTab show the next and the previous kind of results.
-	NextTab key.Binding
-	PrevTab key.Binding
 	// Select searches from the query, and opens the result under the
 	// cursor.
 	Select key.Binding
@@ -103,8 +100,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		Next:    page.Binding("global.next_pane", "next"),
 		Prev:    page.Binding("global.prev_pane", "previous"),
 		Insert:  page.Binding("insert", "type"),
-		NextTab: page.Binding("global.next_tab", "next kind"),
-		PrevTab: page.Binding("global.prev_tab", "previous kind"),
 		Select:  page.Binding("global.select", "open"),
 		Checks:  results.Binding("checks", "checks"),
 		Filter:  results.Binding("filter", "filter"),
@@ -145,7 +140,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 // own returns the keys of the page, in the order it matches them.
 func (k KeyMap) own() []key.Binding {
 	return slices.Concat([]key.Binding{
-		k.Insert, k.NextTab, k.PrevTab, k.Select, k.Next, k.Prev, k.Jump,
+		k.Insert, k.Select, k.Next, k.Prev, k.Jump,
 		k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups,
 		k.ScrollOtherDown, k.ScrollOtherUp,
 	}, k.dividers())
@@ -159,7 +154,7 @@ func (k KeyMap) dividers() []key.Binding {
 
 // ShortHelp implements help.KeyMap.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Insert, k.Select, k.Checks, k.Filter, k.Sort, k.NextTab, k.Next}
+	return []key.Binding{k.Insert, k.Select, k.Checks, k.Filter, k.Sort, k.Next}
 }
 
 // FullHelp implements help.KeyMap.
@@ -184,10 +179,10 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 	}
 	k := s.keys.state(s)
 	if s.preview && s.area == resultsArea {
-		screen := slices.Concat([]key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump, k.ScrollOtherDown, k.ScrollOtherUp}, k.dividers())
-		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next}), s.previewLayer()}
+		screen := slices.Concat([]key.Binding{k.Insert, k.Next, k.Prev, k.Jump, k.ScrollOtherDown, k.ScrollOtherUp}, k.dividers())
+		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.Next}), s.previewLayer()}
 	}
-	screen := []key.Binding{k.Insert, k.NextTab, k.PrevTab, k.Next, k.Prev, k.Jump}
+	screen := []key.Binding{k.Insert, k.Next, k.Prev, k.Jump}
 	if s.area != inputArea {
 		screen = append(screen, k.ScrollOtherDown, k.ScrollOtherUp)
 	}
@@ -196,7 +191,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		// The query has no pane keys of its own: what acts on a result or
 		// the list waits for the results.
 		screen = append(screen, k.Select, k.Refresh)
-		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.Select, k.NextTab, k.Next})}
+		return []keyhelp.Layer{ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.Select, k.Next})}
 	}
 	// Without a query the results are the page's own suggestions, which
 	// move with the keys of the list; with one, the list's layer has them.
@@ -208,7 +203,7 @@ func (s *Section) KeyLayers() []keyhelp.Layer {
 		Bindings: slices.Concat([]key.Binding{k.Select}, moves, []key.Binding{k.Checks, k.Refresh, k.Filter, k.Sort, k.GroupBy, k.ToggleGroups}),
 		Short:    slices.Concat(moves, []key.Binding{k.Select, k.Checks, k.Filter, k.Sort}),
 	}
-	page := ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.NextTab, k.Next})
+	page := ui.ContextLayer("search_modal", screen, []key.Binding{k.Insert, k.Next})
 	if s.text == "" {
 		return []keyhelp.Layer{page, ui.MergeLayers("search_results", own)}
 	}

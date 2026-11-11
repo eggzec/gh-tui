@@ -128,7 +128,7 @@ func aheadSection(t *testing.T, f *detailFake) *Section {
 	// The query has the focus, in normal mode, on the pull requests.
 	press(t, s, "esc")
 	s.focusArea(inputArea)
-	press(t, s, "]", "]")
+	run(t, s, s.showKind(core.SearchPulls))
 	return s
 }
 

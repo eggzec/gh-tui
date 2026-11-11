@@ -1,7 +1,6 @@
 package search
 
 import (
-	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/spinner"
@@ -122,10 +121,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Insert):
 		s.startTyping()
 		return nil
-	case keymap.Matches(msg, k.NextTab):
-		return s.moveKind(1)
-	case keymap.Matches(msg, k.PrevTab):
-		return s.moveKind(-1)
 	case keymap.Matches(msg, k.Next), keymap.Matches(msg, k.Prev):
 		s.cyclePane()
 		return nil
@@ -197,12 +192,6 @@ func (s *Section) pickKind(i int) tea.Cmd {
 	}
 	s.focusArea(resultsArea)
 	return cmd
-}
-
-// moveKind shows the kind delta kinds away, going round at either end.
-func (s *Section) moveKind(delta int) tea.Cmd {
-	i := (slices.Index(kinds, s.kind) + delta + len(kinds)) % len(kinds)
-	return s.showKind(kinds[i])
 }
 
 func (s *Section) pressResults(msg tea.KeyPressMsg) tea.Cmd {

@@ -33,8 +33,8 @@ func TestKeyLayersOrder(t *testing.T) {
 		// The page opens on the query, which takes no text yet.
 		{nil, "j", "nothing", func(s, _ *Section, _ []tea.Msg) bool { return s.input.Value() == "" && !s.typing }},
 		{nil, "/", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.area == inputArea }},
-		{nil, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues }},
-		{nil, "[", "Search: previous kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchTopics }},
+		{nil, "]", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.kind == b.kind }},
+		{nil, "[", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.kind == b.kind }},
 		{nil, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && !s.typing }},
 		{nil, "2", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchIssues }},
 		{nil, "enter", "Search: search", func(s, _ *Section, _ []tea.Msg) bool { return s.area == inputArea }},
@@ -52,7 +52,7 @@ func TestKeyLayersOrder(t *testing.T) {
 		{results, "/", "Search: type", func(s, _ *Section, _ []tea.Msg) bool { return s.typing && s.input.Value() == "tea" }},
 		{results, "1", "Search: show kind", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.kind == core.SearchRepos }},
 		{results, "tab", "Search: next", func(s, _ *Section, _ []tea.Msg) bool { return s.area == resultsArea && s.preview && !s.typing }},
-		{results, "]", "Search: next kind", func(s, _ *Section, _ []tea.Msg) bool { return s.kind == core.SearchIssues && s.area == resultsArea }},
+		{results, "]", "nothing", func(s, b *Section, _ []tea.Msg) bool { return s.kind == b.kind && s.area == resultsArea }},
 		{results, "j", "Results: down", func(s, b *Section, _ []tea.Msg) bool {
 			return selectedHit(s) != selectedHit(b) || s.starts.sel != b.starts.sel
 		}},

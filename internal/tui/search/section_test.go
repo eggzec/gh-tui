@@ -73,15 +73,15 @@ func TestSwitchKindAfterSubmitLoadsThatKind(t *testing.T) {
 	if n, _ := svc.stats(); n != 1 {
 		t.Fatalf("%d searches after the submit, want the kind on view", n)
 	}
-	press(t, s, "]")
+	press(t, s, "2")
 	if s.Kind() != core.SearchIssues {
-		t.Fatalf("] shows %v, want the issues", s.Kind())
+		t.Fatalf("2 shows %v, want the issues", s.Kind())
 	}
 	if n, _ := svc.stats(); n != 2 || svc.queries[1].Kind != core.SearchIssues || svc.queries[1].Text != "tea" {
 		t.Errorf("searches %v, want the issues for tea loaded on the switch", svc.queries)
 	}
 	before := svc.fetches()
-	press(t, s, "[", "]")
+	press(t, s, "1", "2")
 	if n := svc.fetches(); n != before {
 		t.Errorf("going back to a loaded kind made %d searches, want none", n-before)
 	}
@@ -105,7 +105,7 @@ func TestNoLoadBeforeSubmit(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeOnly(t, s, "tea")
-	press(t, s, "esc", "]", "]", "]", "[")
+	press(t, s, "esc", "4", "3")
 	if n, code := svc.stats(); n != 0 || code != 0 || svc.prefetches != 0 {
 		t.Errorf("%d searches, %d code searches and %d prefetches before a submit, want none", n, code, svc.prefetches)
 	}
@@ -132,13 +132,13 @@ func TestSwitchingKindsUsesTheCache(t *testing.T) {
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
 	before := svc.fetches()
-	press(t, s, "esc", "]")
+	press(t, s, "esc", "2")
 	if s.Kind() != core.SearchIssues || !strings.Contains(screen(s), "Terminal tea renders twice after resize") {
-		t.Fatalf("] should show the issues:\n%s", screen(s))
+		t.Fatalf("2 should show the issues:\n%s", screen(s))
 	}
-	press(t, s, "]")
+	press(t, s, "3")
 	if !strings.Contains(screen(s), "render only the cells that changed") {
-		t.Errorf("] again should show the pull requests:\n%s", screen(s))
+		t.Errorf("3 should show the pull requests:\n%s", screen(s))
 	}
 	if n := svc.fetches(); n != before {
 		t.Errorf("switching kinds made %d searches, want none", n-before)
@@ -153,7 +153,7 @@ func TestCodeOnDemand(t *testing.T) {
 		t.Fatal("typing searched code")
 	}
 	// Showing the code searches it.
-	press(t, s, "esc", "]", "]", "]")
+	press(t, s, "esc", "4")
 	if _, code := svc.stats(); code != 1 || s.Kind() != core.SearchCode {
 		t.Fatalf("showing the code made %d code searches, want one", code)
 	}
@@ -183,7 +183,7 @@ func TestCodeCountdown(t *testing.T) {
 		svc.limited = time.Now().Add(42 * time.Second)
 		s := newSection(t, svc, 120, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
-		press(t, s, "esc", "]", "]", "]")
+		press(t, s, "esc", "4")
 		if _, code := svc.stats(); code != 0 {
 			t.Error("code search ran while GitHub is out of them")
 		}
@@ -213,7 +213,7 @@ func TestCodeRefused(t *testing.T) {
 		svc.codeErr = &core.RateLimitError{Reset: time.Now().Add(30 * time.Second)}
 		s := newSection(t, svc, 120, 30, WithNow(time.Now))
 		typeText(t, s, "tea")
-		press(t, s, "esc", "]", "]", "]")
+		press(t, s, "esc", "4")
 		if !strings.Contains(screen(s), "Code search resumes in 30s.") {
 			t.Errorf("a refused code search should count down to when GitHub said:\n%s", screen(s))
 		}
@@ -238,7 +238,7 @@ func TestCodeErrorWords(t *testing.T) {
 			svc.codeErr = tt.err
 			s := newSection(t, svc, 80, 30)
 			typeText(t, s, "tea")
-			press(t, s, "esc", "]", "]", "]")
+			press(t, s, "esc", "4")
 			if v := screen(s); !strings.Contains(v, tt.want) || strings.Contains(v, "github:") || strings.Contains(v, "403") {
 				t.Errorf("screen = %q, want %q", v, tt.want)
 			}
@@ -279,12 +279,12 @@ func TestOpen(t *testing.T) {
 		want []tea.Msg
 	}{
 		{"repository", []string{"esc", "enter"}, []tea.Msg{ui.RepoMsg{Repo: bubbletea}}},
-		{"issue", []string{"esc", "]", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
-		{"pull request", []string{"esc", "]", "]", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
-		{"pull request on its checks", []string{"esc", "]", "]", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
-		{"no checks for an issue", []string{"esc", "]", "C"}, nil},
+		{"issue", []string{"esc", "2", "enter"}, []tea.Msg{ui.OpenIssueMsg{Repo: bubbletea, Number: 1203}}},
+		{"pull request", []string{"esc", "3", "down", "enter"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388}}},
+		{"pull request on its checks", []string{"esc", "3", "down", "C"}, []tea.Msg{ui.OpenPullMsg{Repo: bubbletea, Number: 1388, Checks: true}}},
+		{"no checks for an issue", []string{"esc", "2", "C"}, nil},
 		// The file opens over the page, on what matched.
-		{"file", []string{"esc", "]", "]", "]", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
+		{"file", []string{"esc", "4", "enter"}, []tea.Msg{ui.OpenFileMsg{Repo: bubbletea, Path: "tea.go", SHA: "b1", Find: "tea"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -376,39 +376,20 @@ func TestDigitsMovePanes(t *testing.T) {
 	}
 }
 
-// ] and [ show the next and the previous kind from either pane, going
-// round, and search again for the query.
-func TestBracketsSwitchKinds(t *testing.T) {
-	svc := newFake()
-	s := newSection(t, svc, 120, 30)
+// ] and [ do not switch the kind: the digits do.
+func TestBracketsDoNothing(t *testing.T) {
+	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
 	press(t, s, "esc")
-	for _, want := range []core.SearchKind{core.SearchIssues, core.SearchPulls} {
-		press(t, s, "]")
-		if s.Kind() != want || s.area != resultsArea {
-			t.Fatalf("] showed %v in area %d, want %v in the results", s.Kind(), s.area, want)
-		}
+	kind, area := s.Kind(), s.area
+	press(t, s, "]", "[", "]")
+	if s.Kind() != kind || s.area != area {
+		t.Errorf("brackets gave kind %v in area %d, want %v in area %d", s.Kind(), s.area, kind, area)
 	}
 	s.focusArea(inputArea)
-	press(t, s, "[")
-	if s.Kind() != core.SearchIssues || s.area != inputArea {
-		t.Errorf("[ from the query showed %v in area %d, want issues in the query", s.Kind(), s.area)
-	}
-	// Topics is the last kind, so the cycle goes round through it.
-	press(t, s, "[", "[")
-	if s.Kind() != core.SearchTopics {
-		t.Errorf("[ before the first kind showed %v, want topics", s.Kind())
-	}
-	press(t, s, "[", "[", "[")
-	if s.Kind() != core.SearchCode {
-		t.Errorf("[ before users showed %v, want code", s.Kind())
-	}
-	if _, code := svc.stats(); code != 1 {
-		t.Errorf("showing the code kind made %d code searches, want one", code)
-	}
-	press(t, s, "]", "]", "]", "]")
-	if s.Kind() != core.SearchRepos {
-		t.Errorf("] after the last kind showed %v, want repositories", s.Kind())
+	press(t, s, "]", "[")
+	if s.Kind() != kind || s.area != inputArea || s.typing {
+		t.Errorf("brackets in the query gave kind %v in area %d, want %v in the query", s.Kind(), s.area, kind)
 	}
 }
 
@@ -710,7 +691,7 @@ func TestEnterLabel(t *testing.T) {
 		return ""
 	}
 	s := newSection(t, newFake(), 120, 30)
-	press(t, s, "2", "]")
+	press(t, s, "2", "3")
 	if got := label(s); got != "open" {
 		t.Errorf("enter on the start is %q on issues with no query, want open", got)
 	}

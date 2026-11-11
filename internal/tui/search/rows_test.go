@@ -158,12 +158,7 @@ func TestHitHeader(t *testing.T) {
 		s := newSection(t, newFake(), width, 22)
 		typeText(t, s, "tea")
 		press(t, s, "esc")
-		for range kinds {
-			if s.Kind() == core.SearchIssues {
-				break
-			}
-			press(t, s, "]")
-		}
+		press(t, s, "2")
 		if s.Kind() != core.SearchIssues {
 			t.Fatalf("width %d: kind is %v, want issues", width, s.Kind())
 		}
