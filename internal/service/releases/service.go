@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/cache"
@@ -23,14 +24,28 @@ import (
 // API is the part of the GitHub client the service uses.
 type API interface {
 	GetRelease(ctx context.Context, repo core.RepoRef, id int64, cond github.Conditional) (core.Release, github.Response, error)
+	ListReleases(ctx context.Context, repo core.RepoRef, cursor string, perPage int, cond github.Conditional) (core.Page[core.Release], github.Response, error)
+	LatestRelease(ctx context.Context, repo core.RepoRef) (core.Release, bool, error)
+	ReleaseAssetURL(ctx context.Context, repo core.RepoRef, assetID int64) (string, error)
 }
 
 // Service reads releases. It is safe for concurrent use.
 type Service struct {
 	api   API
+	ttl   time.Duration
 	cache *cache.Cache[core.Release]
 	// kept holds what an earlier session read, if the service has a store.
 	kept *cache.Shelf[core.Release]
+
+	lists     *cache.Cache[core.Page[core.Release]]
+	keptLists *cache.Shelf[core.Page[core.Release]]
+	pageSize  int
+
+	// latest is the ID of each repository's latest release, by repoID, read
+	// once and kept for the session. Pages are marked with it on the way out,
+	// so what is cached never holds a mark that has gone stale.
+	latestMu sync.Mutex
+	latest   map[string]int64
 }
 
 // Option configures a Service.
@@ -40,6 +55,17 @@ type options struct {
 	ttl      time.Duration
 	capacity int
 	store    cache.Store
+	pageSize int
+}
+
+// WithPageSize sets how many releases a page of a list holds. Without it,
+// or with n below one, it is the default of the config (config.Default).
+func WithPageSize(n int) Option {
+	return func(o *options) {
+		if n > 0 {
+			o.pageSize = n
+		}
+	}
 }
 
 // WithTTL sets how long a release read stays fresh. A release seldom
@@ -74,7 +100,9 @@ func WithStore(store cache.Store) Option {
 // of core.Release they hold. Bump it when the type changes shape.
 const (
 	kind   = "release"
-	schema = 1
+	schema = 2
+	// kindList is what pages of releases are kept as.
+	kindList = "releaselist"
 )
 
 // New returns a service that reads releases through api.
@@ -84,13 +112,17 @@ func New(api API, opts ...Option) *Service {
 		opt(&o)
 	}
 	d := config.Default().Cache
+	ttl := cmp.Or(o.ttl, d.TTL.Releases)
+	capacity := cmp.Or(o.capacity, d.Memory.Entries)
 	return &Service{
-		api: api,
-		cache: cache.New[core.Release](
-			cache.WithTTL(cmp.Or(o.ttl, d.TTL.Releases)),
-			cache.WithCapacity(cmp.Or(o.capacity, d.Memory.Entries)),
-		),
-		kept: cache.NewShelf[core.Release](o.store, kind, schema),
+		api:       api,
+		ttl:       ttl,
+		cache:     cache.New[core.Release](cache.WithTTL(ttl), cache.WithCapacity(capacity)),
+		kept:      cache.NewShelf[core.Release](o.store, kind, schema),
+		lists:     cache.New[core.Page[core.Release]](cache.WithTTL(ttl), cache.WithCapacity(capacity)),
+		keptLists: cache.NewShelf[core.Page[core.Release]](o.store, kindList, schema),
+		pageSize:  cmp.Or(o.pageSize, config.Default().PageSize.Releases),
+		latest:    map[string]int64{},
 	}
 }
 
@@ -104,7 +136,7 @@ func key(repo core.RepoRef, id int64) string {
 // without a request.
 func (s *Service) CachedGet(repo core.RepoRef, id int64) (core.Release, bool) {
 	e, st := s.cache.Get(key(repo, id))
-	return e.Value, st != cache.Miss
+	return s.mark(repo, e.Value), st != cache.Miss
 }
 
 // Current reports whether release id of repo is in memory and fresh, so
@@ -128,5 +160,5 @@ func (s *Service) Get(ctx context.Context, repo core.RepoRef, id int64) (core.Re
 	if err != nil {
 		return core.Release{}, fmt.Errorf("get release %d of %s: %w", id, repo, err)
 	}
-	return e.Value, nil
+	return s.mark(repo, e.Value), nil
 }

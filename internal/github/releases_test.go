@@ -41,9 +41,9 @@ func TestGetRelease(t *testing.T) {
 		t.Error("release has no body")
 	}
 	wantAssets := []core.ReleaseAsset{
-		{Name: "checksums.txt", Size: 5300, Downloads: 12662, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/checksums.txt"},
-		{Name: "checksums.txt.sigstore.json", Size: 10256, Downloads: 9183, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/checksums.txt.sigstore.json"},
-		{Name: "glow-3.0.0-1.aarch64.rpm", Size: 6200748, Downloads: 244, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/glow-3.0.0-1.aarch64.rpm"},
+		{ID: 510467049, Name: "checksums.txt", Size: 5300, Downloads: 12662, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/checksums.txt"},
+		{ID: 510467051, Name: "checksums.txt.sigstore.json", Size: 10256, Downloads: 9183, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/checksums.txt.sigstore.json"},
+		{ID: 510466989, Name: "glow-3.0.0-1.aarch64.rpm", Size: 6200748, Downloads: 244, URL: "https://github.com/charmbracelet/glow/releases/download/v3.0.0/glow-3.0.0-1.aarch64.rpm"},
 	}
 	if !slices.Equal(got.Assets, wantAssets) {
 		t.Errorf("assets = %+v, want %+v", got.Assets, wantAssets)

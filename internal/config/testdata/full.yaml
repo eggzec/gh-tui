@@ -157,6 +157,7 @@ page_size:
   waiting_on_you: 15
   people: 40
   references: 50
+  releases: 20
 
 commands:
   history: 500

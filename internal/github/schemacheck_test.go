@@ -185,6 +185,8 @@ var restCalls = []restCall{
 	{Func: "MarkThreadDone", Method: http.MethodDelete, Path: "/notifications/threads/{thread_id}"},
 	{Func: "MarkNotificationsRead", Method: http.MethodPut, Path: "/notifications"},
 	{Func: "GetRelease", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/{release_id}", Decode: restRelease{}},
+	{Func: "ListReleases", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases", Query: []string{"per_page"}, Decode: []restRelease{}},
+	{Func: "ReleaseAssetURL", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/assets/{asset_id}", Accept: "application/octet-stream"},
 	{Func: "ResolveSubjectURL", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/releases/{release_id}", Decode: restRelease{}},
 	{Func: "ResolveSubjectURL", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/actions/runs", Query: []string{"check_suite_id", "per_page"}, Decode: restRuns{}},
 	{Func: "runOfTitle", Method: http.MethodGet, Path: "/repos/{owner}/{repo}/actions/runs", Query: []string{"branch", "status", "per_page"}, Decode: restRuns{}},

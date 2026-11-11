@@ -508,6 +508,8 @@ page_size:
   people: 50
   # Each page of the pull requests and issues that mention one.
   references: 100
+  # The releases of a repository.
+  releases: 30
 
 # The command line.
 commands:

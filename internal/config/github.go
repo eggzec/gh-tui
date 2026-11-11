@@ -70,6 +70,8 @@ type PageSize struct {
 	// References sizes the pages of the items that mention a pull request
 	// or issue.
 	References int `yaml:"references"`
+	// Releases sizes the pages of a repository's releases.
+	Releases int `yaml:"releases"`
 }
 
 // Bounds of a page size: GitHub serves at most 100 items a page.
@@ -86,7 +88,7 @@ func (p PageSize) validate() error {
 	}{
 		{"pulls", p.Pulls}, {"threads", p.Threads}, {"reviewers", p.Reviewers}, {"rules", p.Rules}, {"issues", p.Issues}, {"notifications", p.Notifications}, {"repos", p.Repos},
 		{"runs", p.Runs}, {"commits", p.Commits}, {"search", p.Search}, {"waiting_on_you", p.WaitingOnYou},
-		{"people", p.People}, {"references", p.References},
+		{"people", p.People}, {"references", p.References}, {"releases", p.Releases},
 	} {
 		if s.size < minPageSize || s.size > maxPageSize {
 			errs = append(errs, fmt.Errorf("page_size.%s: must be between %d and %d, got %d", s.key, minPageSize, maxPageSize, s.size))

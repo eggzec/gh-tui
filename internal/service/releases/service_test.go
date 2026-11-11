@@ -44,6 +44,18 @@ func (f *fakeAPI) GetRelease(_ context.Context, r core.RepoRef, id int64, cond g
 	return v3, github.Response{ETag: `"r1"`}, nil
 }
 
+func (f *fakeAPI) ListReleases(context.Context, core.RepoRef, string, int, github.Conditional) (core.Page[core.Release], github.Response, error) {
+	return core.Page[core.Release]{}, github.Response{}, core.ErrNotFound
+}
+
+func (f *fakeAPI) LatestRelease(context.Context, core.RepoRef) (core.Release, bool, error) {
+	return core.Release{}, false, nil
+}
+
+func (f *fakeAPI) ReleaseAssetURL(context.Context, core.RepoRef, int64) (string, error) {
+	return "", core.ErrNotFound
+}
+
 func (f *fakeAPI) calls() []github.Conditional {
 	f.mu.Lock()
 	defer f.mu.Unlock()
