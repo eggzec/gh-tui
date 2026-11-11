@@ -19,6 +19,7 @@ const viewerOwnReposQuery = `query ViewerOwnRepos($first: Int!, $after: String) 
       orderBy: {field: UPDATED_AT, direction: DESC}
       ownerAffiliations: [OWNER]
     ) {
+      totalCount
       nodes { ...repoFields }
       pageInfo { hasNextPage endCursor }
     }
@@ -30,6 +31,7 @@ const orgReposQuery = `query OrgRepos($login: String!, $first: Int!, $after: Str
   ` + rateLimitField + `
   organization(login: $login) {
     repositories(first: $first, after: $after, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      totalCount
       nodes { ...repoFields }
       pageInfo { hasNextPage endCursor }
     }
@@ -40,11 +42,12 @@ const orgReposQuery = `query OrgRepos($login: String!, $first: Int!, $after: Str
 // ownerRepos is a page of an owner's repositories.
 type ownerRepos struct {
 	nodes[repoNode]
-	PageInfo pageInfo `json:"pageInfo"`
+	TotalCount int      `json:"totalCount"`
+	PageInfo   pageInfo `json:"pageInfo"`
 }
 
 func (r *ownerRepos) core() core.Page[core.Repo] {
-	return core.Page[core.Repo]{Items: convert(r.Nodes, repoNode.core), Next: r.PageInfo.next()}
+	return core.Page[core.Repo]{Items: convert(r.Nodes, repoNode.core), Next: r.PageInfo.next(), Total: r.TotalCount}
 }
 
 // ownerReposVars are the variables of a page of first repositories after a

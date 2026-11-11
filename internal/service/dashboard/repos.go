@@ -137,6 +137,7 @@ func (s *Service) allRepos(q ReposQuery, limit int, read func(ReposQuery) (core.
 		found = true
 		all.Items = append(all.Items, p.Items...)
 		all.Next = p.Next
+		all.Total = p.Total
 		all.Stale = all.Stale || p.Stale
 		all.Offline = all.Offline || p.Offline
 		all.Limited = all.Limited || p.Limited

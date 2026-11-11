@@ -44,6 +44,8 @@ type fakeService struct {
 	contrib core.Contributions
 	repos   map[string][]core.Repo
 	size    int
+	// totals are the repository counts that the pages of an owner tell.
+	totals map[string]int
 	// pages are the pages of work after the first, by cursor.
 	pages map[string]core.WorkList
 	// stalePages are the cursors whose page comes back kept by an earlier
@@ -192,7 +194,7 @@ func (f *fakeService) page(q dashboard.ReposQuery) core.Page[core.Repo] {
 	start, _ := strconv.Atoi(q.Cursor)
 	start = min(start, len(all))
 	end := min(start+f.size, len(all))
-	p := core.Page[core.Repo]{Items: slices.Clone(all[start:end])}
+	p := core.Page[core.Repo]{Items: slices.Clone(all[start:end]), Total: f.totals[ownerKey(q)]}
 	if end < len(all) {
 		p.Next = strconv.Itoa(end)
 	}

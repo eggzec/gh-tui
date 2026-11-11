@@ -58,6 +58,9 @@ func TestOrgRepos(t *testing.T) {
 	if vhs.Ref != (core.RepoRef{Owner: "charmbracelet", Name: "vhs"}) || vhs.Language != "Go" || vhs.DefaultBranch != "main" || vhs.UpdatedAt.Before(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Errorf("first repo = %+v, want charmbracelet/vhs in Go", vhs)
 	}
+	if got.Total != 1234 {
+		t.Errorf("total = %d, want 1234", got.Total)
+	}
 	if a, b := vhs.Caps.Permission, got.Items[1].Caps.Permission; a != core.PermissionMaintain || b != core.PermissionTriage {
 		t.Errorf("permissions = %q, %q, want maintain, triage", a, b)
 	}

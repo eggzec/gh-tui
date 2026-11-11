@@ -177,15 +177,16 @@ func (s *Section) titleForms(p paneID) []string {
 }
 
 // reposCount is the forms of the repositories count, longest first, for the
-// right of the pane's title (see ui.CountForms), with the viewer's total. There
-// is none while the tab loads.
+// right of the pane's title (see ui.CountForms), with the total that the
+// owner's last page told. There is none while the tab loads.
 func (s *Section) reposCount() []string {
-	f := &s.repos.current().Feed
+	o := s.repos.current()
+	f := &o.Feed
 	if f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil
 	}
-	total := 0
-	if s.header.ok && s.repos.current().q.Viewer {
+	total := int(o.total.Load())
+	if total == 0 && s.header.ok && o.q.Viewer {
 		total = s.header.value.Profile.Repos
 	}
 	return ui.CountForms(ui.CountSpec{

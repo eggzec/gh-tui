@@ -47,8 +47,9 @@ const (
 	// schema 6 keeps the avatar of each repository's owner, and 7
 	// whether the author of each task is an app, and 8 the viewer's
 	// permission in each repository, and 9 the cursor of each list of
-	// work, and 10 the topics of each repository.
-	schema = 10
+	// work, and 10 the topics of each repository, and 11 the total of
+	// each owner's repositories.
+	schema = 11
 )
 
 // New returns a Service that fetches from api.

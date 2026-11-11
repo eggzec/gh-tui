@@ -8,6 +8,21 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 )
 
+func TestReposCountTotal(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	svc.totals = map[string]int{"github": 1234}
+	s := newSection(t, svc, nil, 140, 38)
+	press(t, s, "]")
+	if got := s.repos.current().label; got != "github" {
+		t.Fatalf("after ] the tab is %q, want github", got)
+	}
+	got := s.reposCount()
+	if len(got) == 0 || got[0] != "1.2k[5]" {
+		t.Fatalf("reposCount() = %q, want 1.2k[5] first", got)
+	}
+}
+
 func TestInboxCount(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
