@@ -51,6 +51,12 @@ func TestAvatarStripImages(t *testing.T) {
 	if got := AvatarStrip(a, users, size, 2, plusN); got != "+3" {
 		t.Errorf("tiny strip = %q, want +3", got)
 	}
+	if got := AvatarStrip(a, users, size, 1, plusN); ansi.StringWidth(got) > 1 {
+		t.Errorf("strip in 1 = %q, wider than 1", got)
+	}
+	if got := AvatarStrip(a, users, size, 0, plusN); got != "" {
+		t.Errorf("strip in 0 = %q, want empty", got)
+	}
 }
 
 func TestAvatarStripFailed(t *testing.T) {
@@ -79,6 +85,8 @@ func TestAvatarStripText(t *testing.T) {
 		{14, "@mona +2"},
 		{12, "@mona +2"},
 		{3, "+3"},
+		{1, "+"},
+		{0, ""},
 	} {
 		if got := AvatarStrip(a, users, size, tt.width, plusN); got != tt.want {
 			t.Errorf("text strip in %d = %q, want %q", tt.width, got, tt.want)
