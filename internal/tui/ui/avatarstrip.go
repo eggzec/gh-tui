@@ -26,7 +26,10 @@ func AvatarStrip(imgs *Images, users []Person, size ImageSize, width int, more f
 			widths[i] = max(size.Cols, 1)
 			continue
 		}
-		cells[i] = "@" + u.Login
+		cells[i] = " " // an unknown account is blank, as an avatar not loaded
+		if u.Login != "" {
+			cells[i] = "@" + u.Login
+		}
 		widths[i] = ansi.StringWidth(cells[i])
 	}
 	n := len(users)
@@ -43,7 +46,11 @@ func AvatarStrip(imgs *Images, users []Person, size ImageSize, width int, more f
 				need++
 			}
 		}
-		if need > width && k > 0 {
+		if k == 0 {
+			// Not even one avatar fits: the count, cut to the width.
+			return ansi.Truncate(rest, max(width, 0), "")
+		}
+		if need > width {
 			continue
 		}
 		line := strings.Join(cells[:k], " ")

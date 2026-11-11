@@ -39,7 +39,7 @@ type cells struct {
 	states                [ui.NumStates]string
 	tag, title, meta, age paint
 	files                 paint
-	latest                lipgloss.Style
+	latest                string
 }
 
 func newCells(t ui.Theme, icons ui.Icons, look int) cells {
@@ -55,7 +55,7 @@ func newCells(t ui.Theme, icons ui.Icons, look int) cells {
 		title:  newPaint(t.Cell(t.RowTitle(selected, look == ui.LookFocused), selected)),
 		meta:   newPaint(cell(t.Muted)),
 		age:    newPaint(cell(t.Subtle)),
-		latest: cell(t.State(ui.ReleasePublished)),
+		latest: ui.Badge(cell(t.State(ui.ReleasePublished)), "", "latest"),
 		files:  newPaint(cell(t.Muted)),
 	}
 }
@@ -122,7 +122,7 @@ func (s *Section) render(r core.Release, selected bool, width int) string {
 	if showLatest {
 		b.WriteString(strings.Repeat(" ", gap))
 		if r.Latest {
-			b.WriteString(ui.Badge(cl.latest, "", "latest"))
+			b.WriteString(cl.latest)
 		} else {
 			b.WriteString(strings.Repeat(" ", latestWidth))
 		}

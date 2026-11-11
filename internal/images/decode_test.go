@@ -102,6 +102,51 @@ func TestDecodeFormats(t *testing.T) {
 	}
 }
 
+func TestDecodeRound(t *testing.T) {
+	sq := image.NewNRGBA(image.Rect(0, 0, 40, 40))
+	for i := range sq.Pix {
+		sq.Pix[i] = 255
+	}
+	pal := image.NewPaletted(image.Rect(0, 0, 40, 40), color.Palette{color.White})
+	var p, g bytes.Buffer
+	if err := png.Encode(&p, sq); err != nil {
+		t.Fatal(err)
+	}
+	if err := gif.EncodeAll(&g, &gif.GIF{Image: []*image.Paletted{pal, pal}, Delay: []int{1, 1}}); err != nil {
+		t.Fatal(err)
+	}
+	box := Box{Cols: 4, Rows: 4, CellWidth: 10, CellHeight: 10, Round: true}
+	check := func(name string, data []byte) {
+		t.Helper()
+		out, err := png.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			return
+		}
+		if _, _, _, a := out.At(0, 0).RGBA(); a != 0 {
+			t.Errorf("%s: corner alpha %d, want 0", name, a)
+		}
+		if _, _, _, a := out.At(20, 20).RGBA(); a != 0xffff {
+			t.Errorf("%s: centre alpha %d, want opaque", name, a)
+		}
+	}
+	img, err := decode(p.Bytes(), box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check("png", img.PNG)
+	box.Animate = true
+	img, err = decode(g.Bytes(), box)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check("gif", img.PNG)
+	if len(img.Frames) == 0 {
+		t.Fatal("gif has no frames")
+	}
+	check("gif frame", img.Frames[len(img.Frames)-1].PNG)
+}
+
 func TestDecodeRefuses(t *testing.T) {
 	tests := []struct {
 		name string
