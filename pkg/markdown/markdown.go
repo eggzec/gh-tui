@@ -73,6 +73,10 @@ type Renderer struct {
 	resolve func(addr string) string
 	urls    []string
 	linking bool
+	// refs holds the addresses that the short stand-ins in the source of the
+	// render at hand are for, by their number.
+	refs     []string
+	standPre string
 	// autolink says which references of a text are links, and linkFg is
 	// the sequence that sets the colour of the text of a link, or "".
 	autolink Autolink
@@ -352,6 +356,8 @@ func (r *Renderer) renderWith(src string, width int, open []int, pics bool) (ren
 	// earlier render may stand for one.
 	src = scrubLinks(src)
 	r.urls = r.urls[:0]
+	r.refs = r.refs[:0]
+	r.standPre = standScheme(src)
 	b := newBudget()
 	var parts []part
 	var answers []answer
