@@ -117,9 +117,12 @@ func (s *Section) renderPane(p paneID) {
 		s.frames[p] = nil
 		return
 	}
-	c := panes.Content{TopLeft: s.titleForms(p), Body: strings.Join(body, "\n"), Focus: s.focused && p == s.focus}
-	if p == reposPane {
-		c.TopRight = s.reposCount()
+	count := s.paneCount(p)
+	c := panes.Content{
+		TopLeft:  ui.TitleBeside(s.titleForms(p), count, max(b.w-5, 0), s.icons.Ellipsis),
+		TopRight: count,
+		Body:     strings.Join(body, "\n"),
+		Focus:    s.focused && p == s.focus,
 	}
 	if s.onePane() {
 		c.BottomLeft = s.stripForms()
@@ -174,9 +177,7 @@ func (s *Section) titleForms(p paneID) []string {
 }
 
 // reposCount is the forms of the repositories count, longest first, for the
-// right of the pane's title: "all [loaded]" with the viewer's total, or the
-// loaded count alone while the total is unknown. Under a filter it is
-// "matched/all", with "[loaded]" only when that differs from matched. There
+// right of the pane's title (see ui.CountForms), with the viewer's total. There
 // is none while the tab loads.
 func (s *Section) reposCount() []string {
 	f := &s.repos.current().Feed
@@ -243,19 +244,48 @@ func (s *Section) paneExtras(p paneID) string {
 		if chips := ui.QueryChips(s.icons, spec); len(chips) > 0 {
 			text += s.icons.Separator + strings.Join(chips, s.icons.Separator)
 		}
-	case workPane:
-		if s.work.ok {
-			text += s.icons.Separator + ui.Count(s.tasks.count(s.work.value), false)
-		}
-	case inboxPane:
-		if s.notes != nil {
-			if n := s.notes.Badge(); n != "" {
-				text += s.icons.Separator + n + " unread"
-			}
-		}
 	default:
 	}
 	return text
+}
+
+// paneCount is the forms of the count in the top-right of pane p's frame,
+// longest first, or none.
+func (s *Section) paneCount(p paneID) []string {
+	switch p {
+	case reposPane:
+		return s.reposCount()
+	case workPane:
+		return s.workCount()
+	case inboxPane:
+		return s.inboxCount()
+	default:
+		return nil
+	}
+}
+
+// workCount is the count of the work tab on view: its total beside the items
+// listed. There is none while the list is refused or reads its first page.
+func (s *Section) workCount() []string {
+	if !s.work.ok {
+		return nil
+	}
+	t := &s.tasks.tabs[s.tasks.cur]
+	if t.refused || t.items == 0 && t.loading {
+		return nil
+	}
+	return ui.CountForms(ui.CountSpec{Total: t.count, Loaded: t.items, More: t.next != ""})
+}
+
+// inboxCount is the number of unread notifications, as "N unread".
+func (s *Section) inboxCount() []string {
+	if s.notes == nil {
+		return nil
+	}
+	if n := s.notes.Unread(); n > 0 {
+		return []string{strconv.Itoa(n) + " unread"}
+	}
+	return nil
 }
 
 // profileHeight is how many lines the profile takes.
@@ -357,7 +387,7 @@ func (s *Section) card(c repolist.Card, selected bool, w int) [repolist.CardHeig
 // view.
 func (s *Section) reposBody(w, h int) []string {
 	lines := make([]string, 0, h)
-	lines = append(lines, s.tabsLine(w))
+	lines = append(lines, strings.Split(s.tabsLine(w), "\n")...)
 	o := s.repos.current()
 	// The headers name the columns once there are rows under them.
 	head := ""
@@ -371,7 +401,7 @@ func (s *Section) reposBody(w, h int) []string {
 	return lines
 }
 
-// tabsLine renders the tabs of the owners, scrolled to show the one on
+// tabsLine renders the boxed tabs of the owners, scrolled to show the one on
 // view, and on the right the language of the repository under the cursor,
 // which the list shows as a glyph.
 func (s *Section) tabsLine(w int) string {
@@ -380,15 +410,15 @@ func (s *Section) tabsLine(w int) string {
 	if r, ok := t.selected(); ok && r.Language != "" {
 		right = s.langPaint(r).Render(s.icons.Language(r.Language)) + " " + st.shared.Muted.Render(r.Language)
 	}
-	room := max(w-ansi.StringWidth(right)-3, 0)
 	items := make([]tabrow.Item, len(t.tabs))
 	for i, o := range t.tabs {
 		items[i] = tabrow.Item{Label: o.label}
 	}
-	row := tabrow.New(tabrow.WithStyles(st.row), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
+	row := tabrow.New(tabrow.WithStyles(st.row), tabrow.WithBox(st.frames.Border), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
 	row.SetItems(items, t.cur)
-	row.SetWidth(room)
-	return ui.SpreadDrop(" "+row.View(), right, w, s.icons.Ellipsis)
+	row.SetAside(right)
+	row.SetWidth(w)
+	return row.View()
 }
 
 // workBody renders the tabs of the lists of work above the one on view.
@@ -401,7 +431,7 @@ func (s *Section) workBody(w, h int) []string {
 		return []string{" " + st.shared.Muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, s.workTabs(w))
+	lines = append(lines, strings.Split(s.workTabs(w), "\n")...)
 	focused := s.focused && s.focus == workPane
 	t := l.current()
 	if t.refused {
@@ -432,23 +462,18 @@ func (s *Section) workBody(w, h int) []string {
 	return append(lines, status...)
 }
 
-// workTabs renders the tabs of the lists of work, each with its count, by
-// their short titles when the full ones don't fit in w cells.
+// workTabs renders the tabs of the lists of work, by their short titles when
+// the full ones don't fit in w cells.
 func (s *Section) workTabs(w int) string {
 	l := &s.tasks
 	items := make([]tabrow.Item, len(workLists))
 	for i, wl := range workLists {
-		count := ui.Count(l.tabs[i].count, false)
-		if l.tabs[i].refused {
-			// Not none: unknown.
-			count = "?"
-		}
-		items[i] = tabrow.Item{Label: wl.title, Short: wl.short, Count: count}
+		items[i] = tabrow.Item{Label: wl.title, Short: wl.short}
 	}
-	row := tabrow.New(tabrow.WithStyles(s.st.row))
+	row := tabrow.New(tabrow.WithStyles(s.st.row), tabrow.WithBox(s.st.frames.Border), tabrow.WithMarkers(s.icons.Before, s.icons.Crumb))
 	row.SetItems(items, l.cur)
-	row.SetWidth(max(w-1, 0))
-	return " " + row.View()
+	row.SetWidth(w)
+	return row.View()
 }
 
 // workItem renders the line of a pull request or issue waiting on the

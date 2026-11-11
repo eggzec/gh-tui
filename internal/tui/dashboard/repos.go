@@ -150,9 +150,9 @@ func (t *repoTabs) regroup() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// listTop is how many lines the tabs and the headers of the columns take
-// above the list.
-const listTop = 2
+// listTop is how many lines the boxed tabs (three) and the headers of the
+// columns (one) take above the list.
+const listTop = 4
 
 // remeasure measures the repositories of o read since it last did, and
 // lays the columns out again if they need more room.

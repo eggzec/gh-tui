@@ -478,11 +478,9 @@ func (s *Section) indent() string {
 	return strings.Repeat(" ", s.feed.Gutter())
 }
 
-// countForms is the forms of the count of the pull requests, longest first:
-// "all [loaded]" with the total GitHub told, or the loaded count alone while
-// it is unknown. Under a filter it is "matched/all". There is none while the
-// list loads.
-func (s *Section) countForms() []string {
+// CountForms is the forms of the count of the pull requests for the pane's
+// frame, longest first (see ui.CountForms). There is none while the list loads.
+func (s *Section) CountForms() []string {
 	f := s.feed
 	if f == nil || s.total == nil || f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil
@@ -496,8 +494,8 @@ func (s *Section) countForms() []string {
 	})
 }
 
-// renderHeader renders the line above the list: the count and the tabs of
-// the states on the right, the one shown highlighted.
+// renderHeader renders the line above the list: the tabs of the states on the
+// right, the one shown highlighted.
 func (s *Section) renderHeader() {
 	if s.width <= 0 {
 		s.header = ""
@@ -517,17 +515,8 @@ func (s *Section) renderHeader() {
 	}
 	left := s.indent()
 	lw := ansi.StringWidth(left)
-	forms := s.countForms()
-	// Narrow panes name only the tab shown. The count takes the longest form
-	// that leaves the rest its room, and goes when none does.
+	// Narrow panes name only the tab shown.
 	tabsRight := right.String()
-	for _, c := range forms {
-		cw := ansi.StringWidth(c) + 2
-		if gap := s.width - lw - cw - ansi.StringWidth(tabsRight); gap >= 2 {
-			s.header = left + strings.Repeat(" ", gap) + st.filterOff.Render(c) + "  " + tabsRight
-			return
-		}
-	}
 	if gap := s.width - lw - ansi.StringWidth(tabsRight); gap >= 2 {
 		s.header = left + strings.Repeat(" ", gap) + tabsRight
 		return

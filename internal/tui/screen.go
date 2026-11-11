@@ -46,9 +46,12 @@ type pane struct {
 	label, key string
 	// previewTitle is the title the preview's top edge was last drawn with.
 	previewTitle string
-	bare         bool
-	started      bool
-	focused      bool
+	// count is the forms of the count the frame was last drawn with, in its
+	// top-right.
+	count   []string
+	bare    bool
+	started bool
+	focused bool
 	// width and height are the outer size, frame included.
 	width, height int
 	// The edges of the frame, drawn for the size, focus and theme.
@@ -197,6 +200,10 @@ func (m *Model) drawFrame(p *pane) {
 	c := panes.Content{Focus: p.focused}
 	if label := termtext.Truncate(text, max(w-5, 0), m.icons.Ellipsis); label != "" {
 		c.TopLeft = []string{label}
+	}
+	if p.preview == nil && len(p.count) > 0 {
+		c.TopRight = p.count
+		c.TopLeft = ui.TitleBeside([]string{text}, p.count, max(w-5, 0), m.icons.Ellipsis)
 	}
 	if zoomed {
 		c.BottomLeft = m.foot(p, frames)

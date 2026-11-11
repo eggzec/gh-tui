@@ -77,12 +77,12 @@ func TestWorkColumns(t *testing.T) {
 	s := newSection(t, svc, nil, 220, 30, WithIcons(ui.NewIcons(config.IconsASCII)))
 	press(t, s, "3", "]")
 	lines := workLines(s)
-	// The tabs, the header, and a line for each of the three items.
-	if len(lines) != 5 {
-		t.Fatalf("the pane shows %d lines, want 5:\n%s", len(lines), strings.Join(lines, "\n"))
+	// The boxed tabs (three lines), the header, and a line for each of the three items.
+	if len(lines) != 7 {
+		t.Fatalf("the pane shows %d lines, want 7:\n%s", len(lines), strings.Join(lines, "\n"))
 	}
-	header := lines[1]
-	for _, l := range lines[1:] {
+	header := lines[3]
+	for _, l := range lines[3:] {
 		if w := ansi.StringWidth(l); w > s.boxes[workPane].w-2 {
 			t.Errorf("%q takes %d cells, more than the pane", l, w)
 		}
@@ -91,7 +91,7 @@ func TestWorkColumns(t *testing.T) {
 	if strings.Index(header, refHeader) != workIndent || titleAt < 0 || ageAt < titleAt {
 		t.Fatalf("the header %q doesn't name the columns in order", header)
 	}
-	rows := lines[2:]
+	rows := lines[4:]
 	for i, want := range []struct{ ref, title, age string }{
 		{"eggzec/slk#239", "fix(ui): preserve scroll position in messages.Model on resize; throttle the redraws", "1h"},
 		{"eggzec/playground#3", "Add initial sample README content", "9mo"},
@@ -296,8 +296,8 @@ func TestWorkRefusedList(t *testing.T) {
 	}
 	view := ansi.Strip(s.View())
 	want, _ := s.say("load your pull requests", core.ErrForbidden)
-	if !strings.Contains(view, "Mine ?") && !strings.Contains(view, "Your pull requests ?") {
-		t.Errorf("the tab doesn't count the refused list as unknown:\n%s", view)
+	if got := s.workCount(); len(got) != 0 {
+		t.Errorf("the refused list has the count %q, want none", got)
 	}
 	words := strings.Fields(want)
 	if len(words) < 3 || !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(words[:3], " ")) {

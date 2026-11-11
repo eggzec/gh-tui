@@ -1,6 +1,8 @@
 package owner
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,9 +17,8 @@ import (
 func TestRepoCountForms(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 120, 40)
-	all := s.page.header.value.Profile.Repos
 
-	forms := s.repoCount(all)
+	forms := s.listCount()
 	if len(forms) < 2 {
 		t.Fatalf("forms = %q, want a long and a bare form", forms)
 	}
@@ -26,8 +27,27 @@ func TestRepoCountForms(t *testing.T) {
 	}
 
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "language:go sort:stars-desc"}))
-	if forms = s.repoCount(all); len(forms) == 0 || !strings.Contains(forms[0], "/") {
+	if forms = s.listCount(); len(forms) == 0 || !strings.Contains(forms[0], "/") {
 		t.Errorf("filtered forms = %q, want matched/all first", forms)
+	}
+}
+
+// A fully read organizations tab has no total of its own: what it loaded is
+// the total, not "?".
+func TestOrgsCountExact(t *testing.T) {
+	t.Parallel()
+	svc := newFake()
+	want := len(svc.people["octocat orgs"])
+	s := newSection(t, svc, "octocat", 120, 40)
+	for range 4 {
+		press(t, s, "]")
+	}
+	if s.page.tab != orgsTab {
+		t.Fatalf("tab = %v, want orgs", s.page.tab)
+	}
+	n := strconv.Itoa(want)
+	if got, wantForms := s.listCount(), []string{n + "[" + n + "]", n}; !slices.Equal(got, wantForms) {
+		t.Errorf("orgs forms = %q, want %q", got, wantForms)
 	}
 }
 
@@ -36,62 +56,43 @@ func TestRepoCountNoneWhileLoading(t *testing.T) {
 	s := New(t.Context(), newFake(), config.Default().Keys, WithNow(func() time.Time { return now }))
 	setSize(s, 80, 24)
 	s.Update(ui.OwnerMsg{Login: "octocat"})
-	if forms := s.repoCount(40); len(forms) != 0 {
+	if forms := s.listCount(); len(forms) != 0 {
 		t.Errorf("while loading, forms = %q", forms)
 	}
 }
 
-// Where the long count doesn't fit, the tabs keep their titles and gaps and
-// step down to the bare total before anything else shrinks.
-func TestTabsStepDownToBareCount(t *testing.T) {
+// The list pane's top edge shows the count at its right.
+func TestListPaneBorderCount(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 120, 40)
-	tabs := tabsOf(s.page.header.value.Kind)
-	forms := s.repoCount(s.page.header.value.Profile.Repos)
-
-	wide := s.tabs(tabs, 400, 400)
-	if !strings.Contains(ansi.Strip(wide), forms[0]) {
-		t.Fatalf("wide tabs %q lack %q", ansi.Strip(wide), forms[0])
+	top := ansi.Strip(s.frames[listPane][0])
+	if !strings.Contains(top, "[") {
+		t.Errorf("top edge %q lacks the count's [loaded]", top)
 	}
-	// Narrowing the row, the long count gives way to the bare total while the
-	// gaps stay normal.
-	bare := forms[len(forms)-1]
-	for w := ansi.StringWidth(wide) - 1; w > 20; w-- {
-		got := ansi.Strip(s.tabs(tabs, w, w))
-		if !strings.Contains(got, forms[0]) && strings.Contains(got, " "+bare+"  Stars") {
-			return
-		}
-	}
-	t.Errorf("no width shows the bare total %q with the gaps kept", bare)
 }
 
-// The tabs line steps the count down for the language at its right, so a
-// longer count never pushes the language out where the bare total leaves
-// room for it.
-func TestTabsLineKeepsLanguageOverLongCount(t *testing.T) {
+// The tabs line is boxed, three lines of the width asked, and shows the
+// language at its right while there is room.
+func TestTabsLineBoxed(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 120, 40)
-	tabs := tabsOf(s.page.header.value.Kind)
-	forms := s.repoCount(s.page.header.value.Profile.Repos)
-	bare := forms[len(forms)-1]
 	l, ok := s.page.list().(*repoList)
 	if !ok {
 		t.Skip("repositories list not on view")
 	}
 	lang := ansi.Strip(s.language(&l.tableTab))
-	if lang == "" {
-		t.Skip("no language under the cursor")
-	}
-	long := ansi.StringWidth(s.tabs(tabs, 400, 400))
-	found := false
-	for w := long; w > 20; w-- {
-		line := ansi.Strip(s.tabsLine(w))
-		if strings.Contains(line, lang) && strings.Contains(line, " "+bare+"  ") && !strings.Contains(line, forms[0]) {
-			found = true
-			break
+	for _, w := range []int{120, 60, 30} {
+		lines := strings.Split(s.tabsLine(w), "\n")
+		if len(lines) != 3 {
+			t.Fatalf("width %d: %d lines, want 3", w, len(lines))
+		}
+		for _, ln := range lines {
+			if got := ansi.StringWidth(ln); got != w {
+				t.Errorf("width %d: line %q is %d wide", w, ansi.Strip(ln), got)
+			}
 		}
 	}
-	if !found {
-		t.Errorf("no width keeps %q with the bare total %q", lang, bare)
+	if lang != "" && !strings.Contains(ansi.Strip(s.tabsLine(120)), lang) {
+		t.Errorf("wide tabs lack the language %q", lang)
 	}
 }

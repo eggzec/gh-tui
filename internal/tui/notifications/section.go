@@ -349,20 +349,33 @@ func (s *Section) Init() tea.Cmd {
 // the default inbox, with a "+" when more pages follow, or "" when there are
 // none. It does no I/O.
 func (s *Section) Badge() string {
-	p, ok := s.svc.CachedList(notifications.ListQuery{})
-	if !ok {
+	n, more := s.unread()
+	if n == 0 {
 		return ""
 	}
-	n := 0
+	return ui.Count(n, more)
+}
+
+// Unread returns the exact number of unread threads in the cached first page
+// of the default inbox, 0 when it isn't cached. It does no I/O.
+func (s *Section) Unread() int {
+	n, _ := s.unread()
+	return n
+}
+
+// unread counts the unread threads of the cached first page, and reports
+// whether more pages follow it.
+func (s *Section) unread() (n int, more bool) {
+	p, ok := s.svc.CachedList(notifications.ListQuery{})
+	if !ok {
+		return 0, false
+	}
 	for i := range p.Items {
 		if p.Items[i].Unread {
 			n++
 		}
 	}
-	if n == 0 {
-		return ""
-	}
-	return ui.Count(n, !p.Last())
+	return n, !p.Last()
 }
 
 // All reports whether the section shows read threads too.
