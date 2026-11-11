@@ -1024,6 +1024,8 @@ var idleRows = map[string]string{
 	"release_modal expand":             "the notes of the fixture release have no row that folds",
 	"release_modal collapse":           "the notes of the fixture release have no row that folds",
 	"release_modal all":                "the notes of the fixture release have no row that folds",
+	"release_modal download":           "the fixture wires no downloader, so there is no asset to pick",
+	"release_modal download all":       "the fixture wires no downloader, so there is no asset to pick",
 }
 
 // TestHelpRowsWork checks that every key help lists in a context does

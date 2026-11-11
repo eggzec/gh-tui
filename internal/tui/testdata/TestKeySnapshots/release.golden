@@ -15,6 +15,9 @@ Release
   back | backspace | backspace | off
   retry | r | r | off
   open on GitHub | o | o | on
+  download | d | d | on
+  download all | D | D | on
+  download file | enter | ↵ | off
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
   zoom | z | z | on

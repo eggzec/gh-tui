@@ -72,6 +72,10 @@ func (f *fakeService) Get(context.Context, core.RepoRef, int64) (core.Release, e
 	return v3, nil
 }
 
+func (f *fakeService) AssetURL(_ context.Context, _ core.RepoRef, id int64) (string, error) {
+	return fmt.Sprintf("https://assets.test/%d", id), nil
+}
+
 func newModal(svc Service, width, height int) *Modal {
 	m := New(context.Background(), svc, repo, v3.ID, "https://github.com/charmbracelet/glow/releases", config.Default().Keys,
 		WithNow(func() time.Time { return clock }), WithLocation(time.UTC))
@@ -109,6 +113,8 @@ func press(m *Modal, k string) tea.Cmd {
 	switch k {
 	case "esc":
 		msg = tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "enter":
+		msg = tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "backspace":
 		msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 	default:

@@ -26,6 +26,9 @@ func (m *Modal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
+	if m.pick != nil {
+		return m.pickView()
+	}
 	if m.failed() {
 		return m.errorView()
 	}

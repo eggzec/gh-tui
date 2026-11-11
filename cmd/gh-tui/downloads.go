@@ -38,6 +38,30 @@ func (d *downloads) Dir() string {
 	return download.Dir(dir, home)
 }
 
+// releaseDownloads adapts downloads to the release modal, which tells only
+// whether a transfer started.
+type releaseDownloads struct{ d *downloads }
+
+// Dir is where the folder picker starts: the folder of downloads, or the
+// working directory for a demo, which never writes there.
+func (r releaseDownloads) Dir() string {
+	if r.d.fake {
+		if wd, err := os.Getwd(); err == nil {
+			return wd
+		}
+	}
+	return r.d.Dir()
+}
+
+// Path is where the file called name goes in dir.
+func (releaseDownloads) Path(dir, name string) (string, error) { return download.Path(dir, name) }
+
+// Start starts the transfer of url to path.
+func (r releaseDownloads) Start(url, path string, size int64) error {
+	_, err := r.d.Start(url, path, size)
+	return err
+}
+
 // Start starts the download of url to path. A fake downloader gives a job
 // that is already done.
 func (d *downloads) Start(url, path string, size int64) (tui.Download, error) {

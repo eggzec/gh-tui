@@ -365,6 +365,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			owner.WithViewer(login.login)),
 	}
 
+	dl := newDownloads(cfg.Actions.DownloadDir, os.Getenv("GH_TUI_FAKE_RELEASES") == "1")
+
 	// The history and the releases read the settings of the session,
 	// which the set command may have changed since the start, each time
 	// they open.
@@ -402,7 +404,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		tui.WithRelease(func(ctx context.Context, repo core.RepoRef, id int64, url string) (ui.Modal, tea.Cmd) {
 			o := []releases.Option{
 				releases.WithVoice(voice), releases.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), releases.WithDates(ui.NewDates(live.cfg.UI.DateFormat)),
-				releases.WithAutolinks(links),
+				releases.WithAutolinks(links), releases.WithDownloader(releaseDownloads{dl}),
 			}
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
 		}),
@@ -423,7 +425,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			opts = append(opts, tui.WithWarning(w))
 		}
 	}
-	dl := newDownloads(cfg.Actions.DownloadDir, os.Getenv("GH_TUI_FAKE_RELEASES") == "1")
 	opts = append(opts, tui.WithDownloader(dl))
 	actionOpts := []actions.Option{
 		actions.WithVoice(voice),
