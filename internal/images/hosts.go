@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -141,11 +142,14 @@ func (h hosts) allowed(u *url.URL) bool {
 		case githubHosts[host]:
 			return true
 		case host == github:
-			return githubAttachment(u)
+			return githubAttachment(u) || webAvatar(u)
 		}
 		return false
 	}
 	if host == h.web {
+		if webAvatar(u) {
+			return true
+		}
 		for _, p := range enterprisePaths {
 			if underPath(u, p) {
 				return true
@@ -173,6 +177,17 @@ func (h hosts) redirect(from, u *url.URL) bool {
 	}
 	return u.Scheme == "https" && u.User == nil && u.Opaque == "" &&
 		bucket(hostPort(strings.ToLower(u.Hostname()), u.Port()))
+}
+
+// avatarPath matches /<login>.png, the address of a user's avatar on a web
+// host: a login is letters, digits and hyphens, up to 39, with no hyphen at
+// either end.
+var avatarPath = regexp.MustCompile(`^/[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?\.png$`)
+
+// webAvatar reports whether u is the avatar of a login on a web host, which
+// the mention avatars are drawn from.
+func webAvatar(u *url.URL) bool {
+	return avatarPath.MatchString(u.EscapedPath())
 }
 
 // githubAttachment reports whether u, on github.com, is the address of an

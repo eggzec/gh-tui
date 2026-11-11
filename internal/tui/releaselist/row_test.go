@@ -25,7 +25,8 @@ func TestRowColumns(t *testing.T) {
 		latest        bool
 	}{
 		{100, true, true, true},
-		{50, false, true, true},
+		{56, false, true, true},
+		{50, false, false, true},
 		{40, false, false, false},
 		{32, false, false, false},
 	}

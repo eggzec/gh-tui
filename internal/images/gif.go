@@ -103,7 +103,13 @@ func decodeAnimation(data []byte, box Box) (Image, error) {
 		r := fr.Bounds().Intersect(screen)
 		draw.Draw(canvas, r, fr, r.Min, draw.Over)
 		var out bytes.Buffer
-		if err := enc.Encode(&out, s.scale(canvas, img.Width, img.Height)); err != nil {
+		frame := s.scale(canvas, img.Width, img.Height)
+		if box.Round {
+			// The next scale overwrites the buffer whole, so masking it
+			// leaves the canvas as it was.
+			roundOff(frame)
+		}
+		if err := enc.Encode(&out, frame); err != nil {
 			return Image{}, fmt.Errorf("encode frame: %w", err)
 		}
 		if sent += out.Len(); sent > maxFramesSent {

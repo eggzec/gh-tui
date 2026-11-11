@@ -59,6 +59,8 @@ type ImageBox struct {
 	Cell       imgcaps.Cell
 	// Animate asks for the frames of an animation, rather than its first.
 	Animate bool
+	// Round clips the picture to the circle inscribed in its box.
+	Round bool
 }
 
 // ImageSource is where an image comes from: an address on the web, such
@@ -111,7 +113,11 @@ var ErrImageGone = errors.New("image won't load")
 var ErrImageTooLarge = errors.New("image too large")
 
 // ImageSize is a box in cells, which an image takes or is made to fit.
-type ImageSize struct{ Cols, Rows int }
+// Round clips it to the circle inscribed in the box.
+type ImageSize struct {
+	Cols, Rows int
+	Round      bool
+}
 
 // The sizes of avatars: a cell is about twice as tall as it is wide, so
 // each is about square. An avatar's box is the same whether it has
@@ -415,7 +421,7 @@ func (a *Images) Box(addr string, size ImageSize) []string {
 	if !a.Shown() {
 		return nil
 	}
-	size = ImageSize{Cols: max(size.Cols, 1), Rows: max(size.Rows, 1)}
+	size = ImageSize{Cols: max(size.Cols, 1), Rows: max(size.Rows, 1), Round: size.Round}
 	if addr != "" {
 		if e := a.want(ImageSource{URL: addr}, size, false); e.state == imageReady && e.sent {
 			return termimg.Rows(e.id, size.Cols, size.Rows)
@@ -439,7 +445,7 @@ func (a *Images) Fit(src ImageSource, size ImageSize) ([]string, ImageState) {
 	if !a.drawing() || !src.file() && src.URL == "" {
 		return nil, ImageOff
 	}
-	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells)}
+	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells), Round: size.Round}
 	e := a.want(src, size, true)
 	switch {
 	case e.state == imageReady && e.sent:
@@ -462,7 +468,7 @@ func (a *Images) Cached(src ImageSource, size ImageSize) ([]string, ImageState) 
 	if !a.drawing() || !src.file() {
 		return nil, ImageOff
 	}
-	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells)}
+	size = ImageSize{Cols: min(max(size.Cols, 1), termimg.MaxCells), Rows: min(max(size.Rows, 1), termimg.MaxCells), Round: size.Round}
 	animate := a.animate && a.g.Animate
 	e, ok := a.byKey[imageKey(src, size, true, animate)]
 	if !ok || e.state != imageReady || !e.sent {
@@ -605,7 +611,7 @@ func (a *Images) fetchCmd(key string, e *entry) tea.Cmd {
 		e.src.Body, e.src.Private, e.src.in = in.of(e.src.URL), in.private, nil
 	}
 	ctx, fetch, src := a.ctx, a.fetch, e.src
-	box := ImageBox{Cols: e.size.Cols, Rows: e.size.Rows, Cell: a.g.Cell, Animate: e.animate}
+	box := ImageBox{Cols: e.size.Cols, Rows: e.size.Rows, Cell: a.g.Cell, Animate: e.animate, Round: e.size.Round}
 	return func() tea.Msg {
 		pic, err := fetch(ctx, src, box)
 		return imageMsg{images: a, key: key, pic: pic, err: err}
@@ -920,6 +926,9 @@ func imageKey(src ImageSource, size ImageSize, fit, animate bool) string {
 		mode = " fit animated "
 	case fit:
 		mode = " fit "
+	}
+	if size.Round {
+		mode = " round" + mode
 	}
 	return strconv.Itoa(size.Cols) + "x" + strconv.Itoa(size.Rows) + mode + src.key()
 }

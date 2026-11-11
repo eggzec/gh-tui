@@ -37,7 +37,7 @@ type blobReader interface {
 // decoded by f, within the same limits.
 func fetchImage(f *images.Fetcher, files blobReader) ui.ImageFetch {
 	return func(ctx context.Context, src ui.ImageSource, box ui.ImageBox) (ui.Picture, error) {
-		b := images.Box{Cols: box.Cols, Rows: box.Rows, CellWidth: box.Cell.Width, CellHeight: box.Cell.Height, Animate: box.Animate}
+		b := images.Box{Cols: box.Cols, Rows: box.Rows, CellWidth: box.Cell.Width, CellHeight: box.Cell.Height, Animate: box.Animate, Round: box.Round}
 		var (
 			img images.Image
 			err error

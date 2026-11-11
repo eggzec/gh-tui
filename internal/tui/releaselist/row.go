@@ -17,7 +17,7 @@ import (
 // and the age in fixed columns on the right.
 const (
 	tagWidth    = 12
-	latestWidth = 6 // "latest"
+	latestWidth = 8 // " latest ", as a badge
 	authorWidth = 8
 	filesWidth  = 4 // "999 "
 	gap         = 2
@@ -38,7 +38,8 @@ func (p paint) wrap(text string) string { return p.pre + text + p.post }
 type cells struct {
 	states                [ui.NumStates]string
 	tag, title, meta, age paint
-	latest, files         paint
+	files                 paint
+	latest                lipgloss.Style
 }
 
 func newCells(t ui.Theme, icons ui.Icons, look int) cells {
@@ -54,7 +55,7 @@ func newCells(t ui.Theme, icons ui.Icons, look int) cells {
 		title:  newPaint(t.Cell(t.RowTitle(selected, look == ui.LookFocused), selected)),
 		meta:   newPaint(cell(t.Muted)),
 		age:    newPaint(cell(t.Subtle)),
-		latest: newPaint(cell(t.State(ui.ReleasePublished))),
+		latest: cell(t.State(ui.ReleasePublished)),
 		files:  newPaint(cell(t.Muted)),
 	}
 }
@@ -121,7 +122,7 @@ func (s *Section) render(r core.Release, selected bool, width int) string {
 	if showLatest {
 		b.WriteString(strings.Repeat(" ", gap))
 		if r.Latest {
-			b.WriteString(cl.latest.wrap("latest"))
+			b.WriteString(ui.Badge(cl.latest, "", "latest"))
 		} else {
 			b.WriteString(strings.Repeat(" ", latestWidth))
 		}

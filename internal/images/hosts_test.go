@@ -2,6 +2,7 @@ package images
 
 import (
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,18 @@ func TestAllowedGitHub(t *testing.T) {
 		{"https://github.com/octo/repo/blob/main/a.png", false},
 		{"https://github.com/octo/repo/assets/../../settings", false},
 		{"https://github.com//repo/assets/1/x", false},
+		{"https://github.com/octocat.png?s=64", true},
+		{"https://github.com/a.png", true},
+		{"https://github.com/o-c-t.png", true},
+		{"https://github.com/-octo.png", false},
+		{"https://github.com/octo-.png", false},
+		{"https://github.com/oc.to.png", false},
+		{"https://github.com/..png", false},
+		{"https://github.com/.png", false},
+		{"https://github.com/octo/x.png", false},
+		{"https://github.com/octo%2fx.png", false},
+		{"https://github.com/" + strings.Repeat("a", 39) + ".png", true},
+		{"https://github.com/" + strings.Repeat("a", 40) + ".png", false},
 	}
 	for _, tt := range tests {
 		u, err := url.Parse(tt.addr)
@@ -72,6 +85,10 @@ func TestAllowedEnterprise(t *testing.T) {
 		{"https://camo.githubusercontent.com/x", false},
 		{"https://github.com/user-attachments/assets/x", false},
 		{"https://evil.ghe.example.com/x", false},
+		{"https://ghe.example.com/octocat.png", true},
+		{"https://ghe.example.com/-octo.png", false},
+		{"https://ghe.example.com/oc.to.png", false},
+		{"https://evil.ghe.example.com/octocat.png", false},
 	}
 	for _, tt := range tests {
 		u, _ := url.Parse(tt.addr)
