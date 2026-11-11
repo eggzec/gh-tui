@@ -3,6 +3,7 @@ package markdown
 import (
 	"image/color"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -121,12 +122,54 @@ func (r *Renderer) linkRefs(line string, st *refScan, seen *[]answer) string {
 		b.WriteString("[")
 		b.WriteString(text)
 		b.WriteString("](<")
-		b.WriteString(addrSafe.Replace(addr))
+		if linkable(addr) && len(r.refs) < maxLinks {
+			// Glamour wraps the address it prints after the link's text,
+			// and swapLinks only then drops it. A short stand-in keeps the
+			// lines as wide as what shows.
+			b.WriteString(r.standIn(addr))
+		} else {
+			b.WriteString(addrSafe.Replace(addr))
+		}
 		b.WriteString(">)")
 		pos = m.end
 	}
 	b.WriteString(line[pos:])
 	return b.String()
+}
+
+// standScheme returns the scheme of the stand-ins of a render of src: letters
+// that no text of src starts with, so no address of it can pass for one.
+// (Glamour prints a non-ASCII address percent-encoded, so it cannot be the
+// goneMark that tells it.)
+func standScheme(src string) string {
+	s := "l"
+	for strings.Contains(src, s+":") {
+		s += "l"
+	}
+	return s + ":"
+}
+
+// standIn returns a short address for addr in the source of this render: the
+// scheme and the number of addr in r.refs.
+func (r *Renderer) standIn(addr string) string {
+	r.refs = append(r.refs, addr)
+	return r.standPre + strconv.Itoa(len(r.refs)-1)
+}
+
+// unstand returns the address that a stand-in of this render is for, or addr
+// if it is not one.
+func (r *Renderer) unstand(addr string) string {
+	n, ok := strings.CutPrefix(addr, r.standPre)
+	if r.standPre == "" {
+		return addr
+	}
+	if !ok {
+		return addr
+	}
+	if i, err := strconv.Atoi(n); err == nil && i >= 0 && i < len(r.refs) {
+		return r.refs[i]
+	}
+	return addr
 }
 
 var addrSafe = strings.NewReplacer(" ", "%20", "<", "%3C", ">", "%3E", "\n", "%0A", "\r", "%0D")

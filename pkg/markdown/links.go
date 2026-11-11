@@ -130,6 +130,9 @@ func (r *Renderer) bare(s string) string {
 // target returns the address a link of the source to addr goes to: addr,
 // or what the resolver makes of it, if it is relative.
 func (r *Renderer) target(addr string) string {
+	if full := r.unstand(addr); full != addr {
+		return full
+	}
 	if r.resolve == nil {
 		return addr
 	}
