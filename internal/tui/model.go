@@ -221,6 +221,8 @@ type Model struct {
 	// release.
 	commit  Commit
 	release Release
+	// downloader saves files from GitHub, such as a release's.
+	downloader Downloader
 	// warnings are shown as toasts once the app starts.
 	warnings []string
 	// rates tells the rate limits, and rate is what it told last.
@@ -344,6 +346,34 @@ type Release func(ctx context.Context, repo core.RepoRef, id int64, url string) 
 // ui.OpenReleaseMsg asks for. Without it the message does nothing.
 func WithRelease(open Release) Option {
 	return func(m *Model) { m.release = open }
+}
+
+// Downloader saves a file from a URL, in the background and beyond the life
+// of the app.
+type Downloader interface {
+	// Dir is the folder downloads start in, as the settings now have it.
+	Dir() string
+	// Start starts saving url, an asset of size bytes (0 if unknown), as
+	// the file at path, and returns once it has started.
+	Start(url, path string, size int64) (Download, error)
+}
+
+// Download is one file being saved.
+type Download interface {
+	// Path is where the file will be, which may not be the path asked for.
+	Path() string
+	// Progress is the bytes saved so far and the total, 0 if unknown.
+	Progress() (done, total int64)
+	// Cancel stops the download and drops the partial file.
+	Cancel()
+	// Done delivers nil once the file is saved, else the error, then closes.
+	Done() <-chan error
+}
+
+// WithDownloader sets what saves files. Without it nothing can be
+// downloaded.
+func WithDownloader(d Downloader) Option {
+	return func(m *Model) { m.downloader = d }
 }
 
 // Browser opens url in the browser, detached from the terminal. For a

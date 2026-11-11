@@ -413,6 +413,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			opts = append(opts, tui.WithWarning(w))
 		}
 	}
+	dl := newDownloads(cfg.Actions.DownloadDir, os.Getenv("GH_TUI_FAKE_RELEASES") == "1")
+	opts = append(opts, tui.WithDownloader(dl))
 	actionOpts := []actions.Option{
 		actions.WithVoice(voice),
 		actions.WithViewer(viewer), actions.WithRepos(repoSvc),
@@ -428,6 +430,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		return actions.Opener(actionSvc, cfg.Keys, o...)(ctx, repo, f, at)
 	}), tui.WithSettings(func(c config.Config) {
 		live.set(c)
+		dl.setDir(c.Actions.DownloadDir)
 		engine.SetIntervals(pollIntervals(c.Sync.Poll))
 		obs.SetPrefetchBudget(c.Prefetch.Budget)
 		slots.SetSize(c.Prefetch.Parallel)

@@ -446,6 +446,12 @@ prefetch:
     # before.
     other_tabs: {enabled: false}
 
+# Files the app downloads, such as the files of a release.
+actions:
+  # The folder the download picker starts in; ~ is the home directory. A
+  # folder that doesn't exist falls back to the home directory.
+  download_dir: "~/Downloads"
+
 # What the app checks of the token.
 auth:
   # Refuse at once what the token is known to lack a scope for, rather
