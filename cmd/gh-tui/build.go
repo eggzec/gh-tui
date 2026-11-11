@@ -34,6 +34,7 @@ import (
 	pullsvc "github.com/eggzec/gh-tui/internal/service/pulls"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	releasesvc "github.com/eggzec/gh-tui/internal/service/releases"
+	"github.com/eggzec/gh-tui/internal/service/releases/releasesfake"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
 	"github.com/eggzec/gh-tui/internal/tray"
@@ -220,7 +221,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// again when it publishes what it learned.
 	autolinkSvc := autolinkssvc.New(client, autolinkssvc.WithTTL(ttl.Autolinks), autolinkssvc.WithCapacity(mem.Entries), autolinkssvc.WithHost(client.WebHost()),
 		autolinkssvc.WithPublish(engine.Publish))
-	releaseSvc := releasesvc.New(client, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries))
+	releaseAPI := releasesvc.API(client)
+	// GH_TUI_FAKE_RELEASES=1 serves made-up releases for every repository, so
+	// the releases views can be tried by hand without a repository that has them.
+	if releasesfake.Enabled() {
+		releaseAPI = releasesfake.API{}
+	}
+	releaseSvc := releasesvc.New(releaseAPI, releasesvc.WithTTL(ttl.Releases), releasesvc.WithCapacity(mem.Entries), releasesvc.WithStore(entries),
+		releasesvc.WithPageSize(size.Releases))
 	searchSvc := searchsvc.New(client, searchsvc.WithTTL(ttl.Search), searchsvc.WithCodeTTL(ttl.CodeSearch), searchsvc.WithCapacity(mem.Entries),
 		searchsvc.WithPageSize(size.Search))
 	// The filters of the pull requests and issues offer the labels,
@@ -457,7 +465,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		watchers = append(watchers, repoPolls.set)
 	}
 	if store != nil {
-		if r := newRevalidator(cfg.Cache, cfg.Sync.UnfocusedSlowdown, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept, ownerSvc.Kept); r != nil {
+		if r := newRevalidator(cfg.Cache, cfg.Sync.UnfocusedSlowdown, engine.Publish, issueSvc.Kept, pullSvc.Kept, notifSvc.Kept, fileSvc.Kept, historySvc.Kept, actionSvc.Kept, ownerSvc.Kept, releaseSvc.Kept); r != nil {
 			go func() { _ = r.Run(ctx) }()
 			activity = append(activity, r.SetActive)
 			watchers = append(watchers, r.SetRepo)
