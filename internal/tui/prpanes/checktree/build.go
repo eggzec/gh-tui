@@ -170,7 +170,7 @@ func (b *builder) workflow(w *workflow) {
 	if name == "" {
 		name = "Workflow run"
 	}
-	text := b.line(b.st.icon(state), b.st.actions, b.st.link(url, name))
+	text := b.line(b.st.icon(state), b.st.actions, b.st.fold(url, name))
 	if number > 0 {
 		text += b.dim(" #" + strconv.Itoa(number))
 	}
@@ -233,7 +233,7 @@ func (b *builder) jobs(nodes []core.JobNode, jobs []core.Job, depth int) []treev
 		if len(kids) == 0 {
 			continue
 		}
-		text := b.line(b.st.icon(g.State), b.st.link("", n.Label))
+		text := b.line(b.st.icon(g.State), b.st.fold("", n.Label))
 		id := b.o.Prefix + "grp/" + strconv.FormatInt(jobs[g.Jobs[0]].RunID, 10) + "/" + g.Key
 		right := b.dim(b.groupWord(g, jobs))
 		rows = append(rows, b.fold(id, depth, text, right))
@@ -273,7 +273,7 @@ func (b *builder) job(j core.Job, label string, depth int) treeview.Node {
 	return treeview.Node{
 		ID:     id,
 		Depth:  depth,
-		Lines:  []string{b.line(b.st.icon(state), b.st.link(j.URL, label))},
+		Lines:  []string{b.line(b.st.icon(state), b.st.leaf(j.URL, label))},
 		Right:  b.dim(b.took(state, j.Status, j.StartedAt, j.CompletedAt)),
 		Action: true,
 	}
@@ -307,7 +307,7 @@ func (b *builder) group(id, glyph, title string, checks []core.CommitCheck) {
 		return
 	}
 	state := core.Worst(states...)
-	text := b.line(b.st.icon(state), glyph, b.st.link("", title))
+	text := b.line(b.st.icon(state), glyph, b.st.fold("", title))
 	b.rows = append(b.rows, b.fold(b.o.Prefix+id, b.o.Depth, text, b.dim(stateWord(state))))
 	b.rows = append(b.rows, kids...)
 }
@@ -328,7 +328,7 @@ func (b *builder) check(cc *core.CommitCheck, state core.CheckState) treeview.No
 	return treeview.Node{
 		ID:     id,
 		Depth:  b.o.Depth + 1,
-		Lines:  []string{b.line(b.st.icon(state), b.st.link(cc.DetailsURL, cc.Name))},
+		Lines:  []string{b.line(b.st.icon(state), b.st.leaf(cc.DetailsURL, cc.Name))},
 		Right:  right,
 		Action: true,
 	}
@@ -359,7 +359,7 @@ func (b *builder) status(s core.StatusContext) {
 	if !b.keep(state) {
 		return
 	}
-	text := b.line(b.st.icon(state), b.st.status, b.st.link(s.TargetURL, s.Context))
+	text := b.line(b.st.icon(state), b.st.status, b.st.leaf(s.TargetURL, s.Context))
 	b.rows = append(b.rows, treeview.Node{
 		ID:    b.o.Prefix + "status/" + s.Context,
 		Depth: b.o.Depth,

@@ -21,6 +21,9 @@ type Styles struct {
 	links *termtext.Links
 	dim   lipgloss.Style
 	bold  lipgloss.Style
+	// name and foldName are the tree's styles for the name of a row and of a
+	// row that folds.
+	name, foldName lipgloss.Style
 	// state holds the glyph of each check state, colored, and "" for none, and
 	// tone the style that draws its word.
 	state [core.CheckFailing + 1]string
@@ -37,18 +40,21 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 	g := newGlyphs(set, ic)
 	dim := t.Subtle
 	fail, pend, pass := t.Run(ui.RunFailure), t.Run(ui.RunInProgress), t.Run(ui.RunSuccess)
+	tree := t.Tree(ic)
 	s := Styles{
-		Glyphs:  g,
-		Errors:  t.Errors(ic),
-		links:   new(termtext.Links),
-		dim:     dim,
-		bold:    lipgloss.NewStyle().Bold(true),
-		actions: dim.Render(g.Actions),
-		app:     dim.Render(g.App),
-		status:  dim.Render(g.Status),
-		failure: fail.Render(g.Failure),
-		warning: pend.Render(g.Warning),
-		notice:  dim.Render(g.Notice),
+		name:     tree.Name,
+		foldName: tree.FoldName,
+		Glyphs:   g,
+		Errors:   t.Errors(ic),
+		links:    new(termtext.Links),
+		dim:      dim,
+		bold:     lipgloss.NewStyle().Bold(true),
+		actions:  dim.Render(g.Actions),
+		app:      dim.Render(g.App),
+		status:   dim.Render(g.Status),
+		failure:  fail.Render(g.Failure),
+		warning:  pend.Render(g.Warning),
+		notice:   dim.Render(g.Notice),
 	}
 	s.state[core.CheckFailing] = fail.Render(g.Fail)
 	s.state[core.CheckPending] = pend.Render(g.Pending)
@@ -76,6 +82,17 @@ func (s *Styles) Level(l core.AnnotationLevel) string {
 	case core.AnnotationNotice:
 	}
 	return s.notice
+}
+
+// leaf returns text as a link in the style of a tree row's name, as the
+// tree draws the rows it is given a Name for.
+func (s *Styles) leaf(addr, text string) string {
+	return s.name.Render(s.link(addr, text))
+}
+
+// fold is leaf for a row that folds.
+func (s *Styles) fold(addr, text string) string {
+	return s.foldName.Render(s.link(addr, text))
 }
 
 // link returns text, cleaned, as a link to addr when it is a safe address.
