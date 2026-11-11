@@ -43,6 +43,9 @@ type Config struct {
 	History History `yaml:"history"`
 	// Dashboard configures the screen the app opens on.
 	Dashboard Dashboard `yaml:"dashboard"`
+	// Actions configures what the app saves from GitHub's Actions and
+	// releases.
+	Actions Actions `yaml:"actions"`
 	// Owner configures the page of a user or an organization.
 	Owner Owner `yaml:"owner" when:"startup" why:"the page of a user or an organization reads it when the app starts"`
 	// Prefetch configures reading ahead, globally, by page and by kind of
