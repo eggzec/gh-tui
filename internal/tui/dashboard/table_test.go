@@ -22,7 +22,7 @@ func reposLines(s *Section) []string {
 	}
 	body := s.reposBody(b.w-2, b.h-2)
 	out := make([]string, 0, len(body))
-	for _, l := range body[1:] {
+	for _, l := range body[3:] {
 		out = append(out, ansi.Strip(l))
 	}
 	return out
@@ -76,17 +76,17 @@ func TestReposCountInTheTrim(t *testing.T) {
 	svc := newFake()
 	svc.repos["@me"] = repos("octocat", 30)
 	s := newSection(t, svc, nil, 140, 40)
-	if got := s.reposCount(); len(got) != 1 || got[0] != "30" {
-		t.Errorf("no total: the forms are %q", got)
+	if got := s.reposCount(); len(got) != 2 || got[0] != "30[30]" || got[1] != "30" {
+		t.Errorf("all read, no total: the forms are %q", got)
 	}
-	if top := ansi.Strip(s.frames[reposPane][0]); !strings.Contains(top, " 30 ─") || strings.Contains(top, "repos ─") {
+	if top := ansi.Strip(s.frames[reposPane][0]); !strings.Contains(top, " 30[30] ─") || strings.Contains(top, "repos ─") {
 		t.Errorf("the count is not at the right of the title: %q", top)
 	}
 
 	// The viewer's total comes first, and the loaded count follows in brackets.
 	s.header.value.Profile.Repos = 2000
 	s.header.ok = true
-	if got := s.reposCount(); len(got) != 2 || got[0] != "2k [30]" || got[1] != "2k" {
+	if got := s.reposCount(); len(got) != 2 || got[0] != "2k[30]" || got[1] != "2k" {
 		t.Errorf("total: the forms are %q", got)
 	}
 
@@ -101,7 +101,7 @@ func TestReposCountInTheTrim(t *testing.T) {
 
 	svc.repos["@me"] = nil
 	s = newSection(t, svc, nil, 140, 40)
-	if got := s.reposCount(); len(got) != 1 || got[0] != "0" {
+	if got := s.reposCount(); len(got) != 2 || got[0] != "0[0]" || got[1] != "0" {
 		t.Errorf("empty: the forms are %q", got)
 	}
 }
@@ -117,8 +117,8 @@ func TestReposCountUnderFilters(t *testing.T) {
 	run(t, s, s.ApplyFilter(filterform.AppliedMsg{Query: "is:private"}))
 	n := s.repos.current().Feed.Shown()
 	want := strconv.Itoa(n) + "/2k"
-	if got := s.reposCount(); len(got) == 0 || got[0] != want {
-		t.Errorf("pane filter with a total: the forms are %q, want %q first", got, want)
+	if got := s.reposCount(); len(got) < 2 || got[1] != want {
+		t.Errorf("pane filter with a total: the forms are %q, want %q second", got, want)
 	}
 
 	// The quick filter keeps some of the loaded rows.
@@ -131,12 +131,12 @@ func TestReposCountUnderFilters(t *testing.T) {
 		t.Fatalf("the quick filter keeps %d of 30", n)
 	}
 	m := strconv.Itoa(n)
-	if got := s.reposCount(); len(got) != 2 || got[0] != m+" [30]" || got[1] != m {
-		t.Errorf("quick filter, no total: the forms are %q", got)
+	if got := s.reposCount(); len(got) != 3 || got[0] != m+"/30[30]" || got[1] != m+"/30" || got[2] != m {
+		t.Errorf("quick filter, all read, no total: the forms are %q", got)
 	}
 	s.header.value.Profile.Repos = 2000
 	s.header.ok = true
-	if got := s.reposCount(); len(got) != 3 || got[0] != m+"/2k [30]" || got[1] != m+"/2k" || got[2] != m {
+	if got := s.reposCount(); len(got) != 3 || got[0] != m+"/2k[30]" || got[1] != m+"/2k" || got[2] != m {
 		t.Errorf("quick filter, total: the forms are %q", got)
 	}
 }
@@ -174,11 +174,11 @@ func TestReposLanguage(t *testing.T) {
 		t.Errorf("the row should show the glyph of Go, not its name: %q", lines[1])
 	}
 	// The tabs name the language of the repository under the cursor.
-	if tabs := ansi.Strip(s.tabsLine(80)); !strings.HasSuffix(tabs, nerd.Language("Go")+" Go") {
+	if tabs := ansi.Strip(s.tabsLine(80)); !strings.Contains(tabs, nerd.Language("Go")+" Go") {
 		t.Errorf("the tabs end in %q, want the language under the cursor", tabs)
 	}
 	press(t, s, "down")
-	if tabs := ansi.Strip(s.tabsLine(80)); !strings.HasSuffix(tabs, nerd.Language("Jupyter Notebook")+" Jupyter Notebook") {
+	if tabs := ansi.Strip(s.tabsLine(80)); !strings.Contains(tabs, nerd.Language("Jupyter Notebook")+" Jupyter Notebook") {
 		t.Errorf("the tabs end in %q, want Jupyter Notebook", tabs)
 	}
 }

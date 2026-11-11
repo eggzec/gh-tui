@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -22,9 +23,6 @@ type Item struct {
 	Label string
 	// Short names it where Label doesn't fit. Empty means Label.
 	Short string
-	// Count is shown after the name when it isn't empty. The narrowest form
-	// leaves it out.
-	Count string
 }
 
 // Model is a tab row.
@@ -40,6 +38,10 @@ type Model struct {
 	scroll       bool
 	// styleBlanks styles blank separators too.
 	styleBlanks bool
+	// box draws the row in three lines, with a box around the tab on view.
+	box    bool
+	border lipgloss.Border
+	aside  string
 }
 
 // Option configures a Model.
@@ -62,13 +64,42 @@ func WithMarkers(before, more string) Option {
 	return func(m *Model) { m.before, m.more, m.scroll = before, more, true }
 }
 
+// WithBox draws the row in three lines: the tab on view in a box of the
+// border, the others bare, and under them a baseline that is open beneath the
+// box. A zero border is the rounded one. The separator is not used: every tab
+// is its label, a blank on each side, and the two cells of the box's sides.
+func WithBox(b lipgloss.Border) Option {
+	return func(m *Model) {
+		if b == (lipgloss.Border{}) {
+			b = lipgloss.RoundedBorder()
+		}
+		m.box, m.border = true, b
+	}
+}
+
 // New returns a tab row.
 func New(opts ...Option) Model {
 	m := Model{styles: DefaultStyles(true), sep: DefaultSeparator}
 	for _, o := range opts {
 		o(&m)
 	}
+	if m.box && m.before == "" && m.more == "" {
+		m.before, m.more = "‹", "›"
+	}
 	return m
+}
+
+// SetAside sets styled text drawn at the right end of the label line of a
+// boxed row, which the tabs leave its width and a blank. It is dropped where
+// even the scrolled tabs can't leave room for it. Flat rows ignore it.
+func (m *Model) SetAside(s string) { m.aside = s }
+
+// Height returns how many lines View returns: three for a boxed row, else one.
+func (m Model) Height() int {
+	if m.box {
+		return boxHeight
+	}
+	return 1
 }
 
 // SetStyles sets the styles.
@@ -99,6 +130,9 @@ func (m Model) Width() int { return m.width }
 func (m Model) View() string {
 	if m.width == 0 || len(m.items) == 0 {
 		return ""
+	}
+	if m.box {
+		return m.boxed()
 	}
 	if m.scroll {
 		return m.scrolled()
@@ -131,14 +165,10 @@ func (m Model) Forms() []string {
 // name returns the text of tab i for the form.
 func (m Model) name(i int, short bool) string {
 	it := m.items[i]
-	label := it.Label
 	if short && it.Short != "" {
-		label = it.Short
+		return it.Short
 	}
-	if it.Count != "" {
-		label += " " + it.Count
-	}
-	return label
+	return it.Label
 }
 
 func (m Model) names(short bool) []string {

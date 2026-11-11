@@ -14,8 +14,8 @@ import (
 var update = flag.Bool("update", false, "rewrite the golden files")
 
 var items = []Item{
-	{Label: "Repositories", Short: "Repos", Count: "12"},
-	{Label: "Stars", Count: "3"},
+	{Label: "Repositories", Short: "Repos"},
+	{Label: "Stars"},
 	{Label: "Followers"},
 	{Label: "Following"},
 	{Label: "Organizations", Short: "Orgs"},
@@ -36,9 +36,9 @@ func TestLadder(t *testing.T) {
 		width int
 		want  string
 	}{
-		{80, "Repositories 12  Stars 3  Followers  Following  Organizations"},
-		{55, "Repos 12  Stars 3  Followers  Following  Orgs"},
-		{44, "Repos 12 Stars 3 Followers Following Orgs"},
+		{80, "Repositories  Stars  Followers  Following  Organizations"},
+		{55, "Repos  Stars  Followers  Following  Orgs"},
+		{38, "Repos Stars Followers Following Orgs"},
 		{20, "[1] 2 3 4 5"},
 		{8, "[1] 2 3 "},
 	}
@@ -53,9 +53,9 @@ func TestLadder(t *testing.T) {
 func TestForms(t *testing.T) {
 	m := row(0, 1)
 	want := []string{
-		"Repositories 12  Stars 3  Followers  Following  Organizations",
-		"Repos 12  Stars 3  Followers  Following  Orgs",
-		"Repos 12 Stars 3 Followers Following Orgs",
+		"Repositories  Stars  Followers  Following  Organizations",
+		"Repos  Stars  Followers  Following  Orgs",
+		"Repos Stars Followers Following Orgs",
 		"1 [2] 3 4 5",
 	}
 	got := m.Forms()
@@ -96,9 +96,6 @@ func TestWidthNeverExceeded(t *testing.T) {
 func TestScrollKeepsCurrent(t *testing.T) {
 	for cur, it := range items {
 		name := it.Label
-		if it.Count != "" {
-			name += " " + it.Count
-		}
 		// The current name plus the markers that surround it must fit.
 		need := ansi.StringWidth(name)
 		if cur > 0 {
@@ -123,7 +120,7 @@ func TestCurrentAndOther(t *testing.T) {
 	m.SetItems(items, 1)
 	m.SetWidth(200)
 	got := m.View()
-	for _, want := range []string{oth.Render("Repositories 12"), cur.Render("Stars 3"), oth.Render("Followers")} {
+	for _, want := range []string{oth.Render("Repositories"), cur.Render("Stars"), oth.Render("Followers")} {
 		if !strings.Contains(got, want) {
 			t.Errorf("row %q lacks %q", got, want)
 		}
@@ -141,14 +138,14 @@ func TestMarkers(t *testing.T) {
 		t.Errorf("scrolled to the last: %q", on)
 	}
 	first := row(30, 0, WithMarkers("<", ">")).View()
-	if !strings.Contains(first, "Repositories 12") || !strings.HasSuffix(first, ">") || strings.HasPrefix(first, "<") {
+	if !strings.Contains(first, "Repositories") || !strings.HasSuffix(first, ">") || strings.HasPrefix(first, "<") {
 		t.Errorf("at the first: %q", first)
 	}
 }
 
 func TestGolden(t *testing.T) {
 	var b strings.Builder
-	for _, w := range []int{80, 55, 44, 20, 8} {
+	for _, w := range []int{80, 55, 38, 20, 8} {
 		b.WriteString(row(w, 1).View())
 		b.WriteString("\n")
 	}

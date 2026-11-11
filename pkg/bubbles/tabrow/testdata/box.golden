@@ -1,0 +1,30 @@
+width 80, tab 0
+ ╭──────────────╮                                                               
+ │ Repositories │  Stars    Followers    Following    Organizations           Go
+─╯              ╰───────────────────────────────────────────────────────────────
+
+width 80, tab 2
+                          ╭───────────╮                                         
+   Repositories    Stars  │ Followers │  Following    Organizations           Go
+──────────────────────────╯           ╰─────────────────────────────────────────
+
+width 80, tab 4
+                                                    ╭───────────────╮           
+   Repositories    Stars    Followers    Following  │ Organizations │         Go
+────────────────────────────────────────────────────╯               ╰───────────
+
+width 40, tab 0
+ ╭───────╮                              
+ │ Repos │  Stars    Followers   ›    Go
+─╯       ╰──────────────────────────────
+
+width 40, tab 2
+                   ╭───────────╮        
+   Repos    Stars  │ Followers │ ›    Go
+───────────────────╯           ╰────────
+
+width 40, tab 4
+                 ╭──────╮               
+  ‹   Following  │ Orgs │             Go
+─────────────────╯      ╰───────────────
+

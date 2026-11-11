@@ -634,16 +634,22 @@ func (m *Model) updateChips() {
 		}
 	}
 	for _, p := range m.panes {
-		c, ok := p.section.(ui.Chipper)
-		if !ok {
-			continue
+		changed := false
+		if c, ok := p.section.(ui.Chipper); ok {
+			label := p.section.Title()
+			if chips := c.Chips(); chips != "" {
+				label += m.icons.Separator + chips
+			}
+			if label != p.label {
+				p.label, changed = label, true
+			}
 		}
-		label := p.section.Title()
-		if chips := c.Chips(); chips != "" {
-			label += m.icons.Separator + chips
+		if c, ok := p.section.(ui.Counter); ok {
+			if forms := c.CountForms(); !slices.Equal(forms, p.count) {
+				p.count, changed = forms, true
+			}
 		}
-		if label != p.label {
-			p.label = label
+		if changed {
 			m.drawFrame(p)
 		}
 	}

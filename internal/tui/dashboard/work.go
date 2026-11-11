@@ -173,11 +173,6 @@ func (l *workList) appendPage(i int, list core.WorkList, replace bool) {
 	t.scroll(l.height)
 }
 
-// count is how many items wait on the viewer in all.
-func (l *workList) count(w core.Work) int {
-	return w.ReviewRequested.Count + w.Authored.Count + w.Assigned.Count
-}
-
 // current is the tab on view.
 func (l *workList) current() *workTab { return &l.tabs[l.cur] }
 
@@ -210,9 +205,9 @@ func (l *workList) switchTab(delta int) {
 }
 
 // resize sizes the pane to width by height inside its frame, the tabs
-// included.
+// included: the three lines of the boxed tabs and the headers.
 func (l *workList) resize(width, height int) {
-	width, height = max(width, 0), max(height-2, 0)
+	width, height = max(width, 0), max(height-listTop, 0)
 	if width != l.width {
 		l.width = width
 		l.layout()

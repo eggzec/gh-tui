@@ -78,27 +78,19 @@ func (s *Section) renderBar() {
 		}
 		right.WriteString(st.Render(tb.label))
 	}
-	// The count takes the longest form that leaves the rest its room. Narrow
-	// panes name only the tab shown.
+	// Narrow panes name only the tab shown.
 	lw, tabsRight := ansi.StringWidth(left), right.String()
-	for _, c := range s.countForms() {
-		if lw+ansi.StringWidth(c)+2+ansi.StringWidth(tabsRight)+2 <= s.width {
-			s.bar = spread(left, t.Subtle.Render(c)+"  "+tabsRight, s.width, s.icons.Ellipsis)
-			return
-		}
-	}
 	if lw+ansi.StringWidth(tabsRight)+2 > s.width {
 		tabsRight = t.Accent.Render(tabLabel(s.tab))
 	}
 	s.bar = spread(left, tabsRight, s.width, s.icons.Ellipsis)
 }
 
-// countForms is the forms of the count of the issues, longest first: "all
-// [loaded]" with the total GitHub told, or the loaded count alone while it is
-// unknown. Under a filter it is "matched/all". There is none while the list
-// loads. The total counts what a search of the list's text finds, which for a
-// milestone filter may differ from the list.
-func (s *Section) countForms() []string {
+// CountForms is the forms of the count of the issues for the pane's frame,
+// longest first (see ui.CountForms). There is none while the list loads. The
+// total counts what a search of the list's text finds, which for a milestone
+// filter may differ from the list.
+func (s *Section) CountForms() []string {
 	f := &s.list
 	if s.total == nil || f.Len() == 0 && (!f.Done() || f.Err() != nil) {
 		return nil

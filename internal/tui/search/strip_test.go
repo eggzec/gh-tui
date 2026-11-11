@@ -42,12 +42,12 @@ func TestCountOnlyForCountedKinds(t *testing.T) {
 	s.text = "go"
 	s.counts = map[core.SearchKind]int{core.SearchRepos: 1234, core.SearchIssues: 5, core.SearchCode: 9}
 	s.kind = core.SearchRepos
-	if got := s.countForms(); !slices.Equal(got, []string{"1.2k"}) {
-		t.Errorf("repositories count %q, want [1.2k]", got)
+	if got := s.countForms(); !slices.Equal(got, []string{"1.2k[1234]", "1.2k"}) {
+		t.Errorf("repositories count %q, want [1.2k[1234] 1.2k]", got)
 	}
 	s.kind = core.SearchIssues
-	if got := s.countForms(); !slices.Equal(got, []string{"5"}) {
-		t.Errorf("issues count %q, want [5]", got)
+	if got := s.countForms(); !slices.Equal(got, []string{"5[5]", "5"}) {
+		t.Errorf("issues count %q, want [5[5] 5]", got)
 	}
 	s.kind = core.SearchCode
 	if got := s.countForms(); got != nil {
@@ -63,11 +63,11 @@ func TestCountFormsOfTotals(t *testing.T) {
 		total int
 		want  []string
 	}{
-		{0, []string{"0"}},
-		{1, []string{"1"}},
-		{999, []string{"999"}},
-		{1000, []string{"1k"}},
-		{12345, []string{"12k"}},
+		{0, []string{"0[0]", "0"}},
+		{1, []string{"1[1]", "1"}},
+		{999, []string{"999[999]", "999"}},
+		{1000, []string{"1k[1000]", "1k"}},
+		{12345, []string{"12k[12345]", "12k"}},
 	} {
 		s := newSection(t, newFake(), 120, 30)
 		s.text = "go"
@@ -86,8 +86,8 @@ func TestCountFormsUnderAQuickFilter(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, 120, 30)
 	typeText(t, s, "tea")
-	if got := s.countForms(); !slices.Equal(got, []string{"43 [30+]", "43"}) {
-		t.Fatalf("forms %q before the filter, want [43 [30+] 43]", got)
+	if got := s.countForms(); !slices.Equal(got, []string{"43[30]", "43"}) {
+		t.Fatalf("forms %q before the filter, want [43[30] 43]", got)
 	}
 	typed := strings.Split(svc.repos[0].Repo.Ref.String(), "")
 	keys := append([]string{"&"}, typed...)
@@ -97,7 +97,7 @@ func TestCountFormsUnderAQuickFilter(t *testing.T) {
 	if shown == 0 || shown >= l.feed.Loaded() {
 		t.Fatalf("the filter keeps %d of %d rows, want some but not all", shown, l.feed.Loaded())
 	}
-	want := fmt.Sprintf("%d/43 [30+]", shown)
+	want := fmt.Sprintf("%d/43[30]", shown)
 	if got := s.countForms(); len(got) == 0 || got[0] != want {
 		t.Errorf("forms %q under the filter, want %q first", got, want)
 	}
@@ -125,12 +125,12 @@ func TestCountFormsUnknownTotal(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), 120, 30)
 	typeText(t, s, "tea")
-	if got := s.countForms(); !slices.Equal(got, []string{"43 [30+]", "43"}) {
-		t.Fatalf("forms %q, want [43 [30+] 43]", got)
+	if got := s.countForms(); !slices.Equal(got, []string{"43[30]", "43"}) {
+		t.Fatalf("forms %q, want [43[30] 43]", got)
 	}
 	s.counts[core.SearchRepos] = 3
-	if got := s.countForms(); !slices.Equal(got, []string{"30+"}) {
-		t.Errorf("forms %q for a total below the loaded count, want [30+]", got)
+	if got := s.countForms(); !slices.Equal(got, []string{"?[30]", "?"}) {
+		t.Errorf("forms %q for a total below the loaded count, want [?[30] ?]", got)
 	}
 }
 
@@ -142,8 +142,8 @@ func TestCountRendersNarrow(t *testing.T) {
 		width int
 		want  string
 	}{
-		{120, "43 [30+]"},
-		{80, "43 [30+]"},
+		{120, "43[30]"},
+		{80, "43[30]"},
 		{26, "43"},
 	} {
 		s := newSection(t, newFake(), tc.width, 24)

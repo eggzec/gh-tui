@@ -31,7 +31,7 @@ func TestInitLoadsEverything(t *testing.T) {
 	for _, want := range []string{
 		"Mona Lisa Octocat @octocat", "1.2k followers", "3 unread",
 		ui.NewIcons(config.IconsNerd).Here, "spoon-knife", "Yours", "github", "charmbracelet",
-		"repo-000", "Review requests 3", "#1402", "Your pull requests 2",
+		"repo-000", "Reviews", "#1402", "Mine",
 		"Render only the cells that changed", "contributions in the last 90 days",
 	} {
 		if !strings.Contains(view, want) {
@@ -93,7 +93,7 @@ func TestCachedPaintsAtOnce(t *testing.T) {
 	svc.cached = true
 	s := New(t.Context(), svc, nil)
 	setSize(s, 140, 38)
-	if view := screen(s); !strings.Contains(view, "Mona Lisa Octocat") || !strings.Contains(view, "Review requests 3") {
+	if view := screen(s); !strings.Contains(view, "Mona Lisa Octocat") || !strings.Contains(view, "Reviews") {
 		t.Errorf("before any read the dashboard should show the cache:\n%s", view)
 	}
 	if len(svc.calls) != 0 {
@@ -295,7 +295,7 @@ func TestNarrowShowsTheFocusedPane(t *testing.T) {
 		t.Errorf("the narrow dashboard should show the repositories and name the other panes:\n%s", view)
 	}
 	press(t, s, "3")
-	if view := screen(s); !strings.Contains(view, "Review requests 3") || strings.Contains(view, "repo-000") {
+	if view := screen(s); !strings.Contains(view, "Review requests") || strings.Contains(view, "repo-000") {
 		t.Errorf("focusing the work should show it alone:\n%s", view)
 	}
 }
@@ -332,21 +332,21 @@ func TestZoom(t *testing.T) {
 		shows, hides  []string
 	}{
 		{keys: []string{"z"}, zoom: true, focus: reposPane, shows: []string{"Repositories", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "repo-000"}, hides: []string{"Review requests"}},
-		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Waiting on you", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Waiting on you", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "Review requests"}, hides: []string{"repo-000"}},
 		{keys: []string{"tab"}, zoom: true, focus: calendarPane, shows: []string{"contributions in the last 90 days"}, hides: []string{"Review requests"}},
-		{keys: []string{"shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"contributions"}},
-		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{keys: []string{"shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"contributions"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
 		// The full help of the app takes rows, which leaves the dashboard
 		// too short for every pane, and gives them back.
-		{width: 180, height: 26, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
-		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{width: 180, height: 26, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
 		// Where the zoom doesn't show, esc leaves it be.
-		{width: 80, height: 22, keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
-		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
+		{width: 80, height: 22, keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
+		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
 		// Where it shows, esc never unzooms: the zoom key does.
-		{keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests 3"}, hides: []string{"repo-000"}},
-		{keys: []string{"z"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000", "contributions"}},
-		{keys: []string{"z", "z"}, zoom: false, focus: workPane, shows: []string{"Review requests 3", "repo-000"}},
+		{keys: []string{"esc"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
+		{keys: []string{"z"}, zoom: false, focus: workPane, shows: []string{"Review requests", "repo-000", "contributions"}},
+		{keys: []string{"z", "z"}, zoom: false, focus: workPane, shows: []string{"Review requests", "repo-000"}},
 	}
 	for i, tt := range tests {
 		if tt.width > 0 {
@@ -391,13 +391,13 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
 			press(t, s, "z", "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() || !strings.Contains(screen(s), "Review requests") {
+			if s.zoom.User() || !strings.Contains(screen(s), "Reviews") {
 				t.Errorf("zoom %v after z twice; want every pane", s.zoom.User())
 			}
 			setSize(s, 140, tt.height)
 			press(t, s, "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
+			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Reviews") != !tt.zoom {
 				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom.User(), tt.zoom, screen(s))
 			}
 		})
@@ -523,7 +523,7 @@ func TestWorkTotal(t *testing.T) {
 	view := screen(s)
 	press(t, s, "3", "[")
 	view += screen(s)
-	for _, want := range []string{"No open issues assigned to you.", "Waiting on you · 16", "Assigned 0"} {
+	for _, want := range []string{"No open issues assigned to you.", "Waiting on you", "14[2]", "0[0]"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the work doesn't show %q:\n%s", want, view)
 		}

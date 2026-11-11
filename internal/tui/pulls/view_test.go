@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -46,20 +45,17 @@ func TestView(t *testing.T) {
 	}
 }
 
-// The header shows the total GitHub told with the loaded count in brackets,
-// matched over total under a filter, and drops the count where the tabs
-// leave it no room.
+// The count forms give the total GitHub told with the loaded count in
+// brackets, and matched over total under a filter.
 func TestHeaderCount(t *testing.T) {
 	tests := []struct {
 		name   string
 		width  int
 		filter string
-		want   string // "" when no count shows
+		want   string
 	}{
-		{"wide", 120, "", "250 ["},
+		{"wide", 120, "", "250["},
 		{"wide filtered", 120, "is:merged author:hubot", "/250"},
-		{"narrow", 30, "", ""},
-		{"narrow filtered", 30, "is:merged author:hubot", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,16 +66,9 @@ func TestHeaderCount(t *testing.T) {
 				apply(t, s, tt.filter)
 				s.total.Store(250)
 			}
-			s.renderHeader()
-			got := ansi.Strip(s.header)
-			if tt.want == "" {
-				if strings.Contains(got, "250") {
-					t.Errorf("header %q shows the count, want none", got)
-				}
-				return
-			}
+			got := strings.Join(s.CountForms(), " ")
 			if !strings.Contains(got, tt.want) {
-				t.Errorf("header %q lacks %q", got, tt.want)
+				t.Errorf("forms %q lack %q", got, tt.want)
 			}
 		})
 	}
