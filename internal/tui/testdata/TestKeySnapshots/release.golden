@@ -14,13 +14,25 @@ Release
   close | esc | esc | on
   back | backspace | backspace | off
   retry | r | r | off
+  open on GitHub | o | o | on
+  next pane | tab | tab | on
+  previous pane | shift+tab | shift+tab | on
+  zoom | z | z | on
+  grow pane | ctrl+up | ^up | on
+  shrink pane | ctrl+down | ^down | on
+  reset dividers | = | = | on
+  Notes | 1 | 1 | on
+  Files | 2 | 2 | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
   page up | b ctrl+b pgup | b/^b/pgup | on
   page down | space ctrl+f pgdown | space/^f/pgdn | on
   ½ page up | ctrl+u | ^u | on
   ½ page down | ctrl+d | ^d | on
-  top | g g home | gg/home | on
-  bottom | G end | G/end | on
-  diagram code | enter | ↵ | off
-  retry |  |  | off
+  first | g g home | gg/home | on
+  last | G end | G/end | on
+  expand | right l | →/l | on
+  collapse | left h | ←/h | on
+  all | * | * | on
+  open | enter | ↵ | off
+  mark |  |  | off

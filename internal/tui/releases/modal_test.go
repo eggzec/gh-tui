@@ -20,6 +20,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keytest"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext/termtexttest"
 )
 
@@ -324,6 +325,75 @@ func TestKeyLayersOrder(t *testing.T) {
 	}
 }
 
+// The keys that do nothing while a read failed are off in the help.
+func TestFailedLayerTurnsKeysOff(t *testing.T) {
+	m := newModal(&fakeService{err: errors.New("boom")}, 100, 30)
+	run(t, m, m.Init())
+	for _, k := range []string{"o", "tab", "z", "1", "2"} {
+		if b, src, ok := uitest.Winner(m.KeyLayers(), k); ok {
+			t.Errorf("%s reaches %s %q after a failed read, want no key", k, src, b.Help().Desc)
+		}
+	}
+	if msgs := run(t, m, press(m, "o")); len(msgs) != 0 {
+		t.Errorf("o after a failed read = %v, want nothing", msgs)
+	}
+}
+
+// Enter opens nothing in the trees, and the help says it is off.
+func TestEnterOnRowDoesNothing(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	if m.treeKeys.Open.Enabled() {
+		t.Error("the trees' open key is on, want it off")
+	}
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for _, pane := range []string{"1", "2"} {
+		run(t, m, press(m, pane))
+		before := m.View()
+		if msgs := run(t, m, m.Update(enter)); len(msgs) != 0 {
+			t.Errorf("enter in pane %s = %v, want nothing", pane, msgs)
+		}
+		if m.View() != before {
+			t.Errorf("enter in pane %s changed the view", pane)
+		}
+	}
+}
+
+// The open key shows the release, or the releases page until it loads, and
+// does nothing without a page.
+func TestOpenOnGitHub(t *testing.T) {
+	tests := []struct {
+		name   string
+		url    string
+		load   bool
+		want   string
+		wantOK bool
+	}{
+		{"loaded", "https://example.test/page", true, v3.URL, true},
+		{"before the load", "https://example.test/page", false, "https://example.test/page", true},
+		{"no page", "", false, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(context.Background(), &fakeService{}, repo, v3.ID, tt.url, config.Default().Keys)
+			m.SetSize(100, 30)
+			if tt.load {
+				run(t, m, m.Init())
+			}
+			msgs := run(t, m, press(m, "o"))
+			if !tt.wantOK {
+				if len(msgs) != 0 {
+					t.Errorf("o = %v, want nothing", msgs)
+				}
+				return
+			}
+			if len(msgs) != 1 || msgs[0] != (ui.OpenMsg{URL: tt.want}) {
+				t.Errorf("o = %v, want %q opened", msgs, tt.want)
+			}
+		})
+	}
+}
+
 // TestBackspaceDoesNothingAndEscCloses checks the release has no step
 // before it: the back key is taken and does nothing, and the dismiss key
 // closes it, as the keys reach it through the app.
@@ -352,8 +422,8 @@ func (f *withDiagram) Get(ctx context.Context, r core.RepoRef, id int64) (core.R
 	return rel, err
 }
 
-// A diagram in the notes links to mermaid.live, select shows its code,
-// as the help says, and open still opens the release.
+// A diagram in the notes links to mermaid.live, and expand shows its code,
+// as the help says.
 func TestDiagram(t *testing.T) {
 	m := newModal(&withDiagram{}, 100, 30)
 	run(t, m, m.Init())
@@ -362,21 +432,23 @@ func TestDiagram(t *testing.T) {
 		strings.Count(v, "\x1b]8;;https://mermaid.live/view#pako:") != 1 {
 		t.Fatalf("no linked diagram:\n%q", v)
 	}
+	// The cursor starts on the text; the diagram is the row below it.
+	run(t, m, press(m, "j"))
 	offered := false
 	for _, b := range (ui.Hints{Layers: m.KeyLayers()}).ShortHelp() {
-		offered = offered || b.Enabled() && b.Help().Desc == "diagram code"
+		offered = offered || b.Enabled() && b.Help().Desc == "expand"
 	}
 	if !offered {
-		t.Error("the help doesn't offer the diagram's code")
+		t.Error("the help doesn't offer to expand the diagram")
 	}
-	run(t, m, m.Update(tea.KeyPressMsg{Code: tea.KeyEnter}))
+	run(t, m, press(m, "l"))
 	if !strings.Contains(ansi.Strip(m.View()), "tag --> release") {
 		t.Errorf("select didn't show the code:\n%s", ansi.Strip(m.View()))
 	}
 }
 
-// changedThenFails serves v3 with fewer files once, as if one was removed,
-// and then fails with err.
+// changedThenFails fails with err every time it is read, after the cached
+// release showed.
 type changedThenFails struct {
 	fakeService
 	fail error
@@ -386,12 +458,7 @@ func (f *changedThenFails) Get(context.Context, core.RepoRef, int64) (core.Relea
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.gets++
-	if f.gets > 1 {
-		return core.Release{}, f.fail
-	}
-	r := v3
-	r.Assets = v3.Assets[:1]
-	return r, nil
+	return core.Release{}, f.fail
 }
 
 // The files say what went wrong the way the user should read it, without
@@ -434,25 +501,93 @@ func TestFilesErrorWords(t *testing.T) {
 // errMark is the error glyph of the default icons, which mark what failed.
 var errMark = ui.NewIcons(config.IconsNerd).Error
 
-// The release tells when it was published as the date format says: an age
-// with the day after it, or the date in the layout alone.
-func TestDates(t *testing.T) {
-	for format, want := range map[string]string{
-		config.DateRelative: "published 1mo ago (2026-08-11)",
-		config.DateAbsolute: "published 2026-08-11 18:09 UTC",
-		"Jan _2 2006":       "published Aug 11 2026",
-	} {
-		m := New(context.Background(), &fakeService{cached: true}, repo, v3.ID, "", config.Default().Keys,
-			WithNow(func() time.Time { return clock }), WithLocation(time.UTC), WithDates(ui.NewDates(format)))
-		m.SetSize(100, 30)
-		got := ansi.Strip(m.View())
-		if !strings.Contains(got, want) {
-			t.Errorf("%s: the modal doesn't say %q:\n%s", format, want, got)
-		}
-		if format != config.DateRelative && strings.Contains(got, "(2026-08-11)") {
-			t.Errorf("%s: the modal tells the day twice:\n%s", format, got)
-		}
+// The top edge shows the day the release was published, or else drafted.
+func TestReleaseDate(t *testing.T) {
+	r := v3
+	if got := releaseDate(r); got != r.PublishedAt.Local().Format("2006-01-02") {
+		t.Errorf("published release date = %q", got)
 	}
+	r.PublishedAt = time.Time{}
+	r.CreatedAt = time.Date(2026, 8, 1, 12, 0, 0, 0, time.Local)
+	if got := releaseDate(r); got != "2026-08-01" {
+		t.Errorf("draft release date = %q, want its creation day", got)
+	}
+	if got := releaseDate(core.Release{}); got != "" {
+		t.Errorf("release without dates = %q", got)
+	}
+}
+
+func pressKey(m *Modal, msg tea.KeyPressMsg) { m.Update(msg) }
+
+// The digits and tab move the focus, and z shows the focused pane alone.
+func TestPaneFocusAndZoom(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	if got := m.nav.Focus(); got != paneNotes {
+		t.Fatalf("first focus = %d, want the notes", got)
+	}
+	press(m, "2")
+	if got := m.nav.Focus(); got != paneFiles {
+		t.Errorf("focus after 2 = %d, want the files", got)
+	}
+	press(m, "1")
+	if got := m.nav.Focus(); got != paneNotes {
+		t.Errorf("focus after 1 = %d, want the notes", got)
+	}
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyTab})
+	if got := m.nav.Focus(); got != paneFiles {
+		t.Errorf("focus after tab = %d, want the files", got)
+	}
+	if m.paneLayout().Zoomed {
+		t.Fatal("zoomed before z")
+	}
+	press(m, "z")
+	if l := m.paneLayout(); !l.Zoomed || len(l.Boxes) != 1 {
+		t.Errorf("after z: zoomed=%v boxes=%d, want one zoomed box", l.Zoomed, len(l.Boxes))
+	}
+	assertFits(t, m.View(), 100, 30)
+	press(m, "z")
+	if l := m.paneLayout(); l.Zoomed || len(l.Boxes) != 2 {
+		t.Errorf("after second z: zoomed=%v boxes=%d, want the stack", l.Zoomed, len(l.Boxes))
+	}
+}
+
+// ctrl+up and ctrl+down move the divider between the panes, and = puts it back.
+func TestPaneDividers(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	notes := func() int { return m.paneLayout().Boxes[0].Rect.H }
+	start := notes()
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl})
+	grown := notes()
+	if grown == start {
+		t.Fatalf("ctrl+up left the notes at %d rows", start)
+	}
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModCtrl})
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModCtrl})
+	if got := notes(); got == grown || got == start {
+		t.Errorf("ctrl+down twice left the notes at %d rows (grown %d, start %d)", got, grown, start)
+	}
+	press(m, "=")
+	if got := notes(); got != start {
+		t.Errorf("= left the notes at %d rows, want %d", got, start)
+	}
+	assertFits(t, m.View(), 100, 30)
+}
+
+// A narrow modal shows the focused pane alone, and the digits switch it.
+func TestNarrowShowsOnePane(t *testing.T) {
+	w := 2*panes.MinWidth - 1
+	m := newModal(&fakeService{}, w, 30)
+	run(t, m, m.Init())
+	if l := m.paneLayout(); !l.Zoomed || len(l.Boxes) != 1 || l.Boxes[0].Pane != paneNotes {
+		t.Fatalf("narrow layout = zoomed %v, %d boxes; want the notes alone", l.Zoomed, len(l.Boxes))
+	}
+	press(m, "2")
+	if l := m.paneLayout(); len(l.Boxes) != 1 || l.Boxes[0].Pane != paneFiles {
+		t.Errorf("after 2 the layout doesn't show the files alone")
+	}
+	assertFits(t, m.View(), w, 30)
 }
 
 // With the ASCII icons the modal draws its own parts in ASCII: the title,
@@ -462,13 +597,13 @@ func TestASCIIIcons(t *testing.T) {
 		WithNow(func() time.Time { return clock }), WithLocation(time.UTC), WithIcons(ui.NewIcons(config.IconsASCII)))
 	m.SetSize(60, 18)
 	run(t, m, m.Init())
-	asset := core.ReleaseAsset{Name: strings.Repeat("glow_2.0.0_linux_x86_64", 3) + ".tar.gz", Size: 4 << 20, Downloads: 12345}
-	for _, s := range []string{m.Title(), ansi.Strip(m.renderAsset(asset, 60))} {
-		if strings.ContainsFunc(s, func(r rune) bool { return r > unicode.MaxASCII }) {
-			t.Errorf("%q isn't ASCII", s)
+	for _, s := range []string{m.Title(), ansi.Strip(m.View())} {
+		// The pane frames are drawn with box-drawing borders, not icons.
+		for _, r := range s {
+			if r > unicode.MaxASCII && (r < 0x2500 || r > 0x257f) {
+				t.Errorf("%q has the non-ASCII %q", s, r)
+				break
+			}
 		}
-	}
-	if row := ansi.Strip(m.renderAsset(asset, 60)); !strings.Contains(row, "...") || !strings.Contains(row, "v 12,345") {
-		t.Errorf("row %q lacks the cut name or the downloads", row)
 	}
 }

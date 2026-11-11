@@ -1,12 +1,11 @@
-// Package releases is the modal of a release: its tag, name, author and
-// date over its notes, rendered as markdown, and the files uploaded with
-// it. The app opens it from a notification of the release.
+// Package releases is the modal of a release: its author, tag and target over
+// its notes, rendered as markdown, and the files uploaded with it, in two
+// panes. The app opens it from a notification of the release.
 package releases
 
 import (
 	"context"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,7 +17,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
-	"github.com/eggzec/gh-tui/pkg/bubbles/thread"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
+	"github.com/eggzec/gh-tui/pkg/markdown"
 )
 
 // Service is what the modal needs of the releases service.
@@ -112,7 +113,17 @@ type Modal struct {
 	loaded bool
 	err    error
 
-	thread thread.Model[core.ReleaseAsset]
+	nav        panes.Nav
+	zoom       panes.Zoom
+	frames     panes.Styles
+	dividers   *ui.Dividers
+	treeKeys   treeview.KeyMap
+	notes      treeview.Model
+	files      treeview.Model
+	md         *markdown.Renderer
+	notesMade  bool
+	notesBuilt notesKey
+	look       int
 	// ctx bounds the reads of the modal and is cancelled when it closes.
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -125,7 +136,6 @@ type Modal struct {
 
 	width, height int
 	theme         ui.Theme
-	st            styles
 	errs          ui.ErrorStyles
 }
 
@@ -172,33 +182,21 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		icons:  o.icons,
 		links:  o.links,
 	}
-	// The voice and the thread's copies of it read the icons of the modal
-	// itself, not of the options, which go out of use.
+	// The voice reads the icons of the modal itself, not of the options,
+	// which go out of use.
 	m.voice.Icons = &m.icons
-	fetch := func(ctx context.Context, _ string) ([]core.ReleaseAsset, string, error) {
-		r, err := svc.Get(ctx, repo, id)
-		return r.Assets, "", err
-	}
-	// The files come with the release, which the thread has no key to
-	// read again.
-	v := m.voice
-	v.Retry = m.keys.thread.Retry
-	m.thread = thread.New(fetch, m.renderAsset,
-		thread.WithContext(ctx),
-		thread.WithKeyMap(m.keys.thread),
-		thread.WithFocused(true),
-		thread.WithEmptyText(ui.None("assets")),
-		thread.WithErrorText(ui.ErrorText("load the release", repo.String(), v)),
-	)
-	if f := o.links.Func(repo.String()); f != nil {
-		m.thread.SetAutolink(f)
-	}
+	m.dividers = &ui.Dividers{Step: 4}
+	m.nav.SetFocus(paneNotes)
+	km := treeview.NewKeyMap(ui.Lookup(keys, ctxModal))
+	// A row has nothing to open here, so enter is off in the help too.
+	km.Open.SetEnabled(false)
+	m.treeKeys = km
+	m.notes = treeview.New(treeview.Source{}, treeview.WithKeyMap(km))
+	m.files = treeview.New(treeview.Source{}, treeview.WithKeyMap(km))
 	r, cached := svc.CachedGet(repo, id)
 	slog.InfoContext(ctx, "open", "span", "tui", "kind", "release", "repo", repo.String(), "id", id, "cached", cached)
 	if cached {
 		m.rel, m.loaded = r, true
-		// The files show without a read.
-		m.thread.SetFirst(r.Assets, "")
 	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
@@ -212,7 +210,20 @@ func (m *Modal) Init() tea.Cmd {
 	if m.loaded {
 		return tea.Batch(m.show(), m.get())
 	}
-	return tea.Batch(m.thread.Init(), m.get())
+	return m.get()
+}
+
+// resize sizes the trees to the panes.
+func (m *Modal) resize() {
+	for _, b := range m.paneLayout().Boxes {
+		in := b.Rect.Inner()
+		switch b.Pane {
+		case paneNotes:
+			m.notes.SetSize(in.W, in.H)
+		case paneFiles:
+			m.files.SetSize(in.W, in.H)
+		}
+	}
 }
 
 // get reads the release. A fresh cached release costs no request.
@@ -235,22 +246,16 @@ func (m *Modal) receive(msg releaseMsg) tea.Cmd {
 		m.err = msg.err
 		return nil
 	}
-	changed := m.loaded && !slices.Equal(m.rel.Assets, msg.rel.Assets)
-	first := !m.loaded
 	m.rel, m.loaded, m.err = msg.rel, true, nil
-	if first {
-		m.thread.SetFirst(m.rel.Assets, "")
-	}
-	cmd := m.show()
-	if changed {
-		cmd = tea.Batch(cmd, m.thread.Reload())
-	}
-	return cmd
+	return m.show()
 }
 
-// show sets the document of the thread from the release.
+// show builds the rows from the release and has the autolinks confirmed.
 func (m *Modal) show() tea.Cmd {
-	return tea.Batch(m.thread.SetDocument(m.header(m.width), m.rel.Body), m.links.Verify(m.ctx, m.repo.String(), m.rel.Body))
+	m.notesMade = false
+	m.buildFiles()
+	m.resize()
+	return m.links.Verify(m.ctx, m.repo.String(), m.rel.Body)
 }
 
 // Title implements ui.Modal.
@@ -285,7 +290,11 @@ func (m *Modal) TrimTitle() ui.TrimTitle {
 	case r.Prerelease:
 		state = ui.ReleasePre
 	}
+	t.Right = releaseDate(r)
 	t.Lead = m.theme.State(state).Render(m.icons.State(state))
+	if r.Latest && !r.Draft && !r.Prerelease {
+		t.Lead += " " + m.theme.State(ui.ReleasePublished).Render(m.icons.Pinned)
+	}
 	return t
 }
 
@@ -315,22 +324,25 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.thread.SetSize(m.width, m.height)
-	if m.loaded {
-		// The header wraps to the width.
-		_ = m.show()
-	}
+	m.resize()
 }
 
 // SetTheme implements ui.Modal.
 func (m *Modal) SetTheme(t ui.Theme) {
 	m.voice.Icons = &m.icons
 	m.theme = t
-	m.st = newStyles(t, m.icons)
 	m.errs = t.Errors(m.icons)
-	m.thread.SetStyles(t.Thread(m.icons))
+	m.frames = panes.DefaultStyles(t.Dark)
+	m.frames.Ellipsis, m.frames.Separator = m.icons.Ellipsis, m.icons.Separator
+	m.md = ui.NewMarkdown(t, m.icons)
+	m.md.SetStyle(t.Thread(m.icons).Markdown)
+	m.md.SetGlyphs(m.icons.Markdown)
+	m.md.SetAutolink(m.links.Func(m.repo.String()))
+	m.look++
+	m.notes.SetStyles(t.Tree(m.icons))
+	m.files.SetStyles(t.Tree(m.icons))
 	if m.loaded {
-		_ = m.show()
+		m.buildFiles()
 	}
 }
 
@@ -355,13 +367,11 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 		return m.online()
 	case ui.SyncMsg:
 		if m.links.Synced(msg, &m.drew) {
-			m.thread.SetAutolink(m.links.Func(m.repo.String()))
+			m.md.SetAutolink(m.links.Func(m.repo.String()))
+			m.look++
 		}
-		return nil
 	}
-	var cmd tea.Cmd
-	m.thread, cmd = m.thread.Update(msg)
-	return cmd
+	return nil
 }
 
 // KeyLayers implements ui.Keyed: the modal's own keys, with retry while a
@@ -370,23 +380,24 @@ func (m *Modal) Update(msg tea.Msg) tea.Cmd {
 func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k := m.keys
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
-	doc := keyhelp.FromHelp("", m.thread, false)
 	if m.failed() {
-		doc = ui.Off(doc)
+		k.offFailed()
 	}
-	// The thread is the one pane of the modal.
-	return []keyhelp.Layer{ui.MergeLayers(ctxModal, keyhelp.FromHelp("", k, false), doc)}
+	own := keyhelp.FromHelp("", k, false)
+	if m.failed() {
+		return []keyhelp.Layer{ui.MergeLayers(ctxModal, own)}
+	}
+	return []keyhelp.Layer{ui.MergeLayers(ctxModal, own, keyhelp.FromHelp("", m.treeKeys, false))}
 }
 
 // online reads again, now that GitHub answers again, the release and its
 // files if they failed for want of an answer from it.
 func (m *Modal) online() tea.Cmd {
-	var get tea.Cmd
 	if m.failed() && ui.Unreached(m.err) {
 		m.err = nil
-		get = m.get()
+		return m.get()
 	}
-	return tea.Batch(get, ui.RetryUnreached(&m.thread))
+	return nil
 }
 
 // failed reports whether the release couldn't be read and nothing shows.

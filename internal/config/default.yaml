@@ -1439,6 +1439,16 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
+    # Open the release on GitHub.
+    open: [o]
+    # Expand the row under the cursor, or go to its first child when it is
+    # open; collapse it, or go to its parent. The toggle expands every row, or
+    # collapses them all when all are expanded.
+    expand: [right, l]
+    collapse: [left, h]
+    toggle_all: ["*"]
+    # The trees have nothing to mark.
+    mark: []
 
   # What the search prompt of a pager or a log takes: enter searches, esc
   # closes it, and so do these keys on an empty line (a pager only).
