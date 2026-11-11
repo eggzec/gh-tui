@@ -64,7 +64,7 @@ func TestGroupKeys(t *testing.T) {
 	} else if _, ok := cmd().(ui.OpenModalMsg); !ok {
 		t.Fatal("g did not open the group modal on repositories")
 	}
-	press(t, s, "esc", "]")
+	press(t, s, "esc", "2")
 	if s.keys.state(s).GroupBy.Enabled() {
 		t.Error("group by is enabled on issues")
 	}

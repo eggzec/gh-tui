@@ -639,9 +639,8 @@ keys:
     # panes.
     next_pane: [tab]
     prev_pane: [shift+tab]
-    # Switch between the tabs of the focused pane or modal, such as the kinds
-    # of the search modal, All, Failing, Running and Mine of the Actions
-    # modal, the states of the pull requests and the issues, the owners of
+    # Switch between the tabs of the focused pane or modal, such as All,
+    # Failing, Running and Mine of the Actions modal, the states of the pull requests and the issues, the owners of
     # the dashboard's repositories, the lists of the page of a user or an
     # organization, and the Filters and Sort tabs of the filter modal.
     next_tab: ["]"]

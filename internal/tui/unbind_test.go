@@ -53,7 +53,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "search", steps: []string{config.ActionSearch}, want: "global, search_modal"},
 		{name: "search query", steps: []string{config.ActionSearch, "search_modal.insert"}, want: "always, search_query (types)"},
 		// Showing the code kind asks for a code search.
-		{name: "search code", steps: []string{config.ActionSearch, "search_modal.insert", "k", "e", "y", "search_query.cancel", config.ActionNextTab, config.ActionNextTab, config.ActionNextTab, config.ActionPane1, "search_modal.insert", "s"}, want: "always, search_query (types)"},
+		{name: "search code", steps: []string{config.ActionSearch, "search_modal.insert", "k", "e", "y", "search_query.cancel", config.ActionPane4, config.ActionPane1, "search_modal.insert", "s"}, want: "always, search_query (types)"},
 		{name: "search results", steps: []string{config.ActionSearch, "search_modal.insert", "k", "e", "y", "search_query.submit"}, want: "global, search_modal, search_results"},
 		{name: "owner", msg: octocat, want: "global, owner, owner_list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "global, owner, owner_list"},

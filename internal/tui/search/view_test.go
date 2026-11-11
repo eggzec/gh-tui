@@ -22,16 +22,16 @@ func TestView(t *testing.T) {
 	}{
 		{"140 columns start", 140, 38, "", nil},
 		{"140 columns repositories", 140, 38, "tea", []string{"esc"}},
-		{"140 columns issues", 140, 38, "tea", []string{"esc", "]"}},
-		{"140 columns pull requests", 140, 38, "tea", []string{"esc", "]", "]"}},
-		{"140 columns code", 140, 38, "tea", []string{"esc", "]", "]", "]"}},
-		{"140 columns code query edited", 140, 38, "tea", []string{"esc", "]", "]", "]", "/", "s"}},
+		{"140 columns issues", 140, 38, "tea", []string{"esc", "2"}},
+		{"140 columns pull requests", 140, 38, "tea", []string{"esc", "3"}},
+		{"140 columns code", 140, 38, "tea", []string{"esc", "4"}},
+		{"140 columns code query edited", 140, 38, "tea", []string{"esc", "4", "/", "s"}},
 		{"140 columns invalid query", 140, 38, "tea is:bogus", nil},
 		{"80 columns start", 80, 22, "", []string{"2"}},
 		{"80 columns repositories", 80, 22, "tea", nil},
-		{"80 columns issues", 80, 22, "tea", []string{"esc", "]"}},
-		{"80 columns code", 80, 22, "tea", []string{"esc", "]", "]", "]"}},
-		{"60 columns issues", 60, 22, "tea", []string{"esc", "]"}},
+		{"80 columns issues", 80, 22, "tea", []string{"esc", "2"}},
+		{"80 columns code", 80, 22, "tea", []string{"esc", "4"}},
+		{"60 columns issues", 60, 22, "tea", []string{"esc", "2"}},
 		{"140 columns query in normal mode", 140, 38, "tea", []string{"esc", "1"}},
 	}
 	for _, tt := range tests {

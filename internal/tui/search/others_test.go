@@ -130,7 +130,7 @@ func TestOthersReadOnSubmit(t *testing.T) {
 			t.Errorf("summary = %+v, want 2 searches sent and read", got)
 		}
 		// Showing one of them counts it as used.
-		p.key(t, "]")
+		p.key(t, "2")
 		if got := stats.Summary().Prefetch[0]; got.Opened != 1 {
 			t.Errorf("summary = %+v, want the issues opened", got)
 		}
