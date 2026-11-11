@@ -53,6 +53,11 @@ type fakeService struct {
 	cached bool
 	err    error
 	gets   int
+
+	extra       core.ReleaseExtra
+	extraCached bool
+	extraErr    error
+	extras      int
 }
 
 func (f *fakeService) CachedGet(core.RepoRef, int64) (core.Release, bool) {
@@ -70,6 +75,28 @@ func (f *fakeService) Get(context.Context, core.RepoRef, int64) (core.Release, e
 	}
 	f.cached = true
 	return v3, nil
+}
+
+// extra3 is what the header shows beyond v3.
+var extra3 = core.ReleaseExtra{
+	TagSHA: "0123456789abcdef", Verified: true, AheadBy: 3, Default: "main",
+	Mentions: []string{"alice", "bob", "octocat"},
+}
+
+func (f *fakeService) CachedExtra(core.RepoRef, int64) (core.ReleaseExtra, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.extra, f.extraCached
+}
+
+func (f *fakeService) Extra(context.Context, core.RepoRef, int64) (core.ReleaseExtra, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.extras++
+	if f.extraErr != nil {
+		return core.ReleaseExtra{}, f.extraErr
+	}
+	return extra3, nil
 }
 
 func (f *fakeService) AssetURL(_ context.Context, _ core.RepoRef, id int64) (string, error) {

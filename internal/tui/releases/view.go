@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"charm.land/lipgloss/v2"
-
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
@@ -98,39 +96,58 @@ func releaseDate(r core.Release) string {
 // The state and the date are in the top edge of the frame.
 func (m *Modal) headerLines() []string {
 	r, t := &m.rel, &m.theme
-	attr := func(label, value string) string {
-		return t.Subtle.Render(label+" ") + t.Text.Render(value)
+	author := cmp.Or(ui.OneLine(r.Author.Login), "someone")
+	var lines []string
+
+	// Who released it, with their picture where pictures are drawn.
+	who := t.Text.Render(author) + t.Subtle.Render(" released this")
+	if m.pics.Shown() {
+		strip := ui.AvatarStrip(m.pics, []ui.Person{{Login: r.Author.Login, AvatarURL: r.AuthorAvatar}}, avatarSize, avatarSize.Cols, nil)
+		who = strip + " " + who
 	}
-	parts := []string{attr("by", cmp.Or(ui.OneLine(r.Author.Login), "someone"))}
+	lines = append(lines, who)
+
+	// The tag, and what is set off about the release.
 	if r.Tag != "" {
-		parts = append(parts, attr("tag", ui.OneLine(r.Tag)))
+		tag := t.Subtle.Render(m.icons.Tag+" ") + t.Text.Render(ui.OneLine(r.Tag))
+		if r.Latest {
+			tag += " " + ui.Badge(t.State(ui.ReleasePublished), "", "latest")
+		}
+		if r.Immutable {
+			tag += " " + ui.Badge(t.Subtle, m.icons.Lock, "immutable")
+		}
+		lines = append(lines, tag)
 	}
-	if r.Target != "" {
-		parts = append(parts, attr("target", ui.OneLine(r.Target)))
+
+	// The commit of the tag and how far the default branch is from it, which
+	// are read apart from the release and so draw once they arrive.
+	if m.extraDone && m.extra.TagSHA != "" {
+		sha := m.extra.TagSHA[:min(len(m.extra.TagSHA), 7)]
+		line := t.Subtle.Render(m.icons.Glyph(ui.GlyphCommit)+" ") + t.Text.Render(sha)
+		if m.extra.Verified {
+			line += " " + t.Subtle.Render(m.icons.Yes)
+		}
+		if n := m.extra.AheadBy; n >= 0 {
+			text := ui.Plural(n, "commit", "commits")
+			if b := ui.OneLine(m.extra.Default); b != "" {
+				text += " to " + b
+			}
+			line += t.Subtle.Render(" " + thousands(n) + " " + text + " since")
+		}
+		lines = append(lines, line)
 	}
+
 	downloads := 0
 	for _, a := range r.Assets {
 		downloads += a.Downloads
 	}
-	parts = append(parts, attr("files", thousands(len(r.Assets))), attr("downloads", thousands(downloads)))
-	sep := t.Subtle.Render(" " + m.icons.Separator + " ")
-	sepW := lipgloss.Width(sep)
-	var lines []string
-	line, lineW := "", 0
-	for _, p := range parts {
-		w := lipgloss.Width(p)
-		if line != "" && lineW+sepW+w > m.width-1 {
+	lines = append(lines, t.Subtle.Render("downloads ")+t.Text.Render(thousands(downloads)))
+
+	if m.extraDone {
+		if line := m.contributors(); line != "" {
 			lines = append(lines, line)
-			line, lineW = "", 0
 		}
-		if line != "" {
-			line += sep
-			lineW += sepW
-		}
-		line += p
-		lineW += w
 	}
-	lines = append(lines, line)
 	if r.URL != "" {
 		lines = append(lines, termtext.Link(r.URL, t.Subtle.Render("url ")+t.Text.Render(ui.OneLine(r.URL))))
 	}
@@ -138,6 +155,44 @@ func (m *Modal) headerLines() []string {
 		lines[i] = ui.Seal(termtext.Fit(" "+l, m.width, m.icons.Ellipsis), m.width)
 	}
 	return lines
+}
+
+// avatarSize is the size of an avatar of the header: round, one row.
+var avatarSize = ui.ImageSize{Cols: ui.AvatarSmall.Cols, Rows: ui.AvatarSmall.Rows, Round: true}
+
+// contributors is the row of the author and the people the notes mention, as
+// avatars that fit the width, or their handles where avatars are off, with
+// the count of those left out.
+func (m *Modal) contributors() string {
+	author := m.rel.Author.Login
+	if author == "" && len(m.extra.Mentions) == 0 {
+		return ""
+	}
+	seen := map[string]bool{strings.ToLower(author): true}
+	people := []ui.Person{{Login: author, AvatarURL: m.rel.AuthorAvatar}}
+	for _, login := range m.extra.Mentions {
+		if key := strings.ToLower(login); !seen[key] {
+			seen[key] = true
+			people = append(people, ui.Person{Login: login, AvatarURL: m.avatarOf(login)})
+		}
+	}
+	if author == "" {
+		people = people[1:]
+	}
+	more := func(n int) string {
+		return m.theme.Subtle.Render("and " + thousands(n) + " " + ui.Plural(n, "other", "others"))
+	}
+	return ui.AvatarStrip(m.pics, people, avatarSize, max(m.width-2, 1), more)
+}
+
+// avatarOf is the address of the picture of login, or "" if the release's
+// page doesn't say where the account's page is.
+func (m *Modal) avatarOf(login string) string {
+	page := ui.PageProfileURL(m.rel.URL, login)
+	if page == "" {
+		return ""
+	}
+	return page + ".png"
 }
 
 // releaseName is what a release is called: its name, or else its tag.

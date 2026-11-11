@@ -29,6 +29,10 @@ type Service interface {
 	Get(ctx context.Context, repo core.RepoRef, id int64) (core.Release, error)
 	// AssetURL resolves the address a file of the release is read from.
 	AssetURL(ctx context.Context, repo core.RepoRef, id int64) (string, error)
+	// CachedExtra and Extra read what the header shows beyond the release:
+	// its commit, how far the default branch moved and who is mentioned.
+	CachedExtra(repo core.RepoRef, id int64) (core.ReleaseExtra, bool)
+	Extra(ctx context.Context, repo core.RepoRef, id int64) (core.ReleaseExtra, error)
 }
 
 // Option configures the modal.
@@ -48,6 +52,14 @@ type options struct {
 	links *ui.Autolinks
 	// downloader saves the files; without it the download keys do nothing.
 	downloader Downloader
+	// pics draws the avatars of the header; nil draws handles instead.
+	pics *ui.Images
+}
+
+// WithAvatars sets the pool that the avatars of the header are drawn from.
+// Without it, the header names people by their handles.
+func WithAvatars(pics *ui.Images) Option {
+	return func(o *options) { o.pics = pics }
 }
 
 // WithAutolinks links the references (#N, @login, hashes) of the release's
@@ -94,8 +106,23 @@ type releaseMsg struct {
 	err error
 }
 
+// extraMsg carries what the header shows beyond the release.
+type extraMsg struct {
+	id    int64
+	extra core.ReleaseExtra
+	err   error
+}
+
 // Modal shows a release. Create one with [New].
 type Modal struct {
+	// extra is what the header shows beyond the release, once extraDone is
+	// set, and extraAsked that it was asked for.
+	extra      core.ReleaseExtra
+	extraDone  bool
+	extraAsked bool
+	// pics draws the avatars; it may be nil.
+	pics *ui.Images
+
 	id   int64
 	svc  Service
 	keys keyMap
@@ -193,6 +220,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 		voice:  *o.voice,
 		icons:  o.icons,
 		links:  o.links,
+		pics:   o.pics,
 
 		dl:          o.downloader,
 		pickKeys:    newPickKeys(keys),
@@ -214,6 +242,9 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 	if cached {
 		m.rel, m.loaded = r, true
 	}
+	if x, ok := svc.CachedExtra(repo, id); ok {
+		m.extra, m.extraDone = x, true
+	}
 	// Assume a dark terminal until the app sets the theme.
 	p, _ := config.Default().Palette(true)
 	m.SetTheme(ui.NewTheme(p, true))
@@ -224,9 +255,24 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 // it for the first time.
 func (m *Modal) Init() tea.Cmd {
 	if m.loaded {
-		return tea.Batch(m.show(), m.get())
+		return tea.Batch(m.show(), m.get(), m.getExtra())
 	}
 	return m.get()
+}
+
+// getExtra reads what the header shows beyond the release, once.
+func (m *Modal) getExtra() tea.Cmd {
+	if m.extraAsked {
+		return nil
+	}
+	m.extraAsked = true
+	svc, ctx, repo, rid, id := m.svc, m.ctx, m.repo, m.rid, m.id
+	return func() tea.Msg {
+		start := time.Now()
+		x, err := svc.Extra(ctx, repo, rid)
+		obs.End(ctx, start, err, "span", "tui", "repo", repo.String(), "release", rid, "part", "extra")
+		return extraMsg{id: id, extra: x, err: err}
+	}
 }
 
 // resize sizes the trees to the panes.
@@ -263,7 +309,7 @@ func (m *Modal) receive(msg releaseMsg) tea.Cmd {
 		return nil
 	}
 	m.rel, m.loaded, m.err = msg.rel, true, nil
-	return m.show()
+	return tea.Batch(m.show(), m.getExtra())
 }
 
 // show builds the rows from the release and has the autolinks confirmed.
@@ -393,6 +439,18 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		return m.receive(msg)
+	case extraMsg:
+		if msg.id != m.id {
+			return nil
+		}
+		if msg.err == nil {
+			m.extra, m.extraDone = msg.extra, true
+			m.resize()
+		}
+		return nil
+	case ui.ImagesMsg:
+		// The header draws its avatars on every View; nothing is kept.
+		return nil
 	case ui.OnlineMsg:
 		return m.online()
 	case ui.SyncMsg:

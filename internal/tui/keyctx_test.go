@@ -694,6 +694,14 @@ var keyRelease = core.Release{
 	Assets: []core.ReleaseAsset{{Name: "gh-tui.tar.gz", Size: 1024}},
 }
 
+func (keyReleases) CachedExtra(core.RepoRef, int64) (core.ReleaseExtra, bool) {
+	return core.ReleaseExtra{}, false
+}
+
+func (keyReleases) Extra(context.Context, core.RepoRef, int64) (core.ReleaseExtra, error) {
+	return core.ReleaseExtra{TagSHA: "0123456789abcdef", AheadBy: 2, Default: "main"}, nil
+}
+
 func (keyReleases) CachedGet(core.RepoRef, int64) (core.Release, bool) { return keyRelease, true }
 func (keyReleases) Get(context.Context, core.RepoRef, int64) (core.Release, error) {
 	return keyRelease, nil
