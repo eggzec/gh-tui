@@ -425,6 +425,13 @@ func (m *Model) frame(mod ui.Modal) string {
 	} else {
 		tt = ui.TrimTitle{Name: mod.Title()}
 	}
+	var right string
+	if r := ui.OneLine(tt.Right); r != "" && tabs == "" {
+		if room := w - 9 - lipgloss.Width(r); room >= minTitleWidth {
+			titleWidth = min(titleWidth, room)
+			right = m.theme.Subtle.Render(r)
+		}
+	}
 	title := tt.Fit(titleWidth, m.theme.Title, m.icons.Ellipsis)
 	if l, ok := mod.(ui.Linked); ok {
 		title = m.links.Link(l.Link(), title)
@@ -432,6 +439,8 @@ func (m *Model) frame(mod ui.Modal) string {
 	c := panes.Content{Focus: true, TopLeft: []string{title}, Body: mod.View()}
 	if tabs != "" {
 		c.TopRight = []string{tabs}
+	} else if right != "" {
+		c.TopRight = []string{right}
 	}
 	if e, ok := mod.(ui.Edged); ok {
 		edges := e.Edges()

@@ -3,44 +3,25 @@ package releases
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/desc"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
-// gutter indents the header and the files, as the other modals do.
+// gutter indents the error lines.
 const gutter = "  "
 
-// styles are the styles of the header and the files, built once per
-// theme.
-type styles struct {
-	title, text, muted, subtle, warning, rule lipgloss.Style
-	sep                                       string
-	// ic draws the rule, the arrow of downloads and the ellipses.
-	ic ui.Icons
-}
-
-func newStyles(t ui.Theme, ic ui.Icons) styles {
-	return styles{
-		ic:      ic,
-		title:   t.Title,
-		text:    t.Text,
-		muted:   t.Muted,
-		subtle:  t.Subtle,
-		warning: t.Warning,
-		rule:    t.Subtle,
-		sep:     t.Subtle.Render(ic.Separator),
-	}
-}
-
-// View implements ui.Modal. Until the release is read, a failed read says
-// why in place of the thread.
+// View implements ui.Modal: the header over the panes, or why the release
+// couldn't be read.
 func (m *Modal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
@@ -48,7 +29,22 @@ func (m *Modal) View() string {
 	if m.failed() {
 		return m.errorView()
 	}
-	return m.thread.View()
+	l := m.paneLayout()
+	if l.Height <= 0 {
+		return ui.Seal("", m.width)
+	}
+	lines := strings.Split(m.drawPanes(l), "\n")
+	if m.loaded {
+		lines = append(m.headerLines(), lines...)
+	}
+	if len(lines) > m.height {
+		lines = lines[:m.height]
+	}
+	blank := ui.Seal("", m.width)
+	for len(lines) < m.height {
+		lines = append(lines, blank)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // errorView says why the release couldn't be read, and how to go on, in
@@ -56,8 +52,6 @@ func (m *Modal) View() string {
 func (m *Modal) errorView() string {
 	v := m.voice
 	v.Retry = m.keys.Refresh
-	// Access is granted by repository, so a refusal names it; the release
-	// that isn't read yet has no name to give otherwise.
 	subject := ""
 	if errors.Is(m.err, core.ErrForbidden) {
 		subject = m.repo.String()
@@ -70,13 +64,80 @@ func (m *Modal) errorView() string {
 		if i > 0 && i-1 < len(errs) {
 			l = gutter + errs[i-1]
 		}
-		lines[i] = termtext.Fit(l, m.width, m.st.ic.Ellipsis)
+		lines[i] = termtext.Fit(l, m.width, m.icons.Ellipsis)
 	}
 	return strings.Join(lines, "\n")
 }
 
-// releaseName is what a release is called: its name, or else its tag, on
-// one line.
+// header is the lines over the panes, as one string.
+func (m *Modal) header() string {
+	return strings.Join(m.headerLines(), "\n")
+}
+
+// headerRows is the height of the header: its lines at the modal's width.
+func (m *Modal) headerRows() int { return len(m.headerLines()) }
+
+// releaseDate is the day the release was published, or else drafted; the
+// top edge of the frame shows it.
+func releaseDate(r core.Release) string {
+	when := r.PublishedAt
+	if when.IsZero() {
+		when = r.CreatedAt
+	}
+	if when.IsZero() {
+		return ""
+	}
+	return when.Local().Format("2006-01-02")
+}
+
+// headerLines tells of the release in as many lines as it takes at the
+// width: author, tag, target, the files and their downloads, and the page.
+// The state and the date are in the top edge of the frame.
+func (m *Modal) headerLines() []string {
+	r, t := &m.rel, &m.theme
+	attr := func(label, value string) string {
+		return t.Subtle.Render(label+" ") + t.Text.Render(value)
+	}
+	parts := []string{attr("by", cmp.Or(ui.OneLine(r.Author.Login), "someone"))}
+	if r.Tag != "" {
+		parts = append(parts, attr("tag", ui.OneLine(r.Tag)))
+	}
+	if r.Target != "" {
+		parts = append(parts, attr("target", ui.OneLine(r.Target)))
+	}
+	downloads := 0
+	for _, a := range r.Assets {
+		downloads += a.Downloads
+	}
+	parts = append(parts, attr("files", thousands(len(r.Assets))), attr("downloads", thousands(downloads)))
+	sep := t.Subtle.Render(" " + m.icons.Separator + " ")
+	sepW := lipgloss.Width(sep)
+	var lines []string
+	line, lineW := "", 0
+	for _, p := range parts {
+		w := lipgloss.Width(p)
+		if line != "" && lineW+sepW+w > m.width-1 {
+			lines = append(lines, line)
+			line, lineW = "", 0
+		}
+		if line != "" {
+			line += sep
+			lineW += sepW
+		}
+		line += p
+		lineW += w
+	}
+	lines = append(lines, line)
+	if r.URL != "" {
+		lines = append(lines, termtext.Link(r.URL, t.Subtle.Render("url ")+t.Text.Render(ui.OneLine(r.URL))))
+	}
+	for i, l := range lines {
+		lines[i] = ui.Seal(termtext.Fit(" "+l, m.width, m.icons.Ellipsis), m.width)
+	}
+	return lines
+}
+
+// releaseName is what a release is called: its name, or else its tag.
 func releaseName(r core.Release) string {
 	if name := strings.TrimSpace(ui.OneLine(r.Name)); name != "" {
 		return name
@@ -84,60 +145,49 @@ func releaseName(r core.Release) string {
 	return ui.OneLine(r.Tag)
 }
 
-// header renders the head of the release at width: its name, its tag,
-// who published it and when, and its files, over a rule.
-func (m *Modal) header(width int) string {
-	r, st := &m.rel, &m.st
-	inner := max(width-len(gutter), 1)
-	var lines []string
-	// The name and the tag link to the release's page.
-	for l := range strings.SplitSeq(ansi.Wrap(releaseName(*r), inner, ""), "\n") {
-		lines = append(lines, gutter+termtext.Link(r.URL, st.title.Render(l)))
+// buildNotes renders the notes into the tree again when the text, the width
+// or the look changed.
+func (m *Modal) buildNotes(width int) {
+	k := notesKey{text: m.rel.Body, width: width, look: m.look}
+	if m.notesMade && m.notesBuilt == k {
+		return
 	}
-	lines = append(lines, "")
-
-	parts := []string{termtext.Link(r.URL, st.text.Render(ui.OneLine(r.Tag)))}
-	switch {
-	case r.Draft:
-		parts = append(parts, st.muted.Render("draft"))
-	case r.Prerelease:
-		parts = append(parts, st.warning.Render("pre-release"))
+	set := m.icons.Set()
+	if set == "" {
+		set = config.IconsNerd
 	}
-	when, verb := r.PublishedAt, " published "
-	if when.IsZero() {
-		when, verb = r.CreatedAt, " drafted "
+	var rows []treeview.Node
+	if strings.TrimSpace(m.rel.Body) != "" {
+		rows = desc.Rows(m.rel.Body, desc.Options{Width: width, Styles: desc.NewStyles(m.theme, m.icons, set), MD: m.md})
 	}
-	by := st.text.Render(cmp.Or(ui.OneLine(r.Author.Login), "someone")) + st.muted.Render(verb+m.dates.Prose(when, m.now()))
-	// An age has the day after it.
-	if !when.IsZero() && m.dates.Relative() {
-		by += st.subtle.Render(" (" + m.dates.Date(when, "2006-01-02") + ")")
-	}
-	parts = append(parts, by)
-	lines = append(lines, gutter+strings.Join(parts, st.sep))
-
-	if n := len(r.Assets); n > 0 {
-		downloads := 0
-		for _, a := range r.Assets {
-			downloads += a.Downloads
-		}
-		lines = append(lines, gutter+st.muted.Render(plural(n, "file"))+st.sep+st.muted.Render(plural(downloads, "download")))
-	}
-	lines = append(lines, gutter+st.rule.Render(ui.Rule(st.ic, inner)))
-	return strings.Join(lines, "\n")
+	m.notes.SetStyles(m.theme.Tree(m.icons))
+	m.notes.SetRows(rows)
+	m.notesBuilt, m.notesMade = k, true
 }
 
-// renderAsset renders a file of the release on a line of width cells: its
-// name, then its size and downloads at the right.
-func (m *Modal) renderAsset(a core.ReleaseAsset, width int) string {
-	st := &m.st
-	size := ui.Size(a.Size)
-	downloads := st.ic.Down + " " + thousands(a.Downloads)
-	// The numbers line up in columns wide enough for most files.
-	right := strings.Repeat(" ", max(6-len(size), 0)) + size + "  " + strings.Repeat(" ", max(9-ansi.StringWidth(downloads), 0)) + downloads
-	room := max(width-len(gutter)-ansi.StringWidth(right)-2, 1)
-	name := termtext.Truncate(ui.OneLine(a.Name), room, st.ic.Ellipsis)
-	pad := max(width-len(gutter)-ansi.StringWidth(name)-ansi.StringWidth(right), 1)
-	return gutter + st.text.Render(name) + strings.Repeat(" ", pad) + st.muted.Render(right[:len(right)-len(downloads)]) + st.subtle.Render(downloads)
+// notesKey is what the rows of the notes depend on.
+type notesKey struct {
+	text  string
+	width int
+	look  int
+}
+
+// buildFiles makes the rows of the Files pane: the name, then the size and
+// the downloads at the right, in columns that line up.
+func (m *Modal) buildFiles() {
+	rows := make([]treeview.Node, 0, len(m.rel.Assets))
+	sizeW, downW := 0, 0
+	for _, a := range m.rel.Assets {
+		sizeW = max(sizeW, len(ui.Size(a.Size)))
+		downW = max(downW, len(thousands(a.Downloads)))
+	}
+	for _, a := range m.rel.Assets {
+		right := fmt.Sprintf("%*s  %s %*s", sizeW, ui.Size(a.Size), m.icons.Down, downW, thousands(a.Downloads))
+		rows = append(rows, treeview.Node{ID: strconv.FormatInt(a.ID, 10), Name: ui.OneLine(a.Name), Right: right, Value: a})
+	}
+	m.files.SetStyles(m.theme.Tree(m.icons))
+	m.files.SetEmpty("No assets.", "")
+	m.files.SetRows(rows)
 }
 
 // thousands writes n with commas between its thousands, as GitHub does.
@@ -145,14 +195,6 @@ func thousands(n int) string {
 	s := strconv.Itoa(max(n, 0))
 	for i := len(s) - 3; i > 0; i -= 3 {
 		s = s[:i] + "," + s[i:]
-	}
-	return s
-}
-
-func plural(n int, noun string) string {
-	s := thousands(n) + " " + noun
-	if n != 1 {
-		s += "s"
 	}
 	return s
 }

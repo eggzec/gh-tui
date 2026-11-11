@@ -28,13 +28,13 @@ func TestLinks(t *testing.T) {
 	}
 	for _, width := range []int{80, 20} {
 		m.rel.Name = uitest.HostileTitle
-		h := m.header(width)
-		links := uitest.Links(t, h)
-		if len(links) < 2 || slices.ContainsFunc(links, func(l string) bool { return l != v3.URL }) {
-			t.Errorf("at %d: the header links to %q, want the name and the tag to %q", width, links, v3.URL)
+		m.SetSize(width, 24)
+		links := uitest.Links(t, m.header())
+		if len(links) < 1 || slices.ContainsFunc(links, func(l string) bool { return l != v3.URL }) {
+			t.Errorf("at %d: the header links to %q, want the page %q", width, links, v3.URL)
 		}
-		if strings.Contains(h, "\x1b]8;;https://evil") || strings.Contains(h, "\x1b[2J") {
-			t.Errorf("at %d: the header carries the name's escapes: %q", width, h)
+		if v := m.View(); strings.Contains(v, "\x1b]8;;https://evil") || strings.Contains(v, "\x1b[2J") {
+			t.Errorf("at %d: the view carries the name's escapes: %q", width, v)
 		}
 	}
 }

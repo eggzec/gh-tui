@@ -151,6 +151,10 @@ type TrimTitle struct {
 	// Detail is plain text after the name, such as a pull request's title;
 	// it is cut first.
 	Detail string
+	// Right is plain text for the right end of the top edge, such as a
+	// release's date; the frame leaves it out when the edge has no room, and
+	// when the modal has tabs there.
+	Right string
 }
 
 // Fit draws the title in at most width cells, in style, for the top edge of a
