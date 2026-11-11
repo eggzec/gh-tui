@@ -21,8 +21,10 @@ type Styles struct {
 
 	glyphs ui.GlyphStyles
 	icons  ui.Icons
-	bold   lipgloss.Style
-	dim    lipgloss.Style
+	// name is the tree's style for the name of a row.
+	name lipgloss.Style
+	bold lipgloss.Style
+	dim  lipgloss.Style
 	// guide draws the bar and corner beside a details block, in the colour
 	// of the tree's guides.
 	guide lipgloss.Style
@@ -51,6 +53,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
 		guide:  t.Tree(ic).Guide,
+		name:   t.Tree(ic).Name,
 		warn:   t.Warning,
 		sha:    t.Subtle.Bold(true),
 		chips:  &chips,
@@ -98,7 +101,7 @@ func (s *Styles) who(u core.User, quiet bool) string {
 	if gone || quiet {
 		name = s.dim.Render(name)
 	} else {
-		name = s.bold.Render(name)
+		name = s.name.Render(name)
 	}
 	if u.Bot {
 		name += s.dim.Render(" bot")
