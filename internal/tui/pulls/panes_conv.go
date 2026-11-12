@@ -55,6 +55,9 @@ type convPane struct {
 	dates ui.Dates
 	now   func() time.Time
 	md    *markdown.Renderer
+	// diffMD draws the bodies of the diff's threads and notes, which draw
+	// no pictures.
+	diffMD *markdown.Renderer
 	// seen notes the references the rows drew, to ask about them.
 	seen *ui.Seen
 	// want is a place that a jump asked for, which the timeline may not have
@@ -120,6 +123,9 @@ func (m *panesModal) buildConv() tea.Cmd {
 	c.md = ui.NewMarkdown(m.theme, m.icons)
 	c.seen = m.links().Seen(m.repo.String())
 	c.md.SetAutolink(c.seen.Func())
+	if c.diffMD != nil {
+		c.diffMD.SetAutolink(c.seen.Func())
+	}
 	opts := conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, c.viewer, c.voice, c.w, c.h)
 	if c.opt != nil {
 		opts = append(opts, c.opt)
@@ -155,6 +161,10 @@ func (m *panesModal) restyleConv() {
 	if c.md != nil {
 		c.md.SetStyle(m.theme.Thread(m.icons).Markdown)
 		c.md.SetGlyphs(m.icons.Markdown)
+	}
+	if c.diffMD != nil {
+		c.diffMD.SetStyle(m.theme.Thread(m.icons).Markdown)
+		c.diffMD.SetGlyphs(m.icons.Markdown)
 	}
 	if !c.started {
 		return
@@ -356,7 +366,8 @@ func (m *panesModal) convContent(b panes.Box) panes.Content {
 	if in := b.Rect.Inner(); in.W != c.w || in.H != c.h {
 		c.w, c.h = in.W, in.H
 		c.model.SetSize(c.w, c.h)
-		if m.pics.PictureRows(c.h) != c.picRows {
+		// A pane with no height (another is zoomed) keeps its pictures.
+		if c.h > 0 && m.pics.PictureRows(c.h) != c.picRows {
 			// A new height lets the images grow or shrink.
 			c.model.SetOptions(m.convOptions())
 		}
