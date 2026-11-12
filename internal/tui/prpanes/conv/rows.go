@@ -100,8 +100,9 @@ func (b *builder) ageOf(at time.Time) string {
 }
 
 // right returns the right edge of a row: pending, edited and the age, two
-// spaces apart.
-func (b *builder) right(at time.Time, edited, pending bool) string {
+// spaces apart. The age links to url, the row's own page on GitHub, when there
+// is one.
+func (b *builder) right(at time.Time, edited, pending bool, url string) string {
 	var parts []string
 	if pending {
 		parts = append(parts, b.st.warn.Render("pending"))
@@ -110,9 +111,18 @@ func (b *builder) right(at time.Time, edited, pending bool) string {
 		parts = append(parts, b.st.dim.Render("edited"))
 	}
 	if age := b.ageOf(at); age != "" {
-		parts = append(parts, b.st.dim.Render(age))
+		parts = append(parts, termtext.Link(url, b.st.dim.Render(age)))
 	}
 	return strings.Join(parts, "  ")
+}
+
+// permalink returns the page of a review comment on GitHub, or "" for a
+// pending one, which has none yet.
+func permalink(c *core.ThreadComment) string {
+	if c.Pending {
+		return ""
+	}
+	return c.URL
 }
 
 // marker returns what a closed fold hides: the glyph, then what it is.
@@ -129,7 +139,7 @@ func (b *builder) marker(n int, one, many string) string {
 // comment draws a comment of the conversation.
 func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	it := n.item
-	right := b.right(it.At, it.UpdatedAt.After(it.At), false)
+	right := b.right(it.At, it.UpdatedAt.After(it.At), false, it.URL)
 	who := b.st.who(it.Actor, false)
 	lines, s := b.body(who, it.Body, depth, false, right)
 	if line := b.reactions(it.Reactions); line != "" {
@@ -179,7 +189,7 @@ func (b *builder) review(n *node, depth int) (treeview.Node, segs) {
 		it := n.item
 		who = b.st.who(it.Actor, false)
 		prefix = b.st.review(it.Review) + " " + who
-		body, right = it.Body, b.right(it.At, false, false)
+		body, right = it.Body, b.right(it.At, false, false, it.URL)
 	}
 	r.Right, r.Head = right, who
 	r.Branch = len(n.children) > 0
@@ -227,7 +237,7 @@ func (b *builder) thread(n *node, depth int) (treeview.Node, segs) {
 	if t.Outdated {
 		prefix += " " + b.st.outdated()
 	}
-	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending)
+	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending, permalink(c))
 	replies := max(t.TotalComments, len(t.Comments)) - 1
 
 	kids := len(n.children) > 0
@@ -272,7 +282,7 @@ func location(t *core.Thread, cut string) string {
 // reply draws a comment of a thread after the first.
 func (b *builder) reply(n *node, depth int) (treeview.Node, segs) {
 	c := n.comment
-	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending)
+	right := b.right(c.At, !c.EditedAt.IsZero(), c.Pending, permalink(c))
 	prefix := b.st.who(c.Author, c.Pending)
 	lines, s := b.body(prefix, c.Body, depth, false, right)
 	if c.Pending {
