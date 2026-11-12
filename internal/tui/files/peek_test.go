@@ -124,12 +124,36 @@ func TestPeekDropsStaleHighlight(t *testing.T) {
 		keys(s, "up")
 	}
 	if s.PreviewTitle() != "ci.yml" {
-		t.Skip("cursor did not reach ci.yml")
+		t.Fatal("cursor did not reach ci.yml")
 	}
 	plain := s.PreviewView()
 	land(s, stale)
 	if got := s.PreviewView(); got != plain {
 		t.Errorf("a stale highlight changed the view: %q, want %q", got, plain)
+	}
+}
+
+// A message that may have changed the cache leaves the colours of a cached
+// text file alone when nothing it shows changed.
+func TestPeekKeepsHighlightOnCacheMessages(t *testing.T) {
+	t.Parallel()
+	for name, msg := range map[string]tea.Msg{"ahead": ui.AheadMsg{}, "sync": ui.SyncMsg{}} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := highlighted(t, "main.go")
+			land(s, s.PreviewCmd())
+			coloured := s.PreviewView()
+			if !strings.Contains(coloured, "\x1b[") {
+				t.Fatalf("no colour before the message: %q", coloured)
+			}
+			s.Update(msg)
+			if got := s.PreviewView(); got != coloured {
+				t.Errorf("view changed: %q, want %q", got, coloured)
+			}
+			if s.PreviewCmd() != nil {
+				t.Error("a highlight was queued again")
+			}
+		})
 	}
 }
 
