@@ -86,7 +86,11 @@ type detailModal struct {
 	head      string
 	voice     ui.Voice
 	md        *markdown.Renderer
-	seen      *ui.Seen
+	// pics draws the images of the bodies and comments, or is nil. picRows
+	// is the tallest they were drawn at.
+	pics    *ui.Images
+	picRows int
+	seen     *ui.Seen
 	// side holds the Involved and Development panes, and refSvc reads the
 	// links of the Development one.
 	side   *sidePanes
@@ -187,6 +191,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		drafts:  s.drafts,
 
 		dividers: s.dividers,
+		pics:     s.avatars,
 	}
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
@@ -311,6 +316,12 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 
 // convOptions returns how the rows are drawn.
 func (m *detailModal) convOptions() conv.Options {
+	// The images of the bodies draw as the app's images setting says: none
+	// while it is off.
+	m.picRows = m.pics.PictureRows(m.convRect().H)
+	if m.md != nil {
+		m.md.SetPictures(m.pics.Pictures(m.picRows, nil))
+	}
 	return conv.Options{
 		Styles: conv.NewStyles(m.theme, m.icons, m.icons.Set()),
 		MD:     m.md,
@@ -461,6 +472,13 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		msg.ReloadIcons(&m.icons)
 		if m.refs != nil {
 			m.refs.SetIcons(m.icons)
+		}
+		return nil
+	case ui.ImagesMsg:
+		// What the images are, or whether they draw, changed.
+		if m.convOn {
+			m.conv.SetOptions(m.convOptions())
+			m.peekVer++
 		}
 		return nil
 	case tea.KeyPressMsg:

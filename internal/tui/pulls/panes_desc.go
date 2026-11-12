@@ -140,6 +140,9 @@ func (d *descPane) sync(m *panesModal, body string, width, height int) {
 // imagesChanged has the description draw its images again, once the images
 // the app holds changed.
 func (m *panesModal) imagesChanged() {
+	if m.conv.started {
+		m.conv.model.SetOptions(m.convOptions())
+	}
 	m.desc.pics++
 	m.desc.version++
 }

@@ -43,6 +43,8 @@ type convPane struct {
 	// it was sized to.
 	focused bool
 	w, h    int
+	// picRows is the tallest the images of the bodies were drawn at.
+	picRows int
 
 	// viewer is the login whose unsubmitted review is drawn as a draft, once
 	// it is known.
@@ -133,6 +135,12 @@ func (m *panesModal) buildConv() tea.Cmd {
 // convOptions returns how the rows are drawn.
 func (m *panesModal) convOptions() conv.Options {
 	c := &m.conv
+	// The images of the bodies draw as the app's images setting says: none
+	// while it is off.
+	c.picRows = m.pics.PictureRows(c.h)
+	if c.md != nil {
+		c.md.SetPictures(m.pics.Pictures(c.picRows, nil))
+	}
 	return conv.Options{
 		Styles: conv.NewStyles(m.theme, m.icons, m.icons.Set()),
 		MD:     c.md,
@@ -348,6 +356,10 @@ func (m *panesModal) convContent(b panes.Box) panes.Content {
 	if in := b.Rect.Inner(); in.W != c.w || in.H != c.h {
 		c.w, c.h = in.W, in.H
 		c.model.SetSize(c.w, c.h)
+		if m.pics.PictureRows(c.h) != c.picRows {
+			// A new height lets the images grow or shrink.
+			c.model.SetOptions(m.convOptions())
+		}
 	}
 	return panes.Content{Body: c.model.View(), TopRight: m.convInfo()}
 }
