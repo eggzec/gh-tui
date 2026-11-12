@@ -450,7 +450,7 @@ func (m *Model) frame(mod ui.Modal) string {
 }
 
 // tabs renders the tabs of t for the top edge of a frame: the one shown in
-// the title's style, the others muted.
+// a solid accent pill, the others muted.
 func (m *Model) tabs(t ui.Tabbed, w int) string {
 	names, active := t.Tabs()
 	if len(names) == 0 {
@@ -460,7 +460,7 @@ func (m *Model) tabs(t ui.Tabbed, w int) string {
 	for i, name := range names {
 		items[i] = tabrow.Item{Label: name}
 	}
-	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(m.theme.Title, m.theme.Muted)))
+	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(m.theme.Accent, m.theme.Muted)))
 	row.SetItems(items, active)
 	// Leave the title its least room and a space on either side of the row.
 	row.SetWidth(max(w-6-minTitleWidth-2, 0))
