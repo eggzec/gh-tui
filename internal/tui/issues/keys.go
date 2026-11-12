@@ -26,9 +26,9 @@ import (
 type keyMap struct {
 	Select key.Binding
 	Back   key.Binding
-	// Filter and Sort open the filter modal on its Filters and Sort tabs,
-	// which the app does, so the section only keeps them from the feed and
-	// shows them in help.
+	// Filter opens the filter modal and Sort the sort modal, which the app
+	// does, so the section only keeps them from the feed and shows them in
+	// help.
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding

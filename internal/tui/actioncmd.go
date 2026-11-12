@@ -138,8 +138,9 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 	return m.toast.Push(toast.Warning, "There is nothing to do for "+name+" here.")
 }
 
-// filterTabs are the commands that open the filter modal of a list, on the
-// tab each names.
+// filterTabs are the commands that open the filter or the sort modal of a
+// list, with the tab each names: the filter form has only the Filters tab,
+// and the sort opens a modal of its own.
 var filterTabs = map[string]filterform.Tab{"filter": filterform.FiltersTab, "sort": filterform.SortTab}
 
 // canFilter reports whether the focused list of the screen has the tab
