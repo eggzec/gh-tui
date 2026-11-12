@@ -259,7 +259,7 @@ func TestZoom(t *testing.T) {
 		{name: "at 60 columns backspace steps back while zoomed", width: narrowW, keys: []string{"backspace"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
 		{name: "at 60 columns z keeps the zoom", keys: []string{"z"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
 		{name: "wide again z unzooms", width: wideW, keys: []string{"z"}, focus: branchPane, shows: "main: change 1"},
-		{name: "at 60 columns z does nothing", width: narrowW, keys: []string{"z"}, focus: branchPane, shows: "fix/tabs"},
+		{name: "at 60 columns the zoom is forced and z does nothing", width: narrowW, keys: []string{"z"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
 		{name: "wide again shows every pane", width: wideW, focus: branchPane, shows: "main: change 1"},
 	}
 	for _, tt := range tests {
@@ -268,8 +268,8 @@ func TestZoom(t *testing.T) {
 				m.SetSize(tt.width, wideH)
 			}
 			h.keys(tt.keys...)
-			if m.zoom != tt.zoom || m.focus != tt.focus || m.commit.patch != tt.patch {
-				t.Errorf("zoom %v on pane %d, patch %v; want %v on %d, patch %v", m.zoom, m.focus, m.commit.patch, tt.zoom, tt.focus, tt.patch)
+			if m.zoom.Zoomed() != tt.zoom || m.focus != tt.focus || m.commit.patch != tt.patch {
+				t.Errorf("zoom %v on pane %d, patch %v; want %v on %d, patch %v", m.zoom.Zoomed(), m.focus, m.commit.patch, tt.zoom, tt.focus, tt.patch)
 			}
 			if w := m.paneWidth(m.focus); tt.zoom && w != m.width {
 				t.Errorf("the zoomed pane is %d wide, want the %d of the modal", w, m.width)
@@ -286,15 +286,41 @@ func TestZoom(t *testing.T) {
 	}
 }
 
+func TestSetNarrowForcesZoom(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("z")
+	m.SetNarrow(true)
+	m.SetSize(wideW, wideH)
+	if !m.zoom.Zoomed() || m.zoom.CanZoom() {
+		t.Errorf("a narrow terminal: zoomed %v, can zoom %v; want a forced zoom", m.zoom.Zoomed(), m.zoom.CanZoom())
+	}
+	h.keys("z")
+	m.SetNarrow(false)
+	m.SetSize(wideW, wideH)
+	if !m.zoom.Zoomed() || !m.zoom.User() {
+		t.Errorf("growing again: zoomed %v, user %v; want the user's zoom back", m.zoom.Zoomed(), m.zoom.User())
+	}
+	m.zoom.SetZoom(false)
+	m.SetSize(narrowW, narrowH)
+	m.SetSize(wideW, wideH)
+	if m.zoom.Zoomed() {
+		t.Error("growing past the modal's own minimum kept a forced zoom")
+	}
+	m.SetSize(narrowW, narrowH)
+	if !m.zoom.Zoomed() {
+		t.Error("a modal under its own minimum is not zoomed")
+	}
+}
+
 func TestZoomLeavesKeysToInputs(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("z", "enter", "enter", "/", "z")
-	if !m.zoom || !m.commit.patch || !m.commit.pager.Capturing() {
-		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.zoom, m.commit.patch)
+	if !m.zoom.Zoomed() || !m.commit.patch || !m.commit.pager.Capturing() {
+		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.zoom.Zoomed(), m.commit.patch)
 	}
 	h.keys("esc")
-	if !m.zoom || !m.commit.patch || m.commit.pager.Capturing() {
-		t.Errorf("zoom %v, patch %v; want esc to close the search alone", m.zoom, m.commit.patch)
+	if !m.zoom.Zoomed() || !m.commit.patch || m.commit.pager.Capturing() {
+		t.Errorf("zoom %v, patch %v; want esc to close the search alone", m.zoom.Zoomed(), m.commit.patch)
 	}
 }
 

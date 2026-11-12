@@ -183,7 +183,7 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case k.focusOf(msg) >= 0:
 		return m.focusBox(k.focusOf(msg))
 	case keymap.Matches(msg, k.Zoom):
-		m.zoom = !m.zoom && m.canZoom()
+		m.zoom.Toggle()
 		m.layout()
 		return nil
 	case m.inRuns() && keymap.Matches(msg, k.Filter):
@@ -324,7 +324,8 @@ func (m *Modal) drill() tea.Cmd {
 }
 
 // back returns from the annotations to the runs, and from a job row to the
-// run it is of, as the collapse key does. It does nothing on a run.
+// run it is of, as the collapse key does. It does nothing on a run, and
+// never undoes the zoom: only the zoom key does.
 func (m *Modal) back() tea.Cmd {
 	// Backspace cancels the wait for the workflows as esc does.
 	m.workflows.wanted = false

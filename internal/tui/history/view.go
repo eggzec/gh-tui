@@ -1,7 +1,6 @@
 package history
 
 import (
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,20 +16,14 @@ import (
 // labelWidth is the width of the names of the header's fields.
 const labelWidth = 10
 
-// View renders the panes side by side, or the focused one alone with a
-// breadcrumb on a narrow terminal or with its title zoomed, in exactly the
-// size of the last SetSize.
+// View renders the panes side by side, or the focused one alone with its
+// title when zoomed, in exactly the size of the last SetSize.
 func (m *Modal) View() string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
 	h := m.bodyHeight()
-	if m.narrow() {
-		lines := make([]string, 0, m.height)
-		lines = append(lines, fit(m.breadcrumb(m.width), m.width))
-		return strings.Join(append(lines, m.paneLines(m.focus, m.width, h)...), "\n")
-	}
-	if m.zoom {
+	if m.zoom.Zoomed() {
 		lines := make([]string, 0, m.height)
 		lines = append(lines, m.paneTitle(m.focus, m.width))
 		return strings.Join(append(lines, m.paneLines(m.focus, m.width, h)...), "\n")
@@ -56,7 +49,7 @@ func (m *Modal) View() string {
 	return b.String()
 }
 
-// bodyHeight is the height of a pane below its title, or its breadcrumb.
+// bodyHeight is the height of a pane below its title.
 func (m *Modal) bodyHeight() int {
 	return max(m.height-1, 0)
 }
@@ -64,7 +57,7 @@ func (m *Modal) bodyHeight() int {
 // widths returns the widths of the branch, graph and commit panes. On a
 // narrow terminal, or zoomed, each takes the whole width, one at a time.
 func (m *Modal) widths() (branches, graph, commit int) {
-	if m.narrow() || m.zoom {
+	if m.zoom.Zoomed() {
 		return m.width, m.width, m.width
 	}
 	branches = min(max(m.width/5, 16), 26)
@@ -134,44 +127,6 @@ func (m *Modal) paneTitle(p pane, w int) string {
 	return fit(ui.Title(spec), w)
 }
 
-// breadcrumb shows where the narrow modal is: the branches, the branch,
-// the commit and the file, as far as the focus went.
-func (m *Modal) breadcrumb(w int) string {
-	crumbs := []string{"Branches"}
-	if m.focus >= graphPane {
-		crumbs = append(crumbs, m.graphName())
-	}
-	if c := &m.commit; m.focus == commitPane && c.has {
-		crumbs = append(crumbs, short(c.c.SHA))
-		if c.patch && c.cursor < len(c.files) {
-			crumbs = append(crumbs, path.Base(c.files[c.cursor].Path))
-		}
-	}
-	for i := range crumbs {
-		crumbs[i] = ui.OneLine(crumbs[i])
-	}
-	sep, ell := " "+m.st.ic.Crumb+" ", m.st.ic.Ellipsis
-	// Drop the first crumbs until the rest fit.
-	for len(crumbs) > 1 && ansi.StringWidth(strings.Join(crumbs, sep)) > w {
-		crumbs = crumbs[1:]
-		if crumbs[0] != ell {
-			crumbs = append([]string{ell}, crumbs[1:]...)
-		}
-	}
-	var b strings.Builder
-	for i, c := range crumbs {
-		if i > 0 {
-			b.WriteString(m.st.subtle.Render(sep))
-		}
-		st := m.st.crumb
-		if i == len(crumbs)-1 {
-			st = m.st.lastCrumb
-		}
-		b.WriteString(st.Render(c))
-	}
-	return termtext.Truncate(b.String(), w, ell)
-}
-
 // commitGeom is how the commit pane shares its height: the header, the
 // files, and the pager below them, which shows the file under the cursor.
 type commitGeom struct {
@@ -190,7 +145,7 @@ func (m *Modal) commitGeom() commitGeom {
 	// With a patch below them, the header and the files take half the
 	// pane at most; without, the header leaves the files a third.
 	most := max(3, h/2)
-	if m.narrow() {
+	if !m.zoom.CanZoom() {
 		most = max(3, h-min(len(c.files)+1, max(3, h/3)))
 	}
 	g := commitGeom{header: min(header, most, h)}
@@ -199,7 +154,7 @@ func (m *Modal) commitGeom() commitGeom {
 	}
 	rest := h - g.header
 	rows := len(c.files) + 1
-	if m.narrow() || !c.loaded || len(c.files) == 0 || rest < 12 {
+	if !m.zoom.CanZoom() || !c.loaded || len(c.files) == 0 || rest < 12 {
 		g.files = rest
 		return g
 	}

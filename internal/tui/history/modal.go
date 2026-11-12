@@ -10,9 +10,8 @@
 // finds them in memory. What a commit changed never changes, so reading it
 // again, even in a later session, makes no request.
 //
-// On a narrow terminal the modal shows one pane at a time, with a
-// breadcrumb of where it is, and zoomed it shows the focused pane alone at
-// any width.
+// On a narrow terminal the modal shows the focused pane alone, as it does
+// when the user zooms in at any width.
 package history
 
 import (
@@ -30,6 +29,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // narrowWidth is the width inside the frame below which the panes don't fit
@@ -79,8 +79,10 @@ type Modal struct {
 	// seq counts the moves of the graph's cursor, so that only the last
 	// rest reads.
 	seq int
-	// zoom shows the focused pane alone, as a narrow modal does.
-	zoom bool
+	// zoom shows the focused pane alone, by the user's choice or because
+	// the terminal or the modal is narrow; narrow is the terminal's part.
+	zoom   panes.Zoom
+	narrow bool
 
 	spin ui.Spinner
 
@@ -190,8 +192,13 @@ func (m *Modal) Title() string {
 // SetSize sizes the panes to the room inside the frame.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.zoom.SetNarrow(m.narrow || m.width < narrowWidth)
 	m.layout()
 }
+
+// SetNarrow tells the modal that the terminal is narrow, which forces the
+// zoom. The manager calls it before SetSize.
+func (m *Modal) SetNarrow(narrow bool) { m.narrow = narrow }
 
 // SetTheme styles the modal and the bubbles in it.
 func (m *Modal) SetTheme(t ui.Theme) {
@@ -260,8 +267,8 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && !m.narrow())
-	if m.zoomed() {
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.zoom.CanZoom())
+	if m.zoom.User() {
 		k.Zoom = named(k.Zoom, "unzoom")
 	}
 	switch {
@@ -293,17 +300,6 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	k.Filter.SetEnabled(k.Filter.Enabled() && m.focus == branchPane)
 	k.Retry.SetEnabled(k.Retry.Enabled() && failed)
 	return k
-}
-
-// narrow reports whether the modal shows one pane at a time.
-func (m *Modal) narrow() bool {
-	return m.width < narrowWidth
-}
-
-// zoomed reports whether the zoom shows. A narrow modal shows one pane
-// anyway, so there the back key keeps its other uses.
-func (m *Modal) zoomed() bool {
-	return m.zoom && !m.narrow()
 }
 
 // close ends the modal's reads and asks the app to close it.

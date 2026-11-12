@@ -8,10 +8,9 @@ import (
 
 // styles are the modal's own, built once per theme.
 type styles struct {
-	// ic draws the crumbs, separators, signs and ellipses.
+	// ic draws the separators, signs and ellipses.
 	ic                ui.Icons
 	title, focusTitle lipgloss.Style
-	crumb, lastCrumb  lipgloss.Style
 	// sep is the rule between two panes, rendered.
 	sep string
 	// gutter is the rendered mark of the row under the cursor, in a focused
@@ -33,8 +32,6 @@ func newStyles(t ui.Theme, ic ui.Icons) styles {
 		ic:         ic,
 		title:      t.Muted,
 		focusTitle: t.Accent.Bold(true),
-		crumb:      t.Muted,
-		lastCrumb:  t.Accent.Bold(true),
 		sep:        border.Render(" " + ic.Border.Left + " "),
 		gutter:     t.Accent.Render(ic.Cursor) + " ",
 		blurGutter: t.Subtle.Render(ic.Cursor) + " ",
