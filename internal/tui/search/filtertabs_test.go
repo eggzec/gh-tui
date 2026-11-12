@@ -45,7 +45,7 @@ func TestFilterHasNoSortTab(t *testing.T) {
 }
 
 // applyOn opens the filter modal of target, as the app does, and
-// applies it as it opened, from the query line, which every tab has. It
+// applies it as it opened, from the query line, the one field every filter has. It
 // returns what the form sent, and the tabs of the modal.
 func applyOn(t *testing.T, target ui.Filterable, f ui.Filter) (msg filterform.AppliedMsg, names []string, active int) {
 	t.Helper()

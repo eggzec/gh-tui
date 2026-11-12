@@ -48,9 +48,8 @@ const (
 	// ActionNextTab and ActionPrevTab switch between the tabs of the
 	// focused pane or modal, such as All, Failing, Running and Mine of the
 	// Actions modal, the states of the pull requests and the issues, the
-	// owners of the dashboard's repositories, the lists of the page of a
-	// user or an organization, and the Filters and Sort tabs of the
-	// filter modal.
+	// owners of the dashboard's repositories, and the lists of the page of
+	// a user or an organization.
 	ActionNextTab = "global.next_tab"
 	ActionPrevTab = "global.prev_tab"
 	// ActionBack goes back through the owner pages and the screens shown,

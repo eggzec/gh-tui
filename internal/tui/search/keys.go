@@ -35,8 +35,8 @@ type KeyMap struct {
 	Select key.Binding
 	// Checks opens the pull request under the cursor on its checks.
 	Checks key.Binding
-	// Filter and Sort open the filter of the kind on view on its Filters
-	// and Sort tabs.
+	// Filter opens the filter of the kind on view, and Sort opens its sort
+	// in a modal of its own.
 	Filter  key.Binding
 	Sort    key.Binding
 	Refresh key.Binding
