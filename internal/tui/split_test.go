@@ -28,6 +28,7 @@ func (s *splitFake) PreviewKey(msg tea.KeyPressMsg) tea.Cmd {
 	s.keys = append(s.keys, msg.String())
 	return nil
 }
+func (s *splitFake) SetPreviewFocus(bool) {}
 func (s *splitFake) PreviewCmd() tea.Cmd {
 	cmd := s.cmd
 	s.cmd = nil

@@ -577,6 +577,7 @@ func (m *Model) endSplit() {
 	if m.prev == nil {
 		return
 	}
+	m.prev.preview.SetPreviewFocus(false)
 	m.prev.preview.SetPreviewSize(0, 0)
 	m.prev, m.splitOf = nil, nil
 	m.prevFocus = false
@@ -590,6 +591,7 @@ func (m *Model) splitShown() bool {
 // switchSplit moves the focus between the list and the preview.
 func (m *Model) switchSplit() {
 	m.prevFocus = !m.prevFocus
+	m.prev.preview.SetPreviewFocus(m.prevFocus)
 	m.drawFrame(m.splitOf)
 	m.drawFrame(m.prev)
 }

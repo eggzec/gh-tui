@@ -460,8 +460,6 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case m.dash != nil && keymap.Matches(msg, m.keys.Dashboard):
 		return m.showScreen(dashScreen, m.focus)
 	}
-	// Only the repository screen has panes for the app to cycle through;
-	// elsewhere these keys are the section's.
 	// Zoomed beside its preview, a pane's keys switch between the list and
 	// the preview, and the preview takes the keys that scroll it.
 	if m.splitShown() {
@@ -473,6 +471,8 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 			return m.prev.preview.PreviewKey(msg)
 		}
 	}
+	// Only the repository screen has panes for the app to cycle through;
+	// elsewhere these keys are the section's.
 	if m.screen == repoScreen {
 		switch {
 		case keymap.Matches(msg, m.keys.Next):

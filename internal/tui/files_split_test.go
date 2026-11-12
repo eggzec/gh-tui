@@ -38,6 +38,35 @@ func TestFilesSplitZoomed(t *testing.T) {
 	})
 }
 
+// With the focus on the preview, the keys that scroll it do, and the
+// pager's other keys stay unbound.
+func TestFilesSplitPreviewScrolls(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		m := zoomedFiles(t, 120, 40, nil)
+		before := m.prev.preview.PreviewView()
+		tap(t, m, "tab")
+		if !m.prevFocus {
+			t.Fatal("tab did not focus the preview")
+		}
+		tap(t, m, "j")
+		after := m.prev.preview.PreviewView()
+		if after == before {
+			t.Errorf("the preview did not scroll:\n%s", after)
+		}
+		tap(t, m, "/")
+		tap(t, m, "q")
+		if !m.splitShown() || m.prev.preview.PreviewView() != after {
+			t.Error("a search or quit key reached the preview")
+		}
+		tap(t, m, "tab")
+		tap(t, m, "j")
+		if m.prev.preview.PreviewView() != after {
+			t.Error("the preview scrolled without the focus")
+		}
+	})
+}
+
 // A file that is not cached shows a placeholder, and no read.
 func TestFilesSplitMiss(t *testing.T) {
 	t.Parallel()
