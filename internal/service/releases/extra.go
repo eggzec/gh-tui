@@ -17,7 +17,7 @@ import (
 // version of extra, which holds them.
 const (
 	kindExtra   = "releaseextra"
-	extraSchema = 1
+	extraSchema = 2
 )
 
 // extra is a release's extra as it is kept: with the validator of the
@@ -25,6 +25,8 @@ const (
 type extra struct {
 	core.ReleaseExtra
 	CompareETag string
+	// CompareTag is the tag the validator was got for.
+	CompareTag string
 }
 
 // DefaultBranch returns the name of the default branch of repo, empty if it
@@ -88,8 +90,9 @@ func (s *Service) loadExtra(ctx context.Context, repo core.RepoRef, rel core.Rel
 	var condCommit, condCompare github.Conditional
 	if ok {
 		condCommit = github.Conditional{ETag: prev.ETag, LastModified: prev.LastModified}
-		// The comparison's validator says nothing of another branch.
-		if prev.Value.Default == def {
+		// The comparison's validator says nothing of another branch, or of
+		// another tag, as a release may be edited to name one.
+		if prev.Value.Default == def && prev.Value.CompareTag == rel.Tag {
 			condCompare = github.Conditional{ETag: prev.Value.CompareETag}
 		}
 	}
@@ -102,7 +105,9 @@ func (s *Service) loadExtra(ctx context.Context, repo core.RepoRef, rel core.Rel
 	if noCommit(err) {
 		// A deleted tag, or the tag of a draft, which exists once it is
 		// published: there is no commit to show and nothing to compare.
-		// GitHub answers 422, not 404, for a ref it doesn't have.
+		// GitHub answers 422, not 404, for a ref it doesn't have. The entry
+		// carries no validators, since an error answer has none, so it is
+		// checked again once it is stale, and its lifetime is not widened.
 		if ok && prev.Value.TagSHA == "" && prev.Value.AheadBy == -1 && prev.Value.Default == def {
 			return cache.Entry[extra]{}, cache.ErrNotModified
 		}
@@ -127,12 +132,13 @@ func (s *Service) loadExtra(ctx context.Context, repo core.RepoRef, rel core.Rel
 	case err != nil:
 		return cache.Entry[extra]{}, err
 	case cres.NotModified:
-		out.AheadBy, out.CompareETag = prev.Value.AheadBy, prev.Value.CompareETag
+		out.AheadBy, out.CompareETag, out.CompareTag = prev.Value.AheadBy, prev.Value.CompareETag, rel.Tag
 	default:
-		out.AheadBy, out.CompareETag = cmp.AheadBy, cres.ETag
+		out.AheadBy, out.CompareETag, out.CompareTag = cmp.AheadBy, cres.ETag, rel.Tag
 	}
 
-	if ok && commitSame && out.AheadBy == prev.Value.AheadBy && out.Default == prev.Value.Default && out.CompareETag == prev.Value.CompareETag {
+	if ok && commitSame && out.AheadBy == prev.Value.AheadBy && out.Default == prev.Value.Default &&
+		out.CompareETag == prev.Value.CompareETag && out.CompareTag == prev.Value.CompareTag {
 		return cache.Entry[extra]{}, cache.ErrNotModified
 	}
 	entry.Value = out
