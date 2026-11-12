@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
@@ -55,6 +56,91 @@ func TestPeekDrawsSentImage(t *testing.T) {
 	}
 	if got := src.Asked(); len(got) != asked {
 		t.Errorf("fetched %q, want nothing beyond the preview's %d", got, asked)
+	}
+}
+
+// highlighted returns a section whose cache holds a Go file and a YAML file
+// beside the sample's, with the peek of its box on path.
+func highlighted(t *testing.T, path string) *Section {
+	t.Helper()
+	f := sampleFake()
+	ci, goFile := file("ci.yml", 40), file("main.go", 60)
+	f.addTree(ghTUI, "", append(slices.Clone(f.trees[treeKey(ghTUI, "")].Entries), ci, goFile)...)
+	f.addBlob(ci, "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
+	f.addBlob(goFile, mainGo)
+	f.cachedBlobs[ci.SHA], f.cachedBlobs[goFile.SHA] = true, true
+	return peeked(t, f, path)
+}
+
+// land runs cmd and gives each message it sends to s.
+func land(s *Section, cmd tea.Cmd) {
+	if cmd == nil {
+		return
+	}
+	switch msg := cmd().(type) {
+	case nil:
+	case tea.BatchMsg:
+		for _, c := range msg {
+			land(s, c)
+		}
+	default:
+		s.Update(msg)
+	}
+}
+
+// The peek runs the syntax highlight of a text file it shows, and draws the
+// colours once the pager has it.
+func TestPeekHighlights(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"main.go", "ci.yml"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			s := highlighted(t, name)
+			plain := s.PreviewView()
+			cmd := s.PreviewCmd()
+			if cmd == nil {
+				t.Fatal("no highlight queued")
+			}
+			if s.PreviewCmd() != nil {
+				t.Error("the highlight was handed on twice")
+			}
+			land(s, cmd)
+			if got := s.PreviewView(); got == plain || !strings.Contains(got, "\x1b[") {
+				t.Errorf("view after the highlight is as before, or has no colour: %q", got)
+			}
+		})
+	}
+}
+
+// A highlight of a file the peek has moved on from is dropped.
+func TestPeekDropsStaleHighlight(t *testing.T) {
+	t.Parallel()
+	s := highlighted(t, "main.go")
+	stale := s.PreviewCmd()
+	for range 12 {
+		if s.PreviewTitle() == "ci.yml" {
+			break
+		}
+		keys(s, "up")
+	}
+	if s.PreviewTitle() != "ci.yml" {
+		t.Skip("cursor did not reach ci.yml")
+	}
+	plain := s.PreviewView()
+	land(s, stale)
+	if got := s.PreviewView(); got != plain {
+		t.Errorf("a stale highlight changed the view: %q, want %q", got, plain)
+	}
+}
+
+// Markdown is rendered at once, and queues no highlight.
+func TestPeekMarkdownQueuesNothing(t *testing.T) {
+	t.Parallel()
+	f := sampleFake()
+	f.cachedBlobs[file("AGENTS.md", 0).SHA] = true
+	s := peeked(t, f, "AGENTS.md")
+	if cmd := s.PreviewCmd(); cmd != nil {
+		t.Errorf("markdown queued %T, want nothing", cmd())
 	}
 }
 
