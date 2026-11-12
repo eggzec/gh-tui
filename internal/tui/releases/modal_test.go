@@ -627,13 +627,16 @@ func TestNarrowShowsOnePane(t *testing.T) {
 // for it and the title together: the title is cut, never the count.
 func TestFilesCountKeepsRoom(t *testing.T) {
 	t.Parallel()
-	m := newModal(&fakeService{}, 2*panes.MinWidth, 30)
-	run(t, m, m.Init())
-	press(m, "2")
-	press(m, "z")
-	for _, line := range strings.Split(ansi.Strip(m.View()), "\n") {
-		if strings.Contains(line, "╭") && strings.Contains(line, "Files") && !strings.Contains(line, "3[3]") && !strings.Contains(line, " 3 ") {
-			t.Errorf("the top edge %q lost the count", line)
+	// Every width, so that some box is too narrow for its title and count
+	// together; a narrow modal shows the files box alone.
+	for w := 12; w < 2*panes.MinWidth+40; w++ {
+		m := newModal(&fakeService{}, w, 30)
+		run(t, m, m.Init())
+		press(m, "2")
+		for line := range strings.SplitSeq(ansi.Strip(m.View()), "\n") {
+			if strings.Contains(line, "╭") && strings.Contains(line, "Files") && !strings.Contains(line, "3[3]") && !strings.Contains(line, " 3 ") {
+				t.Errorf("width %d: the top edge %q lost the count", w, line)
+			}
 		}
 	}
 }
