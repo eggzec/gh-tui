@@ -87,8 +87,8 @@ type detailModal struct {
 	// cache above, which keeps the whole drawing.
 	previewOff int
 	head       string
-	voice     ui.Voice
-	md        *markdown.Renderer
+	voice      ui.Voice
+	md         *markdown.Renderer
 	// pics draws the images of the bodies and comments, or is nil. picRows
 	// is the tallest they were drawn at.
 	pics    *ui.Images
