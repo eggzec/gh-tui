@@ -75,8 +75,11 @@ type Modal struct {
 
 	focus pane
 	// notes is set while the annotations box has the focus, and zoom while
-	// the focused box fills the modal.
-	notes, zoom bool
+	// the focused box fills the modal, by the user's choice or because the
+	// terminal or the modal is narrow; narrow is the terminal's part.
+	notes  bool
+	zoom   panes.Zoom
+	narrow bool
 	// frames draws the boxes. inner is the width inside the runs box, and
 	// rows the height of the runs and the jobs under their titles.
 	frames panes.Styles
@@ -241,9 +244,14 @@ func (m *Modal) Tabs() (names []string, active int) {
 // SetSize sizes the panes to the room inside the frame.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
 	m.settleDividers()
 	m.layout()
 }
+
+// SetNarrow tells the modal that the terminal is narrow, which forces the
+// zoom. The manager calls it before SetSize.
+func (m *Modal) SetNarrow(narrow bool) { m.narrow = narrow }
 
 // SetTheme styles the modal and the bubbles in it.
 func (m *Modal) SetTheme(t ui.Theme) {
@@ -355,7 +363,7 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		k.Back.SetEnabled(true)
 		k.Back = relabel(k.Back, paneTitles[runsPane])
 	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.canZoom())
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.zoom.CanZoom())
 	can := m.canDivide()
 	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)
 	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && can)

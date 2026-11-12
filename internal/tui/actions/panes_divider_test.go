@@ -20,7 +20,7 @@ func dividedModal(t *testing.T, w int) (*Modal, *host, *ui.Dividers) {
 func runsCols(t *testing.T, m *Modal) int {
 	t.Helper()
 	aw, ah := m.area()
-	b, ok := paneLayout(aw, ah, paneRuns, m.zoom, m.dividers).Box(paneRuns, panes.Whole)
+	b, ok := paneLayout(aw, ah, paneRuns, m.zoom.Zoomed(), m.dividers).Box(paneRuns, panes.Whole)
 	if !ok {
 		t.Fatal("no runs box")
 	}
@@ -107,7 +107,7 @@ func TestRunsDividerDoesNothingWhereNoneShows(t *testing.T) {
 			if tc.nil {
 				m.SetDividers(nil)
 			}
-			m.zoom = tc.zoom
+			m.zoom.SetZoom(tc.zoom)
 			h.keys("ctrl+right")
 			if d.List.Moved() {
 				t.Error("the divider moved")

@@ -30,7 +30,7 @@ func (m *Modal) divider() (s *panes.Size, def, lo, hi int, ok bool) {
 	}
 	w, _ := m.area()
 	lo, hi = panes.MinWidth, w-panes.MinWidth
-	if showsOne(w, m.zoom) || hi < lo {
+	if showsOne(w, m.zoom.Zoomed()) || hi < lo {
 		return nil, 0, 0, 0, false
 	}
 	return &m.dividers.List, runsWidth, lo, hi, true

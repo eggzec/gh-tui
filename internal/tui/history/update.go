@@ -139,8 +139,8 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 		return m.useBase(ui.BaseMsg{Repo: m.repo})
-	case !m.narrow() && keymap.Matches(msg, m.keys.Zoom):
-		m.zoom = !m.zoom
+	case m.zoom.CanZoom() && keymap.Matches(msg, m.keys.Zoom):
+		m.zoom.Toggle()
 		m.layout()
 		return nil
 	case keymap.Matches(msg, m.keys.Dismiss):
@@ -202,7 +202,8 @@ func (m *Modal) focused() tea.Cmd {
 }
 
 // back steps back from the patch to the files, from the files to the graph
-// and from the graph to the branches. It does nothing on the branches.
+// and from the graph to the branches. It does nothing on the branches, and
+// never undoes the zoom: only the zoom key does.
 func (m *Modal) back() tea.Cmd {
 	switch {
 	case m.focus == commitPane && m.commit.patch:

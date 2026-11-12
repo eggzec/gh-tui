@@ -193,7 +193,7 @@ func (m *Modal) noteNotice(w int) []string {
 // notesInner is the size inside the annotations box.
 func (m *Modal) notesInner() (w, h int) {
 	aw, ah := m.area()
-	if b, ok := paneLayout(aw, ah, paneNotes, m.zoom, m.dividers).Box(paneNotes, panes.Whole); ok {
+	if b, ok := paneLayout(aw, ah, paneNotes, m.zoom.Zoomed(), m.dividers).Box(paneNotes, panes.Whole); ok {
 		in := b.Rect.Inner()
 		return in.W, in.H
 	}

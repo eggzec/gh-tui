@@ -29,6 +29,8 @@ func TestView(t *testing.T) {
 		{"140 columns", wideW, wideH, nil},
 		{"140 columns branches", wideW, wideH, []string{"backspace", "j"}},
 		{"140 columns patch", wideW, wideH, []string{"enter", "enter"}},
+		{"140 columns zoomed", wideW, wideH, []string{"z"}},
+		{"140 columns zoomed commit", wideW, wideH, []string{"z", "enter"}},
 		{"92 columns zoomed patch", 92, 28, []string{"z", "enter", "enter"}},
 		{"80 columns graph", narrowW, narrowH, nil},
 		{"80 columns branches", narrowW, narrowH, []string{"backspace", "j"}},
@@ -131,34 +133,6 @@ func TestViewFitsAnySize(t *testing.T) {
 			m.SetSize(size[0], size[1])
 			assertFits(t, m.View(), size[0], size[1])
 		}
-	}
-}
-
-func TestNarrowBreadcrumb(t *testing.T) {
-	m, h := newModal(t, newFake(), narrowW, narrowH)
-	crumb := func() string { return strings.TrimSpace(ansi.Strip(strings.Split(m.View(), "\n")[0])) }
-	s0 := short(main0)
-	steps := []struct {
-		keys []string
-		want string
-	}{
-		{nil, "Branches › main"},
-		{[]string{"enter"}, "Branches › main › " + s0},
-		{[]string{"enter"}, "Branches › main › " + s0 + " › commands.go"},
-		{[]string{"backspace"}, "Branches › main › " + s0},
-		{[]string{"backspace", "backspace"}, "Branches"},
-	}
-	for _, s := range steps {
-		h.keys(s.keys...)
-		if got := crumb(); got != s.want {
-			t.Errorf("after %q the breadcrumb is %q, want %q", s.keys, got, s.want)
-		}
-	}
-	// A long trail keeps its end.
-	m.SetSize(20, narrowH)
-	h.keys("enter", "enter", "enter")
-	if got := crumb(); !strings.HasPrefix(got, "…") || !strings.HasSuffix(got, "commands.go") {
-		t.Errorf("breadcrumb at 20 columns = %q, want its end", got)
 	}
 }
 

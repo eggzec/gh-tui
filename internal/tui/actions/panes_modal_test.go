@@ -12,16 +12,46 @@ func TestZoomBoundary(t *testing.T) {
 		can   bool
 	}{{wideMin, true}, {wideMin - 1, false}, {80, false}} {
 		m, h := newModal(t, newFake(), tt.width, wideH)
-		if m.canZoom() != tt.can {
-			t.Errorf("canZoom at %d columns = %v, want %v", tt.width, m.canZoom(), tt.can)
+		if m.zoom.CanZoom() != tt.can {
+			t.Errorf("CanZoom at %d columns = %v, want %v", tt.width, m.zoom.CanZoom(), tt.can)
 		}
 		h.keys("z")
-		if m.zoom && !tt.can {
-			t.Errorf("z zoomed the modal at %d columns", tt.width)
+		if m.zoom.User() != tt.can {
+			t.Errorf("after z at %d columns the user's zoom = %v, want %v", tt.width, m.zoom.User(), tt.can)
 		}
-		if tt.can && !m.zoom {
-			t.Errorf("z didn't zoom the modal at %d columns", tt.width)
-		}
+	}
+}
+
+// A narrow terminal forces the zoom, and growing again brings back the
+// user's choice; only the zoom key undoes it, never back.
+func TestZoomNarrowAndBack(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("z")
+	m.SetNarrow(true)
+	m.SetSize(wideW, wideH)
+	h.keys("z")
+	if !m.zoom.Zoomed() || !m.zoom.User() || m.zoom.CanZoom() {
+		t.Errorf("forced: zoomed %v, user %v, can %v", m.zoom.Zoomed(), m.zoom.User(), m.zoom.CanZoom())
+	}
+	m.SetNarrow(false)
+	m.SetSize(wideW, wideH)
+	if !m.zoom.Zoomed() || !m.zoom.CanZoom() {
+		t.Error("growing again lost the user's zoom")
+	}
+	h.keys("backspace")
+	if !m.zoom.Zoomed() {
+		t.Error("back undid the user's zoom: only the zoom key does")
+	}
+	h.keys("z")
+	if m.zoom.Zoomed() {
+		t.Error("z didn't undo the user's zoom")
+	}
+	m.SetNarrow(true)
+	m.SetSize(wideW, wideH)
+	m.SetNarrow(false)
+	m.SetSize(wideW, wideH)
+	if m.zoom.Zoomed() {
+		t.Error("a forced zoom stayed after the terminal grew")
 	}
 }
 
@@ -43,7 +73,7 @@ func TestZoomShowsOneBox(t *testing.T) {
 	}
 	assertFits(t, m.View(), wideW, wideH)
 	h.keys("z")
-	if m.zoom {
+	if m.zoom.Zoomed() {
 		t.Error("z again didn't unzoom")
 	}
 }

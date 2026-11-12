@@ -11,7 +11,7 @@ type Zoom struct {
 // Zoomed reports whether the focused pane shows alone, for either reason.
 func (z Zoom) Zoomed() bool { return z.user || z.narrow }
 
-// User reports whether the user zoomed in. The back key undoes only that.
+// User reports whether the user zoomed in. Only the zoom key undoes it.
 func (z Zoom) User() bool { return z.user }
 
 // CanZoom reports whether the zoom key does anything: not while the narrow
