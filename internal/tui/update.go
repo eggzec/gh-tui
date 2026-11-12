@@ -525,8 +525,9 @@ func (m *Model) openSort(s titled, back ui.Modal) tea.Cmd {
 	return m.open(ui.NewSortModal(s.Title(), fl, f, m.keys.order, ui.NewIcons(m.cfg.UI.Icons)), back)
 }
 
-// filterOf returns what the filter modal edits for s on tab, if s has one
-// to open there: the Sort tab needs a list that can be sorted.
+// filterOf returns what the filter or the sort modal edits for s on tab, if
+// s has one to open there: the Sort tab, which the sort modal asks for,
+// needs a list that can be sorted.
 func filterOf(s titled, tab filterform.Tab) (ui.Filterable, ui.Filter, bool) {
 	fl, ok := s.(ui.Filterable)
 	if !ok {

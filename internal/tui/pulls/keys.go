@@ -18,9 +18,9 @@ import (
 // matches its own keys first, so the feed gets only the keys it leaves.
 type keyMap struct {
 	Select key.Binding
-	// Filter and Sort open the filter modal on its Filters and Sort tabs,
-	// which the app does, so the section only keeps them from the feed and
-	// shows them in help.
+	// Filter opens the filter modal and Sort the sort modal, which the app
+	// does, so the section only keeps them from the feed and shows them in
+	// help.
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding

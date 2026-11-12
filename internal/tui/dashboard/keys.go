@@ -29,8 +29,8 @@ type KeyMap struct {
 	// or issue, or what a notification is about.
 	Select  key.Binding
 	Refresh key.Binding
-	// Filter and Sort open the filter of the repositories on its Filters
-	// and Sort tabs, and ClearFilter clears it.
+	// Filter opens the filter of the repositories, Sort opens their sort
+	// modal, and ClearFilter clears the filter.
 	Filter      key.Binding
 	Sort        key.Binding
 	ClearFilter key.Binding

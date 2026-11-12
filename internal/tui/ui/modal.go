@@ -43,7 +43,7 @@ type Settler interface {
 	Settle() tea.Cmd
 }
 
-// Tabbed is a Modal with tabs, such as the filters of a list, which the
+// Tabbed is a Modal with tabs, such as the runs of a repository, which the
 // app shows at the right end of the top edge of the frame.
 type Tabbed interface {
 	// Tabs returns the names of the tabs, and the index of the one shown,

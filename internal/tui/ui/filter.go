@@ -154,10 +154,9 @@ type Narrower interface {
 	SetNarrow(narrow bool)
 }
 
-// FilterModal is the filter form of a Filterable as a modal. A list that
-// can be sorted shows its sort on a tab after the filters, in the top edge
-// of the frame. Enter applies the form from any row, on either tab, and
-// closes it, applying both; esc and q close it as it was.
+// FilterModal is the filter form of a Filterable as a modal. It has no tabs:
+// the sort is a modal of its own. Enter applies the form from any row and
+// closes it; esc and q close it as it was.
 type FilterModal struct {
 	title  string
 	target Filterable
@@ -227,9 +226,9 @@ func WithFormBack(b key.Binding) FilterOption {
 }
 
 // FilterFormKeys returns the keys of a filter form in the modal of context
-// ctx, "filter". Its tabs switch with the keys that switch the tabs of the
-// lists and the other modals, and it closes and loads again with their quit
-// and refresh keys. ctrl+c quits the app from every modal, so it doesn't
+// ctx, "filter". It closes and loads again with the quit and refresh keys of
+// the lists and the other modals. The form has no tabs in the filter modal,
+// so the keys that switch tabs do nothing there. ctrl+c quits the app from every modal, so it doesn't
 // close this one.
 func FilterFormKeys(keys config.Keymap, ctx string) filterform.KeyMap {
 	return filterform.NewKeyMap(Lookup(keys, ctx))
@@ -351,8 +350,8 @@ func (m *FilterModal) KeyLayers() []keyhelp.Layer {
 	return []keyhelp.Layer{l}
 }
 
-// Tabs implements Tabbed: Filters and Sort, or none for a list that can't
-// be sorted.
+// Tabs implements Tabbed. The form is built without a sort, so it has no
+// tabs and this returns none; it follows the form should that change.
 func (m *FilterModal) Tabs() (names []string, active int) {
 	names = m.form.Tabs()
 	if names == nil {
