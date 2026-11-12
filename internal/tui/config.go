@@ -135,8 +135,14 @@ type textModal struct {
 	icons ui.Icons
 }
 
-// Title returns the title the modal was opened with.
-func (t *textModal) Title() string { return t.title }
+// Title returns the title the modal was opened with, and the name of the
+// document shown when the pager holds several.
+func (t *textModal) Title() string {
+	if name := t.pager.DocName(); name != "" && t.pager.Docs() > 1 {
+		return t.title + ": " + name
+	}
+	return t.title
+}
 
 // Update closes the modal when the pager asks, and passes the rest to the
 // pager.
