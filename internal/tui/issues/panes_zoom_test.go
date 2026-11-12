@@ -95,13 +95,109 @@ func TestPreviewFocusDropsOnResize(t *testing.T) {
 	if !m.nav.InPreview(m.paneLayout()) {
 		t.Fatal("the step didn't reach the preview at 110")
 	}
+	m.previewOff = 5
 	m.SetSize(90, 30)
+	if m.previewOff != 0 {
+		t.Error("the offset stayed after the preview went")
+	}
 	if m.nav.Sub(4) != panes.List {
 		t.Error("the focus stayed in the preview after the width fell under 100")
 	}
 	m.SetSize(110, 30)
 	if m.nav.InPreview(m.paneLayout()) {
 		t.Error("the preview took the focus back on a wider window")
+	}
+}
+
+// longPreview opens the zoomed Involved pane of an issue with 40 comments.
+func longPreview(t *testing.T) (*host, *detailModal) {
+	t.Helper()
+	svc := blockedSvc()
+	for i := range 40 {
+		svc.addComments(999, core.Comment{ID: fmt.Sprintf("IC_%d", i), Author: core.User{Login: "ann"}, Body: fmt.Sprintf("Early %d.", i)})
+	}
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	m.View()
+	return h, m
+}
+
+func TestPreviewFocusIsMarked(t *testing.T) {
+	t.Parallel()
+	_, m := longPreview(t)
+	before := m.View()
+	m.nav.Step(m.paneLayout(), 1)
+	if !m.nav.InPreview(m.paneLayout()) {
+		t.Fatal("the step didn't reach the preview")
+	}
+	inPreview := m.View()
+	if inPreview == before {
+		t.Error("the preview with the focus is drawn as it is without")
+	}
+	m.nav.Step(m.paneLayout(), -1)
+	if m.View() != before {
+		t.Error("the focus mark stayed after the step back")
+	}
+}
+
+func TestPreviewScrolls(t *testing.T) {
+	t.Parallel()
+	h, m := longPreview(t)
+	press(t, h, "tab")
+	if !m.nav.InPreview(m.paneLayout()) {
+		t.Fatal("tab didn't reach the preview")
+	}
+	plain := func() string { return ansi.Strip(m.View()) }
+	if !strings.Contains(plain(), "Early 0.") || strings.Contains(plain(), "Early 39.") {
+		t.Fatalf("the preview doesn't start at the top:\n%s", plain())
+	}
+	cur := m.side.inv.View()
+	press(t, h, "j")
+	if m.previewOff != 1 {
+		t.Errorf("j moved the preview to %d, want 1", m.previewOff)
+	}
+	press(t, h, "G")
+	if !strings.Contains(plain(), "Early 39.") {
+		t.Errorf("G doesn't show the last comment:\n%s", plain())
+	}
+	end := m.previewOff
+	press(t, h, "j")
+	if m.previewOff != end {
+		t.Errorf("j past the end moved to %d, was %d", m.previewOff, end)
+	}
+	press(t, h, "home")
+	if m.previewOff != 0 {
+		t.Errorf("home left the preview at %d", m.previewOff)
+	}
+	press(t, h, "ctrl+d")
+	if m.previewOff <= 1 {
+		t.Errorf("ctrl+d moved only %d", m.previewOff)
+	}
+	if m.side.inv.View() != cur {
+		t.Error("the moves reached the Involved list")
+	}
+	// The offset survives a step back and a narrower, then wider window.
+	press(t, h, "G")
+	end = m.previewOff
+	m.SetSize(100, 30)
+	m.SetSize(110, 30)
+	assertFits(t, m.View(), 110, 30)
+	if m.previewOff == 0 || !strings.Contains(plain(), "Early 39.") {
+		t.Errorf("a resize lost the end of the preview (offset %d, was %d)", m.previewOff, end)
+	}
+	press(t, h, "shift+tab")
+	if m.previewOff == 0 {
+		t.Error("the step back reset the offset")
+	}
+	off := m.previewOff
+	press(t, h, "j")
+	if m.previewOff != off {
+		t.Error("j scrolled the preview from the list")
 	}
 }
 

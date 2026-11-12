@@ -26,6 +26,9 @@ type paneKeys struct {
 	// dividerUp and dividerDown grow and shrink the focused pane of the
 	// Description over the Conversation.
 	dividerUp, dividerDown key.Binding
+	// scroll are the moves of the modal, which scroll the preview while it has
+	// the focus. The help lists them with the conversation's keys.
+	scroll ui.MoveKeys
 }
 
 // newPaneKeys makes the pane keys of the modal from keys.
@@ -35,6 +38,8 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 		next: modal.Binding("global.next_pane", "next pane"),
 		prev: modal.Binding("global.prev_pane", "previous pane"),
 		zoom: modal.Binding("global.zoom", "zoom"),
+
+		scroll: ui.NewMoveKeys(ui.Lookup(keys, ctxModal)),
 
 		dividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
 		dividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
@@ -88,6 +93,7 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	case keymap.Matches(msg, k.zoom):
 		m.zoom.Toggle()
 		m.nav.Reset()
+		m.previewOff = 0
 	default:
 		p, ok := k.digit(msg)
 		if !ok {

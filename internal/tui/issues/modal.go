@@ -83,7 +83,10 @@ type detailModal struct {
 	peek      drawnPeek
 	peekVer   uint64
 	peekStamp int
-	head      string
+	// previewOff is how far the preview is scrolled. It is not part of the
+	// cache above, which keeps the whole drawing.
+	previewOff int
+	head       string
 	voice     ui.Voice
 	md        *markdown.Renderer
 	// pics draws the images of the bodies and comments, or is nil. picRows
@@ -280,6 +283,7 @@ func (m *detailModal) SetSize(width, height int) {
 	if !m.nav.InPreview(m.paneLayout()) {
 		// A preview that a resize took away must not keep the focus.
 		m.nav.Reset()
+		m.previewOff = 0
 	}
 	m.layout()
 	if m.refs != nil {
@@ -633,6 +637,12 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Refresh):
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.buildConv(), m.get())
+	}
+	if l := m.paneLayout(); m.nav.InPreview(l) {
+		// The preview is read-only: the moves scroll it and no key reaches the
+		// list beside it.
+		m.scrollPreview(l, msg)
+		return nil
 	}
 	if cmd, ok := m.pressSide(msg); ok {
 		return cmd
