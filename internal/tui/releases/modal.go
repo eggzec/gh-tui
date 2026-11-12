@@ -446,6 +446,9 @@ func (m *Modal) update(msg tea.Msg) tea.Cmd {
 		if msg.err == nil {
 			m.extra, m.extraDone = msg.extra, true
 			m.resize()
+		} else if ui.Unreached(msg.err) {
+			// Read again when GitHub answers; see online.
+			m.extraAsked = false
 		}
 		return nil
 	case ui.ImagesMsg:
@@ -488,6 +491,9 @@ func (m *Modal) online() tea.Cmd {
 	if m.failed() && ui.Unreached(m.err) {
 		m.err = nil
 		return m.get()
+	}
+	if m.loaded && !m.extraDone {
+		return m.getExtra()
 	}
 	return nil
 }

@@ -5,9 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
 // The commit and contributor rows draw only once the extra part arrived, and
@@ -46,6 +48,32 @@ func TestExtraMsgDroppedByID(t *testing.T) {
 	m.update(extraMsg{id: m.id, err: errors.New("boom")})
 	if m.extraDone {
 		t.Error("a failed read counts as done")
+	}
+}
+
+// An extra part that got no answer is read again once GitHub answers.
+func TestExtraRetriedWhenOnline(t *testing.T) {
+	t.Parallel()
+	svc := &fakeService{cached: true, extraErr: core.ErrOffline}
+	m := newModal(svc, 100, 30)
+	feed := func(cmd tea.Cmd) {
+		for _, msg := range run(t, m, cmd) {
+			m.Update(msg)
+		}
+	}
+	feed(m.Init())
+	if m.extraDone || svc.extras != 1 {
+		t.Fatalf("after the failed read: done = %v, reads = %d", m.extraDone, svc.extras)
+	}
+	svc.mu.Lock()
+	svc.extraErr = nil
+	svc.mu.Unlock()
+	feed(m.Update(ui.OnlineMsg{}))
+	if svc.extras != 2 {
+		t.Errorf("extra reads = %d, want 2", svc.extras)
+	}
+	if v := ansi.Strip(m.header()); !strings.Contains(v, "@alice") {
+		t.Errorf("header lacks the extra rows after the retry:\n%s", v)
 	}
 }
 
