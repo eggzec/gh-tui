@@ -40,6 +40,11 @@ func (m *detailModal) layout() {
 	if m.convOn {
 		r := m.convRect()
 		m.conv.SetSize(r.W, r.H)
+		if m.pics.PictureRows(r.H) != m.picRows {
+			// A new height lets the images grow or shrink.
+			m.conv.SetOptions(m.convOptions())
+			m.peekVer++
+		}
 	}
 }
 
