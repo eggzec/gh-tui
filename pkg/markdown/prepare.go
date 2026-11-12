@@ -259,7 +259,12 @@ func scan(src, hint string, g Glyphs, width int, line func(l string, text bool),
 		n++
 		i = end
 	}
-	for _, pc := range footnotes(joinSpans(out, width), g) {
+	pieces := footnotes(joinSpans(out, width), g)
+	rows := tableRows(pieces)
+	for k, pc := range pieces {
+		if rows[k] && !strings.Contains(pc.line, "`") {
+			pc.line = tableImage.ReplaceAllString(pc.line, "$1")
+		}
 		if pc.block != nil {
 			block(pc.n, *pc.block)
 		} else {
@@ -270,6 +275,12 @@ func scan(src, hint string, g Glyphs, width int, line func(l string, text bool),
 		line("\n"+cutNote(hint, g), false)
 	}
 }
+
+// tableImage matches a markdown image, with its alt text in the first group.
+// A table cell keeps only that text: glamour lists the address of each image
+// of a table under it, which GitHub doesn't, and a picture is drawn only on a
+// line of its own.
+var tableImage = regexp.MustCompile(`!\[((?:[^\]\\]|\\.)*)\]\((?:<[^>]*>|[^)\s]*)\)`)
 
 // piece is a line of a source that scan passes on, and whether it is text
 // rather than code, or a fenced code block with its index. from and open are
