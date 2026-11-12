@@ -110,7 +110,11 @@ func (m *Modal) headerLines() []string {
 
 	// The tag, and what is set off about the release.
 	if r.Tag != "" {
-		tag := termtext.Link(r.URL, t.Subtle.Render(m.icons.Tag+" ")+t.Text.Render(ui.OneLine(r.Tag)))
+		label := t.Text.Render(ui.OneLine(r.Tag))
+		if m.icons.Tag != "" {
+			label = t.Subtle.Render(m.icons.Tag+" ") + label
+		}
+		tag := termtext.Link(r.URL, label)
 		if r.Latest && !r.Draft && !r.Prerelease {
 			tag += " " + ui.Badge(t.State(ui.ReleasePublished), "", "latest")
 		}
@@ -126,7 +130,7 @@ func (m *Modal) headerLines() []string {
 		sha := m.extra.TagSHA[:min(len(m.extra.TagSHA), 7)]
 		line := termtext.Link(m.commitURL(m.extra.TagSHA), t.Subtle.Render(m.icons.Glyph(ui.GlyphCommit)+" ")+t.Text.Render(sha))
 		if m.extra.Verified {
-			line += " " + t.Subtle.Render(m.icons.Yes)
+			line += " " + t.State(ui.ReleasePublished).Render(m.icons.Yes)
 		}
 		if n := m.extra.AheadBy; n >= 0 {
 			text := ui.Plural(n, "commit", "commits")

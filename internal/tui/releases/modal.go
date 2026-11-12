@@ -354,9 +354,6 @@ func (m *Modal) TrimTitle() ui.TrimTitle {
 	}
 	t.Right = releaseDate(r)
 	t.Lead = m.theme.State(state).Render(m.icons.State(state))
-	if r.Latest && !r.Draft && !r.Prerelease {
-		t.Lead += " " + m.theme.State(ui.ReleasePublished).Render(m.icons.Pinned)
-	}
 	return t
 }
 
