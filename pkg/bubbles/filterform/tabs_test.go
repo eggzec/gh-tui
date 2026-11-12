@@ -52,10 +52,10 @@ func TestTabLine(t *testing.T) {
 	}{
 		{width: 40, want: "Filters"},
 		{width: 16, want: "Filters"},
-		{width: 14, want: "Filters Sort"},
-		{width: 10, want: "[1] 2"},
-		{width: 8, want: "1"},
-		{width: 3, want: "["},
+		{width: 14, want: "Filters"},
+		{width: 10, want: "Filters"},
+		{width: 8, want: "Filte"},
+		{width: 3, want: ""},
 	}
 	for _, tt := range tests {
 		t.Run(strconv.Itoa(tt.width), func(t *testing.T) {

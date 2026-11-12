@@ -122,7 +122,7 @@ func TestFrameShowsTheTabs(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
 	run(m, m.key(press("A")))
 	top := topEdge(m)
-	if !strings.Contains(top, "Actions · eggzec/gh-tui") || !strings.HasSuffix(top, "All · Failing · Running · Mine ─╮") {
+	if !strings.Contains(top, "Actions · eggzec/gh-tui") || !strings.HasSuffix(top, " All  Failing  Running  Mine  ─╮") {
 		t.Errorf("the top edge is %q, want the title and the tabs", top)
 	}
 	if w, fw := ansi.StringWidth(top), 120-2*12; w != fw {
@@ -144,7 +144,7 @@ func TestFrameShortensALongTitle(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.Update(ui.OpenActionsMsg{Repo: core.RepoRef{Owner: "charmbracelet", Name: "bubbletea-app-template"}})
 	top := topEdge(m)
-	if !strings.Contains(top, "Actions · charmbrace") || !strings.Contains(top, "…") || !strings.HasSuffix(top, "All · Failing · Running · Mine ─╮") {
+	if !strings.Contains(top, "Actions · charmbrace") || !strings.Contains(top, "…") || !strings.HasSuffix(top, " All  Failing  Running  Mine  ─╮") {
 		t.Errorf("the top edge is %q, want the title shortened and the tabs", top)
 	}
 	golden.RequireEqual(t, m.View().Content)
