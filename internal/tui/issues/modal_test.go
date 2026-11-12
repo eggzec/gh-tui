@@ -87,6 +87,54 @@ func TestModalImages(t *testing.T) {
 	}
 }
 
+// The Description pane draws its images at its own height, and the
+// conversation at its own: drawing one never changes the other's.
+func TestModalImagesKeepEachPanesHeight(t *testing.T) {
+	t.Parallel()
+	// convRows is how many rows of the conversation show an image.
+	convRows := func(bodyImage bool) int {
+		issues := sampleIssues(12)
+		comments := sampleComments(3)
+		comments[0].Body = withImage
+		if bodyImage {
+			for i := range issues {
+				issues[i].Body = withImage
+			}
+		}
+		svc := newFakeService(issues)
+		svc.addComments(999, comments...)
+		h := started(t, svc, 160, 40)
+		press(t, h, "down", "enter")
+		m := h.modal()
+		if m == nil {
+			t.Fatal("enter didn't open the issue")
+		}
+		press(t, h, "*")
+		m.pics = uitest.Avatars(&uitest.ImageHost{}, true)
+		m.Update(ui.ImagesMsg{})
+		m.View()
+		uitest.LoadAvatars(t, m.pics)
+		m.Update(ui.ImagesMsg{})
+		view := m.View()
+		r := m.convRect()
+		lines := strings.Split(view, "\n")
+		rows := 0
+		for y := r.Y; y < min(r.Y+r.H, len(lines)); y++ {
+			if strings.ContainsRune(lines[y], 0x10EEEE) {
+				rows++
+			}
+		}
+		return rows
+	}
+	alone, with := convRows(false), convRows(true)
+	if alone == 0 {
+		t.Fatal("the conversation draws no image")
+	}
+	if with != alone {
+		t.Errorf("an image in the description changes the conversation's from %d rows to %d", alone, with)
+	}
+}
+
 func TestCachedModalOpensAtOnce(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	svc.addComments(1000, sampleComments(3)...)

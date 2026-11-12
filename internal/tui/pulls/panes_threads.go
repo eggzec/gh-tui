@@ -233,25 +233,27 @@ func (o *diffOverlay) threadsFailedBlock() diff.Block {
 
 // diffMarkdown draws a comment or note body as markdown, the way the
 // Conversation pane does, as rows of at most width cells, but for the lines
-// of code, which are never cut. It shares that
-// pane's renderer so a theme, icon or link change reaches both from the one
-// place that applies it, and the renderer's cache serves a redraw.
+// of code, which are never cut. Its renderer draws no pictures, which are for
+// the Conversation pane, and a theme, icon or link change reaches it where
+// that pane's renderer gets it.
 func (m *panesModal) diffMarkdown(body string, width int) []string {
 	c := &m.conv
-	if c.md == nil {
-		c.md = ui.NewMarkdown(m.theme, m.icons)
-		c.seen = m.links().Seen(m.repo.String())
-		c.md.SetAutolink(c.seen.Func())
+	if c.diffMD == nil {
+		c.diffMD = ui.NewMarkdown(m.theme, m.icons)
+		if c.seen == nil {
+			c.seen = m.links().Seen(m.repo.String())
+		}
+		c.diffMD.SetAutolink(c.seen.Func())
 	}
 	width = max(width, 1)
-	out := strings.Trim(c.md.Render(strings.ReplaceAll(strings.TrimSpace(body), "\r", ""), width), "\n")
+	out := strings.Trim(c.diffMD.Render(strings.ReplaceAll(strings.TrimSpace(body), "\r", ""), width), "\n")
 	return strings.Split(out, "\n")
 }
 
 // diffRow is a lead and a line of diffMarkdown as a row of a block: cut to
 // width, except a line of code, which the diff scrolls sideways or wraps.
 func (m *panesModal) diffRow(lead, line string, width int) string {
-	if m.conv.md != nil && m.conv.md.IsCode(line) {
+	if m.conv.diffMD != nil && m.conv.diffMD.IsCode(line) {
 		return lead + line
 	}
 	return ansi.Truncate(lead+line, width, m.icons.Ellipsis)

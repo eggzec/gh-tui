@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
 )
 
 // plainRows strips the colours from rows.
@@ -132,6 +133,28 @@ func TestThreadBlockCleansCarriageReturnsAndTabs(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("%q is missing:\n%s", want, text)
 		}
+	}
+}
+
+// The Conversation draws images, the bodies of the diff's threads do not,
+// whether or not the Conversation's renderer has pictures yet.
+func TestDiffMarkdownDrawsNoPictures(t *testing.T) {
+	t.Parallel()
+	_, m, o := findingDiff(t, diffFindingChecks(), false)
+	m.pics = uitest.Avatars(&uitest.ImageHost{}, true)
+	if m.conv.md == nil {
+		m.conv.md = ui.NewMarkdown(m.theme, m.icons)
+	}
+	m.convOptions()
+	const body = "![the logo](https://example.com/logo.png)"
+	m.conv.md.Render(body, 60)
+	threadRows(o, body, 60)
+	uitest.LoadAvatars(t, m.pics)
+	if n := uitest.Placeholders(t, m.conv.md.Render(body, 60)); n == 0 {
+		t.Fatal("the Conversation's renderer draws no image")
+	}
+	if n := uitest.Placeholders(t, strings.Join(threadRows(o, body, 60), "\n")); n != 0 {
+		t.Errorf("the thread draws %d image cells, want none", n)
 	}
 }
 

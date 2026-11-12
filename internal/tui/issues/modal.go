@@ -318,7 +318,10 @@ func (m *detailModal) SetTheme(t ui.Theme) {
 func (m *detailModal) convOptions() conv.Options {
 	// The images of the bodies draw as the app's images setting says: none
 	// while it is off.
-	m.picRows = m.pics.PictureRows(m.convRect().H)
+	// A pane with no height (another is zoomed) keeps its pictures.
+	if h := m.convRect().H; h > 0 || m.picRows == 0 {
+		m.picRows = m.pics.PictureRows(h)
+	}
 	if m.md != nil {
 		m.md.SetPictures(m.pics.Pictures(m.picRows, nil))
 	}
