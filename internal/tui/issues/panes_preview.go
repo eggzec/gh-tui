@@ -42,8 +42,8 @@ func (m *detailModal) previewContent(b panes.Box, focused bool) panes.Content {
 		c.Body = m.theme.Muted.Render(text)
 		return c
 	}
-	m.previewOff = min(m.previewOff, previewLast(body, b.Rect.Inner().H))
-	c.Body, _ = panes.Window(body, m.previewOff, b.Rect.Inner().H)
+	off := min(m.previewOff, previewLast(body, b.Rect.Inner().H))
+	c.Body, _ = panes.Window(body, off, b.Rect.Inner().H)
 	return c
 }
 
@@ -53,12 +53,12 @@ func previewLast(body string, rows int) int {
 }
 
 // scrollPreview moves the preview of the zoomed Involved pane by the move msg
-// is, as far as its text goes, and reports whether msg was a move. The
-// preview shows the whole conversation, so one offset serves any row.
-func (m *detailModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) bool {
+// is, as far as its text goes. The preview shows the whole conversation, so
+// one offset serves any row.
+func (m *detailModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
 	b, ok := l.Box(paneInvolved, panes.Preview)
 	if !ok {
-		return false
+		return
 	}
 	rows := b.Rect.Inner().H
 	last := 0
@@ -85,10 +85,9 @@ func (m *detailModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) bool {
 	case keymap.Matches(msg, k.End):
 		off = last
 	default:
-		return false
+		return
 	}
 	m.previewOff = min(max(off, 0), last)
-	return true
 }
 
 // peekBody draws the conversation width cells wide, once per width until the

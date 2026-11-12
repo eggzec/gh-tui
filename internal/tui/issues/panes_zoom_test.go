@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -198,6 +199,62 @@ func TestPreviewScrolls(t *testing.T) {
 	press(t, h, "j")
 	if m.previewOff != off {
 		t.Error("j scrolled the preview from the list")
+	}
+}
+
+// enabledHelp lists the descriptions of the enabled bindings the help shows.
+func enabledHelp(m *detailModal) map[string]bool {
+	got := map[string]bool{}
+	for _, l := range m.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Enabled() {
+				got[b.Help().Desc] = true
+			}
+		}
+	}
+	return got
+}
+
+func TestPreviewFocusHelpListsOnlyScrolling(t *testing.T) {
+	t.Parallel()
+	h, m := longPreview(t)
+	if !enabledHelp(m)["expand"] {
+		t.Fatalf("the help lacks expand on the list: %v", enabledHelp(m))
+	}
+	press(t, h, "tab")
+	if !m.nav.InPreview(m.paneLayout()) {
+		t.Fatal("tab didn't reach the preview")
+	}
+	got := enabledHelp(m)
+	for _, d := range []string{m.keys.Assign.Help().Desc, "expand", "collapse", "all"} {
+		if got[d] {
+			t.Errorf("the help lists %q while the preview has the focus", d)
+		}
+	}
+	for _, d := range []string{"up", "down", "first", "last", "close"} {
+		if !got[d] {
+			t.Errorf("the help lacks %q in the preview: %v", d, got)
+		}
+	}
+}
+
+func TestPreviewScrollsWithTheTopChord(t *testing.T) {
+	t.Parallel()
+	h, m := longPreview(t)
+	press(t, h, "tab")
+	press(t, h, "G")
+	if m.previewOff == 0 {
+		t.Fatal("G didn't scroll")
+	}
+	// The root turns the chord "g g" into the press of its action before the
+	// modal sees it.
+	acts := keymap.Actions(m.keys.panes.scroll.Home)
+	if len(acts) == 0 {
+		t.Fatal("the top move has no action")
+	}
+	run(t, h, h.Update(keymap.ActionPress(acts[0])))
+	if m.previewOff != 0 {
+		t.Errorf("the top chord left the preview at %d", m.previewOff)
 	}
 }
 

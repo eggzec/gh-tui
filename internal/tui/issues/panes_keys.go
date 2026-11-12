@@ -27,7 +27,7 @@ type paneKeys struct {
 	// Description over the Conversation.
 	dividerUp, dividerDown key.Binding
 	// scroll are the moves of the modal, which scroll the preview while it has
-	// the focus. The help lists them with the conversation's keys.
+	// the focus. The help lists them in place of the conversation's keys then.
 	scroll ui.MoveKeys
 }
 
