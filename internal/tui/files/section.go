@@ -216,16 +216,18 @@ func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
 	s.updatePeek(msg)
 	if s.tree == nil {
-		s.syncPeek(false)
+		s.syncPeek(syncMoved)
 		return cmd
 	}
 	cmd = tea.Batch(cmd, s.observe(), s.readAhead())
 	// What changes the cache or the look draws the peek again.
 	switch msg.(type) {
-	case ui.AheadMsg, ui.OnlineMsg, ui.SettingsMsg, ui.ImagesMsg, ui.SyncMsg:
-		s.syncPeek(true)
+	case ui.SettingsMsg:
+		s.syncPeek(syncLook)
+	case ui.AheadMsg, ui.OnlineMsg, ui.ImagesMsg, ui.SyncMsg:
+		s.syncPeek(syncCache)
 	default:
-		s.syncPeek(false)
+		s.syncPeek(syncMoved)
 	}
 	return cmd
 }

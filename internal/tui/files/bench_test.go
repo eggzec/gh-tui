@@ -132,7 +132,7 @@ func BenchmarkPeekSync(b *testing.B) {
 	s := benchPeek(b)
 	b.ReportAllocs()
 	for b.Loop() {
-		s.syncPeek(false)
+		s.syncPeek(syncMoved)
 	}
 }
 

@@ -56,7 +56,7 @@ func (s *Section) SetPreviewSize(width, height int) {
 	p := s.peek
 	p.w, p.h = max(width, 0), max(height, 0)
 	p.pager.SetSize(p.w, p.h)
-	s.syncPeek(true)
+	s.syncPeek(syncMoved)
 }
 
 // PreviewTitle implements ui.Splitter.
@@ -111,13 +111,26 @@ func (s *Section) setPeekTheme(t ui.Theme) {
 	p.pager.SetStyles(t.Pager(s.icons))
 	p.md.setTheme(t, s.icons)
 	p.pager.Rerender()
-	s.syncPeek(true)
+	s.syncPeek(syncLook)
 }
 
+// peekSync says why the peek is synced.
+type peekSync int
+
+const (
+	// syncMoved: nothing but the cursor or the size may have changed.
+	syncMoved peekSync = iota
+	// syncCache: the cache may have changed. A cached text file that is
+	// shown stays as it is, so its colours do not flash off.
+	syncCache
+	// syncLook: the theme or the settings changed, so all is drawn again.
+	syncLook
+)
+
 // syncPeek shows the file under the cursor in the peek, from the cache
-// only. It does nothing unless what is shown changed, or force says the
+// only. It does nothing unless what is shown changed, or why says the
 // cache or the look did.
-func (s *Section) syncPeek(force bool) {
+func (s *Section) syncPeek(why peekSync) {
 	p := s.peek
 	if p == nil || p.w == 0 || p.h == 0 {
 		return
@@ -128,7 +141,7 @@ func (s *Section) syncPeek(force bool) {
 	}
 	b, hit, state := s.peekState(e)
 	at := peekAt{valid: true, path: e.Path, sha: e.SHA, state: state, w: p.w, h: p.h}
-	if !force && p.at == at {
+	if p.at == at && (why == syncMoved || why == syncCache && state == "hit") {
 		return
 	}
 	p.at = at
