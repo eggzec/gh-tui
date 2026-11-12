@@ -34,6 +34,17 @@ func TestKeyLayersOrder(t *testing.T) {
 		}
 	}
 
+	// While the zoomed preview has the focus, help lists its scroll keys.
+	h.s.SetPreviewFocus(true)
+	got := winner(h.s.KeyLayers(), "j")
+	if got == "nothing" || got == ui.FilesTitle+": down" {
+		t.Errorf("j reaches %q with the preview focused, want the preview's scroll key", got)
+	}
+	if got := winner(h.s.KeyLayers(), "r"); got != "nothing" {
+		t.Errorf("r reaches %q with the preview focused, want nothing", got)
+	}
+	h.s.SetPreviewFocus(false)
+
 	h = openRow(t, sampleFake(), rowAgents)
 	p, ok := h.top().(*preview)
 	if !ok {
