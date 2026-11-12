@@ -234,7 +234,8 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 		k.Edit.SetHelp(k.Edit.Help().Key, "edit description")
 		k.Edit = g.Gated(k.Edit, ui.ActDraft, it)
 	}
-	onPeople := m.loaded && m.side != nil && m.nav.Focus() == paneInvolved && m.side.inv.OnAssignees()
+	inPreview := m.nav.InPreview(m.paneLayout())
+	onPeople := m.loaded && m.side != nil && m.nav.Focus() == paneInvolved && !inPreview && m.side.inv.OnAssignees()
 	k.Assign.SetEnabled(k.Assign.Enabled() && onPeople)
 	k.Assign = g.Gated(k.Assign, ui.ActAssign, it)
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
@@ -260,6 +261,10 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.
 	tree := keyhelp.FromHelp("", m.keys.tree, false)
+	if inPreview {
+		// The preview is read-only: only the moves, which scroll it, work there.
+		tree = keyhelp.FromHelp("", m.keys.panes.scroll, false)
+	}
 	tree.Bindings = slices.DeleteFunc(tree.Bindings, func(b key.Binding) bool {
 		return len(b.Keys()) == 0 && len(keymap.Actions(b)) == 0
 	})
