@@ -88,6 +88,8 @@ type Section struct {
 
 	// peek is the passive preview beside the zoomed tree.
 	peek *peek
+	// peekFocus is whether the peek has the focus, and takes the scroll keys.
+	peekFocus bool
 
 	width, height int
 	focused       bool
@@ -541,6 +543,10 @@ func (s *Section) Blur() {
 // that resets the base only while there is one to reset, and then the
 // tree's. Before a repository is selected, no key does anything.
 func (s *Section) KeyLayers() []keyhelp.Layer {
+	if s.peekFocus && s.peek != nil {
+		// The zoomed preview takes the keys: the tree's don't reach the tree.
+		return []keyhelp.Layer{ui.PagerLayer("preview", &s.peek.pager)}
+	}
 	k := s.keys
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && s.ref != "")
 	own := keyhelp.Layer{Bindings: k.own(), Short: k.own()}

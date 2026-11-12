@@ -95,6 +95,7 @@ func (s *Section) SetPreviewFocus(focused bool) {
 	if p == nil {
 		return
 	}
+	s.peekFocus = focused
 	if focused {
 		p.pager.Focus()
 	} else {
