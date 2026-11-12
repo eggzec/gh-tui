@@ -123,6 +123,15 @@ func (m Model) Docs() int { return max(len(m.docs), 1) }
 // Doc returns the index of the document shown, from 0.
 func (m Model) Doc() int { return m.cur }
 
+// DocName returns the name of the document shown, empty for a pager that
+// shows a single text.
+func (m Model) DocName() string {
+	if m.cur < 0 || m.cur >= len(m.docs) {
+		return ""
+	}
+	return m.docs[m.cur].name
+}
+
 func pendingDoc(d Doc) docState {
 	return docState{pending: true, name: d.Name, lang: d.Lang, raw: d.Text, mark: -1}
 }
