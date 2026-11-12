@@ -91,9 +91,9 @@ type Model struct {
 	// panes are those of the repository screen, in the order focus cycles
 	// through them, which is the order of their digits. Their columns are
 	// apart: Files and Releases are on the left, the rest on the right.
-	panes       []*pane
-	leftC, rigC []*pane
-	notif       *pane
+	panes         []*pane
+	leftC, rightC []*pane
+	notif         *pane
 	// prev is the preview box beside the zoomed pane splitOf, while that
 	// pane's section is a ui.Splitter that has room for one.
 	prev    *pane
@@ -444,7 +444,7 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		if c.left {
 			m.leftC = append(m.leftC, p)
 		} else {
-			m.rigC = append(m.rigC, p)
+			m.rightC = append(m.rightC, p)
 		}
 	}
 	for i, p := range m.panes {
