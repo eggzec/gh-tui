@@ -53,7 +53,7 @@ func NewStyles(t ui.Theme, ic ui.Icons, set string) Styles {
 		bold:   t.Text.Bold(true),
 		dim:    t.Subtle,
 		guide:  t.Tree(ic).Guide,
-		name:   t.Tree(ic).Name,
+		name:   t.Tree(ic).Name.Bold(true),
 		warn:   t.Warning,
 		sha:    t.Subtle.Bold(true),
 		chips:  &chips,
