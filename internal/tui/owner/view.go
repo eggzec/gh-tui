@@ -460,8 +460,12 @@ func (s *Section) card(c repolist.Card, selected bool, w int) [repolist.CardHeig
 func (s *Section) listBody(w, h int) []string {
 	p, st := s.page, &s.st.shared
 	lines := make([]string, 0, h)
-	lines = append(lines, strings.Split(s.tabsLine(w), "\n")...)
 	l := p.list()
+	head := ""
+	if l != nil {
+		head = l.header(s)
+	}
+	lines = append(lines, strings.Split(s.tabsLine(w, head), "\n")...)
 	switch {
 	case l == nil && p.header.err != nil:
 		return append(lines, ui.Indent(s.failure("load the "+s.tabWord()+" of "+p.login, p.header.err, w-1))...)
@@ -472,7 +476,7 @@ func (s *Section) listBody(w, h int) []string {
 		return append(lines, "", " "+st.Muted.Render(membersOnlyText(s.Login())))
 	}
 	// The headers name the columns once there are rows under them.
-	lines = append(lines, l.header(s))
+	lines = append(lines, head)
 	if body := l.feed().View(); body != "" {
 		lines = append(lines, strings.Split(body, "\n")...)
 	}
@@ -480,18 +484,20 @@ func (s *Section) listBody(w, h int) []string {
 }
 
 // tabsLine renders the tabs of the list pane as one row of pills, each
-// with its count once the header says it.
-func (s *Section) tabsLine(w int) string {
+// with its count once the header says it, lined up with the column titles in
+// head.
+func (s *Section) tabsLine(w int, head string) string {
 	p := s.page
 	tabs := []tab{p.tab}
 	if p.header.ok {
 		tabs = tabsOf(p.header.value.Kind)
 	}
-	return s.tabs(tabs, w)
+	return s.tabs(tabs, w, head)
 }
 
-// tabs renders tabs as one row of pills within w columns.
-func (s *Section) tabs(tabs []tab, w int) string {
+// tabs renders tabs as one row of pills within w columns, lined up with the
+// column titles in head.
+func (s *Section) tabs(tabs []tab, w int, head string) string {
 	items := make([]tabrow.Item, len(tabs))
 	cur := 0
 	for i, t := range tabs {
@@ -503,6 +509,7 @@ func (s *Section) tabs(tabs []tab, w int) string {
 	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, cur)
 	row.SetWidth(w)
+	row.AlignWith(head)
 	return row.View()
 }
 

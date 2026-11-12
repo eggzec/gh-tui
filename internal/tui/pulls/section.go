@@ -524,8 +524,8 @@ func (s *Section) newFeed() tea.Cmd {
 	)
 	s.feed, s.cancelFeed, s.total = &f, cancel, total
 	s.layout()
-	s.renderHeader()
 	s.renderTitles()
+	s.renderHeader()
 	return f.Init()
 }
 
@@ -539,8 +539,8 @@ func (s *Section) listQuery(state core.State) pulls.ListQuery {
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.layout()
-	s.renderHeader()
 	s.renderTitles()
+	s.renderHeader()
 	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 
@@ -558,8 +558,8 @@ func (s *Section) SetTheme(t ui.Theme) {
 	if s.feed != nil {
 		s.feed.SetStyles(t.Feed(s.icons))
 	}
-	s.renderHeader()
 	s.renderTitles()
+	s.renderHeader()
 	s.blank = s.st.noRepo(s.width, s.height, s.hint)
 }
 

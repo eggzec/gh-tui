@@ -388,12 +388,12 @@ func (s *Section) card(c repolist.Card, selected bool, w int) [repolist.CardHeig
 // view.
 func (s *Section) reposBody(w, h int) []string {
 	lines := make([]string, 0, h)
-	lines = append(lines, strings.Split(s.tabsLine(w), "\n")...)
 	o := s.repos.current()
 	// The headers name the columns once there are rows under them.
-	head := ""
-	if o.Feed.Len() > 0 {
-		head = strings.Repeat(" ", gutterWidth+o.Feed.Indent()) + s.st.shared.Muted.Render(o.Cols().Header(s.icons.Star, s.icons.Ellipsis))
+	head := strings.Repeat(" ", gutterWidth+o.Feed.Indent()) + s.st.shared.Muted.Render(o.Cols().Header(s.icons.Star, s.icons.Ellipsis))
+	lines = append(lines, strings.Split(s.tabsLine(w, head), "\n")...)
+	if o.Feed.Len() == 0 {
+		head = ""
 	}
 	lines = append(lines, head)
 	if body := o.Feed.View(); body != "" {
@@ -402,8 +402,9 @@ func (s *Section) reposBody(w, h int) []string {
 	return lines
 }
 
-// tabsLine renders the tabs of the owners as one row of pills.
-func (s *Section) tabsLine(w int) string {
+// tabsLine renders the tabs of the owners as one row of pills, lined up with
+// the column titles in head.
+func (s *Section) tabsLine(w int, head string) string {
 	t := &s.repos
 	items := make([]tabrow.Item, len(t.tabs))
 	for i, o := range t.tabs {
@@ -412,6 +413,7 @@ func (s *Section) tabsLine(w int) string {
 	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, t.cur)
 	row.SetWidth(w)
+	row.AlignWith(head)
 	return row.View()
 }
 
@@ -425,7 +427,7 @@ func (s *Section) workBody(w, h int) []string {
 		return []string{" " + st.shared.Muted.Render("Loading the work waiting on you"+s.icons.Ellipsis)}
 	}
 	lines := make([]string, 0, h)
-	lines = append(lines, strings.Split(s.workTabs(w), "\n")...)
+	lines = append(lines, strings.Split(s.workTabs(w, l.header()), "\n")...)
 	focused := s.focused && s.focus == workPane
 	t := l.current()
 	if t.refused {
@@ -456,8 +458,9 @@ func (s *Section) workBody(w, h int) []string {
 	return append(lines, status...)
 }
 
-// workTabs renders the tabs of the lists of work as one row of pills.
-func (s *Section) workTabs(w int) string {
+// workTabs renders the tabs of the lists of work as one row of pills, lined up
+// with the column titles in head.
+func (s *Section) workTabs(w int, head string) string {
 	l := &s.tasks
 	items := make([]tabrow.Item, len(workLists))
 	for i, wl := range workLists {
@@ -466,6 +469,7 @@ func (s *Section) workTabs(w int) string {
 	row := tabrow.New(tabrow.WithPill(s.st.row))
 	row.SetItems(items, l.cur)
 	row.SetWidth(w)
+	row.AlignWith(head)
 	return row.View()
 }
 

@@ -76,7 +76,7 @@ func TestTabsLinePills(t *testing.T) {
 	t.Parallel()
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	for _, w := range []int{120, 60, 30} {
-		lines := strings.Split(s.tabsLine(w), "\n")
+		lines := strings.Split(s.tabsLine(w, ""), "\n")
 		if len(lines) != 1 {
 			t.Fatalf("width %d: %d lines, want 1", w, len(lines))
 		}
