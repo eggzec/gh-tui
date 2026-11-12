@@ -170,10 +170,7 @@ func (m *Model) tabLine(w int) string {
 	for i, name := range tabNames {
 		items[i] = tabrow.Item{Label: name}
 	}
-	row := tabrow.New(
-		tabrow.WithStyles(tabrow.Styles{Current: m.styles.ActiveTab, Other: m.styles.Tab, Marker: m.styles.Tab}),
-		tabrow.WithSeparator(m.styles.Glyphs.Separator),
-	)
+	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(m.styles.ActiveTab, m.styles.Tab)))
 	row.SetItems(items, int(m.tab))
 	row.SetWidth(max(w-2, 0))
 	line := m.fit("  "+row.View(), w)

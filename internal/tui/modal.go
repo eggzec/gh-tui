@@ -460,10 +460,7 @@ func (m *Model) tabs(t ui.Tabbed, w int) string {
 	for i, name := range names {
 		items[i] = tabrow.Item{Label: name}
 	}
-	row := tabrow.New(
-		tabrow.WithStyles(tabrow.Styles{Current: m.theme.Title, Other: m.theme.Muted, Marker: m.theme.Subtle}),
-		tabrow.WithSeparator(m.icons.Separator),
-	)
+	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(m.theme.Title, m.theme.Muted)))
 	row.SetItems(items, active)
 	// Leave the title its least room and a space on either side of the row.
 	row.SetWidth(max(w-6-minTitleWidth-2, 0))
