@@ -183,6 +183,11 @@ func (r *Renderer) swapLinks(out string) string {
 				if prev == sp && paren {
 					gap = strings.Replace(gap, "(", "", 1)
 				}
+				if prev == sp {
+					// Glamour styles the address it printed: its opener
+					// stays outside the span, and the reset went with it.
+					gap = dropOpener(gap)
+				}
 				b.WriteString(gap)
 				b.WriteRune(goneMark)
 				prev = next
@@ -197,6 +202,21 @@ func (r *Renderer) swapLinks(out string) string {
 	}
 	b.WriteString(out[pos:])
 	return b.String()
+}
+
+// dropOpener returns gap without the style it ends with, if that sets one
+// rather than resets it: the style of an address that is gone would be left
+// on, drawing the padding that follows the address.
+func dropOpener(gap string) string {
+	i := strings.LastIndex(gap, "\x1b[")
+	if i < 0 || !strings.HasSuffix(gap, "m") {
+		return gap
+	}
+	params := gap[i+2 : len(gap)-1]
+	if strings.Trim(params, "0;") == "" || strings.ContainsAny(params, "\x1b ") {
+		return gap
+	}
+	return gap[:i]
 }
 
 // printed returns how many of the spans after the first of spans are the
