@@ -84,4 +84,7 @@ type Splitter interface {
 	// PreviewKey handles a key pressed while the preview has the focus, such
 	// as a scroll, and returns the command it queues, or nil.
 	PreviewKey(msg tea.KeyPressMsg) tea.Cmd
+	// SetPreviewFocus tells the preview whether it has the focus, so that it
+	// takes the keys that scroll it only then.
+	SetPreviewFocus(focused bool)
 }

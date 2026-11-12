@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -46,6 +47,12 @@ func (s *Section) newPeek() *peek {
 	p.raw = func() bool { return s.rawMarkdown }
 	p.pager = pager.New(pager.WithKeyMap(pager.NewKeyMap(ui.In(s.rawKeys, "preview"))),
 		pager.WithRenderedNotes(renderedNumbersNote, renderedChopNote))
+	// The peek only scrolls: every other key of the pager stays with the app.
+	km := p.pager.KeyMap()
+	for _, b := range []*key.Binding{&km.Search, &km.Filter, &km.Option, &km.Next, &km.Prev, &km.Edit, &km.Quit, &km.Dismiss} {
+		b.SetEnabled(false)
+	}
+	p.pager.SetKeyMap(km)
 	// No images in the markdown, and no files looked up: the text only.
 	p.img = fileImage{images: s.images, shown: shownText, ellipsis: s.icons.Ellipsis, cached: true}
 	return p
@@ -79,6 +86,20 @@ func (s *Section) PreviewCmd() tea.Cmd {
 	cmd := p.cmd
 	p.cmd = nil
 	return cmd
+}
+
+// SetPreviewFocus implements ui.Splitter. The pager reacts to keys only while
+// the peek has the focus.
+func (s *Section) SetPreviewFocus(focused bool) {
+	p := s.peek
+	if p == nil {
+		return
+	}
+	if focused {
+		p.pager.Focus()
+	} else {
+		p.pager.Blur()
+	}
 }
 
 // PreviewKey implements ui.Splitter. The pager scrolls the peek with its keys.
