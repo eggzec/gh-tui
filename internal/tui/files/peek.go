@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/eggzec/gh-tui/internal/core"
 	filesvc "github.com/eggzec/gh-tui/internal/service/files"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -22,6 +24,10 @@ type peek struct {
 	// at is what the box shows, so that a message that changes nothing of
 	// it draws nothing again.
 	at peekAt
+	// cmd is the highlight that the last fill started, until PreviewCmd
+	// hands it on. A newer fill makes an older result stale, and the pager
+	// drops it.
+	cmd tea.Cmd
 }
 
 // peekAt names what the peek last drew.
@@ -61,6 +67,32 @@ func (s *Section) PreviewTitle() string {
 		}
 	}
 	return "Preview"
+}
+
+// PreviewCmd implements ui.Splitter. It hands on the highlight of the file
+// the peek shows, once.
+func (s *Section) PreviewCmd() tea.Cmd {
+	p := s.peek
+	if p == nil {
+		return nil
+	}
+	cmd := p.cmd
+	p.cmd = nil
+	return cmd
+}
+
+// updatePeek lets the peek's pager take the message of its highlight. Keys
+// and the mouse are not for it: the peek is passive.
+func (s *Section) updatePeek(msg tea.Msg) {
+	p := s.peek
+	if p == nil || p.w == 0 || p.h == 0 {
+		return
+	}
+	switch msg.(type) {
+	case tea.KeyMsg, tea.MouseMsg:
+		return
+	}
+	p.pager, _ = p.pager.Update(msg)
 }
 
 // PreviewView implements ui.Splitter.
@@ -119,9 +151,9 @@ func (s *Section) syncPeek(force bool) {
 		}
 	case hit:
 		p.img.clear()
-		// The command fill returns, the syntax highlight, is dropped: the
-		// peek never runs one, so it draws the text plain.
-		_, _ = fill(&p.pager, e, b, nil, s.icons, p.rendering())
+		// The highlight fill returns is CPU only, no I/O: the peek queues it
+		// for the app to run, and draws the text plain until it lands.
+		p.cmd, _ = fill(&p.pager, e, b, nil, s.icons, p.rendering())
 	case e.Size > s.prefetch.cursorMax && !e.Symlink():
 		p.clear(e.Path, ui.TooLargeText(e.Path, core.ErrTooLarge))
 	default:

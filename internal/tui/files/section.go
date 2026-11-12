@@ -214,6 +214,7 @@ func (s *Section) Init() tea.Cmd {
 // has read, and to the cursor moving.
 func (s *Section) Update(msg tea.Msg) tea.Cmd {
 	cmd := s.update(msg)
+	s.updatePeek(msg)
 	if s.tree == nil {
 		s.syncPeek(false)
 		return cmd

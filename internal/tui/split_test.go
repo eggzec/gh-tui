@@ -20,6 +20,7 @@ type splitFake struct {
 func (s *splitFake) SetPreviewSize(w, h int) { s.sizes = append(s.sizes, [2]int{w, h}) }
 func (s *splitFake) PreviewTitle() string    { return "Preview" }
 func (s *splitFake) PreviewView() string     { return "preview content" }
+func (s *splitFake) PreviewCmd() tea.Cmd     { return nil }
 
 var _ ui.Splitter = (*splitFake)(nil)
 

@@ -70,9 +70,15 @@ type Capturer interface {
 // Splitter is a Section that, while it is zoomed on a terminal that is not
 // narrow, shows a read-only preview in a box beside its own. The app gives
 // the box its size, 0 by 0 when there is none, and draws its title and the
-// view in a frame. The view does no I/O and returns no command.
+// view in a frame. The preview does no I/O: it reads and fetches nothing, and
+// its view returns no command. It may still have work that takes CPU only,
+// such as a syntax highlight, which the app runs by taking PreviewCmd after
+// each update. The messages of that work reach the section like any other.
 type Splitter interface {
 	SetPreviewSize(width, height int)
 	PreviewTitle() string
 	PreviewView() string
+	// PreviewCmd returns the CPU-only command that the preview has queued
+	// since the last call, or nil.
+	PreviewCmd() tea.Cmd
 }

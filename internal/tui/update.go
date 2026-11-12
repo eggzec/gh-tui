@@ -36,6 +36,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if load := m.loadImages(); load != nil {
 		cmd = tea.Batch(cmd, load)
 	}
+	// What the preview box draws may need CPU work, such as a highlight.
+	if m.prev != nil && m.prev.preview != nil {
+		if c := m.prev.preview.PreviewCmd(); c != nil {
+			cmd = tea.Batch(cmd, c)
+		}
+	}
 	return m, cmd
 }
 
