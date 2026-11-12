@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -100,7 +101,7 @@ func (m *Modal) headerLines() []string {
 	var lines []string
 
 	// Who released it, with their picture where pictures are drawn.
-	who := t.Text.Render(author) + t.Subtle.Render(" released this")
+	who := termtext.Link(ui.PageProfileURL(r.URL, r.Author.Login), t.Text.Render(author)) + t.Subtle.Render(" released this")
 	if m.pics.Shown() {
 		strip := ui.AvatarStrip(m.pics, []ui.Person{{Login: r.Author.Login, AvatarURL: r.AuthorAvatar}}, avatarSize, avatarSize.Cols, nil)
 		who = strip + " " + who
@@ -109,7 +110,7 @@ func (m *Modal) headerLines() []string {
 
 	// The tag, and what is set off about the release.
 	if r.Tag != "" {
-		tag := t.Subtle.Render(m.icons.Tag+" ") + t.Text.Render(ui.OneLine(r.Tag))
+		tag := termtext.Link(r.URL, t.Subtle.Render(m.icons.Tag+" ")+t.Text.Render(ui.OneLine(r.Tag)))
 		if r.Latest && !r.Draft && !r.Prerelease {
 			tag += " " + ui.Badge(t.State(ui.ReleasePublished), "", "latest")
 		}
@@ -123,7 +124,7 @@ func (m *Modal) headerLines() []string {
 	// are read apart from the release and so draw once they arrive.
 	if m.extraDone && m.extra.TagSHA != "" {
 		sha := m.extra.TagSHA[:min(len(m.extra.TagSHA), 7)]
-		line := t.Subtle.Render(m.icons.Glyph(ui.GlyphCommit)+" ") + t.Text.Render(sha)
+		line := termtext.Link(m.commitURL(m.extra.TagSHA), t.Subtle.Render(m.icons.Glyph(ui.GlyphCommit)+" ")+t.Text.Render(sha))
 		if m.extra.Verified {
 			line += " " + t.Subtle.Render(m.icons.Yes)
 		}
@@ -169,11 +170,11 @@ func (m *Modal) contributors() string {
 		return ""
 	}
 	seen := map[string]bool{strings.ToLower(author): true}
-	people := []ui.Person{{Login: author, AvatarURL: m.rel.AuthorAvatar}}
+	people := []ui.Person{{Login: author, AvatarURL: m.rel.AuthorAvatar, Page: ui.PageProfileURL(m.rel.URL, author)}}
 	for _, login := range m.extra.Mentions {
 		if key := strings.ToLower(login); !seen[key] {
 			seen[key] = true
-			people = append(people, ui.Person{Login: login, AvatarURL: m.avatarOf(login)})
+			people = append(people, ui.Person{Login: login, AvatarURL: m.avatarOf(login), Page: ui.PageProfileURL(m.rel.URL, login)})
 		}
 	}
 	if author == "" {
@@ -183,6 +184,16 @@ func (m *Modal) contributors() string {
 		return m.theme.Subtle.Render("and " + thousands(n) + " " + ui.Plural(n, "other", "others"))
 	}
 	return ui.AvatarStrip(m.pics, people, avatarSize, max(m.width-2, 1), more)
+}
+
+// commitURL is the page of the commit sha on the host of the release's page,
+// or "" if the release has no page.
+func (m *Modal) commitURL(sha string) string {
+	u, err := url.Parse(m.rel.URL)
+	if err != nil || u.Host == "" || sha == "" {
+		return ""
+	}
+	return ui.WebURL(u.Host, m.repo.String()+"/commit/"+url.PathEscape(sha))
 }
 
 // avatarOf is the address of the picture of login, or "" if the release's

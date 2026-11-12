@@ -4,11 +4,13 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/eggzec/gh-tui/pkg/termtext"
 )
 
 // Person is someone shown by an avatar, or by their login where avatars
-// are not drawn.
-type Person struct{ Login, AvatarURL string }
+// are not drawn. Page, when set, is the address the login links to.
+type Person struct{ Login, AvatarURL, Page string }
 
 // AvatarStrip is the avatars of users side by side on one line, as many as
 // fit in width cells, and more(n) for the n that do not, which it keeps room
@@ -31,6 +33,9 @@ func AvatarStrip(imgs *Images, users []Person, size ImageSize, width int, more f
 			cells[i] = "@" + u.Login
 		}
 		widths[i] = ansi.StringWidth(cells[i])
+		// Link adds no cells. Pictures are not linked: it keeps only text
+		// and styles, which would drop an image's sequences.
+		cells[i] = termtext.Link(u.Page, cells[i])
 	}
 	n := len(users)
 	for k := n; k >= 0; k-- {

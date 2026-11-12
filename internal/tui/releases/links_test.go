@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/autolinks"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/internal/tui/ui/uitest"
@@ -30,12 +31,53 @@ func TestLinks(t *testing.T) {
 		m.rel.Name = uitest.HostileTitle
 		m.SetSize(width, 24)
 		links := uitest.Links(t, m.header())
-		if len(links) < 1 || slices.ContainsFunc(links, func(l string) bool { return l != v3.URL }) {
-			t.Errorf("at %d: the header links to %q, want the page %q", width, links, v3.URL)
+		if len(links) < 1 || !slices.Contains(links, v3.URL) || slices.ContainsFunc(links, func(l string) bool { return !strings.HasPrefix(l, "https://github.com/") }) {
+			t.Errorf("at %d: the header links to %q, want the page %q and others on its host", width, links, v3.URL)
 		}
 		if v := m.View(); strings.Contains(v, "\x1b]8;;https://evil") || strings.Contains(v, "\x1b[2J") {
 			t.Errorf("at %d: the view carries the name's escapes: %q", width, v)
 		}
+	}
+}
+
+// The author, the tag, the commit and each contributor link to their pages on
+// the host of the release, and none link where links are off or a part of
+// the address is missing. The links end on their line.
+func TestHeaderLinks(t *testing.T) {
+	// Serial: links are a process-wide switch.
+	termtext.SetLinks(true)
+	t.Cleanup(func() { termtext.SetLinks(true) })
+	m := newModal(&fakeService{cached: true}, 120, 30)
+	m.update(extraMsg{id: m.id, extra: extra3})
+	m.rel.Author = core.User{Login: "carol"}
+	header := m.header()
+	links := uitest.Links(t, header)
+	for _, want := range []string{
+		v3.URL,
+		"https://github.com/carol",
+		"https://github.com/charmbracelet/glow/commit/0123456789abcdef",
+		"https://github.com/alice",
+		"https://github.com/bob",
+	} {
+		if !slices.Contains(links, want) {
+			t.Errorf("header lacks a link to %q: %q", want, links)
+		}
+	}
+	if n := strings.Count(header, "\x1b]8;;https://"); n < 5 {
+		t.Errorf("header opens %d links, want at least 5", n)
+	}
+
+	m.rel.URL = ""
+	m.extra.TagSHA = ""
+	if got := uitest.Links(t, m.header()); len(got) != 0 {
+		t.Errorf("a header without a page links to %q", got)
+	}
+
+	termtext.SetLinks(false)
+	m.rel.URL = v3.URL
+	m.extra.TagSHA = extra3.TagSHA
+	if h := m.header(); strings.Contains(h, "\x1b]8;") {
+		t.Errorf("links off, but the header has one: %q", h)
 	}
 }
 
