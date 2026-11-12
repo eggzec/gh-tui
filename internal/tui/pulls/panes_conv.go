@@ -143,7 +143,10 @@ func (m *panesModal) convOptions() conv.Options {
 	c := &m.conv
 	// The images of the bodies draw as the app's images setting says: none
 	// while it is off.
-	c.picRows = m.pics.PictureRows(c.h)
+	// A pane with no height (another is zoomed) keeps its pictures.
+	if c.h > 0 || c.picRows == 0 {
+		c.picRows = m.pics.PictureRows(c.h)
+	}
 	if c.md != nil {
 		c.md.SetPictures(m.pics.Pictures(c.picRows, nil))
 	}

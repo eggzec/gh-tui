@@ -37,6 +37,38 @@ func TestHeaderRowsAfterExtra(t *testing.T) {
 	}
 }
 
+// The tag line carries a latest badge for the latest published release only,
+// and an immutable badge for an immutable one.
+func TestHeaderBadges(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name               string
+		latest, draft, pre bool
+		immutable          bool
+		wantLatest         bool
+	}{
+		{name: "latest", latest: true, wantLatest: true},
+		{name: "not latest"},
+		{name: "latest draft", latest: true, draft: true},
+		{name: "latest prerelease", latest: true, pre: true},
+		{name: "latest immutable", latest: true, immutable: true, wantLatest: true},
+		{name: "immutable only", immutable: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := newModal(&fakeService{cached: true}, 100, 30)
+			m.rel.Latest, m.rel.Draft, m.rel.Prerelease, m.rel.Immutable = tc.latest, tc.draft, tc.pre, tc.immutable
+			tag := ansi.Strip(strings.Join(m.headerLines(), "\n"))
+			if got := strings.Contains(tag, "latest"); got != tc.wantLatest {
+				t.Errorf("latest badge shown = %v, want %v:\n%s", got, tc.wantLatest, tag)
+			}
+			if got := strings.Contains(tag, "immutable"); got != tc.immutable {
+				t.Errorf("immutable badge shown = %v, want %v:\n%s", got, tc.immutable, tag)
+			}
+		})
+	}
+}
+
 // An extra part of another modal, or one that failed, changes nothing.
 func TestExtraMsgDroppedByID(t *testing.T) {
 	t.Parallel()
