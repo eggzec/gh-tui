@@ -197,7 +197,7 @@ func (m *Model) drawFrame(p *pane) {
 	if p.key != "" && !zoomed {
 		text = "[" + p.key + "] " + text
 	}
-	c := panes.Content{Focus: p.focused}
+	c := panes.Content{Focus: m.focusMarked(p)}
 	if label := termtext.Truncate(text, max(w-5, 0), m.icons.Ellipsis); label != "" {
 		c.TopLeft = []string{label}
 	}
@@ -209,7 +209,7 @@ func (m *Model) drawFrame(p *pane) {
 		c.BottomLeft = m.foot(p, frames)
 	}
 	p.top, p.bottom = frames.Edges(c, w)
-	p.side, _ = frames.Sides(p.focused)
+	p.side, _ = frames.Sides(m.focusMarked(p))
 }
 
 // linkTitle links the name that starts a pane's label, on the repository
@@ -579,6 +579,30 @@ func (m *Model) endSplit() {
 	}
 	m.prev.preview.SetPreviewSize(0, 0)
 	m.prev, m.splitOf = nil, nil
+	m.prevFocus = false
+}
+
+// splitShown reports whether the zoomed pane is on view beside its preview.
+func (m *Model) splitShown() bool {
+	return m.screen == repoScreen && m.prev != nil && m.splitOf != nil
+}
+
+// switchSplit moves the focus between the list and the preview.
+func (m *Model) switchSplit() {
+	m.prevFocus = !m.prevFocus
+	m.drawFrame(m.splitOf)
+	m.drawFrame(m.prev)
+}
+
+// focusMarked reports whether p's frame is drawn in the focus color.
+func (m *Model) focusMarked(p *pane) bool {
+	switch {
+	case p == m.prev && p != nil:
+		return m.prevFocus
+	case p == m.splitOf && p != nil:
+		return p.focused && !m.prevFocus
+	}
+	return p.focused
 }
 
 // stack shares height between ps evenly, from the top.
