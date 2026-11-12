@@ -623,6 +623,21 @@ func TestNarrowShowsOnePane(t *testing.T) {
 	assertFits(t, m.View(), w, 30)
 }
 
+// The count of the files keeps its place on the top edge of a box too narrow
+// for it and the title together: the title is cut, never the count.
+func TestFilesCountKeepsRoom(t *testing.T) {
+	t.Parallel()
+	m := newModal(&fakeService{}, 2*panes.MinWidth, 30)
+	run(t, m, m.Init())
+	press(m, "2")
+	press(m, "z")
+	for _, line := range strings.Split(ansi.Strip(m.View()), "\n") {
+		if strings.Contains(line, "╭") && strings.Contains(line, "Files") && !strings.Contains(line, "3[3]") && !strings.Contains(line, " 3 ") {
+			t.Errorf("the top edge %q lost the count", line)
+		}
+	}
+}
+
 // With the ASCII icons the modal draws its own parts in ASCII: the title,
 // the files with their downloads, and their cut names.
 func TestASCIIIcons(t *testing.T) {

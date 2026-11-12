@@ -171,6 +171,8 @@ func (m *Modal) drawPanes(l panes.Layout) string {
 		c.TopLeft = titleForms(title, b, m.icons.Ellipsis)
 		if b.Pane == paneFiles && m.loaded {
 			c.TopRight = ui.CountForms(ui.CountSpec{Total: len(m.rel.Assets), Loaded: len(m.rel.Assets)})
+			// The count wins the top edge: the title gives it room.
+			c.TopLeft = ui.TitleBeside(c.TopLeft, c.TopRight, max(b.Rect.W-5, 0), m.icons.Ellipsis)
 		}
 		c.Body = m.paneBody(b)
 		return c
