@@ -395,11 +395,16 @@ func (f *Fetcher) data(ctx context.Context, src Source) (data []byte, keep bool,
 	return data, true, nil
 }
 
-// stale reports whether a kept image needs checking: an avatar a day
+// stale reports whether a kept image needs checking: an avatar, of the avatar
+// hosts or of a web host, a day
 // after it was fetched. Other images never change under their address.
 func (f *Fetcher) stale(src Source, m meta) bool {
 	u, err := url.Parse(src.URL)
-	if err != nil || !strings.HasPrefix(strings.ToLower(u.Hostname()), "avatars.") && !strings.Contains(u.Path, "/avatars/") {
+	if err != nil {
+		return false
+	}
+	// A user's avatar on a web host, /<login>.png, changes under its address too.
+	if !strings.HasPrefix(strings.ToLower(u.Hostname()), "avatars.") && !strings.Contains(u.Path, "/avatars/") && !webAvatar(u) {
 		return false
 	}
 	return f.now().Sub(m.Fetched) >= revalidateAfter
