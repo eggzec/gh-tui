@@ -160,8 +160,8 @@ func (m *Model) render() {
 	m.view = body
 }
 
-// tabLine renders the names of the tabs, the one on view in the active
-// style, the others muted.
+// tabLine renders the names of the tabs as pills, the one on view in the
+// active style, the others muted.
 func (m *Model) tabLine(w int) string {
 	if c := &m.cache.tabs; c.ok && c.tab == m.tab && c.width == w {
 		return c.line

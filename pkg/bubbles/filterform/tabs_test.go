@@ -49,10 +49,11 @@ func TestTabLine(t *testing.T) {
 	tests := []struct {
 		width int
 		want  string
+		gone  string
 	}{
 		{width: 40, want: "Filters"},
 		{width: 16, want: "Filters"},
-		{width: 14, want: "Filters"},
+		{width: 14, want: "Filters", gone: "Sort"},
 		{width: 10, want: "Filters"},
 		{width: 8, want: "Filte"},
 		{width: 3, want: ""},
@@ -66,6 +67,9 @@ func TestTabLine(t *testing.T) {
 			}
 			if !strings.Contains(ansi.Strip(line), tt.want) {
 				t.Errorf("line = %q, want it to hold %q", ansi.Strip(line), tt.want)
+			}
+			if tt.gone != "" && strings.Contains(ansi.Strip(line), tt.gone) {
+				t.Errorf("line = %q, want %q gone", ansi.Strip(line), tt.gone)
 			}
 		})
 	}
