@@ -90,7 +90,7 @@ type detailModal struct {
 	// is the tallest they were drawn at.
 	pics    *ui.Images
 	picRows int
-	seen     *ui.Seen
+	seen    *ui.Seen
 	// side holds the Involved and Development panes, and refSvc reads the
 	// links of the Development one.
 	side   *sidePanes
@@ -479,6 +479,9 @@ func (m *detailModal) update(msg tea.Msg) tea.Cmd {
 		if m.convOn {
 			m.conv.SetOptions(m.convOptions())
 			m.peekVer++
+		}
+		if m.side != nil {
+			m.side.desc.pics++
 		}
 		return nil
 	case tea.KeyPressMsg:

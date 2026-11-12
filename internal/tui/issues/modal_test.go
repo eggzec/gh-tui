@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -33,6 +34,57 @@ func opened(t *testing.T, svc *fakeService, height int) (*host, *detailModal) {
 	}
 	press(t, h, "*")
 	return h, m
+}
+
+const withImage = "before\n\n![the logo](https://example.com/logo.png)\n\nafter"
+
+// Images follow the app's images setting, in the body of the issue and in
+// its comments: they draw when it is on, and show as their alt text when it
+// is off.
+func TestModalImages(t *testing.T) {
+	t.Parallel()
+	for _, where := range []string{"body", "comment"} {
+		for _, on := range []bool{true, false} {
+			t.Run(where+"/"+strconv.FormatBool(on), func(t *testing.T) {
+				t.Parallel()
+				issues := sampleIssues(12)
+				comments := sampleComments(3)
+				if where == "body" {
+					for i := range issues {
+						issues[i].Body = withImage
+					}
+				} else {
+					comments[0].Body = withImage
+				}
+				svc := newFakeService(issues)
+				svc.addComments(999, comments...)
+				h := started(t, svc, 160, 40)
+				press(t, h, "down", "enter")
+				m := h.modal()
+				if m == nil {
+					t.Fatal("enter didn't open the issue")
+				}
+				press(t, h, "*")
+				if where == "body" {
+					press(t, h, "1")
+				}
+				src := &uitest.ImageHost{}
+				m.pics = uitest.Avatars(src, on)
+				m.Update(ui.ImagesMsg{})
+				m.View()
+				uitest.LoadAvatars(t, m.pics)
+				m.Update(ui.ImagesMsg{})
+				view := m.View()
+				n := uitest.Placeholders(t, view)
+				if on && n == 0 {
+					t.Errorf("with images on, the %s draws no image:\n%s", where, ansi.Strip(view))
+				}
+				if !on && (n != 0 || !strings.Contains(ansi.Strip(view), "the logo")) {
+					t.Errorf("with images off, the %s draws images (%d) or lacks its alt text:\n%s", where, n, ansi.Strip(view))
+				}
+			})
+		}
+	}
 }
 
 func TestCachedModalOpensAtOnce(t *testing.T) {
