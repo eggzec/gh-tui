@@ -110,7 +110,7 @@ func (m *Modal) headerLines() []string {
 	// The tag, and what is set off about the release.
 	if r.Tag != "" {
 		tag := t.Subtle.Render(m.icons.Tag+" ") + t.Text.Render(ui.OneLine(r.Tag))
-		if r.Latest {
+		if r.Latest && !r.Draft && !r.Prerelease {
 			tag += " " + ui.Badge(t.State(ui.ReleasePublished), "", "latest")
 		}
 		if r.Immutable {
