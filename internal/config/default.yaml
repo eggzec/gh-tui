@@ -641,8 +641,8 @@ keys:
     prev_pane: [shift+tab]
     # Switch between the tabs of the focused pane or modal, such as All,
     # Failing, Running and Mine of the Actions modal, the states of the pull requests and the issues, the owners of
-    # the dashboard's repositories, the lists of the page of a user or an
-    # organization, and the Filters and Sort tabs of the filter modal.
+    # the dashboard's repositories, and the lists of the page of a user or an
+    # organization.
     next_tab: ["]"]
     prev_tab: ["["]
     # Focus the pane with that number on the screen or modal on view: files,
@@ -687,11 +687,11 @@ keys:
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
-    # Open the filter modal on its Filters tab or its Sort tab, and put the
-    # filters back to their defaults.
+    # Open the filter modal, or the sort in a modal of its own.
     filter: [f]
     sort: [s]
     sort_toggle: [alt+s]
+    # Put the filters back to their defaults.
     clear_filter: [F]
     # Switch the filter off for a look at the list without it, and back on.
     # alt+s does the same for the sort.
@@ -770,11 +770,11 @@ keys:
     quick_filter: ["&"]
     next_match: [n]
     prev_match: [N]
-    # Open the filter modal on its Filters tab or its Sort tab, and put the
-    # filters back to their defaults.
+    # Open the filter modal, or the sort in a modal of its own.
     filter: [f]
     sort: [s]
     sort_toggle: [alt+s]
+    # Put the filters back to their defaults.
     clear_filter: [F]
     filter_toggle: [alt+f]
     # Mark the pull request under the cursor, or unmark it, and move to the
@@ -1499,8 +1499,7 @@ keys:
     cancel: [esc]
 
   # The filter form of a list, in the rows: the keys that move between
-  # and change the fields, on top of the global ones that apply, close and
-  # switch the tabs.
+  # and change the fields, on top of the global ones that apply and close.
   filter:
     up: [k, up]
     down: [j, down]
