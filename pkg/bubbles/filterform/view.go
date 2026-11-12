@@ -172,8 +172,10 @@ func (m *Model) tabLine(w int) string {
 	}
 	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(m.styles.ActiveTab, m.styles.Tab)))
 	row.SetItems(items, int(m.tab))
-	row.SetWidth(max(w-2, 0))
-	line := m.fit("  "+row.View(), w)
+	// The first tab's label starts where the labels of the rows do.
+	row.AlignWith(strings.Repeat(" ", gutterWidth) + "x")
+	row.SetWidth(w)
+	line := m.fit(row.View(), w)
 	m.cache.tabs = tabCache{ok: true, tab: m.tab, width: w, line: line}
 	return line
 }
