@@ -75,3 +75,28 @@ func TestPillCurrentIsSolid(t *testing.T) {
 		t.Fatal("current pill is not reverse and bold")
 	}
 }
+
+// The label of the first tab starts in the column where the header's first
+// text does, so the pill reaches one cell to the left of it.
+func TestPillAlignsWithHeader(t *testing.T) {
+	for _, header := range []string{"    #  Title", "\x1b[2m    #\x1b[m", "  # x"} {
+		m := pillRow(80, 0)
+		m.AlignWith(header)
+		got := ansi.Strip(m.View())
+		plain := ansi.Strip(header)
+		want := len(plain) - len(strings.TrimLeft(plain, " "))
+		if col := strings.Index(got, items[0].Label); col != want {
+			t.Errorf("header %q: label at %d, want %d (row %q)", header, col, want, got)
+		}
+	}
+	m := pillRow(80, 0)
+	m.AlignWith("")
+	if got := ansi.Strip(m.View()); !strings.HasPrefix(got, " "+items[0].Label) {
+		t.Errorf("blank header moved the row: %q", got)
+	}
+	m = pillRow(6, 0)
+	m.AlignWith("      #")
+	if w := ansi.StringWidth(m.View()); w > 6 {
+		t.Errorf("indented row is %d wide, over 6", w)
+	}
+}

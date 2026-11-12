@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"cmp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -510,11 +511,12 @@ func (s *Section) renderHeader() {
 			cur = i
 		}
 	}
-	left := s.indent()
 	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(st.filterOn, st.filterOff)))
 	row.SetItems(items, cur)
-	row.SetWidth(s.width - ansi.StringWidth(left))
-	s.header = ansi.Truncate(left+row.View(), s.width, "")
+	row.SetWidth(s.width)
+	// Without the column titles yet, the row stands where they will.
+	row.AlignWith(cmp.Or(s.titles, s.indent()+strings.Repeat(" ", stateWidth)+"#"))
+	s.header = ansi.Truncate(row.View(), s.width, "")
 	s.header += strings.Repeat(" ", max(s.width-ansi.StringWidth(s.header), 0))
 }
 

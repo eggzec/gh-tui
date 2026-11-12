@@ -59,15 +59,14 @@ func (s *Section) renderChrome() {
 	// The rows get the width less what the list draws before them.
 	w := max(s.width-s.list.Gutter(), 0)
 	s.cols, s.colsWidth = layout(w, s.room, s.ageRoom()), w
-	s.renderBar()
 	s.renderHeads()
+	s.renderBar()
 	s.renderEmpty()
 	s.renderOff()
 }
 
 func (s *Section) renderBar() {
 	t := s.theme
-	left := strings.Repeat(" ", s.list.Gutter())
 	items, cur := make([]tabrow.Item, len(tabs)), 0
 	for i, tb := range tabs {
 		items[i] = tabrow.Item{Label: tb.label}
@@ -77,8 +76,9 @@ func (s *Section) renderBar() {
 	}
 	row := tabrow.New(tabrow.WithPill(tabrow.PillStyles(t.Accent, t.Subtle)))
 	row.SetItems(items, cur)
-	row.SetWidth(s.width - ansi.StringWidth(left))
-	s.bar = ansi.Truncate(left+row.View(), s.width, "")
+	row.SetWidth(s.width)
+	row.AlignWith(s.heads)
+	s.bar = ansi.Truncate(row.View(), s.width, "")
 	s.bar += strings.Repeat(" ", max(s.width-ansi.StringWidth(s.bar), 0))
 }
 

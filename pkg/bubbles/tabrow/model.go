@@ -39,6 +39,8 @@ type Model struct {
 	styleBlanks bool
 	// pill draws every tab as a padded cell, the one on view solid.
 	pill bool
+	// indent is the blank before a pill row (see AlignWith).
+	indent int
 }
 
 // Option configures a Model.
