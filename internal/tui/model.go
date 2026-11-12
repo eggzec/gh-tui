@@ -98,9 +98,11 @@ type Model struct {
 	// pane's section is a ui.Splitter that has room for one.
 	prev    *pane
 	splitOf *pane
-	dash    *pane
-	srch    *pane
-	own     *pane
+	// prevFocus is set while the preview box has the focus, not the list.
+	prevFocus bool
+	dash      *pane
+	srch      *pane
+	own       *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the

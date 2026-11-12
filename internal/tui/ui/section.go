@@ -81,4 +81,7 @@ type Splitter interface {
 	// PreviewCmd returns the CPU-only command that the preview has queued
 	// since the last call, or nil.
 	PreviewCmd() tea.Cmd
+	// PreviewKey handles a key pressed while the preview has the focus, such
+	// as a scroll, and returns the command it queues, or nil.
+	PreviewKey(msg tea.KeyPressMsg) tea.Cmd
 }

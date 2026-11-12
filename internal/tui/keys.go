@@ -222,6 +222,10 @@ func (k KeyMap) state(m *Model) KeyMap {
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
+	if m.splitShown() {
+		k.Next.SetHelp(k.Next.Help().Key, "switch split")
+		k.Prev.SetHelp(k.Prev.Help().Key, "switch split")
+	}
 	// The dashboard shows the notifications as a pane, which its digit
 	// focuses and zoom enlarges, so the key that opens them is left to the
 	// other screens.

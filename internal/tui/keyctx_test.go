@@ -1029,6 +1029,7 @@ var idleRows = map[string]string{
 	"pull_files collapse":              "the commits start folded and the cursor starts on them",
 	"pull_files all commits":           "every commit starts selected",
 	"pull_involved edit":               "the cursor starts on the author, and the key acts on the assignees only",
+	"global switch split":              "only the color of the frames changes, which the check strips",
 	"release_modal expand":             "the notes of the fixture release have no row that folds",
 	"release_modal collapse":           "the notes of the fixture release have no row that folds",
 	"release_modal all":                "the notes of the fixture release have no row that folds",

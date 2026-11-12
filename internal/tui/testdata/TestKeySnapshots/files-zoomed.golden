@@ -20,8 +20,8 @@ global
   this repo | . | . | off
   notifications | I | I | on
   dashboard | 0 | 0 | on
-  next pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
+  switch split | tab | tab | on
+  switch split | shift+tab | shift+tab | on
   focus pane | 1 2 3 4 | 1-4 | on
 
 Repository

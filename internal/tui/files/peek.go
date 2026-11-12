@@ -81,6 +81,17 @@ func (s *Section) PreviewCmd() tea.Cmd {
 	return cmd
 }
 
+// PreviewKey implements ui.Splitter. The pager scrolls the peek with its keys.
+func (s *Section) PreviewKey(msg tea.KeyPressMsg) tea.Cmd {
+	p := s.peek
+	if p == nil || p.w == 0 || p.h == 0 {
+		return nil
+	}
+	var cmd tea.Cmd
+	p.pager, cmd = p.pager.Update(msg)
+	return cmd
+}
+
 // updatePeek lets the peek's pager take the message of its highlight. Keys
 // and the mouse are not for it: the peek is passive.
 func (s *Section) updatePeek(msg tea.Msg) {
