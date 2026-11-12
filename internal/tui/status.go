@@ -108,7 +108,13 @@ func (m *Model) drawHints() {
 	k := m.keys.state(m)
 	unzoom := k.Zoom
 	unzoom.SetEnabled(unzoom.Enabled() && m.canZoom() && m.zoomed())
-	h := ui.Hints{Layers: m.layers, Lead: []key.Binding{help, ui.NameKeys(m.icons, unzoom), ui.NameKeys(m.icons, k.Dismiss)}}
+	lead := []key.Binding{help, ui.NameKeys(m.icons, unzoom), ui.NameKeys(m.icons, k.Dismiss)}
+	if m.splitShown() {
+		// The key that moves between the list and the preview is no hint of
+		// the layers, which list only what each pane binds.
+		lead = append(lead, ui.NameKeys(m.icons, k.Next))
+	}
+	h := ui.Hints{Layers: m.layers, Lead: lead}
 	short := h.ShortHelp()
 	left := make([]statusbar.Item, 0, len(short))
 	for i, b := range short {

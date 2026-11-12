@@ -66,6 +66,15 @@ func TestSplitZoomed(t *testing.T) {
 	golden.RequireEqual(t, m.View().Content)
 }
 
+func TestSplitZoomedHintBar(t *testing.T) {
+	t.Parallel()
+	m, _ := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	if s := onScreen(m); !strings.Contains(s, "switch split") {
+		t.Errorf("hint bar has no switch split hint:\n%s", s)
+	}
+}
+
 // The command the preview queues is returned by Update, once.
 func TestSplitPreviewCmd(t *testing.T) {
 	t.Parallel()
