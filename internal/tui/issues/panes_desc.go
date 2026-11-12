@@ -19,6 +19,8 @@ type descPane struct {
 	made  bool
 	// look counts the changes of the theme and the icons.
 	look int
+	// pics counts the changes of the images.
+	pics int
 }
 
 // descKey is what the rows of the description depend on.
@@ -26,6 +28,9 @@ type descKey struct {
 	text  string
 	width int
 	look  int
+	// pics counts the changes of the images, and picRows is the tallest
+	// they draw at.
+	pics, picRows int
 }
 
 // descBody is the body of the Description pane in box b.
@@ -37,8 +42,12 @@ func (m *detailModal) descBody(b panes.Box) string {
 	}
 	d := &p.desc
 	d.tree.SetSize(in.W, in.H)
-	k := descKey{text: m.issue.Body, width: in.W, look: d.look}
+	k := descKey{text: m.issue.Body, width: in.W, look: d.look, pics: d.pics, picRows: m.pics.PictureRows(in.H)}
 	if !d.made || d.built != k {
+		// Images draw as the app's images setting says: none while it is off.
+		if m.md != nil {
+			m.md.SetPictures(m.pics.Pictures(k.picRows, nil))
+		}
 		set := m.icons.Set()
 		if set == "" {
 			set = config.IconsNerd
