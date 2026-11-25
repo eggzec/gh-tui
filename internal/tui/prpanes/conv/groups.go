@@ -32,6 +32,10 @@ const (
 	GroupReferences
 	// GroupMilestones is the milestones added and removed.
 	GroupMilestones
+	// GroupHidden is the comments and reviews that GitHub minimized, such as
+	// spam. They show, marked with the reason, only while it is on, and are
+	// off by default.
+	GroupHidden
 	// NumGroups is how many groups there are.
 	NumGroups
 )
@@ -48,6 +52,7 @@ var groupNames = [NumGroups]string{
 	GroupBranch:     "branch",
 	GroupReferences: "references",
 	GroupMilestones: "milestones",
+	GroupHidden:     "hidden",
 }
 
 // String returns the name of g, as the config says it.
@@ -108,7 +113,7 @@ type Choice struct {
 
 // Choices returns every group, those with no item too, in order.
 func (m Model) Choices() []Choice {
-	c := countOf(m.dataOf())
+	c := countOf(m.dataOf(), m.shown[GroupHidden])
 	out := make([]Choice, NumGroups)
 	for g := range NumGroups {
 		out[g] = Choice{Group: g, Name: groupNames[g], Count: c[g], On: m.shown[g]}
@@ -119,8 +124,9 @@ func (m Model) Choices() []Choice {
 // Shown returns how many top-level items the filter shows, and how many the
 // conversation holds, as far as it has been read.
 func (m Model) Shown() (n, total int) {
-	c := countOf(m.dataOf())
-	for g := range NumGroups {
+	c := countOf(m.dataOf(), m.shown[GroupHidden])
+	// The hidden count overlaps the groups of its items, so it adds nothing.
+	for g := range GroupHidden {
 		total += c[g]
 		if m.shown[g] {
 			n += c[g]
@@ -130,9 +136,9 @@ func (m Model) Shown() (n, total int) {
 }
 
 // FilterName names what the filter shows, for the info line: "" when every
-// group is shown, the name of the group when it is one, the names of two
-// joined by ", ", "nothing" when none is, and the number of groups when it is
-// more.
+// group but the hidden ones is shown, the name of the group when it is one,
+// the names of two joined by ", ", "nothing" when none is, and the number of
+// groups when it is more.
 func (m Model) FilterName() string {
 	var on []string
 	for g := range NumGroups {
@@ -140,9 +146,13 @@ func (m Model) FilterName() string {
 			on = append(on, groupNames[g])
 		}
 	}
-	switch len(on) {
-	case int(NumGroups):
+	if len(on) == int(GroupHidden) && !m.shown[GroupHidden] {
 		return ""
+	}
+	if len(on) == int(NumGroups) {
+		return "all, hidden"
+	}
+	switch len(on) {
 	case 0:
 		return "nothing"
 	case 1, 2:
@@ -155,14 +165,18 @@ func (m Model) FilterName() string {
 // comments and the submitted reviews, and the review that holds the drafts
 // of the viewer, once. A line of merged events counts once, under the group
 // of its first event, and a push, with a force push that no push follows,
-// counts once.
-func countOf(d Data) (c [NumGroups]int) {
+// counts once. A minimized comment or review counts under the hidden group
+// always, and under its own only with hidden set.
+func countOf(d Data, hidden bool) (c [NumGroups]int) {
 	attached := make(map[string]bool)
 	var lines merger
 	var pushes pushRun
 	for i := range d.Items {
 		it := &d.Items[i]
-		if !drawn(it) {
+		if it.Minimized && minimizable(it) {
+			c[GroupHidden]++
+		}
+		if !drawn(it, hidden) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {
@@ -205,11 +219,16 @@ func countOf(d Data) (c [NumGroups]int) {
 	return c
 }
 
-// Configure returns the option that sets which groups are shown when the
-// conversation opens from the settings of c.
-func Configure(c config.Config) Option {
+// Configure returns the option that sets which groups a pull request's
+// conversation shows when it opens, from the settings of c.
+func Configure(c config.Config) Option { return shownOf(c.UI.Conversation.Filter) }
+
+// ConfigureIssue is Configure for the conversation of an issue.
+func ConfigureIssue(c config.Config) Option { return shownOf(c.UI.IssueConversation.Filter) }
+
+func shownOf(filter []string) Option {
 	var on [NumGroups]bool
-	for _, name := range c.UI.Conversation.Filter {
+	for _, name := range filter {
 		for g, n := range groupNames {
 			if n == name {
 				on[g] = true

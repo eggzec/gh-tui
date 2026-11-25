@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -87,4 +88,11 @@ func WithViewer(v Viewer) Option {
 // configured keys and no log.
 func WithVoice(v ui.Voice) Option {
 	return func(s *Section) { s.voice = v }
+}
+
+// WithConversation sets which kinds of events the Conversation pane shows when
+// it opens, as ui.issue_conversation.filter in c says. Without it, every kind
+// but the hidden ones.
+func WithConversation(c config.Config) Option {
+	return func(s *Section) { s.convOpt = conv.ConfigureIssue(c) }
 }

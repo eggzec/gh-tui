@@ -2,7 +2,6 @@ package pulls
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -270,7 +269,7 @@ func (m *panesModal) seekConv() tea.Cmd {
 	case id != "" && c.model.Holds(id) && c.model.FilterName() != "":
 		var all [conv.NumGroups]bool
 		for g := range all {
-			all[g] = true
+			all[g] = conv.Group(g) != conv.GroupHidden
 		}
 		c.model.SetShown(all)
 		c.model.Reveal(id)
@@ -347,16 +346,7 @@ func (m *panesModal) convInfo() []string {
 	if !c.started {
 		return nil
 	}
-	n, total := c.model.Shown()
-	if st := c.model.Status(); st.Loading && total == 0 {
-		return nil
-	}
-	name := c.model.FilterName()
-	if name == "" {
-		name = "all"
-	}
-	shown := strconv.Itoa(n) + " of " + strconv.Itoa(total) + " shown"
-	return []string{shown + m.icons.Separator + "filter: " + name, shown}
+	return c.model.FilterInfo(m.icons.Separator)
 }
 
 // convContent is the Conversation pane: the tree of the conversation, sized to

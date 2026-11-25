@@ -144,10 +144,12 @@ func New(src Source, opts ...Option) Model {
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	for g := range m.shown {
-		m.shown[g] = true
+		m.shown[g] = Group(g) != GroupHidden
 	}
 	for _, o := range opts {
-		o(&m)
+		if o != nil {
+			o(&m)
+		}
 	}
 	if src.Checks != nil {
 		m.loader = checktree.NewLoader(src.Checks, src.Repo)

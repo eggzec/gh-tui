@@ -128,7 +128,7 @@ func applyScopes(files []*ast.File) []scope {
 				continue
 			}
 			switch name := fn.Name.Name; {
-			case name == "configure" || name == "Configure" || name == "applySettings" || name == "applyTheme" || given[name]:
+			case name == "configure" || name == "Configure" || name == "ConfigureIssue" || name == "applySettings" || name == "applyTheme" || given[name]:
 				// The root model's config is the session's.
 				out = append(out, scope{body: fn.Body, roots: configParams(fn.Type, "live.cfg", "m.cfg")})
 			default:

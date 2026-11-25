@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
 	"github.com/eggzec/gh-tui/internal/tui/details"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
@@ -98,6 +99,8 @@ type Section struct {
 	// dates tell when the issues were updated, in the rows and the
 	// modal.
 	dates ui.Dates
+	// convOpt sets which kinds the conversation of an issue shows when it opens.
+	convOpt conv.Option
 	// avatars draws the authors' avatars in the comments of the modal.
 	avatars *ui.Images
 	// cols is the layout of the rows at colsWidth. room is how wide the

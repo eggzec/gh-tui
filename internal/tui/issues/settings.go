@@ -3,6 +3,7 @@ package issues
 import (
 	"github.com/eggzec/gh-tui/internal/config"
 	issuesvc "github.com/eggzec/gh-tui/internal/service/issues"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -15,6 +16,7 @@ func (s *Section) configure(c config.Config) {
 	s.voice.Icons = &s.icons
 	s.filterChips = ui.Chips(s.query, s.icons.Separator)
 	s.dates = ui.NewDates(c.UI.DateFormat)
+	s.convOpt = conv.ConfigureIssue(c)
 	s.setPrefetch(c.Prefetch)
 }
 

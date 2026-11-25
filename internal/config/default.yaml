@@ -61,6 +61,12 @@ ui:
     # (ready, draft, merged, closed, reopened, locked), branch (renames, base
     # changes, deleted head), references and milestones. For now it draws only
     # comments and reviews, so the other kinds change nothing yet.
+    # Add hidden to show the comments and reviews that GitHub minimized (spam,
+    # off-topic, resolved), marked with the reason; they are left out otherwise.
+    filter: [comments, reviews, pushes, labels, people, state, branch, references, milestones]
+  # The conversation of an issue, with the same kinds as a pull request's;
+  # an issue has no reviews, pushes or branch events.
+  issue_conversation:
     filter: [comments, reviews, pushes, labels, people, state, branch, references, milestones]
   # The size of a terminal, in cells, from which the screens show their panes
   # side by side. A terminal narrower than width or lower than height shows
@@ -1022,6 +1028,9 @@ keys:
     # Pick the reactions you give to the comment under the cursor in the
     # Conversation pane.
     react: [R]
+    # Pick the kinds of items the Conversation pane shows, such as the hidden
+    # comments.
+    filter: [f]
     # Show the issues and pull requests linked to it, and those that mention
     # it.
     references: ["#"]
@@ -1288,8 +1297,8 @@ keys:
     expand: [right, l]
     collapse: [left, h]
     toggle_all: ["*"]
-    # Pick which kinds of items the conversation shows, and the order of the
-    # items.
+    # Pick which kinds of items the conversation shows (the hidden comments
+    # too), and the order of the items.
     filter: [f]
     sort: [s]
     # Resolve the thread under the cursor, or open it again when it is

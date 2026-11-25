@@ -141,6 +141,7 @@ type detailModal struct {
 	rows          rowStyles
 	icons         ui.Icons
 	dates         ui.Dates
+	convOpt       conv.Option
 	chips         ui.LabelChips
 
 	// nav is the focused pane, zoom whether it fills the area, narrow whether
@@ -187,6 +188,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		rows:    s.rows,
 		icons:   s.icons,
 		dates:   s.dates,
+		convOpt: s.convOpt,
 		chips:   s.rows.newChips(),
 		id:      modalIDs.Add(1),
 		voice:   s.voice,
@@ -393,8 +395,13 @@ func (m *detailModal) buildConv() tea.Cmd {
 	m.md = ui.NewMarkdown(m.theme, m.icons)
 	m.seen = m.links.Seen(m.repo.String())
 	m.md.SetAutolink(m.seen.Func())
-	m.conv = conv.New(m.source(), conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.convRect().W, m.convRect().H)...)
+	opts := conv.HostOptions(m.convOptions(), m.keys.tree, m.theme.Dark, m.viewer, m.voice, m.convRect().W, m.convRect().H)
+	if m.convOpt != nil {
+		opts = append(opts, m.convOpt)
+	}
+	m.conv = conv.New(m.source(), opts...)
 	m.convOn = true
+	m.conv.SetFilterHint(m.keys.ConvFilter.Help().Key)
 	m.peekStamp = m.conv.Version()
 	m.peekVer++
 	m.syncConvFocus()
@@ -629,6 +636,8 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openDescEdit()
 	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
 		return m.deleteComment()
+	case keymap.Matches(msg, k.ConvFilter) && m.nav.Focus() == paneConversation:
+		return m.openConvFilter()
 	case keymap.Matches(msg, k.React) && m.nav.Focus() == paneConversation:
 		return m.openReact()
 	case keymap.Matches(msg, k.Close):

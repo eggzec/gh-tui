@@ -166,7 +166,10 @@ func TestMinimizedNotCountedNorNarrowed(t *testing.T) {
 	gone.Minimized = true
 	d := Data{Items: []core.TimelineItem{comment("1"), gone, comment("3")}}
 	total := 0
-	for _, n := range countOf(d) {
+	for g, n := range countOf(d, false) {
+		if Group(g) == GroupHidden {
+			continue
+		}
 		total += n
 	}
 	if total != 2 {

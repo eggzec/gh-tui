@@ -294,6 +294,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
 			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
 			issues.WithAutolinks(links),
+			issues.WithConversation(cfg),
 		}
 	)
 	if dir, err := draftsDir(cfg.Cache.Disk, client.Host(), client.Account()); err == nil && dir != "" {

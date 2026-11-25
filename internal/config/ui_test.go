@@ -167,3 +167,41 @@ func TestUIMaximized(t *testing.T) {
 		t.Errorf("Load = %v, want the unknown modal at line 3", err)
 	}
 }
+
+// The filter of the issue conversation is checked on its own, under its path.
+func TestIssueConversationFilterErrors(t *testing.T) {
+	for _, tc := range []struct{ name, filter, path string }{
+		{"unknown", "[nope]", "ui.issue_conversation.filter"},
+		{"empty", "[]", "ui.issue_conversation.filter"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte("ui:\n  issue_conversation:\n    filter: "+tc.filter+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv(EnvLog, "")
+			_, _, err := loadBase(path)
+			if err == nil || !strings.Contains(err.Error(), tc.path) {
+				t.Errorf("error = %v, want it to name %s", err, tc.path)
+			}
+		})
+	}
+}
+
+func TestIssueConversationFilterHidden(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("ui:\n  issue_conversation:\n    filter: [comments, hidden]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(EnvLog, "")
+	cfg, _, err := loadBase(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := cfg.UI.IssueConversation.Filter; len(got) != 2 || got[1] != "hidden" {
+		t.Errorf("filter = %v", got)
+	}
+	if len(cfg.UI.Conversation.Filter) < 3 {
+		t.Errorf("the pull request filter changed: %v", cfg.UI.Conversation.Filter)
+	}
+}

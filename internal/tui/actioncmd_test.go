@@ -333,7 +333,7 @@ func TestActionCommandsNameWhereTheyWork(t *testing.T) {
 		{"over the issue", true, []string{"global.pane_3", "global.select"}, "merge", "Close the issue first to use merge."},
 		{"history on the dashboard", false, nil, "history", "history works in Repository screen."},
 		{"rerun over history", true, []string{"repo.history"}, "rerun", "Close History first to use rerun."},
-		{"a name many have", true, nil, "filter", "filter works in Repositories (Dashboard), Pull requests (Repository), Issues (Repository), Notifications modal and 5 more."},
+		{"a name many have", true, nil, "filter", "filter works in Repositories (Dashboard), Pull requests (Repository), Issues (Repository), Notifications modal and 6 more."},
 		{"a navigation key", true, nil, "up", "Unknown command: up."},
 		{"quit", true, nil, "quit", "Unknown command: quit."},
 		{"no such command", true, nil, "nosuch", "Unknown command: nosuch."},

@@ -58,7 +58,7 @@ func TestCILine(t *testing.T) {
 func TestCILineNotCounted(t *testing.T) {
 	t.Parallel()
 	items := []core.TimelineItem{pushed(alice, sha(1), 0)}
-	if c := countOf(Data{Items: items}); c[GroupPushes] != 1 {
+	if c := countOf(Data{Items: items}, false); c[GroupPushes] != 1 {
 		t.Errorf("pushes = %d, want 1", c[GroupPushes])
 	}
 }
