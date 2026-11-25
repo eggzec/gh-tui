@@ -155,7 +155,7 @@ func TestLinkedListsPullsOnly(t *testing.T) {
 	o := opts(config.IconsASCII)
 	o.HideCloses = true
 	got := text(Build(links, o), 120)
-	for _, want := range []string{"Linked PRs 1", "acme/lib#5 Tracks it"} {
+	for _, want := range []string{"Closed by 1", "acme/lib#5 Tracks it"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
@@ -185,7 +185,7 @@ func TestCrossRepoIdent(t *testing.T) {
 func TestCapsShowMore(t *testing.T) {
 	t.Parallel()
 	got := text(Build(fixture(), opts(config.IconsASCII)), 120)
-	for _, want := range []string{"Closes 3", "+1 more", "+2 more", "more on GitHub", "Linked PRs 2"} {
+	for _, want := range []string{"Closes 3", "+1 more", "+2 more", "more on GitHub", "Closed by 2"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}

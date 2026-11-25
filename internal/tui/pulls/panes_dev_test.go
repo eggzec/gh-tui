@@ -68,7 +68,7 @@ func TestDevelopmentEnterOpensPull(t *testing.T) {
 	t.Parallel()
 	h := openedDev(t, &fakeDev{links: devLinks()})
 	m := h.modal()
-	// Past the Closes header and its two issues, to the Linked PRs header and
+	// Past the Closes header and its two issues, to the Closed by header and
 	// its pull request.
 	for range 4 {
 		press(t, h, "down")
