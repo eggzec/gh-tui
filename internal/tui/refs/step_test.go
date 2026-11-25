@@ -44,7 +44,7 @@ func lacks(t *testing.T, s *Step, unwanted ...string) {
 func TestRefsGroupsFold(t *testing.T) {
 	f := newFake()
 	s, h := newStep(t, f, narrowW, narrowH)
-	has(t, s, "- Closes (2)", "- Written here (5)", "+ Mentioned in (47)", "#198 Token refresh fails", "#187 Keep")
+	has(t, s, "- Closes (2)", "- Mentions (5)", "+ Referenced by (47)", "#198 Token refresh fails", "#187 Keep")
 	if got := selected(s); !strings.HasPrefix(got, "o #198") {
 		t.Errorf("the cursor is on %q, want the first item", got)
 	}
@@ -59,20 +59,20 @@ func TestRefsGroupsFold(t *testing.T) {
 	}
 	h.keys("h")
 	lacks(t, s, "#198")
-	has(t, s, "+ Closes (2)", "- Written here (5)")
+	has(t, s, "+ Closes (2)", "- Mentions (5)")
 	h.keys("l")
 	has(t, s, "#198")
 
 	// * opens every group, reading the mentions, once, and then folds
 	// them all.
 	h.keys("*")
-	has(t, s, "- Closes (2)", "- Written here (5)", "- Mentioned in (47)", "#198", "#187", "#240")
+	has(t, s, "- Closes (2)", "- Mentions (5)", "- Referenced by (47)", "#198", "#187", "#240")
 	if _, m := f.counts(); m != 1 {
 		t.Errorf("opening every group read the mentions %d times, want 1", m)
 	}
 	h.keys("*")
 	lacks(t, s, "#198", "#187", "#240")
-	has(t, s, "+ Closes (2)", "+ Written here (5)", "+ Mentioned in (47)")
+	has(t, s, "+ Closes (2)", "+ Mentions (5)", "+ Referenced by (47)")
 }
 
 // A group of many links starts closed, so that the busy item's own links
@@ -85,11 +85,11 @@ func TestRefsBusyWrittenStartsClosed(t *testing.T) {
 	}
 	f.set(r)
 	s, _ := newStep(t, f, narrowW, narrowH)
-	has(t, s, "- Closes (2)", "+ Written here (16)")
+	has(t, s, "- Closes (2)", "+ Mentions (16)")
 	lacks(t, s, "#187")
 }
 
-// Mentioned in reads a page of them when it first opens, none before, and
+// Referenced by reads a page of them when it first opens, none before, and
 // the row that ends the page reads the next.
 func TestRefsLazyMentions(t *testing.T) {
 	f := newFake()
@@ -102,7 +102,7 @@ func TestRefsLazyMentions(t *testing.T) {
 	if m != 1 {
 		t.Fatalf("%d reads of the mentions after opening them, want 1", m)
 	}
-	has(t, s, "Mentioned in (47)", "#240 Refresh", "#239", "... 43 more: enter reads the next 4")
+	has(t, s, "Referenced by (47)", "#240 Refresh", "#239", "... 43 more: enter reads the next 4")
 	if q := f.mentionQueries[0]; q.Cursor != "" || q.Number != 231 || !q.Pull || q.Repo != repo {
 		t.Errorf("the page read is %+v", q)
 	}
@@ -126,7 +126,7 @@ func TestRefsLazyMentions(t *testing.T) {
 	has(t, s, "#240 Refresh", "#241 Another", "#242 A last")
 	lacks(t, s, "more: enter reads")
 	// With every page read, the heading counts the rows listed.
-	has(t, s, "Mentioned in (6")
+	has(t, s, "Referenced by (6")
 }
 
 // Picking an item opens it in place of the modal the step is in, as what
@@ -203,7 +203,7 @@ func TestRefsSelfNeverShows(t *testing.T) {
 	f.set(r)
 	s, _ := newStep(t, f, narrowW, narrowH)
 	lacks(t, s, "This very")
-	has(t, s, "Written here (5)")
+	has(t, s, "Mentions (5)")
 }
 
 // An item that can't be read has its row, which says why; enter says it in
@@ -223,7 +223,7 @@ func TestRefsUnreadable(t *testing.T) {
 	}
 }
 
-// The notes under "Written here" say what was left out, and are no links:
+// The notes under "Mentions" say what was left out, and are no links:
 // enter does nothing there.
 func TestRefsNotesAreInert(t *testing.T) {
 	f := newFake()
@@ -231,7 +231,7 @@ func TestRefsNotesAreInert(t *testing.T) {
 	r.Unresolved, r.CommentsRead, r.CommentsTotal = 12, 100, 340
 	f.set(r)
 	s, h := newStep(t, f, wideW, wideH)
-	has(t, s, "Written here (5)", "searched the newest 100 of 340 comments", "12 more links not read")
+	has(t, s, "Mentions (5)", "searched the newest 100 of 340 comments", "12 more links not read")
 	h.keys("G")
 	h.keys("enter")
 	if got := h.take(); len(got) != 0 {
@@ -262,11 +262,11 @@ func TestRefsFilterAcrossGroups(t *testing.T) {
 	if _, m := f.counts(); m != 1 {
 		t.Errorf("typing read the mentions %d times, want 1", m)
 	}
-	has(t, s, "Written here (2 of 5)", "#187 Keep GraphQL", "cli/go-gh#412", "Mentioned in (1 of the first 4 of 47)", "#239 Read the viewer's")
+	has(t, s, "Mentions (2 of 5)", "#187 Keep GraphQL", "cli/go-gh#412", "Referenced by (1 of the first 4 of 47)", "#239 Read the viewer's")
 	lacks(t, s, "Closes", "#233", "#240")
 	h.typed("x")
 	has(t, s, "No links match the filters. Press esc to clear them.")
-	lacks(t, s, "Written here")
+	lacks(t, s, "Mentions")
 
 	// Words match anywhere in a row, in any order: the number, the title,
 	// the state and the origins.
@@ -320,7 +320,7 @@ func TestRefsFilterKeptAndCleared(t *testing.T) {
 	if after := strings.Join(lines(s), "\n"); after != before+"" && !strings.Contains(after, "+ Closes (2)") {
 		t.Errorf("the folds weren't put back:\n%s", after)
 	}
-	has(t, s, "+ Closes (2)", "Written here (5)")
+	has(t, s, "+ Closes (2)", "Mentions (5)")
 	h.keys("esc")
 	if got := h.take(); len(got) != 1 || got[0] != (CloseMsg{ID: s.ID()}) {
 		t.Errorf("the second esc sent %v, want to close the modal", got)
@@ -363,9 +363,9 @@ func TestRefsFilterLoadsMentionsOnce(t *testing.T) {
 	s, h := newStep(t, f, wideW, wideH)
 	h.keys("&")
 	h.typed("alice")
-	has(t, s, "Mentioned in (1 of the first 4 of 47)")
+	has(t, s, "Referenced by (1 of the first 4 of 47)")
 	h.keys("esc")
-	has(t, s, "+ Mentioned in")
+	has(t, s, "+ Referenced by")
 	lacks(t, s, "#240")
 }
 
@@ -376,7 +376,7 @@ func TestRefsFilterHeadings(t *testing.T) {
 	h.keys("&")
 	h.typed("closes")
 	has(t, s, "Closes (2 of 2)")
-	lacks(t, s, "Written here", "Mentioned in")
+	lacks(t, s, "Mentions", "Referenced by")
 }
 
 // The read that fails with nothing to show says so, in the words of the
@@ -442,7 +442,7 @@ func TestRefsRefreshDropsEditedLinks(t *testing.T) {
 	f.set(r)
 	h.keys("r")
 	lacks(t, s, "#233 Page the timeline")
-	has(t, s, "Written here (4)", "#187")
+	has(t, s, "Mentions (4)", "#187")
 	if r, _ := f.counts(); r != 2 {
 		t.Errorf("the links were read %d times, want 2", r)
 	}

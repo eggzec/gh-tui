@@ -260,7 +260,7 @@ func TestIssueModalLinksStaleReadsAgain(t *testing.T) {
 	}
 }
 
-// The Development pane lists what mentions the issue under Mentioned, each of
+// The Development pane lists what references the issue under Referenced by, each of
 // its own kind: bare in this repository and with its repository in another.
 func TestIssueModalListsMentions(t *testing.T) {
 	h, m, f := openedRefs(t)
@@ -283,6 +283,55 @@ func TestIssueModalListsMentions(t *testing.T) {
 	}
 	if it, ok := m.side.dev.Item("referenced:" + core.RefKey(f.mentions[1].Target)); !ok || it.Kind != dev.Pull {
 		t.Errorf("the mentioned pull request is %+v, %v", it, ok)
+	}
+}
+
+// The Mentions group lists what the body and the comments name, and says by a
+// plus and a note when the texts may name more than were read.
+func TestIssueModalMentionsFromWritten(t *testing.T) {
+	named := func(where string) core.Reference {
+		return core.Reference{
+			Target: core.Target{Repo: testRepo, Number: 33, Kind: core.KindIssue}, Title: "Named once", State: core.StateOpen,
+			Origins: []core.RefOrigin{{Group: core.RefWritten, Where: where}},
+		}
+	}
+	refused := core.Reference{Target: core.Target{Repo: testRepo, Number: 34, Kind: core.KindIssue}, Problem: "not found, or private"}
+	tests := []struct {
+		name    string
+		refs    core.References
+		header  string
+		missing string
+		note    bool
+	}{
+		{"named in a comment", core.References{Written: []core.Reference{named("comment")}}, "Mentions 1", "#34", false},
+		{"named in the body", core.References{Written: []core.Reference{named("body")}}, "Mentions 1", "#34", false},
+		{"refused is dropped", core.References{Written: []core.Reference{named("body"), refused}}, "Mentions 1", "#34", false},
+		{"unresolved", core.References{Written: []core.Reference{named("body")}, Unresolved: 3}, "Mentions 1+", "", true},
+		{"failed", core.References{Written: []core.Reference{named("body")}, Failed: 2}, "Mentions 1+", "", true},
+		{"comments cut", core.References{Written: []core.Reference{named("body")}, CommentsRead: 100, CommentsTotal: 150}, "Mentions 1+", "", true},
+		{"cut and nothing named", core.References{CommentsRead: 100, CommentsTotal: 150}, "", "Mentions", false},
+		{"nothing named", core.References{}, "", "Mentions", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h, m, _ := openedRefs(t)
+			run(t, h, m.receiveLinks(linksMsg{id: m.id, refs: tt.refs}))
+			m.side.dev.SetSize(80, 20)
+			v := ansi.Strip(m.side.dev.View())
+			if tt.header != "" && !strings.Contains(v, tt.header) {
+				t.Errorf("the pane lacks %q:\n%s", tt.header, v)
+			}
+			if tt.missing != "" && strings.Contains(v, tt.missing) {
+				t.Errorf("the pane has %q:\n%s", tt.missing, v)
+			}
+			if got := strings.Contains(v, "more on GitHub"); got != tt.note {
+				t.Errorf("note %v, want %v:\n%s", got, tt.note, v)
+			}
+			_, ok := m.side.dev.Item("mentions:" + core.RefKey(named("body").Target))
+			if want := tt.header != ""; ok != want {
+				t.Errorf("item present %v, want %v", ok, want)
+			}
+		})
 	}
 }
 
