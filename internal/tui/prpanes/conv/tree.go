@@ -37,8 +37,12 @@ func drawn(it *core.TimelineItem) bool {
 }
 
 // kept reports whether a narrowed view may show an item: a comment or a
-// review that is submitted. A narrowed view never shows events.
+// review that is submitted. A narrowed view never shows events. GitHub hides
+// a minimized item; the model keeps it, but no view counts or shows it.
 func kept(it *core.TimelineItem) bool {
+	if it.Minimized {
+		return false
+	}
 	if it.Kind == core.TimelineReview {
 		return it.Review != core.ReviewStatePending
 	}
@@ -88,8 +92,7 @@ func tree(d Data, o Options) []*node {
 	}
 	for i := range d.Items {
 		it := &d.Items[i]
-		// GitHub hides a minimized comment; the model keeps it for a filter.
-		if it.Minimized || !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
+		if !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {

@@ -160,6 +160,27 @@ func TestNames(t *testing.T) {
 	}
 }
 
+func TestMinimizedNotCountedNorNarrowed(t *testing.T) {
+	t.Parallel()
+	gone := comment("2")
+	gone.Minimized = true
+	d := Data{Items: []core.TimelineItem{comment("1"), gone, comment("3")}}
+	total := 0
+	for _, n := range countOf(d) {
+		total += n
+	}
+	if total != 2 {
+		t.Errorf("countOf total = %d, want 2", total)
+	}
+	got := Narrow{}.filter(d)
+	if len(got.Items) != 2 || got.Items[0].ID != "1" || got.Items[1].ID != "3" {
+		t.Errorf("Narrow kept %+v, want items 1 and 3", got.Items)
+	}
+	if !d.Items[1].Minimized {
+		t.Error("the minimized item lost its data")
+	}
+}
+
 func TestTreeMinimizedAndFlat(t *testing.T) {
 	t.Parallel()
 	gone := comment("2")
