@@ -27,10 +27,10 @@ type Rows struct {
 
 // The IDs of the headers and of the notes.
 const (
-	closesID    = "header:closes"
-	linkedID    = "header:linked"
-	mentionedID = "header:mentioned"
-	mentionsID  = "header:mentions"
+	closesID     = "header:closes"
+	linkedID     = "header:linked"
+	referencedID = "header:referenced"
+	mentionsID   = "header:mentions"
 )
 
 // Build returns the rows of links: a header for what the pull request closes
@@ -122,10 +122,10 @@ func (b *builder) linked(links core.PullLinks) {
 // mentions lists the items this one names in its own text, each of its kind,
 // and is left out when it names none.
 func (b *builder) mentions(links core.PullLinks) {
-	if len(links.Mentions) == 0 {
+	if len(links.Mentions) == 0 && !links.MentionsCapped {
 		return
 	}
-	b.header(mentionsID, GroupMentions, "Mentions "+strconv.Itoa(len(links.Mentions)))
+	b.header(mentionsID, GroupMentions, "Mentions "+ui.Count(len(links.Mentions), links.MentionsCapped))
 	for i := range links.Mentions {
 		r := &links.Mentions[i]
 		kind := Pull
@@ -134,6 +134,9 @@ func (b *builder) mentions(links core.PullLinks) {
 		}
 		b.add(treeview.Node{ID: "mentions:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
 			Item{Kind: kind, Ref: *r})
+	}
+	if links.MentionsCapped {
+		b.note("more:mentions", 1, More, "more on GitHub")
 	}
 }
 
@@ -144,18 +147,18 @@ func (b *builder) mentioned(links core.PullLinks) {
 	if len(links.Mentioned) == 0 && links.MentionedTotal == 0 {
 		return
 	}
-	b.header(mentionedID, GroupMentioned, "Mentioned "+ui.Count(len(links.Mentioned), links.MentionedCapped))
+	b.header(referencedID, GroupReferencedBy, "Referenced by "+ui.Count(len(links.Mentioned), links.MentionedCapped))
 	for i := range links.Mentioned {
 		r := &links.Mentioned[i]
 		kind := Pull
 		if r.Target.Kind == core.KindIssue {
 			kind = Issue
 		}
-		b.add(treeview.Node{ID: "mention:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
+		b.add(treeview.Node{ID: "referenced:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
 			Item{Kind: kind, Ref: *r})
 	}
 	if links.MentionedCapped {
-		b.note("more:mentioned", 1, More, "more on GitHub")
+		b.note("more:referenced", 1, More, "more on GitHub")
 	}
 }
 
