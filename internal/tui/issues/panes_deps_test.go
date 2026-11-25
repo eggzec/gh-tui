@@ -2,13 +2,17 @@ package issues
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
 func TestDepRows(t *testing.T) {
@@ -94,6 +98,88 @@ func blockedSvc() *fakeService {
 	return svc
 }
 
+// probeOf makes a probe over a service whose dependencies are given by deps,
+// counting the calls it gets.
+func probeOf(deps func(kind string) ([]core.Dependency, error)) (*depProbe, *atomic.Int32) {
+	var calls atomic.Int32
+	svc := newFakeService(nil)
+	svc.deps = func(_ context.Context, _ core.RepoRef, _ int, kind string) ([]core.Dependency, error) {
+		calls.Add(1)
+		return deps(kind)
+	}
+	m := &detailModal{svc: svc, repo: core.RepoRef{Owner: "o", Name: "r"}, number: 1}
+	return &depProbe{m: m, found: map[string][]core.Dependency{}}, &calls
+}
+
+func rootIDs(t *testing.T, p *depProbe) []string {
+	t.Helper()
+	nodes, err := p.children(t.Context(), treeview.Node{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, 0, len(nodes))
+	for i := range nodes {
+		ids = append(ids, nodes[i].ID)
+	}
+	return ids
+}
+
+func TestDepProbeGroups(t *testing.T) {
+	t.Parallel()
+	one := []core.Dependency{{Number: 2, Title: "x"}}
+	for _, tc := range []struct {
+		name string
+		deps func(kind string) ([]core.Dependency, error)
+		want []string
+	}{
+		{"empty group hidden", func(k string) ([]core.Dependency, error) {
+			if k == depBlocking {
+				return one, nil
+			}
+			return nil, core.ErrNotFound
+		}, []string{depBlocking}},
+		{"both shown", func(string) ([]core.Dependency, error) { return one, nil }, []string{depBlockedBy, depBlocking}},
+		{"both empty", func(string) ([]core.Dependency, error) { return nil, nil }, nil},
+		{"probe error keeps the header", func(k string) ([]core.Dependency, error) {
+			if k == depBlockedBy {
+				return nil, errors.New("boom")
+			}
+			return nil, nil
+		}, []string{depBlockedBy}},
+	} {
+		p, _ := probeOf(tc.deps)
+		if got := rootIDs(t, p); !slices.Equal(got, tc.want) {
+			t.Errorf("%s: roots = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestDepProbeExpandReusesPage(t *testing.T) {
+	t.Parallel()
+	p, calls := probeOf(func(k string) ([]core.Dependency, error) {
+		if k == depBlockedBy {
+			return []core.Dependency{{Number: 2, Title: "x"}}, nil
+		}
+		return nil, nil
+	})
+	root := treeview.Node{ID: depBlockedBy, Value: depNode{kind: depBlockedBy, trail: []depRef{{p.m.repo, 1}}}}
+	rootIDs(t, p)
+	if n := calls.Load(); n != 2 {
+		t.Fatalf("the probe made %d calls, want 2", n)
+	}
+	rows, err := p.children(t.Context(), root)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("expand = %v, %v", rows, err)
+	}
+	if n := calls.Load(); n != 2 {
+		t.Errorf("expanding called again: %d calls", n)
+	}
+	// A second expand reads afresh.
+	if _, err := p.children(t.Context(), root); err != nil || calls.Load() != 3 {
+		t.Errorf("second expand: err %v, %d calls, want 3", err, calls.Load())
+	}
+}
+
 func TestBlockersPane(t *testing.T) {
 	t.Parallel()
 	for _, w := range []int{80, 120} {
@@ -106,10 +192,11 @@ func TestBlockersPane(t *testing.T) {
 		press(t, h, "*", "5")
 		v := ansi.Strip(m.View())
 		assertFits(t, m.View(), w, 30)
-		for _, want := range []string{"Blocked by", "Blocking"} {
-			if !strings.Contains(v, want) {
-				t.Errorf("at %d the pane lacks %q:\n%s", w, want, v)
-			}
+		if !strings.Contains(v, "Blocked by") {
+			t.Errorf("at %d the pane lacks \"Blocked by\":\n%s", w, v)
+		}
+		if strings.Contains(v, "Blocking") {
+			t.Errorf("at %d the pane shows the empty group \"Blocking\":\n%s", w, v)
 		}
 		press(t, h, "l")
 		if v := ansi.Strip(m.View()); !strings.Contains(v, "#12 Fix the thing") {
