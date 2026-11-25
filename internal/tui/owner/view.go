@@ -34,7 +34,6 @@ func (s *Section) layout() {
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
 	if s.onePane() {
-		rest = max(rest-1, 0) // the strip of panes
 		for i := range b {
 			b[i] = box{s.width, rest}
 		}
@@ -118,6 +117,9 @@ func (s *Section) renderPane(p paneID) {
 		Body:    strings.Join(body, "\n"),
 		Focus:   s.focused && p == s.page.focus,
 	}
+	if s.onePane() {
+		c.BottomLeft = s.stripForms()
+	}
 	if p == listPane {
 		c.TopRight = s.listCount()
 		c.TopLeft = ui.TitleBeside(c.TopLeft, c.TopRight, max(b.w-5, 0), s.icons.Ellipsis)
@@ -137,7 +139,6 @@ func (s *Section) compose() {
 	case s.page == nil:
 	case s.onePane():
 		lines = append(lines, s.frames[s.page.focus]...)
-		lines = append(lines, ui.Fit(s.strip(), s.width))
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
 		right := s.frames[readmePane]
@@ -217,23 +218,17 @@ func (s *Section) keyLabel(p paneID) string {
 	return strconv.Itoa(int(p) + 1)
 }
 
-// strip is the row of pane names under the one pane that shows, in the
-// longest form that fits the width. The panes are numbered by place, as in
+// stripForms are the forms of the pane names in the bottom edge of the one
+// pane that shows, longest first. The panes are numbered by place, as in
 // every pane strip.
-func (s *Section) strip() string {
+func (s *Section) stripForms() []string {
 	defs := make([]panes.Def, 0, numPanes)
 	for p := range numPanes {
 		if s.hasPane(p) {
 			defs = append(defs, panes.Def{Name: s.title(p, false), Short: s.title(p, true)})
 		}
 	}
-	forms := s.st.frames.StripForms(defs, panes.Pane(s.page.focus+1))
-	for _, f := range forms {
-		if ansi.StringWidth(f) <= s.width {
-			return f
-		}
-	}
-	return ansi.Truncate(forms[len(forms)-1], s.width, "")
+	return s.st.frames.StripForms(defs, panes.Pane(s.page.focus+1))
 }
 
 // paneLabel is the label of pane p, with its number before it, such as
