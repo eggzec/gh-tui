@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"sync"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -65,7 +66,8 @@ func (r depRef) label(home core.RepoRef) string {
 // newDeps makes the Blockers tree, which reads the issues that wait for this
 // one, or that this one waits for, level by level as its rows open.
 func (m *detailModal) newDeps(keys config.Keymap) treeview.Model {
-	t := treeview.New(treeview.Lazy(m.depChildren),
+	p := &depProbe{m: m, found: map[string][]core.Dependency{}}
+	t := treeview.New(treeview.Lazy(p.children),
 		treeview.WithContext(m.ctx),
 		treeview.WithKeyMap(sideKeys(keys)),
 		treeview.WithStyles(m.theme.Tree(m.icons)),
@@ -90,37 +92,81 @@ func depState(d core.Dependency) ui.State {
 	return ui.IssueState(core.Issue{State: d.State, Reason: d.Reason})
 }
 
-// depChildren loads the rows below parent: the two roots at the top, and
-// below a root or an issue the issues it waits for or blocks.
-func (m *detailModal) depChildren(ctx context.Context, parent treeview.Node) ([]treeview.Node, error) {
+// depProbe loads the Blockers tree. Before it shows the two roots it reads
+// the first page of each, so a root appears only when it has rows; the page
+// is kept for the root's first expand, which then asks nothing more.
+type depProbe struct {
+	m     *detailModal
+	mu    sync.Mutex
+	found map[string][]core.Dependency
+}
+
+// fetch reads the dependencies of kind for the issue at.
+func (p *depProbe) fetch(ctx context.Context, at depRef, kind string) ([]core.Dependency, error) {
+	ds, ok := p.m.svc.(depser)
+	if !ok {
+		return nil, errors.New("dependencies are not available")
+	}
+	deps, err := ds.Dependencies(ctx, at.repo, at.n, kind)
+	if errors.Is(err, core.ErrNotFound) {
+		return nil, nil
+	}
+	return deps, err
+}
+
+// children loads the rows below parent: the roots at the top, and below a
+// root or an issue the issues it waits for or blocks.
+func (p *depProbe) children(ctx context.Context, parent treeview.Node) ([]treeview.Node, error) {
+	m := p.m
 	if parent.ID == "" {
-		return depRoots(depRef{m.repo, m.number}), nil
+		return p.roots(ctx, depRef{m.repo, m.number}), nil
 	}
 	pn, ok := parent.Value.(depNode)
 	if !ok || len(pn.trail) == 0 {
 		return nil, nil
 	}
-	at := pn.trail[len(pn.trail)-1]
-	ds, ok := m.svc.(depser)
-	if !ok {
-		return nil, errors.New("dependencies are not available")
+	if len(pn.trail) == 1 {
+		p.mu.Lock()
+		deps, kept := p.found[pn.kind]
+		delete(p.found, pn.kind)
+		p.mu.Unlock()
+		if kept {
+			return depRows(m.repo, parent.ID, pn, deps), nil
+		}
 	}
-	deps, err := ds.Dependencies(ctx, at.repo, at.n, pn.kind)
-	if errors.Is(err, core.ErrNotFound) {
-		return nil, nil
-	}
+	deps, err := p.fetch(ctx, pn.trail[len(pn.trail)-1], pn.kind)
 	if err != nil {
 		return nil, err
 	}
 	return depRows(m.repo, parent.ID, pn, deps), nil
 }
 
-// depRoots are the two top rows of the tree, for the issue self.
-func depRoots(self depRef) []treeview.Node {
-	return []treeview.Node{
-		{ID: depBlockedBy, Name: "Blocked by", Branch: true, Value: depNode{kind: depBlockedBy, trail: []depRef{self}}},
-		{ID: depBlocking, Name: "Blocking", Branch: true, Value: depNode{kind: depBlocking, trail: []depRef{self}}},
+// roots probes both kinds at once and returns the roots that have rows. A
+// kind whose probe failed keeps its root, so that opening it tries again.
+func (p *depProbe) roots(ctx context.Context, self depRef) []treeview.Node {
+	kinds := []string{depBlockedBy, depBlocking}
+	names := []string{"Blocked by", "Blocking"}
+	deps := make([][]core.Dependency, len(kinds))
+	errs := make([]error, len(kinds))
+	var wg sync.WaitGroup
+	for i, kind := range kinds {
+		wg.Go(func() { deps[i], errs[i] = p.fetch(ctx, self, kind) })
 	}
+	wg.Wait()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	clear(p.found)
+	var out []treeview.Node
+	for i, kind := range kinds {
+		if errs[i] == nil {
+			if len(deps[i]) == 0 {
+				continue
+			}
+			p.found[kind] = deps[i]
+		}
+		out = append(out, treeview.Node{ID: kind, Name: names[i], Branch: true, Value: depNode{kind: kind, trail: []depRef{self}}})
+	}
+	return out
 }
 
 // depRows are the rows for the dependencies deps of the row pn with the ID
