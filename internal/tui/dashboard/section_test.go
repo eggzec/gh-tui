@@ -298,6 +298,16 @@ func TestNarrowShowsTheFocusedPane(t *testing.T) {
 	if view := screen(s); !strings.Contains(view, "Review requests") || strings.Contains(view, "repo-000") {
 		t.Errorf("focusing the work should show it alone:\n%s", view)
 	}
+	top := ""
+	for line := range strings.SplitSeq(screen(s), "\n") {
+		if strings.HasPrefix(line, "╭") {
+			top = line
+			break
+		}
+	}
+	if !strings.Contains(top, "Waiting on you") {
+		t.Errorf("the top edge should hold the focused pane's title: %q", top)
+	}
 }
 
 // The zoom engages at the terminal size the dashboard turns wide at, not
