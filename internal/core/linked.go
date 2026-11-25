@@ -35,6 +35,8 @@ type PullLinks struct {
 	// Mentions are the issues and pull requests the item's own text names,
 	// each of its true kind.
 	Mentions []Reference
+	// MentionsCapped reports that the text names more than were read.
+	MentionsCapped bool
 	// BlockersSupported is false on a server without issue dependencies,
 	// which the blockers are left empty for.
 	BlockersSupported bool

@@ -272,16 +272,16 @@ func TestIssueModalListsMentions(t *testing.T) {
 	run(t, h, m.receiveLinks(linksMsg{id: m.id, refs: core.References{Mentioned: 5}}))
 	m.side.dev.SetSize(60, 8)
 	v := ansi.Strip(m.side.dev.View())
-	for _, want := range []string{"Mentioned 2", "acme/lib#8 Same bug", " #14 Touches it"} {
+	for _, want := range []string{"Referenced by 2", "acme/lib#8 Same bug", " #14 Touches it"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the pane lacks %q:\n%s", want, v)
 		}
 	}
-	it, ok := m.side.dev.Item("mention:" + core.RefKey(f.mentions[0].Target))
+	it, ok := m.side.dev.Item("referenced:" + core.RefKey(f.mentions[0].Target))
 	if !ok || it.Kind != dev.Issue || it.Ref.Target.Repo != other {
 		t.Errorf("the mentioned issue is %+v, %v", it, ok)
 	}
-	if it, ok := m.side.dev.Item("mention:" + core.RefKey(f.mentions[1].Target)); !ok || it.Kind != dev.Pull {
+	if it, ok := m.side.dev.Item("referenced:" + core.RefKey(f.mentions[1].Target)); !ok || it.Kind != dev.Pull {
 		t.Errorf("the mentioned pull request is %+v, %v", it, ok)
 	}
 }
