@@ -32,15 +32,23 @@ const pendingID = "pending"
 // drawn reports whether an item of the timeline has a row. An event that
 // has none doesn't split a run of comments, and the unsubmitted review of
 // the viewer is drawn at the end instead of where it was started.
-func drawn(it *core.TimelineItem) bool {
-	return kept(it) || isEvent(it.Kind) || isPush(it.Kind)
+func drawn(it *core.TimelineItem, hidden bool) bool {
+	return shows(it, hidden) || isEvent(it.Kind) || isPush(it.Kind)
+}
+
+// minimizable reports whether the item is a kind GitHub can minimize.
+func minimizable(it *core.TimelineItem) bool {
+	return it.Kind == core.TimelineComment || it.Kind == core.TimelineReview && it.Review != core.ReviewStatePending
 }
 
 // kept reports whether a narrowed view may show an item: a comment or a
 // review that is submitted. A narrowed view never shows events. GitHub hides
 // a minimized item; the model keeps it, but no view counts or shows it.
-func kept(it *core.TimelineItem) bool {
-	if it.Minimized {
+func kept(it *core.TimelineItem) bool { return shows(it, false) }
+
+// shows is kept, with the minimized items too when hidden is set.
+func shows(it *core.TimelineItem, hidden bool) bool {
+	if it.Minimized && !hidden {
 		return false
 	}
 	if it.Kind == core.TimelineReview {
@@ -92,7 +100,7 @@ func tree(d Data, o Options) []*node {
 	}
 	for i := range d.Items {
 		it := &d.Items[i]
-		if !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
+		if !drawn(it, o.showHidden && !preview) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {

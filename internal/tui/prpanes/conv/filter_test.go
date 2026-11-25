@@ -19,8 +19,14 @@ import (
 // allBut returns the groups with the given ones off.
 func allBut(off ...Group) (on [NumGroups]bool) {
 	for g := range on {
-		on[g] = !slices.Contains(off, Group(g))
+		on[g] = Group(g) != GroupHidden && !slices.Contains(off, Group(g))
 	}
+	return on
+}
+
+// withHidden turns the Hidden group on.
+func withHidden(on [NumGroups]bool) [NumGroups]bool {
+	on[GroupHidden] = true
 	return on
 }
 
@@ -122,7 +128,7 @@ func TestChoicesCounts(t *testing.T) {
 	}
 	for _, c := range got {
 		want := map[Group]int{GroupComments: 2, GroupReviews: 2}[c.Group]
-		if c.Count != want || !c.On || c.Name != c.Group.String() {
+		if c.Count != want || c.On == (c.Group == GroupHidden) || c.Name != c.Group.String() {
 			t.Errorf("%+v, want count %d, on", c, want)
 		}
 	}
@@ -155,7 +161,10 @@ func TestFilterName(t *testing.T) {
 		{only(GroupComments, GroupState), "comments, state"},
 		{only(GroupComments, GroupState, GroupPushes), "3 kinds"},
 		{allBut(GroupLabels), "8 kinds"},
+		{withHidden(allBut()), "all, hidden"},
+		{withHidden(allBut(GroupLabels)), "9 kinds"},
 		{only(), "nothing"},
+		{only(GroupComments, GroupHidden), "comments, hidden"},
 	} {
 		m := New(Source{})
 		m.SetShown(tc.on)
@@ -330,5 +339,64 @@ func TestPreviewIgnoresFilter(t *testing.T) {
 	})
 	if got, want := d.rowIDs(), []string{"r:R1", "t:T1", "p:T1-b"}; !slices.Equal(got, want) {
 		t.Errorf("preview rows = %v, want %v", got, want)
+	}
+}
+
+// A minimized comment stays out of the conversation and its counts until the
+// Hidden group is on; then it shows, marked with the reason, and counts under
+// its own group and under Hidden.
+func TestHiddenGroup(t *testing.T) {
+	t.Parallel()
+	gone := comment("2")
+	gone.Minimized, gone.MinimizedReason = true, "SPAM"
+	d := newDriver(t, newFake([][]core.TimelineItem{{comment("1"), gone}}, [][]core.Thread{{}}),
+		WithSize(100, 10), WithOptions(opts(config.IconsNerd, 100)), WithTreeKeys(treeKeys()))
+	d.all()
+	if got := ansi.Strip(d.m.View()); strings.Contains(got, "body 2") || strings.Contains(got, "hidden") {
+		t.Errorf("hidden comment drawn with Hidden off:\n%s", got)
+	}
+	if n, total := d.m.Shown(); n != 1 || total != 1 {
+		t.Errorf("Hidden off: shown %d of %d, want 1 of 1", n, total)
+	}
+	if got := d.m.FilterInfo(" | "); len(got) != 2 || got[0] != "1 of 1 shown | filter: all" || got[1] != "1 of 1 shown" {
+		t.Errorf("FilterInfo = %q", got)
+	}
+
+	d.m.SetShown(withHidden(allBut()))
+	if got := ansi.Strip(d.m.View()); !strings.Contains(got, "body 2") || !strings.Contains(got, "hidden: spam") {
+		t.Errorf("Hidden on should show the comment with its reason:\n%s", got)
+	}
+	if n, total := d.m.Shown(); n != 2 || total != 2 {
+		t.Errorf("Hidden on: shown %d of %d, want 2 of 2", n, total)
+	}
+	counts := map[Group]int{}
+	for _, c := range d.m.Choices() {
+		counts[c.Group] = c.Count
+	}
+	if counts[GroupComments] != 2 || counts[GroupHidden] != 1 {
+		t.Errorf("counts = %v, want 2 comments and 1 hidden", counts)
+	}
+	if got := d.m.FilterInfo(" | "); got[0] != "2 of 2 shown | filter: all, hidden" {
+		t.Errorf("FilterInfo = %q", got)
+	}
+}
+
+// The filter overlay applies a ticked Hidden group.
+func TestNewFilterAppliesHidden(t *testing.T) {
+	t.Parallel()
+	gone := comment("2")
+	gone.Minimized = true
+	d := newDriver(t, newFake([][]core.TimelineItem{{comment("1"), gone}}, [][]core.Thread{{}}))
+	d.all()
+	o := d.m.NewFilter(nil)
+	on := map[Group]bool{GroupHidden: true}
+	for _, c := range d.m.Choices() {
+		if c.On {
+			on[c.Group] = true
+		}
+	}
+	o.Change(on, nil)
+	if got := d.m.FilterName(); got != "all, hidden" {
+		t.Errorf("FilterName = %q, want all, hidden", got)
 	}
 }

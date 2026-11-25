@@ -88,6 +88,9 @@ func (m *detailModal) drawPanes(l panes.Layout) string {
 		}
 		c.TopLeft = titleForms(title, b, m.icons.Ellipsis)
 		c.Body = m.paneBody(b)
+		if b.Pane == paneConversation && m.convOn {
+			c.TopRight = m.conv.FilterInfo(m.icons.Separator)
+		}
 		return c
 	})
 }

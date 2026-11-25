@@ -51,6 +51,8 @@ type keyMap struct {
 	// React picks the reactions the viewer gives the comment under the
 	// cursor.
 	React key.Binding
+	// ConvFilter opens the kinds of items the conversation shows.
+	ConvFilter key.Binding
 	// References shows the issues and pull requests linked to the issue, in
 	// a step of its modal. The list has no such key.
 	References key.Binding
@@ -112,6 +114,7 @@ func newKeyMap(keys config.Keymap) keyMap {
 		Edit:         ui.In(keys, ctxModal).Binding("edit", "edit comment"),
 		Delete:       ui.In(keys, ctxModal).Binding("delete", "delete comment"),
 		React:        ui.In(keys, ctxModal).Binding("react", "react"),
+		ConvFilter:   ui.In(keys, ctxModal).Binding("filter", "filter conversation"),
 		References:   ui.In(keys, ctxModal).Binding("references", "linked items"),
 		Assign:       ui.In(keys, ctxSideInvolved).Binding("edit", "assignees"),
 		pick:         picker.NewKeyMap(ui.Lookup(keys, "picker")),
@@ -165,7 +168,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 // the list's.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Back, k.Comment, k.Label, k.Edit, k.Assign, k.Delete, k.React, k.References, k.Close, k.Reopen, k.Refresh},
+		{k.Back, k.Comment, k.Label, k.Edit, k.Assign, k.Delete, k.React, k.ConvFilter, k.References, k.Close, k.Reopen, k.Refresh},
 		{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort},
 	}
 }
@@ -202,7 +205,7 @@ func (k keyMap) onList(s *Section) keyMap {
 	k.Reopen.SetEnabled(k.Reopen.Enabled() && ok && it.State != core.StateOpen)
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, &it), g.Gated(k.Reopen, ui.ActReopen, &it)
 	k.ClearFilter.SetEnabled(k.ClearFilter.Enabled() && s.query != "")
-	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Assign, &k.Edit, &k.Delete, &k.React} {
+	for _, b := range []*key.Binding{&k.Back, &k.Comment, &k.Label, &k.References, &k.Assign, &k.Edit, &k.Delete, &k.React, &k.ConvFilter} {
 		b.SetEnabled(false)
 	}
 	return k
@@ -240,6 +243,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Assign = g.Gated(k.Assign, ui.ActAssign, it)
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
 	k.React.SetEnabled(k.React.Enabled() && onConv)
+	k.ConvFilter.SetEnabled(k.ConvFilter.Enabled() && onConv)
 	owner := m.keys.owner
 	owner.SetEnabled(owner.Enabled() && ui.Author(m.issue.Author) != "")
 	k.Close, k.Reopen = g.Gated(k.Close, ui.ActClose, it), g.Gated(k.Reopen, ui.ActReopen, it)

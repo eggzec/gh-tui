@@ -2,6 +2,7 @@ package conv
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -199,4 +200,20 @@ func anchorOf(n *node) string {
 		return n.thread.ReviewID
 	}
 	return ""
+}
+
+// FilterInfo says how much of the conversation shows, in the forms a pane's
+// title offers, the longest first: "n of m shown", then the name of the filter.
+// It is nil while the first load has nothing to count.
+func (m Model) FilterInfo(sep string) []string {
+	n, total := m.Shown()
+	if st := m.Status(); st.Loading && total == 0 {
+		return nil
+	}
+	name := m.FilterName()
+	if name == "" {
+		name = "all"
+	}
+	shown := strconv.Itoa(n) + " of " + strconv.Itoa(total) + " shown"
+	return []string{shown + sep + "filter: " + name, shown}
 }

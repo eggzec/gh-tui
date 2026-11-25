@@ -38,6 +38,7 @@ Issues
   assignees | e | e | off
   delete comment | D | D | off
   react | R | R | off
+  filter conversation | f | f | off
   linked items | # | # | off
   close issue | X | X | on
   reopen issue | O | O | off

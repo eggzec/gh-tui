@@ -143,6 +143,7 @@ func (m *Model) rebuild(v *view, reshaped bool) {
 	}
 	o := m.opts
 	o.Width, o.Viewer, o.hide, o.order, o.checks = m.width, m.viewer, m.hide(), m.order, m.checks
+	o.showHidden = m.shown[GroupHidden]
 	targets := checktree.Targets{}
 	if m.src.Checks != nil {
 		o.kids = func(prefix, sha string, depth int) []treeview.Node {

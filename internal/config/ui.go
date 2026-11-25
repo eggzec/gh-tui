@@ -35,6 +35,8 @@ type UI struct {
 	Maximized []string `yaml:"maximized"`
 	// Conversation is how the conversation of a pull request opens.
 	Conversation Conversation `yaml:"conversation"`
+	// IssueConversation is how the conversation of an issue opens.
+	IssueConversation Conversation `yaml:"issue_conversation"`
 	// Wide is the size from which the screens show their panes side by
 	// side. A terminal narrower or lower shows one pane at a time.
 	Wide Wide `yaml:"wide"`
@@ -107,7 +109,7 @@ func (u UI) validate() error {
 	if u.DividerStep < 1 {
 		errs = append(errs, fmt.Errorf("ui.divider_step: must be at least 1, got %d", u.DividerStep))
 	}
-	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate())
+	errs = append(errs, validateDateFormat(u.DateFormat), u.validateMaximized(), u.Conversation.validate("ui.conversation"), u.IssueConversation.validate("ui.issue_conversation"))
 	return errors.Join(errs...)
 }
 

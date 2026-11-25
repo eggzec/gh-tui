@@ -126,7 +126,7 @@ func TestConvFilterEnterWithNothingTickedChangesNothing(t *testing.T) {
 	before := m.conv.model.Choices()
 
 	press(t, h, "f")
-	for range conv.NumGroups {
+	for range conv.GroupHidden {
 		press(t, h, "space")
 		press(t, h, "down")
 	}

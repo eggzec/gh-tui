@@ -59,6 +59,7 @@ func (c Config) clone() Config {
 	c.History.Row = slices.Clone(c.History.Row)
 	c.History.Detail = slices.Clone(c.History.Detail)
 	c.UI.Conversation.Filter = slices.Clone(c.UI.Conversation.Filter)
+	c.UI.IssueConversation.Filter = slices.Clone(c.UI.IssueConversation.Filter)
 	clonePointers(reflect.ValueOf(&c.Prefetch).Elem())
 	return c
 }

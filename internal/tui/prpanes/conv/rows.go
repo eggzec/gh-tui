@@ -116,6 +116,20 @@ func (b *builder) right(at time.Time, edited, pending bool, url string) string {
 	return strings.Join(parts, "  ")
 }
 
+// itemRight is right for a comment or review of the timeline, led by why GitHub
+// minimized it when it did.
+func (b *builder) itemRight(it *core.TimelineItem, edited bool) string {
+	right := b.right(it.At, edited, false, it.URL)
+	if !it.Minimized {
+		return right
+	}
+	label := "hidden"
+	if it.MinimizedReason != "" {
+		label += ": " + strings.ToLower(it.MinimizedReason)
+	}
+	return strings.TrimSpace(b.st.warn.Render(label) + "  " + right)
+}
+
 // permalink returns the page of a review comment on GitHub, or "" for a
 // pending one, which has none yet.
 func permalink(c *core.ThreadComment) string {
@@ -139,7 +153,7 @@ func (b *builder) marker(n int, one, many string) string {
 // comment draws a comment of the conversation.
 func (b *builder) comment(n *node, depth int) (treeview.Node, segs) {
 	it := n.item
-	right := b.right(it.At, it.UpdatedAt.After(it.At), false, it.URL)
+	right := b.itemRight(it, it.UpdatedAt.After(it.At))
 	who := b.st.who(it.Actor, false)
 	lines, s := b.body(who, it.Body, depth, false, right)
 	if line := b.reactions(it.Reactions); line != "" {
@@ -189,7 +203,7 @@ func (b *builder) review(n *node, depth int) (treeview.Node, segs) {
 		it := n.item
 		who = b.st.who(it.Actor, false)
 		prefix = b.st.review(it.Review) + " " + who
-		body, right = it.Body, b.right(it.At, false, false, it.URL)
+		body, right = it.Body, b.itemRight(it, false)
 	}
 	r.Right, r.Head = right, who
 	r.Branch = len(n.children) > 0

@@ -73,6 +73,8 @@ type Options struct {
 	// that the zero Options shows every group; the model sets it, and a
 	// preview ignores it.
 	hide [NumGroups]bool
+	// showHidden draws the minimized comments and reviews, with their reason.
+	showHidden bool
 	// order is how the top level is sorted; a preview keeps the timeline's.
 	order Order
 	// checks is the state of the checks of each commit, by its OID in lower

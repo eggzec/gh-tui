@@ -1,17 +1,13 @@
 package pulls
 
 import (
-	"strconv"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/eggzec/gh-tui/internal/tui/prpanes"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 )
 
-// Marks of the kinds in the filter: boxes, as the filter forms draw a checklist.
+// Marks of the kinds in a checklist: boxes, as the filter forms draw one.
 const (
 	kindOn  = "[x]"
 	kindOff = "[ ]"
@@ -25,46 +21,13 @@ func (m *panesModal) openConvFilter() tea.Cmd {
 	if !c.started {
 		return nil
 	}
-	choices := c.model.Choices()
-	o := &filterOverlay{Heading: "Show", Rows: len(choices), Flat: true}
-	o.Change = func(on, _ map[conv.Group]bool) tea.Cmd {
-		// Nothing ticked applies nothing.
-		if len(on) == 0 {
-			return nil
-		}
-		var shown [conv.NumGroups]bool
-		for g := range on {
-			shown[g] = true
-		}
-		c.model.SetShown(shown)
-		m.refreshConv()
-		return nil
-	}
-	var marked []any
-	items := make([]picker.Item, len(choices))
-	for i, ch := range choices {
-		if ch.On {
-			marked = append(marked, ch.Group)
-		}
-		items[i] = picker.Item{Title: ch.Name, Detail: strconv.Itoa(ch.Count), Value: ch.Group}
-	}
 	st := m.theme.Picker(m.icons)
 	st.Frame = lipgloss.NewStyle()
-	o.P = picker.New(nil,
+	o := c.model.NewFilter(m.refreshConv,
 		picker.WithContext(m.ctx),
-		picker.WithItems(items),
-		picker.WithGroupHeaders(false),
-		picker.WithModes(true),
-		picker.WithFilterLine(true),
-		picker.WithMarks(kindOn, kindOff),
-		picker.WithTicks(),
 		picker.WithKeyMap(m.keys.pick),
 		picker.WithStyles(st),
 	)
-	o.P.SetMarked(marked)
 	m.open(o)
 	return o.P.Focus()
 }
-
-// filterOverlay is the checklist of the kinds of items in the conversation.
-type filterOverlay = prpanes.TickOverlay[conv.Group]
