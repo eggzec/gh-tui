@@ -1,8 +1,8 @@
 // Package refs is the References step of the modal of a pull request or an
 // issue: the issues and pull requests linked to it, in groups that fold.
 // "Closes" (or "Closed by") holds what GitHub says the pull request closes,
-// or what closed the issue; "Written here" what its body, comments and
-// reviews link; and "Mentioned in" what other items mention it, which is
+// or what closed the issue; "Mentions" what its body, comments and
+// reviews link; and "Referenced by" what other items mention it, which is
 // read a page at a time, only once it opens. A row opens its item in
 // place of the modal, and the back key returns to the step as it was left.
 package refs

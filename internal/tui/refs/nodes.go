@@ -70,10 +70,10 @@ func (s *Step) build(r core.References) *snapshot {
 		snap.groups = append(snap.groups, group{id: closingID, title: closing, rows: s.itemNodes(closingID, r.Closing)})
 	}
 	if written := s.writtenNodes(r); len(written) > 0 {
-		snap.groups = append(snap.groups, group{id: writtenID, title: "Written here", rows: written})
+		snap.groups = append(snap.groups, group{id: writtenID, title: "Mentions", rows: written})
 	}
 	if r.Mentioned > 0 {
-		snap.groups = append(snap.groups, group{id: mentionedID, title: "Mentioned in"})
+		snap.groups = append(snap.groups, group{id: mentionedID, title: "Referenced by"})
 	}
 	return snap
 }

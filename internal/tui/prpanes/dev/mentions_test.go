@@ -48,7 +48,10 @@ func TestMentionsAndReferencedBy(t *testing.T) {
 		{"mentions both kinds", core.PullLinks{Mentions: []core.Reference{a, p}}, []string{"Mentions 2", "#5 Same crash", "#393 Port the fix"}, []string{"Referenced by"}},
 		{"capped mentions", core.PullLinks{Mentions: []core.Reference{a}, MentionsCapped: true}, []string{"Mentions 1+", "more on GitHub"}, nil},
 		{"referenced by both kinds", core.PullLinks{Mentioned: []core.Reference{a, p}, MentionedTotal: 2}, []string{"Referenced by 2", "#5 Same crash", "#393 Port the fix"}, []string{"Mentions"}},
-		{"in both groups", core.PullLinks{Mentions: []core.Reference{a}, Mentioned: []core.Reference{a}, MentionedTotal: 1}, []string{"Mentions 1", "Referenced by 1"}, nil},
+		{"capped, nothing named", core.PullLinks{MentionsCapped: true}, nil, []string{"Mentions", "more on GitHub"}},
+		{"in both groups shows once under Mentions", core.PullLinks{Mentions: []core.Reference{a}, Mentioned: []core.Reference{a}, MentionedTotal: 1}, []string{"Mentions 1", "#5 Same crash"}, []string{"Referenced by"}},
+		{"closer is not listed again", core.PullLinks{Linked: []core.Reference{p}, Mentions: []core.Reference{p, a}, Mentioned: []core.Reference{p}, MentionedTotal: 1}, []string{"Closed by 1", "Mentions 1", "#5 Same crash"}, []string{"Referenced by"}},
+		{"unresolved gets no row", core.PullLinks{Mentions: []core.Reference{{Target: a.Target, Problem: "not found"}}}, nil, []string{"Mentions"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

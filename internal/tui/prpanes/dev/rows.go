@@ -33,17 +33,18 @@ const (
 	mentionsID   = "header:mentions"
 )
 
-// Build returns the rows of links: a header for what the pull request closes
-// with each issue and what blocks it, and a header for the pull requests
-// linked to it.
+// Build returns the rows of links: a header for what the item closes with
+// each issue and what blocks it, one for the pull requests that close it, one
+// for what its own text names and one for what names it. An item shows once,
+// under the first of them that holds it.
 func Build(links core.PullLinks, o Options) Rows {
-	b := builder{o: o, st: o.Styles, items: map[string]Item{}}
+	b := builder{o: o, st: o.Styles, items: map[string]Item{}, seen: map[string]bool{}}
 	if !o.HideCloses {
 		b.closes(links)
 	}
 	b.linked(links)
 	b.mentions(links)
-	b.mentioned(links)
+	b.referencedBy(links)
 	return Rows{Rows: b.rows, Items: b.items}
 }
 
@@ -52,6 +53,8 @@ type builder struct {
 	st    Styles
 	rows  []treeview.Node
 	items map[string]Item
+	// seen holds the keys of the items listed so far.
+	seen map[string]bool
 }
 
 func (b *builder) add(r treeview.Node, it Item) {
@@ -76,6 +79,7 @@ func (b *builder) closes(links core.PullLinks) {
 	}
 	for i := range links.Closes {
 		c := &links.Closes[i]
+		b.seen[core.RefKey(c.Issue.Target)] = true
 		id := "issue:" + core.RefKey(c.Issue.Target)
 		b.add(treeview.Node{ID: id, Depth: 1, Lines: []string{b.line(c.Issue)}, Branch: len(c.Blockers) > 0, Action: true},
 			Item{Kind: Issue, Ref: c.Issue})
@@ -111,6 +115,7 @@ func (b *builder) linked(links core.PullLinks) {
 	}
 	for i := range pulls {
 		r := &pulls[i]
+		b.seen[core.RefKey(r.Target)] = true
 		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
 			Item{Kind: Pull, Ref: *r})
 	}
@@ -119,44 +124,61 @@ func (b *builder) linked(links core.PullLinks) {
 	}
 }
 
-// mentions lists the items this one names in its own text, each of its kind,
-// and is left out when it names none.
-func (b *builder) mentions(links core.PullLinks) {
-	if len(links.Mentions) == 0 && !links.MentionsCapped {
-		return
+// fresh returns the items of refs that no header above lists and that GitHub
+// could read, and marks them as listed: an item shows once, under the first
+// header that holds it.
+func (b *builder) fresh(refs []core.Reference) []core.Reference {
+	var out []core.Reference
+	for i := range refs {
+		key := core.RefKey(refs[i].Target)
+		if refs[i].Problem != "" || b.seen[key] {
+			continue
+		}
+		b.seen[key] = true
+		out = append(out, refs[i])
 	}
-	b.header(mentionsID, GroupMentions, "Mentions "+ui.Count(len(links.Mentions), links.MentionsCapped))
-	for i := range links.Mentions {
-		r := &links.Mentions[i]
+	return out
+}
+
+// refRows adds a row for each of refs under the header, each of its true
+// kind, with ids that begin with prefix.
+func (b *builder) refRows(prefix string, refs []core.Reference) {
+	for i := range refs {
+		r := &refs[i]
 		kind := Pull
 		if r.Target.Kind == core.KindIssue {
 			kind = Issue
 		}
-		b.add(treeview.Node{ID: "mentions:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
+		b.add(treeview.Node{ID: prefix + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
 			Item{Kind: kind, Ref: *r})
 	}
+}
+
+// mentions lists the items this one names in its own text, and is left out
+// when it names none. The header counts the rows, with a plus while the text
+// may name more than were read.
+func (b *builder) mentions(links core.PullLinks) {
+	refs := b.fresh(links.Mentions)
+	if len(refs) == 0 {
+		return
+	}
+	b.header(mentionsID, GroupMentions, "Mentions "+ui.Count(len(refs), links.MentionsCapped))
+	b.refRows("mentions:", refs)
 	if links.MentionsCapped {
 		b.note("more:mentions", 1, More, "more on GitHub")
 	}
 }
 
-// mentioned lists the items that mention this one, each of its true kind, and
+// referencedBy lists the items that name this one, each of its true kind, and
 // is left out when none does. The header counts the rows loaded, with a plus
 // while more may come.
-func (b *builder) mentioned(links core.PullLinks) {
-	if len(links.Mentioned) == 0 && links.MentionedTotal == 0 {
+func (b *builder) referencedBy(links core.PullLinks) {
+	refs := b.fresh(links.Mentioned)
+	if len(refs) == 0 && !links.MentionedCapped && (links.MentionedTotal == 0 || len(links.Mentioned) > 0) {
 		return
 	}
-	b.header(referencedID, GroupReferencedBy, "Referenced by "+ui.Count(len(links.Mentioned), links.MentionedCapped))
-	for i := range links.Mentioned {
-		r := &links.Mentioned[i]
-		kind := Pull
-		if r.Target.Kind == core.KindIssue {
-			kind = Issue
-		}
-		b.add(treeview.Node{ID: "referenced:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
-			Item{Kind: kind, Ref: *r})
-	}
+	b.header(referencedID, GroupReferencedBy, "Referenced by "+ui.Count(len(refs), links.MentionedCapped))
+	b.refRows("referenced:", refs)
 	if links.MentionedCapped {
 		b.note("more:referenced", 1, More, "more on GitHub")
 	}

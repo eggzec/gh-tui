@@ -56,7 +56,7 @@ func TestReferencesBackReturnsToTheLinks(t *testing.T) {
 		driveKeys(t, m, m.key(press("j")))
 		driveKeys(t, m, m.key(press("j")))
 		links := ansi.Strip(pr.View())
-		if !strings.Contains(links, "Closed by (1)") || !strings.Contains(links, "Mentioned in (3)") {
+		if !strings.Contains(links, "Closed by (1)") || !strings.Contains(links, "Referenced by (3)") {
 			t.Fatalf("the modal doesn't show the links:\n%s", links)
 		}
 

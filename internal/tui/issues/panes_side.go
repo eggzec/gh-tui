@@ -135,8 +135,9 @@ func (p *sidePanes) setLinks(r core.References) {
 	p.showLinks()
 }
 
-// showLinks lists the pull requests that close the issue and the items that
-// mention it, of the first page read.
+// showLinks lists the pull requests that close the issue (Closed by), the items
+// its own text names (Mentions) and those that name it (Referenced by), of the
+// first page read.
 func (p *sidePanes) showLinks() {
 	p.dev.SetLinks(core.PullLinks{
 		Linked:          p.refs.Closing,
