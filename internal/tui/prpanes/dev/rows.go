@@ -30,6 +30,7 @@ const (
 	closesID    = "header:closes"
 	linkedID    = "header:linked"
 	mentionedID = "header:mentioned"
+	mentionsID  = "header:mentions"
 )
 
 // Build returns the rows of links: a header for what the pull request closes
@@ -41,6 +42,7 @@ func Build(links core.PullLinks, o Options) Rows {
 		b.closes(links)
 	}
 	b.linked(links)
+	b.mentions(links)
 	b.mentioned(links)
 	return Rows{Rows: b.rows, Items: b.items}
 }
@@ -114,6 +116,24 @@ func (b *builder) linked(links core.PullLinks) {
 	}
 	if links.LinkedCapped {
 		b.note("more:linked", 1, More, "more on GitHub")
+	}
+}
+
+// mentions lists the items this one names in its own text, each of its kind,
+// and is left out when it names none.
+func (b *builder) mentions(links core.PullLinks) {
+	if len(links.Mentions) == 0 {
+		return
+	}
+	b.header(mentionsID, GroupMentions, "Mentions "+strconv.Itoa(len(links.Mentions)))
+	for i := range links.Mentions {
+		r := &links.Mentions[i]
+		kind := Pull
+		if r.Target.Kind == core.KindIssue {
+			kind = Issue
+		}
+		b.add(treeview.Node{ID: "mentions:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
+			Item{Kind: kind, Ref: *r})
 	}
 }
 

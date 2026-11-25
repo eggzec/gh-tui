@@ -64,4 +64,6 @@ const (
 	GroupLinked = "linked"
 	// GroupMentioned lists the items that mention the one shown.
 	GroupMentioned = "mentioned"
+	// GroupMentions lists the items the one shown names in its own text.
+	GroupMentions = "mentions"
 )
