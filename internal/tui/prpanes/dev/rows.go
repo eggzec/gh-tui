@@ -105,7 +105,7 @@ func (b *builder) linked(links core.PullLinks) {
 			pulls = append(pulls, links.Linked[i])
 		}
 	}
-	b.header(linkedID, GroupLinked, "Linked PRs "+strconv.Itoa(len(pulls)))
+	b.header(linkedID, GroupLinked, "Closed by "+strconv.Itoa(len(pulls)))
 	if len(pulls) == 0 && !links.LinkedCapped {
 		b.note("none:linked", 1, None, "none")
 	}
