@@ -5,6 +5,6 @@ package pulls
 const (
 	kindTimeline = "pulltimeline"
 	// timelineSchema 1 is the first, 2 keeps the reactions, and
-	// 3 whether the viewer gave each.
-	timelineSchema = 3
+	// 3 whether the viewer gave each, and 4 whether a comment is minimized.
+	timelineSchema = 4
 )

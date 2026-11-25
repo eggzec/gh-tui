@@ -65,6 +65,9 @@ type Options struct {
 	// Viewer is the login of the viewer, whose unsubmitted review shows under
 	// their name.
 	Viewer string
+	// Flat keeps each comment a row of its own, open, where the default folds
+	// two or more in a row into one closed run.
+	Flat bool
 
 	// hide is the groups that are left out, inverted from the model's shown so
 	// that the zero Options shows every group; the model sets it, and a

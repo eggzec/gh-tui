@@ -28,6 +28,9 @@ type timelineNode struct {
 	ViewerCanUpdate bool `json:"viewerCanUpdate"`
 	ViewerCanDelete bool `json:"viewerCanDelete"`
 
+	IsMinimized     bool   `json:"isMinimized"`
+	MinimizedReason string `json:"minimizedReason"`
+
 	ReactionGroups []struct {
 		Content          string `json:"content"`
 		ViewerHasReacted bool   `json:"viewerHasReacted"`
@@ -162,6 +165,7 @@ func (n timelineNode) core() (core.TimelineItem, bool) {
 		it.Kind = core.TimelineComment
 		it.UpdatedAt = n.UpdatedAt
 		it.CanUpdate, it.CanDelete = n.ViewerCanUpdate, n.ViewerCanDelete
+		it.Minimized, it.MinimizedReason = n.IsMinimized, n.MinimizedReason
 	case "PullRequestReview":
 		if strings.EqualFold(n.State, "PENDING") {
 			return core.TimelineItem{}, false

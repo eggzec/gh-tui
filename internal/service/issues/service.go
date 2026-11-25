@@ -159,9 +159,9 @@ const (
 	kindIssue    = "issue"
 	kindComments = "issuecomments"
 	// timelineSchema is bumped when core.TimelineItem changes shape, and 3
-	// keeps the reactions of each comment and whether the viewer gave them.
+	// keeps the reactions of each comment and whether the viewer gave them, and 4 whether it is minimized.
 	kindTimeline   = "issuetimeline"
-	timelineSchema = 3
+	timelineSchema = 4
 	// schema 4 keeps whether the author of each issue is an app, and 5 when
 	// its description was edited, and 6 the total of a list.
 	schema = 6

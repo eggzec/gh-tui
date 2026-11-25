@@ -14,6 +14,7 @@ const issueTimelineJSON = `{"data":{"repository":{"issue":{"page":{
   "nodes":[
     {"__typename":"IssueComment","id":"IC_1","author":{"__typename":"User","login":"hubot","avatarUrl":"https://avatars/hubot"},
      "body":"hi","createdAt":"2026-09-20T10:00:00Z","updatedAt":"2026-09-20T10:05:00Z","url":"u","viewerCanUpdate":true,"viewerCanDelete":false},
+    {"__typename":"IssueComment","id":"IC_kwDOJ5JQIc8AAAABL_g2Hw","author":{"__typename":"User","login":"sxyazi"},"body":"old","createdAt":"2026-09-20T10:30:00Z","updatedAt":"2026-09-20T10:30:00Z","url":"u","isMinimized":true,"minimizedReason":"outdated"},
     {"__typename":"RenamedTitleEvent","actor":{"__typename":"User","login":"mona"},"createdAt":"2026-09-20T11:00:00Z","previousTitle":"a","currentTitle":"b"},
     {"__typename":"SubscribedEvent"}
   ],
@@ -33,13 +34,16 @@ func TestListIssueTimeline(t *testing.T) {
 	if !strings.Contains(query, "issue(number: $number)") {
 		t.Errorf("query = %q, want an issue read", query)
 	}
-	if page.Next != "CUR1" || len(page.Items) != 2 {
-		t.Fatalf("page = %+v, want 2 items (the unknown one is left out) and next CUR1", page)
+	if page.Next != "CUR1" || len(page.Items) != 3 {
+		t.Fatalf("page = %+v, want 3 items (the unknown one is left out) and next CUR1", page)
 	}
 	if got := page.Items[0]; got.Kind != core.TimelineComment || got.Body != "hi" || !got.CanUpdate {
 		t.Errorf("comment = %+v", got)
 	}
-	if got := page.Items[1]; got.Kind != core.TimelineRenamed || got.From != "a" || got.To != "b" {
+	if got := page.Items[1]; !got.Minimized || got.MinimizedReason != "outdated" || got.ID != "IC_kwDOJ5JQIc8AAAABL_g2Hw" {
+		t.Errorf("minimized comment = %+v", got)
+	}
+	if got := page.Items[2]; got.Kind != core.TimelineRenamed || got.From != "a" || got.To != "b" {
 		t.Errorf("rename = %+v", got)
 	}
 }

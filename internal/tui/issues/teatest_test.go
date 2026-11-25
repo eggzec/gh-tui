@@ -67,8 +67,6 @@ func TestProgram(t *testing.T) {
 
 	tm.Send(keyMsg("down"))
 	tm.Send(keyMsg("enter"))
-	waitFor("3 comments")
-	tm.Send(keyMsg("*"))
 	waitFor("I can reproduce this")
 
 	tm.Send(keyMsg("esc"))
@@ -110,8 +108,6 @@ func TestProgramComment(t *testing.T) {
 	waitFor("Crash when the config file")
 	tm.Send(keyMsg("down"))
 	tm.Send(keyMsg("enter"))
-	waitFor("3 comments")
-	tm.Send(keyMsg("*"))
 	waitFor("I can reproduce this")
 
 	// The q and X in the comment are text, not quit and close.
