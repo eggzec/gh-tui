@@ -1,0 +1,370 @@
+#!/usr/bin/env python3
+"""PreToolUse guard hook for Claude Code (Bash and Read tools).
+
+Reads the hook JSON on stdin. Exit 0 allows; exit 2 blocks with a one-line
+reason on stderr. Any malformed input or internal error allows (fail open).
+
+    guard --explain "<command>" [--agent]   print which rule fires, or "allow"
+
+Rules (see README.md): read-range, subagent-all-packages, git-stash,
+force-push, ai-attribution, shell-read, shell-write.
+"""
+import json
+import os
+import re
+import shlex
+import sys
+
+MAX_READ_LINES = 400
+MAX_LIMIT = 200
+WRAPPERS = {"sudo", "command", "env", "time", "nohup", "nice", "cool", "exec"}
+SHELLS = {"bash", "sh", "zsh"}
+
+
+# ---------------------------------------------------------------- parsing
+
+class Seg:
+    def __init__(self):
+        self.words = []
+        self.redirs = []  # (op, target)
+        self.heredoc = False
+        self.pipe_in = False
+        self.pipe_out = False
+
+
+def parse(cmd):
+    """Split a shell command into simple-command segments.
+
+    Understands quotes, $(...), pipes, ; && || & newlines, redirects and
+    heredocs (bodies are skipped). Not a full shell parser: it only has to be
+    right about where a command starts and what its words are.
+    """
+    segs = []
+    cur = Seg()
+    word = []
+    has_word = False
+    pending_redir = None
+    heredocs = []  # (delimiter, strip_tabs)
+    i, n = 0, len(cmd)
+
+    def flush_word():
+        nonlocal word, has_word, pending_redir
+        if not has_word:
+            return
+        w = "".join(word)
+        word, has_word = [], False
+        if pending_redir is not None:
+            cur.redirs.append((pending_redir, w))
+            if pending_redir.startswith("<<"):
+                heredocs.append((w, pending_redir == "<<-"))
+            pending_redir = None
+        else:
+            cur.words.append(w)
+
+    def end_seg(pipe=False):
+        nonlocal cur
+        flush_word()
+        if cur.words or cur.redirs:
+            cur.pipe_out = pipe
+            segs.append(cur)
+            nxt = Seg()
+            nxt.pipe_in = pipe
+            cur = nxt
+        elif pipe:
+            cur.pipe_in = True
+
+    while i < n:
+        c = cmd[i]
+        if c == "\\" and i + 1 < n:
+            word.append(cmd[i + 1])
+            has_word = True
+            i += 2
+        elif c == "'":
+            j = cmd.find("'", i + 1)
+            j = n if j < 0 else j
+            word.append(cmd[i + 1:j])
+            has_word = True
+            i = j + 1
+        elif c == '"':
+            j = i + 1
+            while j < n and cmd[j] != '"':
+                j += 2 if cmd[j] == "\\" else 1
+            word.append(cmd[i + 1:j])
+            has_word = True
+            i = j + 1
+        elif c == "$" and cmd[i:i + 2] == "$(":
+            depth, j = 1, i + 2
+            while j < n and depth:
+                depth += (cmd[j] == "(") - (cmd[j] == ")")
+                j += 1
+            word.append(cmd[i:j])
+            has_word = True
+            i = j
+        elif c in " \t":
+            flush_word()
+            i += 1
+        elif c == "\n":
+            end_seg()
+            i += 1
+            while heredocs:
+                delim, strip = heredocs.pop(0)
+                while i < n:
+                    j = cmd.find("\n", i)
+                    j = n if j < 0 else j
+                    line = cmd[i:j]
+                    i = j + 1
+                    if (line.lstrip("\t") if strip else line) == delim:
+                        break
+        elif c == ";":
+            end_seg()
+            i += 1
+        elif c == "&" and cmd[i:i + 2] == "&&":
+            end_seg()
+            i += 2
+        elif c == "&" and cmd[i + 1:i + 2] == ">":
+            op = "&>>" if cmd[i:i + 3] == "&>>" else "&>"
+            flush_word()
+            pending_redir = op
+            i += len(op)
+        elif c == "&":
+            end_seg()
+            i += 1
+        elif c == "|":
+            if cmd[i:i + 2] == "||":
+                end_seg()
+                i += 2
+            else:
+                end_seg(pipe=True)
+                i += 1
+        elif c in "<>":
+            fd = ""
+            if has_word and "".join(word).isdigit():
+                fd = "".join(word)
+                word, has_word = [], False
+            else:
+                flush_word()
+            j = i
+            while j < n and cmd[j] == c and j - i < 2:
+                j += 1
+            op = cmd[i:j]
+            if op == "<<" and cmd[j:j + 1] == "-":
+                op, j = "<<-", j + 1
+            if c == ">" and cmd[j:j + 1] == "&":
+                op, j = op + "&", j + 1
+            if op.startswith("<<"):
+                cur.heredoc = True
+            pending_redir = fd + op
+            i = j
+        else:
+            word.append(c)
+            has_word = True
+            i += 1
+    end_seg()
+    return segs
+
+
+def command_of(words):
+    """Return (name, args) after env assignments and wrapper commands."""
+    k = 0
+    while k < len(words):
+        w = words[k]
+        base = os.path.basename(w)
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) or base in WRAPPERS:
+            k += 1
+        else:
+            break
+    if k >= len(words):
+        return "", []
+    return os.path.basename(words[k]), words[k + 1:]
+
+
+def subcommand(args, value_flags):
+    """First non-flag argument, skipping flags that take a value."""
+    k = 0
+    while k < len(args):
+        if args[k] in value_flags:
+            k += 2
+        elif args[k].startswith("-"):
+            k += 1
+        else:
+            return args[k], args[k + 1:]
+    return "", []
+
+
+# ------------------------------------------------------------------ rules
+
+def rule_read(tool_input):
+    path = tool_input.get("file_path")
+    limit = tool_input.get("limit")
+    if limit is not None and int(limit) > MAX_LIMIT:
+        return "read-range", f"Read at most {MAX_LIMIT} lines per call: use offset and a limit of {MAX_LIMIT} or less."
+    if limit is None and path and os.path.isfile(path):
+        if path.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf")):
+            return None
+        lines = 0
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                lines += chunk.count(b"\n")
+        if lines > MAX_READ_LINES:
+            return "read-range", f"{path} has {lines} lines: read a range of at most {MAX_LIMIT} lines (offset and limit)."
+    return None
+
+
+def rule_subagent_all(name, args, is_agent):
+    if not is_agent or name != "go":
+        return None
+    sub, rest = subcommand(args, {"-C"})
+    if sub in ("test", "vet", "build") and "./..." in rest:
+        return "subagent-all-packages", f"go {sub} ./... is for CI; run only the packages you changed (go {sub} ./internal/x/...)."
+    return None
+
+
+MAIN_BRANCHES = {"main", "master"}
+
+
+def push_dst(arg):
+    dst = arg.lstrip("+").split(":")[-1]
+    return re.sub(r"^refs/heads/", "", dst)
+
+
+def rule_git(args):
+    sub, rest = subcommand(args, {"-C", "-c", "--git-dir", "--work-tree"})
+    if sub == "stash":
+        return "git-stash", "git stash is not allowed: commit a WIP change or use a separate worktree."
+    if sub == "push":
+        force = any(a == "--force" or a.startswith("--force-with-lease")
+                    or (a.startswith("-") and not a.startswith("--") and "f" in a[1:])
+                    for a in rest)
+        positional = [a for a in rest if not a.startswith("-")]
+        plus = any(a.startswith("+") for a in positional)
+        if (force or plus) and any(push_dst(a) in MAIN_BRANCHES for a in positional):
+            return "force-push", "Force pushes to main/master are not allowed (--force-with-lease to a feature branch is fine)."
+    return None
+
+
+ATTRIBUTION = re.compile(
+    r"co-authored-by:\s*claude|noreply@anthropic\.com|generated with\W{0,6}(\[?claude|claude)|"
+    r"\U0001F916\s*generated|claude code\]?\(https?://claude",
+    re.I,
+)
+
+
+def body_files(args):
+    for k, a in enumerate(args):
+        if a in ("--body-file", "-F", "--file") and k + 1 < len(args):
+            yield args[k + 1]
+        elif a.startswith("--body-file="):
+            yield a.split("=", 1)[1]
+
+
+def rule_attribution(name, args, raw):
+    is_commit = name == "git" and subcommand(args, {"-C", "-c"})[0] == "commit"
+    is_pr = name == "gh" and args[:2] in (["pr", "create"], ["pr", "edit"])
+    if not (is_commit or is_pr):
+        return None
+    text = raw
+    for p in body_files(args):
+        try:
+            with open(p, errors="replace") as f:
+                text += "\n" + f.read(200000)
+        except OSError:
+            pass
+    if ATTRIBUTION.search(text):
+        return "ai-attribution", "Remove the AI attribution (Co-Authored-By / Generated with) from the commit or PR text."
+    return None
+
+
+def real_files(args):
+    return [a for a in args if not a.startswith("-") and not re.fullmatch(r"\d+|[+-]?\d+,?\d*[pdq]?", a)]
+
+
+def rule_shell_read(name, args, seg):
+    if seg.pipe_in or seg.pipe_out or seg.heredoc:
+        return None
+    msg = "Use the Read tool (with offset and limit) instead of shell file reads."
+    if name == "cat" and real_files(args):
+        return "shell-read", msg
+    if name in ("head", "tail"):
+        if any(a in ("-f", "-F", "--follow") for a in args):
+            return None
+        files = []
+        skip = False
+        for a in args:
+            if skip:
+                skip = False
+            elif a in ("-n", "-c"):
+                skip = True
+            elif not a.startswith("-") and not a.startswith("+"):
+                files.append(a)
+        if files:
+            return "shell-read", msg
+    if name == "sed" and any(a == "-n" or re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in args) \
+            and not any(a.startswith("-i") or a == "--in-place" for a in args):
+        non_flags = [a for a in args if not a.startswith("-")]
+        if len(non_flags) >= 2:  # script plus a file
+            return "shell-read", msg
+    return None
+
+
+def rule_shell_write(name, args, seg):
+    msg = "Use the Edit or Write tool instead of writing whole files from the shell."
+    for op, target in seg.redirs:
+        if op in (">", "1>", "&>") and not target.startswith("/dev/") and name in ("cat", "echo", "printf", "") :
+            return "shell-write", msg
+        if op in (">", "1>") and seg.heredoc and not target.startswith("/dev/"):
+            return "shell-write", msg
+    if name == "tee" and real_files([a for a in args if a != "-a"]) and "-a" not in args:
+        return "shell-write", msg
+    return None
+
+
+# ------------------------------------------------------------------ driver
+
+def check_bash(cmd, is_agent, depth=0):
+    for seg in parse(cmd):
+        name, args = command_of(seg.words)
+        if name in SHELLS and depth < 3:
+            for k, a in enumerate(args[:-1]):
+                if re.fullmatch(r"-[a-z]*c[a-z]*", a):
+                    hit = check_bash(args[k + 1], is_agent, depth + 1)
+                    if hit:
+                        return hit
+        hit = rule_subagent_all(name, args, is_agent)
+        if name == "git":
+            hit = hit or rule_git(args)
+        hit = hit or rule_attribution(name, args, cmd)
+        if name not in ("git", "gh"):
+            hit = hit or rule_shell_read(name, args, seg) or rule_shell_write(name, args, seg)
+        if hit:
+            return hit
+    return None
+
+
+def check(payload):
+    tool = payload.get("tool_name")
+    ti = payload.get("tool_input") or {}
+    if tool == "Read":
+        return rule_read(ti)
+    if tool == "Bash":
+        is_agent = bool(payload.get("agent_id") or payload.get("agent_type"))
+        return check_bash(ti.get("command") or "", is_agent)
+    return None
+
+
+def main(argv):
+    if len(argv) >= 3 and argv[1] == "--explain":
+        hit = check_bash(argv[2], "--agent" in argv[3:])
+        print(f"{hit[0]}: {hit[1]}" if hit else "allow")
+        return 0
+    try:
+        hit = check(json.load(sys.stdin))
+    except Exception:
+        return 0
+    if hit:
+        print(f"guard[{hit[0]}]: {hit[1]}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
