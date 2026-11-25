@@ -159,3 +159,16 @@ func TestNames(t *testing.T) {
 		}
 	}
 }
+
+func TestTreeMinimizedAndFlat(t *testing.T) {
+	t.Parallel()
+	gone := comment("2")
+	gone.Minimized, gone.MinimizedReason = true, "outdated"
+	items := []core.TimelineItem{comment("1"), gone, comment("3"), comment("4")}
+	if got, want := shape(tree(Data{Items: items}, Options{})), "run:1[rc:1 rc:3 rc:4]"; got != want {
+		t.Errorf("default = %q, want %q", got, want)
+	}
+	if got, want := shape(tree(Data{Items: items}, Options{Flat: true})), "c:1 c:3 c:4"; got != want {
+		t.Errorf("flat = %q, want %q", got, want)
+	}
+}

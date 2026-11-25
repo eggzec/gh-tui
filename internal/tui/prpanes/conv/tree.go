@@ -63,7 +63,7 @@ func tree(d Data, o Options) []*node {
 
 	var out, run []*node
 	flush := func() {
-		if len(run) > 1 && !preview {
+		if len(run) > 1 && !preview && !o.Flat {
 			for _, c := range run {
 				c.kind, c.id = KindRunComment, "rc:"+c.item.ID
 			}
@@ -88,7 +88,8 @@ func tree(d Data, o Options) []*node {
 	}
 	for i := range d.Items {
 		it := &d.Items[i]
-		if !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
+		// GitHub hides a minimized comment; the model keeps it for a filter.
+		if it.Minimized || !drawn(it) || preview && (isEvent(it.Kind) || isPush(it.Kind)) {
 			continue
 		}
 		if it.Kind == core.TimelineReview {

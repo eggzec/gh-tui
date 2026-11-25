@@ -15,8 +15,8 @@ func ownModal(t *testing.T) (*fakeService, *host, *detailModal, *core.TimelineIt
 	t.Helper()
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
-	// The comments are a fold; open it and step onto the first one.
-	press(t, h, "2", "l", "j")
+	// The comments are open; the cursor is on the first one.
+	press(t, h, "2")
 	s, ok := m.conv.Current()
 	if !ok || s.Item == nil {
 		t.Fatalf("the cursor is on %+v, want a comment", s)
@@ -167,7 +167,6 @@ func TestDeleteOwnCommentFails(t *testing.T) {
 	if _, ok := hasComment(svc, it.ID); !ok {
 		t.Error("the failed delete left the comment gone")
 	}
-	press(t, h, "l", "j", "j")
 	if s, ok := h.modal().conv.Current(); !ok || s.Item == nil || s.Item.ID != it.ID {
 		t.Errorf("the conversation shows %+v, want the comment %s back", s, it.ID)
 	}
@@ -192,7 +191,6 @@ func TestEditOwnCommentFails(t *testing.T) {
 	if c, ok := hasComment(svc, it.ID); !ok || c.Body != it.Body {
 		t.Errorf("the comment reads %q after the failed edit, want %q", c.Body, it.Body)
 	}
-	press(t, h, "l", "j", "j")
 	if s, ok := h.modal().conv.Current(); !ok || s.Item == nil || s.Item.Body != it.Body {
 		t.Errorf("the conversation shows %+v, want the old body", s)
 	}

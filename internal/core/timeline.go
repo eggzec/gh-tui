@@ -82,6 +82,10 @@ type TimelineItem struct {
 	// CanUpdate and CanDelete are what the viewer may do to a comment.
 	CanUpdate bool
 	CanDelete bool
+	// Minimized is set when GitHub hides the comment, with the reason it gives
+	// (such as "outdated"); the conversation leaves it out.
+	Minimized       bool
+	MinimizedReason string
 	// Reactions counts the reactions of a comment or a review.
 	Reactions []Reaction
 	Review    ReviewState

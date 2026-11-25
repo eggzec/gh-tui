@@ -64,7 +64,6 @@ func TestModalImages(t *testing.T) {
 				if m == nil {
 					t.Fatal("enter didn't open the issue")
 				}
-				press(t, h, "*")
 				if where == "body" {
 					press(t, h, "1")
 				}
@@ -109,7 +108,6 @@ func TestModalImagesKeepEachPanesHeight(t *testing.T) {
 		if m == nil {
 			t.Fatal("enter didn't open the issue")
 		}
-		press(t, h, "*")
 		m.pics = uitest.Avatars(&uitest.ImageHost{}, true)
 		m.Update(ui.ImagesMsg{})
 		m.View()
@@ -149,7 +147,6 @@ func TestModalImagesSurviveTimelineReload(t *testing.T) {
 	if m == nil {
 		t.Fatal("enter didn't open the issue")
 	}
-	press(t, h, "*")
 	m.pics = uitest.Avatars(&uitest.ImageHost{}, true)
 	m.Update(ui.ImagesMsg{})
 	m.View()
@@ -172,8 +169,6 @@ func TestModalImagesSurviveTimelineReload(t *testing.T) {
 		t.Fatal("the conversation draws no image")
 	}
 	press(t, h, "r")
-	// The reload folds the thread again.
-	press(t, h, "*")
 	if after := convRows(); after != before {
 		t.Errorf("reloading the timeline changes the conversation's image rows from %d to %d", before, after)
 	}
@@ -753,7 +748,6 @@ func TestModalKeepsItsScrollWhenResized(t *testing.T) {
 	h := started(t, svc, 80, 30)
 	press(t, h, "down", "enter")
 	m := h.modal()
-	press(t, h, "*")
 	for range 12 {
 		press(t, h, "j")
 	}

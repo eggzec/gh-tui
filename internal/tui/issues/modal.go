@@ -334,6 +334,7 @@ func (m *detailModal) convOptions() conv.Options {
 		MD:     m.md,
 		Dates:  m.dates,
 		Now:    m.now(),
+		Flat:   true,
 	}
 }
 

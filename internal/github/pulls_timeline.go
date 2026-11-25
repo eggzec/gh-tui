@@ -32,7 +32,7 @@ var pullTimelineQuery = fmt.Sprintf(`query PullTimeline($owner: String!, $name: 
           __typename
           ... on IssueComment {
             id author { __typename login avatarUrl ... on User { name } }
-            body createdAt updatedAt url viewerCanUpdate viewerCanDelete
+            body createdAt updatedAt url viewerCanUpdate viewerCanDelete isMinimized minimizedReason
             reactionGroups { content viewerHasReacted reactors { totalCount } }
           }
           ... on PullRequestReview {
