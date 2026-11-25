@@ -2,6 +2,7 @@ package issues
 
 import (
 	"fmt"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -140,10 +141,24 @@ func (p *sidePanes) setLinks(r core.References) {
 func (p *sidePanes) showLinks() {
 	p.dev.SetLinks(core.PullLinks{
 		Linked:          p.refs.Closing,
+		Mentions:        p.bodyMentions(),
 		Mentioned:       p.mentions.Items,
 		MentionedTotal:  p.refs.Mentioned,
 		MentionedCapped: p.mentions.Next != "",
 	})
+}
+
+// bodyMentions are the items the body of the issue names, other than those
+// that close it.
+func (p *sidePanes) bodyMentions() []core.Reference {
+	var out []core.Reference
+	for i := range p.refs.Written {
+		r := &p.refs.Written[i]
+		if r.Problem == "" && slices.ContainsFunc(r.Origins, func(o core.RefOrigin) bool { return o.Where == "body" }) {
+			out = append(out, *r)
+		}
+	}
+	return out
 }
 
 func (m *detailModal) mentionsQuery(again bool) refssvc.MentionsQuery {
