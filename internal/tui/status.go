@@ -109,7 +109,11 @@ func (m *Model) drawHints() {
 	unzoom := k.Zoom
 	unzoom.SetEnabled(unzoom.Enabled() && m.canZoom() && m.zoomed())
 	lead := []key.Binding{help, ui.NameKeys(m.icons, unzoom), ui.NameKeys(m.icons, k.Dismiss)}
-	if m.splitShown() {
+	if m.modals.Top() != nil {
+		// A modal brings its own zoom and tab hints, so the screen under it
+		// adds none.
+		lead = []key.Binding{help, ui.NameKeys(m.icons, k.Dismiss)}
+	} else if m.splitShown() {
 		// The key that moves between the list and the preview is no hint of
 		// the layers, which list only what each pane binds.
 		lead = append(lead, ui.NameKeys(m.icons, k.Next))
