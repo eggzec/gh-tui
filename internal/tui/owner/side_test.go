@@ -1,7 +1,6 @@
 package owner
 
 import (
-	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -27,12 +26,11 @@ func TestSideView(t *testing.T) {
 		width, height int
 		keys          []string
 	}{
-		{"user readme", "octocat", 80, 24, []string{"3"}},
-		{"user readme scrolled", "octocat", 80, 16, []string{"3", "ctrl+d"}},
-		{"user calendar", "octocat", 80, 24, []string{"4"}},
-		{"org readme", "github", 80, 24, []string{"3"}},
+		{"user readme", "octocat", 120, 40, []string{"z", "tab"}},
+		{"user readme scrolled", "octocat", 120, 16, []string{"z", "tab", "ctrl+d"}},
+		{"org readme", "github", 120, 40, []string{"z", "tab"}},
 		{"user wide", "octocat", 120, 40, nil},
-		{"org wide", "github", 120, 40, []string{"3"}},
+		{"org wide", "github", 120, 40, []string{"z", "tab"}},
 	}
 	for _, tt := range tests {
 		for _, icons := range []string{config.IconsNerd, config.IconsUnicode, config.IconsASCII} {
@@ -49,66 +47,50 @@ func TestSideViewStates(t *testing.T) {
 	t.Run("no readme", func(t *testing.T) {
 		svc := newFake()
 		delete(svc.readmes, "octocat")
-		s := newSection(t, svc, "octocat", 80, 24)
-		press(t, s, "3")
+		s := newSection(t, svc, "octocat", 120, 40)
+		press(t, s, "z", "tab")
 		golden.RequireEqual(t, s.View())
 	})
 	t.Run("org without readme", func(t *testing.T) {
 		svc := newFake()
 		delete(svc.readmes, "github")
-		s := newSection(t, svc, "github", 80, 24)
-		press(t, s, "3")
+		s := newSection(t, svc, "github", 120, 40)
+		press(t, s, "z", "tab")
 		golden.RequireEqual(t, s.View())
 	})
 	t.Run("readme failed", func(t *testing.T) {
 		svc := newFake()
 		svc.sideFake.fail["readme"] = core.ErrRateLimited
-		s := newSection(t, svc, "octocat", 80, 24)
-		press(t, s, "3")
-		golden.RequireEqual(t, s.View())
-	})
-	t.Run("calendar failed", func(t *testing.T) {
-		svc := newFake()
-		svc.sideFake.fail["contributions"] = errors.New("github: decode: unexpected EOF")
-		s := newSection(t, svc, "octocat", 80, 24)
-		press(t, s, "4")
+		s := newSection(t, svc, "octocat", 120, 40)
+		press(t, s, "z", "tab")
 		golden.RequireEqual(t, s.View())
 	})
 }
 
 // The README is read once its pane is on view, with what the header says
-// of the account, and the calendar once its pane is.
+// of the account.
 func TestSideReadsOnView(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, "octocat", 80, 24)
 	if slices.ContainsFunc(svc.sideFake.calls, func(c string) bool { return !strings.HasPrefix(c, "followers") }) {
 		t.Fatalf("a narrow page on the list read %q", svc.sideFake.calls)
 	}
-	press(t, s, "3")
+	setSize(s, 120, 40)
 	if want := []string{"readme octocat", "sponsors octocat", "sponsoring octocat"}; !slices.Equal(svc.sideFake.calls, want) {
-		t.Errorf("focusing the README read %q, want %q", svc.sideFake.calls, want)
+		t.Errorf("showing the README read %q, want %q", svc.sideFake.calls, want)
 	}
 	svc.sideFake.calls = nil
-	press(t, s, "4", "3")
-	if want := []string{"contributions octocat"}; !slices.Equal(svc.sideFake.calls, want) {
-		t.Errorf("focusing the calendar and the README again read %q, want %q", svc.sideFake.calls, want)
+	press(t, s, "z", "tab", "tab")
+	if len(svc.sideFake.calls) != 0 {
+		t.Errorf("focusing the README again read %q, want nothing", svc.sideFake.calls)
 	}
 }
 
-// An organization has no calendar: its key and the cycle of the panes
-// pass it by, and it reads its follower count for the profile.
-func TestOrgHasNoCalendar(t *testing.T) {
+// An organization reads its follower count for the profile.
+func TestOrgReadsFollowers(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, "github", 120, 40)
-	press(t, s, "4")
-	if s.page.focus != listPane {
-		t.Errorf("4 focused pane %d of an organization", s.page.focus)
-	}
-	press(t, s, "tab", "tab")
-	if s.page.focus != pinnedPane {
-		t.Errorf("tab twice from the list focused pane %d, want the pins past the README", s.page.focus)
-	}
-	if slices.Contains(svc.sideFake.calls, "contributions github") || !slices.Contains(svc.sideFake.calls, "followers github") {
+	if !slices.Contains(svc.sideFake.calls, "followers github") {
 		t.Errorf("an organization read %q", svc.sideFake.calls)
 	}
 	if !strings.Contains(ansi.Strip(s.View()), "41k followers") {
@@ -120,8 +102,8 @@ func TestOrgHasNoCalendar(t *testing.T) {
 // without them, and none are read.
 func TestSponsorsOnGitHubOnly(t *testing.T) {
 	svc := newFake()
-	s := newSection(t, svc, "octocat", 80, 40, WithHost("ghe.example.com"))
-	press(t, s, "3")
+	s := newSection(t, svc, "octocat", 120, 40, WithHost("ghe.example.com"))
+	press(t, s, "z", "tab")
 	if slices.ContainsFunc(svc.sideFake.calls, func(c string) bool { return strings.HasPrefix(c, "sponsor") }) {
 		t.Errorf("an Enterprise Server read %q", svc.sideFake.calls)
 	}
@@ -129,8 +111,8 @@ func TestSponsorsOnGitHubOnly(t *testing.T) {
 		t.Errorf("an Enterprise Server shows sponsors:\n%s", v)
 	}
 
-	s = newSection(t, newFake(), "octocat", 80, 40)
-	press(t, s, "3")
+	s = newSection(t, newFake(), "octocat", 120, 40)
+	press(t, s, "z", "tab")
 	v := ansi.Strip(s.View())
 	for _, want := range []string{"Sponsors @mona, @hubot, @mona_corp", "Sponsoring @charmbracelet and more"} {
 		if !strings.Contains(v, want) {
@@ -143,8 +125,8 @@ func TestSponsorsOnGitHubOnly(t *testing.T) {
 func TestSponsorsFailed(t *testing.T) {
 	svc := newFake()
 	svc.sideFake.fail["sponsors"] = core.ErrUnsupported
-	s := newSection(t, svc, "octocat", 80, 40)
-	press(t, s, "3")
+	s := newSection(t, svc, "octocat", 120, 40)
+	press(t, s, "z", "tab")
 	if v := ansi.Strip(s.View()); strings.Contains(v, "Sponsor") || !strings.Contains(v, "Hi, I'm Mona") {
 		t.Errorf("failed sponsors show:\n%s", v)
 	}
@@ -187,8 +169,8 @@ func TestReadmeAddresses(t *testing.T) {
 // The README pane scrolls with the pager's keys, which the help shows,
 // and o opens the README on GitHub, as copy copies it.
 func TestReadmeKeys(t *testing.T) {
-	s := newSection(t, newFake(), "octocat", 80, 16)
-	press(t, s, "3")
+	s := newSection(t, newFake(), "octocat", 120, 16)
+	press(t, s, "z", "tab")
 	if b, src, ok := uitest.Winner(s.KeyLayers(), "ctrl+d"); !ok || src != "README" || b.Help().Desc != "½ page down" {
 		t.Errorf("ctrl+d reaches %v %q %q, want the README's half page down", ok, src, b.Help().Desc)
 	}
@@ -203,10 +185,6 @@ func TestReadmeKeys(t *testing.T) {
 	if sel, ok := s.Selected(); !ok || sel.URL != "https://github.com/octocat/octocat/blob/HEAD/README.md" || sel.Path != "README.md" {
 		t.Errorf("selected %+v, want the README", sel)
 	}
-	press(t, s, "4")
-	if _, src, ok := uitest.Winner(s.KeyLayers(), "left"); !ok || src != "Contributions" {
-		t.Errorf("left reaches %v %q, want the calendar", ok, src)
-	}
 }
 
 // The pages keep their place in the README, and a refresh reads it again.
@@ -215,10 +193,8 @@ func TestReadmeRefresh(t *testing.T) {
 	s := newSection(t, svc, "octocat", 120, 40)
 	svc.sideFake.calls = nil
 	press(t, s, "r")
-	for _, want := range []string{"readme octocat", "contributions octocat"} {
-		if !slices.Contains(svc.sideFake.calls, want) {
-			t.Errorf("refresh read %q, want %q among them", svc.sideFake.calls, want)
-		}
+	if !slices.Contains(svc.sideFake.calls, "readme octocat") {
+		t.Errorf("refresh read %q, want the README among them", svc.sideFake.calls)
 	}
 }
 
@@ -233,27 +209,10 @@ func TestSideRevisit(t *testing.T) {
 	}
 	svc.sideFake.read = map[string]bool{}
 	run(t, s, s.Revisit())
-	for _, want := range []string{"readme octocat", "contributions octocat", "sponsors octocat"} {
+	for _, want := range []string{"readme octocat", "sponsors octocat"} {
 		if !slices.Contains(svc.sideFake.calls, want) {
 			t.Errorf("a stale page read %q, want %q among them", svc.sideFake.calls, want)
 		}
-	}
-}
-
-// The calendar follows dashboard.calendar_glyph and
-// dashboard.contributions, as the dashboard's does.
-func TestCalendarSettings(t *testing.T) {
-	s := newSection(t, newFake(), "octocat", 80, 24, WithCalendar("#", 30))
-	press(t, s, "4")
-	if v := ansi.Strip(s.View()); !strings.Contains(v, "contributions in the last 30 days") || !strings.Contains(v, "# # #") {
-		t.Errorf("the calendar doesn't follow its options:\n%s", v)
-	}
-	c := config.Default()
-	c.Dashboard.CalendarGlyph = "▪"
-	c.Dashboard.Contributions = config.ContributionsYear
-	s.Update(ui.SettingsMsg{Config: c})
-	if v := ansi.Strip(s.View()); !strings.Contains(v, "in the last year") || !strings.Contains(v, "▪") {
-		t.Errorf("the calendar doesn't follow the settings:\n%s", v)
 	}
 }
 
@@ -267,12 +226,12 @@ func TestReadmeImages(t *testing.T) {
 	}
 	host := &uitest.ImageHost{}
 	images := uitest.Avatars(host, true)
-	s := newSection(t, svc, "octocat", 80, 24, WithAvatars(images))
-	press(t, s, "3")
+	s := newSection(t, svc, "octocat", 120, 40, WithAvatars(images))
+	press(t, s, "z", "tab")
 	if _, changed := uitest.LoadAvatars(t, images); changed {
 		run(t, s, s.Update(ui.ImagesMsg{}))
 	}
-	asked := slices.DeleteFunc(host.Asked(), func(a string) bool { return strings.Contains(a, "avatars") })
+	asked := slices.Compact(slices.DeleteFunc(host.Asked(), func(a string) bool { return strings.Contains(a, "avatars") }))
 	if want := []string{"https://raw.githubusercontent.com/octocat/octocat/HEAD/img/logo.png"}; !slices.Equal(asked, want) {
 		t.Errorf("the README asked for %q, want %q", asked, want)
 	}
@@ -290,14 +249,13 @@ func TestReadmeImages(t *testing.T) {
 // the read no longer shows as loading.
 func TestRefreshDropsSideReads(t *testing.T) {
 	svc := newFake()
-	s := newSection(t, svc, "octocat", 80, 24)
+	s := newSection(t, svc, "octocat", 120, 40)
 	p := s.page
-	// The calendar's pane is off view, so the refresh doesn't read it.
-	cmd := s.readContribs(p, false)
+	cmd := s.readReadme(p, false)
 	press(t, s, "r")
 	run(t, s, cmd)
-	if p.side.contribs.loading || p.side.contribs.ok {
-		t.Errorf("the calendar read before the refresh is loading %v, kept %v", p.side.contribs.loading, p.side.contribs.ok)
+	if p.side.readme.loading {
+		t.Error("the README read before the refresh is still loading")
 	}
 	if s.updating() {
 		t.Error("the page still shows as updating")
@@ -309,7 +267,6 @@ func TestRefreshDropsSideReads(t *testing.T) {
 func TestSideRereadsOnView(t *testing.T) {
 	svc := newFake()
 	s := newSection(t, svc, "octocat", 80, 24)
-	press(t, s, "3", "4", "2")
 	svc.sideFake.read = map[string]bool{}
 	svc.sideFake.calls = nil
 	run(t, s, s.Revisit())
@@ -317,10 +274,12 @@ func TestSideRereadsOnView(t *testing.T) {
 	if len(svc.sideFake.calls) != 0 {
 		t.Errorf("the panes off view read %q", svc.sideFake.calls)
 	}
-	press(t, s, "3")
+	setSize(s, 120, 40)
+	svc.sideFake.read = map[string]bool{}
+	svc.sideFake.calls = nil
 	run(t, s, s.Revisit())
-	if !slices.Contains(svc.sideFake.calls, "readme octocat") || slices.Contains(svc.sideFake.calls, "contributions octocat") {
-		t.Errorf("the README on view read %q, want the README alone", svc.sideFake.calls)
+	if !slices.Contains(svc.sideFake.calls, "readme octocat") {
+		t.Errorf("the README on view read %q, want the README", svc.sideFake.calls)
 	}
 }
 
@@ -359,15 +318,15 @@ func TestReadmeSyncs(t *testing.T) {
 func TestReadmeRedrawsForItsImages(t *testing.T) {
 	host := &uitest.ImageHost{}
 	images := uitest.Avatars(host, true)
-	s := newSection(t, newFake(), "github", 80, 24, WithAvatars(images))
-	press(t, s, "3")
+	s := newSection(t, newFake(), "github", 120, 40, WithAvatars(images))
+	press(t, s, "z", "tab")
 	if !s.readmeStale(s.page) {
 		t.Error("a README with an image doesn't render again for images")
 	}
 	svc := newFake()
 	svc.readmes["github"] = core.Readme{Markdown: "No images.", Source: core.RepoRef{Owner: "github", Name: ".github"}}
-	s = newSection(t, svc, "github", 80, 24, WithAvatars(images))
-	press(t, s, "3")
+	s = newSection(t, svc, "github", 120, 40, WithAvatars(images))
+	press(t, s, "z", "tab")
 	if s.readmeStale(s.page) {
 		t.Error("a README without images renders again for images")
 	}
@@ -377,7 +336,7 @@ func TestReadmeRedrawsForItsImages(t *testing.T) {
 // and follows it when ui.icons changes.
 func TestReadmeFollowsIcons(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
-	press(t, s, "3")
+	press(t, s, "z", "tab")
 	if v := ansi.Strip(s.View()); !strings.Contains(v, "• Working on") || !strings.Contains(v, "│ Talk is cheap") {
 		t.Fatalf("the README doesn't draw its bullets and bars:\n%s", v)
 	}
@@ -398,13 +357,12 @@ func TestReadmeFollowsIcons(t *testing.T) {
 	}
 }
 
-// Focusing the README pane by its key focuses its pager, so ctrl+d scrolls
-// it, on a page opened while the section already has the focus and at a
-// size where the pane needn't be resized.
+// Flipping to the README with tab focuses its pager, so ctrl+d scrolls
+// it, on a page opened while the section already has the focus.
 func TestReadmePaneFocusScrolls(t *testing.T) {
-	s := newSection(t, newFake(), "", 120, 30)
+	s := newSection(t, newFake(), "", 120, 14)
 	run(t, s, s.Update(ui.OwnerMsg{Login: "octocat"}))
-	press(t, s, "3")
+	press(t, s, "z", "tab")
 	pg := s.page.side.pager
 	if !pg.Focused() {
 		t.Fatal("the README pager isn't focused after its pane key")

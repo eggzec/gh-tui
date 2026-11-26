@@ -9,7 +9,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/service/owners"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
@@ -20,8 +19,6 @@ import (
 type sideService interface {
 	FreshReadme(q owners.ReadmeQuery) bool
 	Readme(ctx context.Context, q owners.ReadmeQuery) (owners.Readme, error)
-	FreshContributions(login string) bool
-	Contributions(ctx context.Context, q owners.ContributionsQuery) (core.Contributions, error)
 	FreshOrgFollowers(login string) bool
 	OrgFollowers(ctx context.Context, q owners.OrgFollowersQuery) (owners.FollowerCount, error)
 	FreshPeople(q owners.PeopleQuery) bool
@@ -36,11 +33,9 @@ type side struct {
 	// sponsors and sponsoring end the README, on github.com only.
 	sponsors   sideRead[core.Page[core.Person]]
 	sponsoring sideRead[core.Page[core.Person]]
-	contribs   sideRead[core.Contributions]
 	followers  sideRead[owners.FollowerCount]
-	// pager shows the README, and cal the calendar, once made.
+	// pager shows the README, once made.
 	pager *pager.Model
-	cal   *calendar.Model
 	// shown is the source the pager shows, so that it is set again only
 	// when that changed, which keeps the place in it.
 	shown string
@@ -118,13 +113,12 @@ func readmeMarks(r owners.Readme) kept { return kept{r.Stale, r.Offline, r.Limit
 func peopleMarks(p core.Page[core.Person]) kept {
 	return kept{p.Stale, p.Offline, p.Limited}
 }
-func contribsMarks(c core.Contributions) kept    { return kept{c.Stale, c.Offline, c.Limited} }
 func followersMarks(f owners.FollowerCount) kept { return kept{f.Stale, f.Offline, f.Limited} }
 
 // sideReads are the reads of the side of a page, each with whether it is
 // to be read: the pane it shows in is on view, or it is the profile's.
 type sideReads struct {
-	readme, sponsors, contribs, followers bool
+	readme, sponsors, followers bool
 }
 
 // wanted returns which reads of the side page p shows now.
@@ -137,17 +131,13 @@ func (s *Section) wanted(p *page) sideReads {
 	return sideReads{
 		readme:    readme,
 		sponsors:  readme && s.sponsorsShown(),
-		contribs:  !org && s.onView(calendarPane),
 		followers: org,
 	}
 }
 
 // onView reports whether pane p of the page on view shows.
 func (s *Section) onView(p paneID) bool {
-	if s.page == nil || !s.hasPane(p) {
-		return false
-	}
-	return !s.onePane() || s.page.focus == p
+	return s.page != nil && s.shows(p)
 }
 
 // sponsorsShown reports whether the README ends with the sponsors, which
@@ -177,9 +167,6 @@ func (s *Section) startSide() tea.Cmd {
 	if w.sponsors && sd.sponsoring.due(p) {
 		cmds = append(cmds, s.readSponsors(p, owners.Sponsoring, false))
 	}
-	if w.contribs && sd.contribs.due(p) {
-		cmds = append(cmds, s.readContribs(p, false))
-	}
 	if w.followers && sd.followers.due(p) {
 		cmds = append(cmds, s.readFollowers(p, false))
 	}
@@ -208,13 +195,6 @@ func (s *Section) readSponsors(p *page, list owners.PeopleList, again bool) tea.
 		q := q
 		q.Again = again
 		return svc.People(ctx, q)
-	}, again)
-}
-
-func (s *Section) readContribs(p *page, again bool) tea.Cmd {
-	login, svc := p.header.value.Profile.Login, s.svc
-	return readSide(s, p, &p.side.contribs, "owner.contributions", contribsMarks, func(ctx context.Context, again bool) (core.Contributions, error) {
-		return svc.Contributions(ctx, owners.ContributionsQuery{Login: login, Again: again})
 	}, again)
 }
 
@@ -269,9 +249,6 @@ func (s *Section) againSide(p *page, again func(kept) bool) tea.Cmd {
 			cmds = append(cmds, s.readSponsors(p, l, true))
 		}
 	}
-	if r := &sd.contribs; w.contribs && r.asked && !r.loading && (r.ok && again(contribsMarks(r.value)) || ui.Unreached(r.err)) {
-		cmds = append(cmds, s.readContribs(p, true))
-	}
 	if r := &sd.followers; w.followers && r.asked && !r.loading && (r.ok && again(followersMarks(r.value)) || ui.Unreached(r.err)) {
 		cmds = append(cmds, s.readFollowers(p, true))
 	}
@@ -309,9 +286,6 @@ func (s *Section) revisitSide() tea.Cmd {
 			cmds = append(cmds, s.readSponsors(p, l, true))
 		}
 	}
-	if r := &sd.contribs; w.contribs && r.asked && !r.loading && !s.svc.FreshContributions(login) {
-		cmds = append(cmds, s.readContribs(p, true))
-	}
 	if r := &sd.followers; w.followers && r.asked && !r.loading && !s.svc.FreshOrgFollowers(login) {
 		cmds = append(cmds, s.readFollowers(p, true))
 	}
@@ -326,14 +300,12 @@ func (s *Section) sideUpdating() bool {
 		return false
 	}
 	sd := &p.side
-	return sd.readme.ok && sd.readme.loading || sd.contribs.ok && sd.contribs.loading ||
-		sd.followers.ok && sd.followers.loading
+	return sd.readme.ok && sd.readme.loading || sd.followers.ok && sd.followers.loading
 }
 
 // setSide shows what was read of the side of p.
 func (s *Section) setSide(p *page) {
 	s.setReadme(p)
-	s.setCalendar(p)
 }
 
 // updateSide passes msg to the pagers of the pages, which ignore the
@@ -365,13 +337,6 @@ func (s *Section) focusSide() {
 			pg.Blur()
 		}
 	}
-	if c := p.side.cal; c != nil {
-		if s.focused && p.focus == calendarPane {
-			c.Focus()
-		} else {
-			c.Blur()
-		}
-	}
 }
 
 // blurSide blurs the pager and the calendar of p, which leaves the screen.
@@ -381,9 +346,6 @@ func blurSide(p *page) {
 	}
 	if pg := p.side.pager; pg != nil {
 		pg.Blur()
-	}
-	if c := p.side.cal; c != nil {
-		c.Blur()
 	}
 }
 
@@ -400,10 +362,6 @@ func (s *Section) resizeSide() {
 		// README.
 		pg.SetSize(max(w-2, 0), h+1)
 	}
-	if c := p.side.cal; c != nil {
-		w, h := s.inside(calendarPane)
-		c.SetSize(min(max(w-2, 0), c.FitWidth()), min(h, calendarLines))
-	}
 }
 
 // orgFollowers returns how many follow the organization on view, once
@@ -413,41 +371,11 @@ func (s *Section) orgFollowers() (int, bool) {
 	return r.value.Count, r.ok
 }
 
-// hasPane reports whether the page on view has pane id: only a user's has
-// the calendar, once its header says it is one.
-func (s *Section) hasPane(id paneID) bool {
-	if id != calendarPane {
-		return true
-	}
-	p := s.page
-	return p != nil && p.header.ok && p.header.value.Kind == core.OwnerUser
-}
-
-// nextPane returns the pane dir steps from the focused one, past those the
-// page doesn't have.
-func (s *Section) nextPane(dir int) paneID {
-	p := s.page.focus
-	for range numPanes {
-		p = (p + paneID(dir) + numPanes) % numPanes
-		if s.hasPane(p) {
-			break
-		}
-	}
-	return p
-}
-
-// sideLayer returns the keys of the README's pager or of the calendar,
-// whichever has the focus.
+// sideLayer returns the keys of the README's pager while it has the focus.
 func (s *Section) sideLayer() (keyhelp.Layer, bool) {
 	p := s.page
-	if p == nil {
-		return keyhelp.Layer{}, false
-	}
-	switch {
-	case p.focus == readmePane && p.side.pager != nil:
+	if p != nil && p.focus == readmePane && p.side.pager != nil {
 		return keyhelp.FromHelp("readme", s.sc.keys, false), true
-	case p.focus == calendarPane && p.side.cal != nil && s.hasPane(calendarPane):
-		return keyhelp.FromHelp("calendar", p.side.cal.KeyMap(), false), true
 	}
 	return keyhelp.Layer{}, false
 }

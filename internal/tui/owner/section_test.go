@@ -96,8 +96,8 @@ func TestNarrowBoundaryOwner(t *testing.T) {
 	} {
 		s := newSection(t, newFake(), "octocat", tt.width, tt.height-chromeRows)
 		press(t, s, "z")
-		if s.zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
-			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.zoom.CanZoom(), s.zoomed(), tt.wide)
+		if s.ctl.Zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
+			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.ctl.Zoom.CanZoom(), s.zoomed(), tt.wide)
 		}
 	}
 }
@@ -106,11 +106,11 @@ func TestNarrowBoundaryOwner(t *testing.T) {
 func TestEscKeepsTheZoom(t *testing.T) {
 	s := newSection(t, newFake(), "octocat", 120, 40)
 	press(t, s, "z")
-	if msgs := press(t, s, "esc"); len(msgs) > 0 || !s.zoom.User() {
-		t.Errorf("esc sent %v with zoom %v, want the zoom kept", msgs, s.zoom.User())
+	if msgs := press(t, s, "esc"); len(msgs) > 0 || !s.ctl.Zoom.User() {
+		t.Errorf("esc sent %v with zoom %v, want the zoom kept", msgs, s.ctl.Zoom.User())
 	}
 	press(t, s, "z")
-	if s.zoom.User() {
+	if s.ctl.Zoom.User() {
 		t.Error("z left the page zoomed")
 	}
 }
@@ -122,9 +122,11 @@ func TestDefaultTab(t *testing.T) {
 			t.Errorf("default tab %q opens tab %d of pane %d, want the repositories", name, s.page.tab, s.page.focus)
 		}
 	}
-	s := newSection(t, newFake(), "octocat", 80, 24, WithDefaultTab(config.OwnerTabReadme))
-	if s.page.focus != readmePane || s.page.side.pager == nil {
-		t.Errorf("default tab readme opens pane %d, want the README read", s.page.focus)
+	// The README has the focus only in the zoomed split, so a page opens on
+	// the list and shows the README beside it.
+	s := newSection(t, newFake(), "octocat", 120, 40, WithDefaultTab(config.OwnerTabReadme))
+	if s.page.focus != listPane || s.page.side.pager == nil {
+		t.Errorf("default tab readme opens pane %d, want the list with the README read", s.page.focus)
 	}
 }
 
@@ -192,10 +194,10 @@ func TestClearFilter(t *testing.T) {
 
 func filterApplied(query string) filterform.AppliedMsg { return filterform.AppliedMsg{Query: query} }
 
-// The help names the keys of the panes the page has: an organization has
-// no calendar, so no 4.
+// The help names the keys of the panes the page has: the pins and the
+// list.
 func TestHelpNamesPanesOnView(t *testing.T) {
-	for _, tt := range []struct{ login, want string }{{"octocat", "1-4"}, {"github", "1-3"}} {
+	for _, tt := range []struct{ login, want string }{{"octocat", "1/2"}, {"github", "1/2"}} {
 		s := newSection(t, newFake(), tt.login, 120, 40)
 		var got string
 		for _, b := range s.KeyLayers()[0].Bindings {

@@ -90,7 +90,6 @@ var contexts = []Context{
 	{Name: "owner_pinned", Title: "Pinned", Reach: ReachPane, Parent: "owner"},
 	{Name: "owner_list", Title: "List", Reach: ReachPane, Parent: "owner"},
 	{Name: "owner_readme", Title: "README", Reach: ReachPane, Parent: "owner"},
-	{Name: "owner_calendar", Title: "Contributions", Reach: ReachPane, Parent: "owner"},
 
 	{Name: "pull_modal", Title: "Pull request", Reach: ReachScreen, Modal: true},
 	{Name: "pull_description", Title: "Description", Reach: ReachPane, Parent: "pull_modal"},

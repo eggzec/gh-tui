@@ -117,14 +117,12 @@ const (
 	pinnedPane paneID = iota
 	listPane
 	readmePane
-	// calendarPane is a user's only.
-	calendarPane
 	numPanes
 )
 
 // paneTitles name the panes. The list pane goes by the title of its tab
 // instead, and the README by its path once read.
-var paneTitles = [numPanes]string{"Pinned", "", "README", "Contributions"}
+var paneTitles = [numPanes]string{"Pinned", "", "README"}
 
 // maxBack is the most pages the back key goes back through, so that a long
 // walk from person to person keeps a bounded number of lists.
@@ -183,8 +181,9 @@ type Section struct {
 	// split is the width of the list column the root asked for, 0 for the
 	// default.
 	split int
-	// zoom shows the focused pane alone, as a narrow page does.
-	zoom panes.Zoom
+	// ctl owns the zoom, which shows the focused pane alone as a narrow
+	// page does, and the focus between a list and its preview.
+	ctl panes.Controller
 	// head is the profile above the panes, boxes are the sizes of the
 	// panes, and frames the panes rendered in their frames.
 	head   []string
@@ -301,6 +300,12 @@ func (s *Section) Init() tea.Cmd {
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
 	s.layout()
+	if s.page != nil {
+		s.syncNav()
+		if s.ctl.Settle(s.paneLayout()) {
+			s.applyNav()
+		}
+	}
 	s.render()
 }
 
@@ -321,7 +326,7 @@ func (s *Section) OnePane() bool { return s.onePane() }
 
 // SetNarrow tells the page that the terminal is too small for every pane at
 // once. It takes effect at the next SetSize.
-func (s *Section) SetNarrow(narrow bool) { s.zoom.SetNarrow(narrow) }
+func (s *Section) SetNarrow(narrow bool) { s.ctl.SetNarrow(narrow) }
 
 // SetTheme builds the styles of the page and restyles its lists.
 func (s *Section) SetTheme(t ui.Theme) {

@@ -2,7 +2,6 @@ package owner
 
 import (
 	"cmp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -33,20 +32,31 @@ type box struct{ w, h int }
 func (s *Section) layout() {
 	rest := max(s.height-s.profileHeight(), 0)
 	var b [numPanes]box
-	if s.onePane() {
+	l := s.paneLayout()
+	if s.page != nil && s.page.focus == readmePane && !s.hasSplit(l) {
+		// The README takes the focus only in the zoomed split, so a page
+		// that is not in it gives the focus back to the list.
+		s.page.focus = listPane
+		s.ctl.Nav.SetFocus(listSlot)
+		l = s.paneLayout()
+	}
+	switch {
+	case s.onePane():
 		for i := range b {
 			b[i] = box{s.width, rest}
 		}
-	} else {
+		if lb, ok := l.Box(listSlot, panes.List); ok && s.hasSplit(l) {
+			b[listPane] = box{lb.Rect.W, rest}
+			if pb, ok := l.Box(listSlot, panes.Preview); ok {
+				b[readmePane] = box{pb.Rect.W, rest}
+			}
+		}
+	default:
 		mid := max(rest-pinnedHeight, 0)
 		lw := s.leftWidth()
 		b[pinnedPane] = box{s.width, pinnedHeight}
 		b[listPane] = box{lw, mid}
 		b[readmePane] = box{s.width - lw, mid}
-		if s.hasPane(calendarPane) {
-			b[readmePane].h = max(mid-calendarHeight, 0)
-			b[calendarPane] = box{s.width - lw, calendarHeight}
-		}
 	}
 	s.boxes = b
 	p := s.page
@@ -79,11 +89,102 @@ func (s *Section) layoutList(l lister) {
 
 // onePane reports whether the page shows the focused pane alone: when the
 // panes don't fit, or while it is zoomed.
-func (s *Section) onePane() bool { return s.zoom.Zoomed() }
+func (s *Section) onePane() bool { return s.ctl.Zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A page too small for every pane
 // shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom.User() && s.zoom.CanZoom() }
+func (s *Section) zoomed() bool { return s.ctl.Zoom.User() && s.ctl.Zoom.CanZoom() }
+
+// The panes of the controller: the pinned cards, and the list, which has
+// the README as its preview.
+const (
+	pinnedSlot panes.Pane = 1
+	listSlot   panes.Pane = 2
+)
+
+var paneDefs = []panes.Def{{Name: "Pinned"}, {Name: "List", Split: true}}
+
+// navPane is the controller's pane for pane id.
+func navPane(id paneID) panes.Pane {
+	if id == pinnedPane {
+		return pinnedSlot
+	}
+	return listSlot
+}
+
+// paneLayout is the zoomed layout of the panes for the controller.
+func (s *Section) paneLayout() panes.Layout {
+	focus := pinnedPane
+	if s.page != nil {
+		focus = s.page.focus
+	}
+	return panes.Compute(panes.Spec{
+		Width:  s.width,
+		Height: max(s.height-s.profileHeight(), 0),
+		Panes:  paneDefs,
+		Focus:  navPane(focus),
+		Zoom:   s.onePane(),
+	})
+}
+
+// split reports whether l shows the list beside the README.
+func (s *Section) hasSplit(l panes.Layout) bool {
+	if s.page == nil || s.page.focus == pinnedPane {
+		return false
+	}
+	_, ok := l.Box(listSlot, panes.Preview)
+	return ok
+}
+
+// shows reports whether pane p is drawn now.
+func (s *Section) shows(p paneID) bool {
+	if s.page == nil {
+		return false
+	}
+	if !s.onePane() {
+		return true
+	}
+	if s.hasSplit(s.paneLayout()) {
+		return p != pinnedPane
+	}
+	return p == s.page.focus
+}
+
+// syncNav makes the controller follow the page's focus.
+func (s *Section) syncNav() {
+	s.ctl.Nav.SetFocus(navPane(s.page.focus))
+	if l := s.paneLayout(); s.page.focus == readmePane && l.Zoomed && s.hasSplit(l) {
+		s.ctl.Nav.Step(l, 1)
+	}
+}
+
+// applyNav moves the page's focus to where the controller's is.
+func (s *Section) applyNav() {
+	if s.page == nil {
+		return
+	}
+	l := s.paneLayout()
+	switch {
+	case s.ctl.Nav.Focus() == pinnedSlot:
+		s.setFocus(pinnedPane)
+	case s.ctl.Nav.InPreview(l):
+		s.setFocus(readmePane)
+	default:
+		s.setFocus(listPane)
+	}
+	s.layout()
+}
+
+// tab steps the focus by delta: between the panes, or zoomed between the
+// list and the README.
+func (s *Section) tab(delta int) {
+	if s.page == nil {
+		return
+	}
+	s.syncNav()
+	s.ctl.Tab(s.paneLayout(), delta)
+	s.applyNav()
+}
 
 // render renders the profile and every pane, and the page from them.
 func (s *Section) render() {
@@ -96,7 +197,7 @@ func (s *Section) render() {
 
 // renderPane renders pane p in its frame. Compose the page after.
 func (s *Section) renderPane(p paneID) {
-	if s.width <= 0 || s.height <= 0 || s.page == nil || s.onePane() && p != s.page.focus || !s.hasPane(p) {
+	if s.width <= 0 || s.height <= 0 || s.page == nil || !s.shows(p) {
 		return
 	}
 	w, h := s.inside(p)
@@ -106,8 +207,6 @@ func (s *Section) renderPane(p paneID) {
 		body = s.pinnedBody(w, h)
 	case readmePane:
 		body = s.readmeBody(w, h)
-	case calendarPane:
-		body = s.calendarBody(w)
 	default:
 		body = s.listBody(w, h)
 	}
@@ -117,7 +216,7 @@ func (s *Section) renderPane(p paneID) {
 		Body:    strings.Join(body, "\n"),
 		Focus:   s.focused && p == s.page.focus,
 	}
-	if s.onePane() {
+	if s.onePane() && p != readmePane {
 		c.BottomLeft = s.stripForms()
 	}
 	if p == listPane {
@@ -137,15 +236,13 @@ func (s *Section) compose() {
 	lines = append(lines, s.head...)
 	switch {
 	case s.page == nil:
+	case s.onePane() && s.hasSplit(s.paneLayout()):
+		lines = ui.Beside(lines, s.frames[listPane], s.frames[readmePane])
 	case s.onePane():
 		lines = append(lines, s.frames[s.page.focus]...)
 	default:
 		lines = append(lines, s.frames[pinnedPane]...)
-		right := s.frames[readmePane]
-		if s.hasPane(calendarPane) {
-			right = append(slices.Clip(right), s.frames[calendarPane]...)
-		}
-		lines = ui.Beside(lines, s.frames[listPane], right)
+		lines = ui.Beside(lines, s.frames[listPane], s.frames[readmePane])
 	}
 	blank := strings.Repeat(" ", s.width)
 	for len(lines) < s.height {
@@ -160,11 +257,6 @@ func (s *Section) title(p paneID, short bool) string {
 	switch p {
 	case readmePane:
 		return s.readmeTitle(s.page, short)
-	case calendarPane:
-		if short {
-			return "Calendar"
-		}
-	case listPane:
 	default:
 	}
 	if p != listPane {
@@ -212,7 +304,7 @@ func (s *Section) labelForms(p paneID, w int) []string {
 
 // keyLabel is the number that focuses pane p, or "" when it has none.
 func (s *Section) keyLabel(p paneID) string {
-	if !s.hasPane(p) || !s.keys.Panes[p].Enabled() {
+	if p == readmePane || !s.keys.Panes[p].Enabled() {
 		return ""
 	}
 	return strconv.Itoa(int(p) + 1)
@@ -222,13 +314,11 @@ func (s *Section) keyLabel(p paneID) string {
 // pane that shows, longest first. The panes are numbered by place, as in
 // every pane strip.
 func (s *Section) stripForms() []string {
-	defs := make([]panes.Def, 0, numPanes)
-	for p := range numPanes {
-		if s.hasPane(p) {
-			defs = append(defs, panes.Def{Name: s.title(p, false), Short: s.title(p, true)})
-		}
+	defs := make([]panes.Def, 0, len(paneDefs))
+	for _, p := range []paneID{pinnedPane, listPane} {
+		defs = append(defs, panes.Def{Name: s.title(p, false), Short: s.title(p, true)})
 	}
-	return s.st.frames.StripForms(defs, panes.Pane(s.page.focus+1))
+	return s.st.frames.StripForms(defs, navPane(s.page.focus))
 }
 
 // paneLabel is the label of pane p, with its number before it, such as

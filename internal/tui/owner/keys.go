@@ -6,7 +6,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
-	"github.com/eggzec/gh-tui/pkg/bubbles/calendar"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
@@ -20,7 +19,7 @@ type KeyMap struct {
 	// pane with that number.
 	Next  key.Binding
 	Prev  key.Binding
-	Panes [numPanes]key.Binding
+	Panes [2]key.Binding
 	// NextTab and PrevTab switch between the tabs of the list pane.
 	NextTab key.Binding
 	PrevTab key.Binding
@@ -60,8 +59,6 @@ type KeyMap struct {
 	search cmdline.KeyMap
 	// order are the keys of the picker of the levels to group by.
 	order orderpick.KeyMap
-	// cal moves through the days of a user's contributions.
-	cal calendar.KeyMap
 }
 
 // ctxPage is the context of the keys of the page, which work in every
@@ -69,7 +66,7 @@ type KeyMap struct {
 const ctxPage = "owner"
 
 // paneContext names the context of the keys of each pane.
-var paneContext = [numPanes]string{"owner_pinned", "owner_list", "owner_readme", "owner_calendar"}
+var paneContext = [numPanes]string{"owner_pinned", "owner_list", "owner_readme"}
 
 func newKeyMap(keys config.Keymap) KeyMap {
 	page, list := ui.In(keys, ctxPage), ui.In(keys, paneContext[listPane])
@@ -90,8 +87,8 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		ToggleSort:   list.Binding("sort_toggle", "sort on/off"),
 	}
 	keymap.Fill(&k, page)
-	actions := [numPanes]string{"global.pane_1", "global.pane_2", "global.pane_3", "global.pane_4"}
-	names := [numPanes]string{paneTitles[pinnedPane], "List", paneTitles[readmePane], paneTitles[calendarPane]}
+	actions := [len(k.Panes)]string{"global.pane_1", "global.pane_2"}
+	names := [len(k.Panes)]string{paneTitles[pinnedPane], "List"}
 	for i, a := range actions {
 		k.Panes[i] = page.Binding(a, names[i])
 	}
@@ -102,7 +99,6 @@ func newKeyMap(keys config.Keymap) KeyMap {
 	k.feed = feed.NewKeyMap(list)
 	k.search = ui.SearchPromptKeys(keys)
 	k.order = ui.OrderPickKeys(keys)
-	k.cal = calendar.NewKeyMap(ui.In(keys, paneContext[calendarPane]))
 	return k
 }
 
@@ -179,9 +175,7 @@ func (k KeyMap) paneKeys(p paneID) []key.Binding {
 		return []key.Binding{k.Left, k.Right, k.Up, k.Down, k.Select}
 	case listPane:
 		return []key.Binding{k.Select, k.NextTab, k.PrevTab, k.ClearFilter, k.ToggleFilter, k.Filter, k.Sort, k.ToggleSort, k.GroupBy, k.ToggleGroups}
-	case readmePane:
-		return nil
-	case calendarPane, numPanes:
+	case readmePane, numPanes:
 	}
 	return nil
 }
@@ -193,9 +187,7 @@ func (k KeyMap) paneShort(p paneID) []key.Binding {
 		return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Select}
 	case listPane:
 		return []key.Binding{k.Select, k.Filter, k.Sort, k.ClearFilter, k.NextTab}
-	case readmePane:
-		return nil
-	case calendarPane, numPanes:
+	case readmePane, numPanes:
 	}
 	return nil
 }
@@ -233,12 +225,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 			k.Select.SetEnabled(k.Select.Enabled() && ok && !team)
 		}
 	}
-	// An organization has no calendar, so its pane has no key to name.
-	if !s.hasPane(calendarPane) && k.Panes[calendarPane].Enabled() {
-		k.Panes[calendarPane].SetEnabled(false)
-		k.Jump = ui.Jump(k.Panes[:]...)
-	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.zoom.CanZoom())
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.ctl.Zoom.CanZoom())
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
