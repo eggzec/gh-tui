@@ -22,7 +22,8 @@ type Slot[H any] struct {
 	// Hovered names the row of the pane's list under the cursor, and its text,
 	// for the pane's preview. ok is false when no row has anything to preview,
 	// and the preview then stays on the last row that had. A pane with no
-	// preview has none.
+	// preview has none. It may record the row it names for Preview to draw, and
+	// does so only when ok.
 	Hovered func(h H) (id, title string, ok bool)
 	// Preview is the whole body of the pane's preview of the hovered row.
 	Preview func(h H, b panes.Box) string
@@ -148,7 +149,7 @@ func (s *Set[H]) Scroll(h H, p panes.Pane, b panes.Box, k ui.MoveKeys, msg tea.K
 	rows := b.Rect.Inner().H
 	last := max(0, strings.Count(sl.Preview(h, b), "\n")+1-rows)
 	pk := Key{p, s.hover[p-1].ID}
-	off := s.previews.Get(pk)
+	off := min(s.previews.Get(pk), last)
 	switch {
 	case keymap.Matches(msg, k.Up):
 		off--

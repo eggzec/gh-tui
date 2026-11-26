@@ -31,6 +31,7 @@ func NewKeyMap(keys config.Keymap) treeview.KeyMap {
 type Model struct {
 	tree   treeview.Model
 	items  map[string]Item
+	groups map[string][]core.Reference
 	opts   Options
 	links  core.PullLinks
 	loaded bool
@@ -112,6 +113,7 @@ func (m *Model) rebuild() {
 	if m.loaded {
 		r := Build(m.links, m.opts)
 		m.items = r.Items
+		m.groups = r.Groups
 		m.rows = len(r.Rows)
 		m.tree.SetRows(r.Rows)
 	}
@@ -153,6 +155,9 @@ func (m Model) Hovered() (id, title string, it Item, ok bool) {
 	}
 	return "", "", Item{}, false
 }
+
+// Group returns the references listed under the header of group.
+func (m Model) Group(group string) []core.Reference { return m.groups[group] }
 
 // Links are the links the pane shows.
 func (m Model) Links() core.PullLinks { return m.links }

@@ -63,8 +63,8 @@ func TestPreviewGolden(t *testing.T) {
 		for name, got := range map[string]string{
 			"issue":  IssuePreview(issuePreview(), o),
 			"pull":   PullPreview(pullPreview(), o),
-			"header": HeaderPreview(GroupCloses, fixture(), o),
-			"empty":  HeaderPreview(GroupLinked, core.PullLinks{}, o),
+			"header": HeaderPreview(Build(fixture(), Options{Repo: o.Repo, Styles: o.Styles}).Groups[GroupCloses], o),
+			"empty":  HeaderPreview(nil, o),
 		} {
 			t.Run(name+"-"+set, func(t *testing.T) {
 				t.Parallel()

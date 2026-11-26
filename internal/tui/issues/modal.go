@@ -205,7 +205,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.nav.SetFocus(paneConversation)
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
 	if s.previews != nil {
-		m.side.previews = dev.NewPreviews(devReader{s.previews}, dev.WithContext(ctx))
+		m.side.previews = dev.NewPreviews(dev.ServiceReader(s.previews), dev.WithContext(ctx))
 	}
 	m.slots = slots.New(paneSlots[:], func(title string, b panes.Box) []string {
 		return titleForms(title, b, m.icons.Ellipsis)
