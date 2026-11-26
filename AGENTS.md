@@ -191,9 +191,8 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
 
 ### Pane navigation and zoom
 
-Every host of panes (the issues, pulls, releases, actions, history,
-dashboard and repository screens, and the owner and pull request modals)
-follows one rule:
+Every host of panes (the dashboard and repository screens, and the owner,
+issue, pull request, release, Actions and History modals) follows one rule:
 
 - Digits always switch pane, zoomed or not.
 - Tab and Shift+Tab cycle panes only while nothing is zoomed. Zoomed, they
@@ -203,8 +202,8 @@ follows one rule:
 
 The state lives in `pkg/bubbles/panes` as the key-agnostic `Controller`. A new
 host uses it, and never mutates `Nav` or `Zoom` directly. Help and hints list
-only keys that work: gate the zoom key by `CanZoom`, and the pane steps and
-digits by `CanStep`, as the pull request modal does.
+only keys that work: gate the zoom key by `CanZoom`, the pane steps by `CanStep`, and
+disable the digit of the focused pane, as the pull request modal does.
 
 ### Vendoring
 
