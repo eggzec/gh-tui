@@ -478,6 +478,9 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k.Next.SetEnabled(k.Next.Enabled() && steps)
 	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	if m.ctl.Zoom.User() && m.ctl.Zoom.CanZoom() {
+		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
+	}
 	stack := m.canStack()
 	k.DividerUp.SetEnabled(k.DividerUp.Enabled() && stack)
 	k.DividerDown.SetEnabled(k.DividerDown.Enabled() && stack)

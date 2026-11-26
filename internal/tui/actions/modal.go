@@ -378,6 +378,9 @@ func (k KeyMap) state(m *Modal) KeyMap {
 	}
 	k.Jump = ui.Jump(k.Panes[:]...)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	if m.userZoom() {
+		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
+	}
 	can := m.canDivide()
 	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)
 	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && can)

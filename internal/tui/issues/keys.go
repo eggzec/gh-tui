@@ -268,6 +268,14 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	pk.next.SetEnabled(pk.next.Enabled() && steps)
 	pk.prev.SetEnabled(pk.prev.Enabled() && steps)
 	pk.zoom.SetEnabled(pk.zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	if m.ctl.Zoom.User() && m.ctl.Zoom.CanZoom() {
+		pk.zoom.SetHelp(pk.zoom.Help().Key, "unzoom")
+	}
+	if l.Zoomed && steps {
+		// Zoomed, the keys flip between the list and the preview.
+		pk.next.SetHelp(pk.next.Help().Key, "switch split")
+		pk.prev.SetHelp(pk.prev.Help().Key, "switch split")
+	}
 	// Pressing the digit of the focused pane does nothing, so help doesn't
 	// list it.
 	if f := int(m.ctl.Nav.Focus()) - 1; f >= 0 && f < paneCount {

@@ -11,8 +11,8 @@ global
   help | ? | ? | on
 
 Pull request
-  next pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
+  switch split | tab | tab | on
+  switch split | shift+tab | shift+tab | on
   Description | 1 | 1 | on
   Conversation | 2 | 2 | on
   Merge | 3 | 3 | off
