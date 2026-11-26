@@ -117,8 +117,10 @@ counts at the right of Results; user rows are a glyph and the login only.
 `J` and `K` scroll the pane that has not the focus: the preview from the
 results, the results from the preview. The zoomed split
 panes of the pull request and issue modals work alike: `J` and `K` scroll
-the preview from the list, and move the list from the preview. `.` and
-`@` close the modal first, then show the repository or the owner.
+the preview from the list, and move the list from the preview. From the
+search, `.` and `@` close the modal first, then show the repository or the
+owner. From the pull request and issue modals, `@` opens the author's page
+over the modal; back returns to it.
 
 Enter acts on the result by kind: a commit opens the commit view, a user or
 an organization opens the owner, and a topic runs a `topic:<name>`

@@ -667,8 +667,8 @@ func TestModalTrimHoldsTitle(t *testing.T) {
 }
 
 // TestOwnerKeyInModal checks that the owner key of the modal, which the
-// list leaves to the app, closes it and asks for the author's page, and
-// that it types into a comment.
+// list leaves to the app, asks for the author's page over it, and that it
+// types into a comment.
 func TestOwnerKeyInModal(t *testing.T) {
 	h, m := opened(t, newFakeService(sampleIssues(3)), 30)
 	if got := uitest.Enabled(h.KeyLayers()); slices.Contains(got, "author") {
@@ -687,8 +687,8 @@ func TestOwnerKeyInModal(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(ui.OwnerMsg{Login: login})) || login == "" {
 		t.Errorf("@ sent %v, want the page of %q", msgs, login)
 	}
-	if h.modal() != nil || m.ctx.Err() == nil {
-		t.Error("@ should close the modal and cancel its reads")
+	if h.modal() != m || m.ctx.Err() != nil {
+		t.Error("@ should leave the modal open, for back to return to")
 	}
 }
 
