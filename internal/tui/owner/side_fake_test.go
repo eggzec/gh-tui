@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/owners"
@@ -16,7 +15,6 @@ import (
 type sideFake struct {
 	mu        sync.Mutex
 	readmes   map[string]core.Readme
-	contribs  map[string]core.Contributions
 	sponsors  map[string]core.Page[core.Person]
 	followers map[string]int
 	// fail, when set, fails the read of that kind: readme, contributions,
@@ -33,7 +31,6 @@ func newSideFake() *sideFake {
 			"octocat": {Markdown: octocatReadme, Source: core.RepoRef{Owner: "octocat", Name: "octocat"}},
 			"github":  {Markdown: githubReadme, Source: core.RepoRef{Owner: "github", Name: ".github"}},
 		},
-		contribs: map[string]core.Contributions{"octocat": contributions()},
 		sponsors: map[string]core.Page[core.Person]{
 			"sponsors octocat":   {Items: []core.Person{{Login: "mona"}, {Login: "hubot"}, {Login: "mona_corp"}}},
 			"sponsoring octocat": {Items: []core.Person{{Login: "charmbracelet", Kind: core.OwnerOrg}}, Next: "x"},
@@ -63,27 +60,6 @@ We build the home for all developers.
 <img src="banner.png" alt="banner">
 `
 
-// contributions returns a year of weeks, from Sunday, with counts that
-// repeat so the levels vary.
-func contributions() core.Contributions {
-	start := time.Date(2025, 9, 21, 0, 0, 0, 0, time.UTC)
-	var c core.Contributions
-	for w := range 53 {
-		var week []core.ContributionDay
-		for d := range 7 {
-			day := start.AddDate(0, 0, w*7+d)
-			if day.After(now) {
-				break
-			}
-			n := (w*3 + d*5) % 9
-			week = append(week, core.ContributionDay{Date: day, Count: n, Level: min(n/2, 4)})
-			c.Total += n
-		}
-		c.Weeks = append(c.Weeks, week)
-	}
-	return c
-}
-
 // served notes a read of what, by login, and returns the error it fails
 // with, if any.
 func (f *sideFake) served(what, login string) error {
@@ -110,17 +86,6 @@ func (f *sideFake) Readme(_ context.Context, q owners.ReadmeQuery) (owners.Readm
 		return owners.Readme{}, err
 	}
 	return owners.Readme{Readme: f.readmes[strings.ToLower(q.Login)]}, nil
-}
-
-func (f *sideFake) FreshContributions(login string) bool { return f.fresh("contributions", login) }
-
-func (f *sideFake) Contributions(_ context.Context, q owners.ContributionsQuery) (core.Contributions, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if err := f.served("contributions", q.Login); err != nil {
-		return core.Contributions{}, err
-	}
-	return f.contribs[strings.ToLower(q.Login)], nil
 }
 
 func (f *sideFake) FreshOrgFollowers(login string) bool { return f.fresh("followers", login) }

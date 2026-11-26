@@ -996,14 +996,6 @@ keys:
     # kind or role, and switch the grouping off and on again.
     group_by: [g]
     group_toggle: [alt+g]
-  # The page of a user: its contributions, a day at a time.
-  owner_calendar:
-    up: [up, k]
-    down: [down, j]
-    left: [left, h]
-    right: [right, l]
-    top: ["g g", home]
-    bottom: [G, end]
 
   # The modal of a pull request, over each of its panes. Review has no key: it
   # is `:review`, which picks a verdict, takes a summary and sends the review.

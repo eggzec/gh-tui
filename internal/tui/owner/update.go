@@ -6,6 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // Update handles the page's keys, the account the app gives it and its
@@ -98,21 +99,24 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
 	case keymap.Matches(msg, k.Next):
-		s.setFocus(s.nextPane(1))
+		s.tab(1)
 		return nil
 	case keymap.Matches(msg, k.Prev):
-		s.setFocus(s.nextPane(-1))
+		s.tab(-1)
 		return nil
-	case s.zoom.CanZoom() && keymap.Matches(msg, k.Zoom):
-		s.zoom.Toggle()
+	case s.ctl.Zoom.CanZoom() && keymap.Matches(msg, k.Zoom):
+		s.syncNav()
+		s.ctl.Toggle()
 		s.layout()
+		s.applyNav()
 		return nil
 	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
 	if i := k.pane(msg); i >= 0 {
-		if s.hasPane(i) {
-			s.setFocus(i)
+		s.syncNav()
+		if s.ctl.Digit(s.paneLayout(), panes.Pane(i+1)) {
+			s.applyNav()
 		}
 		return nil
 	}
@@ -123,8 +127,6 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case readmePane:
 		return s.pressReadme(msg)
-	case calendarPane:
-		return s.pressCalendar(msg)
 	default:
 	}
 	return nil

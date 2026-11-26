@@ -18,7 +18,6 @@ func TestStripForms(t *testing.T) {
 	}{
 		{"first pane", []string{"z", "1"}, pinnedPane},
 		{"repositories", []string{"z", "2"}, listPane},
-		{"readme", []string{"z", "3"}, readmePane},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -40,7 +39,7 @@ func TestStripForms(t *testing.T) {
 			if forms[0] == long {
 				t.Errorf("longest form %q marks no pane as the focused one", long)
 			}
-			for _, want := range []string{"1 ", "2 ", "3 "} {
+			for _, want := range []string{"1 ", "2 "} {
 				if !strings.Contains(long, want) {
 					t.Errorf("longest form %q lacks the number %q", long, want)
 				}
@@ -60,7 +59,7 @@ func TestStripInBottomEdge(t *testing.T) {
 	}{
 		{"wide", 120, 38, "2", true},
 		{"narrow", 80, 22, "2", true},
-		{"very narrow", 40, 22, "3", false},
+		{"very narrow", 30, 22, "2", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
