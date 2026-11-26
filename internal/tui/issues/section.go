@@ -34,6 +34,9 @@ type Section struct {
 	// configure the step. Without refs, the modal has no such step.
 	refs     refs.Service
 	refsOpts []refs.Option
+	// previews reads what the Development and Blockers panes preview. Without
+	// it they have no preview.
+	previews PreviewService
 
 	repo    core.RepoRef
 	hasRepo bool

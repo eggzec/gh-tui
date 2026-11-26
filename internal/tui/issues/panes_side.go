@@ -53,6 +53,11 @@ type sidePanes struct {
 	// refs and mentions are what the Development pane lists.
 	refs     core.References
 	mentions core.Page[core.Reference]
+	// previews reads and draws the previews of the Development and Blockers
+	// rows, or is nil without a service. devHov and depHov are the rows they
+	// follow, which the last row with something to preview stays.
+	previews       *dev.Previews
+	devHov, depHov dev.Item
 }
 
 // linksMsg is what a read of the references of the issue brought.
@@ -120,6 +125,9 @@ func (m *detailModal) refreshSide() {
 	m.refreshInvolved()
 	p.devSt = dev.NewStyles(m.theme, m.icons)
 	p.dev.SetStyles(p.devSt)
+	if p.previews != nil {
+		p.previews.Retry()
+	}
 	if m.refSvc != nil {
 		if pg, ok := m.refSvc.CachedMentions(m.mentionsQuery(false)); ok {
 			p.mentions = pg

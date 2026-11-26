@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -96,9 +97,9 @@ func TestPreviewFocusDropsOnResize(t *testing.T) {
 	if !m.nav.InPreview(m.paneLayout()) {
 		t.Fatal("the step didn't reach the preview at 110")
 	}
-	m.previewOff = 5
+	m.slots.Previews().Set(slots.Key{Pane: paneInvolved, ID: "conversation"}, 5)
 	m.SetSize(90, 30)
-	if m.previewOff != 0 {
+	if m.slots.Offset(paneInvolved) != 0 {
 		t.Error("the offset stayed after the preview went")
 	}
 	if m.nav.Sub(4) != panes.List {
@@ -159,45 +160,45 @@ func TestPreviewScrolls(t *testing.T) {
 	}
 	cur := m.side.inv.View()
 	press(t, h, "j")
-	if m.previewOff != 1 {
-		t.Errorf("j moved the preview to %d, want 1", m.previewOff)
+	if m.slots.Offset(paneInvolved) != 1 {
+		t.Errorf("j moved the preview to %d, want 1", m.slots.Offset(paneInvolved))
 	}
 	press(t, h, "G")
 	if !strings.Contains(plain(), "Early 39.") {
 		t.Errorf("G doesn't show the last comment:\n%s", plain())
 	}
-	end := m.previewOff
+	end := m.slots.Offset(paneInvolved)
 	press(t, h, "j")
-	if m.previewOff != end {
-		t.Errorf("j past the end moved to %d, was %d", m.previewOff, end)
+	if m.slots.Offset(paneInvolved) != end {
+		t.Errorf("j past the end moved to %d, was %d", m.slots.Offset(paneInvolved), end)
 	}
 	press(t, h, "home")
-	if m.previewOff != 0 {
-		t.Errorf("home left the preview at %d", m.previewOff)
+	if m.slots.Offset(paneInvolved) != 0 {
+		t.Errorf("home left the preview at %d", m.slots.Offset(paneInvolved))
 	}
 	press(t, h, "ctrl+d")
-	if m.previewOff <= 1 {
-		t.Errorf("ctrl+d moved only %d", m.previewOff)
+	if m.slots.Offset(paneInvolved) <= 1 {
+		t.Errorf("ctrl+d moved only %d", m.slots.Offset(paneInvolved))
 	}
 	if m.side.inv.View() != cur {
 		t.Error("the moves reached the Involved list")
 	}
 	// The offset survives a step back and a narrower, then wider window.
 	press(t, h, "G")
-	end = m.previewOff
+	end = m.slots.Offset(paneInvolved)
 	m.SetSize(100, 30)
 	m.SetSize(110, 30)
 	assertFits(t, m.View(), 110, 30)
-	if m.previewOff == 0 || !strings.Contains(plain(), "Early 39.") {
-		t.Errorf("a resize lost the end of the preview (offset %d, was %d)", m.previewOff, end)
+	if m.slots.Offset(paneInvolved) == 0 || !strings.Contains(plain(), "Early 39.") {
+		t.Errorf("a resize lost the end of the preview (offset %d, was %d)", m.slots.Offset(paneInvolved), end)
 	}
 	press(t, h, "shift+tab")
-	if m.previewOff == 0 {
+	if m.slots.Offset(paneInvolved) == 0 {
 		t.Error("the step back reset the offset")
 	}
-	off := m.previewOff
+	off := m.slots.Offset(paneInvolved)
 	press(t, h, "j")
-	if m.previewOff != off {
+	if m.slots.Offset(paneInvolved) != off {
 		t.Error("j scrolled the preview from the list")
 	}
 }
@@ -243,7 +244,7 @@ func TestPreviewScrollsWithTheTopChord(t *testing.T) {
 	h, m := longPreview(t)
 	press(t, h, "tab")
 	press(t, h, "G")
-	if m.previewOff == 0 {
+	if m.slots.Offset(paneInvolved) == 0 {
 		t.Fatal("G didn't scroll")
 	}
 	// The root turns the chord "g g" into the press of its action before the
@@ -253,8 +254,8 @@ func TestPreviewScrollsWithTheTopChord(t *testing.T) {
 		t.Fatal("the top move has no action")
 	}
 	run(t, h, h.Update(keymap.ActionPress(acts[0])))
-	if m.previewOff != 0 {
-		t.Errorf("the top chord left the preview at %d", m.previewOff)
+	if m.slots.Offset(paneInvolved) != 0 {
+		t.Errorf("the top chord left the preview at %d", m.slots.Offset(paneInvolved))
 	}
 }
 

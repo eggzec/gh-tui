@@ -292,7 +292,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 		issueOpts = []issues.Option{
 			issues.WithVoice(voice), issues.WithIcons(icons), issues.WithDates(dates), issues.WithAvatars(pics), issues.WithFacets(facetSvc),
 			issues.WithRepos(repoSvc), issues.WithViewer(issues.Viewer(viewer)),
-			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...),
+			issues.WithPrefetch(cfg.Prefetch), issues.WithSlots(slots), issues.WithReferences(refSvc, refOpts...), issues.WithPreviews(pullSvc),
 			issues.WithAutolinks(links),
 			issues.WithConversation(cfg),
 		}

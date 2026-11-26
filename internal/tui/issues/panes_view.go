@@ -77,7 +77,9 @@ func (m *detailModal) composed() string {
 func (m *detailModal) drawPanes(l panes.Layout) string {
 	return m.frames.Draw(l, func(b panes.Box) panes.Content {
 		if b.Role == panes.Preview {
-			return m.previewContent(b, m.nav.InPreview(l))
+			c := m.slots.Content(m, b)
+			c.Focus = m.nav.InPreview(l)
+			return c
 		}
 		c := panes.Content{Focus: b.Pane == l.Focus && !m.nav.InPreview(l)}
 		title := "[" + strconv.Itoa(int(b.Pane)) + "] " + paneName(b.Pane)

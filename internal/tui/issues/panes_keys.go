@@ -93,7 +93,7 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	case keymap.Matches(msg, k.zoom):
 		m.zoom.Toggle()
 		m.nav.Reset()
-		m.previewOff = 0
+		m.resetPreviews()
 	default:
 		p, ok := k.digit(msg)
 		if !ok {

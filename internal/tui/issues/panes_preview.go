@@ -1,13 +1,16 @@
 package issues
 
 import (
+	"context"
 	"strconv"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -24,70 +27,164 @@ type drawnPeek struct {
 	set   bool
 }
 
-// previewContent frames the preview box b of a zoomed side pane. Only the
-// Involved pane has one: the conversation of the issue, read-only. focused is
-// whether it has the focus.
-func (m *detailModal) previewContent(b panes.Box, focused bool) panes.Content {
-	if b.Pane != paneInvolved {
-		return panes.Content{}
-	}
-	title := "#" + strconv.Itoa(m.number)
-	c := panes.Content{TopLeft: titleForms(title, b, m.icons.Ellipsis), Focus: focused}
-	body, ok := m.peekBody(b.Rect.Inner().W)
-	if !ok {
-		text := "no conversation"
-		if !m.convOn || !m.conv.Ready() {
-			text = "loading"
-		}
-		c.Body = m.theme.Muted.Render(text)
-		return c
-	}
-	off := min(m.previewOff, previewLast(body, b.Rect.Inner().H))
-	c.Body, _ = panes.Window(body, off, b.Rect.Inner().H)
-	return c
+// PreviewService is what the previews of the Development and Blockers rows
+// read. *pulls.Service satisfies it.
+type PreviewService interface {
+	CachedIssuePreview(q pulls.PreviewQuery) (core.IssuePreview, bool)
+	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
+	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
+	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
 }
 
-// previewLast is the largest offset of body in a box rows tall.
-func previewLast(body string, rows int) int {
-	return max(strings.Count(body, "\n")+1-rows, 0)
+// WithPreviews reads the previews of the Development and Blockers rows from
+// svc. Without it those panes have none.
+func WithPreviews(svc PreviewService) Option {
+	return func(s *Section) { s.previews = svc }
 }
 
-// scrollPreview moves the preview of the zoomed Involved pane by the move msg
-// is, as far as its text goes. The preview shows the whole conversation, so
-// one offset serves any row.
-func (m *detailModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
-	b, ok := l.Box(paneInvolved, panes.Preview)
-	if !ok {
-		return
-	}
-	rows := b.Rect.Inner().H
-	last := 0
+// devReader adapts a PreviewService to what dev.Previews reads.
+type devReader struct{ s PreviewService }
+
+func query(t core.Target) pulls.PreviewQuery {
+	return pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
+}
+
+func (r devReader) CachedIssue(t core.Target) (core.IssuePreview, bool) {
+	return r.s.CachedIssuePreview(query(t))
+}
+
+func (r devReader) Issue(ctx context.Context, t core.Target) (core.IssuePreview, error) {
+	return r.s.IssuePreview(ctx, query(t))
+}
+
+func (r devReader) CachedPull(t core.Target) (core.PullPreview, bool) {
+	return r.s.CachedPullPreview(query(t))
+}
+
+func (r devReader) Pull(ctx context.Context, t core.Target) (core.PullPreview, error) {
+	return r.s.PullPreview(ctx, query(t))
+}
+
+// paneSlots has one entry per pane, in the order of the panes. Description and
+// Conversation have no preview beside them.
+var paneSlots = [paneCount]slots.Slot[*detailModal]{
+	paneInvolved - 1:    {Hovered: (*detailModal).hoveredInvolved, Preview: (*detailModal).involvedPreview},
+	paneDevelopment - 1: {Hovered: (*detailModal).hoveredDev, Preview: (*detailModal).devPreview},
+	paneBlockers - 1:    {Hovered: (*detailModal).hoveredDeps, Preview: (*detailModal).depsPreview},
+}
+
+// hoveredInvolved names what the Involved preview shows: the conversation of
+// the issue, whichever person is under the cursor.
+func (m *detailModal) hoveredInvolved() (id, title string, ok bool) {
+	return "conversation", "#" + strconv.Itoa(m.number), true
+}
+
+// involvedPreview is the conversation of the issue, read-only.
+func (m *detailModal) involvedPreview(b panes.Box) string {
 	if body, ok := m.peekBody(b.Rect.Inner().W); ok {
-		last = previewLast(body, rows)
+		return body
 	}
-	k := m.keys.panes.scroll
-	off := min(m.previewOff, last)
-	switch {
-	case keymap.Matches(msg, k.Up):
-		off--
-	case keymap.Matches(msg, k.Down):
-		off++
-	case keymap.Matches(msg, k.PageUp):
-		off -= rows
-	case keymap.Matches(msg, k.PageDown):
-		off += rows
-	case keymap.Matches(msg, k.HalfPageUp):
-		off -= max(1, rows/2)
-	case keymap.Matches(msg, k.HalfPageDown):
-		off += max(1, rows/2)
-	case keymap.Matches(msg, k.Home):
-		off = 0
-	case keymap.Matches(msg, k.End):
-		off = last
+	text := "no conversation"
+	if !m.convOn || !m.conv.Ready() {
+		text = "loading"
+	}
+	return m.theme.Muted.Render(text)
+}
+
+// hoveredDev names the row of the Development tree for the preview.
+func (m *detailModal) hoveredDev() (id, title string, ok bool) {
+	p := m.side
+	if p == nil || !p.dev.Loaded() {
+		return "", "", false
+	}
+	id, title, it, ok := p.dev.Hovered()
+	if ok {
+		p.devHov = it
+	}
+	return id, title, ok
+}
+
+// hoveredDeps names the issue under the cursor of the Blockers tree for the
+// preview. The roots have nothing to preview.
+func (m *detailModal) hoveredDeps() (id, title string, ok bool) {
+	p := m.side
+	if p == nil {
+		return "", "", false
+	}
+	n, found := p.deps.Selected()
+	v, isDep := n.Value.(depNode)
+	if !found || !isDep || v.dep.Number == 0 {
+		return "", "", false
+	}
+	d := v.dep
+	t := core.Target{Repo: refOf(m.repo, d).repo, Number: d.Number, Kind: core.KindIssue}
+	kind, word := dev.Issue, "Issue "
+	if d.IsPullRequest {
+		t.Kind, kind, word = core.KindPull, dev.Pull, "Pull request "
+	}
+	p.depHov = dev.Item{Kind: kind, Ref: core.Reference{Target: t, Title: d.Title, URL: d.URL}}
+	return "dep:" + core.RefKey(t), word + refOf(m.repo, d).label(m.repo), true
+}
+
+// devPreview is the body of the preview of the hovered Development row.
+func (m *detailModal) devPreview(b panes.Box) string {
+	return m.hoverPreview(b, m.side.devHov, true)
+}
+
+// depsPreview is the body of the preview of the hovered Blockers row.
+func (m *detailModal) depsPreview(b panes.Box) string {
+	return m.hoverPreview(b, m.side.depHov, false)
+}
+
+func (m *detailModal) hoverPreview(b panes.Box, it dev.Item, tree bool) string {
+	p := m.side
+	if p == nil || p.previews == nil {
+		return m.theme.Muted.Render("no preview")
+	}
+	o := dev.PreviewOptions{Repo: m.repo, Styles: p.devSt, Now: m.now(), Width: b.Rect.Inner().W}
+	return p.previews.View(dev.Row{
+		Key: m.slots.Hover(b.Pane).ID, Item: it, Links: p.dev.Links(),
+		Loaded: !tree || p.dev.Loaded(), Stamp: p.dev.Version(),
+	}, o)
+}
+
+// follow moves the previews to the rows the lists have under their cursors, and
+// returns the read of the preview of the focused pane's row, when that pane
+// shows a preview.
+func (m *detailModal) follow() tea.Cmd {
+	if m.slots == nil {
+		return nil
+	}
+	m.slots.Follow(m)
+	p := m.side
+	if p == nil || p.previews == nil {
+		return nil
+	}
+	f := m.nav.Focus()
+	var it dev.Item
+	switch f {
+	case paneDevelopment:
+		it = p.devHov
+	case paneBlockers:
+		it = p.depHov
 	default:
-		return
+		return nil
 	}
-	m.previewOff = min(max(off, 0), last)
+	id := m.slots.Hover(f).ID
+	if id == "" {
+		return nil
+	}
+	if _, ok := m.paneLayout().Box(f, panes.Preview); !ok {
+		return nil
+	}
+	return p.previews.Load(id, it)
+}
+
+// resetPreviews scrolls the previews back to their tops.
+func (m *detailModal) resetPreviews() {
+	for p := paneInvolved; p <= paneBlockers; p++ {
+		m.slots.Previews().Reset(slots.Key{Pane: p, ID: m.slots.Hover(p).ID})
+	}
 }
 
 // peekBody draws the conversation width cells wide, once per width until the
