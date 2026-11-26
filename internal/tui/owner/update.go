@@ -151,7 +151,7 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		case keymap.Matches(msg, k.Select):
 			if it, ok := c.Selected(); ok {
 				s.openedAhead()
-				return selectRepo(it.Repo.Ref), true
+				return s.selectRepo(it.Repo.Ref), true
 			}
 		default:
 			return nil, false
@@ -229,8 +229,8 @@ func (s *Section) focusPane() {
 	if p == nil {
 		return
 	}
-	// The page blurs the README and the calendar with its lists, so they
-	// are focused after it.
+	// The page blurs the README with its lists, so it
+	// is focused after it.
 	s.blurPage(p)
 	s.focusSide()
 	if l := p.list(); l != nil && s.focused && p.focus == listPane {
@@ -259,7 +259,12 @@ func (s *Section) repoURL(r core.Repo) string {
 	return ui.WebURL(s.host, r.Ref.String())
 }
 
-// selectRepo returns the command that opens repo on the repository screen.
-func selectRepo(repo core.RepoRef) tea.Cmd {
-	return func() tea.Msg { return ui.RepoMsg{Repo: repo} }
+// selectRepo returns the command that opens repo on the repository screen,
+// after the modal of the page closes.
+func (s *Section) selectRepo(repo core.RepoRef) tea.Cmd {
+	show := func() tea.Msg { return ui.RepoMsg{Repo: repo} }
+	if s.leave == nil {
+		return show
+	}
+	return tea.Sequence(s.leave(), show)
 }

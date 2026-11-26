@@ -141,7 +141,7 @@ func (s *Section) Capturing() bool {
 
 // KeyLayers implements ui.Keyed: the keys of the page, which work in every
 // pane, and then those of the focused pane, named for what they do there,
-// with those of the list on view, the README or the calendar, whichever
+// with those of the list on view, the README, whichever
 // has the focus.
 func (s *Section) KeyLayers() []keyhelp.Layer {
 	k := s.keys.state(s)
@@ -225,6 +225,18 @@ func (k KeyMap) state(s *Section) KeyMap {
 			k.Select.SetEnabled(k.Select.Enabled() && ok && !team)
 		}
 	}
+	steps := false
+	if s.page != nil {
+		// The controller follows the page's focus, so this only reads it.
+		s.syncNav()
+		steps = s.ctl.Nav.CanStep(s.paneLayout())
+		// Pressing the digit of the focused pane does nothing.
+		if focus >= 0 && int(focus) < len(k.Panes) {
+			k.Panes[focus].SetEnabled(false)
+		}
+	}
+	k.Next.SetEnabled(k.Next.Enabled() && steps)
+	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.ctl.Zoom.CanZoom())
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && s.page != nil)
 	if s.zoomed() {

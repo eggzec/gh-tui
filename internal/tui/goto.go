@@ -14,6 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -303,7 +304,7 @@ func (m *Model) gotoOwner(t core.Target) tea.Cmd {
 	m.cancelGoto()
 	if m.isViewer(t.Owner) {
 		logGoto(m.ctx, t, "viewer")
-		return m.showScreen(dashScreen, m.focus)
+		return m.showDash()
 	}
 	if m.owner == nil {
 		return m.toast.Push(toast.Warning, cantOpen(t.String(), "there are no pages of users and organizations here", m.icons.Ellipsis, m.fitsWarning))
@@ -335,14 +336,14 @@ func (m *Model) gotoOwner(t core.Target) tea.Cmd {
 // viewer.
 func (m *Model) selectedOwner() string {
 	sel, ok := m.selection()
-	owner := sel.Owner
+	login := sel.Owner
 	if !ok && m.screen == repoScreen {
-		owner = m.repo.Owner
+		login = m.repo.Owner
 	}
-	if m.screen == dashScreen && m.isViewer(owner) {
+	if m.screen == dashScreen && m.isViewer(login) {
 		return ""
 	}
-	return owner
+	return login
 }
 
 // selectedRepo returns the repository the repo key shows: that of the
@@ -375,11 +376,21 @@ func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
 	return m.openOwner(msg.owner, g.target.Owner)
 }
 
+// showDash shows the dashboard, the viewer's page, closing the page of a
+// user or organization that is open first so that the change shows.
+func (m *Model) showDash() tea.Cmd {
+	show := m.showScreen(dashScreen, m.focus)
+	if top, ok := m.modals.Top().(*owner.Modal); ok {
+		return tea.Sequence(ui.CloseModal(top), show)
+	}
+	return show
+}
+
 // openOwner opens the page of o in a modal, whose login was typed as login,
 // or shows the dashboard if o is the viewer.
 func (m *Model) openOwner(o core.Owner, login string) tea.Cmd {
 	if o.Viewer.IsViewer && m.dash != nil {
-		return m.showScreen(dashScreen, m.focus)
+		return m.showDash()
 	}
 	login = cmp.Or(o.Profile.Login, login)
 	m.rememberOwner(login)

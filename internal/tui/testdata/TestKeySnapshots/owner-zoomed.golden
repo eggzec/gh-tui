@@ -12,8 +12,8 @@ global
   help | ? | ? | on
 
 Profile
-  next pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
   unzoom | z | z | on
   refresh | r | r | on
   focus pane | 1 2 | 1/2 | on
