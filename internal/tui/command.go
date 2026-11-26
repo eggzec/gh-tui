@@ -72,6 +72,7 @@ var commands = []command{
 	{name: ui.CommandRaw, detail: "show the open file as its source with on, or rendered with off", args: true, over: overNamed, run: (*Model).rawCommand, complete: completeRaw},
 	{name: ui.CommandReferences, detail: "list the issues and pull requests linked to the open one", over: overNamed, run: (*Model).referencesCommand},
 	{name: "search", detail: "search GitHub, for what follows if anything", args: true, over: overAny, run: (*Model).searchCommand},
+	{name: "switch", detail: "start again as another login or host: user NAME, host NAME or USER@HOST", args: true, run: (*Model).switchCommand, complete: (*Model).completeSwitch},
 	{name: "set", detail: "change a setting for this session, or show it", args: true, over: overAny, run: (*Model).setCommand, complete: (*Model).completeSet},
 }
 
@@ -167,8 +168,11 @@ func newLine(keys config.Keymap, history int) cmdline.Model {
 }
 
 // openLine opens the command line in place of the status bar.
-func (m *Model) openLine() tea.Cmd {
-	cmd := m.line.Open("")
+func (m *Model) openLine() tea.Cmd { return m.openLineWith("") }
+
+// openLineWith opens the command line with initial typed in it.
+func (m *Model) openLineWith(initial string) tea.Cmd {
+	cmd := m.line.Open(initial)
 	m.layout()
 	return cmd
 }

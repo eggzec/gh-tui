@@ -509,7 +509,7 @@ reacts to messages. Concretely:
   matches it with `keymap.Matches`, never `key.Matches`, except in a widget
   that takes every key. A built-in command of the table in `command.go` has
   its name first, so an action never shadows `goto`, `config`, `copy`,
-  `set`, `raw`, `images`, `q`, `auth`, `references`, `n` or `p`. An action outside the
+  `set`, `raw`, `images`, `q`, `auth`, `references`, `switch`, `n` or `p`. An action outside the
   focused chain is refused with the places it works in, and the line
   completes the focused chain's actions before the rest.
 - The only command-line flags are `--debug`, `--hostname`, `--user` and
@@ -520,7 +520,16 @@ reacts to messages. Concretely:
   gh picks it, and one session talks to one host. `--user` picks the login
   on that host, read from gh's stored tokens without changing gh's active
   account; the app switches account by quitting and starting itself again
-  with both flags.
+  with both flags. `:switch user NAME`, `:switch host NAME` or
+  `:switch USER@HOST` does it (`target.Parse`; the missing half stays the
+  session's): the tui calls the function given to `tui.WithSwitcher`, which
+  `cmd/gh-tui` builds from `github.Accounts.ResolveAccount`, in a command,
+  toasts why an account can't be used, and otherwise asks to confirm that
+  history, filters and unsaved drafts reset before it sends `RestartMsg`.
+  It is refused over a modal, and completes `user`, `host` and the session's
+  login and host without the network. The `global.switch_account` action
+  (`P`) opens the line with `switch ` typed; the help and hints list it on
+  the screens only, and only when a switcher is set.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.
 - Themes are named palettes that each have a light and a dark variant. They
   are resolved once after `tea.BackgroundColorMsg` and applied through

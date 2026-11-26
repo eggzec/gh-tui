@@ -211,6 +211,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case starDoneMsg:
 		cmd := m.starDone(msg)
 		return m, cmd
+	case switchCheckedMsg:
+		cmd := m.switchChecked(msg)
+		return m, cmd
 	case ui.BulkDoneMsg:
 		var cmd tea.Cmd
 		if level, text := msg.Toast(m.voice, m.toast.Fits); text != "" {
@@ -329,6 +332,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // pressKey takes a key as it is, with no wait for a sequence of keys to
 // go on.
 func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
+	// A key press means the user went on, so the answer of a switch check
+	// that is still out no longer opens its question.
+	m.switchSeq++
 	// The dismiss key goes one step at a time, before anything else takes
 	// it, even the command line and the help, and a modal: an error toast
 	// first, and then a goto that waits for GitHub. What is left is the
@@ -409,6 +415,8 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openLine()
 	case keymap.Matches(msg, m.keys.Menu):
 		return m.openMenu()
+	case m.canSwitch() && keymap.Matches(msg, m.keys.SwitchAccount):
+		return m.openSwitch()
 	case keymap.Matches(msg, m.keys.Quit):
 		return m.quitNow()
 	case keymap.Matches(msg, m.keys.Search):
