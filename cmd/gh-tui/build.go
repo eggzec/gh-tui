@@ -38,6 +38,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/releases/releasesfake"
 	reposvc "github.com/eggzec/gh-tui/internal/service/repos"
 	searchsvc "github.com/eggzec/gh-tui/internal/service/search"
+	"github.com/eggzec/gh-tui/internal/target"
 	"github.com/eggzec/gh-tui/internal/tray"
 	"github.com/eggzec/gh-tui/internal/tui"
 	"github.com/eggzec/gh-tui/internal/tui/actions"
@@ -448,6 +449,12 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, user, log
 		// The status bar names the account the token is for, once gh or an
 		// earlier start's answer of GitHub named it.
 		tui.WithLogin(login.login),
+		// :switch checks that gh has a token for the account, and that the
+		// token works, before the app starts again as it.
+		tui.WithSwitcher(func(ctx context.Context, t target.Target) error {
+			_, err := github.NewAccounts().ResolveAccount(ctx, t.Host, t.User)
+			return err
+		}),
 		// The app tells what the token can't do, and :auth grants it more.
 		tui.WithAccess(access),
 		tui.WithOldEnterprise(oldEnterprise),

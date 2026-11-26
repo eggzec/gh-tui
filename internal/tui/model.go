@@ -242,6 +242,11 @@ type Model struct {
 	// restart is the identity the app quit to start again as, once a
 	// RestartMsg came.
 	restart *target.Target
+	// switcher checks an account before the switch command asks to start
+	// again as it, and switchSeq numbers the checks so that only the last
+	// one counts.
+	switcher  Switcher
+	switchSeq int
 	// voice words what went wrong in the app's toasts and the modals it
 	// opens.
 	voice ui.Voice

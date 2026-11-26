@@ -104,7 +104,7 @@ func (m *Model) actionCommand(name, arg string) tea.Cmd {
 		}
 		return m.toast.Push(toast.Warning, "The "+name+" command takes no argument.")
 	}
-	if mod := m.modals.Top(); mod != nil && action == config.ActionFindFile {
+	if mod := m.modals.Top(); mod != nil && (action == config.ActionFindFile || action == config.ActionSwitchAccount) {
 		return m.toast.Push(toast.Warning, "Close "+m.modalName(mod)+" first to use "+name+".")
 	}
 	// A list with an action of its own, such as the sort of the
@@ -173,6 +173,8 @@ func (m *Model) actionOpen(action string) bool {
 		return m.canForkSwitch()
 	case config.ActionFindFile:
 		return m.fileFinder() != nil
+	case config.ActionSwitchAccount:
+		return m.canSwitch()
 	case config.ActionZoom:
 		// The other screens zoom their own panes.
 		return m.screen != repoScreen || m.canZoom()
@@ -186,7 +188,7 @@ func (m *Model) actionOpen(action string) bool {
 // takes as its author's, so that the line doesn't complete it over a
 // modal.
 func (m *Model) refusedOverModal(name string) bool {
-	return name == "find_file" || slices.ContainsFunc(m.overModals(), func(o overModal) bool { return o.action == name })
+	return name == "find_file" || name == "switch_account" || slices.ContainsFunc(m.overModals(), func(o overModal) bool { return o.action == name })
 }
 
 // maxPlaces is the most places a refusal names, before "and N more".

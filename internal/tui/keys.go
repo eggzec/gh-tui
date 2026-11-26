@@ -41,6 +41,9 @@ type KeyMap struct {
 	Command key.Binding
 	// Menu opens the menu of the actions of the selected item.
 	Menu key.Binding
+	// SwitchAccount opens the command line with switch typed in it, on the
+	// screens, where no modal is open.
+	SwitchAccount key.Binding
 	// form holds the keys of the filter modal's form.
 	form filterform.KeyMap
 	// order holds the keys of the sort modal's ordered picker.
@@ -102,6 +105,7 @@ func newKeyMap(keys config.Keymap) KeyMap {
 		FindFile:      ui.Binding(keys, config.ActionFindFile, "find file"),
 		Command:       ui.Binding(keys, config.ActionCommand, "command"),
 		Menu:          ui.Binding(keys, config.ActionMenu, "menu"),
+		SwitchAccount: ui.Binding(keys, config.ActionSwitchAccount, "switch account"),
 		form:          ui.FilterFormKeys(keys, "filter"),
 		order:         ui.OrderPickKeys(keys),
 		confirm:       confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
@@ -159,7 +163,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 // app matches them, and repoKeys those of the repository screen only.
 func (k KeyMap) globalKeys() []key.Binding {
 	return []key.Binding{
-		k.Command, k.Menu, k.Quit, k.Help, k.Search, k.FindFile,
+		k.Command, k.Menu, k.SwitchAccount, k.Quit, k.Help, k.Search, k.FindFile,
 		k.Zoom, k.DividerLeft, k.DividerRight, k.DividerUp, k.DividerDown, k.DividerReset, k.Maximize, k.Dismiss, k.Back, k.Owner, k.Repo, k.Notifications, k.Dashboard,
 		k.Next, k.Prev, k.Jump,
 	}
@@ -195,6 +199,7 @@ func (k KeyMap) state(m *Model) KeyMap {
 		}
 	}
 	k.ForkSwitch.SetEnabled(k.ForkSwitch.Enabled() && m.canForkSwitch())
+	k.SwitchAccount.SetEnabled(k.SwitchAccount.Enabled() && m.canSwitch())
 	k.FindFile.SetEnabled(k.FindFile.Enabled() && m.fileFinder() != nil)
 	k.Owner.SetEnabled(k.Owner.Enabled() && m.selectedOwner() != "")
 	k.Repo.SetEnabled(k.Repo.Enabled() && m.selectedRepo() != core.RepoRef{})

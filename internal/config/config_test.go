@@ -425,7 +425,7 @@ func TestScreenActions(t *testing.T) {
 	}
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("keys:\n  global:\n    notifications: [\"Y\"]\n    pane_1: [\"P\"]\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte("keys:\n  global:\n    notifications: [\"Y\"]\n    pane_1: [\"f9\"]\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _, err := loadBase(path)
@@ -435,8 +435,8 @@ func TestScreenActions(t *testing.T) {
 	if got := cfg.Keys.Of(ActionNotifications); !slices.Equal(got, []string{"Y"}) {
 		t.Errorf("notifications = %v, want [Y]", got)
 	}
-	if got := cfg.Keys.Of(ActionPane1); !slices.Equal(got, []string{"P"}) {
-		t.Errorf("pane_1 = %v, want [P]", got)
+	if got := cfg.Keys.Of(ActionPane1); !slices.Equal(got, []string{"f9"}) {
+		t.Errorf("pane_1 = %v, want [f9]", got)
 	}
 }
 

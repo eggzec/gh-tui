@@ -65,7 +65,7 @@ func TestCompletionOverModalsListsWhatRuns(t *testing.T) {
 		prefix string
 		want   []string
 	}{
-		{"s", []string{"star", "search ", "set "}},
+		{"s", []string{"star", "search ", "set ", "switch ", "switch_account"}},
 		{"co", []string{"collapse", "config ", "copy "}},
 		{"r", []string{"reset_base", "raw ", "references", "refresh", "repo"}},
 		{"g", []string{"goto "}},
