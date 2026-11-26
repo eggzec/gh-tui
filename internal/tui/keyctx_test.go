@@ -1078,6 +1078,11 @@ func TestHelpRowsWork(t *testing.T) {
 						if _, idle := idleRows[id]; idle {
 							continue
 						}
+						// Zoomed, the panes' tab keys flip the list and the
+						// preview, so a pane with no preview has nothing to do.
+						if c.name == "dashboard: zoomed" && (id == "global next pane" || id == "global previous pane") {
+							continue
+						}
 						m, _ := c.reach(t)
 						before, was := ansi.Strip(m.View().Content), layerNames(m.keyLayers())
 						cmd, reached := pressReaches(m, press)
@@ -1359,9 +1364,9 @@ func keyContexts() []keyContext {
 		{name: "release", repo: true, msg: ui.OpenReleaseMsg{Repo: testRepo, ID: keyRelease.ID, URL: keyRelease.URL}, after: []string{"release_modal.half_page_down"}, context: "release_modal", want: "global, release_modal"},
 		{name: "actions: runs", repo: true, steps: []string{"repo.actions"}, context: "actions_runs", want: "global, actions, actions_runs"},
 		{name: "actions: jobs", repo: true, steps: []string{"repo.actions", "actions_runs.expand", "actions_runs.down"}, context: "actions_runs", want: "global, actions, actions_runs"},
-		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.select"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions_log"},
-		{name: "actions: log option", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.select", "actions_log.option"}, context: "log_option", want: "always, log_option"},
-		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.next_pane", "global.select", "actions_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
+		{name: "actions: log", repo: true, steps: []string{"repo.actions", "global.pane_2", "global.select"}, after: []string{"actions_log.half_page_down", "actions_log.right"}, context: "actions_log", want: "global, actions_log"},
+		{name: "actions: log option", repo: true, steps: []string{"repo.actions", "global.pane_2", "global.select", "actions_log.option"}, context: "log_option", want: "always, log_option"},
+		{name: "actions: log search", repo: true, steps: []string{"repo.actions", "global.pane_2", "global.select", "actions_log.find"}, context: "search_prompt", want: "always, search_prompt (types)"},
 		{name: "actions: filter", repo: true, steps: []string{"repo.actions", "actions_runs.filter"}, context: "filter", want: "global, filter"},
 		{name: "actions: rerun", repo: true, steps: []string{"repo.actions", "actions.rerun_failed"}, context: "confirm", want: "always, confirm"},
 		{name: "actions: rerun job", repo: true, steps: []string{"repo.actions", "actions_runs.expand", "actions_runs.down", "actions.rerun_job"}, context: "confirm", want: "always, confirm"},

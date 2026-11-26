@@ -419,7 +419,7 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
 	case m.canZoom() && keymap.Matches(msg, m.keys.Zoom):
-		m.zoom.Toggle()
+		m.ctl.Toggle()
 		m.layout()
 		return nil
 	case m.canDivide() && keymap.Matches(msg, m.keys.DividerLeft):
@@ -460,31 +460,23 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case m.dash != nil && keymap.Matches(msg, m.keys.Dashboard):
 		return m.showScreen(dashScreen, m.focus)
 	}
-	// Zoomed beside its preview, a pane's keys switch between the list and
-	// the preview, and the preview takes the keys that scroll it.
-	if m.splitShown() {
-		switch {
-		case keymap.Matches(msg, m.keys.Next), keymap.Matches(msg, m.keys.Prev):
-			m.switchSplit()
-			return nil
-		case m.prevFocus && m.keys.pane(msg) < 0:
-			return m.prev.preview.PreviewKey(msg)
-		}
+	// Zoomed beside its preview, the preview takes the keys that scroll it.
+	if m.splitShown() && m.previewFocused() && m.keys.pane(msg) < 0 &&
+		!keymap.Matches(msg, m.keys.Next) && !keymap.Matches(msg, m.keys.Prev) {
+		return m.prev.preview.PreviewKey(msg)
 	}
-	// Only the repository screen has panes for the app to cycle through;
-	// elsewhere these keys are the section's.
+	// Only the repository screen has panes for the app to step through;
+	// elsewhere these keys are the section's. Zoomed, they flip the list and
+	// the preview, and the digits still switch pane.
 	if m.screen == repoScreen {
 		switch {
 		case keymap.Matches(msg, m.keys.Next):
-			return m.cycle(1)
+			return m.tab(1)
 		case keymap.Matches(msg, m.keys.Prev):
-			return m.cycle(-1)
+			return m.tab(-1)
 		}
-	}
-	// The other screens focus their own panes, or ignore the digit.
-	if m.screen == repoScreen {
 		if i := m.keys.pane(msg); i >= 0 && i < len(m.panes) {
-			return m.showScreen(repoScreen, i)
+			return m.digit(i)
 		}
 	}
 	if p == nil {

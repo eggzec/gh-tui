@@ -186,7 +186,7 @@ func (m *Model) drawFrame(p *pane) {
 	frames.Border = m.icons.Border
 	frames.Ellipsis = m.icons.Ellipsis
 	frames.Separator = m.icons.Separator
-	zoomed := m.zoom.Zoomed() && p.key != ""
+	zoomed := m.ctl.Zoom.Zoomed() && p.key != ""
 	text := p.label
 	if p.preview != nil {
 		text = p.preview.PreviewTitle()
@@ -323,7 +323,7 @@ func (m *Model) drawHeader() {
 
 // onePane reports whether the repository screen shows the focused pane
 // alone: when the panes don't fit side by side, or while it is zoomed.
-func (m *Model) onePane() bool { return m.zoom.Zoomed() }
+func (m *Model) onePane() bool { return m.ctl.Zoom.Zoomed() }
 
 // narrow reports whether the terminal is too small for the panes of the
 // dashboard and the owner page to show side by side, by ui.wide. It is
@@ -335,13 +335,13 @@ func (m *Model) narrow() bool {
 // canZoom reports whether the zoom key does something: on the repository
 // screen, with more than one pane, unless a narrow terminal forces the zoom.
 func (m *Model) canZoom() bool {
-	return m.screen == repoScreen && len(m.panes) > 1 && m.zoom.CanZoom()
+	return m.screen == repoScreen && len(m.panes) > 1 && m.ctl.Zoom.CanZoom()
 }
 
 // zoomed reports whether the user zoomed the repository screen, which the
 // zoom key undoes. A narrow terminal shows one pane anyway, so there the keys
 // keep their other uses.
-func (m *Model) zoomed() bool { return m.zoom.User() && m.zoom.CanZoom() }
+func (m *Model) zoomed() bool { return m.ctl.Zoom.User() && m.ctl.Zoom.CanZoom() }
 
 // filesWidth is the files column's width when the user has not moved its
 // divider.
@@ -451,7 +451,7 @@ func (m *Model) arrange(height int) {
 		m.notif.resize(m.width, height)
 	}
 	narrow := m.narrow()
-	m.zoom.SetNarrow(narrow)
+	m.ctl.SetNarrow(narrow)
 	for _, p := range []*pane{m.dash, m.own} {
 		if p == nil {
 			continue
@@ -548,15 +548,9 @@ func (m *Model) split(height int) {
 	if m.splitOf != nil && m.splitOf != p {
 		m.endSplit()
 	}
-	defs := make([]panes.Def, len(m.panes))
-	for i, q := range m.panes {
-		defs[i] = panes.Def{Name: q.label, Short: q.label, Split: q == p}
-	}
+	m.syncNav()
+	lay := m.paneLayout(height)
 	focus := panes.Pane(m.focus + 1)
-	lay := panes.Compute(panes.Spec{
-		Width: m.width, Height: height, Panes: defs, Focus: focus, Zoom: true,
-		SplitMin: m.wide.Width, ListWidth: m.listWidth(),
-	})
 	list, hasList := lay.Box(focus, panes.List)
 	box, hasPreview := lay.Box(focus, panes.Preview)
 	if !hasList || !hasPreview {
@@ -570,6 +564,39 @@ func (m *Model) split(height int) {
 	m.splitOf = p
 	m.prev.preview = s
 	m.prev.resize(box.Rect.W, box.Rect.H)
+	// A resize that took the preview away from the focus gives it back to the
+	// list.
+	m.ctl.Settle(lay)
+	s.SetPreviewFocus(m.previewFocused())
+}
+
+// paneLayout is the layout of the repository screen's panes in a body of the
+// given height, zoomed as the controller says. The focused pane has a preview
+// box beside it, when zoomed with room, if its section is a ui.Splitter.
+func (m *Model) paneLayout(height int) panes.Layout {
+	defs := make([]panes.Def, len(m.panes))
+	for i, q := range m.panes {
+		_, splits := q.section.(ui.Splitter)
+		defs[i] = panes.Def{Name: q.label, Short: q.label, Split: i == m.focus && splits}
+	}
+	return panes.Compute(panes.Spec{
+		Width: m.width, Height: height, Panes: defs, Focus: panes.Pane(m.focus + 1),
+		Zoom: m.ctl.Zoom.Zoomed(), SplitMin: m.wide.Width, ListWidth: m.listWidth(),
+	})
+}
+
+// syncNav points the controller's focus at the focused pane, without dropping
+// the preview focus when it already is there.
+func (m *Model) syncNav() {
+	if want := panes.Pane(m.focus + 1); m.ctl.Nav.Focus() != want {
+		m.ctl.Nav.SetFocus(want)
+	}
+}
+
+// previewFocused reports whether the preview box of the zoomed pane has the
+// focus, not its list.
+func (m *Model) previewFocused() bool {
+	return m.ctl.Nav.Focus() == panes.Pane(m.focus+1) && m.ctl.Nav.Sub(m.ctl.Nav.Focus()) == panes.Preview
 }
 
 // endSplit drops the preview box, and tells the section that had one.
@@ -580,7 +607,7 @@ func (m *Model) endSplit() {
 	m.prev.preview.SetPreviewFocus(false)
 	m.prev.preview.SetPreviewSize(0, 0)
 	m.prev, m.splitOf = nil, nil
-	m.prevFocus = false
+	m.ctl.Nav.Reset()
 }
 
 // splitShown reports whether the zoomed pane is on view beside its preview.
@@ -588,21 +615,53 @@ func (m *Model) splitShown() bool {
 	return m.screen == repoScreen && m.prev != nil && m.splitOf != nil
 }
 
-// switchSplit moves the focus between the list and the preview.
-func (m *Model) switchSplit() {
-	m.prevFocus = !m.prevFocus
-	m.prev.preview.SetPreviewFocus(m.prevFocus)
+// showSplitFocus tells the preview and redraws both frames after the focus
+// moved between the list and the preview.
+func (m *Model) showSplitFocus() {
+	if !m.splitShown() {
+		return
+	}
+	m.prev.preview.SetPreviewFocus(m.previewFocused())
 	m.drawFrame(m.splitOf)
 	m.drawFrame(m.prev)
+}
+
+// tab handles Tab and Shift+Tab on the repository screen: unzoomed it moves to
+// the next or previous pane, zoomed it flips between the list and the preview
+// of the focused pane, and does nothing when that pane has no preview.
+func (m *Model) tab(delta int) tea.Cmd {
+	m.syncNav()
+	l := m.paneLayout(m.height)
+	p, changed := m.ctl.Tab(l, delta)
+	switch {
+	case !changed:
+		return nil
+	case l.Zoomed:
+		m.showSplitFocus()
+		return nil
+	}
+	return m.showScreen(repoScreen, int(p)-1)
+}
+
+// digit focuses pane i of the repository screen, zoomed or not, and gives its
+// list the focus.
+func (m *Model) digit(i int) tea.Cmd {
+	m.syncNav()
+	if !m.ctl.Digit(m.paneLayout(m.height), panes.Pane(i+1)) {
+		return nil
+	}
+	cmd := m.showScreen(repoScreen, i)
+	m.showSplitFocus()
+	return cmd
 }
 
 // focusMarked reports whether p's frame is drawn in the focus color.
 func (m *Model) focusMarked(p *pane) bool {
 	switch {
 	case p == m.prev && p != nil:
-		return m.prevFocus
+		return m.previewFocused()
 	case p == m.splitOf && p != nil:
-		return p.focused && !m.prevFocus
+		return p.focused && !m.previewFocused()
 	}
 	return p.focused
 }
@@ -715,7 +774,7 @@ func (m *Model) canGoBack() bool {
 	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
 		return true
 	}
-	return len(m.back) > 0
+	return len(m.back) > 0 || m.screen == repoScreen && m.zoomed()
 }
 
 // ownerPages returns the owner section's pages to go back through, or nil.
@@ -735,6 +794,10 @@ func (m *Model) goBack() tea.Cmd {
 		cmd := b.GoBack()
 		m.updateOwner()
 		return cmd
+	}
+	if m.screen == repoScreen && m.ctl.UndoZoom() {
+		m.layout()
+		return nil
 	}
 	if len(m.back) == 0 {
 		return nil
@@ -794,6 +857,7 @@ func (m *Model) reveal(s screen, i int) tea.Cmd {
 	m.screen = s
 	if s == repoScreen {
 		m.focus = min(max(i, 0), len(m.panes)-1)
+		m.syncNav()
 	}
 	var revisit tea.Cmd
 	if after := m.focused(); after != before {
@@ -810,14 +874,4 @@ func (m *Model) reveal(s screen, i int) tea.Cmd {
 		}
 	}
 	return tea.Batch(m.startScreen(), revisit)
-}
-
-// cycle moves the focus by delta panes on the repository screen, the only
-// screen whose panes the app cycles through.
-func (m *Model) cycle(delta int) tea.Cmd {
-	if len(m.panes) == 0 {
-		return nil
-	}
-	n := len(m.panes)
-	return m.showScreen(repoScreen, ((m.focus+delta)%n+n)%n)
 }

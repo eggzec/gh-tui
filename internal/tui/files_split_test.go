@@ -46,7 +46,7 @@ func TestFilesSplitPreviewScrolls(t *testing.T) {
 		m := zoomedFiles(t, 120, 40, nil)
 		before := m.prev.preview.PreviewView()
 		tap(t, m, "tab")
-		if !m.prevFocus {
+		if !m.previewFocused() {
 			t.Fatal("tab did not focus the preview")
 		}
 		tap(t, m, "j")

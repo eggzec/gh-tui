@@ -123,7 +123,7 @@ func TestReaderKeysCanBeUnbound(t *testing.T) {
 		cfg := config.Default()
 		cfg.Keys.Set("actions_log.follow", []string{})
 		m := newUnboundApp(t, cfg, true)
-		for _, name := range []string{config.ActionActions, config.ActionNextPane, config.ActionSelect} {
+		for _, name := range []string{config.ActionActions, config.ActionPane2, config.ActionSelect} {
 			msg, _ := keyPress(cfg.Keys.Of(name)[0])
 			driveKeys(t, m, m.key(msg))
 		}

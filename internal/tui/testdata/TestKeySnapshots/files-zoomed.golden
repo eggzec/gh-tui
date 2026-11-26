@@ -15,7 +15,7 @@ global
   reset dividers | = | = | off
   maximize | Z | Z | off
   dismiss | esc | esc | off
-  back | backspace | backspace | off
+  back | backspace | backspace | on
   owner page | @ | @ | on
   this repo | . | . | off
   notifications | I | I | on

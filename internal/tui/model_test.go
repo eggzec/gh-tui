@@ -264,7 +264,7 @@ func TestFocusedFrameTakesTheAccent(t *testing.T) {
 	if !strings.HasPrefix(m.panes[0].top, focused) || !strings.HasPrefix(m.panes[1].top, blurred) {
 		t.Error("the focused pane's edge isn't the accent, or another pane's is")
 	}
-	run(m, m.key(press("tab")))
+	run(m, m.key(press("2")))
 	if !strings.HasPrefix(m.panes[1].top, focused) || !strings.HasPrefix(m.panes[0].top, blurred) {
 		t.Error("the accent didn't follow the focus")
 	}
@@ -283,9 +283,14 @@ func TestNarrowShowsTheFocusedPaneAlone(t *testing.T) {
 	if !strings.Contains(s, "1 Files · 2 Pull requests · 3 Issues") || strings.Contains(s, "Pull requests content") {
 		t.Errorf("narrow screen should show only the files:\n%s", s)
 	}
+	// Narrow is zoomed, so Tab does nothing and the digits switch pane.
 	run(m, m.key(press("tab")))
+	if s = onScreen(m); !strings.Contains(s, "Files content") {
+		t.Errorf("tab should do nothing while narrow:\n%s", s)
+	}
+	run(m, m.key(press("2")))
 	if s = onScreen(m); !strings.Contains(s, "Pull requests content") || strings.Contains(s, "Files content") {
-		t.Errorf("tab should show the pull requests alone:\n%s", s)
+		t.Errorf("2 should show the pull requests alone:\n%s", s)
 	}
 }
 
@@ -305,9 +310,10 @@ func TestZoom(t *testing.T) {
 		toSection bool
 	}{
 		{name: "z zooms", key: "z", zoom: true, shown: []string{"Files"}},
-		{name: "tab keeps the zoom", key: "tab", zoom: true, shown: []string{"Pull requests"}},
+		{name: "tab does nothing zoomed", key: "tab", zoom: true, shown: []string{"Files"}},
 		{name: "a pane key keeps the zoom", key: "3", zoom: true, shown: []string{"Issues"}},
-		{name: "shift+tab keeps the zoom", key: "shift+tab", zoom: true, shown: []string{"Pull requests"}},
+		{name: "shift+tab does nothing zoomed", key: "shift+tab", zoom: true, shown: []string{"Issues"}},
+		{name: "another pane key keeps the zoom", key: "2", zoom: true, shown: []string{"Pull requests"}},
 		{name: "a resize keeps the zoom", width: 160, height: 40, zoom: true, shown: []string{"Pull requests"}},
 		{name: "narrow and zoomed", width: 60, height: 24, zoom: true, shown: []string{"Pull requests"}},
 		{name: "esc at 60 columns goes to the pane", key: "esc", zoom: true, shown: []string{"Pull requests"}, toSection: true},
@@ -327,8 +333,8 @@ func TestZoom(t *testing.T) {
 			if tt.key != "" {
 				run(m, m.key(press(tt.key)))
 			}
-			if m.zoom.User() != tt.zoom {
-				t.Errorf("zoom = %v, want %v", m.zoom.User(), tt.zoom)
+			if m.ctl.Zoom.User() != tt.zoom {
+				t.Errorf("zoom = %v, want %v", m.ctl.Zoom.User(), tt.zoom)
 			}
 			if got := focusedTitles(fakes); !slices.Equal(got, tt.shown[:1]) {
 				t.Errorf("focused = %v, want %s", got, tt.shown[0])
@@ -356,7 +362,7 @@ func TestZoomNeedsTheRepoScreen(t *testing.T) {
 	rankFakes(lone)
 	lone.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	run(lone, lone.key(press("z")))
-	if lone.zoom.User() || !pulls.got(isKey("z")) {
+	if lone.ctl.Zoom.User() || !pulls.got(isKey("z")) {
 		t.Error("z with one pane should go to it")
 	}
 }
@@ -367,8 +373,8 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 64, Height: 24})
 	run(m, m.key(press("z")))
 	run(m, m.key(press("esc")))
-	if m.zoom.User() || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
-		t.Errorf("zoom %v; at 64 columns z and esc should go to the pane", m.zoom.User())
+	if m.ctl.Zoom.User() || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
+		t.Errorf("zoom %v; at 64 columns z and esc should go to the pane", m.ctl.Zoom.User())
 	}
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	if s := onScreen(m); !strings.Contains(s, "Pull requests content") || !strings.Contains(s, "Files content") {
@@ -403,8 +409,8 @@ func TestRepoNarrowForcesZoom(t *testing.T) {
 	m, _ := newTestApp(t)
 	m.Update(tea.WindowSizeMsg{Width: 99, Height: 30})
 	run(m, m.key(press("z")))
-	if m.zoom.User() || !m.zoom.Zoomed() {
-		t.Errorf("z at 99 columns: user %v, zoomed %v; want the forced zoom alone", m.zoom.User(), m.zoom.Zoomed())
+	if m.ctl.Zoom.User() || !m.ctl.Zoom.Zoomed() {
+		t.Errorf("z at 99 columns: user %v, zoomed %v; want the forced zoom alone", m.ctl.Zoom.User(), m.ctl.Zoom.Zoomed())
 	}
 }
 
@@ -415,7 +421,7 @@ func TestRepoUserZoomSurvivesNarrow(t *testing.T) {
 	run(m, m.key(press("z")))
 	m.Update(tea.WindowSizeMsg{Width: 90, Height: 36})
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
-	if !m.zoom.User() || strings.Contains(onScreen(m), "Pull requests content") {
+	if !m.ctl.Zoom.User() || strings.Contains(onScreen(m), "Pull requests content") {
 		t.Errorf("the user's zoom should be back after the narrow phase:\n%s", onScreen(m))
 	}
 }
@@ -428,15 +434,15 @@ func TestZoomLeavesKeysToCapture(t *testing.T) {
 	fakes[0].capturing = true
 	run(m, m.key(press("z")))
 	run(m, m.key(press("esc")))
-	if !m.zoom.User() || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
+	if !m.ctl.Zoom.User() || !fakes[0].got(isKey("z")) || !fakes[0].got(isKey("esc")) {
 		t.Error("a capturing section should get z and esc, and the zoom stay")
 	}
 	fakes[0].capturing = false
 	mod := &fakeModal{title: "Preview"}
 	run(m, ui.OpenModal(mod))
 	run(m, m.key(press("esc")))
-	if !m.zoom.User() || !slices.Equal(mod.keys(), []string{"esc"}) {
-		t.Errorf("an open modal should get esc, and the zoom stay: zoom %v, modal got %v", m.zoom.User(), mod.keys())
+	if !m.ctl.Zoom.User() || !slices.Equal(mod.keys(), []string{"esc"}) {
+		t.Errorf("an open modal should get esc, and the zoom stay: zoom %v, modal got %v", m.ctl.Zoom.User(), mod.keys())
 	}
 }
 
@@ -563,11 +569,11 @@ func TestProgramZooms(t *testing.T) {
 	// The program takes messages in order, so the final model shows what
 	// the keys and the resize left.
 	tm.Send(press("z"))
-	tm.Send(press("tab"))
+	tm.Send(press("2"))
 	tm.Send(tea.WindowSizeMsg{Width: 160, Height: 40})
 	tm.Send(press("q"))
 	final, ok := tm.FinalModel(t, teatest.WithFinalTimeout(5*time.Second)).(*Model)
-	if !ok || !final.zoom.User() || final.focus != 1 || fakes[1].width != 158 {
+	if !ok || !final.ctl.Zoom.User() || final.focus != 1 || fakes[1].width != 158 {
 		t.Error("the final model should show the pull requests zoomed, over the width it was resized to")
 	}
 	if s := onScreen(final); !strings.Contains(s, "z unzoom") || strings.Contains(s, "Files content") {
@@ -578,6 +584,8 @@ func TestProgramZooms(t *testing.T) {
 func TestFocusMovesBetweenPanes(t *testing.T) {
 	t.Parallel()
 	m, fakes := newTestApp(t)
+	// Wide enough to show every pane, as Tab only cycles unzoomed.
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	steps := []struct {
 		key  string
 		want string

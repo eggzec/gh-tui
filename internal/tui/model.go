@@ -98,11 +98,9 @@ type Model struct {
 	// pane's section is a ui.Splitter that has room for one.
 	prev    *pane
 	splitOf *pane
-	// prevFocus is set while the preview box has the focus, not the list.
-	prevFocus bool
-	dash      *pane
-	srch      *pane
-	own       *pane
+	dash    *pane
+	srch    *pane
+	own     *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
@@ -111,10 +109,11 @@ type Model struct {
 	screen screen
 	back   []place
 	focus  int
-	// zoom shows the focused pane of the repository screen alone, by the
-	// user's choice or because the terminal is narrow. The dashboard and the
-	// owner page keep their own.
-	zoom panes.Zoom
+	// ctl holds the zoom of the repository screen, which shows the focused
+	// pane alone by the user's choice or because the terminal is narrow, and
+	// whether the list or the preview of a zoomed pane has the focus. The
+	// dashboard and the owner page keep their own.
+	ctl panes.Controller
 	// dividers are the dividers the user moved. They last the session, across
 	// repositories.
 	dividers *ui.Dividers
