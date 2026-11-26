@@ -18,6 +18,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/optimistic"
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
@@ -83,12 +85,13 @@ type detailModal struct {
 	peek      drawnPeek
 	peekVer   uint64
 	peekStamp int
-	// previewOff is how far the preview is scrolled. It is not part of the
+	// slots are what the panes show beside their lists, with the row each
+	// preview follows and how far it is scrolled. That is not part of the
 	// cache above, which keeps the whole drawing.
-	previewOff int
-	head       string
-	voice      ui.Voice
-	md         *markdown.Renderer
+	slots *slots.Set[*detailModal]
+	head  string
+	voice ui.Voice
+	md    *markdown.Renderer
 	// pics draws the images of the bodies and comments, or is nil. picRows
 	// is the tallest they were drawn at.
 	pics    *ui.Images
@@ -201,6 +204,12 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.voice.Icons = &m.icons
 	m.nav.SetFocus(paneConversation)
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
+	if s.previews != nil {
+		m.side.previews = dev.NewPreviews(devReader{s.previews}, dev.WithContext(ctx))
+	}
+	m.slots = slots.New(paneSlots[:], func(title string, b panes.Box) []string {
+		return titleForms(title, b, m.icons.Ellipsis)
+	})
 	m.side.dev.SetRepo(repo)
 	m.side.deps = m.newDeps(s.rawKeys)
 	m.confirmSt = s.theme.Confirm(s.icons)
@@ -285,7 +294,7 @@ func (m *detailModal) SetSize(width, height int) {
 	if !m.nav.InPreview(m.paneLayout()) {
 		// A preview that a resize took away must not keep the focus.
 		m.nav.Reset()
-		m.previewOff = 0
+		m.resetPreviews()
 	}
 	m.layout()
 	if m.refs != nil {
@@ -430,7 +439,11 @@ func (m *detailModal) View() string {
 // Update implements ui.Modal. After the modal closed, it ignores what
 // arrives late.
 func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
-	cmd := m.update(msg)
+	if m.side != nil && m.side.previews != nil && m.side.previews.Handles(msg) {
+		m.side.previews.Update(msg)
+		return nil
+	}
+	cmd := tea.Batch(m.update(msg), m.follow())
 	if m.pagesRead.Load() != m.pages {
 		// A page of the timeline came in after the issue: its commenters.
 		m.refreshInvolved()
@@ -651,7 +664,13 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if l := m.paneLayout(); m.nav.InPreview(l) {
 		// The preview is read-only: the moves scroll it and no key reaches the
 		// list beside it.
-		m.scrollPreview(l, msg)
+		p := m.nav.Focus()
+		if cmd, ok := m.slots.PressPreview(m, p, msg); ok {
+			return cmd
+		}
+		if b, ok := l.Box(p, panes.Preview); ok {
+			m.slots.Scroll(m, p, b, m.keys.panes.scroll, msg)
+		}
 		return nil
 	}
 	if cmd, ok := m.pressSide(msg); ok {
