@@ -1100,6 +1100,8 @@ func TestHelpShowsPaneAndAppKeys(t *testing.T) {
 			t.Errorf("the bar lacks %q:\n%s", want, s)
 		}
 	}
+	// A narrow terminal zooms the pane, where tab has no pane to go to.
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	height := fakes[0].height
 	rows := helpRows(t, m)
 	for _, want := range []string{"tab next pane", "1 2 3 4 focus pane", "Z close", "? help"} {
