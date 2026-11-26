@@ -57,7 +57,7 @@ func unbindPlaces() []unbindPlace {
 		{name: "search results", steps: []string{config.ActionSearch, "search_modal.insert", "k", "e", "y", "search_query.submit"}, want: "global, search_modal, search_results"},
 		{name: "owner", msg: octocat, want: "global, owner, owner_list"},
 		{name: "owner tab", msg: octocat, steps: []string{config.ActionNextTab}, want: "global, owner, owner_list"},
-		{name: "owner readme", msg: octocat, steps: []string{config.ActionPane3}, want: "global, owner, owner_readme"},
+		{name: "owner readme", msg: octocat, steps: []string{config.ActionZoom, "global.next_pane"}, want: "global, owner, owner_readme"},
 		{name: "owner filter", msg: octocat, steps: []string{"owner_list.filter"}, want: "global, filter"},
 		{name: "files", repo: true, want: "global, repo, files"},
 		{name: "files zoomed", repo: true, steps: []string{config.ActionZoom}, want: "global, repo, files"},
@@ -223,9 +223,9 @@ func newUnboundApp(t *testing.T, cfg config.Config, repo bool) *Model {
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v),
 			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),
-		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v)),
 	}
 	opts := []Option{
+		ownerOpener(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v)),
 		WithVoice(v), WithAccess(acc),
 		WithHistory(history.Opener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
 		WithCommit(history.CommitOpener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
@@ -239,7 +239,7 @@ func newUnboundApp(t *testing.T, cfg config.Config, repo bool) *Model {
 	rankFakes(m)
 	m.toast.SetDuration(0)
 	m.accessChanges = nil
-	m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
 	driveKeys(t, m, m.Init())
 	return m
 }

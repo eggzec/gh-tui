@@ -99,6 +99,15 @@ func (b brokenOwners) Readme(ctx context.Context, q ownersvc.ReadmeQuery) (owner
 	return b.keyOwners.Readme(ctx, q)
 }
 
+// ownerOpener is the option that opens the owner page of a login as a
+// modal over svc, as the program wires it.
+func ownerOpener(ctx context.Context, svc owner.Service, keys config.Keymap, opts ...owner.Option) Option {
+	return WithOwnerModal(func(_ context.Context, login string) (ui.Modal, tea.Cmd) {
+		m := owner.NewModal(owner.New(ctx, svc, keys, opts...), login)
+		return m, m.Init()
+	})
+}
+
 // wiredApp is newKeysApp on testRepo over services that can fail.
 func wiredApp(t *testing.T, fs brokenFiles, is brokenIssues, os brokenOwners) *Model {
 	t.Helper()
@@ -117,9 +126,9 @@ func wiredApp(t *testing.T, fs brokenFiles, is brokenIssues, os brokenOwners) *M
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
 			dashboard.WithInbox(keyInbox{}), dashboard.WithHere(testRepo, nil)),
-		Owner: owner.New(ctx, os, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 	}
 	m := New(ctx, cfg, layout,
+		ownerOpener(ctx, os, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 		WithVoice(v), WithAccess(acc),
 		WithHistory(history.Opener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
 		WithCommit(history.CommitOpener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
@@ -271,11 +280,15 @@ func TestOwnerReadmeThroughGoto(t *testing.T) {
 	open := func(t *testing.T, os brokenOwners) *Model {
 		t.Helper()
 		m := wiredApp(t, brokenFiles{}, brokenIssues{}, os)
+		// The list shows its README beside it only where the modal is wide.
+		m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
 		runCommand(t, m, "goto @github")
-		if m.screen != ownerScreen {
-			t.Fatalf("goto @github showed screen %v, want the owner page", m.screen)
+		if _, ok := m.modals.Top().(*owner.Modal); !ok {
+			t.Fatalf("goto @github opened %T, want the owner page", m.modals.Top())
 		}
-		tap(t, m, "3")
+		// Zoomed, tab moves to the README, the preview of the list.
+		tap(t, m, "z")
+		tap(t, m, "tab")
 		return m
 	}
 	t.Run("shown and scrolled", func(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/config"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 )
@@ -106,11 +107,12 @@ func TestOwnerKeyOverModals(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			m := keysAfter(t, true, steps...)
 			tap(t, m, "@")
-			if m.modals.Top() != nil || m.screen != ownerScreen {
-				t.Errorf("%v: after @, modal open %v on screen %v; want the owner page of the author", steps, m.modals.Top() != nil, m.screen)
+			page, _ := m.modals.Top().(*owner.Modal)
+			if page == nil {
+				t.Fatalf("%v: after @, the top modal is %T; want the owner page of the author", steps, m.modals.Top())
 			}
-			if m.ownerLogin != "octocat" {
-				t.Errorf("%v: the page is of %q, want the author octocat", steps, m.ownerLogin)
+			if page.Login() != "octocat" {
+				t.Errorf("%v: the page is of %q, want the author octocat", steps, page.Login())
 			}
 		})
 	}
@@ -233,10 +235,19 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 			m := newKeysApp(t, false)
 			driveKeys(t, m, func() tea.Msg { return ui.OwnerMsg{Login: "octocat"} })
 			tap(t, m, "z")
-			before := onScreen(m)
+			page, ok := m.modals.Top().(*owner.Modal)
+			if !ok {
+				t.Fatalf("the owner page is %T, want a modal", m.modals.Top())
+			}
+			tap(t, m, "backspace")
+			// backspace drops the zoom first, and leaves the modal open.
+			if m.modals.Top() != page {
+				t.Fatal("backspace closed the zoomed owner page")
+			}
+			// esc closes the modal rather than showing the panes again.
 			tap(t, m, "esc")
-			if after := onScreen(m); after != before {
-				t.Errorf("esc changed the zoomed owner page:\n%s\nwas:\n%s", after, before)
+			if m.modals.Top() != nil {
+				t.Error("esc left the owner page open")
 			}
 		})
 	})

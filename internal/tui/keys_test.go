@@ -125,7 +125,7 @@ func focusOf(m *Model) string {
 	switch m.screen {
 	case repoScreen:
 		return "repo: " + m.focused().section.Title()
-	case dashScreen, ownerScreen:
+	case dashScreen:
 	}
 	return fmt.Sprintf("screen %d", m.screen)
 }

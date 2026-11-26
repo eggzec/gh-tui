@@ -731,6 +731,9 @@ type keyContext struct {
 	steps []string
 	msg   tea.Msg
 	after []string
+	// wide sizes the terminal for a split that needs a wide modal, such as
+	// the README beside the list of an owner.
+	wide bool
 	// want names the layers the context has, as layerNames does, so
 	// that a context the keys no longer reach fails rather than passes.
 	want string
@@ -837,6 +840,9 @@ func (c keyContext) reachWith(t *testing.T, edit func(*config.Config)) (*Model, 
 				m.View()
 			}
 		}
+	}
+	if c.wide {
+		m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
 	}
 	press(c.steps)
 	if c.msg != nil {
@@ -1190,9 +1196,9 @@ func newKeysAppPulls(t *testing.T, repo bool, edit func(*config.Config), inbox k
 		Search:        searchpage.New(ctx, keySearch{}, cfg.Keys, searchpage.WithVoice(v), searchpage.WithIcons(ic)),
 		Dashboard: dashboard.New(ctx, keyDash{}, cfg.Keys, dashboard.WithVoice(v), dashboard.WithIcons(ic),
 			dashboard.WithInbox(keyInbox{none: inbox.none}), dashboard.WithHere(testRepo, nil)),
-		Owner: owner.New(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 	}
 	opts := []Option{
+		ownerOpener(ctx, keyOwners{}, cfg.Keys, owner.WithVoice(v), owner.WithIcons(ic)),
 		WithVoice(v), WithAccess(acc),
 		WithHistory(history.Opener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
 		WithCommit(history.CommitOpener(keyHistory{}, cfg.Keys, history.WithVoice(v))),
@@ -1285,8 +1291,7 @@ func keyContexts() []keyContext {
 		{name: "owner: organization repositories", msg: github, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: members", msg: github, after: []string{"global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
 		{name: "owner: teams", msg: github, after: []string{"global.next_tab", "global.next_tab"}, context: "owner_list", want: "global, owner, owner_list"},
-		{name: "owner: readme", msg: octocat, after: []string{"global.pane_3", "owner_readme.half_page_down"}, context: "owner_readme", want: "global, owner, owner_readme"},
-		{name: "owner: calendar", msg: octocat, after: []string{"global.pane_4"}, context: "owner_calendar", want: "global, owner, owner_calendar"},
+		{name: "owner: readme", msg: octocat, wide: true, after: []string{"global.zoom", "global.next_pane", "owner_readme.half_page_down"}, context: "owner_readme", want: "global, owner, owner_readme"},
 		{name: "dashboard: repositories", context: "dashboard_repos", want: "global, dashboard, dashboard_repos"},
 		{name: "dashboard: pinned", steps: []string{"global.pane_1"}, context: "dashboard_pinned", want: "global, dashboard, dashboard_pinned"},
 		{name: "dashboard: work", steps: []string{"global.pane_3"}, context: "dashboard_work", want: "global, dashboard, dashboard_work"},
