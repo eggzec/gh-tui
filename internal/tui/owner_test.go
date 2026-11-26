@@ -280,7 +280,7 @@ func TestOwnerBack(t *testing.T) {
 	runCommand(t, m, "goto @octocat")
 	// The fake takes the keys of a text preview, which the command line
 	// refuses to open over, so the second page comes by message.
-	run(m, ui.ShowOwner("hubot"))
+	drive(m, ui.ShowOwner("hubot"))
 	if top := ownerOn(m); top == nil || top.login != "hubot" {
 		t.Fatalf("on top %v, opened %q, toasts %q; want hubot's page", top, page.opened(), toasted(m))
 	}
@@ -308,7 +308,7 @@ func TestOwnerEscCloses(t *testing.T) {
 func TestOwnerMsgOpensModal(t *testing.T) {
 	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
-	run(m, ui.ShowOwner("octocat"))
+	drive(m, ui.ShowOwner("octocat"))
 	if ownerOn(m) == nil || page.Login() != "octocat" {
 		t.Errorf("on top %v with pages %q, want octocat's", m.modals.Top(), page.opened())
 	}

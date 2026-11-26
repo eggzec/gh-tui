@@ -26,8 +26,8 @@ var (
 func NewModal(s *Section, login string) *Modal {
 	m := &Modal{Section: s}
 	s.Focus()
-	m.start = s.Update(ui.OwnerMsg{Login: login})
 	s.started = true
+	m.start = s.Update(ui.OwnerMsg{Login: login})
 	return m
 }
 
