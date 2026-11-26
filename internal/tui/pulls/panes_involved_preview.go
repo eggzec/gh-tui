@@ -40,7 +40,7 @@ func (m *panesModal) involvedPreviewOf(b panes.Box) (involved.Preview, string, b
 		clear(p.drawn)
 		p.drawnVer, p.drawnConv = p.dver, m.conv.version
 	}
-	dk := drawnInvolved{m.hover[b.Pane-1].id, b.Rect.Inner().W}
+	dk := drawnInvolved{m.slots.Hover(b.Pane).ID, b.Rect.Inner().W}
 	if v, ok := p.drawn[dk]; ok {
 		return v.preview, v.body, true
 	}

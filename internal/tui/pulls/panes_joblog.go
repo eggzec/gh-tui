@@ -15,6 +15,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	actions "github.com/eggzec/gh-tui/internal/service/actions"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -116,7 +117,7 @@ func (m *panesModal) hoveredJob() (core.CommitCheck, bool) {
 	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {
 		return core.CommitCheck{}, false
 	}
-	return p.jobOf(m.hover[paneMerge-1].id)
+	return p.jobOf(m.slots.Hover(paneMerge).ID)
 }
 
 // unwatchLog ends the follow of the log of a running job.
@@ -268,9 +269,9 @@ func (m *panesModal) storeLog(cc core.CommitCheck, lg core.Log, final bool, step
 	// Scrolling the note that the log is loading moves nothing, so it doesn't
 	// count as the user's choice.
 	scrolled := shown != nil && shown.state == jobLogReady
-	if key := (previewKey{paneMerge, jobRow(cc.JobID)}); l.found {
-		if !m.previews.Has(key) || !scrolled {
-			m.previews.Set(key, max(0, l.hidden()+l.first-l.from-errSeen))
+	if key := (slots.Key{Pane: paneMerge, ID: jobRow(cc.JobID)}); l.found {
+		if !m.slots.Previews().Has(key) || !scrolled {
+			m.slots.Previews().Set(key, max(0, l.hidden()+l.first-l.from-errSeen))
 		}
 	}
 	return l

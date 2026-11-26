@@ -56,7 +56,7 @@ func (m *panesModal) hoveredCheck() (core.CommitCheck, bool) {
 	if _, ok := m.layout().Box(paneMerge, panes.Preview); !ok {
 		return core.CommitCheck{}, false
 	}
-	return p.checkOf(m.hover[paneMerge-1].id)
+	return p.checkOf(m.slots.Hover(paneMerge).ID)
 }
 
 // loadNotes reads the annotations of the check run that the preview shows,

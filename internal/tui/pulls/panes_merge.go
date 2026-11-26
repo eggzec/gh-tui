@@ -360,7 +360,7 @@ func (m *panesModal) mergePreviewOf(b panes.Box) (merge.Preview, bool) {
 		clear(p.drawn)
 		p.drawnVer, p.drawnConv = p.version, m.conv.version
 	}
-	dk := drawnMerge{m.hover[b.Pane-1].id, b.Rect.Inner().W}
+	dk := drawnMerge{m.slots.Hover(b.Pane).ID, b.Rect.Inner().W}
 	if v, ok := p.drawn[dk]; ok {
 		return v, true
 	}

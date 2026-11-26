@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -31,7 +32,7 @@ type drawKey struct {
 	gen           int
 	files         int
 	updated       int64
-	hover         hovered
+	hover         slots.Hover
 	offset        int
 	merge         int
 	conv          int
@@ -109,15 +110,15 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.hover[m.nav.Focus()-1], m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows(), m.dividerSizes()}
+	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.slots.Hover(m.nav.Focus()), m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows(), m.dividerSizes()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
 	out := m.frames.Draw(l, func(b panes.Box) panes.Content {
 		if b.Role == panes.Preview {
-			return m.previewContent(b)
+			return m.slots.Content(m, b)
 		}
-		c := m.slots[b.Pane-1].content(m, b)
+		c := m.slots.Slot(b.Pane).Content(m, b)
 		c.Focus = b.Pane == l.Focus
 		if len(c.TopLeft) == 0 {
 			title := "[" + strconv.Itoa(int(b.Pane)) + "] " + paneName(b.Pane)

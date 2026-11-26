@@ -12,6 +12,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	actionssvc "github.com/eggzec/gh-tui/internal/service/actions"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -177,7 +178,7 @@ func TestLongLogJumpsToItsFirstError(t *testing.T) {
 	if want := "500 more lines not shown"; rows[len(rows)-1] != want {
 		t.Errorf("last row %q, want %q", rows[len(rows)-1], want)
 	}
-	off := m.previews.Get(previewKey{paneMerge, jobRow(5)})
+	off := m.slots.Previews().Get(slots.Key{Pane: paneMerge, ID: jobRow(5)})
 	if got := strings.TrimSpace(strings.TrimLeft(rows[off+errSeen], " ")); !strings.HasSuffix(got, fmt.Sprintf("line %d", errAt)) {
 		t.Errorf("the row %d rows below the top is %q, want the first error", errSeen, got)
 	}
@@ -188,7 +189,7 @@ func TestScrollingWhileLoadingKeepsTheJump(t *testing.T) {
 	m, _ := jobPanes(t)
 	var read mergeLogMsg
 	for range 12 {
-		if m.hover[2].id == jobRow(5) {
+		if m.slots.Hover(paneMerge).ID == jobRow(5) {
 			break
 		}
 		if msg, ok := find[mergeLogMsg](m.Update(keyMsg("j"))); ok {
@@ -199,10 +200,10 @@ func TestScrollingWhileLoadingKeepsTheJump(t *testing.T) {
 		t.Fatal("hovering the job started no read of its log")
 	}
 	// Scrolling the note that the log is loading writes a zero offset.
-	key := previewKey{paneMerge, jobRow(5)}
-	m.previews.Set(key, 0)
+	key := slots.Key{Pane: paneMerge, ID: jobRow(5)}
+	m.slots.Previews().Set(key, 0)
 	m.Update(read)
-	if got := m.previews.Get(key); got == 0 {
+	if got := m.slots.Previews().Get(key); got == 0 {
 		t.Error("the log shows from its top, want it scrolled to the first error")
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/checktree"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
@@ -70,9 +70,7 @@ type panesModal struct {
 	// slots are what the panes are made of. hover is the row each pane's
 	// preview shows, and previews how far each row's preview is scrolled,
 	// kept while the modal lives.
-	slots    [paneCount]slot
-	hover    [paneCount]hovered
-	previews panes.Scrolls[previewKey]
+	slots *slots.Set[*panesModal]
 	// inv is the involved pane's state.
 	inv *involvedPane
 
@@ -172,7 +170,6 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		repo:   repo,
 		number: number,
 		other:  showRepo || !s.hasRepo || !repo.Same(s.repo),
-		slots:  slots,
 		id:     panesIDs.Add(1),
 
 		ctx:    ctx,
@@ -189,6 +186,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		token:   s.voice.Token,
 		sendCtx: s.ctx,
 	}
+	m.slots = slots.New(paneSlots[:], m.titleForms)
 	m.nav.SetFocus(paneConversation)
 	m.files = newFilesPane(m.keys.files)
 	if s.checks != nil {
@@ -560,53 +558,16 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
 	case m.nav.InPreview(l):
-		if press := m.slots[m.nav.Focus()-1].pressPreview; press != nil {
-			return press(m, msg)
-		}
-		m.scrollPreview(l, msg)
-	default:
-		if press := m.slots[m.nav.Focus()-1].press; press != nil {
-			cmd, _ := press(m, msg)
+		if cmd, ok := m.slots.PressPreview(m, m.nav.Focus(), msg); ok {
 			return cmd
 		}
+		if b, ok := l.Box(m.nav.Focus(), panes.Preview); ok {
+			m.slots.Scroll(m, m.nav.Focus(), b, m.keys.scroll, msg)
+		}
+	default:
+		return m.slots.Press(m, m.nav.Focus(), msg)
 	}
 	return nil
-}
-
-// scrollPreview scrolls the focused pane's preview, which has the focus in l,
-// as far as its text goes. The offset stays with the row shown.
-func (m *panesModal) scrollPreview(l panes.Layout, msg tea.KeyPressMsg) {
-	b, ok := l.Box(m.nav.Focus(), panes.Preview)
-	s := m.slots[m.nav.Focus()-1]
-	if !ok || s.preview == nil {
-		return
-	}
-	rows := b.Rect.Inner().H
-	last := max(0, strings.Count(s.preview(m, b), "\n")+1-rows)
-	k := m.keys.scroll
-	pk := previewKey{m.nav.Focus(), m.hover[m.nav.Focus()-1].id}
-	off := m.previews.Get(pk)
-	switch {
-	case keymap.Matches(msg, k.Up):
-		off--
-	case keymap.Matches(msg, k.Down):
-		off++
-	case keymap.Matches(msg, k.PageUp):
-		off -= rows
-	case keymap.Matches(msg, k.PageDown):
-		off += rows
-	case keymap.Matches(msg, k.HalfPageUp):
-		off -= max(1, rows/2)
-	case keymap.Matches(msg, k.HalfPageDown):
-		off += max(1, rows/2)
-	case keymap.Matches(msg, k.Home):
-		off = 0
-	case keymap.Matches(msg, k.End):
-		off = last
-	default:
-		return
-	}
-	m.previews.Set(pk, min(max(off, 0), last))
 }
 
 // layout returns the layout of the panes.
@@ -620,7 +581,7 @@ func (m *panesModal) context(l panes.Layout) string {
 	if m.nav.InPreview(l) {
 		return ctxPreview
 	}
-	return m.slots[m.nav.Focus()-1].context
+	return m.slots.Slot(m.nav.Focus()).Context
 }
 
 // close closes the modal, and stops its reads.
