@@ -25,6 +25,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if isModifierKey(msg) {
 		return m, nil
 	}
+	if r, ok := msg.(RestartMsg); ok {
+		m.restart = &r.Target
+		cmd := m.quitNow()
+		return m, cmd
+	}
 	_, cmd := m.update(msg)
 	if m.modals.Refit() {
 		m.resized = true

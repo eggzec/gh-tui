@@ -3,3 +3,5 @@
 *.test
 *.out
 *.prof
+# A global ignore of target/ (Rust, Maven) would hide the target parser.
+!/internal/target/

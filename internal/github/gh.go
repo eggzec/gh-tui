@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"slices"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/config"
@@ -82,6 +83,18 @@ func (g ghLookup) login(host, source string) string {
 	}
 	login, _ := cfg.Get([]string{"hosts", auth.NormalizeHostname(host), "user"})
 	return login
+}
+
+// hostUsers returns the logins gh has stored a token for on host, in its
+// hosts file, sorted.
+func (g ghLookup) hostUsers(host string) []string {
+	cfg, err := g.config()
+	if err != nil || cfg == nil {
+		return nil
+	}
+	users, _ := cfg.Keys([]string{"hosts", auth.NormalizeHostname(host), "users"})
+	slices.Sort(users)
+	return users
 }
 
 // unixSocket returns the socket gh sends its HTTP requests through, from

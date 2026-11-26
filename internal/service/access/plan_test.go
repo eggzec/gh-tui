@@ -96,6 +96,14 @@ func TestPlan(t *testing.T) {
 			want: Plan{URL: tokens, Why: "Give the token the workflow scope on GitHub, then check again.", Scopes: workflow},
 		},
 		{
+			name: "inactive account offers no gh command",
+			st:   situation{kind: core.TokenClassic, known: true, source: "gh", gh: gh, missing: workflow, login: "b", inactive: true},
+			want: Plan{
+				Why:    "gh refreshes only its active account: run gh auth switch --hostname github.com --user b, then gh auth refresh, and switch back.",
+				Scopes: workflow,
+			},
+		},
+		{
 			name: "fine-grained in gh",
 			st:   situation{kind: core.TokenFineGrained, known: true, source: "gh", gh: gh, refused: true},
 			want: Plan{Why: "A fine-grained token has no scopes to grant; run gh auth login to use a classic token."},
