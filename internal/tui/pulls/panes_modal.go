@@ -213,7 +213,7 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 	// The read starts once the modal is open, so that the app has it to pass
 	// the result to.
 	reads := []tea.Cmd{m.revalidate(), m.merge.refresh(m)}
-	if read := m.openDev(s.dev, s.rawKeys); read != nil {
+	if read := m.openDev(s.dev, s.refs, s.rawKeys); read != nil {
 		reads = append(reads, read)
 	}
 	if !m.caps.Known {
@@ -339,6 +339,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return nil
 	case devLinksMsg:
 		return m.receiveDev(msg)
+	case devRefsMsg:
+		return m.receiveRefs(msg)
+	case devMentionsMsg:
+		return m.receiveMentions(msg)
 	case devPreviewMsg:
 		m.receivePreview(msg)
 		return nil

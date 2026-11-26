@@ -66,9 +66,12 @@ func TestDevelopmentEnterOpensIssue(t *testing.T) {
 
 func TestDevelopmentEnterOpensPull(t *testing.T) {
 	t.Parallel()
-	h := openedDev(t, &fakeDev{links: devLinks()})
+	h := started(t, newFakeService(), 120, 30, WithDevelopment(&fakeDev{links: devLinks()}),
+		WithReferences(&fakeRefs{refs: core.References{Written: []core.Reference{devRef(core.KindPull, 30, "Follow-up cleanup")}}}))
+	press(t, h, "enter")
+	press(t, h, "5")
 	m := h.modal()
-	// Past the Closes header and its two issues, to the Closed by header and
+	// Past the Closes header and its two issues, to the Mentions header and
 	// its pull request.
 	for range 4 {
 		press(t, h, "down")
@@ -106,7 +109,7 @@ func TestDevelopmentShowsRowsUnzoomed(t *testing.T) {
 		t.Fatalf("the modal is zoomed: %+v", m)
 	}
 	s := modalScreen(t, h)
-	for _, want := range []string{"Crash on empty input", "Follow-up cleanup"} {
+	for _, want := range []string{"Crash on empty input", "Slow start"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("the unzoomed pane doesn't show %q:\n%s", want, s)
 		}

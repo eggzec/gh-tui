@@ -108,6 +108,16 @@ func TestHideCloses(t *testing.T) {
 	}
 }
 
+func TestHideClosedBy(t *testing.T) {
+	t.Parallel()
+	o := opts(config.IconsASCII)
+	o.HideClosedBy = true
+	got := ids(Build(fixture(), o))
+	if slices.Contains(got, linkedID) || !slices.Contains(got, closesID) {
+		t.Errorf("ids = %v, want the closes header and no closed by header", got)
+	}
+}
+
 func TestBlockersOneLevel(t *testing.T) {
 	t.Parallel()
 	r := Build(fixture(), opts(config.IconsASCII))
