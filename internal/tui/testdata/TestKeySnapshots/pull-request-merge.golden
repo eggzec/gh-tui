@@ -46,5 +46,5 @@ Merge
   all | * | * | on
   open | enter | ↵ | on
   update branch | U | U | on
-  other split down | J | J | on
-  other split up | K | K | on
+  other split down | J | J | off
+  other split up | K | K | off

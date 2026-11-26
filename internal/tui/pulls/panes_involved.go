@@ -2,6 +2,7 @@ package pulls
 
 import (
 	"errors"
+	"slices"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -194,6 +195,7 @@ func (m *panesModal) focusPerson(msg involved.FocusPersonMsg) tea.Cmd {
 func (m *panesModal) involvedLayer() keyhelp.Layer {
 	k := m.inv.tree.KeyMap()
 	// The tree's mark key is no key of this pane.
-	all := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Open, m.keys.rerequest, m.keys.edit}
+	own := []key.Binding{k.Up, k.Down, k.PageUp, k.PageDown, k.HalfPageUp, k.HalfPageDown, k.Home, k.End, k.Expand, k.Collapse, k.ToggleAll, k.Open, m.keys.rerequest, m.keys.edit}
+	all := slices.Concat(own, m.otherHelp(ctxInvolved, m.layout()))
 	return ui.ContextLayer(ctxInvolved, all, k.ShortHelp())
 }

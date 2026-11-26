@@ -24,21 +24,7 @@ const ctxSideInvolved = "pull_involved"
 // sideKeys returns the tree keys of the side panes: the context has no mark
 // action, which a tree of people or issues has nothing to mark for.
 func sideKeys(keys config.Keymap) treeview.KeyMap {
-	look := ui.Lookup(keys, ctxSideInvolved)
-	if s, ok := look.(keymap.Scoped); ok {
-		look = noMark{s}
-	}
-	return treeview.NewKeyMap(look)
-}
-
-// noMark is a lookup that gives no keys to the mark action.
-type noMark struct{ keymap.Scoped }
-
-func (n noMark) Of(action string) []string {
-	if action == "mark" {
-		return nil
-	}
-	return n.Scoped.Of(action)
+	return treeview.NewKeyMap(ui.WithoutMark(ui.Lookup(keys, ctxSideInvolved)))
 }
 
 // sidePanes are the Involved and Development panes: the people of the issue,

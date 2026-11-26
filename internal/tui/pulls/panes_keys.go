@@ -129,7 +129,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		helpKeys: keyhelp.NewKeyMap(ui.Lookup(keys, "help")),
 		files:    newFilesKeys(keys),
 		tree:     treeview.NewKeyMap(convLookup{Context: ui.In(keys, ctxConversation), keys: keys}),
-		inv:      treeview.NewKeyMap(withoutMark(ui.Lookup(keys, ctxInvolved))),
+		inv:      treeview.NewKeyMap(ui.WithoutMark(ui.Lookup(keys, ctxInvolved))),
 
 		convFilter: ui.In(keys, ctxConversation).Binding("filter", "filter"),
 		convSort:   ui.In(keys, ctxConversation).Binding("sort", "sort"),
@@ -163,25 +163,6 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		k.filter = fk[0]
 	}
 	return k
-}
-
-// noMark is a lookup that has no key to mark rows with, which no pane of the
-// modal uses.
-type noMark struct{ keymap.Scoped }
-
-func (n noMark) Of(action string) []string {
-	if action == "mark" {
-		return nil
-	}
-	return n.Scoped.Of(action)
-}
-
-// withoutMark returns look with no mark action, which the config need not have.
-func withoutMark(look keymap.Lookup) keymap.Lookup {
-	if s, ok := look.(keymap.Scoped); ok {
-		return noMark{s}
-	}
-	return look
 }
 
 // digit returns the pane whose digit msg is, if it is one.
@@ -253,7 +234,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 		for _, row := range k.scroll.FullHelp() {
 			all = append(all, row...)
 		}
-		all = append(all, k.other[ctx].Down, k.other[ctx].Up)
+		all = append(all, m.otherHelp(ctx, l)...)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.scroll.ShortHelp())}
 	}
 	if ctx == ctxFiles {
@@ -261,7 +242,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	}
 	if ctx == ctxMerge {
 		all, short := m.merge.keys.help()
-		all = append(all, k.other[ctx].Down, k.other[ctx].Up)
+		all = append(all, m.otherHelp(ctx, l)...)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, short)}
 	}
 	if ctx == ctxConversation {

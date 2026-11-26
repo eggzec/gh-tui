@@ -139,15 +139,40 @@ func (s *Set[H]) PressPreview(h H, p panes.Pane, k tea.KeyPressMsg) (cmd tea.Cmd
 	return nil, false
 }
 
-// ScrollOther acts on the split of pane p that has not the focus. With the
+// PressOther takes msg if it is a key of the other split o in pane p, and
+// reports whether it did. step presses a key of the pane's list, whose
+// context is ctx, and returns its command: the list's down or up.
+func (s *Set[H]) PressOther(h H, p panes.Pane, b panes.Box, inPreview bool, k ui.MoveKeys, o ui.OtherKeys, ctx string, msg tea.KeyPressMsg, step func(tea.KeyPressMsg) tea.Cmd) (tea.Cmd, bool) {
+	var down bool
+	switch {
+	case keymap.Matches(msg, o.Down):
+		down = true
+	case keymap.Matches(msg, o.Up):
+	default:
+		return nil, false
+	}
+	return s.scrollOther(h, p, b, inPreview, k, down, func(down bool) tea.Cmd {
+		act := ".up"
+		if down {
+			act = ".down"
+		}
+		return step(keymap.ActionPress(ctx + act))
+	}), true
+}
+
+// scrollOther acts on the split of pane p that has not the focus. With the
 // list focused (inPreview false) it scrolls the preview in box b one line,
 // as the move keys' down or up does; with the preview focused it asks move to
 // step the list, and then moves the previews to the row under the cursor.
-func (s *Set[H]) ScrollOther(h H, p panes.Pane, b panes.Box, inPreview bool, k ui.MoveKeys, down bool, move func(down bool) tea.Cmd) tea.Cmd {
+func (s *Set[H]) scrollOther(h H, p panes.Pane, b panes.Box, inPreview bool, k ui.MoveKeys, down bool, move func(down bool) tea.Cmd) tea.Cmd {
 	if inPreview {
+		before := s.hover[p-1].ID
 		cmd := move(down)
 		s.Follow(h)
-		s.previews.Reset(Key{p, s.hover[p-1].ID})
+		// A list that stayed on its row keeps the place read in its preview.
+		if now := s.hover[p-1].ID; now != before {
+			s.previews.Reset(Key{p, now})
+		}
 		return cmd
 	}
 	line := k.Up
