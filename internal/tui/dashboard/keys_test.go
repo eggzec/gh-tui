@@ -92,6 +92,21 @@ func TestHelpListsOnlyWorkingPaneKeys(t *testing.T) {
 	}
 }
 
+// Narrow forces the zoom, so tab is not listed there either, nor while zoomed.
+func TestHelpHidesTabZoomedAndNarrow(t *testing.T) {
+	s := newSection(t, newFake(), nil, 180, 44)
+	press(t, s, "z")
+	narrow := newSection(t, newFake(), nil, 180, 44)
+	narrow.SetNarrow(true)
+	for name, sec := range map[string]*Section{"zoomed": s, "narrow": narrow} {
+		for _, k := range []string{"tab", "shift+tab"} {
+			if _, _, ok := uitest.Winner(sec.KeyLayers(), k); ok {
+				t.Errorf("%s: %s is listed, but it does nothing", name, k)
+			}
+		}
+	}
+}
+
 // opensFilter reports whether msgs ask the app to open the filter.
 func opensFilter(msgs []tea.Msg) bool {
 	return len(msgs) == 1 && msgs[0] == ui.OpenFilterMsg{}

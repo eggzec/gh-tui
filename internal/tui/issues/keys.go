@@ -268,6 +268,12 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	pk.next.SetEnabled(pk.next.Enabled() && steps)
 	pk.prev.SetEnabled(pk.prev.Enabled() && steps)
 	pk.zoom.SetEnabled(pk.zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	// Pressing the digit of the focused pane does nothing, so help doesn't
+	// list it.
+	if f := int(m.ctl.Nav.Focus()) - 1; f >= 0 && f < paneCount {
+		pk.pane[f].SetEnabled(false)
+	}
+	pk.jump = ui.Jump(pk.pane[:]...)
 	pk.other.Down.SetEnabled(pk.other.Down.Enabled() && split)
 	pk.other.Up.SetEnabled(pk.other.Up.Enabled() && split)
 	own.Bindings = append(own.Bindings, pk.bindings()...)

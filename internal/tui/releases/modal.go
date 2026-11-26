@@ -478,6 +478,19 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k.Next.SetEnabled(k.Next.Enabled() && steps)
 	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	stack := m.canStack()
+	k.DividerUp.SetEnabled(k.DividerUp.Enabled() && stack)
+	k.DividerDown.SetEnabled(k.DividerDown.Enabled() && stack)
+	k.DividerReset.SetEnabled(k.DividerReset.Enabled() && m.dividers != nil && m.dividers.Moved())
+	// Pressing the digit of the focused pane does nothing, so help doesn't
+	// list it.
+	switch m.ctl.Nav.Focus() {
+	case paneNotes:
+		k.Pane1.SetEnabled(false)
+	case paneFiles:
+		k.Pane2.SetEnabled(false)
+	}
+	k.jump = ui.Jump(k.Pane1, k.Pane2)
 	if m.failed() {
 		k.offFailed()
 	}
