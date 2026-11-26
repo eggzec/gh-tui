@@ -16,7 +16,7 @@ type sideConf struct {
 }
 
 func newSideConf(keys config.Keymap) sideConf {
-	def := config.Default()
+	def := baseConfig()
 	return sideConf{keys: newReadmeKeys(keys), focus: focusFor(def.Owner.DefaultTab)}
 }
 

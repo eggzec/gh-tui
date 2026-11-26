@@ -8,6 +8,7 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -133,13 +134,16 @@ var lastID atomic.Int64
 // Section is the page of a user or an organization. Create one with New,
 // and give it the account to show with a ui.OwnerMsg.
 type Section struct {
-	id    int64
-	ctx   context.Context
-	svc   Service
-	keys  KeyMap
-	now   func() time.Time
-	voice ui.Voice
-	icons ui.Icons
+	id  int64
+	ctx context.Context
+	// cancel ends ctx, which the page's requests share, once the page is
+	// discarded.
+	cancel context.CancelFunc
+	svc    Service
+	keys   KeyMap
+	now    func() time.Time
+	voice  ui.Voice
+	icons  ui.Icons
 	// drew is the generation of the autolinks the README was drawn with.
 	drew uint64
 	// dates tell when the repositories were updated.
@@ -252,10 +256,12 @@ var (
 // New returns the page, which reads through svc and binds the actions in
 // keys. ctx bounds every request it makes.
 func New(ctx context.Context, svc Service, keys config.Keymap, opts ...Option) *Section {
-	def := config.Default()
+	def := baseConfig()
+	ctx, cancel := context.WithCancel(ctx)
 	s := &Section{
 		id:         lastID.Add(1),
 		ctx:        ctx,
+		cancel:     cancel,
 		svc:        svc,
 		keys:       newKeyMap(keys),
 		now:        time.Now,
@@ -421,8 +427,12 @@ func (s *Section) pages() []*page {
 	return append(slices.Clip(s.back), s.page)
 }
 
+// baseConfig is the default configuration, built once: it is read only here,
+// and every page that opens would otherwise copy it.
+var baseConfig = sync.OnceValue(config.Default)
+
 func defaultPalette() config.Palette {
-	p, _ := config.Default().Palette(true)
+	p, _ := baseConfig().Palette(true)
 	return p
 }
 

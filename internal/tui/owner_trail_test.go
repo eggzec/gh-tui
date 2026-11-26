@@ -55,6 +55,30 @@ func TestOwnerFromPullBack(t *testing.T) {
 	}
 }
 
+// The owner key on a person row of an owner page opened over a pull request
+// replaces that page, so back returns to the first owner, then the pull
+// request.
+func TestOwnerFromOwnerKeepsPullInTrail(t *testing.T) {
+	t.Parallel()
+	m, page := newOwnerApp(t, newFakeOwners())
+	pr := &authorModal{title: "Pull request", author: "octocat"}
+	drive(m, ui.OpenModal(pr))
+	drive(m, m.key(press("@")))
+	page.sel = &ui.Selection{Owner: "charmbracelet"}
+	drive(m, m.key(press("@")))
+	if top := ownerOn(m); top == nil || top.login != "charmbracelet" {
+		t.Fatalf("on top %v, want charmbracelet's page", m.modals.Top())
+	}
+	drive(m, m.key(press("backspace")))
+	if top := ownerOn(m); top == nil || top.login != "octocat" {
+		t.Fatalf("on top %v after back, want octocat's page", m.modals.Top())
+	}
+	drive(m, m.key(press("backspace")))
+	if m.modals.Top() != pr {
+		t.Errorf("on top %v after second back, want the pull request modal", m.modals.Top())
+	}
+}
+
 // The owner key of a modal whose author is the viewer shows the dashboard
 // with no modal over it, from the dashboard and from a repository.
 func TestOwnerFromOwnModal(t *testing.T) {
