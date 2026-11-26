@@ -289,6 +289,8 @@ func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
 	m.ctl.SetNarrow(m.narrow || m.width < wideMin)
 	m.settleDividers()
+	// A preview that a resize took away must not keep the focus.
+	m.ctl.Settle(m.layout())
 	m.resizeFilesDiff()
 }
 

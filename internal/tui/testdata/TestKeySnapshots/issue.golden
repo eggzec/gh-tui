@@ -32,9 +32,9 @@ Issue
   sort | s | s | off
   sort on/off | alt+s | alt+s | on
   author | @ | @ | on
-  next pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
-  zoom | z | z | on
+  next pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
+  zoom | z | z | off
   divider left | ctrl+left | ^left | off
   divider right | ctrl+right | ^right | off
   grow pane | ctrl+up | ^up | off

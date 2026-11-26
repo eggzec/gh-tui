@@ -46,6 +46,21 @@ func TestZoomGatedWhileNarrow(t *testing.T) {
 	if m.ctl.Toggle() {
 		t.Error("the zoom key worked while narrow")
 	}
+	want := m.keys.panes.zoom.Help().Desc
+	found := false
+	for _, l := range m.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Help().Desc == want {
+				found = true
+				if b.Enabled() {
+					t.Error("help lists z while it does nothing")
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("the zoom binding isn't in the layers")
+	}
 }
 
 func TestBackspaceDropsUserZoomFirst(t *testing.T) {
