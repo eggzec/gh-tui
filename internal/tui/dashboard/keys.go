@@ -243,6 +243,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && len(s.repos.grouping.Levels) > 0)
 	default:
 	}
+	// The controller follows the focus, so this only reads it.
 	s.ctl.Nav.SetFocus(panes.Pane(s.focus) + 1)
 	steps := s.ctl.Nav.CanStep(s.paneLayout())
 	k.Next.SetEnabled(k.Next.Enabled() && steps)

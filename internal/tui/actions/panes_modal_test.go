@@ -22,6 +22,25 @@ func TestZoomBoundary(t *testing.T) {
 	}
 }
 
+// The footer lists only keys that work: zoomed, and narrow, tab has no preview
+// to flip, and the digit of the focused pane does nothing.
+func TestFooterListsOnlyWorkingKeys(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	if f := m.footer(m.paneLayout()); !strings.Contains(f, "focus") {
+		t.Errorf("unzoomed footer lacks the next-pane key: %q", f)
+	}
+	h.keys("z")
+	if f := m.footer(m.paneLayout()); strings.Contains(f, "focus") || !strings.Contains(f, "unzoom") {
+		t.Errorf("zoomed footer = %q, want no next-pane key and unzoom", f)
+	}
+	n, _ := newModal(t, newFake(), wideW, wideH)
+	n.SetNarrow(true)
+	n.SetSize(wideW, wideH)
+	if f := n.footer(n.paneLayout()); strings.Contains(f, "focus") || strings.Contains(f, "zoom") {
+		t.Errorf("narrow footer = %q, want neither a next-pane key nor zoom", f)
+	}
+}
+
 // A narrow terminal forces the zoom, and growing again brings back the
 // user's choice; the zoom key and back undo it.
 func TestZoomNarrowAndBack(t *testing.T) {

@@ -10,6 +10,8 @@ import (
 	"time"
 	"unicode"
 
+	"charm.land/bubbles/v2/key"
+
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -600,6 +602,51 @@ func TestZoomedKeysAndBackspace(t *testing.T) {
 	pressKey(m, tea.KeyPressMsg{Code: tea.KeyTab})
 	if m.ctl.Nav.Focus() == pane {
 		t.Error("unzoomed tab kept the focus on the same pane")
+	}
+}
+
+// enabledKeys lists the descriptions of the enabled bindings the help shows.
+func enabledKeys(m *Modal) map[string]bool {
+	got := map[string]bool{}
+	for _, l := range m.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Enabled() {
+				got[b.Help().Desc] = true
+			}
+		}
+	}
+	return got
+}
+
+// Help lists only the keys that work: not the digit of the focused pane, and
+// the divider keys only where the handler takes them.
+func TestHelpListsOnlyWorkingPaneKeys(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	own, other := m.keys.Pane1, m.keys.Pane2
+	if m.ctl.Nav.Focus() == paneFiles {
+		own, other = other, own
+	}
+	got := enabledKeys(m)
+	if got[own.Help().Desc] {
+		t.Errorf("help lists the digit of the focused pane %q", own.Help().Key)
+	}
+	if !got[other.Help().Desc] {
+		t.Errorf("help lacks the digit of the other pane %q", other.Help().Key)
+	}
+	if got[m.keys.DividerReset.Help().Desc] {
+		t.Error("help lists reset dividers while none moved")
+	}
+	for _, zoom := range []bool{false, true} {
+		if zoom {
+			press(m, "z")
+		}
+		got = enabledKeys(m)
+		for _, b := range []key.Binding{m.keys.DividerUp, m.keys.DividerDown} {
+			if got[b.Help().Desc] != m.canStack() {
+				t.Errorf("zoomed %v: %q listed %v, but canStack is %v", zoom, b.Help().Desc, got[b.Help().Desc], m.canStack())
+			}
+		}
 	}
 }
 

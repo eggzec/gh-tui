@@ -246,6 +246,23 @@ func TestPreviewFocusHelpListsOnlyScrolling(t *testing.T) {
 	}
 }
 
+// Pressing the digit of the focused pane does nothing, so help doesn't list
+// it, while the other panes' digits stay.
+func TestHelpHidesFocusedPaneDigit(t *testing.T) {
+	t.Parallel()
+	_, m := longPreview(t)
+	f := int(m.ctl.Nav.Focus()) - 1
+	got := enabledHelp(m)
+	if got[m.keys.panes.pane[f].Help().Desc] {
+		t.Errorf("the help lists the digit of the focused pane %d", f+1)
+	}
+	for i, b := range m.keys.panes.pane {
+		if i != f && !got[b.Help().Desc] {
+			t.Errorf("the help lacks the digit of pane %d", i+1)
+		}
+	}
+}
+
 func TestPreviewScrollsWithTheTopChord(t *testing.T) {
 	t.Parallel()
 	h, m := longPreview(t)

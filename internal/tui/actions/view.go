@@ -93,7 +93,7 @@ func (m *Modal) area() (w, h int) {
 
 // footer is the last line: the keys that move between the panes.
 func (m *Modal) footer(l panes.Layout) string {
-	k := m.keys
+	k := m.keys.state(m)
 	hint := func(b key.Binding, what string) string {
 		if !b.Enabled() {
 			return ""
@@ -101,7 +101,7 @@ func (m *Modal) footer(l panes.Layout) string {
 		return m.theme.Muted.Render(b.Help().Key) + " " + m.theme.Subtle.Render(what)
 	}
 	parts := []string{hint(k.Next, "focus"), hint(k.Jump, "pane")}
-	if m.ctl.Zoom.CanZoom() {
+	if k.Zoom.Enabled() {
 		what := "zoom"
 		if l.Zoomed {
 			what = "unzoom"

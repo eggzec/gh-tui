@@ -269,6 +269,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
+	// The controller follows the focus, so this only reads it.
 	m.ctl.Nav.SetFocus(panes.Pane(m.focus) + 1)
 	steps := m.ctl.Nav.CanStep(m.paneLayout())
 	k.Next.SetEnabled(k.Next.Enabled() && steps)

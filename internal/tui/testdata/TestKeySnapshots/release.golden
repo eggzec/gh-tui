@@ -23,8 +23,8 @@ Release
   zoom | z | z | on
   grow pane | ctrl+up | ^up | on
   shrink pane | ctrl+down | ^down | on
-  reset dividers | = | = | on
-  Notes | 1 | 1 | on
+  reset dividers | = | = | off
+  Notes | 1 | 1 | off
   Files | 2 | 2 | on
   up | up k | ↑/k | on
   down | down j | ↓/j | on
