@@ -9,6 +9,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	searchpage "github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
@@ -134,11 +135,11 @@ func TestOwnerKeyOverSearchClosesFirst(t *testing.T) {
 		m := newKeysApp(t, false)
 		pressKeys(t, m, "S", "/", "k", "e", "y", "enter")
 		pressKeys(t, m, "@")
-		if m.searchHost() != nil || m.modals.Top() != nil {
+		if m.searchHost() != nil {
 			t.Errorf("@ left the search open: top modal %v", m.modals.Top())
 		}
-		if m.screen != ownerScreen || m.ownerLogin == "" {
-			t.Errorf("@ left screen %d on owner %q, want an owner page", m.screen, m.ownerLogin)
+		if page, _ := m.modals.Top().(*owner.Modal); page == nil || page.Login() == "" {
+			t.Errorf("@ left the top modal %T, want an owner page", m.modals.Top())
 		}
 		if hasToast(m, "Close") {
 			t.Errorf("toasts %s, want no refusal", toasted(m))

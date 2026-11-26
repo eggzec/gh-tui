@@ -12,6 +12,8 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 )
 
@@ -60,51 +62,97 @@ func newFakeOwners() *fakeOwners {
 	}
 }
 
-// fakeOwnerPage is a page of owners that keeps the logins it was given,
-// and goes back through them as the owner page does.
+// fakeOwnerPage records the owner modals the app opened, in order. Its
+// logins are those of the modals; the last is on top unless it was closed.
 type fakeOwnerPage struct {
-	fakeSection
-	logins []string
+	mods []*fakeOwnerModal
+	// sel is what the cursor of every modal opened is on, if set.
+	sel *ui.Selection
 }
 
-func (p *fakeOwnerPage) Update(msg tea.Msg) tea.Cmd {
-	p.msgs = append(p.msgs, msg)
-	if msg, ok := msg.(ui.OwnerMsg); ok {
-		if !p.focused {
-			p.logins = nil
-		}
-		p.logins = append(p.logins, msg.Login)
+// opener is the option that opens owner modals that the page records.
+func (p *fakeOwnerPage) opener() Option {
+	return WithOwnerModal(func(_ context.Context, login string) (ui.Modal, tea.Cmd) {
+		mod := &fakeOwnerModal{fakeModal: fakeModal{title: login}, login: login, page: p}
+		p.mods = append(p.mods, mod)
+		return mod, nil
+	})
+}
+
+// opened returns the logins of the modals opened.
+func (p *fakeOwnerPage) opened() []string {
+	var logins []string
+	for _, mod := range p.mods {
+		logins = append(logins, mod.login)
 	}
-	return nil
+	return logins
 }
 
-func (p *fakeOwnerPage) CanGoBack() bool { return len(p.logins) > 1 }
-
-func (p *fakeOwnerPage) GoBack() tea.Cmd {
-	p.logins = p.logins[:len(p.logins)-1]
-	return nil
-}
-
-func (p *fakeOwnerPage) View() string { return "page of " + p.Login() }
-
+// Login returns the login of the last modal opened, or "" for none.
 func (p *fakeOwnerPage) Login() string {
-	if len(p.logins) == 0 {
+	if len(p.mods) == 0 {
 		return ""
 	}
-	return p.logins[len(p.logins)-1]
+	return p.mods[len(p.mods)-1].login
+}
+
+// ownerOn returns the owner modal on top of m, or nil.
+func ownerOn(m *Model) *fakeOwnerModal {
+	mod, _ := m.modals.Top().(*fakeOwnerModal)
+	return mod
+}
+
+// got reports whether the last modal opened got a message that is ok.
+func (p *fakeOwnerPage) got(ok func(tea.Msg) bool) bool {
+	return len(p.mods) > 0 && slices.ContainsFunc(p.mods[len(p.mods)-1].msgs, ok)
+}
+
+// fakeOwnerModal is an owner page in a modal, which acts as the real one
+// does: dismiss closes it, back is the manager's to take, and the owner key
+// shows the owner of the cursor unless it is the page's own.
+type fakeOwnerModal struct {
+	fakeModal
+	login string
+	page  *fakeOwnerPage
+}
+
+func (f *fakeOwnerModal) Selected() (ui.Selection, bool) {
+	if f.page.sel == nil {
+		return ui.Selection{}, false
+	}
+	return *f.page.sel, true
+}
+
+// KeyLayers are those of a modal over which the command key opens the line
+// and whose dismiss key reaches Act.
+func (f *fakeOwnerModal) KeyLayers() []keyhelp.Layer {
+	return []keyhelp.Layer{{Source: "preview", Context: "preview"}}
+}
+
+func (f *fakeOwnerModal) Act(action string) (tea.Cmd, bool) {
+	switch action {
+	case ui.ActQuit, ui.ActDismiss:
+		return ui.CloseModal(f), true
+	case "owner":
+		sel, ok := f.Selected()
+		if !ok || sel.Owner == "" || strings.EqualFold(sel.Owner, f.login) {
+			return nil, true
+		}
+		return tea.Sequence(ui.CloseModal(f), ui.ShowOwner(sel.Owner)), true
+	}
+	return nil, false
 }
 
 // newOwnerApp returns an app on the dashboard whose goto reads owners, and
-// its page of owners.
+// the record of the owner modals it opens.
 func newOwnerApp(t *testing.T, owners *fakeOwners, opts ...Option) (*Model, *fakeOwnerPage) {
 	t.Helper()
 	page := &fakeOwnerPage{}
-	page.title = ui.OwnerTitle
 	layout := Layout{
 		Files: &fakeSection{title: "Files"}, Pulls: &fakeSection{title: "Pull requests"}, Issues: &fakeSection{title: "Issues"},
-		Notifications: &fakeSection{title: "Notifications"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page,
+		Notifications: &fakeSection{title: "Notifications"}, Dashboard: &fakeSection{title: ui.DashboardTitle},
 	}
-	opts = append([]Option{WithRepos(newGotoRepos()), WithOwners(owners)}, opts...)
+	opts = append([]Option{WithRepos(newGotoRepos()), WithOwners(owners), page.opener()}, opts...)
 	m := New(t.Context(), config.Default(), layout, opts...)
 	rankFakes(m)
 	m.toast.SetDuration(0)
@@ -153,7 +201,7 @@ func TestGotoOwner(t *testing.T) {
 			runCommand(t, m, tt.line)
 			switch {
 			case tt.want != "":
-				if m.screen != ownerScreen || page.Login() != tt.want {
+				if ownerOn(m) == nil || page.Login() != tt.want {
 					t.Errorf("screen %d with the page of %q, want the owner screen of %q", m.screen, page.Login(), tt.want)
 				}
 				if !strings.Contains(onScreen(m), "─ "+tt.want+" ─") {
@@ -162,8 +210,8 @@ func TestGotoOwner(t *testing.T) {
 			case m.screen != dashScreen:
 				t.Errorf("screen = %d, want the dashboard", m.screen)
 			}
-			if !tt.dash && tt.want == "" && len(page.logins) > 0 {
-				t.Errorf("the page was given %q", page.logins)
+			if !tt.dash && tt.want == "" && len(page.opened()) > 0 {
+				t.Errorf("the page was given %q", page.opened())
 			}
 			if tt.toast != "" && !hasToast(m, tt.toast) {
 				t.Errorf("toasts lack %q: %s", tt.toast, toasted(m))
@@ -189,7 +237,7 @@ func TestGotoOwnerShowsItWaits(t *testing.T) {
 		t.Errorf("the footer doesn't say what it opens:\n%s", s)
 	}
 	drive(m, cmd)
-	if m.going != nil || m.screen != ownerScreen || page.Login() != "octocat" {
+	if m.going != nil || ownerOn(m) == nil || page.Login() != "octocat" {
 		t.Error("the goto didn't end on the page")
 	}
 }
@@ -201,8 +249,8 @@ func TestGotoOwnerIsReplaced(t *testing.T) {
 	cmd := submitLine(t, m, "goto @octocat")
 	runCommand(t, m, "goto eggzec/gh-tui")
 	drive(m, cmd)
-	if m.screen != repoScreen || len(page.logins) > 0 {
-		t.Errorf("screen %d with pages %q, want the repository alone", m.screen, page.logins)
+	if m.screen != repoScreen || len(page.opened()) > 0 {
+		t.Errorf("screen %d with pages %q, want the repository alone", m.screen, page.opened())
 	}
 }
 
@@ -213,7 +261,7 @@ func TestGotoOwnerUnchecked(t *testing.T) {
 	m, page := newOwnerApp(t, nil)
 	m.owners = nil
 	runCommand(t, m, "goto @someone")
-	if m.screen != ownerScreen || page.Login() != "someone" {
+	if ownerOn(m) == nil || page.Login() != "someone" {
 		t.Errorf("screen %d with the page of %q, want someone's", m.screen, page.Login())
 	}
 
@@ -224,36 +272,45 @@ func TestGotoOwnerUnchecked(t *testing.T) {
 	}
 }
 
-// backspace goes back through the pages opened one from another, and then
-// to the screen the first was opened from; opened from elsewhere, a page
-// starts a new way back.
+// An owner page opened over another replaces it, and backspace returns to
+// the one it replaced.
 func TestOwnerBack(t *testing.T) {
 	t.Parallel()
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto @octocat")
-	runCommand(t, m, "goto @hubot")
-	if s := onScreen(m); !strings.Contains(s, "─ hubot ─") {
-		t.Errorf("the header doesn't name hubot:\n%s", s)
+	// The fake takes the keys of a text preview, which the command line
+	// refuses to open over, so the second page comes by message.
+	run(m, ui.ShowOwner("hubot"))
+	if top := ownerOn(m); top == nil || top.login != "hubot" {
+		t.Fatalf("on top %v, opened %q, toasts %q; want hubot's page", top, page.opened(), toasted(m))
 	}
 	drive(m, m.key(press("backspace")))
-	if m.screen != ownerScreen || page.Login() != "octocat" {
-		t.Fatalf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
+	if top := ownerOn(m); top == nil || top.login != "octocat" {
+		t.Fatalf("on top %v with pages %q, want octocat's page again", m.modals.Top(), page.opened())
 	}
-	if s := onScreen(m); !strings.Contains(s, "─ octocat ─") {
-		t.Errorf("the header doesn't name octocat again:\n%s", s)
+}
+
+// esc closes the owner page and shows what was under it.
+func TestOwnerEscCloses(t *testing.T) {
+	t.Parallel()
+	m, _ := newOwnerApp(t, newFakeOwners())
+	runCommand(t, m, "goto @octocat")
+	if ownerOn(m) == nil {
+		t.Fatal("the page didn't open")
 	}
-	drive(m, m.key(press("backspace")))
-	if m.screen != dashScreen {
-		t.Fatalf("screen = %d, want the dashboard it was opened from", m.screen)
+	drive(m, m.key(press("esc")))
+	if m.modals.Top() != nil || m.screen != dashScreen {
+		t.Errorf("on top %v, screen %d; want the dashboard alone", m.modals.Top(), m.screen)
 	}
-	runCommand(t, m, "goto eggzec/gh-tui")
-	runCommand(t, m, "goto @charmbracelet")
-	if !slices.Equal(page.logins, []string{"charmbracelet"}) {
-		t.Errorf("pages = %q, want charmbracelet's alone", page.logins)
-	}
-	drive(m, m.key(press("backspace")))
-	if m.screen != repoScreen {
-		t.Errorf("screen = %d, want the repository it was opened from", m.screen)
+}
+
+// ui.OwnerMsg opens the page of the login, as goto does.
+func TestOwnerMsgOpensModal(t *testing.T) {
+	t.Parallel()
+	m, page := newOwnerApp(t, newFakeOwners())
+	run(m, ui.ShowOwner("octocat"))
+	if ownerOn(m) == nil || page.Login() != "octocat" {
+		t.Errorf("on top %v with pages %q, want octocat's", m.modals.Top(), page.opened())
 	}
 }
 
@@ -264,10 +321,10 @@ func TestBackspaceWalksBackThroughScreens(t *testing.T) {
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto eggzec/gh-tui")
 	runCommand(t, m, "goto @octocat")
-	if m.screen != ownerScreen || page.Login() != "octocat" {
+	if ownerOn(m) == nil || page.Login() != "octocat" {
 		t.Fatalf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
 	}
-	drive(m, m.key(press("backspace")))
+	drive(m, m.key(press("esc")))
 	if m.screen != repoScreen || m.repo != (core.RepoRef{Owner: "eggzec", Name: "gh-tui"}) {
 		t.Fatalf("screen %d on %v, want the repository", m.screen, m.repo)
 	}
@@ -287,7 +344,7 @@ func TestOwnerTakesPaneKeys(t *testing.T) {
 	m, page := newOwnerApp(t, newFakeOwners())
 	runCommand(t, m, "goto @hubot")
 	drive(m, m.key(press("2")))
-	if m.screen != ownerScreen || !page.got(isKey("2")) {
+	if ownerOn(m) == nil || !page.got(isKey("2")) {
 		t.Errorf("screen %d, page got 2 = %v; want the page to take it", m.screen, page.got(isKey("2")))
 	}
 }
@@ -298,6 +355,7 @@ func TestCompleteOwner(t *testing.T) {
 	recall.owners = []string{"charmbracelet", "cli", "octo-org", "charmbracelet"}
 	m, _ := newOwnerApp(t, newFakeOwners(), WithRecall(recall))
 	runCommand(t, m, "goto @hubot")
+	drive(m, m.key(press("esc")))
 	tests := []struct {
 		word string
 		want []string
@@ -345,27 +403,11 @@ func TestGotoOwnerReplacedByGotoOwner(t *testing.T) {
 	second := submitLine(t, m, "goto @charmbracelet")
 	drive(m, second)
 	drive(m, first)
-	if m.screen != ownerScreen || !slices.Equal(page.logins, []string{"charmbracelet"}) {
-		t.Errorf("screen %d with pages %q, want charmbracelet's alone", m.screen, page.logins)
+	if ownerOn(m) == nil || !slices.Equal(page.opened(), []string{"charmbracelet"}) {
+		t.Errorf("screen %d with pages %q, want charmbracelet's alone", m.screen, page.opened())
 	}
 	if s := onScreen(m); !strings.Contains(s, "─ charmbracelet ─") {
 		t.Errorf("the header doesn't name charmbracelet:\n%s", s)
-	}
-}
-
-// A page without an account yet is named by its title, without a link.
-func TestOwnerHeaderWithoutLogin(t *testing.T) {
-	t.Parallel()
-	m, _ := newOwnerApp(t, newFakeOwners())
-	run(m, m.showScreen(ownerScreen, 0))
-	if m.screen != ownerScreen {
-		t.Fatalf("screen = %d, want the owner screen", m.screen)
-	}
-	if strings.Contains(m.header, "\x1b]8;;http") {
-		t.Errorf("the header links somewhere: %q", m.header)
-	}
-	if s := onScreen(m); !strings.Contains(s, "─ "+ui.OwnerTitle+" ─") {
-		t.Errorf("the header doesn't name the page:\n%s", s)
 	}
 }
 
@@ -394,15 +436,14 @@ func TestOwnerKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			page := &fakeOwnerPage{}
-			page.title = ui.OwnerTitle
 			sel := ui.Selection{What: "pull request", Repo: testRepo, Number: 7, Owner: tt.owner}
 			layout := Layout{
 				Files: &selectSection{fakeSection: &fakeSection{title: "Files"}, sel: sel, ok: !tt.none}, Pulls: &fakeSection{title: "Pull requests"},
-				Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page,
+				Dashboard: &fakeSection{title: ui.DashboardTitle},
 			}
 			owners := newFakeOwners()
 			owners.remote["eggzec"] = core.Owner{Kind: core.OwnerOrg, Profile: core.Profile{Login: "eggzec"}}
-			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(owners), WithLogin("mona"))
+			m := New(t.Context(), config.Default(), layout, WithRepo(testRepo), WithOwners(owners), WithLogin("mona"), page.opener())
 			rankFakes(m)
 			m.toast.SetDuration(0)
 			m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
@@ -417,15 +458,15 @@ func TestOwnerKey(t *testing.T) {
 			drive(m, m.key(press("@")))
 			switch {
 			case tt.want != "":
-				if m.screen != ownerScreen || page.Login() != tt.want {
+				if ownerOn(m) == nil || page.Login() != tt.want {
 					t.Errorf("screen %d with the page of %q, want the owner screen of %q", m.screen, page.Login(), tt.want)
 				}
 			case tt.dash:
-				if m.screen != dashScreen || len(page.logins) > 0 {
-					t.Errorf("screen %d with pages %q, want the dashboard", m.screen, page.logins)
+				if m.screen != dashScreen || len(page.opened()) > 0 {
+					t.Errorf("screen %d with pages %q, want the dashboard", m.screen, page.opened())
 				}
-			case m.screen != repoScreen || len(page.logins) > 0:
-				t.Errorf("screen %d with pages %q, want the repository still", m.screen, page.logins)
+			case m.screen != repoScreen || len(page.opened()) > 0:
+				t.Errorf("screen %d with pages %q, want the repository still", m.screen, page.opened())
 			}
 			if s := toasted(m); s != "" {
 				t.Errorf("toasted %s", s)
@@ -434,43 +475,33 @@ func TestOwnerKey(t *testing.T) {
 	}
 }
 
-// selectOwnerPage is a page of owners whose cursor is on a repository of
-// owner.
-type selectOwnerPage struct {
-	fakeOwnerPage
-	owner string
-}
-
-func (p *selectOwnerPage) Selected() (ui.Selection, bool) {
-	return ui.Selection{What: "repository", Repo: core.RepoRef{Owner: p.owner, Name: "x"}, Owner: p.owner}, true
-}
-
 // TestOwnerKeyOffWhereItShowsWhatIsOnView checks that the owner key does
 // nothing on a page for the owner of that page, nor on the dashboard for
 // the viewer, which already show there.
 func TestOwnerKeyOffWhereItShowsWhatIsOnView(t *testing.T) {
 	t.Parallel()
 	t.Run("owner page", func(t *testing.T) {
-		page := &selectOwnerPage{owner: "Octocat"}
-		page.title = ui.OwnerTitle
-		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}, Owner: page}
-		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()))
+		page := &fakeOwnerPage{sel: &ui.Selection{What: "repository", Repo: core.RepoRef{Owner: "Octocat", Name: "x"}, Owner: "Octocat"}}
+		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: &fakeSection{title: ui.DashboardTitle}}
+		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()), page.opener())
 		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		run(m, m.Init())
 		runCommand(t, m, "goto @octocat")
-		if m.screen != ownerScreen || m.keys.state(m).Owner.Enabled() {
-			t.Errorf("screen %d, owner key enabled %v; want it off on octocat's page", m.screen, m.keys.state(m).Owner.Enabled())
+		drive(m, m.key(press("@")))
+		if ownerOn(m) == nil || len(page.mods) != 1 {
+			t.Errorf("pages %q, want the key to do nothing on octocat's page", page.opened())
 		}
-		page.owner = "charmbracelet"
-		if !m.keys.state(m).Owner.Enabled() {
-			t.Error("the owner key is off for a repository of another owner")
+		page.sel.Owner = "charmbracelet"
+		drive(m, m.key(press("@")))
+		if top := ownerOn(m); top == nil || top.login != "charmbracelet" {
+			t.Errorf("pages %q, want the key to show another owner's page", page.opened())
 		}
 	})
 	t.Run("dashboard", func(t *testing.T) {
 		dash := &selectSection{fakeSection: &fakeSection{title: ui.DashboardTitle}, sel: ui.Selection{Owner: "mona"}, ok: true}
-		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: dash, Owner: &fakeOwnerPage{}}
-		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()), WithLogin("mona"))
+		layout := Layout{Files: &fakeSection{title: "Files"}, Dashboard: dash}
+		m := New(t.Context(), config.Default(), layout, WithOwners(newFakeOwners()), WithLogin("mona"), (&fakeOwnerPage{}).opener())
 		rankFakes(m)
 		m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 		run(m, m.Init())
@@ -547,7 +578,7 @@ func TestOwnerKeyInTheApp(t *testing.T) {
 
 // onOwnerScreen reports that m doesn't show the page of an owner.
 func onOwnerScreen(m *Model) string {
-	if m.screen != ownerScreen {
+	if _, ok := m.modals.Top().(*owner.Modal); !ok {
 		return "@ didn't show the owner's page"
 	}
 	return ""
@@ -586,23 +617,6 @@ func TestBackReturnsToTheEarlierRepository(t *testing.T) {
 	run(m, m.key(press("backspace")))
 	if m.screen != repoScreen || m.repo != a {
 		t.Errorf("screen %d on %v, want the repository %v", m.screen, m.repo, a)
-	}
-}
-
-// Going back to an owner page the section isn't showing any more opens it.
-func TestBackReturnsToTheEarlierOwner(t *testing.T) {
-	t.Parallel()
-	m, page := newOwnerApp(t, newFakeOwners())
-	runCommand(t, m, "goto @octocat")
-	runCommand(t, m, "goto eggzec/gh-tui")
-	runCommand(t, m, "goto @hubot")
-	if page.Login() != "hubot" {
-		t.Fatalf("page of %q, want hubot's", page.Login())
-	}
-	drive(m, m.key(press("backspace")))
-	drive(m, m.key(press("backspace")))
-	if m.screen != ownerScreen || page.Login() != "octocat" || m.ownerLogin != "octocat" {
-		t.Errorf("screen %d with the page of %q, want octocat's", m.screen, page.Login())
 	}
 }
 

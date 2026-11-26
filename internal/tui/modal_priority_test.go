@@ -43,6 +43,7 @@ func init() {
 		reflect.TypeFor[*pullsModal](),
 		reflect.TypeFor[*screenModal](),
 		reflect.TypeFor[*savingModal](),
+		reflect.TypeFor[*fakeOwnerModal](),
 	} {
 		fakePriorities[typ] = modals.PriorityContent
 	}
@@ -91,6 +92,7 @@ func TestEveryRealModalIsRanked(t *testing.T) {
 		"pulls.panesModal":    20,
 		"issues.detailModal":  20,
 		"releases.Modal":      20,
+		"owner.Modal":         20,
 		"history.Modal":       20,
 		"actions.Modal":       20,
 		"files.preview":       25,
@@ -114,13 +116,16 @@ func TestEveryRealModalIsRanked(t *testing.T) {
 	if !maps.Equal(got, want) {
 		t.Errorf("table:\n got  %v\n want %v", got, want)
 	}
-	if n := len(modalPriorities); n != 17 {
-		t.Errorf("the table ranks %d types, want 17", n)
+	if n := len(modalPriorities); n != 18 {
+		t.Errorf("the table ranks %d types, want 18", n)
 	}
 
 	found := modalTypes(t)
 	// The job view is what the job log modal holds, never opened by itself.
 	delete(found, "jobview.Model")
+	// The owner modal embeds the page's section, which takes the focus, so the
+	// scan takes it for a section.
+	found["owner.Modal"] = true
 	for name := range found {
 		if _, ok := got[name]; !ok {
 			t.Errorf("modal type %s has no rank in modalPriorities", name)

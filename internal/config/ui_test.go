@@ -151,9 +151,9 @@ func TestUIMaximized(t *testing.T) {
 			t.Errorf("maximized %q: Validate() = %v, want an unknown modal", name, err)
 			continue
 		}
-		const want = "must be one of notifications, search_modal, pull_modal, issue_modal, release_modal, history, actions, actions_log, preview, text, filter"
+		const want = "must be one of notifications, search_modal, owner, pull_modal, issue_modal, release_modal, history, actions, actions_log, preview, text, filter"
 		if !strings.Contains(err.Error(), want) {
-			t.Errorf("maximized %q: Validate() = %v, want it to list exactly the eleven modals", name, err)
+			t.Errorf("maximized %q: Validate() = %v, want it to list exactly the twelve modals", name, err)
 		}
 	}
 
