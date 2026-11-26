@@ -6,6 +6,7 @@ import (
 	"testing/synctest"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/owner"
@@ -271,6 +272,26 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 				t.Error("esc left the history open")
 			}
 		})
+	})
+}
+
+// TestStatusLeadFollowsTopModal checks that the screen under a modal adds no
+// zoom or split hint to the status bar: the modal brings its own.
+func TestStatusLeadFollowsTopModal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := newKeysApp(t, true)
+		tap(t, m, "z")
+		if !strings.Contains(ansi.Strip(lastLine(m)), "z unzoom") {
+			t.Fatalf("the repository screen isn't zoomed: %q", ansi.Strip(lastLine(m)))
+		}
+		driveKeys(t, m, func() tea.Msg { return ui.OwnerMsg{Login: "octocat"} })
+		if m.modals.Top() == nil {
+			t.Fatal("the owner page didn't open")
+		}
+		line := ansi.Strip(lastLine(m))
+		if strings.Contains(line, "unzoom") || strings.Contains(line, "switch split") {
+			t.Errorf("the status bar keeps the screen's hints under a modal: %q", line)
+		}
 	})
 }
 
