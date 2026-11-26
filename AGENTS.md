@@ -54,8 +54,8 @@ internal/
   obs/                log/slog setup, trace and request ids, counters and summaries
   logfile/            the log file, rotated by size, shared by several processes
   service/<domain>/   business logic per domain (pulls, issues, repos, notifications…)
-  tui/                root model: the dashboard, repo and owner (user or
-                      organization) screens and their panes, the search
+  tui/                root model: the dashboard and repo screens and their
+                      panes, the owner (user or organization) modal, the search
                       modal, the header, help, toasts, modals, and routing
                       between them
   tui/ui/             what sections share: the Section interface, theme, keys, app messages
@@ -188,6 +188,23 @@ Each bubble is a self-contained Elm component: model, `Init`, `Update`, and `Vie
   textinput, textarea, spinner, help, paginator), then from other Charm
   projects such as `glamour` for markdown and `huh`. Wrapping or composing
   an existing bubble is better than writing a new one.
+
+### Pane navigation and zoom
+
+Every host of panes (the issues, pulls, releases, actions, history,
+dashboard and repository screens, and the owner and pull request modals)
+follows one rule:
+
+- Digits always switch pane, zoomed or not.
+- Tab and Shift+Tab cycle panes only while nothing is zoomed. Zoomed, they
+  flip between the list and the preview of the focused pane, and do nothing
+  when it has no preview.
+- Backspace drops a user zoom first.
+
+The state lives in `pkg/bubbles/panes` as the key-agnostic `Controller`. A new
+host uses it, and never mutates `Nav` or `Zoom` directly. Help and hints list
+only keys that work: gate the zoom key by `CanZoom`, and the pane steps and
+digits by `CanStep`, as the pull request modal does.
 
 ### Vendoring
 

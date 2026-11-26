@@ -158,8 +158,7 @@ cache:
     # repositories; and the header of a user or organization page, with
     # its pins and an organization's follower count.
     profile: 1h
-    # The contribution calendar, on the dashboard and on the page of a
-    # user.
+    # The contribution calendar of the dashboard.
     contributions: 6h
     # The people of a user or organization page: followers, following,
     # organizations, members, teams, sponsors and those sponsored.
@@ -320,13 +319,13 @@ dashboard:
   # shows.
   contributions: 90d
 
-# The page of a user or an organization, which :goto @login opens, and
+# The modal of a user or an organization, which :goto @login opens, and
 # the owner key opens for what is selected.
 owner:
-  # What the page opens on: repositories, the Repositories tab; people,
+  # What the modal opens on: repositories, the Repositories tab; people,
   # the Followers tab of a user and the Members tab of an organization;
-  # or readme, the Repositories tab with the focus on the README pane,
-  # which a narrow page shows alone.
+  # or readme, the Repositories tab with the focus on the README, which is
+  # the preview of the list.
   default_tab: repositories
 
 # Reading ahead: what the app reads before you open it, so that it opens
@@ -642,7 +641,9 @@ keys:
     divider_up: [ctrl+up]
     divider_down: [ctrl+down]
     # Cycle the focus through the panes of the screen, or of a modal with
-    # panes.
+    # panes, while none is zoomed. In a zoomed pane these keys flip between
+    # its list and its preview, and do nothing when it has no preview. The
+    # pane digits switch panes zoomed or not.
     next_pane: [tab]
     prev_pane: [shift+tab]
     # Switch between the tabs of the focused pane or modal, such as All,
@@ -654,8 +655,8 @@ keys:
     # Focus the pane with that number on the screen or modal on view: files,
     # pull requests, issues and releases on the repository screen; pinned,
     # repositories, work, contributions and notifications on the dashboard;
-    # pinned, the list, the README and a user's contributions on the page of
-    # a user or an organization; the kinds of results in the search modal,
+    # pinned and the list on the page of a user or an organization, whose
+    # README is the preview of the list; the kinds of results in the search modal,
     # which show the kind and focus the results; branches, graph and commit
     # in History; the panes of the modal of a pull request; and runs and
     # annotations in Actions. A digit with no such pane there does nothing, and
