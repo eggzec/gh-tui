@@ -14,10 +14,6 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
-// peekKey names the view of the conversation that the previews draw, which
-// keeps its own folds apart from the view the Conversation pane shows.
-const peekKey = "preview"
-
 // drawnPeek is the conversation drawn as a preview, kept until its width or the
 // conversation changes.
 type drawnPeek struct {
@@ -41,7 +37,7 @@ func WithPreviews(svc PreviewService) Option {
 // paneSlots has one entry per pane, in the order of the panes. Description and
 // Conversation have no preview beside them.
 var paneSlots = [paneCount]slots.Slot[*detailModal]{
-	paneInvolved - 1:    {Hovered: (*detailModal).hoveredInvolved, Preview: (*detailModal).involvedPreview},
+	paneInvolved - 1:    {Hovered: (*detailModal).hoveredInvolved, Preview: (*detailModal).involvedPreview, Info: (*detailModal).involvedInfo},
 	paneDevelopment - 1: {Hovered: (*detailModal).hoveredDev, Preview: (*detailModal).devPreview},
 	paneBlockers - 1:    {Hovered: (*detailModal).hoveredDeps, Preview: (*detailModal).depsPreview},
 }
@@ -65,6 +61,19 @@ func (m *detailModal) hoveredInvolved() (id, title string, ok bool) {
 	}
 	pv, ok := involved.PreviewOf(p.invData, id, m.involvedOptions(0))
 	return id, pv.Title, ok
+}
+
+// involvedInfo is the info of the frame of the preview of the hovered row: the
+// roles of a person.
+func (m *detailModal) involvedInfo(b panes.Box) []string {
+	if m.side == nil {
+		return nil
+	}
+	pv, ok := involved.PreviewOf(m.side.invData, m.slots.Hover(b.Pane).ID, m.involvedOptions(b.Rect.Inner().W))
+	if !ok || pv.Info == "" {
+		return nil
+	}
+	return []string{pv.Info}
 }
 
 // involvedPreview is the preview of the hovered Involved row: a group's
@@ -207,7 +216,7 @@ func (m *detailModal) peekBody(id string, pv involved.Preview, width int) (strin
 	if d.set && d.ver == m.peekVer && d.width == width && d.id == id {
 		return d.body, true
 	}
-	body, ok := m.conv.Peek(peekKey, pv.Narrow, width)
+	body, ok := m.conv.Peek(pv.Key, pv.Narrow, width)
 	if ok {
 		// Until it is read the text isn't final: draw it again next time.
 		*d = drawnPeek{id: id, ver: m.peekVer, width: width, body: body, set: true}
