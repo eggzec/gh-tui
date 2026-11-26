@@ -558,6 +558,9 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
 	case m.nav.InPreview(l):
+		if cmd, ok := m.pressOther(l, msg); ok {
+			return cmd
+		}
 		if cmd, ok := m.slots.PressPreview(m, m.nav.Focus(), msg); ok {
 			return cmd
 		}
@@ -565,6 +568,9 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 			m.slots.Scroll(m, m.nav.Focus(), b, m.keys.scroll, msg)
 		}
 	default:
+		if cmd, ok := m.pressOther(l, msg); ok {
+			return cmd
+		}
 		return m.slots.Press(m, m.nav.Focus(), msg)
 	}
 	return nil

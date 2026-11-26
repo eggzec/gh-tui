@@ -139,6 +139,27 @@ func (s *Set[H]) PressPreview(h H, p panes.Pane, k tea.KeyPressMsg) (cmd tea.Cmd
 	return nil, false
 }
 
+// ScrollOther acts on the split of pane p that has not the focus. With the
+// list focused (inPreview false) it scrolls the preview in box b one line,
+// as the move keys' down or up does; with the preview focused it asks move to
+// step the list, and then moves the previews to the row under the cursor.
+func (s *Set[H]) ScrollOther(h H, p panes.Pane, b panes.Box, inPreview bool, k ui.MoveKeys, down bool, move func(down bool) tea.Cmd) tea.Cmd {
+	if inPreview {
+		cmd := move(down)
+		s.Follow(h)
+		s.previews.Reset(Key{p, s.hover[p-1].ID})
+		return cmd
+	}
+	line := k.Up
+	if down {
+		line = k.Down
+	}
+	if acts := keymap.Actions(line); len(acts) > 0 {
+		s.Scroll(h, p, b, k, keymap.ActionPress(acts[0]))
+	}
+	return nil
+}
+
 // Scroll scrolls pane p's preview, shown in box b, as far as its text goes.
 // The offset stays with the row shown.
 func (s *Set[H]) Scroll(h H, p panes.Pane, b panes.Box, k ui.MoveKeys, msg tea.KeyPressMsg) {

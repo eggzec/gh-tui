@@ -1034,6 +1034,8 @@ keys:
     # Show the issues and pull requests linked to it, and those that mention
     # it.
     references: ["#"]
+    scroll_other_down: [J]
+    scroll_other_up: [K]
     up: [up, k]
     down: [down, j]
     page_up: [b, ctrl+b, pgup]
@@ -1321,6 +1323,9 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
+    # Move the list of the split beside the preview.
+    scroll_other_down: [J]
+    scroll_other_up: [K]
   # The modal of a pull request: what a check run of an App reported. Its
   # moves are those of the preview; enter on an annotation opens its line in
   # the diff.
@@ -1330,6 +1335,10 @@ keys:
   # The modal of a pull request: what stands in the way of a merge. Expand
   # and collapse fold its checks; enter acts on the row under the cursor.
   pull_merge:
+    # In a zoomed pane, scroll the preview beside the list, or move the list
+    # from the preview.
+    scroll_other_down: [J]
+    scroll_other_up: [K]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -1374,6 +1383,8 @@ keys:
   # another review. Edit opens the picker of the assignees or of the reviewers,
   # from the group or one of its rows; an issue has assignees only.
   pull_involved:
+    scroll_other_down: [J]
+    scroll_other_up: [K]
     up: [up, k]
     down: [down, j]
     page_up: [ctrl+b, pgup]
@@ -1437,6 +1448,8 @@ keys:
   # and the pull requests linked to it, in groups that fold. Enter opens the
   # item under the cursor, or folds a group.
   pull_development:
+    scroll_other_down: [J]
+    scroll_other_up: [K]
     # Move the cursor up and down the rows.
     up: [up, k]
     down: [down, j]

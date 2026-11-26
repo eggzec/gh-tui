@@ -661,7 +661,11 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.buildConv(), m.get())
 	}
-	if l := m.paneLayout(); m.nav.InPreview(l) {
+	l := m.paneLayout()
+	if cmd, ok := m.pressOther(l, msg); ok {
+		return cmd
+	}
+	if m.nav.InPreview(l) {
 		// The preview is read-only: the moves scroll it and no key reaches the
 		// list beside it.
 		p := m.nav.Focus()

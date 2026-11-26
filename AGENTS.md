@@ -115,7 +115,9 @@ to 7: repositories, issues, pull requests, code, users and organizations,
 commits and topics. Repositories, issues and pull requests show their
 counts at the right of Results; user rows are a glyph and the login only.
 `J` and `K` scroll the pane that has not the focus: the preview from the
-results, the results from the preview. `.` and
+results, the results from the preview. The zoomed split
+panes of the pull request and issue modals work alike: `J` and `K` scroll
+the preview from the list, and move the list from the preview. `.` and
 `@` close the modal first, then show the repository or the owner.
 
 Enter acts on the result by kind: a commit opens the commit view, a user or

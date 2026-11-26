@@ -280,6 +280,26 @@ func NewMoveKeys(look keymap.Lookup) MoveKeys {
 	return k
 }
 
+// OtherKeys are the keys that act on the split that has not the focus, in a
+// zoomed pane: the preview from its list, the list from its preview.
+type OtherKeys struct {
+	Down key.Binding `keymap:"scroll_other_down" help:"other split down"`
+	Up   key.Binding `keymap:"scroll_other_up" help:"other split up"`
+}
+
+// NewOtherKeys returns the keys that look gives the other split.
+func NewOtherKeys(look keymap.Lookup) OtherKeys {
+	var k OtherKeys
+	keymap.Fill(&k, look)
+	return k
+}
+
+// ShortHelp implements help.KeyMap.
+func (k OtherKeys) ShortHelp() []key.Binding { return []key.Binding{k.Down, k.Up} }
+
+// FullHelp implements help.KeyMap.
+func (k OtherKeys) FullHelp() [][]key.Binding { return [][]key.Binding{{k.Down, k.Up}} }
+
 // ShortHelp implements help.KeyMap.
 func (k MoveKeys) ShortHelp() []key.Binding { return []key.Binding{k.Up, k.Down} }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/picker"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
@@ -261,6 +262,9 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	stack := m.canStack()
 	pk.dividerUp.SetEnabled(pk.dividerUp.Enabled() && stack)
 	pk.dividerDown.SetEnabled(pk.dividerDown.Enabled() && stack)
+	_, split := m.paneLayout().Box(m.nav.Focus(), panes.Preview)
+	pk.other.Down.SetEnabled(pk.other.Down.Enabled() && split)
+	pk.other.Up.SetEnabled(pk.other.Up.Enabled() && split)
 	own.Bindings = append(own.Bindings, pk.bindings()...)
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.

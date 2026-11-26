@@ -40,6 +40,8 @@ Issue
   grow pane | ctrl+up | ^up | off
   shrink pane | ctrl+down | ^down | off
   reset dividers | = | = | off
+  other split down | J | J | off
+  other split up | K | K | off
   Description | 1 | 1 | on
   Conversation | 2 | 2 | on
   Involved | 3 | 3 | on
