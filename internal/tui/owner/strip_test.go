@@ -59,7 +59,7 @@ func TestStripInBottomEdge(t *testing.T) {
 	}{
 		{"wide", 120, 38, "2", true},
 		{"narrow", 80, 22, "2", true},
-		{"very narrow", 30, 22, "2", false},
+		{"very narrow", 24, 22, "2", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

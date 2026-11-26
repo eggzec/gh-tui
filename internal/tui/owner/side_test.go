@@ -76,6 +76,7 @@ func TestSideReadsOnView(t *testing.T) {
 		t.Fatalf("a narrow page on the list read %q", svc.sideFake.calls)
 	}
 	setSize(s, 120, 40)
+	run(t, s, s.Update(nil))
 	if want := []string{"readme octocat", "sponsors octocat", "sponsoring octocat"}; !slices.Equal(svc.sideFake.calls, want) {
 		t.Errorf("showing the README read %q, want %q", svc.sideFake.calls, want)
 	}
@@ -275,6 +276,7 @@ func TestSideRereadsOnView(t *testing.T) {
 		t.Errorf("the panes off view read %q", svc.sideFake.calls)
 	}
 	setSize(s, 120, 40)
+	run(t, s, s.Update(nil))
 	svc.sideFake.read = map[string]bool{}
 	svc.sideFake.calls = nil
 	run(t, s, s.Revisit())
