@@ -19,7 +19,7 @@ func descHigh(t *testing.T, m *panesModal) int {
 func TestDescriptionGrowsAndShrinks(t *testing.T) {
 	t.Parallel()
 	m, d := dividedPanes(t, 160)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	start := descHigh(t, m)
 	m.press(keyMsg("ctrl+up"))
 	if got := descHigh(t, m); got != start+2 {
@@ -39,7 +39,7 @@ func TestDescriptionGrowsAndShrinks(t *testing.T) {
 func TestConversationGrowsFromTheDescription(t *testing.T) {
 	t.Parallel()
 	m, _ := dividedPanes(t, 160)
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	start := descHigh(t, m)
 	m.press(keyMsg("ctrl+up"))
 	if got := descHigh(t, m); got != start-2 {
@@ -50,7 +50,7 @@ func TestConversationGrowsFromTheDescription(t *testing.T) {
 func TestDescriptionStopsAtMinimum(t *testing.T) {
 	t.Parallel()
 	m, _ := dividedPanes(t, 160)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	for range 60 {
 		m.press(keyMsg("ctrl+down"))
 	}
@@ -73,7 +73,7 @@ func TestDescriptionStopsAtMinimum(t *testing.T) {
 func TestDescriptionSettlesOnResize(t *testing.T) {
 	t.Parallel()
 	m, d := dividedPanes(t, 160)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	for range 80 {
 		m.press(keyMsg("ctrl+up"))
 	}
@@ -94,12 +94,12 @@ func TestDescriptionKeysDoNothingWithoutADivider(t *testing.T) {
 		t.Error("a narrow modal moved the stack divider")
 	}
 	m, d := dividedPanes(t, 160)
-	m.nav.SetFocus(paneMerge)
+	m.ctl.Nav.SetFocus(paneMerge)
 	m.press(keyMsg("ctrl+up"))
 	if d.Moved() || m.canStack() {
 		t.Error("the right column moved the stack divider")
 	}
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	m.press(keyMsg("z"))
 	m.press(keyMsg("ctrl+up"))
 	if d.Moved() || m.canStack() {
@@ -121,11 +121,11 @@ func TestDescriptionHelpRowsFollowTheFocus(t *testing.T) {
 		t.Fatal("no grow row")
 		return false
 	}
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	if !enabled() {
 		t.Error("grow is disabled on the Description")
 	}
-	m.nav.SetFocus(paneMerge)
+	m.ctl.Nav.SetFocus(paneMerge)
 	if enabled() {
 		t.Error("grow is enabled on the right column")
 	}

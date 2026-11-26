@@ -50,4 +50,4 @@ func (m *panesModal) placeholderPreview(panes.Box) string {
 func (m *panesModal) follow() { m.slots.Follow(m) }
 
 // offset is how far the preview of the focused pane is scrolled.
-func (m *panesModal) offset() int { return m.slots.Offset(m.nav.Focus()) }
+func (m *panesModal) offset() int { return m.slots.Offset(m.ctl.Nav.Focus()) }

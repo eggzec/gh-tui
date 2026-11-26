@@ -27,7 +27,7 @@ func openDev(t *testing.T, w int, zoom bool) *detailModal {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "4")
-	if m.zoom.Zoomed() != zoom {
+	if m.ctl.Zoom.Zoomed() != zoom {
 		press(t, h, "z")
 	}
 	return m
@@ -92,9 +92,9 @@ func TestZoomedSplitPaneDrawnOnce(t *testing.T) {
 func TestPreviewFocusDropsOnResize(t *testing.T) {
 	t.Parallel()
 	m := openDev(t, 110, true)
-	step := func() { m.nav.Step(m.paneLayout(), 1) }
+	step := func() { m.ctl.Nav.Step(m.paneLayout(), 1) }
 	step()
-	if !m.nav.InPreview(m.paneLayout()) {
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("the step didn't reach the preview at 110")
 	}
 	id := m.slots.Hover(paneInvolved).ID
@@ -109,11 +109,11 @@ func TestPreviewFocusDropsOnResize(t *testing.T) {
 	if m.slots.Offset(paneInvolved) != 0 {
 		t.Error("the offset stayed after the preview went")
 	}
-	if m.nav.Sub(4) != panes.List {
+	if m.ctl.Nav.Sub(4) != panes.List {
 		t.Error("the focus stayed in the preview after the width fell under 100")
 	}
 	m.SetSize(110, 30)
-	if m.nav.InPreview(m.paneLayout()) {
+	if m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Error("the preview took the focus back on a wider window")
 	}
 }
@@ -140,15 +140,15 @@ func TestPreviewFocusIsMarked(t *testing.T) {
 	t.Parallel()
 	_, m := longPreview(t)
 	before := m.View()
-	m.nav.Step(m.paneLayout(), 1)
-	if !m.nav.InPreview(m.paneLayout()) {
+	m.ctl.Nav.Step(m.paneLayout(), 1)
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("the step didn't reach the preview")
 	}
 	inPreview := m.View()
 	if inPreview == before {
 		t.Error("the preview with the focus is drawn as it is without")
 	}
-	m.nav.Step(m.paneLayout(), -1)
+	m.ctl.Nav.Step(m.paneLayout(), -1)
 	if m.View() != before {
 		t.Error("the focus mark stayed after the step back")
 	}
@@ -158,7 +158,7 @@ func TestPreviewScrolls(t *testing.T) {
 	t.Parallel()
 	h, m := longPreview(t)
 	press(t, h, "tab")
-	if !m.nav.InPreview(m.paneLayout()) {
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("tab didn't reach the preview")
 	}
 	plain := func() string { return ansi.Strip(m.View()) }
@@ -230,7 +230,7 @@ func TestPreviewFocusHelpListsOnlyScrolling(t *testing.T) {
 		t.Fatalf("the help lacks expand on the list: %v", enabledHelp(m))
 	}
 	press(t, h, "tab")
-	if !m.nav.InPreview(m.paneLayout()) {
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("tab didn't reach the preview")
 	}
 	got := enabledHelp(m)

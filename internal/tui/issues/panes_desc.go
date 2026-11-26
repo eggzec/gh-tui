@@ -72,7 +72,7 @@ func (m *detailModal) descBody(b panes.Box) string {
 		d.tree.SetRows(rows)
 		d.built, d.made = k, true
 	}
-	if m.nav.Focus() == paneDescription {
+	if m.ctl.Nav.Focus() == paneDescription {
 		d.tree.Focus()
 	} else {
 		d.tree.Blur()

@@ -107,7 +107,7 @@ func openedInvolved(t *testing.T, svc *involvedService, opts ...Option) *panesMo
 		t.Fatal("enter didn't open the modal")
 	}
 	m.SetSize(160, 30)
-	m.nav.SetFocus(paneInvolved)
+	m.ctl.Nav.SetFocus(paneInvolved)
 	m.Update(panesDetailMsg{id: m.id, detail: involvedDetail(m.detail)})
 	return m
 }

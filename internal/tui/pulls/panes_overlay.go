@@ -82,7 +82,7 @@ func (m *panesModal) pop() {
 		f.Finish()
 	}
 	if _, ok := o.(*diffOverlay); ok && m.findFrom != nil {
-		m.nav.SetFocus(*m.findFrom)
+		m.ctl.Nav.SetFocus(*m.findFrom)
 		m.findFrom = nil
 	}
 }

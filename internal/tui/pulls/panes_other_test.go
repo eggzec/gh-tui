@@ -23,7 +23,7 @@ func TestOtherKeysFromTheList(t *testing.T) {
 	if got := m.slots.Previews().Get(key); got != 1 {
 		t.Fatalf("offset = %d after K, want 1", got)
 	}
-	if m.nav.InPreview(m.layout()) {
+	if m.ctl.Nav.InPreview(m.layout()) {
 		t.Fatal("J moved the focus to the preview")
 	}
 }
@@ -50,7 +50,7 @@ func TestOtherKeysFromThePreview(t *testing.T) {
 	if got := m.slots.Previews().Get(slots.Key{Pane: paneDevelopment, ID: next}); got != 0 {
 		t.Fatalf("the preview of the new row starts at %d, want 0", got)
 	}
-	if !m.nav.InPreview(m.layout()) {
+	if !m.ctl.Nav.InPreview(m.layout()) {
 		t.Fatal("J left the preview")
 	}
 	press(t, h, "K")

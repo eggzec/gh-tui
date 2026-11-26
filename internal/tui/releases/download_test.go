@@ -233,7 +233,7 @@ func TestDownloadOneFile(t *testing.T) {
 
 func TestSelectInFilesDownloadsTheFile(t *testing.T) {
 	m, dl := downloadModal(t)
-	m.nav.SetFocus(paneFiles)
+	m.ctl.Nav.SetFocus(paneFiles)
 	answer(t, pick(t, m, "enter"))
 	if got := dl.started(); len(got) != 1 {
 		t.Fatalf("started %v, want one transfer", got)

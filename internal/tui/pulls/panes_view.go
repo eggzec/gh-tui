@@ -110,7 +110,7 @@ func (m *panesModal) View() string {
 // panes draws the panes of l, or takes them from the last time if nothing
 // they show changed.
 func (m *panesModal) panes(l panes.Layout) string {
-	k := drawKey{m.width, m.height, m.nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.slots.Hover(m.nav.Focus()), m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows(), m.dividerSizes()}
+	k := drawKey{m.width, m.height, m.ctl.Nav, l.Zoomed, m.gen, m.files.seq, m.detail.UpdatedAt.UnixNano(), m.slots.Hover(m.ctl.Nav.Focus()), m.offset(), m.merge.version, m.conv.version, m.inv.ver, m.devVersion(), m.desc.version, m.detail.Body, m.detail.BodyEditedAt.UnixNano(), m.headerRows(), m.dividerSizes()}
 	if m.drawn.out != "" && m.drawn.key == k {
 		return m.drawn.out
 	}
@@ -185,23 +185,23 @@ func (m *panesModal) footer(l panes.Layout) string {
 	case !l.Zoomed:
 		parts = append(parts, hint(hintKeys(k.next, k.jump), "focus"))
 	default:
-		if m.nav.CanStep(l) {
+		if m.ctl.Nav.CanStep(l) {
 			what := "preview"
-			if m.nav.InPreview(l) {
+			if m.ctl.Nav.InPreview(l) {
 				what = "list"
 			}
 			parts = append(parts, hint(hintKeys(k.next), what))
 		}
 		parts = append(parts, hint(hintKeys(k.jump), "other pane"))
 	}
-	if m.zoom.CanZoom() {
+	if m.ctl.Zoom.CanZoom() {
 		what := "zoom"
 		if l.Zoomed {
 			what = "unzoom"
 		}
 		parts = append(parts, hint(hintKeys(k.zoom), what))
 	}
-	if m.nav.Focus() == paneConversation {
+	if m.ctl.Nav.Focus() == paneConversation {
 		parts = append(parts, hint(hintKeys(k.convComment), "comment"))
 	}
 	parts = append(parts, hint(hintKeys(k.help), "help"))

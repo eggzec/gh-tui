@@ -25,6 +25,9 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	case ui.ActQuit, ui.ActDismiss:
 		return m.close(), true
 	case ui.ActBack:
+		if m.ctl.UndoZoom() {
+			m.resize()
+		}
 		return nil, true
 	}
 	return nil, false

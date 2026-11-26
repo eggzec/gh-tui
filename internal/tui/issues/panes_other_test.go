@@ -21,7 +21,7 @@ func TestOtherKeysScrollThePreviewFromTheList(t *testing.T) {
 	if got := m.slots.Previews().Get(key); got != 1 {
 		t.Fatalf("offset = %d after K, want 1", got)
 	}
-	if m.nav.InPreview(m.paneLayout()) {
+	if m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("J moved the focus to the preview")
 	}
 }
@@ -50,7 +50,7 @@ func openedTwoBlockers(t *testing.T, f *fakePreviews) (*host, *detailModal) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "*", "5")
-	if !m.zoom.Zoomed() {
+	if !m.ctl.Zoom.Zoomed() {
 		press(t, h, "z")
 	}
 	m.View()
@@ -76,7 +76,7 @@ func TestOtherKeysMoveTheListFromThePreview(t *testing.T) {
 	if got := m.slots.Previews().Get(slots.Key{Pane: paneBlockers, ID: next}); got != 0 {
 		t.Fatalf("the preview of the row under the cursor starts at %d, want 0", got)
 	}
-	if !m.nav.InPreview(m.paneLayout()) {
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("J left the preview")
 	}
 	press(t, h, "K")

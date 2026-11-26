@@ -174,7 +174,7 @@ func (m *detailModal) follow() tea.Cmd {
 	if p == nil || p.previews == nil {
 		return nil
 	}
-	f := m.nav.Focus()
+	f := m.ctl.Nav.Focus()
 	var it dev.Item
 	switch f {
 	case paneDevelopment:

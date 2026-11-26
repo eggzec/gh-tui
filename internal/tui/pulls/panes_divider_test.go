@@ -64,7 +64,7 @@ func TestDividerMoveRedraws(t *testing.T) {
 func TestStackDividerMoveRedraws(t *testing.T) {
 	t.Parallel()
 	m, _ := dividedPanes(t, 160)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	before := m.View()
 	m.press(keyMsg("ctrl+up"))
 	if m.View() == before {
@@ -111,7 +111,7 @@ func TestSideDividerSettlesOnResize(t *testing.T) {
 func TestZoomedSplitFollowsList(t *testing.T) {
 	t.Parallel()
 	m, d := dividedPanes(t, 160)
-	m.nav.SetFocus(paneFiles)
+	m.ctl.Nav.SetFocus(paneFiles)
 	m.press(keyMsg("z"))
 	list := func() int {
 		b, ok := m.layout().Box(paneFiles, panes.List)
@@ -142,7 +142,7 @@ func TestDividerDoesNothingWithoutADivider(t *testing.T) {
 		t.Error("a narrow modal moved a divider")
 	}
 	m, d := dividedPanes(t, 160)
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	m.press(keyMsg("z"))
 	m.press(keyMsg("ctrl+left"))
 	if d.Moved() || m.canDivide() {

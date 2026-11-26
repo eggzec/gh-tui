@@ -11,7 +11,7 @@ import (
 // preview, J and K scroll the preview from the list, and move the list from
 // the preview. ok is false for any other key or pane.
 func (m *detailModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
-	p := m.nav.Focus()
+	p := m.ctl.Nav.Focus()
 	b, has := l.Box(p, panes.Preview)
 	if !has || m.slots == nil || m.slots.Slot(p).Preview == nil {
 		return nil, false
@@ -21,7 +21,7 @@ func (m *detailModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.C
 		ctx = dev.Context
 	}
 	k := m.keys.panes
-	return m.slots.PressOther(m, p, b, m.nav.InPreview(l), k.scroll, k.other, ctx, msg, func(press tea.KeyPressMsg) tea.Cmd {
+	return m.slots.PressOther(m, p, b, m.ctl.Nav.InPreview(l), k.scroll, k.other, ctx, msg, func(press tea.KeyPressMsg) tea.Cmd {
 		// The press that reached this modal follows the hover afterwards.
 		cmd, _ := m.pressSide(press)
 		return cmd

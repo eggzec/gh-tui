@@ -49,7 +49,7 @@ func changedSample() []core.CommitFile {
 func TestFindChoosesAChangedFile(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	press(t, h, "ctrl+p")
 	o := finderTop(m)
 	if o == nil {
@@ -69,38 +69,38 @@ func TestFindChoosesAChangedFile(t *testing.T) {
 	if _, ok := m.top().(*diffOverlay); !ok {
 		t.Errorf("the top overlay is %T, want the diff", m.top())
 	}
-	if m.nav.Focus() != paneFiles || m.found != "internal/config/default.yaml" {
-		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.nav.Focus(), m.found)
+	if m.ctl.Nav.Focus() != paneFiles || m.found != "internal/config/default.yaml" {
+		t.Errorf("focus %v and found %q, want the Files pane and the file chosen", m.ctl.Nav.Focus(), m.found)
 	}
 	m.Act(ui.ActDismiss)
 	if m.top() != nil {
 		t.Fatal("dismiss left the diff open")
 	}
-	if m.nav.Focus() != paneConversation {
-		t.Errorf("focus %v after the diff closed, want the pane the finder was opened from", m.nav.Focus())
+	if m.ctl.Nav.Focus() != paneConversation {
+		t.Errorf("focus %v after the diff closed, want the pane the finder was opened from", m.ctl.Nav.Focus())
 	}
 }
 
 func TestFindFromDescriptionReturnsToIt(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	press(t, h, "ctrl+p")
 	typeQuery(t, h, "yaml")
 	press(t, h, "enter")
-	if m.nav.Focus() != paneFiles || m.found == "" {
-		t.Errorf("focus %v and found %q while the diff is open, want the file shown in Files", m.nav.Focus(), m.found)
+	if m.ctl.Nav.Focus() != paneFiles || m.found == "" {
+		t.Errorf("focus %v and found %q while the diff is open, want the file shown in Files", m.ctl.Nav.Focus(), m.found)
 	}
 	m.Act(ui.ActDismiss)
-	if m.top() != nil || m.nav.Focus() != paneDescription {
-		t.Errorf("after the diff closed focus is %v, want the Description pane", m.nav.Focus())
+	if m.top() != nil || m.ctl.Nav.Focus() != paneDescription {
+		t.Errorf("after the diff closed focus is %v, want the Description pane", m.ctl.Nav.Focus())
 	}
 }
 
 func TestFindFromFilesKeepsFilesFocused(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.nav.SetFocus(paneFiles)
+	m.ctl.Nav.SetFocus(paneFiles)
 	press(t, h, "ctrl+p")
 	typeQuery(t, h, "yaml")
 	press(t, h, "enter")
@@ -108,15 +108,15 @@ func TestFindFromFilesKeepsFilesFocused(t *testing.T) {
 		t.Fatalf("the top overlay is %T, want the diff", m.top())
 	}
 	m.Act(ui.ActDismiss)
-	if m.top() != nil || m.nav.Focus() != paneFiles {
-		t.Errorf("after the diff closed focus is %v, want the Files pane", m.nav.Focus())
+	if m.top() != nil || m.ctl.Nav.Focus() != paneFiles {
+		t.Errorf("after the diff closed focus is %v, want the Files pane", m.ctl.Nav.Focus())
 	}
 }
 
 func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	t.Parallel()
 	h, m := changedPanes(t, "a1b2c3d", changedSample()...)
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	press(t, h, "ctrl+p")
 	if finderTop(m) == nil {
 		t.Fatal("the find key opened no finder")
@@ -125,8 +125,8 @@ func TestFindEscClosesOnlyTheFinder(t *testing.T) {
 	if m.top() != nil || m.closed || h.modal() != m {
 		t.Errorf("esc left open %v, modal closed %v, want only the finder closed", m.top() != nil, m.closed)
 	}
-	if m.nav.Focus() != paneConversation || m.found != "" {
-		t.Errorf("focus %v and found %q after esc, want them as before", m.nav.Focus(), m.found)
+	if m.ctl.Nav.Focus() != paneConversation || m.found != "" {
+		t.Errorf("focus %v and found %q after esc, want them as before", m.ctl.Nav.Focus(), m.found)
 	}
 }
 

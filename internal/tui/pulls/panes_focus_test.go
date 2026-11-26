@@ -21,16 +21,16 @@ func TestTreesFollowNavFocus(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			m := openedPanes(t, 160)
-			m.nav.SetFocus(tc.pane)
+			m.ctl.Nav.SetFocus(tc.pane)
 			m.View()
 			focused := tc.view(m)
-			m.nav.SetFocus(paneConversation)
+			m.ctl.Nav.SetFocus(paneConversation)
 			m.View()
 			blurred := tc.view(m)
 			if focused == blurred {
 				t.Fatalf("the tree draws the same with and without the focus:\n%s", focused)
 			}
-			m.nav.SetFocus(tc.pane)
+			m.ctl.Nav.SetFocus(tc.pane)
 			m.View()
 			if got := tc.view(m); got != focused {
 				t.Errorf("the tree lost its cursor on coming back:\n%s", got)

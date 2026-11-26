@@ -292,7 +292,7 @@ func (m *panesModal) hoveredDev() (id, title string, ok bool) {
 // pane has the focus and shows a preview.
 func (m *panesModal) loadPreview() tea.Cmd {
 	p := m.dev
-	if p == nil || m.nav.Focus() != paneDevelopment {
+	if p == nil || m.ctl.Nav.Focus() != paneDevelopment {
 		return nil
 	}
 	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
@@ -329,7 +329,7 @@ func (m *panesModal) devContent(b panes.Box) panes.Content {
 	}
 	in := b.Rect.Inner()
 	m.dev.model.SetSize(in.W, in.H)
-	if m.nav.Focus() == b.Pane && m.nav.Sub(b.Pane) == panes.List {
+	if m.ctl.Nav.Focus() == b.Pane && m.ctl.Nav.Sub(b.Pane) == panes.List {
 		m.dev.model.Focus()
 	} else {
 		m.dev.model.Blur()

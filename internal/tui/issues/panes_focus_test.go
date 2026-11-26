@@ -14,8 +14,8 @@ func TestConversationFocusSurvivesRebuildUnderComposer(t *testing.T) {
 	svc := newFakeService(sampleIssues(12))
 	h, m := opened(t, svc, 30)
 	press(t, h, "2")
-	if m.nav.Focus() != paneConversation {
-		t.Fatalf("focus = %v, want the conversation", m.nav.Focus())
+	if m.ctl.Nav.Focus() != paneConversation {
+		t.Fatalf("focus = %v, want the conversation", m.ctl.Nav.Focus())
 	}
 	press(t, h, "c")
 	if m.composerOpen() == nil {

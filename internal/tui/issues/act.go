@@ -20,6 +20,11 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 		// Without links to step back from, the app returns to the modal
 		// this one replaced.
 		if m.refs == nil || m.refs.TakesKeys() {
+			if m.ask == nil && m.over == nil && m.refs == nil && m.ctl.UndoZoom() {
+				m.resetPreviews()
+				m.refocus()
+				return nil, true
+			}
 			return nil, false
 		}
 		m.closeRefs()

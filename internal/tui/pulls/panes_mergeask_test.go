@@ -33,7 +33,7 @@ func modalToMerge(t *testing.T, svc *fakeService) (*host, *panesModal) {
 func pressMergeOn(t *testing.T, h *host, p panes.Pane) {
 	t.Helper()
 	m := h.modal()
-	m.nav.SetFocus(p)
+	m.ctl.Nav.SetFocus(p)
 	press(t, h, "M")
 }
 
@@ -60,10 +60,10 @@ func TestModalMergeKeyOpensTheListsDialogFromAnyPane(t *testing.T) {
 func TestModalMergeKeyWorksInAPreview(t *testing.T) {
 	t.Parallel()
 	h, m := modalToMerge(t, newFakeService())
-	m.nav.SetFocus(paneFiles)
-	m.zoom.SetZoom(true)
-	m.nav.Step(m.layout(), 1)
-	if !m.nav.InPreview(m.layout()) {
+	m.ctl.Nav.SetFocus(paneFiles)
+	m.ctl.Zoom.SetZoom(true)
+	m.ctl.Nav.Step(m.layout(), 1)
+	if !m.ctl.Nav.InPreview(m.layout()) {
 		t.Fatal("the modal isn't in a preview")
 	}
 	press(t, h, "M")

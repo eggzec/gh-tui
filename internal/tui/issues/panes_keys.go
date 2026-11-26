@@ -91,19 +91,19 @@ func (m *detailModal) pressPane(msg tea.KeyPressMsg) bool {
 	case keymap.Matches(msg, k.dividerReset) && m.canDivide() && m.dividers.Moved():
 		m.dividers.Reset()
 	case keymap.Matches(msg, k.next):
-		m.nav.Step(l, 1)
+		m.ctl.Tab(l, 1)
 	case keymap.Matches(msg, k.prev):
-		m.nav.Step(l, -1)
+		m.ctl.Tab(l, -1)
 	case keymap.Matches(msg, k.zoom):
-		m.zoom.Toggle()
-		m.nav.Reset()
-		m.resetPreviews()
+		if m.ctl.Toggle() {
+			m.resetPreviews()
+		}
 	default:
 		p, ok := k.digit(msg)
 		if !ok {
 			return false
 		}
-		m.nav.SetFocus(p)
+		m.ctl.Digit(l, p)
 	}
 	m.refocus()
 	return true
@@ -122,7 +122,7 @@ func (m *detailModal) syncConvFocus() {
 	if !m.convOn {
 		return
 	}
-	if m.nav.Focus() == paneConversation && m.composerOpen() == nil {
+	if m.ctl.Nav.Focus() == paneConversation && m.composerOpen() == nil {
 		m.conv.Focus()
 	} else {
 		m.conv.Blur()

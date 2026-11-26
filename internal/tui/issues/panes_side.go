@@ -238,7 +238,7 @@ func (m *detailModal) sideBody(b panes.Box) (string, bool) {
 		return "", false
 	}
 	in := b.Rect.Inner()
-	focus := m.nav.Focus() == b.Pane
+	focus := m.ctl.Nav.Focus() == b.Pane
 	if b.Pane == paneInvolved {
 		p.inv.SetSize(in.W, in.H)
 		if focus {
@@ -265,7 +265,7 @@ func (m *detailModal) pressSide(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, false
 	}
 	var cmd tea.Cmd
-	switch m.nav.Focus() {
+	switch m.ctl.Nav.Focus() {
 	case paneDescription:
 		p.desc.tree, cmd = p.desc.tree.Update(msg)
 	case paneInvolved:

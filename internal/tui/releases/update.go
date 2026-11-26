@@ -39,14 +39,14 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case keymap.Matches(msg, k.DownloadAll):
 		return m.download(m.rel.Assets)
-	case keymap.Matches(msg, k.Download), m.nav.Focus() == paneFiles && keymap.Matches(msg, k.Select):
+	case keymap.Matches(msg, k.Download), m.ctl.Nav.Focus() == paneFiles && keymap.Matches(msg, k.Select):
 		if a, ok := m.selectedAsset(); ok {
 			return m.download([]core.ReleaseAsset{a})
 		}
 		return nil
 	}
 	var cmd tea.Cmd
-	if m.nav.Focus() == paneFiles {
+	if m.ctl.Nav.Focus() == paneFiles {
 		m.files, cmd = m.files.Update(msg)
 	} else {
 		m.notes, cmd = m.notes.Update(msg)

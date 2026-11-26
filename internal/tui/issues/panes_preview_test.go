@@ -62,7 +62,7 @@ func openedBlockers(t *testing.T, f *fakePreviews) (*host, *detailModal) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "*", "5")
-	if !m.zoom.Zoomed() {
+	if !m.ctl.Zoom.Zoomed() {
 		press(t, h, "z")
 	}
 	m.View() // sizes the tree, which takes no row moves before it has a size
@@ -102,7 +102,7 @@ func TestBlockersPreviewScrolls(t *testing.T) {
 	}
 	key := slots.Key{Pane: paneBlockers, ID: id}
 	press(t, h, "tab")
-	if !m.nav.InPreview(m.paneLayout()) {
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("tab didn't reach the preview")
 	}
 	press(t, h, "j", "j")
@@ -128,7 +128,7 @@ func TestDevelopmentPreviewReadsTheHoveredRow(t *testing.T) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "4")
-	if !m.zoom.Zoomed() {
+	if !m.ctl.Zoom.Zoomed() {
 		press(t, h, "z")
 	}
 	m.View()
