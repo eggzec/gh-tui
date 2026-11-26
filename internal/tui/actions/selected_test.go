@@ -18,7 +18,7 @@ func TestSelectedRun(t *testing.T) {
 	plain := m.renderRun(r, false, wideW)
 	m.focus = runsPane
 	focused := m.renderRun(r, true, wideW)
-	m.notes = true
+	m.ctl.Nav.SetFocus(paneNotes)
 	blurred := m.renderRun(r, true, wideW)
 
 	if strings.Contains(plain, bold) {

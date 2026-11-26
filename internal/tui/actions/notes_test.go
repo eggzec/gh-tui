@@ -149,7 +149,7 @@ func TestNotesASCII(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			m, h := newModal(t, newFake(), tt.width, tt.height, WithIcons(ui.NewIcons(config.IconsASCII)))
-			h.keys("tab")
+			h.keys("2")
 			for _, v := range []string{ansi.Strip(m.View()), notesText(m)} {
 				if strings.ContainsFunc(v, func(r rune) bool { return r > unicode.MaxASCII }) {
 					t.Errorf("notes view isn't ASCII:\n%s", v)
@@ -168,7 +168,7 @@ func TestViewNotes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			m, h := newModal(t, newFake(), tt.width, tt.height)
-			h.keys("tab")
+			h.keys("2")
 			v := m.View()
 			assertFits(t, v, tt.width, tt.height)
 			golden.RequireEqual(t, v)

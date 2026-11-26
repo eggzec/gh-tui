@@ -87,7 +87,7 @@ func TestPanesAndBack(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	const notes = pane(-1) // stands for the annotations box
 	at := func() pane {
-		if m.notes {
+		if m.onNotes() {
 			return notes
 		}
 		return m.focus
@@ -1283,7 +1283,7 @@ func TestSharedKeys(t *testing.T) {
 		{name: "[ on the runs", key: "[", desc: "previous tab", ok: tab(3)},
 		{name: "] on a job", jobs: true, key: "]", desc: "tab",
 			ok: func(m *Modal) bool { _, active := m.Tabs(); return active == 1 }},
-		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.notes }},
+		{name: "tab on the runs", key: "tab", desc: "pane", ok: func(m *Modal) bool { return m.onNotes() }},
 		{name: "R on the runs", key: "R", desc: "rerun failed", ok: asks},
 		{name: "r on the runs", key: "r", desc: "refresh", ok: func(m *Modal) bool { return m.ask == nil && m.focus == runsPane }},
 		// A run still running can't be re-run, so R says why, and the help
@@ -1292,8 +1292,8 @@ func TestSharedKeys(t *testing.T) {
 		{name: "f on the runs", key: "f", desc: "filter", src: "Runs", ok: filters},
 		// The filter belongs to the runs: the jobs and the log have no f.
 		{name: "f on a job", jobs: true, key: "f", desc: "filter", src: "Runs", ok: filters},
-		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.notes }},
-		{name: "1 on the notes", to: []string{"2"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return !m.notes }},
+		{name: "2 on the runs", key: "2", desc: "focus pane", ok: func(m *Modal) bool { return m.onNotes() }},
+		{name: "1 on the notes", to: []string{"2"}, key: "1", desc: "focus pane", ok: func(m *Modal) bool { return !m.onNotes() }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

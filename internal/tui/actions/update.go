@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // Update handles the modal's keys and its reads, and passes everything else
@@ -177,14 +178,15 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.resetDividers()
 		return nil
 	case keymap.Matches(msg, k.Next):
-		return m.moveFocus(1)
+		return m.tab(1)
 	case keymap.Matches(msg, k.Prev):
-		return m.moveFocus(-1)
+		return m.tab(-1)
 	case k.focusOf(msg) >= 0:
-		return m.focusBox(k.focusOf(msg))
+		return m.digit(k.focusOf(msg))
 	case keymap.Matches(msg, k.Zoom):
-		m.zoom.Toggle()
-		m.layout()
+		if m.ctl.Toggle() {
+			m.layout()
+		}
 		return nil
 	case m.inRuns() && keymap.Matches(msg, k.Filter):
 		return m.openFilter()
@@ -232,61 +234,55 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.Select):
 		return m.drill()
 	}
-	if m.notes {
+	if m.onNotes() {
 		return m.pressNotes(msg)
 	}
 	return m.updateRuns(msg)
 }
 
 // inRuns reports that the runs have the focus.
-func (m *Modal) inRuns() bool { return !m.notes && m.focus == runsPane }
+func (m *Modal) inRuns() bool { return !m.onNotes() && m.focus == runsPane }
 
-// moveFocus moves the focus d stops on, round the ends: the runs and the
-// annotations.
-func (m *Modal) moveFocus(d int) tea.Cmd {
-	const stops = numPanes
-	at := int(m.focus)
-	if m.notes {
-		at = int(notesPane)
-	}
-	at = (at + d + stops) % stops
-	if pane(at) == notesPane {
-		m.focusNotes()
-		return nil
-	}
-	return m.focusPane(pane(at))
+// onNotes reports that the annotations box has the focus.
+func (m *Modal) onNotes() bool { return m.ctl.Nav.Focus() == paneNotes }
+
+// paneLayout is the layout of the boxes now.
+func (m *Modal) paneLayout() panes.Layout {
+	aw, ah := m.area()
+	return paneLayout(aw, ah, m.box(), m.ctl.Zoom.Zoomed(), m.dividers)
 }
 
-// focusBox focuses the box with the number n of the digit keys: the runs,
-// or the annotations.
-func (m *Modal) focusBox(n pane) tea.Cmd {
-	if n == notesPane {
-		m.focusNotes()
-		return nil
+// tab moves the focus d boxes on, round the ends. Zoomed, the boxes have no
+// preview to flip to, so it does nothing.
+func (m *Modal) tab(d int) tea.Cmd {
+	if _, ok := m.ctl.Tab(m.paneLayout(), d); ok {
+		m.applyFocus()
 	}
-	return m.focusPane(runsPane)
-}
-
-// focusNotes focuses the annotations box.
-func (m *Modal) focusNotes() {
-	m.notes = true
-	m.runs.Blur()
-	m.layout()
-}
-
-// focusPane focuses p.
-func (m *Modal) focusPane(p pane) tea.Cmd {
-	m.setFocus(p)
 	return nil
 }
 
-// setFocus focuses pane p, and blurs the others.
+// digit focuses the box with the number n of the digit keys: the runs, or
+// the annotations.
+func (m *Modal) digit(n pane) tea.Cmd {
+	if m.ctl.Digit(m.paneLayout(), panes.Pane(n)+1) {
+		m.applyFocus()
+	}
+	return nil
+}
+
+// setFocus focuses the runs, and blurs the annotations.
 func (m *Modal) setFocus(p pane) {
-	m.focus, m.notes = p, false
-	if p == runsPane {
-		m.runs.Focus()
-	} else {
+	m.focus = p
+	m.ctl.Nav.SetFocus(paneRuns)
+	m.applyFocus()
+}
+
+// applyFocus focuses the runs or blurs them, as the focused box asks.
+func (m *Modal) applyFocus() {
+	if m.onNotes() {
 		m.runs.Blur()
+	} else {
+		m.runs.Focus()
 	}
 	m.layout()
 }
@@ -306,7 +302,7 @@ func (m *Modal) cursorOnJobs() bool {
 // the log of a job over the modal. On the line that says there are more, and on
 // the note of loading, an error or no jobs, it does nothing.
 func (m *Modal) drill() tea.Cmd {
-	if m.notes {
+	if m.onNotes() {
 		return m.openNote()
 	}
 	if m.onGroupRow() {
@@ -325,11 +321,15 @@ func (m *Modal) drill() tea.Cmd {
 
 // back returns from the annotations to the runs, and from a job row to the
 // run it is of, as the collapse key does. It does nothing on a run, and
-// never undoes the zoom: only the zoom key does.
+// drops a zoom the user asked for first.
 func (m *Modal) back() tea.Cmd {
 	// Backspace cancels the wait for the workflows as esc does.
 	m.workflows.wanted = false
-	if m.notes {
+	if m.ctl.UndoZoom() {
+		m.layout()
+		return nil
+	}
+	if m.onNotes() {
 		m.setFocus(m.focus)
 		return nil
 	}
@@ -364,7 +364,7 @@ func (m *Modal) refresh() tea.Cmd {
 	// A refresh tries again the reads ahead that failed lately.
 	m.aheadJobs.Resume()
 	m.aheadLogs.Resume()
-	if m.notes {
+	if m.onNotes() {
 		return m.rereadNotes()
 	}
 	if m.cursorOnJobs() {
