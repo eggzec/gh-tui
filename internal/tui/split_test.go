@@ -128,8 +128,8 @@ func TestSplitTabSwitchesFocus(t *testing.T) {
 	run(m, m.key(press("z")))
 	pane := m.focus
 	run(m, m.key(press("tab")))
-	if !m.prevFocus || m.focus != pane {
-		t.Fatalf("after tab: prevFocus = %v, focus = %d, want true and %d", m.prevFocus, m.focus, pane)
+	if !m.previewFocused() || m.focus != pane {
+		t.Fatalf("after tab: prevFocus = %v, focus = %d, want true and %d", m.previewFocused(), m.focus, pane)
 	}
 	golden.RequireEqual(t, m.View().Content)
 	run(m, m.key(press("j")))
@@ -137,33 +137,57 @@ func TestSplitTabSwitchesFocus(t *testing.T) {
 		t.Errorf("preview keys = %v, want [j]", files.keys)
 	}
 	run(m, m.key(press("shift+tab")))
-	if m.prevFocus || m.focus != pane {
-		t.Errorf("after shift+tab: prevFocus = %v, focus = %d", m.prevFocus, m.focus)
+	if m.previewFocused() || m.focus != pane {
+		t.Errorf("after shift+tab: prevFocus = %v, focus = %d", m.previewFocused(), m.focus)
 	}
 	run(m, m.key(press("tab")))
 	run(m, m.key(press("z")))
-	if m.prevFocus {
+	if m.previewFocused() {
 		t.Error("the preview keeps the focus after unzoom")
 	}
 }
 
-// Not zoomed, and on a narrow screen, tab cycles the panes as before.
+// Not zoomed, tab cycles the panes. On a narrow screen, which is zoomed with
+// no room for a preview, it does nothing, and the digits switch pane.
 func TestSplitTabCyclesPanes(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		w, h int
-		zoom bool
-	}{{"unzoomed", 120, 40, false}, {"narrow", 80, 24, true}} {
-		m, _ := newSplitApp(t, tc.w, tc.h)
-		if tc.zoom {
-			run(m, m.key(press("z")))
-		}
-		pane := m.focus
-		run(m, m.key(press("tab")))
-		if m.focus == pane || m.prevFocus {
-			t.Errorf("%s: tab left focus = %d (was %d), prevFocus = %v", tc.name, m.focus, pane, m.prevFocus)
-		}
+	m, _ := newSplitApp(t, 120, 40)
+	pane := m.focus
+	run(m, m.key(press("tab")))
+	if m.focus == pane || m.previewFocused() {
+		t.Errorf("unzoomed: tab left focus = %d (was %d), preview focused = %v", m.focus, pane, m.previewFocused())
+	}
+	m, _ = newSplitApp(t, 80, 24)
+	pane = m.focus
+	run(m, m.key(press("tab")))
+	run(m, m.key(press("shift+tab")))
+	if m.focus != pane || m.previewFocused() {
+		t.Errorf("narrow: tab left focus = %d (was %d), preview focused = %v", m.focus, pane, m.previewFocused())
+	}
+	run(m, m.key(press("2")))
+	if m.focus != 1 {
+		t.Errorf("narrow: 2 left focus = %d, want 1", m.focus)
+	}
+}
+
+// A digit zoomed beside a preview focuses its pane's list, and Tab does nothing
+// on a pane with no preview.
+func TestSplitDigitsSwitchPane(t *testing.T) {
+	t.Parallel()
+	m, _ := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	run(m, m.key(press("tab")))
+	if !m.previewFocused() {
+		t.Fatal("tab didn't focus the preview")
+	}
+	run(m, m.key(press("1")))
+	if m.previewFocused() || m.focus != 0 {
+		t.Errorf("1 left preview focused = %v, focus = %d; want the list of pane 0", m.previewFocused(), m.focus)
+	}
+	run(m, m.key(press("2")))
+	run(m, m.key(press("tab")))
+	if m.focus != 1 || m.previewFocused() || !m.zoomed() {
+		t.Errorf("tab on a pane with no preview: focus = %d, preview focused = %v, zoomed = %v", m.focus, m.previewFocused(), m.zoomed())
 	}
 }
 

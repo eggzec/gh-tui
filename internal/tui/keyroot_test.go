@@ -49,7 +49,7 @@ var modalsOver = []struct {
 	{"issue", []string{"global.pane_3", "global.select"}, "the issue"},
 	{"history", []string{"repo.history"}, "History"},
 	{"actions runs", []string{"repo.actions"}, "Actions"},
-	{"actions log", []string{"repo.actions", "global.next_pane", "global.select"}, "the log"},
+	{"actions log", []string{"repo.actions", "global.pane_2", "global.select"}, "the log"},
 	{"preview", []string{"files.down", "global.select"}, "the file"},
 	{"config pager", []string{"global.command", typed("config"), "command_line.run"}, "the pager"},
 	{"filter", []string{"global.pane_2", "pulls.filter"}, "the filter"},
@@ -247,13 +247,12 @@ func TestOnlyTheZoomKeyUnzooms(t *testing.T) {
 				t.Fatal("the history isn't zoomed")
 			}
 			tap(t, m, "backspace")
-			// backspace steps back from the graph, which leaves the modal
-			// open, and never shows the panes again: the zoom key does.
+			// backspace drops the zoom first, and leaves the modal open.
 			if m.modals.Top() == nil {
 				t.Fatal("backspace closed the modal, which should step back from the graph")
 			}
-			if !strings.Contains(onScreen(m), "z unzoom") {
-				t.Error("backspace unzoomed the history")
+			if strings.Contains(onScreen(m), "z unzoom") {
+				t.Error("backspace left the history zoomed")
 			}
 			// esc closes the modal rather than showing the panes again.
 			tap(t, m, "esc")

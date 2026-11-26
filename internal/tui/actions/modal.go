@@ -52,10 +52,6 @@ const (
 // jobs under them, and the annotations.
 const numPanes = 2
 
-// notesPane is the stop of the annotations. It isn't a pane of the runs
-// layout, so the modal tracks it with notes, not focus.
-const notesPane pane = numPanes - 1
-
 var lastID atomic.Int64
 
 // Modal is the Actions modal. Create one with [New].

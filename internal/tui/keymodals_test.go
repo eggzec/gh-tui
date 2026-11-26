@@ -31,7 +31,7 @@ var closing = []struct {
 }{
 	{"history graph", []string{"repo.history"}},
 	{"actions runs", []string{"repo.actions"}},
-	{"actions jobs", []string{"repo.actions", "global.next_pane"}},
+	{"actions jobs", []string{"repo.actions", "global.pane_2"}},
 	{"preview", []string{"files.down", "global.select"}},
 	{"config pager", []string{"global.command", typed("config"), "command_line.run"}},
 	{"filter", []string{"global.pane_2", "pulls.filter"}},
@@ -125,7 +125,7 @@ func TestBackspaceDoesNothingAtTheTopOfAModal(t *testing.T) {
 func TestEscClosesTheLogOverlayAlone(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
+		m := keysAfter(t, true, "repo.actions", "global.pane_2", "global.select")
 		log := m.modals.Top()
 		tap(t, m, "esc")
 		if m.modals.Top() == nil || m.modals.Top() == log {
@@ -141,7 +141,7 @@ func TestEscClosesTheLogOverlayAlone(t *testing.T) {
 func TestBackspaceStepsBackThroughActions(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
-		m := keysAfter(t, true, "repo.actions", "global.next_pane", "global.select")
+		m := keysAfter(t, true, "repo.actions", "global.pane_2", "global.select")
 		log := m.modals.Top()
 		tap(t, m, "backspace")
 		if m.modals.Top() == nil || m.modals.Top() == log {
@@ -205,7 +205,7 @@ func TestBackspaceDeletesInATypingWidget(t *testing.T) {
 		steps []string
 		typed []string
 	}{
-		{"actions log search", []string{"repo.actions", "global.next_pane", "global.select"}, []string{"/", "a", "b"}},
+		{"actions log search", []string{"repo.actions", "global.pane_2", "global.select"}, []string{"/", "a", "b"}},
 		{"finder", []string{"global.find_file"}, []string{"a", "b"}},
 		{"pager search", []string{"global.command", typed("config"), "command_line.run"}, []string{"/", "a", "b"}},
 	}
