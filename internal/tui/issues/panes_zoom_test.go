@@ -125,7 +125,7 @@ func longPreview(t *testing.T) (*host, *detailModal) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "3")
-	m.View()
+	hoverPerson(t, h, m, "ann")
 	return h, m
 }
 
@@ -270,16 +270,17 @@ func TestInvolvedPreviewDrawsConversation(t *testing.T) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "3")
+	hoverPerson(t, h, m, "ann")
 	l := m.paneLayout()
 	b, ok := l.Box(paneInvolved, panes.Preview)
 	if !ok {
 		t.Fatal("the zoomed Involved pane has no preview")
 	}
-	body, ok := m.peekBody(b.Rect.Inner().W)
-	if !ok || body == "" {
+	body := m.involvedPreview(b)
+	if !strings.Contains(ansi.Strip(body), "Peeked at.") {
 		t.Fatalf("the conversation isn't drawn: %q", body)
 	}
-	if again, _ := m.peekBody(b.Rect.Inner().W); again != body {
+	if again := m.involvedPreview(b); again != body {
 		t.Error("a second draw at the same width differs")
 	}
 	v := m.View()
@@ -327,11 +328,12 @@ func TestPreviewDrawsChangePastViewport(t *testing.T) {
 		t.Fatal("enter didn't open the issue")
 	}
 	press(t, h, "3")
+	hoverPerson(t, h, m, "ann")
 	m.Update(strayMsg{})
 	m.View()
 	ver := m.peekVer
 	// A comment below the fold: the viewport of the conversation keeps its rows.
-	svc.addComments(999, core.Comment{ID: "IC_late", Author: core.User{Login: "bob"}, Body: "Added below the fold."})
+	svc.addComments(999, core.Comment{ID: "IC_late", Author: core.User{Login: "ann"}, Body: "Added below the fold."})
 	_, cmd := m.conv.Recache()
 	// Feed each read's message through the modal.
 	var feed func(c tea.Cmd)
@@ -357,9 +359,95 @@ func TestPreviewDrawsChangePastViewport(t *testing.T) {
 	if !ok {
 		t.Fatal("the zoomed Involved pane has no preview")
 	}
-	body, _ := m.peekBody(b.Rect.Inner().W)
+	hoverPerson(t, h, m, "ann")
+	body := m.involvedPreview(b)
 	if !strings.Contains(ansi.Strip(body), "Added below the fold.") {
 		t.Errorf("the preview lacks the new comment:\n%s", ansi.Strip(body))
+	}
+}
+
+// hoverPerson moves the cursor of the zoomed Involved pane down to the person
+// with login.
+func hoverPerson(t *testing.T, h *host, m *detailModal, login string) {
+	t.Helper()
+	m.View()
+	for _, key := range []string{"down", "up"} {
+		for range 12 {
+			if p, ok := m.side.inv.Selected(); ok && p.Login == login {
+				m.View()
+				return
+			}
+			press(t, h, key)
+		}
+	}
+	id, _ := m.side.inv.SelectedID()
+	t.Fatalf("the cursor never reached %s, ended on %q", login, id)
+}
+
+func TestInvolvedPreviewFollowsThePerson(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	svc.addComments(999,
+		core.Comment{ID: "IC_a", Author: core.User{Login: "ann"}, Body: "Ann says hello."},
+		core.Comment{ID: "IC_b", Author: core.User{Login: "bob"}, Body: "Bob says goodbye."})
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	b, ok := m.paneLayout().Box(paneInvolved, panes.Preview)
+	if !ok {
+		t.Fatal("the zoomed Involved pane has no preview")
+	}
+	hoverPerson(t, h, m, "ann")
+	ann := ansi.Strip(m.involvedPreview(b))
+	annID := m.slots.Hover(paneInvolved).ID
+	if !strings.Contains(ann, "Ann says hello.") || strings.Contains(ann, "Bob says goodbye.") {
+		t.Errorf("ann's preview:\n%s", ann)
+	}
+	hoverPerson(t, h, m, "bob")
+	bob := ansi.Strip(m.involvedPreview(b))
+	if !strings.Contains(bob, "Bob says goodbye.") || strings.Contains(bob, "Ann says hello.") {
+		t.Errorf("bob's preview:\n%s", bob)
+	}
+	if m.slots.Hover(paneInvolved).ID == annID {
+		t.Error("the hovered id didn't change with the row")
+	}
+	// Each row keeps its own scroll offset.
+	m.slots.Previews().Set(slots.Key{Pane: paneInvolved, ID: annID}, 3)
+	if got := m.slots.Previews().Get(slots.Key{Pane: paneInvolved, ID: m.slots.Hover(paneInvolved).ID}); got != 0 || !m.slots.Previews().Has(slots.Key{Pane: paneInvolved, ID: annID}) {
+		t.Errorf("bob's offset = %d, want 0", got)
+	}
+}
+
+func TestInvolvedPreviewEmptyAndNarrow(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	svc.addComments(999, core.Comment{ID: "IC_a", Author: core.User{Login: "ann"}, Body: "Ann says hello."})
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	b, ok := m.paneLayout().Box(paneInvolved, panes.Preview)
+	if !ok {
+		t.Fatal("the zoomed Involved pane has no preview")
+	}
+	hoverPerson(t, h, m, "ann")
+	narrow := b
+	narrow.Rect.W = 10
+	if got := ansi.Strip(m.involvedPreview(narrow)); !strings.Contains(got, "too narrow") || strings.Contains(got, "no comments") {
+		t.Errorf("a narrow preview says:\n%s", got)
+	}
+	// The author wrote nothing in the conversation.
+	hoverPerson(t, h, m, m.issue.Author.Login)
+	got := ansi.Strip(m.involvedPreview(b))
+	if !strings.Contains(got, "no comments from") || strings.Contains(got, "Ann says hello.") {
+		t.Errorf("the author's preview:\n%s", got)
 	}
 }
 

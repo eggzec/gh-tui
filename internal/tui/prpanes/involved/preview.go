@@ -109,7 +109,11 @@ func person(d Data, p people, who Person, o Options) Preview {
 		pv.Head = append(pv.Head, st.cut(st.bold.Render(st.glyphs.Render(glyphOf(who.State))+" review: "+who.State.String()), o.Width))
 	}
 	pv.Head = append(pv.Head, st.dim.Render(ui.Rule(st.icons, o.Width)))
-	pv.Nothing = st.dim.Render("no comments or reviews from " + who.Name + " in this pull request")
+	what, noun := "comments or reviews", "pull request"
+	if o.Noun == "issue" {
+		what, noun = "comments", "issue"
+	}
+	pv.Nothing = st.dim.Render("no " + what + " from " + who.Name + " in this " + noun)
 	if who.Login != "" {
 		pv.Key = "person:" + who.Login
 		pv.Narrow = NarrowFor(d, who.Login)

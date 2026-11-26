@@ -79,6 +79,10 @@ func (m *Model) SetView(key string, n Narrow) {
 	m.sync()
 }
 
+// TooNarrow reports whether a conversation width cells wide is narrower than
+// what is drawn, which is why [Model.Peek] has nothing for it.
+func TooNarrow(width int) bool { return width < minWidth }
+
 // Peek draws the view with key, narrowed by n, as a preview width cells wide
 // and as tall as its rows, and leaves the view that shows as it was, at its own
 // size. The view is made when it is new and keeps its own folds. ok is false
