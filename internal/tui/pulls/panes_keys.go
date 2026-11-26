@@ -49,6 +49,9 @@ type panesKeys struct {
 	// scroll moves through the preview of a zoomed pane, and the cursor of the
 	// verdicts.
 	scroll ui.MoveKeys
+	// other acts on the other split of a zoomed pane, by the context of the
+	// pane's list, or of its preview.
+	other map[string]ui.OtherKeys
 	// desc are the keys of the description's tree.
 	desc treeview.KeyMap
 	// editDesc edits the title and the description, quoteDesc quotes the
@@ -145,6 +148,7 @@ func newPanesKeys(keys config.Keymap) panesKeys {
 		confirm: confirm.NewKeyMap(ui.Lookup(keys, "confirm")),
 		quit:    modal.Binding("global.quit", "close"),
 		scroll:  ui.NewMoveKeys(ui.Lookup(keys, ctxPreview)),
+		other:   newOtherKeys(keys),
 		desc:    treeview.NewKeyMap(ui.Lookup(keys, ctxDescription)),
 
 		editDesc:  ui.In(keys, ctxDescription).Binding("edit", "edit"),
@@ -249,6 +253,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 		for _, row := range k.scroll.FullHelp() {
 			all = append(all, row...)
 		}
+		all = append(all, k.other[ctx].Down, k.other[ctx].Up)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, k.scroll.ShortHelp())}
 	}
 	if ctx == ctxFiles {
@@ -256,6 +261,7 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	}
 	if ctx == ctxMerge {
 		all, short := m.merge.keys.help()
+		all = append(all, k.other[ctx].Down, k.other[ctx].Up)
 		return []keyhelp.Layer{own, ui.ContextLayer(ctx, all, short)}
 	}
 	if ctx == ctxConversation {

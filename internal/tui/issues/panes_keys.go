@@ -29,6 +29,9 @@ type paneKeys struct {
 	// scroll are the moves of the modal, which scroll the preview while it has
 	// the focus. The help lists them in place of the conversation's keys then.
 	scroll ui.MoveKeys
+	// other acts on the split that has not the focus: it scrolls the preview from
+	// the list, and moves the list from the preview.
+	other ui.OtherKeys
 }
 
 // newPaneKeys makes the pane keys of the modal from keys.
@@ -40,6 +43,7 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 		zoom: modal.Binding("global.zoom", "zoom"),
 
 		scroll: ui.NewMoveKeys(ui.Lookup(keys, ctxModal)),
+		other:  ui.NewOtherKeys(ui.Lookup(keys, ctxModal)),
 
 		dividerLeft:  modal.Binding(config.ActionDividerLeft, "divider left"),
 		dividerRight: modal.Binding(config.ActionDividerRight, "divider right"),
@@ -57,7 +61,7 @@ func newPaneKeys(keys config.Keymap) paneKeys {
 // bindings lists every pane key once, for the help. The jump stands for the
 // digits in the hints only, so the help lists the digits themselves.
 func (k paneKeys) bindings() []key.Binding {
-	return append([]key.Binding{k.next, k.prev, k.zoom, k.dividerLeft, k.dividerRight, k.dividerUp, k.dividerDown, k.dividerReset}, k.pane[:]...)
+	return append([]key.Binding{k.next, k.prev, k.zoom, k.dividerLeft, k.dividerRight, k.dividerUp, k.dividerDown, k.dividerReset, k.other.Down, k.other.Up}, k.pane[:]...)
 }
 
 // digit returns the pane whose digit msg is, if it is one.

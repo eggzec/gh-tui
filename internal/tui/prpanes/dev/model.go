@@ -18,12 +18,27 @@ import (
 // nothing, so the tree's mark key stays unbound.
 func NewKeyMap(keys config.Keymap) treeview.KeyMap {
 	look := ui.Lookup(keys, Context)
+	if s, ok := look.(keymap.Scoped); ok {
+		// Kept scoped, so that the bindings record the actions of the context.
+		return treeview.NewKeyMap(noMark{s})
+	}
 	return treeview.NewKeyMap(keymap.Func(func(action string) []string {
 		if action == "mark" {
 			return nil
 		}
 		return look.Of(action)
 	}))
+}
+
+// noMark is a lookup that gives no keys to the mark action, which a tree of
+// links has nothing to mark for.
+type noMark struct{ keymap.Scoped }
+
+func (n noMark) Of(action string) []string {
+	if action == "mark" {
+		return nil
+	}
+	return n.Scoped.Of(action)
 }
 
 // Model is the pane: a tree of what a pull request links, or a line that says
