@@ -97,7 +97,14 @@ func TestPreviewFocusDropsOnResize(t *testing.T) {
 	if !m.nav.InPreview(m.paneLayout()) {
 		t.Fatal("the step didn't reach the preview at 110")
 	}
-	m.slots.Previews().Set(slots.Key{Pane: paneInvolved, ID: "conversation"}, 5)
+	id := m.slots.Hover(paneInvolved).ID
+	if id == "" {
+		t.Fatal("no Involved row hovered")
+	}
+	m.slots.Previews().Set(slots.Key{Pane: paneInvolved, ID: id}, 5)
+	if m.slots.Offset(paneInvolved) != 5 {
+		t.Fatal("the offset didn't take")
+	}
 	m.SetSize(90, 30)
 	if m.slots.Offset(paneInvolved) != 0 {
 		t.Error("the offset stayed after the preview went")
@@ -419,6 +426,27 @@ func TestInvolvedPreviewFollowsThePerson(t *testing.T) {
 	m.slots.Previews().Set(slots.Key{Pane: paneInvolved, ID: annID}, 3)
 	if got := m.slots.Previews().Get(slots.Key{Pane: paneInvolved, ID: m.slots.Hover(paneInvolved).ID}); got != 0 || !m.slots.Previews().Has(slots.Key{Pane: paneInvolved, ID: annID}) {
 		t.Errorf("bob's offset = %d, want 0", got)
+	}
+}
+
+func TestInvolvedFrameShowsTheRoles(t *testing.T) {
+	t.Parallel()
+	svc := blockedSvc()
+	svc.addComments(999, core.Comment{ID: "IC_a", Author: core.User{Login: "ann"}, Body: "Ann says hello."})
+	h := started(t, svc, 110, 30)
+	press(t, h, "down", "enter")
+	m := h.modal()
+	if m == nil {
+		t.Fatal("enter didn't open the issue")
+	}
+	press(t, h, "3")
+	hoverPerson(t, h, m, m.issue.Author.Login)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "author") {
+		t.Errorf("the frame of the author's preview lacks the role:\n%s", v)
+	}
+	hoverPerson(t, h, m, m.issue.Assignees[0].Login)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "assignee") {
+		t.Errorf("the frame of the assignee's preview lacks the role:\n%s", v)
 	}
 }
 

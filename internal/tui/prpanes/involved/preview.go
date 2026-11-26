@@ -56,7 +56,12 @@ func PreviewOf(d Data, id string, o Options) (Preview, bool) {
 		for _, c := range p.commenters {
 			n := Count(d, c.Login)
 			word := " comments or reviews"
-			if n == 1 {
+			switch {
+			case o.Noun == "issue" && n == 1:
+				word = " comment"
+			case o.Noun == "issue":
+				word = " comments"
+			case n == 1:
 				word = " comment or review"
 			}
 			lines = append(lines, conv.Name(c)+"  "+st.dim.Render(strconv.Itoa(n)+word))
