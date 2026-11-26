@@ -248,12 +248,15 @@ func TestZoom(t *testing.T) {
 		shows, hides string
 	}{
 		{name: "z zooms the graph", keys: []string{"z"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
-		{name: "tab keeps the zoom", keys: []string{"tab"}, zoom: true, focus: commitPane, shows: "commands.go", hides: "main: change 1"},
-		{name: "shift+tab keeps the zoom", keys: []string{"shift+tab", "shift+tab"}, zoom: true, focus: branchPane, shows: "fix/tabs", hides: "main: change 1"},
+		{name: "zoomed, tab and shift+tab do nothing", keys: []string{"tab", "shift+tab", "shift+tab"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
+		{name: "a digit switches the zoomed pane", keys: []string{"3"}, zoom: true, focus: commitPane, shows: "commands.go", hides: "main: change 1"},
+		{name: "another digit keeps the zoom", keys: []string{"1"}, zoom: true, focus: branchPane, shows: "fix/tabs", hides: "main: change 1"},
 		{name: "enter keeps the zoom", keys: []string{"enter", "enter", "enter"}, zoom: true, focus: commitPane, patch: true},
 		{name: "a resize keeps the zoom", width: 140, zoom: true, focus: commitPane, patch: true},
-		{name: "backspace closes the patch and keeps the zoom", keys: []string{"backspace"}, zoom: true, focus: commitPane, hides: "fix/tabs"},
-		{name: "backspace steps back and keeps the zoom", keys: []string{"backspace"}, zoom: true, focus: graphPane, shows: "main: change 1", hides: "fix/tabs"},
+		{name: "backspace undoes the zoom first", keys: []string{"backspace"}, focus: commitPane, patch: true},
+		{name: "backspace closes the patch", keys: []string{"backspace"}, focus: commitPane},
+		{name: "backspace steps back", keys: []string{"backspace"}, focus: graphPane, shows: "fix/tabs"},
+		{name: "z zooms", keys: []string{"z"}, zoom: true, focus: graphPane, hides: "fix/tabs"},
 		{name: "z unzooms", keys: []string{"z"}, focus: graphPane, shows: "fix/tabs"},
 		{name: "z zooms again", keys: []string{"z"}, zoom: true, focus: graphPane, hides: "fix/tabs"},
 		{name: "at 60 columns backspace steps back while zoomed", width: narrowW, keys: []string{"backspace"}, zoom: true, focus: branchPane, shows: "fix/tabs"},
@@ -268,8 +271,8 @@ func TestZoom(t *testing.T) {
 				m.SetSize(tt.width, wideH)
 			}
 			h.keys(tt.keys...)
-			if m.zoom.Zoomed() != tt.zoom || m.focus != tt.focus || m.commit.patch != tt.patch {
-				t.Errorf("zoom %v on pane %d, patch %v; want %v on %d, patch %v", m.zoom.Zoomed(), m.focus, m.commit.patch, tt.zoom, tt.focus, tt.patch)
+			if m.ctl.Zoom.Zoomed() != tt.zoom || m.focus != tt.focus || m.commit.patch != tt.patch {
+				t.Errorf("zoom %v on pane %d, patch %v; want %v on %d, patch %v", m.ctl.Zoom.Zoomed(), m.focus, m.commit.patch, tt.zoom, tt.focus, tt.patch)
 			}
 			if w := m.paneWidth(m.focus); tt.zoom && w != m.width {
 				t.Errorf("the zoomed pane is %d wide, want the %d of the modal", w, m.width)
@@ -291,23 +294,23 @@ func TestSetNarrowForcesZoom(t *testing.T) {
 	h.keys("z")
 	m.SetNarrow(true)
 	m.SetSize(wideW, wideH)
-	if !m.zoom.Zoomed() || m.zoom.CanZoom() {
-		t.Errorf("a narrow terminal: zoomed %v, can zoom %v; want a forced zoom", m.zoom.Zoomed(), m.zoom.CanZoom())
+	if !m.ctl.Zoom.Zoomed() || m.ctl.Zoom.CanZoom() {
+		t.Errorf("a narrow terminal: zoomed %v, can zoom %v; want a forced zoom", m.ctl.Zoom.Zoomed(), m.ctl.Zoom.CanZoom())
 	}
 	h.keys("z")
 	m.SetNarrow(false)
 	m.SetSize(wideW, wideH)
-	if !m.zoom.Zoomed() || !m.zoom.User() {
-		t.Errorf("growing again: zoomed %v, user %v; want the user's zoom back", m.zoom.Zoomed(), m.zoom.User())
+	if !m.ctl.Zoom.Zoomed() || !m.ctl.Zoom.User() {
+		t.Errorf("growing again: zoomed %v, user %v; want the user's zoom back", m.ctl.Zoom.Zoomed(), m.ctl.Zoom.User())
 	}
-	m.zoom.SetZoom(false)
+	m.ctl.Zoom.SetZoom(false)
 	m.SetSize(narrowW, narrowH)
 	m.SetSize(wideW, wideH)
-	if m.zoom.Zoomed() {
+	if m.ctl.Zoom.Zoomed() {
 		t.Error("growing past the modal's own minimum kept a forced zoom")
 	}
 	m.SetSize(narrowW, narrowH)
-	if !m.zoom.Zoomed() {
+	if !m.ctl.Zoom.Zoomed() {
 		t.Error("a modal under its own minimum is not zoomed")
 	}
 }
@@ -315,12 +318,12 @@ func TestSetNarrowForcesZoom(t *testing.T) {
 func TestZoomLeavesKeysToInputs(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("z", "enter", "enter", "/", "z")
-	if !m.zoom.Zoomed() || !m.commit.patch || !m.commit.pager.Capturing() {
-		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.zoom.Zoomed(), m.commit.patch)
+	if !m.ctl.Zoom.Zoomed() || !m.commit.patch || !m.commit.pager.Capturing() {
+		t.Fatalf("zoom %v, patch %v; want z typed into the search of the zoomed patch", m.ctl.Zoom.Zoomed(), m.commit.patch)
 	}
 	h.keys("esc")
-	if !m.zoom.Zoomed() || !m.commit.patch || m.commit.pager.Capturing() {
-		t.Errorf("zoom %v, patch %v; want esc to close the search alone", m.zoom.Zoomed(), m.commit.patch)
+	if !m.ctl.Zoom.Zoomed() || !m.commit.patch || m.commit.pager.Capturing() {
+		t.Errorf("zoom %v, patch %v; want esc to close the search alone", m.ctl.Zoom.Zoomed(), m.commit.patch)
 	}
 }
 
