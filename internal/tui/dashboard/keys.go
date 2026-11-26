@@ -258,5 +258,10 @@ func (k KeyMap) state(s *Section) KeyMap {
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}
+	// A forced zoom flips the split as well, so this follows the layout.
+	if steps && s.onePane() {
+		k.Next.SetHelp(k.Next.Help().Key, "switch split")
+		k.Prev.SetHelp(k.Prev.Help().Key, "switch split")
+	}
 	return k
 }

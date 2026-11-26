@@ -207,6 +207,14 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 	k.next.SetEnabled(k.next.Enabled() && steps)
 	k.prev.SetEnabled(k.prev.Enabled() && steps)
 	k.zoom.SetEnabled(k.zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	if m.ctl.Zoom.User() && m.ctl.Zoom.CanZoom() {
+		k.zoom.SetHelp(k.zoom.Help().Key, "unzoom")
+	}
+	if l.Zoomed && steps {
+		// Zoomed, the keys flip between the list and the preview.
+		k.next.SetHelp(k.next.Help().Key, "switch split")
+		k.prev.SetHelp(k.prev.Help().Key, "switch split")
+	}
 	k.owner.SetEnabled(k.owner.Enabled() && ui.Author(m.detail.Author) != "")
 	k.find.SetEnabled(k.find.Enabled() && m.canFind())
 	k.merge.SetEnabled(k.merge.Enabled() && m.loaded && m.detail.State == core.StateOpen)
