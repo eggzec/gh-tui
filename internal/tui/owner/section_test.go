@@ -194,6 +194,32 @@ func TestClearFilter(t *testing.T) {
 
 func filterApplied(query string) filterform.AppliedMsg { return filterform.AppliedMsg{Query: query} }
 
+// Zoomed on the pins there is no other pane to step to, so help offers
+// neither next nor previous pane, nor the digit of the pane in focus.
+func TestHelpGatesPaneSteps(t *testing.T) {
+	s := newSection(t, newFake(), "octocat", 120, 40)
+	enabled := func(desc string) bool {
+		for _, l := range s.KeyLayers() {
+			for _, b := range l.Bindings {
+				if b.Help().Desc == desc && b.Enabled() {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if !enabled("next pane") {
+		t.Fatal("unzoomed, help doesn't offer next pane")
+	}
+	press(t, s, "1")
+	press(t, s, "z")
+	for _, d := range []string{"next pane", "previous pane"} {
+		if enabled(d) {
+			t.Errorf("zoomed on the pins, help offers %q", d)
+		}
+	}
+}
+
 // The help names the keys of the panes the page has: the pins and the
 // list.
 func TestHelpNamesPanesOnView(t *testing.T) {

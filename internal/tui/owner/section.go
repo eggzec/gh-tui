@@ -170,6 +170,9 @@ type Section struct {
 
 	started bool
 	focused bool
+	// leave closes the modal that holds the page, so a screen it opens shows;
+	// nil when the page is not in a modal.
+	leave func() tea.Cmd
 	// grouping is how the repositories and the stars are grouped.
 	grouping ui.Grouping[core.Repo]
 	// page is the page on view, or nil before the first, and back the

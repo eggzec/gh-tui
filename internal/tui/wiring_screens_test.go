@@ -274,6 +274,70 @@ func TestIssueModalLoadFails(t *testing.T) {
 	})
 }
 
+// A repository chosen on the owner page closes the modal, so that the
+// repository screen shows; a person replaces the page, so backspace returns.
+func TestOwnerModalLeavesForScreens(t *testing.T) {
+	t.Parallel()
+	open := func(t *testing.T) *Model {
+		t.Helper()
+		m := wiredApp(t, brokenFiles{}, brokenIssues{}, brokenOwners{})
+		m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
+		runCommand(t, m, "goto @github")
+		if _, ok := m.modals.Top().(*owner.Modal); !ok {
+			t.Fatalf("goto @github opened %T, want the owner page", m.modals.Top())
+		}
+		tapAction(t, m, "global.pane_2")
+		return m
+	}
+	onRepo := func(t *testing.T, m *Model) {
+		t.Helper()
+		if m.modals.Top() != nil || m.screen != repoScreen || m.repo != testRepo {
+			t.Errorf("on top %T, screen %d on %v; want the repository alone", m.modals.Top(), m.screen, m.repo)
+		}
+	}
+	t.Run("enter on a repository", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := open(t)
+			tap(t, m, "enter")
+			onRepo(t, m)
+		})
+	})
+	t.Run("dot on a repository", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := open(t)
+			tap(t, m, ".")
+			onRepo(t, m)
+		})
+	})
+	t.Run("the viewer", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := open(t)
+			m.login = keyPerson.Login
+			tapAction(t, m, "global.next_tab")
+			tap(t, m, "enter")
+			if m.modals.Top() != nil || m.screen != dashScreen {
+				t.Errorf("on top %T, screen %d; want the dashboard alone", m.modals.Top(), m.screen)
+			}
+		})
+	})
+	t.Run("a person", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			m := open(t)
+			tapAction(t, m, "global.next_tab")
+			tap(t, m, "enter")
+			top, ok := m.modals.Top().(*owner.Modal)
+			if !ok || top.Title() != keyPerson.Login {
+				t.Fatalf("on top %T, want the page of %s", m.modals.Top(), keyPerson.Login)
+			}
+			tap(t, m, "backspace")
+			top, ok = m.modals.Top().(*owner.Modal)
+			if !ok || top.Title() != "github" {
+				t.Errorf("after backspace on top %T, want the page of github", m.modals.Top())
+			}
+		})
+	})
+}
+
 // The owner page shows the README of an organization once its pane is
 // focused, scrolls it, and says so when it has none or can't be read.
 func TestOwnerReadmeThroughGoto(t *testing.T) {

@@ -17,7 +17,7 @@ import (
 
 // Sizes of the page. From wideWidth by wideHeight cells it shows every
 // pane at once: the profile on top, the pinned cards below it, and below
-// them the list beside the README, over a user's calendar. On a narrow
+// them the list beside the README. On a narrow
 // terminal, or zoomed, it shows the profile and the focused pane, whose
 // frame names the others. The root decides narrow (ui.wide), so the two
 // pages change layout at the same size.
@@ -127,7 +127,7 @@ func (s *Section) paneLayout() panes.Layout {
 	})
 }
 
-// split reports whether l shows the list beside the README.
+// hasSplit reports whether l shows the list beside the README.
 func (s *Section) hasSplit(l panes.Layout) bool {
 	if s.page == nil || s.page.focus == pinnedPane {
 		return false

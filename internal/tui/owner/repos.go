@@ -74,12 +74,12 @@ func (l *tableTab) selection(s *Section) (ui.Selection, bool) {
 	return ui.RepoSelection(r, s.repoURL(r)), true
 }
 
-func (l *tableTab) enter(*Section) tea.Cmd {
+func (l *tableTab) enter(s *Section) tea.Cmd {
 	r, ok := l.Feed.Selected()
 	if !ok {
 		return nil
 	}
-	return selectRepo(r.Ref)
+	return s.selectRepo(r.Ref)
 }
 
 func (l *repoList) fresh(svc Service) bool { return svc.FreshRepos(l.q) }

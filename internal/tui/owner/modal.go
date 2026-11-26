@@ -27,6 +27,7 @@ func NewModal(s *Section, login string) *Modal {
 	m := &Modal{Section: s}
 	s.Focus()
 	s.started = true
+	s.leave = func() tea.Cmd { return ui.CloseModal(m) }
 	m.start = s.Update(ui.OwnerMsg{Login: login})
 	return m
 }
@@ -63,9 +64,8 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 		if m.undoZoom() {
 			return nil, true
 		}
-		if m.CanGoBack() {
-			return m.GoBack(), true
-		}
+		// A person row opens a modal of its own, so the pages never stack
+		// here: back returns to the modal this one replaced.
 		return nil, false
 	case "owner":
 		sel, ok := m.Selected()
@@ -78,7 +78,7 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 		if !ok || sel.Repo.Name == "" {
 			return nil, true
 		}
-		return tea.Sequence(ui.CloseModal(m), selectRepo(sel.Repo)), true
+		return m.selectRepo(sel.Repo), true
 	}
 	return nil, false
 }

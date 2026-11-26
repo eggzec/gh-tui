@@ -13,9 +13,8 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/pager"
 )
 
-// sideService is what the panes beside the list read: the README, the
-// contribution calendar and the sponsors, and the follower count of an
-// organization, which its profile shows.
+// sideService is what the panes beside the list read: the README, and the
+// follower count of an organization, which its profile shows.
 type sideService interface {
 	FreshReadme(q owners.ReadmeQuery) bool
 	Readme(ctx context.Context, q owners.ReadmeQuery) (owners.Readme, error)
@@ -323,7 +322,7 @@ func (s *Section) updateSide(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// focusSide focuses the pager or the calendar of the page on view while
+// focusSide focuses the pager of the page on view while
 // its pane has the focus, and blurs them otherwise.
 func (s *Section) focusSide() {
 	p := s.page
@@ -339,7 +338,7 @@ func (s *Section) focusSide() {
 	}
 }
 
-// blurSide blurs the pager and the calendar of p, which leaves the screen.
+// blurSide blurs the pager of p, which leaves the screen.
 func blurSide(p *page) {
 	if p == nil {
 		return
@@ -349,7 +348,7 @@ func blurSide(p *page) {
 	}
 }
 
-// resizeSide sizes the pager and the calendar of the page on view to their
+// resizeSide sizes the pager of the page on view to their
 // panes.
 func (s *Section) resizeSide() {
 	p := s.page
