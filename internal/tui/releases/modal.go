@@ -382,6 +382,9 @@ func (m *Modal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
+	m.ctl.SetNarrow(m.width < 2*panes.MinWidth)
+	// The release panes have no previews, so there is nothing more to reset.
+	m.ctl.Settle(m.paneLayout())
 	m.resize()
 	if m.pick != nil {
 		m.pick.fp.SetHeight(m.pickHeight())
@@ -471,6 +474,10 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	k := m.keys
 	k.Select.SetEnabled(k.Select.Enabled() && m.ctl.Nav.Focus() == paneFiles)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
+	steps := m.ctl.Nav.CanStep(m.paneLayout())
+	k.Next.SetEnabled(k.Next.Enabled() && steps)
+	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
 	if m.failed() {
 		k.offFailed()
 	}

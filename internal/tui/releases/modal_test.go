@@ -552,7 +552,27 @@ func TestReleaseDate(t *testing.T) {
 
 func pressKey(m *Modal, msg tea.KeyPressMsg) { m.Update(msg) }
 
-// The digits and tab move the focus, and z shows the focused pane alone.
+// TestNarrowZoomIsGated checks that z does nothing in a modal too narrow for
+// two panes, and that help doesn't list it.
+func TestNarrowZoomIsGated(t *testing.T) {
+	m := newModal(&fakeService{}, 40, 30)
+	run(t, m, m.Init())
+	press(m, "z")
+	if m.ctl.Zoom.User() {
+		t.Error("z recorded a zoom the user can't see")
+	}
+	if _, ok := m.Act("back"); !ok || !m.ctl.Zoom.Zoomed() {
+		t.Error("back undid the forced zoom")
+	}
+	for _, l := range m.KeyLayers() {
+		for _, b := range l.Bindings {
+			if b.Help().Desc == m.keys.Zoom.Help().Desc && b.Enabled() {
+				t.Error("help lists z while it does nothing")
+			}
+		}
+	}
+}
+
 func TestZoomedKeysAndBackspace(t *testing.T) {
 	m := newModal(&fakeService{}, 100, 30)
 	run(t, m, m.Init())
@@ -583,6 +603,7 @@ func TestZoomedKeysAndBackspace(t *testing.T) {
 	}
 }
 
+// The digits and tab move the focus, and z shows the focused pane alone.
 func TestPaneFocusAndZoom(t *testing.T) {
 	m := newModal(&fakeService{}, 100, 30)
 	run(t, m, m.Init())

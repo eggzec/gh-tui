@@ -9,7 +9,8 @@ import (
 var _ ui.Actor = (*detailModal)(nil)
 
 // Act implements ui.Actor. The quit key closes the modal, the back key
-// steps back from the links, and the owner key shows the page of the
+// drops a zoom the user asked for, else steps back from the links, and the
+// owner key shows the page of the
 // author; every other intent is the app's to refuse while the modal is
 // open.
 func (m *detailModal) Act(action string) (tea.Cmd, bool) {
