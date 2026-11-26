@@ -77,6 +77,30 @@ func (c Context) Of(action string) []string {
 // "global.select", is another context's.
 func Lookup(keys config.Keymap, ctx string) keymap.Lookup { return In(keys, ctx) }
 
+// WithoutMark returns look with no key for the mark action, for a pane that
+// has nothing to mark. A scoped lookup stays scoped, so that the bindings
+// still record the actions of their context.
+func WithoutMark(look keymap.Lookup) keymap.Lookup {
+	if s, ok := look.(keymap.Scoped); ok {
+		return noMark{s}
+	}
+	return keymap.Func(func(action string) []string {
+		if action == "mark" {
+			return nil
+		}
+		return look.Of(action)
+	})
+}
+
+type noMark struct{ keymap.Scoped }
+
+func (n noMark) Of(action string) []string {
+	if action == "mark" {
+		return nil
+	}
+	return n.Scoped.Of(action)
+}
+
 // FinderKeys returns the key map of a file finder. It moves with the keys
 // of the pickers but those that open it from outside (global.find_file),
 // which must not also move in it.

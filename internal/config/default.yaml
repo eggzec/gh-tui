@@ -1323,7 +1323,10 @@ keys:
     half_page_down: [ctrl+d]
     top: ["g g", home]
     bottom: [G, end]
-    # Move the list of the split beside the preview.
+    # In a zoomed pane with a preview (Involved, Development, Blockers),
+    # scroll the preview beside the list, or move the list from the preview.
+    # These keys serve the issue's panes; the pull request's are those of
+    # pull_involved and pull_development.
     scroll_other_down: [J]
     scroll_other_up: [K]
   # The modal of a pull request: what a check run of an App reported. Its
@@ -1383,6 +1386,9 @@ keys:
   # another review. Edit opens the picker of the assignees or of the reviewers,
   # from the group or one of its rows; an issue has assignees only.
   pull_involved:
+    # In the zoomed pane of a pull request, scroll the preview beside the list,
+    # or move the list from the preview. An issue's Involved pane reads
+    # issue_modal's keys instead.
     scroll_other_down: [J]
     scroll_other_up: [K]
     up: [up, k]
@@ -1448,6 +1454,9 @@ keys:
   # and the pull requests linked to it, in groups that fold. Enter opens the
   # item under the cursor, or folds a group.
   pull_development:
+    # In the zoomed pane of a pull request, scroll the preview beside the list,
+    # or move the list from the preview. An issue's Development pane reads
+    # issue_modal's keys instead.
     scroll_other_down: [J]
     scroll_other_up: [K]
     # Move the cursor up and down the rows.
