@@ -216,21 +216,24 @@ func (k KeyMap) state(m *Model) KeyMap {
 	if m.screen != repoScreen {
 		// Only the repository screen has panes to cycle through. On the
 		// other screens the app leaves these keys to the section, which
-		// does what it defines for them: the dashboard and the owner page
-		// move between their panes, the search modal between its query,
-		// kinds and results, and the notifications have no use for them.
+		// does what it defines for them: the dashboard moves between its
+		// panes, the owner modal and the search modal between theirs, and
+		// the notifications have no use for them.
 		k.Next.SetEnabled(false)
 		k.Prev.SetEnabled(false)
 	}
 	// Zoomed, the keys flip between the list and the preview of the pane,
 	// and do nothing when it has no preview, so help doesn't offer them.
-	if m.screen == repoScreen && m.zoomed() {
-		if m.splitShown() {
+	// A narrow terminal zooms too, so this reads the layout, as Tab does.
+	if m.screen == repoScreen {
+		m.syncNav()
+		l := m.paneLayout(m.height)
+		steps := m.ctl.Nav.CanStep(l)
+		k.Next.SetEnabled(k.Next.Enabled() && steps)
+		k.Prev.SetEnabled(k.Prev.Enabled() && steps)
+		if l.Zoomed {
 			k.Next.SetHelp(k.Next.Help().Key, "switch split")
 			k.Prev.SetHelp(k.Prev.Help().Key, "switch split")
-		} else {
-			k.Next.SetEnabled(false)
-			k.Prev.SetEnabled(false)
 		}
 	}
 	// The dashboard shows the notifications as a pane, which its digit

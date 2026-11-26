@@ -106,6 +106,40 @@ func TestSplitPreviewCmd(t *testing.T) {
 	}
 }
 
+// Help offers tab only where it works: as "switch split" beside a preview,
+// not on a narrow screen that has none, and not zoomed over a pane without one.
+func TestSplitTabHelp(t *testing.T) {
+	t.Parallel()
+	m, _ := newSplitApp(t, 120, 40)
+	if got := winner(m, "tab"); got != "global: next pane" {
+		t.Errorf("unzoomed tab reaches %q, want next pane", got)
+	}
+	run(m, m.key(press("z")))
+	if got := winner(m, "tab"); got != "global: switch split" {
+		t.Errorf("zoomed tab reaches %q, want switch split", got)
+	}
+
+	m, _ = newSplitApp(t, 80, 24)
+	run(m, m.key(press("z")))
+	if got := winner(m, "tab"); got != "nothing" {
+		t.Errorf("narrow tab reaches %q, want nothing", got)
+	}
+	if got := winner(m, "shift+tab"); got != "nothing" {
+		t.Errorf("narrow shift+tab reaches %q, want nothing", got)
+	}
+
+	m, _, _ = newFilterApp(t)
+	run(m, m.key(press("z")))
+	if m.ctl.Zoom.User() && m.splitShown() {
+		t.Fatal("the pane has a split, so the case is not under test")
+	}
+	if m.ctl.Zoom.User() {
+		if got := winner(m, "tab"); got != "nothing" {
+			t.Errorf("zoomed tab without a preview reaches %q, want nothing", got)
+		}
+	}
+}
+
 func TestSplitNarrow(t *testing.T) {
 	t.Parallel()
 	m, files := newSplitApp(t, 80, 24)
