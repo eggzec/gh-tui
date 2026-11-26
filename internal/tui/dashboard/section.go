@@ -240,7 +240,7 @@ type Section struct {
 	// the default.
 	split int
 	// zoom shows the focused pane alone, as a narrow dashboard does.
-	zoom panes.Zoom
+	ctl panes.Controller
 	// head is the profile above the panes, boxes are the sizes of the
 	// panes, and frames the panes rendered in their frames.
 	head   []string
@@ -355,6 +355,8 @@ func (s *Section) Init() tea.Cmd {
 // SetSize sets the size of the dashboard and lays its panes out.
 func (s *Section) SetSize(width, height int) {
 	s.width, s.height = max(width, 0), max(height, 0)
+	// No pane has a preview, so a resize never has one to keep.
+	s.ctl.Settle(s.paneLayout())
 	s.layout()
 	s.render()
 }
@@ -376,7 +378,7 @@ func (s *Section) OnePane() bool { return s.onePane() }
 
 // SetNarrow tells the dashboard that the terminal is too small for every
 // pane at once. It takes effect at the next SetSize.
-func (s *Section) SetNarrow(narrow bool) { s.zoom.SetNarrow(narrow) }
+func (s *Section) SetNarrow(narrow bool) { s.ctl.SetNarrow(narrow) }
 
 // SetTheme builds the styles of the dashboard and restyles its bubbles.
 func (s *Section) SetTheme(t ui.Theme) {

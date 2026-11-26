@@ -263,7 +263,7 @@ func TestRefreshRetries(t *testing.T) {
 }
 
 func TestPaneFocus(t *testing.T) {
-	s := newSection(t, newFake(), nil, 80, 22)
+	s := newSection(t, newFake(), nil, 180, 44)
 	tests := []struct {
 		key  string
 		want paneID
@@ -324,8 +324,8 @@ func TestNarrowBoundaryDashboard(t *testing.T) {
 	} {
 		s := newSection(t, newFake(), nil, tt.width, tt.height-chromeRows)
 		press(t, s, "z")
-		if s.zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
-			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.zoom.CanZoom(), s.zoomed(), tt.wide)
+		if s.ctl.Zoom.CanZoom() != tt.wide || s.zoomed() != tt.wide {
+			t.Errorf("%dx%d: can zoom %v, zoomed %v, want %v", tt.width, tt.height, s.ctl.Zoom.CanZoom(), s.zoomed(), tt.wide)
 		}
 	}
 }
@@ -343,8 +343,9 @@ func TestZoom(t *testing.T) {
 	}{
 		{keys: []string{"z"}, zoom: true, focus: reposPane, shows: []string{"Repositories", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "repo-000"}, hides: []string{"Review requests"}},
 		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Waiting on you", "1 Pinned · 2 Repositories · 3 Waiting on you · 4 Contributions · 5 Notifications", "Review requests"}, hides: []string{"repo-000"}},
-		{keys: []string{"tab"}, zoom: true, focus: calendarPane, shows: []string{"contributions in the last 90 days"}, hides: []string{"Review requests"}},
-		{keys: []string{"shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"contributions"}},
+		{keys: []string{"tab", "shift+tab"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"contributions"}},
+		{keys: []string{"4"}, zoom: true, focus: calendarPane, shows: []string{"contributions in the last 90 days"}, hides: []string{"Review requests"}},
+		{keys: []string{"3"}, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"contributions"}},
 		{width: 180, height: 44, zoom: true, focus: workPane, shows: []string{"Review requests"}, hides: []string{"repo-000"}},
 		// The full help of the app takes rows, which leaves the dashboard
 		// too short for every pane, and gives them back.
@@ -363,8 +364,8 @@ func TestZoom(t *testing.T) {
 			setSize(s, tt.width, tt.height)
 		}
 		press(t, s, tt.keys...)
-		if s.zoom.User() != tt.zoom || s.focus != tt.focus {
-			t.Errorf("step %d: zoom %v on pane %d, want %v on %d", i, s.zoom.User(), s.focus, tt.zoom, tt.focus)
+		if s.ctl.Zoom.User() != tt.zoom || s.focus != tt.focus {
+			t.Errorf("step %d: zoom %v on pane %d, want %v on %d", i, s.ctl.Zoom.User(), s.focus, tt.zoom, tt.focus)
 		}
 		view := screen(s)
 		if w := s.boxes[s.focus].w; tt.zoom && w != s.width {
@@ -401,14 +402,14 @@ func TestZoomOnlyWhereItShows(t *testing.T) {
 			s := newSection(t, newFake(), nil, 140, tt.height)
 			press(t, s, "z", "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() || !strings.Contains(screen(s), "repo-000") {
-				t.Errorf("zoom %v after z twice; want every pane", s.zoom.User())
+			if s.ctl.Zoom.User() || !strings.Contains(screen(s), "repo-000") {
+				t.Errorf("zoom %v after z twice; want every pane", s.ctl.Zoom.User())
 			}
 			setSize(s, 140, tt.height)
 			press(t, s, "z")
 			setSize(s, 140, 38)
-			if s.zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
-				t.Errorf("zoom %v after z; want %v:\n%s", s.zoom.User(), tt.zoom, screen(s))
+			if s.ctl.Zoom.User() != tt.zoom || strings.Contains(screen(s), "Review requests") != !tt.zoom {
+				t.Errorf("zoom %v after z; want %v:\n%s", s.ctl.Zoom.User(), tt.zoom, screen(s))
 			}
 		})
 	}

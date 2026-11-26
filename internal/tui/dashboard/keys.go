@@ -242,7 +242,7 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && len(s.repos.grouping.Levels) > 0)
 	default:
 	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.zoom.CanZoom())
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.ctl.Zoom.CanZoom())
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
 	}

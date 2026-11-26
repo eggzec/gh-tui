@@ -70,11 +70,11 @@ func (s *Section) layout() {
 
 // onePane reports whether the dashboard shows the focused pane alone:
 // when the panes don't fit, or while it is zoomed.
-func (s *Section) onePane() bool { return s.zoom.Zoomed() }
+func (s *Section) onePane() bool { return s.ctl.Zoom.Zoomed() }
 
 // zoomed reports whether the zoom shows. A dashboard too small for every
 // pane shows one anyway, so there the back key keeps its other uses.
-func (s *Section) zoomed() bool { return s.zoom.User() && s.zoom.CanZoom() }
+func (s *Section) zoomed() bool { return s.ctl.Zoom.User() && s.ctl.Zoom.CanZoom() }
 
 // calendarWidth is the outer width of the calendar in the bottom row: what
 // its range needs, less recent weeks when the notifications would get
