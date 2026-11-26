@@ -21,35 +21,9 @@ import (
 
 // DevService is what the Development pane reads. *pulls.Service satisfies it.
 type DevService interface {
+	dev.PreviewService
 	CachedLinks(q pulls.LinksQuery) (core.PullLinks, bool)
 	Links(ctx context.Context, q pulls.LinksQuery) (core.PullLinks, error)
-	CachedIssuePreview(q pulls.PreviewQuery) (core.IssuePreview, bool)
-	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
-	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
-	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
-}
-
-// devReader adapts a DevService to what the previews read.
-type devReader struct{ s DevService }
-
-func query(t core.Target) pulls.PreviewQuery {
-	return pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
-}
-
-func (r devReader) CachedIssue(t core.Target) (core.IssuePreview, bool) {
-	return r.s.CachedIssuePreview(query(t))
-}
-
-func (r devReader) Issue(ctx context.Context, t core.Target) (core.IssuePreview, error) {
-	return r.s.IssuePreview(ctx, query(t))
-}
-
-func (r devReader) CachedPull(t core.Target) (core.PullPreview, bool) {
-	return r.s.CachedPullPreview(query(t))
-}
-
-func (r devReader) Pull(ctx context.Context, t core.Target) (core.PullPreview, error) {
-	return r.s.PullPreview(ctx, query(t))
 }
 
 // devPane is the Development pane of a modal: the tree of what the pull
@@ -126,7 +100,7 @@ func (m *panesModal) openDev(svc DevService, refSvc refs.Service, keys config.Ke
 	st := dev.NewStyles(m.theme, m.icons)
 	p := &devPane{
 		svc: svc, refSvc: refSvc, model: dev.New(dev.Options{Repo: m.repo, Styles: st, HideClosedBy: true}), styles: st,
-		previews: dev.NewPreviews(devReader{svc}, dev.WithContext(m.ctx)),
+		previews: dev.NewPreviews(dev.ServiceReader(svc), dev.WithContext(m.ctx)),
 	}
 	p.model.SetKeyMap(km)
 	m.dev = p
@@ -335,7 +309,7 @@ func (m *panesModal) devPreview(b panes.Box) string {
 	}
 	o := dev.PreviewOptions{Repo: m.repo, Styles: p.styles, Now: m.clock(), Width: b.Rect.Inner().W}
 	return p.previews.View(dev.Row{
-		Key: m.slots.Hover(b.Pane).ID, Item: p.hov, Links: p.model.Links(),
+		Key: m.slots.Hover(b.Pane).ID, Item: p.hov, Refs: p.model.Group(p.hov.Group),
 		Loaded: p.model.Loaded(), Stamp: p.model.Version(),
 	}, o)
 }

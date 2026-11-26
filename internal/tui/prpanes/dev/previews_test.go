@@ -13,17 +13,27 @@ import (
 )
 
 func TestHeaderPreviewPerGroup(t *testing.T) {
+	bad := issue(self, 9, "unreadable", core.StateOpen)
+	bad.Problem = "gone"
 	links := core.PullLinks{
-		Closes:    []core.LinkedIssue{{Issue: issue(self, 1, "closed one", core.StateOpen)}},
-		Linked:    []core.Reference{issue(self, 2, "linked one", core.StateOpen)},
-		Mentions:  []core.Reference{issue(self, 3, "mention one", core.StateOpen)},
-		Mentioned: []core.Reference{issue(self, 4, "referenced one", core.StateOpen)},
+		Closes: []core.LinkedIssue{{Issue: issue(self, 1, "closed one", core.StateOpen)}},
+		Linked: []core.Reference{pull(2, "linked one", core.StateOpen, false)},
+		// The mentions also name what the item closes and what closes it, and one
+		// that could not be read: none of them is a row under Mentions.
+		Mentions: []core.Reference{
+			issue(self, 3, "mention one", core.StateOpen),
+			issue(self, 1, "closed one", core.StateOpen),
+			pull(2, "linked one", core.StateOpen, false),
+			bad,
+		},
+		Mentioned: []core.Reference{issue(self, 4, "referenced one", core.StateOpen), bad},
 	}
+	rows := Build(links, Options{Repo: self, Styles: previewOpts("unicode").Styles})
 	for group, want := range map[string]string{
 		GroupCloses: "closed one", GroupLinked: "linked one",
 		GroupMentions: "mention one", GroupReferencedBy: "referenced one",
 	} {
-		got := ansi.Strip(HeaderPreview(group, links, previewOpts("unicode")))
+		got := ansi.Strip(HeaderPreview(rows.Groups[group], previewOpts("unicode")))
 		if !strings.Contains(got, want) || strings.Count(got, "\n") != 0 {
 			t.Errorf("%s preview = %q, want only %q", group, got, want)
 		}

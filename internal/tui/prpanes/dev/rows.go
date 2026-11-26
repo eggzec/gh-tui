@@ -26,6 +26,8 @@ type Options struct {
 type Rows struct {
 	Rows  []treeview.Node
 	Items map[string]Item
+	// Groups are the references listed under each header, by its group.
+	Groups map[string][]core.Reference
 }
 
 // The IDs of the headers and of the notes.
@@ -41,7 +43,7 @@ const (
 // for what its own text names and one for what names it. An item shows once,
 // under the first of them that holds it.
 func Build(links core.PullLinks, o Options) Rows {
-	b := builder{o: o, st: o.Styles, items: map[string]Item{}, seen: map[string]bool{}}
+	b := builder{o: o, st: o.Styles, items: map[string]Item{}, groups: map[string][]core.Reference{}, seen: map[string]bool{}}
 	if !o.HideCloses {
 		b.closes(links)
 	}
@@ -50,7 +52,7 @@ func Build(links core.PullLinks, o Options) Rows {
 	}
 	b.mentions(links)
 	b.referencedBy(links)
-	return Rows{Rows: b.rows, Items: b.items}
+	return Rows{Rows: b.rows, Items: b.items, Groups: b.groups}
 }
 
 type builder struct {
@@ -58,6 +60,8 @@ type builder struct {
 	st    Styles
 	rows  []treeview.Node
 	items map[string]Item
+	// groups holds the references listed under each header.
+	groups map[string][]core.Reference
 	// seen holds the keys of the items listed so far.
 	seen map[string]bool
 }
@@ -85,6 +89,7 @@ func (b *builder) closes(links core.PullLinks) {
 	for i := range links.Closes {
 		c := &links.Closes[i]
 		b.seen[core.RefKey(c.Issue.Target)] = true
+		b.groups[GroupCloses] = append(b.groups[GroupCloses], c.Issue)
 		id := "issue:" + core.RefKey(c.Issue.Target)
 		b.add(treeview.Node{ID: id, Depth: 1, Lines: []string{b.line(c.Issue)}, Branch: len(c.Blockers) > 0, Action: true},
 			Item{Kind: Issue, Ref: c.Issue})
@@ -121,6 +126,7 @@ func (b *builder) linked(links core.PullLinks) {
 	for i := range pulls {
 		r := &pulls[i]
 		b.seen[core.RefKey(r.Target)] = true
+		b.groups[GroupLinked] = append(b.groups[GroupLinked], *r)
 		b.add(treeview.Node{ID: "pull:" + core.RefKey(r.Target), Depth: 1, Lines: []string{b.line(*r)}, Action: true},
 			Item{Kind: Pull, Ref: *r})
 	}
@@ -168,6 +174,7 @@ func (b *builder) mentions(links core.PullLinks) {
 		return
 	}
 	b.header(mentionsID, GroupMentions, "Mentions "+ui.Count(len(refs), links.MentionsCapped))
+	b.groups[GroupMentions] = refs
 	b.refRows("mentions:", refs)
 	if links.MentionsCapped {
 		b.note("more:mentions", 1, More, "more on GitHub")
@@ -183,6 +190,7 @@ func (b *builder) referencedBy(links core.PullLinks) {
 		return
 	}
 	b.header(referencedID, GroupReferencedBy, "Referenced by "+ui.Count(len(refs), links.MentionedCapped))
+	b.groups[GroupReferencedBy] = refs
 	b.refRows("referenced:", refs)
 	if links.MentionedCapped {
 		b.note("more:referenced", 1, More, "more on GitHub")

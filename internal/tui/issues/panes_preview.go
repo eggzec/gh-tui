@@ -1,13 +1,11 @@
 package issues
 
 import (
-	"context"
 	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
@@ -29,40 +27,12 @@ type drawnPeek struct {
 
 // PreviewService is what the previews of the Development and Blockers rows
 // read. *pulls.Service satisfies it.
-type PreviewService interface {
-	CachedIssuePreview(q pulls.PreviewQuery) (core.IssuePreview, bool)
-	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
-	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
-	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
-}
+type PreviewService = dev.PreviewService
 
 // WithPreviews reads the previews of the Development and Blockers rows from
 // svc. Without it those panes have none.
 func WithPreviews(svc PreviewService) Option {
 	return func(s *Section) { s.previews = svc }
-}
-
-// devReader adapts a PreviewService to what dev.Previews reads.
-type devReader struct{ s PreviewService }
-
-func query(t core.Target) pulls.PreviewQuery {
-	return pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
-}
-
-func (r devReader) CachedIssue(t core.Target) (core.IssuePreview, bool) {
-	return r.s.CachedIssuePreview(query(t))
-}
-
-func (r devReader) Issue(ctx context.Context, t core.Target) (core.IssuePreview, error) {
-	return r.s.IssuePreview(ctx, query(t))
-}
-
-func (r devReader) CachedPull(t core.Target) (core.PullPreview, bool) {
-	return r.s.CachedPullPreview(query(t))
-}
-
-func (r devReader) Pull(ctx context.Context, t core.Target) (core.PullPreview, error) {
-	return r.s.PullPreview(ctx, query(t))
 }
 
 // paneSlots has one entry per pane, in the order of the panes. Description and
@@ -143,7 +113,7 @@ func (m *detailModal) hoverPreview(b panes.Box, it dev.Item, tree bool) string {
 	}
 	o := dev.PreviewOptions{Repo: m.repo, Styles: p.devSt, Now: m.now(), Width: b.Rect.Inner().W}
 	return p.previews.View(dev.Row{
-		Key: m.slots.Hover(b.Pane).ID, Item: it, Links: p.dev.Links(),
+		Key: m.slots.Hover(b.Pane).ID, Item: it, Refs: p.dev.Group(it.Group),
 		Loaded: !tree || p.dev.Loaded(), Stamp: p.dev.Version(),
 	}, o)
 }
@@ -182,8 +152,12 @@ func (m *detailModal) follow() tea.Cmd {
 
 // resetPreviews scrolls the previews back to their tops.
 func (m *detailModal) resetPreviews() {
-	for p := paneInvolved; p <= paneBlockers; p++ {
-		m.slots.Previews().Reset(slots.Key{Pane: p, ID: m.slots.Hover(p).ID})
+	for p := range paneCount {
+		if paneSlots[p].Hovered == nil {
+			continue
+		}
+		pane := panes.Pane(p + 1)
+		m.slots.Previews().Reset(slots.Key{Pane: pane, ID: m.slots.Hover(pane).ID})
 	}
 }
 

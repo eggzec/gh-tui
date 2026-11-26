@@ -166,8 +166,8 @@ type Row struct {
 	// Key names the row, and "" when nothing is hovered.
 	Key  string
 	Item Item
-	// Links feeds the preview of a header.
-	Links core.PullLinks
+	// Refs feeds the preview of a header: the items under it.
+	Refs []core.Reference
 	// Loaded says that the tree has its rows, so that an empty one shows
 	// nothing rather than loading.
 	Loaded bool
@@ -195,7 +195,7 @@ func (p *Previews) View(r Row, o PreviewOptions) string {
 	var s string
 	switch r.Item.Kind {
 	case Header:
-		s = HeaderPreview(r.Item.Group, r.Links, o)
+		s = HeaderPreview(r.Refs, o)
 	case Pull:
 		if v, ok := p.pulls[r.Key]; ok {
 			s = PullPreview(v, o)
