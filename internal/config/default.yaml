@@ -310,12 +310,12 @@ history:
 
 # The dashboard, the screen the app opens on.
 dashboard:
-  # The cell of a day in the contribution calendar, on the dashboard and
-  # on the page of a user. It must be one cell wide; some terminals draw
+  # The cell of a day in the contribution calendar on the dashboard. It
+  # must be one cell wide; some terminals draw
   # ■ two cells wide, and "▪" or "#" suit them better.
   calendar_glyph: "■"
-  # How far back the contribution calendar goes, on the dashboard and on
-  # the page of a user: 30d, 90d or year. Its total counts the days it
+  # How far back the contribution calendar of the dashboard goes: 30d,
+  # 90d or year. Its total counts the days it
   # shows.
   contributions: 90d
 
