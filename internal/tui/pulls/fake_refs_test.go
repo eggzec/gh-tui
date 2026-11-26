@@ -12,21 +12,29 @@ type fakeRefs struct {
 	refs     core.References
 	mentions []core.Reference
 	next     string
+
+	// refQueries and mentionQueries record every query, cached reads too.
+	refQueries     []refssvc.Query
+	mentionQueries []refssvc.MentionsQuery
 }
 
-func (f *fakeRefs) CachedReferences(refssvc.Query) (core.References, bool) {
+func (f *fakeRefs) CachedReferences(q refssvc.Query) (core.References, bool) {
+	f.refQueries = append(f.refQueries, q)
 	return core.References{}, false
 }
 
-func (f *fakeRefs) References(context.Context, refssvc.Query) (core.References, error) {
+func (f *fakeRefs) References(_ context.Context, q refssvc.Query) (core.References, error) {
+	f.refQueries = append(f.refQueries, q)
 	return f.refs, nil
 }
 
-func (f *fakeRefs) CachedMentions(refssvc.MentionsQuery) (core.Page[core.Reference], bool) {
+func (f *fakeRefs) CachedMentions(q refssvc.MentionsQuery) (core.Page[core.Reference], bool) {
+	f.mentionQueries = append(f.mentionQueries, q)
 	return core.Page[core.Reference]{}, false
 }
 
-func (f *fakeRefs) Mentions(context.Context, refssvc.MentionsQuery) (core.Page[core.Reference], error) {
+func (f *fakeRefs) Mentions(_ context.Context, q refssvc.MentionsQuery) (core.Page[core.Reference], error) {
+	f.mentionQueries = append(f.mentionQueries, q)
 	return core.Page[core.Reference]{Items: f.mentions, Next: f.next}, nil
 }
 

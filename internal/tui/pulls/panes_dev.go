@@ -176,11 +176,11 @@ func (p *devPane) written() []core.Reference {
 }
 
 func (m *panesModal) refQuery(again bool) refssvc.Query {
-	return refssvc.Query{Repo: m.repo, Number: m.number, Again: again}
+	return refssvc.Query{Repo: m.repo, Number: m.number, Pull: true, Updated: m.detail.UpdatedAt, Again: again}
 }
 
 func (m *panesModal) mentionsQuery(again bool) refssvc.MentionsQuery {
-	return refssvc.MentionsQuery{Repo: m.repo, Number: m.number, Again: again}
+	return refssvc.MentionsQuery{Repo: m.repo, Number: m.number, Pull: true, Again: again}
 }
 
 // readRefs reads what the pull request names, which a message of the modal

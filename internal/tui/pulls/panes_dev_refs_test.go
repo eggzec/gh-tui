@@ -67,6 +67,36 @@ func TestDevelopmentMentionsFromWritten(t *testing.T) {
 	}
 }
 
+// A pull request links what it closes, so every read of its references and
+// mentions says it is a pull request, and is made for its update time.
+func TestDevelopmentReadsAsPull(t *testing.T) {
+	t.Parallel()
+	fake := &fakeRefs{}
+	h := started(t, newFakeService(), 120, 30, WithDevelopment(&fakeDev{links: devLinks()}), WithReferences(fake))
+	press(t, h, "enter")
+	press(t, h, "5")
+	m := h.modal()
+	m.cachedDev()
+	run(m, m.readRefs(false))
+	run(m, m.readMentions(false))
+	if len(fake.refQueries) < 2 || len(fake.mentionQueries) < 2 {
+		t.Fatalf("read %d reference and %d mention queries, want cached and fresh of each", len(fake.refQueries), len(fake.mentionQueries))
+	}
+	for _, q := range fake.refQueries {
+		if !q.Pull {
+			t.Errorf("reference query %+v is not for a pull request", q)
+		}
+		if !q.Updated.Equal(m.detail.UpdatedAt) {
+			t.Errorf("reference query updated %v, want %v", q.Updated, m.detail.UpdatedAt)
+		}
+	}
+	for _, q := range fake.mentionQueries {
+		if !q.Pull {
+			t.Errorf("mentions query %+v is not for a pull request", q)
+		}
+	}
+}
+
 // What names the pull request is listed once, under Mentions when the text
 // names it too, and under Referenced by otherwise.
 func TestDevelopmentReferencedBy(t *testing.T) {
