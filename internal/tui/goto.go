@@ -305,7 +305,7 @@ func (m *Model) gotoOwner(t core.Target) tea.Cmd {
 		logGoto(m.ctx, t, "viewer")
 		return m.showScreen(dashScreen, m.focus)
 	}
-	if m.own == nil {
+	if m.owner == nil {
 		return m.toast.Push(toast.Warning, cantOpen(t.String(), "there are no pages of users and organizations here", m.icons.Ellipsis, m.fitsWarning))
 	}
 	if m.owners == nil {
@@ -340,8 +340,7 @@ func (m *Model) selectedOwner() string {
 		owner = m.repo.Owner
 	}
 	switch {
-	case m.screen == ownerScreen && strings.EqualFold(owner, m.ownerLogin),
-		m.screen == dashScreen && m.isViewer(owner):
+	case m.screen == dashScreen && m.isViewer(owner):
 		return ""
 	}
 	return owner
@@ -377,18 +376,19 @@ func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
 	return m.openOwner(msg.owner, g.target.Owner)
 }
 
-// openOwner shows the page of o, whose login was typed as login, or the
-// dashboard if o is the viewer. The page is told first, so that it knows
-// whether it was on view, and keeps the way back to the page before.
+// openOwner opens the page of o in a modal, whose login was typed as login,
+// or shows the dashboard if o is the viewer.
 func (m *Model) openOwner(o core.Owner, login string) tea.Cmd {
 	if o.Viewer.IsViewer && m.dash != nil {
 		return m.showScreen(dashScreen, m.focus)
 	}
 	login = cmp.Or(o.Profile.Login, login)
 	m.rememberOwner(login)
-	cmd := m.own.section.Update(ui.OwnerMsg{Login: login})
-	m.updateOwner()
-	return tea.Batch(cmd, m.showScreen(ownerScreen, m.focus))
+	mod, load := m.owner(m.ctx, login)
+	if mod == nil {
+		return nil
+	}
+	return m.openLoading(mod, m.modals.Top(), load)
 }
 
 // isViewer reports whether login is the viewer's, as far as the app

@@ -589,7 +589,7 @@ func (m *Model) show(title string) tea.Cmd {
 			return m.showScreen(repoScreen, i)
 		}
 	}
-	for s, p := range map[screen]*pane{dashScreen: m.dash, ownerScreen: m.own} {
+	for s, p := range map[screen]*pane{dashScreen: m.dash} {
 		if p != nil && p.section.Title() == title {
 			return m.showScreen(s, m.focus)
 		}

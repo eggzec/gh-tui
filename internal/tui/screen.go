@@ -23,8 +23,6 @@ const (
 	repoScreen screen = iota
 	// dashScreen shows the dashboard.
 	dashScreen
-	// ownerScreen shows the page of a user or an organization.
-	ownerScreen
 )
 
 // Sizes of the repository screen. Below narrowWidth columns the panes
@@ -254,8 +252,7 @@ func (m *Model) drawFrames() {
 // drawHeader draws the header: the title of the screen on the left, which
 // on the repository screen is the repository, after its owner's avatar
 // where avatars are drawn, and its default branch, or the base its files
-// are shown at, and on the owner screen the login of the page, and the
-// unread notifications on the right, on a rule.
+// are shown at, and the unread notifications on the right, on a rule.
 func (m *Model) drawHeader() {
 	w := m.width
 	if w <= 0 {
@@ -267,9 +264,6 @@ func (m *Model) drawHeader() {
 	switch {
 	case m.screen == dashScreen:
 		name = ui.DashboardTitle
-	case m.screen == ownerScreen:
-		// The page names its account once it has one.
-		name = cmp.Or(m.ownerLogin, ui.OwnerTitle)
 	case m.repo.Owner != "":
 		name = m.repo.String()
 	default:
@@ -280,9 +274,6 @@ func (m *Model) drawHeader() {
 	}
 	left := m.st.repo.Render(name)
 	switch {
-	case m.screen == ownerScreen && m.ownerLogin != "":
-		// The login links to the profile on GitHub.
-		left = termtext.Link(ui.WebURL(m.host, m.ownerLogin), left)
 	case name == m.repo.String():
 		// The repository links to its page, after its owner's avatar,
 		// which stands for its icon, as on GitHub; the avatar stays out
@@ -390,8 +381,6 @@ func (m *Model) pageOf(s screen) *pane {
 	switch s {
 	case dashScreen:
 		return m.dash
-	case ownerScreen:
-		return m.own
 	case repoScreen:
 	}
 	return nil
@@ -452,7 +441,7 @@ func (m *Model) arrange(height int) {
 	}
 	narrow := m.narrow()
 	m.ctl.SetNarrow(narrow)
-	for _, p := range []*pane{m.dash, m.own} {
+	for _, p := range []*pane{m.dash} {
 		if p == nil {
 			continue
 		}
@@ -683,8 +672,6 @@ func (m *Model) body() []string {
 	switch m.screen {
 	case dashScreen:
 		return m.dash.appendLines(nil)
-	case ownerScreen:
-		return m.own.appendLines(nil)
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -724,8 +711,6 @@ func (m *Model) focused() *pane {
 	switch m.screen {
 	case dashScreen:
 		return m.dash
-	case ownerScreen:
-		return m.own
 	case repoScreen:
 	}
 	if len(m.panes) == 0 {
@@ -743,18 +728,16 @@ const maxBack = 50
 const maxBackModals = 10
 
 // place is where the back key returns to: a screen, with the pane that was
-// focused, the repository on view, and the login of the owner page, or a
-// modal that another opened in its place, if modal is set.
+// focused and the repository on view.
 type place struct {
 	screen screen
 	focus  int
 	repo   core.RepoRef
-	owner  string
 }
 
 // place returns the place on view.
 func (m *Model) place() place {
-	return place{screen: m.screen, focus: m.focus, repo: m.repo, owner: m.ownerLogin}
+	return place{screen: m.screen, focus: m.focus, repo: m.repo}
 }
 
 // pushBack remembers the place on view, for the back key.
@@ -765,14 +748,11 @@ func (m *Model) pushBack() {
 	}
 }
 
-// canGoBack reports whether the back key has somewhere to go: a page of an
-// owner before this one, or a place before the screen.
+// canGoBack reports whether the back key has somewhere to go: a place
+// before the screen.
 func (m *Model) canGoBack() bool {
 	if m.modals.Top() != nil {
 		return false
-	}
-	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
-		return true
 	}
 	return len(m.back) > 0 || m.screen == repoScreen && m.zoomed() || m.dashZoomed()
 }
@@ -792,24 +772,10 @@ func (m *Model) dashZoomed() bool {
 	return ok && z.HasUserZoom()
 }
 
-// ownerPages returns the owner section's pages to go back through, or nil.
-func (m *Model) ownerPages() PageBacker {
-	if m.own == nil {
-		return nil
-	}
-	b, _ := m.own.section.(PageBacker)
-	return b
-}
-
-// goBack goes back as a browser does: through the owner pages, then to the
-// places before them, newest first. It does nothing at the bottom. An open
-// modal takes the back key before it gets here.
+// goBack goes back to the places before the screen, newest first. It does
+// nothing at the bottom. An open modal takes the back key before it gets
+// here.
 func (m *Model) goBack() tea.Cmd {
-	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
-		cmd := b.GoBack()
-		m.updateOwner()
-		return cmd
-	}
 	if m.screen == repoScreen && m.ctl.UndoZoom() {
 		m.layout()
 		return nil
@@ -830,11 +796,6 @@ func (m *Model) goBack() tea.Cmd {
 	// branch, whatever base or branch it was left on.
 	case p.screen == repoScreen && p.repo != (core.RepoRef{}) && !p.repo.Same(m.repo):
 		cmds = append(cmds, m.openRepo(ui.RepoMsg{Repo: p.repo}, p.focus))
-	case p.screen == ownerScreen && p.owner != "" && !strings.EqualFold(p.owner, m.ownerLogin) && m.own != nil:
-		// The page isn't the one on view, which the owner section takes
-		// as a new start, since it isn't shown now.
-		cmds = append(cmds, m.own.section.Update(ui.OwnerMsg{Login: p.owner}))
-		m.updateOwner()
 	}
 	return tea.Batch(append(cmds, m.reveal(p.screen, p.focus))...)
 }
@@ -856,8 +817,6 @@ func (m *Model) hasScreen(s screen) bool {
 		return len(m.panes) > 0
 	case dashScreen:
 		return m.dash != nil
-	case ownerScreen:
-		return m.own != nil
 	}
 	return false
 }
