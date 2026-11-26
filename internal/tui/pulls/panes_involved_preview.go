@@ -1,10 +1,6 @@
 package pulls
 
 import (
-	"slices"
-	"strings"
-
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -49,7 +45,8 @@ func (m *panesModal) involvedPreviewOf(b panes.Box) (involved.Preview, string, b
 	if !ok {
 		return involved.Preview{}, "", false
 	}
-	body, final := m.involvedBody(pv, dk.width)
+	c := &m.conv
+	body, final := involved.Draw(pv, c.started && c.model.Ready(), c.model.Peek, func(s string) string { return m.theme.Subtle.Render(s) }, dk.width)
 	if final {
 		p.drawn[dk] = drawnPerson{pv, body}
 	}
@@ -60,32 +57,6 @@ func (m *panesModal) involvedPreviewOf(b panes.Box) (involved.Preview, string, b
 type drawnPerson struct {
 	preview involved.Preview
 	body    string
-}
-
-// involvedBody draws pv: its text, or its head over the conversation narrowed
-// to the person. final is false while the conversation isn't read, so that the
-// text is drawn again once it is.
-func (m *panesModal) involvedBody(pv involved.Preview, width int) (body string, final bool) {
-	if len(pv.Head) == 0 {
-		return pv.Body, true
-	}
-	lines := slices.Clone(pv.Head)
-	c := &m.conv
-	switch {
-	case pv.Key == "":
-		lines = append(lines, pv.Nothing)
-	case !c.started || !c.model.Ready():
-		return strings.Join(append(lines, m.theme.Subtle.Render("loading")), "\n"), false
-	default:
-		if view, ok := c.model.Peek(pv.Key, pv.Narrow, width); ok {
-			lines = append(lines, view)
-		} else if conv.TooNarrow(width) {
-			lines = append(lines, m.theme.Subtle.Render("too narrow"))
-		} else {
-			lines = append(lines, pv.Nothing)
-		}
-	}
-	return strings.Join(lines, "\n"), true
 }
 
 // involvedPreview is the body of the preview of the hovered row, or the

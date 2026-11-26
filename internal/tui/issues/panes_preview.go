@@ -1,9 +1,6 @@
 package issues
 
 import (
-	"slices"
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/core"
@@ -14,8 +11,8 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
-// drawnPeek is the conversation drawn as a preview, kept until its width or the
-// conversation changes.
+// drawnPeek is the preview of an Involved row drawn, kept until its width, the
+// people, the styles or the conversation change.
 type drawnPeek struct {
 	id    string
 	ver   uint64
@@ -83,26 +80,24 @@ func (m *detailModal) involvedPreview(b panes.Box) string {
 		return m.theme.Muted.Render("no preview")
 	}
 	id, width := m.slots.Hover(b.Pane).ID, b.Rect.Inner().W
+	d := &m.peek
+	if d.set && d.ver == m.peekVer && d.width == width && d.id == id {
+		return d.body
+	}
 	pv, ok := involved.PreviewOf(m.side.invData, id, m.involvedOptions(width))
 	if !ok {
 		return m.theme.Muted.Render("no preview")
 	}
-	if len(pv.Head) == 0 {
-		return pv.Body
+	peek := func(key string, n conv.Narrow, w int) (string, bool) {
+		return m.conv.Peek(key, n, w)
 	}
-	body, ok := m.peekBody(id, pv, width)
-	switch {
-	case ok:
-	case pv.Key == "":
-		body = pv.Nothing
-	case !m.convOn || !m.conv.Ready():
-		body = m.theme.Muted.Render("loading")
-	case conv.TooNarrow(width):
-		body = m.theme.Muted.Render("too narrow")
-	default:
-		body = pv.Nothing
+	body, final := involved.Draw(pv, m.convOn && m.conv.Ready(), peek, func(s string) string { return m.theme.Muted.Render(s) }, width)
+	if final {
+		// Until the conversation is read the text isn't final: draw it again
+		// next time.
+		*d = drawnPeek{id: id, ver: m.peekVer, width: width, body: body, set: true}
 	}
-	return strings.Join(append(slices.Clone(pv.Head), body), "\n")
+	return body
 }
 
 // hoveredDev names the row of the Development tree for the preview.
@@ -203,23 +198,4 @@ func (m *detailModal) resetPreviews() {
 		pane := panes.Pane(p + 1)
 		m.slots.Previews().Reset(slots.Key{Pane: pane, ID: m.slots.Hover(pane).ID})
 	}
-}
-
-// peekBody draws the conversation of the person of pv, the Involved row id,
-// width cells wide, once per row and width until the conversation changes. ok
-// is false while it is not read, or has nothing of the person.
-func (m *detailModal) peekBody(id string, pv involved.Preview, width int) (string, bool) {
-	if !m.convOn || pv.Key == "" {
-		return "", false
-	}
-	d := &m.peek
-	if d.set && d.ver == m.peekVer && d.width == width && d.id == id {
-		return d.body, true
-	}
-	body, ok := m.conv.Peek(pv.Key, pv.Narrow, width)
-	if ok {
-		// Until it is read the text isn't final: draw it again next time.
-		*d = drawnPeek{id: id, ver: m.peekVer, width: width, body: body, set: true}
-	}
-	return body, ok
 }

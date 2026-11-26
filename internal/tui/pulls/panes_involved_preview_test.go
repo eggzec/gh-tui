@@ -102,3 +102,23 @@ func TestInvolvedPreviewResetsOnData(t *testing.T) {
 		t.Errorf("after the change the preview is the old one:\n%s", got)
 	}
 }
+
+// TestInvolvedPreviewTeam checks that the preview of a requested team says its
+// members are hidden.
+func TestInvolvedPreviewTeam(t *testing.T) {
+	t.Parallel()
+	m := openedInvolved(t, involvedFake())
+	d := involvedDetail(m.detail)
+	d.Reviewers.Requested = append(d.Reviewers.Requested, core.ReviewRequest{Team: "acme/core", TeamName: "Core"})
+	d.Reviewers.RequestedTotal++
+	m.Update(panesDetailMsg{id: m.id, detail: d})
+	if !moveToTitle(m, "Core") {
+		t.Fatal("no row for the team")
+	}
+	got := involvedScreen(m)
+	for _, want := range []string{"Team members:", "members hidden"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the preview of the team lacks %q:\n%s", want, got)
+		}
+	}
+}

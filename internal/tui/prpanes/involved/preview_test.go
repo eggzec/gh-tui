@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 )
 
 // previewIDs are the rows whose previews the goldens draw.
@@ -181,5 +182,40 @@ func TestNarrowFor(t *testing.T) {
 	}
 	if got, want := Count(d, "ann"), 3; got != want {
 		t.Errorf("count %d, want %d", got, want)
+	}
+}
+
+// TestDrawStates checks what a person's preview says under their head while the
+// conversation is unread, too narrow to draw, or has nothing of them.
+func TestDrawStates(t *testing.T) {
+	t.Parallel()
+	pv := Preview{Head: []string{"head"}, Key: "person:ann", Nothing: "no comments from Ann"}
+	dim := func(s string) string { return s }
+	none := func(string, conv.Narrow, int) (string, bool) { return "", false }
+	some := func(string, conv.Narrow, int) (string, bool) { return "said hi", true }
+	tests := []struct {
+		name  string
+		pv    Preview
+		ready bool
+		peek  Peek
+		width int
+		want  string
+		final bool
+	}{
+		{"unread", pv, false, some, 40, "head\nloading", false},
+		{"narrow", pv, true, none, 5, "head\ntoo narrow", true},
+		{"nothing", pv, true, none, 80, "head\nno comments from Ann", true},
+		{"said", pv, true, some, 80, "head\nsaid hi", true},
+		{"no login", Preview{Head: []string{"head"}, Nothing: "none"}, true, some, 80, "head\nnone", true},
+		{"body", Preview{Body: "just body"}, false, some, 80, "just body", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, final := Draw(tt.pv, tt.ready, tt.peek, dim, tt.width)
+			if got != tt.want || final != tt.final {
+				t.Errorf("Draw = %q, %v; want %q, %v", got, final, tt.want, tt.final)
+			}
+		})
 	}
 }
