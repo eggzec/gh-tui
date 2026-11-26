@@ -17,7 +17,7 @@ func TestMergePreviewFollowsTheCursor(t *testing.T) {
 		d.Draft = true
 	})
 	b := panes.Box{Pane: paneMerge, Rect: panes.Rect{W: 60, H: 12}}
-	if got := m.hover[paneMerge-1]; got.id != "behind" || got.title != "Behind main" {
+	if got := m.slots.Hover(paneMerge); got.ID != "behind" || got.Title != "Behind main" {
 		t.Fatalf("hovered %+v before any key, want the behind row", got)
 	}
 	if body := ansi.Strip(m.mergePreview(b)); !strings.Contains(body, "updates the branch with main") {
@@ -25,7 +25,7 @@ func TestMergePreviewFollowsTheCursor(t *testing.T) {
 	}
 
 	m.Update(keyMsg("j"))
-	if got := m.hover[paneMerge-1]; got.id != "draft" || got.title != "Draft" {
+	if got := m.slots.Hover(paneMerge); got.ID != "draft" || got.Title != "Draft" {
 		t.Fatalf("hovered %+v after j, want the draft row", got)
 	}
 	if body := ansi.Strip(m.mergePreview(b)); !strings.Contains(body, "enter marks it ready for review") {

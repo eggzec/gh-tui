@@ -82,12 +82,12 @@ func appPanesOf(t *testing.T, svc *noteChecks, run core.CommitCheck) (*panesModa
 func hoverApp(t *testing.T, m *panesModal) {
 	t.Helper()
 	for range 12 {
-		if m.hover[2].id == "check/7" {
+		if m.slots.Hover(paneMerge).ID == "check/7" {
 			return
 		}
 		feedNotes(m, m.Update(keyMsg("j")))
 	}
-	t.Fatalf("hovered %q, want the row of the check run", m.hover[2].id)
+	t.Fatalf("hovered %q, want the row of the check run", m.slots.Hover(paneMerge).ID)
 }
 
 // feedNotes hands the model the annotations that cmd read, if it read some.

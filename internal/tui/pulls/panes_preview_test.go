@@ -17,10 +17,10 @@ func previewPanes(t *testing.T, row *string) *panesModal {
 	m := sizedPanes(t, 160, 30)
 	m.nav.SetFocus(paneMerge)
 	m.zoom.SetZoom(true)
-	m.slots[paneMerge-1].hovered = func(*panesModal) (string, string, bool) {
+	m.slots.Slot(paneMerge).Hovered = func(*panesModal) (string, string, bool) {
 		return *row, "row " + *row, *row != ""
 	}
-	m.slots[paneMerge-1].preview = func(_ *panesModal, _ panes.Box) string {
+	m.slots.Slot(paneMerge).Preview = func(_ *panesModal, _ panes.Box) string {
 		lines := make([]string, 40)
 		for i := range lines {
 			lines[i] = fmt.Sprintf("line %d", i)
@@ -156,8 +156,8 @@ func TestPreviewScroll(t *testing.T) {
 
 	row = ""
 	m.follow()
-	if m.hover[paneMerge-1].title != "row b" {
-		t.Errorf("a row with nothing to preview left the title %q, want the last one", m.hover[paneMerge-1].title)
+	if m.slots.Hover(paneMerge).Title != "row b" {
+		t.Errorf("a row with nothing to preview left the title %q, want the last one", m.slots.Hover(paneMerge).Title)
 	}
 	if !strings.Contains(m.View(), "row b") {
 		t.Error("the preview doesn't carry the hovered row's text as its title")

@@ -69,7 +69,7 @@ func changesModal(t *testing.T, svc *fakeService, dark bool) *panesModal {
 func changesPreview(t *testing.T, m *panesModal, login string) merge.Preview {
 	t.Helper()
 	for range 12 {
-		if got := m.hover[paneMerge-1]; strings.Contains(strings.ToLower(got.title), login) && strings.HasSuffix(got.title, "changes requested") {
+		if got := m.slots.Hover(paneMerge); strings.Contains(strings.ToLower(got.Title), login) && strings.HasSuffix(got.Title, "changes requested") {
 			p, ok := m.mergePreviewOf(panes.Box{Pane: paneMerge, Rect: panes.Rect{W: 82, H: 30}})
 			if !ok {
 				t.Fatal("the row has no preview")
@@ -78,7 +78,7 @@ func changesPreview(t *testing.T, m *panesModal, login string) merge.Preview {
 		}
 		m.Update(keyMsg("j"))
 	}
-	t.Fatalf("no Changes requested row of %s; hovered %+v", login, m.hover[paneMerge-1])
+	t.Fatalf("no Changes requested row of %s; hovered %+v", login, m.slots.Hover(paneMerge))
 	return merge.Preview{}
 }
 

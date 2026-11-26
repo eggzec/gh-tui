@@ -106,11 +106,11 @@ func (m *panesModal) devRows() int {
 // placeholder in its place.
 func devSlot() slot {
 	return slot{
-		context: dev.Context,
-		content: (*panesModal).devContent,
-		press:   (*panesModal).pressDev,
-		hovered: (*panesModal).hoveredDev,
-		preview: (*panesModal).devPreview,
+		Context: dev.Context,
+		Content: (*panesModal).devContent,
+		Press:   (*panesModal).pressDev,
+		Hovered: (*panesModal).hoveredDev,
+		Preview: (*panesModal).devPreview,
 	}
 }
 
@@ -324,7 +324,7 @@ func (m *panesModal) loadPreview() tea.Cmd {
 	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
 		return nil
 	}
-	return p.previews.Load(m.hover[paneDevelopment-1].id, p.hov)
+	return p.previews.Load(m.slots.Hover(paneDevelopment).ID, p.hov)
 }
 
 // devPreview is the body of the preview of the hovered row.
@@ -335,7 +335,7 @@ func (m *panesModal) devPreview(b panes.Box) string {
 	}
 	o := dev.PreviewOptions{Repo: m.repo, Styles: p.styles, Now: m.clock(), Width: b.Rect.Inner().W}
 	return p.previews.View(dev.Row{
-		Key: m.hover[b.Pane-1].id, Item: p.hov, Links: p.model.Links(),
+		Key: m.slots.Hover(b.Pane).ID, Item: p.hov, Links: p.model.Links(),
 		Loaded: p.model.Loaded(), Stamp: p.model.Version(),
 	}, o)
 }

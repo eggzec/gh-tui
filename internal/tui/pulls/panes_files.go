@@ -182,8 +182,8 @@ func newFilesPane(k filesKeys) filesPane {
 // slotFiles is the slot of the Files pane.
 func filesSlot() slot {
 	return slot{
-		context: ctxFiles, content: (*panesModal).filesContent, press: (*panesModal).pressFiles,
-		preview: (*panesModal).filesPreview, title: (*panesModal).filesPreviewTitle, pressPreview: (*panesModal).pressFilesDiff,
+		Context: ctxFiles, Content: (*panesModal).filesContent, Press: (*panesModal).pressFiles,
+		Preview: (*panesModal).filesPreview, Title: (*panesModal).filesPreviewTitle, PressPreview: (*panesModal).pressFilesDiff,
 	}
 }
 

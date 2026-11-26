@@ -108,13 +108,13 @@ func jobPanesOf(t *testing.T, cc core.CommitCheck, svc *logChecks) (*panesModal,
 func hoverJob(t *testing.T, m *panesModal) {
 	t.Helper()
 	for range 12 {
-		if m.hover[2].id == jobRow(5) {
+		if m.slots.Hover(paneMerge).ID == jobRow(5) {
 			break
 		}
 		feedLog(m, m.Update(keyMsg("j")))
 	}
-	if m.hover[2].id != jobRow(5) {
-		t.Fatalf("hovered %q, want the job row", m.hover[2].id)
+	if m.slots.Hover(paneMerge).ID != jobRow(5) {
+		t.Fatalf("hovered %q, want the job row", m.slots.Hover(paneMerge).ID)
 	}
 	feedLog(m, m.Update(keyMsg("k")))
 	feedLog(m, m.Update(keyMsg("j")))
