@@ -11,7 +11,10 @@ import (
 func TestDevelopmentPreviewReadOnce(t *testing.T) {
 	t.Parallel()
 	f := &fakeDev{links: devLinks(), body: 3}
-	h := openedDev(t, f)
+	h := started(t, newFakeService(), 120, 30, WithDevelopment(f),
+		WithReferences(&fakeRefs{refs: core.References{Written: []core.Reference{devRef(core.KindPull, 30, "Follow-up cleanup")}}}))
+	press(t, h, "enter")
+	press(t, h, "5")
 	press(t, h, "z")
 	// The Closes header needs no read.
 	if len(f.issueReads)+len(f.pullReads) != 0 {

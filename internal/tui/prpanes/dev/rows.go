@@ -17,6 +17,9 @@ type Options struct {
 	Styles Styles
 	// HideCloses leaves out the header of what is closed, for an issue.
 	HideCloses bool
+	// HideClosedBy leaves out the header of the pull requests that close the
+	// item, for a pull request, whose siblings they would be.
+	HideClosedBy bool
 }
 
 // Rows are the rows of a tree, and what each stands for by the ID of the row.
@@ -42,7 +45,9 @@ func Build(links core.PullLinks, o Options) Rows {
 	if !o.HideCloses {
 		b.closes(links)
 	}
-	b.linked(links)
+	if !o.HideClosedBy {
+		b.linked(links)
+	}
 	b.mentions(links)
 	b.referencedBy(links)
 	return Rows{Rows: b.rows, Items: b.items}

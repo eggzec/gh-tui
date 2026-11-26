@@ -9,7 +9,9 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
+	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
@@ -20,8 +22,15 @@ import (
 // request links, and the service it is read from.
 type devPane struct {
 	svc    dev.Service
+	refSvc refs.Service
 	model  dev.Model
-	styles dev.Styles
+	// links is what the pull request closes, refs and mentions what its text
+	// names and the first page of what names it.
+	links     core.PullLinks
+	haveLinks bool
+	refs      core.References
+	mentions  core.Page[core.Reference]
+	styles    dev.Styles
 	// hov is the row that the preview follows, which the last row with
 	// something to preview stays.
 	hov dev.Item
@@ -56,6 +65,20 @@ type devPreviewMsg struct {
 	err   error
 }
 
+// devRefsMsg is what a read of what a pull request names brought.
+type devRefsMsg struct {
+	id   int64
+	refs core.References
+	err  error
+}
+
+// devMentionsMsg is what a read of the items that name a pull request brought.
+type devMentionsMsg struct {
+	id   int64
+	page core.Page[core.Reference]
+	err  error
+}
+
 // devLinksMsg is what a read of the links of a pull request brought.
 type devLinksMsg struct {
 	id    int64
@@ -87,7 +110,7 @@ func devSlot() slot {
 // openDev gives the modal its Development pane, with the links the cache
 // has, and returns the read that brings the current ones. It returns nil
 // when the section has no service.
-func (m *panesModal) openDev(svc dev.Service, keys config.Keymap) tea.Cmd {
+func (m *panesModal) openDev(svc dev.Service, refSvc refs.Service, keys config.Keymap) tea.Cmd {
 	// The keys are read even without a service, so that the help lists them.
 	km := dev.NewKeyMap(keys)
 	if svc == nil {
@@ -95,16 +118,123 @@ func (m *panesModal) openDev(svc dev.Service, keys config.Keymap) tea.Cmd {
 	}
 	st := dev.NewStyles(m.theme, m.icons)
 	p := &devPane{
-		svc: svc, model: dev.New(dev.Options{Repo: m.repo, Styles: st}), styles: st,
+		svc: svc, refSvc: refSvc, model: dev.New(dev.Options{Repo: m.repo, Styles: st, HideClosedBy: true}), styles: st,
 		issues: map[string]core.IssuePreview{}, pulls: map[string]core.PullPreview{},
 		loading: map[string]bool{}, failed: map[string]bool{}, drawn: map[drawnPreview]string{},
 	}
 	p.model.SetKeyMap(km)
-	if links, ok := svc.CachedLinks(m.devQuery()); ok {
-		p.model.SetLinks(links)
-	}
 	m.dev = p
-	return m.readLinks()
+	m.cachedDev()
+	return tea.Batch(m.readLinks(), m.readRefs(false))
+}
+
+// cachedDev shows what the caches hold of the links, the references and the
+// mentions.
+func (m *panesModal) cachedDev() {
+	p := m.dev
+	if links, ok := p.svc.CachedLinks(m.devQuery()); ok {
+		p.links, p.haveLinks = links, true
+	}
+	if p.refSvc != nil {
+		if pg, ok := p.refSvc.CachedMentions(m.mentionsQuery(false)); ok {
+			p.mentions = pg
+		}
+		if r, ok := p.refSvc.CachedReferences(m.refQuery(false)); ok {
+			p.refs = r
+		}
+	}
+	p.showLinks()
+}
+
+// showLinks lists what the pull request closes, what its own text names and
+// what names it. The pull requests that close the issues it closes are not
+// listed, so what other pull requests link stays out.
+func (p *devPane) showLinks() {
+	if !p.haveLinks && p.refs.Written == nil && p.mentions.Items == nil {
+		return
+	}
+	links := p.links
+	links.Linked, links.LinkedCapped = nil, false
+	links.Mentions = p.written()
+	links.MentionsCapped = p.refs.Unresolved > 0 || p.refs.Failed > 0 || p.refs.CommentsRead < p.refs.CommentsTotal
+	links.Mentioned = p.mentions.Items
+	links.MentionedTotal = p.refs.Mentioned
+	links.MentionedCapped = p.mentions.Next != ""
+	p.model.SetLinks(links)
+}
+
+// written are the items that the body and the comments of the pull request
+// name, those that could be read.
+func (p *devPane) written() []core.Reference {
+	var out []core.Reference
+	for i := range p.refs.Written {
+		if p.refs.Written[i].Problem == "" {
+			out = append(out, p.refs.Written[i])
+		}
+	}
+	return out
+}
+
+func (m *panesModal) refQuery(again bool) refssvc.Query {
+	return refssvc.Query{Repo: m.repo, Number: m.number, Again: again}
+}
+
+func (m *panesModal) mentionsQuery(again bool) refssvc.MentionsQuery {
+	return refssvc.MentionsQuery{Repo: m.repo, Number: m.number, Again: again}
+}
+
+// readRefs reads what the pull request names, which a message of the modal
+// then brings.
+func (m *panesModal) readRefs(again bool) tea.Cmd {
+	if m.dev == nil || m.dev.refSvc == nil {
+		return nil
+	}
+	svc, ctx, id, q := m.dev.refSvc, m.ctx, m.id, m.refQuery(again)
+	return func() tea.Msg {
+		r, err := svc.References(ctx, q)
+		return devRefsMsg{id: id, refs: r, err: err}
+	}
+}
+
+// readMentions reads the first page of the items that name the pull request.
+func (m *panesModal) readMentions(again bool) tea.Cmd {
+	if m.dev == nil || m.dev.refSvc == nil {
+		return nil
+	}
+	svc, ctx, id, q := m.dev.refSvc, m.ctx, m.id, m.mentionsQuery(again)
+	return func() tea.Msg {
+		pg, err := svc.Mentions(ctx, q)
+		return devMentionsMsg{id: id, page: pg, err: err}
+	}
+}
+
+// receiveRefs takes the references that a read brought. A read that failed
+// leaves the two groups out.
+func (m *panesModal) receiveRefs(msg devRefsMsg) tea.Cmd {
+	if m.dev == nil || msg.id != m.id || msg.err != nil {
+		return nil
+	}
+	m.dev.refs = msg.refs
+	m.dev.showLinks()
+	m.follow()
+	if msg.refs.Stale {
+		return m.readRefs(true)
+	}
+	return m.readMentions(false)
+}
+
+// receiveMentions takes the page of mentions that a read brought.
+func (m *panesModal) receiveMentions(msg devMentionsMsg) tea.Cmd {
+	if m.dev == nil || msg.id != m.id || msg.err != nil {
+		return nil
+	}
+	m.dev.mentions = msg.page
+	m.dev.showLinks()
+	m.follow()
+	if msg.page.Stale {
+		return m.readMentions(true)
+	}
+	return m.loadPreview()
 }
 
 func (m *panesModal) devQuery() pulls.LinksQuery {
@@ -149,7 +279,8 @@ func (m *panesModal) receiveDev(msg devLinksMsg) tea.Cmd {
 		}
 		return nil
 	}
-	m.dev.model.SetLinks(msg.links)
+	m.dev.links, m.dev.haveLinks = msg.links, true
+	m.dev.showLinks()
 	m.follow()
 	return m.loadPreview()
 }
@@ -161,10 +292,8 @@ func (m *panesModal) refreshDev() {
 		return
 	}
 	clear(m.dev.failed)
-	if links, ok := m.dev.svc.CachedLinks(m.devQuery()); ok {
-		m.dev.model.SetLinks(links)
-		m.follow()
-	}
+	m.cachedDev()
+	m.follow()
 }
 
 // hoveredDev names the row of the tree for the preview.

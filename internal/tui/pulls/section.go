@@ -22,6 +22,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/feed"
@@ -183,6 +184,8 @@ type Section struct {
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
 	dev dev.Service
+	// refs reads what the pull request names and what names it.
+	refs refs.Service
 	// blobs reads a file at the end of a range for the diff to show whole.
 	// Without it, the key says so.
 	blobs Blobs
@@ -372,6 +375,13 @@ func WithAvatars(a *ui.Images) Option {
 // svc. The default has no such panes.
 func WithChecks(svc ChecksService) Option {
 	return func(s *Section) { s.checks = svc }
+}
+
+// WithReferences reads from svc what a pull request names in its text and what
+// names it, for the Mentions and Referenced by groups of its Development pane.
+// Without it, the pane lists only what the pull request closes.
+func WithReferences(svc refs.Service) Option {
+	return func(s *Section) { s.refs = svc }
 }
 
 // WithDevelopment shows what a pull request closes and what is linked to it
