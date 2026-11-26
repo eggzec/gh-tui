@@ -12,45 +12,45 @@ func TestZoomBoundary(t *testing.T) {
 		can   bool
 	}{{wideMin, true}, {wideMin - 1, false}, {80, false}} {
 		m, h := newModal(t, newFake(), tt.width, wideH)
-		if m.zoom.CanZoom() != tt.can {
-			t.Errorf("CanZoom at %d columns = %v, want %v", tt.width, m.zoom.CanZoom(), tt.can)
+		if m.ctl.Zoom.CanZoom() != tt.can {
+			t.Errorf("CanZoom at %d columns = %v, want %v", tt.width, m.ctl.Zoom.CanZoom(), tt.can)
 		}
 		h.keys("z")
-		if m.zoom.User() != tt.can {
-			t.Errorf("after z at %d columns the user's zoom = %v, want %v", tt.width, m.zoom.User(), tt.can)
+		if m.ctl.Zoom.User() != tt.can {
+			t.Errorf("after z at %d columns the user's zoom = %v, want %v", tt.width, m.ctl.Zoom.User(), tt.can)
 		}
 	}
 }
 
 // A narrow terminal forces the zoom, and growing again brings back the
-// user's choice; only the zoom key undoes it, never back.
+// user's choice; the zoom key and back undo it.
 func TestZoomNarrowAndBack(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("z")
 	m.SetNarrow(true)
 	m.SetSize(wideW, wideH)
 	h.keys("z")
-	if !m.zoom.Zoomed() || !m.zoom.User() || m.zoom.CanZoom() {
-		t.Errorf("forced: zoomed %v, user %v, can %v", m.zoom.Zoomed(), m.zoom.User(), m.zoom.CanZoom())
+	if !m.ctl.Zoom.Zoomed() || !m.ctl.Zoom.User() || m.ctl.Zoom.CanZoom() {
+		t.Errorf("forced: zoomed %v, user %v, can %v", m.ctl.Zoom.Zoomed(), m.ctl.Zoom.User(), m.ctl.Zoom.CanZoom())
 	}
 	m.SetNarrow(false)
 	m.SetSize(wideW, wideH)
-	if !m.zoom.Zoomed() || !m.zoom.CanZoom() {
+	if !m.ctl.Zoom.Zoomed() || !m.ctl.Zoom.CanZoom() {
 		t.Error("growing again lost the user's zoom")
 	}
 	h.keys("backspace")
-	if !m.zoom.Zoomed() {
-		t.Error("back undid the user's zoom: only the zoom key does")
+	if m.ctl.Zoom.Zoomed() {
+		t.Error("back didn't undo the user's zoom")
 	}
-	h.keys("z")
-	if m.zoom.Zoomed() {
+	h.keys("z", "z")
+	if m.ctl.Zoom.Zoomed() {
 		t.Error("z didn't undo the user's zoom")
 	}
 	m.SetNarrow(true)
 	m.SetSize(wideW, wideH)
 	m.SetNarrow(false)
 	m.SetSize(wideW, wideH)
-	if m.zoom.Zoomed() {
+	if m.ctl.Zoom.Zoomed() {
 		t.Error("a forced zoom stayed after the terminal grew")
 	}
 }
@@ -73,7 +73,7 @@ func TestZoomShowsOneBox(t *testing.T) {
 	}
 	assertFits(t, m.View(), wideW, wideH)
 	h.keys("z")
-	if m.zoom.Zoomed() {
+	if m.ctl.Zoom.Zoomed() {
 		t.Error("z again didn't unzoom")
 	}
 }
@@ -83,20 +83,38 @@ func TestZoomShowsOneBox(t *testing.T) {
 func TestDigitsAndTabReachAnnotations(t *testing.T) {
 	m, h := newModal(t, newFake(), wideW, wideH)
 	h.keys("2")
-	if !m.notes {
+	if !m.onNotes() {
 		t.Fatal("2 didn't focus the annotations")
 	}
 	h.keys("1")
-	if m.notes || m.focus != runsPane {
+	if m.onNotes() || m.focus != runsPane {
 		t.Fatal("1 didn't focus the runs")
 	}
 	h.keys("tab")
-	if !m.notes {
+	if !m.onNotes() {
 		t.Error("tab from the runs isn't on the annotations")
 	}
 	h.keys("tab")
-	if m.notes || m.focus != runsPane {
+	if m.onNotes() || m.focus != runsPane {
 		t.Error("tab from the annotations doesn't wrap to the runs")
+	}
+}
+
+// Zoomed, tab has no preview to flip to and keeps the pane, while the digits
+// still switch it.
+func TestZoomedTabKeepsPaneDigitsSwitch(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("z", "tab", "shift+tab")
+	if m.onNotes() || !m.ctl.Zoom.Zoomed() {
+		t.Fatal("tab moved the zoomed pane or dropped the zoom")
+	}
+	h.keys("2")
+	if !m.onNotes() || !m.ctl.Zoom.Zoomed() {
+		t.Fatal("2 didn't switch the zoomed pane to the annotations")
+	}
+	h.keys("tab")
+	if !m.onNotes() {
+		t.Error("tab left the zoomed annotations")
 	}
 }
 

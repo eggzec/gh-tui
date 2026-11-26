@@ -37,7 +37,7 @@ func (m *Modal) View() string {
 // framed renders the boxes, the strip and the footer: m.height lines.
 func (m *Modal) framed() []string {
 	aw, ah := m.area()
-	l := paneLayout(aw, ah, m.box(), m.zoom.Zoomed(), m.dividers)
+	l := paneLayout(aw, ah, m.box(), m.ctl.Zoom.Zoomed(), m.dividers)
 	out := m.frames.Draw(l, func(b panes.Box) panes.Content {
 		c := panes.Content{Focus: b.Pane == l.Focus}
 		title := l.Title(b.Pane)
@@ -80,7 +80,7 @@ func (m *Modal) titleForms(title string, b panes.Box) []string {
 
 // box is the pane of the focus: the runs box, or the annotations.
 func (m *Modal) box() panes.Pane {
-	if m.notes {
+	if m.onNotes() {
 		return paneNotes
 	}
 	return paneRuns
@@ -101,7 +101,7 @@ func (m *Modal) footer(l panes.Layout) string {
 		return m.theme.Muted.Render(b.Help().Key) + " " + m.theme.Subtle.Render(what)
 	}
 	parts := []string{hint(k.Next, "focus"), hint(k.Jump, "pane")}
-	if m.zoom.CanZoom() {
+	if m.ctl.Zoom.CanZoom() {
 		what := "zoom"
 		if l.Zoomed {
 			what = "unzoom"
@@ -133,7 +133,7 @@ func (m *Modal) rowsOf(p pane) int { return m.rows[p] }
 // layout sizes the bubbles to their panes.
 func (m *Modal) layout() {
 	aw, ah := m.area()
-	if b, ok := paneLayout(aw, ah, paneRuns, m.zoom.Zoomed(), m.dividers).Box(paneRuns, panes.Whole); ok {
+	if b, ok := paneLayout(aw, ah, paneRuns, m.ctl.Zoom.Zoomed(), m.dividers).Box(paneRuns, panes.Whole); ok {
 		in := b.Rect.Inner()
 		m.inner = in.W
 		m.rows[runsPane] = max(in.H-1, 0)
@@ -257,7 +257,7 @@ func (m *Modal) jobsSpan(now time.Time) string {
 // shows, in the accent while it has the focus.
 func (m *Modal) paneTitle(p pane, w int) string {
 	st := m.st.title
-	if p == m.focus && !m.notes {
+	if p == m.focus && !m.onNotes() {
 		st = m.st.focusTitle
 	}
 	spec := ui.TitleSpec{

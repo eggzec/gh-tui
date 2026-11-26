@@ -74,11 +74,10 @@ type Modal struct {
 	caps core.RepoCaps
 
 	focus pane
-	// notes is set while the annotations box has the focus, and zoom while
-	// the focused box fills the modal, by the user's choice or because the
-	// terminal or the modal is narrow; narrow is the terminal's part.
-	notes  bool
-	zoom   panes.Zoom
+	// ctl holds the focused box, the annotations or the runs, and the zoom
+	// while the focused box fills the modal, by the user's choice or because
+	// the terminal or the modal is narrow; narrow is the terminal's part.
+	ctl    panes.Controller
 	narrow bool
 	// frames draws the boxes. inner is the width inside the runs box, and
 	// rows the height of the runs and the jobs under their titles.
@@ -244,7 +243,9 @@ func (m *Modal) Tabs() (names []string, active int) {
 // SetSize sizes the panes to the room inside the frame.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	m.ctl.SetNarrow(m.narrow || m.width < wideMin)
+	// No box here has a preview, so the lists always get the focus again.
+	m.ctl.Settle(m.paneLayout())
 	m.settleDividers()
 	m.layout()
 }
@@ -303,7 +304,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 	}
 	k = k.state(m)
 	screen := ui.ContextLayer(ctxModal, k.screen(), []key.Binding{k.Next, k.Cancel, k.RerunFailed, k.Rerun})
-	if m.notes {
+	if m.onNotes() {
 		return []keyhelp.Layer{screen}
 	}
 	runs := keyhelp.Layer{Bindings: []key.Binding{k.Select, k.Filter, k.ClearFilter, k.ToggleFilter, k.RerunJob}, Short: []key.Binding{k.Select, k.RerunJob, k.Filter}}
@@ -358,12 +359,12 @@ func (k KeyMap) state(m *Modal) KeyMap {
 			k.Dismiss = relabel(k.Dismiss, "clear filter")
 		}
 	}
-	if m.notes {
+	if m.onNotes() {
 		// Back leaves the annotations for the runs.
 		k.Back.SetEnabled(true)
 		k.Back = relabel(k.Back, paneTitles[runsPane])
 	}
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.zoom.CanZoom())
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
 	can := m.canDivide()
 	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)
 	k.DividerRight.SetEnabled(k.DividerRight.Enabled() && can)
