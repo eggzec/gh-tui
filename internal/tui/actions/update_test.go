@@ -1620,6 +1620,19 @@ func TestActBackStepsBack(t *testing.T) {
 	}
 }
 
+// TestActBackDropsZoom checks that back is the modal's on the runs while the
+// user's zoom shows, so a modal trail doesn't take it first.
+func TestActBackDropsZoom(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	h.keys("z")
+	if !m.userZoom() {
+		t.Fatal("z didn't zoom")
+	}
+	if cmd, ok := m.Act(ui.ActBack); !ok || cmd != nil || m.userZoom() {
+		t.Errorf("Act(back) with a zoom = %v, %v, zoomed %v; want it taken and the zoom dropped", cmd, ok, m.userZoom())
+	}
+}
+
 // TestEscClosesTheLogOverItsSearch checks that esc closes the log on the
 // first press with a search shown. The log modal's Act handles only quit, so
 // it is the key path that closes it.

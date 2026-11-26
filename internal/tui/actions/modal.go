@@ -326,6 +326,9 @@ func (m *Modal) selectLabel() string {
 	return foldLabel(m.runs.Unfolded())
 }
 
+// userZoom reports whether the user's zoom is showing, which back drops.
+func (m *Modal) userZoom() bool { return m.ctl.Zoom.User() && m.ctl.Zoom.CanZoom() }
+
 // foldLabel is "fold" for what is open, else "unfold".
 func foldLabel(open bool) string {
 	if open {
@@ -354,6 +357,11 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		case m.runs.FilterQuery() != "":
 			k.Dismiss = relabel(k.Dismiss, "clear filter")
 		}
+	}
+	if m.userZoom() {
+		// Back drops the zoom first.
+		k.Back.SetEnabled(true)
+		k.Back = relabel(k.Back, "unzoom")
 	}
 	if m.onNotes() {
 		// Back leaves the annotations for the runs.
