@@ -46,15 +46,20 @@ func Nothing(o PreviewOptions) string {
 	return o.Styles.dim.Render("nothing here yet")
 }
 
-// HeaderPreview lists the items of a group: the issues the pull request
-// closes, or the pull requests linked to it.
+// HeaderPreview lists the items of a group: what the item closes, what is
+// linked to it, what its own text names and what names it.
 func HeaderPreview(group string, links core.PullLinks, o PreviewOptions) string {
 	var refs []core.Reference
-	if group == GroupCloses {
+	switch group {
+	case GroupCloses:
 		for i := range links.Closes {
 			refs = append(refs, links.Closes[i].Issue)
 		}
-	} else {
+	case GroupMentions:
+		refs = links.Mentions
+	case GroupReferencedBy:
+		refs = links.Mentioned
+	default:
 		refs = links.Linked
 	}
 	if len(refs) == 0 {

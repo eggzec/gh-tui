@@ -21,7 +21,6 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/details"
 	"github.com/eggzec/gh-tui/internal/tui/jobview"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
@@ -183,7 +182,7 @@ type Section struct {
 	runFollow RunFollow
 	// dev reads what a pull request links, for the modal's Development pane.
 	// Without it, the pane shows a placeholder.
-	dev dev.Service
+	dev DevService
 	// refs reads what the pull request names and what names it.
 	refs refs.Service
 	// blobs reads a file at the end of a range for the diff to show whole.
@@ -387,7 +386,7 @@ func WithReferences(svc refs.Service) Option {
 // WithDevelopment shows what a pull request closes and what is linked to it
 // in the Development pane of its modal, read from svc. The default pane
 // shows a placeholder.
-func WithDevelopment(svc dev.Service) Option {
+func WithDevelopment(svc DevService) Option {
 	return func(s *Section) { s.dev = svc }
 }
 

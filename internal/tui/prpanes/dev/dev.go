@@ -7,25 +7,10 @@
 // caller, which reads the row with [Model.Selected].
 package dev
 
-import (
-	"context"
-
-	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/pulls"
-)
+import "github.com/eggzec/gh-tui/internal/core"
 
 // Context is the context of the keys of the pane.
 const Context = "pull_development"
-
-// Service is what the pane reads. *pulls.Service satisfies it.
-type Service interface {
-	CachedLinks(q pulls.LinksQuery) (core.PullLinks, bool)
-	Links(ctx context.Context, q pulls.LinksQuery) (core.PullLinks, error)
-	CachedIssuePreview(q pulls.PreviewQuery) (core.IssuePreview, bool)
-	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
-	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
-	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
-}
 
 // Kind says what a row stands for.
 type Kind int

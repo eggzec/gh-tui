@@ -324,6 +324,10 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		m.arm = nil
 		cmd = tea.Batch(cmd, syncCmd, arm, m.readRange(), m.readFindings(), m.loadLog(), m.loadNotes(), m.syncFilesDiff(), m.linksAsk(), m.convAsk())
 	}()
+	if m.dev != nil && m.dev.previews.Handles(msg) {
+		m.dev.previews.Update(msg)
+		return nil
+	}
 	switch msg := msg.(type) {
 	case panesDetailMsg:
 		return m.receive(msg)
@@ -343,9 +347,6 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		return m.receiveRefs(msg)
 	case devMentionsMsg:
 		return m.receiveMentions(msg)
-	case devPreviewMsg:
-		m.receivePreview(msg)
-		return nil
 	case reviewedMsg:
 		return m.reviewed(msg)
 	case viewedMsg:

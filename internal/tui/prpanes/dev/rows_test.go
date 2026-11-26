@@ -11,13 +11,9 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/service/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
-
-// The pull service reads what the pane reads.
-var _ Service = (*pulls.Service)(nil)
 
 var self = core.RepoRef{Owner: "acme", Name: "app"}
 

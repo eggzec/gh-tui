@@ -1,6 +1,7 @@
 package pulls
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -18,10 +19,43 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/treeview"
 )
 
+// DevService is what the Development pane reads. *pulls.Service satisfies it.
+type DevService interface {
+	CachedLinks(q pulls.LinksQuery) (core.PullLinks, bool)
+	Links(ctx context.Context, q pulls.LinksQuery) (core.PullLinks, error)
+	CachedIssuePreview(q pulls.PreviewQuery) (core.IssuePreview, bool)
+	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
+	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
+	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
+}
+
+// devReader adapts a DevService to what the previews read.
+type devReader struct{ s DevService }
+
+func query(t core.Target) pulls.PreviewQuery {
+	return pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
+}
+
+func (r devReader) CachedIssue(t core.Target) (core.IssuePreview, bool) {
+	return r.s.CachedIssuePreview(query(t))
+}
+
+func (r devReader) Issue(ctx context.Context, t core.Target) (core.IssuePreview, error) {
+	return r.s.IssuePreview(ctx, query(t))
+}
+
+func (r devReader) CachedPull(t core.Target) (core.PullPreview, bool) {
+	return r.s.CachedPullPreview(query(t))
+}
+
+func (r devReader) Pull(ctx context.Context, t core.Target) (core.PullPreview, error) {
+	return r.s.PullPreview(ctx, query(t))
+}
+
 // devPane is the Development pane of a modal: the tree of what the pull
 // request links, and the service it is read from.
 type devPane struct {
-	svc    dev.Service
+	svc    DevService
 	refSvc refs.Service
 	model  dev.Model
 	// links is what the pull request closes, refs and mentions what its text
@@ -34,35 +68,8 @@ type devPane struct {
 	// hov is the row that the preview follows, which the last row with
 	// something to preview stays.
 	hov dev.Item
-	// issues and pulls are the previews read, by the ID of the hovered row.
-	issues map[string]core.IssuePreview
-	pulls  map[string]core.PullPreview
-	// loading holds the previews with a read out, and failed those whose read
-	// failed, which are read again once GitHub answers.
-	loading map[string]bool
-	failed  map[string]bool
-	// drawn is the text of the previews, by ID and width, until the pane or a
-	// preview changes.
-	drawn    map[drawnPreview]string
-	drawnVer int
-	// reads counts the changes of what the previews show.
-	reads int
-}
-
-// drawnPreview names the text of a preview at a width.
-type drawnPreview struct {
-	id    string
-	width int
-}
-
-// devPreviewMsg is what a read of the preview of an item brought.
-type devPreviewMsg struct {
-	id    int64
-	key   string
-	pull  bool
-	issue core.IssuePreview
-	prev  core.PullPreview
-	err   error
+	// previews reads and draws the preview of the hovered row.
+	previews *dev.Previews
 }
 
 // devRefsMsg is what a read of what a pull request names brought.
@@ -110,7 +117,7 @@ func devSlot() slot {
 // openDev gives the modal its Development pane, with the links the cache
 // has, and returns the read that brings the current ones. It returns nil
 // when the section has no service.
-func (m *panesModal) openDev(svc dev.Service, refSvc refs.Service, keys config.Keymap) tea.Cmd {
+func (m *panesModal) openDev(svc DevService, refSvc refs.Service, keys config.Keymap) tea.Cmd {
 	// The keys are read even without a service, so that the help lists them.
 	km := dev.NewKeyMap(keys)
 	if svc == nil {
@@ -119,8 +126,7 @@ func (m *panesModal) openDev(svc dev.Service, refSvc refs.Service, keys config.K
 	st := dev.NewStyles(m.theme, m.icons)
 	p := &devPane{
 		svc: svc, refSvc: refSvc, model: dev.New(dev.Options{Repo: m.repo, Styles: st, HideClosedBy: true}), styles: st,
-		issues: map[string]core.IssuePreview{}, pulls: map[string]core.PullPreview{},
-		loading: map[string]bool{}, failed: map[string]bool{}, drawn: map[drawnPreview]string{},
+		previews: dev.NewPreviews(devReader{svc}, dev.WithContext(m.ctx)),
 	}
 	p.model.SetKeyMap(km)
 	m.dev = p
@@ -256,7 +262,7 @@ func (m *panesModal) devVersion() int {
 	if m.dev == nil {
 		return 0
 	}
-	return m.dev.model.Version() + m.dev.reads
+	return m.dev.model.Version() + m.dev.previews.Version()
 }
 
 // restyleDev draws the pane again after a change of theme or icons.
@@ -291,7 +297,7 @@ func (m *panesModal) refreshDev() {
 	if m.dev == nil {
 		return
 	}
-	clear(m.dev.failed)
+	m.dev.previews.Retry()
 	m.cachedDev()
 	m.follow()
 }
@@ -309,8 +315,7 @@ func (m *panesModal) hoveredDev() (id, title string, ok bool) {
 }
 
 // loadPreview returns the read of the preview of the hovered row, when the
-// pane has the focus and shows a preview, and neither holds nor is reading it.
-// A preview the service has cached needs no read.
+// pane has the focus and shows a preview.
 func (m *panesModal) loadPreview() tea.Cmd {
 	p := m.dev
 	if p == nil || m.nav.Focus() != paneDevelopment {
@@ -319,118 +324,20 @@ func (m *panesModal) loadPreview() tea.Cmd {
 	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
 		return nil
 	}
-	key := m.hover[paneDevelopment-1].id
-	t := p.hov.Ref.Target
-	if p.hov.Ref.Problem != "" || p.loading[key] || p.failed[key] {
-		return nil
-	}
-	q := pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
-	svc, ctx, id := p.svc, m.ctx, m.id
-	switch p.hov.Kind {
-	case dev.Issue, dev.Blocker:
-		if _, ok := p.issues[key]; ok {
-			return nil
-		}
-		if v, ok := svc.CachedIssuePreview(q); ok {
-			p.issues[key] = v
-			p.reads++
-			return nil
-		}
-		p.loading[key] = true
-		return func() tea.Msg {
-			v, err := svc.IssuePreview(ctx, q)
-			return devPreviewMsg{id: id, key: key, issue: v, err: err}
-		}
-	case dev.Pull:
-		if _, ok := p.pulls[key]; ok {
-			return nil
-		}
-		if v, ok := svc.CachedPullPreview(q); ok {
-			p.pulls[key] = v
-			p.reads++
-			return nil
-		}
-		p.loading[key] = true
-		return func() tea.Msg {
-			v, err := svc.PullPreview(ctx, q)
-			return devPreviewMsg{id: id, key: key, pull: true, prev: v, err: err}
-		}
-	case dev.Header, dev.More, dev.None:
-	}
-	return nil
+	return p.previews.Load(m.hover[paneDevelopment-1].id, p.hov)
 }
 
-// receivePreview keeps the preview that a read brought, though the cursor has
-// moved on since: the preview shown stays where it is.
-func (m *panesModal) receivePreview(msg devPreviewMsg) {
-	p := m.dev
-	if p == nil || msg.id != m.id {
-		return
-	}
-	delete(p.loading, msg.key)
-	switch {
-	case msg.err != nil:
-		if m.ctx.Err() != nil {
-			return
-		}
-		p.failed[msg.key] = true
-	case msg.pull:
-		p.pulls[msg.key] = msg.prev
-	default:
-		p.issues[msg.key] = msg.issue
-	}
-	for k := range p.drawn {
-		if k.id == msg.key {
-			delete(p.drawn, k)
-		}
-	}
-	p.reads++
-}
-
-// devPreview is the body of the preview of the hovered row, drawn once per
-// width until what it shows changes.
+// devPreview is the body of the preview of the hovered row.
 func (m *panesModal) devPreview(b panes.Box) string {
 	p := m.dev
 	if p == nil {
 		return m.placeholderPreview(b)
 	}
-	if v := p.model.Version(); v != p.drawnVer {
-		clear(p.drawn)
-		p.drawnVer = v
-	}
-	id, w := m.hover[b.Pane-1].id, b.Rect.Inner().W
-	o := dev.PreviewOptions{Repo: m.repo, Styles: p.styles, Now: m.clock(), Width: w}
-	if id == "" {
-		if p.model.Loaded() {
-			return dev.Nothing(o)
-		}
-		return dev.Loading(o)
-	}
-	key := drawnPreview{id, w}
-	if s, ok := p.drawn[key]; ok {
-		return s
-	}
-	var s string
-	switch p.hov.Kind {
-	case dev.Header:
-		s = dev.HeaderPreview(p.hov.Group, p.model.Links(), o)
-	case dev.Pull:
-		if v, ok := p.pulls[id]; ok {
-			s = dev.PullPreview(v, o)
-		}
-	default:
-		if v, ok := p.issues[id]; ok {
-			s = dev.IssuePreview(v, o)
-		}
-	}
-	if s == "" {
-		if p.failed[id] {
-			return dev.Nothing(o)
-		}
-		return dev.Loading(o)
-	}
-	p.drawn[key] = s
-	return s
+	o := dev.PreviewOptions{Repo: m.repo, Styles: p.styles, Now: m.clock(), Width: b.Rect.Inner().W}
+	return p.previews.View(dev.Row{
+		Key: m.hover[b.Pane-1].id, Item: p.hov, Links: p.model.Links(),
+		Loaded: p.model.Loaded(), Stamp: p.model.Version(),
+	}, o)
 }
 
 // clock is the time that ages are told from.
