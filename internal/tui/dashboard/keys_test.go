@@ -51,8 +51,8 @@ func TestKeyLayersOrder(t *testing.T) {
 		{[]string{"tab", "tab"}, "tab", "Dashboard: next pane", func(s, _ *Section, _ []tea.Msg) bool { return s.focus == inboxPane }},
 	}
 	for _, tt := range tests {
-		s := newSection(t, newFake(), nil, 80, 22)
-		b := newSection(t, newFake(), nil, 80, 22)
+		s := newSection(t, newFake(), nil, 180, 44)
+		b := newSection(t, newFake(), nil, 180, 44)
 		press(t, s, tt.to...)
 		press(t, b, tt.to...)
 		b2, src, ok := uitest.Winner(s.KeyLayers(), tt.key)

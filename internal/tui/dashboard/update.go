@@ -6,6 +6,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // Update handles the dashboard's keys, its reads and the changes to the
@@ -99,20 +100,23 @@ func (s *Section) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := &s.keys
 	switch {
 	case keymap.Matches(msg, k.Next):
-		s.focusPane((s.focus + 1) % numPanes)
+		s.tab(1)
 		return nil
 	case keymap.Matches(msg, k.Prev):
-		s.focusPane((s.focus + numPanes - 1) % numPanes)
+		s.tab(-1)
 		return nil
-	case s.zoom.CanZoom() && keymap.Matches(msg, k.Zoom):
-		s.zoom.Toggle()
-		s.layout()
+	case keymap.Matches(msg, k.Zoom):
+		if s.ctl.Toggle() {
+			s.layout()
+		}
 		return nil
 	case keymap.Matches(msg, k.Refresh):
 		return s.refresh()
 	}
 	if p := k.pane(msg); p >= 0 {
-		s.focusPane(p)
+		if s.ctl.Digit(s.paneLayout(), panes.Pane(p)+1) {
+			s.focusPane(p)
+		}
 		return nil
 	}
 	switch s.focus {
@@ -232,6 +236,23 @@ func (s *Section) pressPane(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	default:
 	}
 	return nil, false
+}
+
+// paneLayout is the panes as the controller steps through them. None has a
+// preview, so zoomed, tab has nothing to flip.
+func (s *Section) paneLayout() panes.Layout {
+	return panes.Compute(panes.Spec{
+		Width: s.width, Height: s.height, Panes: paneDefs[:],
+		Focus: panes.Pane(s.focus) + 1, Zoom: s.ctl.Zoom.Zoomed(),
+	})
+}
+
+// tab moves to the next or previous pane, unzoomed only.
+func (s *Section) tab(delta int) {
+	s.ctl.Nav.SetFocus(panes.Pane(s.focus) + 1)
+	if p, ok := s.ctl.Tab(s.paneLayout(), delta); ok {
+		s.focusPane(paneID(p - 1))
+	}
 }
 
 // focusPane moves the focus to pane p.

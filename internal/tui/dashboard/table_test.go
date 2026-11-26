@@ -17,7 +17,7 @@ import (
 // styles, and without the tabs.
 func reposLines(s *Section) []string {
 	b := s.boxes[reposPane]
-	if !s.zoom.CanZoom() {
+	if !s.ctl.Zoom.CanZoom() {
 		b = box{s.width, s.height - s.profileHeight()}
 	}
 	body := s.reposBody(b.w-2, b.h-2)
