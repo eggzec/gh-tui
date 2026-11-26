@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/conv"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/involved"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
@@ -78,6 +79,8 @@ func (m *panesModal) involvedBody(pv involved.Preview, width int) (body string, 
 	default:
 		if view, ok := c.model.Peek(pv.Key, pv.Narrow, width); ok {
 			lines = append(lines, view)
+		} else if conv.TooNarrow(width) {
+			lines = append(lines, m.theme.Subtle.Render("too narrow"))
 		} else {
 			lines = append(lines, pv.Nothing)
 		}

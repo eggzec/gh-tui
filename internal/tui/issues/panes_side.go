@@ -46,10 +46,12 @@ func (n noMark) Of(action string) []string {
 type sidePanes struct {
 	inv   involved.Model
 	invSt involved.Styles
-	dev   dev.Model
-	devSt dev.Styles
-	deps  treeview.Model
-	desc  descPane
+	// invData is what the Involved pane lists, which its previews read.
+	invData involved.Data
+	dev     dev.Model
+	devSt   dev.Styles
+	deps    treeview.Model
+	desc    descPane
 	// refs and mentions are what the Development pane lists.
 	refs     core.References
 	mentions core.Page[core.Reference]
@@ -109,6 +111,8 @@ func (m *detailModal) refreshInvolved() {
 	}
 	m.pages = m.pagesRead.Load()
 	d := involved.Data{Author: m.issue.Author, Assignees: m.issue.Assignees, Items: m.timelineItems()}
+	p.invData = d
+	m.peek.set = false
 	p.inv.SetData(d, involved.Options{Styles: p.invSt, HideReviewers: true})
 }
 

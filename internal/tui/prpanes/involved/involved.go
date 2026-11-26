@@ -107,6 +107,9 @@ type Options struct {
 	Width int
 	// HideReviewers leaves out the reviewers group, for what has none.
 	HideReviewers bool
+	// Noun names what the people are in, for the text of a person with nothing
+	// written: "pull request" when empty. "issue" has comments but no reviews.
+	Noun string
 }
 
 // Person is the person or team that a row stands for.
