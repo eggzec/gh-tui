@@ -316,7 +316,7 @@ func (m *panesModal) mergeContent(b panes.Box) panes.Content {
 	}
 	lines := []string{merge.Branch(p.data, o)}
 	if in.H > 3 {
-		if m.nav.Focus() == paneMerge {
+		if m.ctl.Nav.Focus() == paneMerge {
 			p.model.Focus()
 		} else {
 			p.model.Blur()

@@ -60,8 +60,7 @@ type panesModal struct {
 
 	// nav is the focused pane and which of its list and preview has the
 	// focus, and zoom whether the pane fills the area.
-	nav  panes.Nav
-	zoom panes.Zoom
+	ctl panes.Controller
 	// narrow is whether the terminal is narrow, which the app says. The
 	// zoom is forced then, and while the modal's own area is under
 	// wideMin.
@@ -187,14 +186,14 @@ func (s *Section) openPanes(repo core.RepoRef, number int, pr *core.PullRequest,
 		sendCtx: s.ctx,
 	}
 	m.slots = slots.New(paneSlots[:], m.titleForms)
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	m.files = newFilesPane(m.keys.files)
 	if s.checks != nil {
 		m.checks = s.checks
 		m.files.loader = checktree.NewLoader(checkReader{s.checks}, repo)
 	}
 	if onChecks {
-		m.nav.SetFocus(paneMerge)
+		m.ctl.Nav.SetFocus(paneMerge)
 	}
 	findVoice := s.voice
 	findVoice.Retry = key.Binding{}
@@ -288,7 +287,7 @@ func (m *panesModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *panesModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	m.ctl.SetNarrow(m.narrow || m.width < wideMin)
 	m.settleDividers()
 	m.resizeFilesDiff()
 }
@@ -391,7 +390,7 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 			m.syncConvFocus()
 			m.follow()
 		case conv.KindCI:
-			m.nav.SetFocus(paneMerge)
+			m.ctl.Nav.SetFocus(paneMerge)
 			m.syncConvFocus()
 		}
 		return nil
@@ -523,11 +522,11 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	l := m.layout()
 	switch p, isDigit := k.digit(msg); {
 	case keymap.Matches(msg, k.next):
-		m.nav.Step(l, 1)
+		m.ctl.Tab(l, 1)
 	case keymap.Matches(msg, k.prev):
-		m.nav.Step(l, -1)
+		m.ctl.Tab(l, -1)
 	case isDigit:
-		m.nav.SetFocus(p)
+		m.ctl.Digit(l, p)
 	case keymap.Matches(msg, k.dividerLeft) && m.canDivide():
 		m.moveDivider(-1)
 	case keymap.Matches(msg, k.dividerRight) && m.canDivide():
@@ -539,14 +538,9 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	case keymap.Matches(msg, k.dividerReset) && m.canDivide() && m.dividers().Moved():
 		m.dividers().Reset()
 	case keymap.Matches(msg, k.zoom):
-		if m.zoom.CanZoom() {
-			m.zoom.Toggle()
-			m.nav.Reset()
-		}
-	case m.zoom.User() && m.zoom.CanZoom() && keymap.Matches(msg, k.cancel):
+		m.ctl.Toggle()
+	case keymap.Matches(msg, k.cancel) && m.ctl.UndoZoom():
 		// Backspace undoes the user's zoom; a forced one stays.
-		m.zoom.SetZoom(false)
-		m.nav.Reset()
 	case keymap.Matches(msg, k.back):
 		return m.close()
 	case keymap.Matches(msg, k.review):
@@ -557,21 +551,21 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openLabels()
 	case keymap.Matches(msg, k.find):
 		return m.openFind()
-	case m.nav.InPreview(l):
+	case m.ctl.Nav.InPreview(l):
 		if cmd, ok := m.pressOther(l, msg); ok {
 			return cmd
 		}
-		if cmd, ok := m.slots.PressPreview(m, m.nav.Focus(), msg); ok {
+		if cmd, ok := m.slots.PressPreview(m, m.ctl.Nav.Focus(), msg); ok {
 			return cmd
 		}
-		if b, ok := l.Box(m.nav.Focus(), panes.Preview); ok {
-			m.slots.Scroll(m, m.nav.Focus(), b, m.keys.scroll, msg)
+		if b, ok := l.Box(m.ctl.Nav.Focus(), panes.Preview); ok {
+			m.slots.Scroll(m, m.ctl.Nav.Focus(), b, m.keys.scroll, msg)
 		}
 	default:
 		if cmd, ok := m.pressOther(l, msg); ok {
 			return cmd
 		}
-		return m.slots.Press(m, m.nav.Focus(), msg)
+		return m.slots.Press(m, m.ctl.Nav.Focus(), msg)
 	}
 	return nil
 }
@@ -579,15 +573,15 @@ func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 // layout returns the layout of the panes.
 func (m *panesModal) layout() panes.Layout {
 	h := m.areaHeight()
-	return prLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.devRows(), m.dividers())
+	return prLayout(m.width, h, m.ctl.Nav.Focus(), m.ctl.Zoom.Zoomed(), m.devRows(), m.dividers())
 }
 
 // context returns the context of the keys of what has the focus in l.
 func (m *panesModal) context(l panes.Layout) string {
-	if m.nav.InPreview(l) {
+	if m.ctl.Nav.InPreview(l) {
 		return ctxPreview
 	}
-	return m.slots.Slot(m.nav.Focus()).Context
+	return m.slots.Slot(m.ctl.Nav.Focus()).Context
 }
 
 // close closes the modal, and stops its reads.

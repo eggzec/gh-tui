@@ -57,7 +57,7 @@ func changesModal(t *testing.T, svc *fakeService, dark bool) *panesModal {
 		{Author: core.User{Login: "bob"}, State: core.ReviewStateChangesRequested, SubmittedAt: convAt},
 		{Author: core.User{Login: "carl"}, State: core.ReviewStateChangesRequested, SubmittedAt: convAt},
 	}
-	m.nav.SetFocus(paneMerge)
+	m.ctl.Nav.SetFocus(paneMerge)
 	m.merge.restyle(m)
 	m.merge.refresh(m)
 	m.View()
@@ -147,8 +147,8 @@ func TestChangesPreviewEnterOpensTheConversation(t *testing.T) {
 	m := changesModal(t, changesService(), true)
 	changesPreview(t, m, "bob")
 	run(m, m.mergeUpdate(merge.FocusReviewMsg{Login: "bob"}))
-	if m.nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
-		t.Errorf("focus %v, cursor %q; want the Conversation on bob's latest review r:R1", m.nav.Focus(), convCursor(t, m))
+	if m.ctl.Nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
+		t.Errorf("focus %v, cursor %q; want the Conversation on bob's latest review r:R1", m.ctl.Nav.Focus(), convCursor(t, m))
 	}
 }
 

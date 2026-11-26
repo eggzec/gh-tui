@@ -45,8 +45,8 @@ func TestPullModalZoomBoundary(t *testing.T) {
 			if got := m.layout().Zoomed; got != tt.forced {
 				t.Errorf("zoomed = %v, want %v", got, tt.forced)
 			}
-			if m.zoom.CanZoom() == tt.forced {
-				t.Errorf("canZoom = %v with a forced zoom of %v", m.zoom.CanZoom(), tt.forced)
+			if m.ctl.Zoom.CanZoom() == tt.forced {
+				t.Errorf("canZoom = %v with a forced zoom of %v", m.ctl.Zoom.CanZoom(), tt.forced)
 			}
 		})
 	}
@@ -63,7 +63,7 @@ func TestPullModalSmallAreaForcesZoom(t *testing.T) {
 		t.Fatal("a 100 column area isn't zoomed")
 	}
 	m.press(keyMsg("z"))
-	if m.zoom.User() {
+	if m.ctl.Zoom.User() {
 		t.Error("z set the user's zoom in a small area")
 	}
 }
@@ -74,22 +74,22 @@ func TestPullModalUserZoomSurvivesNarrow(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
 	m.press(keyMsg("z"))
-	if !m.zoom.User() {
+	if !m.ctl.Zoom.User() {
 		t.Fatal("z didn't zoom at 160 columns")
 	}
 	m.SetNarrow(true)
 	m.SetSize(160, 30)
 	m.press(keyMsg("backspace"))
-	if !m.zoom.User() || !m.layout().Zoomed {
+	if !m.ctl.Zoom.User() || !m.layout().Zoomed {
 		t.Error("backspace changed the user's zoom while the terminal is narrow")
 	}
 	m.SetNarrow(false)
 	m.SetSize(160, 30)
-	if !m.zoom.User() || !m.layout().Zoomed {
+	if !m.ctl.Zoom.User() || !m.layout().Zoomed {
 		t.Error("the user's zoom was lost after the narrow phase")
 	}
 	m.press(keyMsg("backspace"))
-	if m.zoom.User() || m.layout().Zoomed {
+	if m.ctl.Zoom.User() || m.layout().Zoomed {
 		t.Error("backspace didn't undo the user's zoom")
 	}
 }
@@ -105,8 +105,8 @@ func TestPullModalNameAloneOnTopEdge(t *testing.T) {
 		t.Fatal("a 100 column area isn't zoomed")
 	}
 	top, _, _ := strings.Cut(ansi.Strip(m.panes(l)), "\n")
-	name := paneName(m.nav.Focus())
-	if !strings.Contains(top, name) || strings.Contains(top, paneTitle(m.nav.Focus())) {
+	name := paneName(m.ctl.Nav.Focus())
+	if !strings.Contains(top, name) || strings.Contains(top, paneTitle(m.ctl.Nav.Focus())) {
 		t.Errorf("top edge %q should name %q without its digit", top, name)
 	}
 }
@@ -124,33 +124,33 @@ func TestPanesPress(t *testing.T) {
 	t.Run("tab wraps", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
-		start := m.nav.Focus()
-		m.nav.SetFocus(paneFiles)
+		start := m.ctl.Nav.Focus()
+		m.ctl.Nav.SetFocus(paneFiles)
 		m.press(keyMsg("tab"))
-		if m.nav.Focus() != paneDescription {
-			t.Errorf("tab from Files focused %v, want Description", m.nav.Focus())
+		if m.ctl.Nav.Focus() != paneDescription {
+			t.Errorf("tab from Files focused %v, want Description", m.ctl.Nav.Focus())
 		}
-		m.nav.SetFocus(start)
+		m.ctl.Nav.SetFocus(start)
 		for range paneCount {
 			m.press(keyMsg("tab"))
 		}
-		if m.nav.Focus() != start {
-			t.Errorf("%d tabs focused %v, want %v again", paneCount, m.nav.Focus(), start)
+		if m.ctl.Nav.Focus() != start {
+			t.Errorf("%d tabs focused %v, want %v again", paneCount, m.ctl.Nav.Focus(), start)
 		}
 	})
 
 	t.Run("digit resets the box", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
-		m.nav.SetFocus(paneMerge)
-		m.zoom.SetZoom(true)
-		m.nav.Step(m.layout(), 1)
-		if m.nav.Sub(paneMerge) != panes.Preview {
-			t.Fatalf("Step left box %v, want Preview", m.nav.Sub(paneMerge))
+		m.ctl.Nav.SetFocus(paneMerge)
+		m.ctl.Zoom.SetZoom(true)
+		m.ctl.Nav.Step(m.layout(), 1)
+		if m.ctl.Nav.Sub(paneMerge) != panes.Preview {
+			t.Fatalf("Step left box %v, want Preview", m.ctl.Nav.Sub(paneMerge))
 		}
 		m.press(keyMsg("3"))
-		if m.nav.Focus() != paneMerge || m.nav.Sub(paneMerge) != panes.List {
-			t.Errorf("3 left focus %v and box %v, want Merge and List", m.nav.Focus(), m.nav.Sub(paneMerge))
+		if m.ctl.Nav.Focus() != paneMerge || m.ctl.Nav.Sub(paneMerge) != panes.List {
+			t.Errorf("3 left focus %v and box %v, want Merge and List", m.ctl.Nav.Focus(), m.ctl.Nav.Sub(paneMerge))
 		}
 	})
 
@@ -158,16 +158,16 @@ func TestPanesPress(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 160)
 		m.press(keyMsg("z"))
-		if !m.zoom.Zoomed() {
+		if !m.ctl.Zoom.Zoomed() {
 			t.Error("z at 160 columns didn't zoom the pane")
 		}
-		focus := m.nav.Focus()
+		focus := m.ctl.Nav.Focus()
 		m.press(keyMsg("tab"))
-		if m.nav.Focus() != focus || m.nav.Sub(focus) != panes.List {
-			t.Errorf("tab on a zoomed pane with no preview moved to %v, box %v", m.nav.Focus(), m.nav.Sub(focus))
+		if m.ctl.Nav.Focus() != focus || m.ctl.Nav.Sub(focus) != panes.List {
+			t.Errorf("tab on a zoomed pane with no preview moved to %v, box %v", m.ctl.Nav.Focus(), m.ctl.Nav.Sub(focus))
 		}
 		m.press(keyMsg("z"))
-		if m.zoom.Zoomed() {
+		if m.ctl.Zoom.Zoomed() {
 			t.Error("z again didn't unzoom the pane")
 		}
 	})
@@ -175,11 +175,11 @@ func TestPanesPress(t *testing.T) {
 	t.Run("zoom is a no-op when narrow", func(t *testing.T) {
 		t.Parallel()
 		m := openedPanes(t, 80)
-		if m.zoom.CanZoom() {
+		if m.ctl.Zoom.CanZoom() {
 			t.Fatal("canZoom is true at 80 columns")
 		}
 		m.press(keyMsg("z"))
-		if m.zoom.User() {
+		if m.ctl.Zoom.User() {
 			t.Error("z at 80 columns set the zoom, which the panes already have")
 		}
 	})

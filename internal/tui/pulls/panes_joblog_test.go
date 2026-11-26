@@ -98,7 +98,7 @@ func jobPanesOf(t *testing.T, cc core.CommitCheck, svc *logChecks) (*panesModal,
 	m.merge.watch = (&commitWatches{}).watch
 	withChecks(m, c)
 	// The preview shows beside the list of a pane that is zoomed.
-	m.zoom.SetZoom(true)
+	m.ctl.Zoom.SetZoom(true)
 	m.View()
 	return m, svc
 }

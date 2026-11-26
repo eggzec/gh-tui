@@ -22,7 +22,7 @@ func (m *detailModal) headerRows() int {
 // paneLayout lays the panes out in what the header and the prompt leave.
 func (m *detailModal) paneLayout() panes.Layout {
 	h := max(m.height-m.headerRows(), 0)
-	return issueLayout(m.width, h, m.nav.Focus(), m.zoom.Zoomed(), m.dividers)
+	return issueLayout(m.width, h, m.ctl.Nav.Focus(), m.ctl.Zoom.Zoomed(), m.dividers)
 }
 
 // convRect is the room of the conversation: the inside of its box, which is
@@ -78,10 +78,10 @@ func (m *detailModal) drawPanes(l panes.Layout) string {
 	return m.frames.Draw(l, func(b panes.Box) panes.Content {
 		if b.Role == panes.Preview {
 			c := m.slots.Content(m, b)
-			c.Focus = m.nav.InPreview(l)
+			c.Focus = m.ctl.Nav.InPreview(l)
 			return c
 		}
-		c := panes.Content{Focus: b.Pane == l.Focus && !m.nav.InPreview(l)}
+		c := panes.Content{Focus: b.Pane == l.Focus && !m.ctl.Nav.InPreview(l)}
 		title := "[" + strconv.Itoa(int(b.Pane)) + "] " + paneName(b.Pane)
 		if l.Zoomed {
 			// The digits are in the strip on the bottom border.

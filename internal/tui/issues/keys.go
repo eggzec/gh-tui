@@ -231,15 +231,15 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	k.Comment.SetEnabled(k.Comment.Enabled() && m.loaded)
 	k.Label.SetEnabled(k.Label.Enabled() && m.loaded)
 	k.References.SetEnabled(k.References.Enabled() && m.newRefs != nil)
-	onConv := m.loaded && m.nav.Focus() == paneConversation
-	onDesc := m.loaded && m.nav.Focus() == paneDescription
+	onConv := m.loaded && m.ctl.Nav.Focus() == paneConversation
+	onDesc := m.loaded && m.ctl.Nav.Focus() == paneDescription
 	k.Edit.SetEnabled(k.Edit.Enabled() && (onConv || onDesc))
 	if onDesc {
 		k.Edit.SetHelp(k.Edit.Help().Key, "edit description")
 		k.Edit = g.Gated(k.Edit, ui.ActDraft, it)
 	}
-	inPreview := m.nav.InPreview(m.paneLayout())
-	onPeople := m.loaded && m.side != nil && m.nav.Focus() == paneInvolved && !inPreview && m.side.inv.OnAssignees()
+	inPreview := m.ctl.Nav.InPreview(m.paneLayout())
+	onPeople := m.loaded && m.side != nil && m.ctl.Nav.Focus() == paneInvolved && !inPreview && m.side.inv.OnAssignees()
 	k.Assign.SetEnabled(k.Assign.Enabled() && onPeople)
 	k.Assign = g.Gated(k.Assign, ui.ActAssign, it)
 	k.Delete.SetEnabled(k.Delete.Enabled() && onConv)
@@ -262,7 +262,7 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	stack := m.canStack()
 	pk.dividerUp.SetEnabled(pk.dividerUp.Enabled() && stack)
 	pk.dividerDown.SetEnabled(pk.dividerDown.Enabled() && stack)
-	_, split := m.paneLayout().Box(m.nav.Focus(), panes.Preview)
+	_, split := m.paneLayout().Box(m.ctl.Nav.Focus(), panes.Preview)
 	pk.other.Down.SetEnabled(pk.other.Down.Enabled() && split)
 	pk.other.Up.SetEnabled(pk.other.Up.Enabled() && split)
 	own.Bindings = append(own.Bindings, pk.bindings()...)

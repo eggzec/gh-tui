@@ -15,8 +15,8 @@ import (
 func previewPanes(t *testing.T, row *string) *panesModal {
 	t.Helper()
 	m := sizedPanes(t, 160, 30)
-	m.nav.SetFocus(paneMerge)
-	m.zoom.SetZoom(true)
+	m.ctl.Nav.SetFocus(paneMerge)
+	m.ctl.Zoom.SetZoom(true)
 	m.slots.Slot(paneMerge).Hovered = func(*panesModal) (string, string, bool) {
 		return *row, "row " + *row, *row != ""
 	}
@@ -36,31 +36,31 @@ func previewPanes(t *testing.T, row *string) *panesModal {
 func TestPreviewSubFocus(t *testing.T) {
 	t.Parallel()
 	m := openedPanes(t, 160)
-	m.nav.SetFocus(paneMerge)
-	m.zoom.SetZoom(true)
+	m.ctl.Nav.SetFocus(paneMerge)
+	m.ctl.Zoom.SetZoom(true)
 	for i, want := range []panes.Role{panes.Preview, panes.List, panes.Preview, panes.List} {
 		key := "tab"
 		if i >= 2 {
 			key = "shift+tab"
 		}
 		m.press(keyMsg(key))
-		if m.nav.Focus() != paneMerge || m.nav.Sub(paneMerge) != want {
-			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.nav.Focus(), m.nav.Sub(paneMerge), want)
+		if m.ctl.Nav.Focus() != paneMerge || m.ctl.Nav.Sub(paneMerge) != want {
+			t.Fatalf("%s %d: focus %v box %v, want Merge and %v", key, i, m.ctl.Nav.Focus(), m.ctl.Nav.Sub(paneMerge), want)
 		}
 	}
 	m.press(keyMsg("tab"))
 	m.press(keyMsg("4"))
-	if m.nav.Focus() != paneInvolved || m.nav.Sub(paneMerge) != panes.List || m.nav.Sub(paneInvolved) != panes.List {
-		t.Errorf("4 left focus %v, boxes %v", m.nav.Focus(), m.nav)
+	if m.ctl.Nav.Focus() != paneInvolved || m.ctl.Nav.Sub(paneMerge) != panes.List || m.ctl.Nav.Sub(paneInvolved) != panes.List {
+		t.Errorf("4 left focus %v, boxes %v", m.ctl.Nav.Focus(), m.ctl.Nav)
 	}
 	m.press(keyMsg("tab"))
-	if m.nav.Sub(paneInvolved) != panes.Preview {
-		t.Fatalf("tab left box %v, want Preview", m.nav.Sub(paneInvolved))
+	if m.ctl.Nav.Sub(paneInvolved) != panes.Preview {
+		t.Fatalf("tab left box %v, want Preview", m.ctl.Nav.Sub(paneInvolved))
 	}
 	m.press(keyMsg("z"))
 	m.press(keyMsg("z"))
-	if m.nav.Sub(paneInvolved) != panes.List {
-		t.Errorf("unzooming left box %v, want List", m.nav.Sub(paneInvolved))
+	if m.ctl.Nav.Sub(paneInvolved) != panes.List {
+		t.Errorf("unzooming left box %v, want List", m.ctl.Nav.Sub(paneInvolved))
 	}
 }
 

@@ -145,8 +145,7 @@ type Modal struct {
 	loaded bool
 	err    error
 
-	nav        panes.Nav
-	zoom       panes.Zoom
+	ctl        panes.Controller
 	frames     panes.Styles
 	dividers   *ui.Dividers
 	treeKeys   treeview.KeyMap
@@ -230,7 +229,7 @@ func New(ctx context.Context, svc Service, repo core.RepoRef, id int64, url stri
 	// which go out of use.
 	m.voice.Icons = &m.icons
 	m.dividers = &ui.Dividers{Step: 4}
-	m.nav.SetFocus(paneNotes)
+	m.ctl.Nav.SetFocus(paneNotes)
 	km := treeview.NewKeyMap(ui.Lookup(keys, ctxModal))
 	// A row has nothing to open here, so enter is off in the help too.
 	km.Open.SetEnabled(false)
@@ -470,7 +469,7 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 		return []keyhelp.Layer{ui.MergeLayers(ctxModal, keyhelp.FromHelp("", m.pickKeys, false))}
 	}
 	k := m.keys
-	k.Select.SetEnabled(k.Select.Enabled() && m.nav.Focus() == paneFiles)
+	k.Select.SetEnabled(k.Select.Enabled() && m.ctl.Nav.Focus() == paneFiles)
 	k.Refresh.SetEnabled(k.Refresh.Enabled() && m.failed())
 	if m.failed() {
 		k.offFailed()

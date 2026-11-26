@@ -66,7 +66,7 @@ func (m *panesModal) stack() (s *panes.Size, def, lo, hi int, ok bool) {
 	if d == nil {
 		return nil, 0, 0, 0, false
 	}
-	if f := m.nav.Focus(); f != paneDescription && f != paneConversation {
+	if f := m.ctl.Nav.Focus(); f != paneDescription && f != paneConversation {
 		return nil, 0, 0, 0, false
 	}
 	if m.layout().Zoomed {
@@ -96,7 +96,7 @@ func (m *panesModal) growPane(dir int) {
 	if !ok {
 		return
 	}
-	_, sign := panes.Grow(int(m.nav.Focus())-int(paneDescription), 2)
+	_, sign := panes.Grow(int(m.ctl.Nav.Focus())-int(paneDescription), 2)
 	m.dividers().Move(s, dir*sign, def, lo, hi)
 }
 

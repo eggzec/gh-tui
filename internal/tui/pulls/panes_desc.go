@@ -90,7 +90,7 @@ func (m *panesModal) description(b panes.Box) panes.Content {
 	}
 	d := &m.desc
 	d.sync(m, body, in.W, in.H)
-	if m.nav.Focus() == paneDescription {
+	if m.ctl.Nav.Focus() == paneDescription {
 		d.tree.Focus()
 	} else {
 		d.tree.Blur()

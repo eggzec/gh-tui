@@ -37,8 +37,8 @@ func TestInvolvedEnter(t *testing.T) {
 		if !moveTo(m, "dina") {
 			t.Fatal("no row for dina")
 		}
-		if toasts := run(m, m.Update(keyMsg("enter"))); len(toasts) != 0 || m.nav.Focus() != paneConversation {
-			t.Errorf("focus %v, toasts %q: want the conversation and none", m.nav.Focus(), toasts)
+		if toasts := run(m, m.Update(keyMsg("enter"))); len(toasts) != 0 || m.ctl.Nav.Focus() != paneConversation {
+			t.Errorf("focus %v, toasts %q: want the conversation and none", m.ctl.Nav.Focus(), toasts)
 		}
 	})
 	t.Run("person without comments", func(t *testing.T) {
@@ -48,8 +48,8 @@ func TestInvolvedEnter(t *testing.T) {
 			t.Fatal("no row for rita")
 		}
 		toasts := run(m, m.Update(keyMsg("enter")))
-		if !slices.Equal(toasts, []string{"no comments from Rita"}) || m.nav.Focus() != paneInvolved {
-			t.Errorf("focus %v, toasts %q", m.nav.Focus(), toasts)
+		if !slices.Equal(toasts, []string{"no comments from Rita"}) || m.ctl.Nav.Focus() != paneInvolved {
+			t.Errorf("focus %v, toasts %q", m.ctl.Nav.Focus(), toasts)
 		}
 	})
 	t.Run("header", func(t *testing.T) {
@@ -171,7 +171,7 @@ func TestInvolvedKeys(t *testing.T) {
 		t.Errorf("last layer is %q with %d bindings", got.Context, len(got.Bindings))
 	}
 	m.Update(keyMsg("2"))
-	if m.nav.Focus() != paneConversation {
-		t.Errorf("2 focused %v, want the conversation", m.nav.Focus())
+	if m.ctl.Nav.Focus() != paneConversation {
+		t.Errorf("2 focused %v, want the conversation", m.ctl.Nav.Focus())
 	}
 }

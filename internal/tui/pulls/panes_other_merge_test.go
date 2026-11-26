@@ -18,7 +18,7 @@ func TestOtherKeysMoveTheMergeListFromThePreview(t *testing.T) {
 		t.Fatalf("hovered %q before any key, want behind", got)
 	}
 	press2(m, "tab")
-	if !m.nav.InPreview(m.layout()) {
+	if !m.ctl.Nav.InPreview(m.layout()) {
 		t.Fatal("tab didn't focus the preview")
 	}
 	// At the top of the list, K has no row to go to, so the preview stays.
@@ -30,7 +30,7 @@ func TestOtherKeysMoveTheMergeListFromThePreview(t *testing.T) {
 	if got := m.slots.Hover(paneMerge).ID; got != "draft" {
 		t.Fatalf("J from the preview hovers %q, want draft", got)
 	}
-	if !m.nav.InPreview(m.layout()) {
+	if !m.ctl.Nav.InPreview(m.layout()) {
 		t.Fatal("J left the preview")
 	}
 	press2(m, "K")

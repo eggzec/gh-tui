@@ -216,12 +216,12 @@ func TestFilesDiffIgnoresZ(t *testing.T) {
 	t.Parallel()
 	h, m, _ := zoomedFiles(t, patched(), nil)
 	o := focusZoomedDiff(t, h, m)
-	at, mode, zoom := o.d.Cursor(), o.mode, m.zoom.Zoomed()
+	at, mode, zoom := o.d.Cursor(), o.mode, m.ctl.Zoom.Zoomed()
 	press(t, h, "Z")
-	if o.d.Cursor() != at || o.mode != mode || m.zoom.Zoomed() != zoom || m.closed || m.top() != nil {
+	if o.d.Cursor() != at || o.mode != mode || m.ctl.Zoom.Zoomed() != zoom || m.closed || m.top() != nil {
 		t.Error("Z acted in the diff beside the tree")
 	}
-	if m.nav.Sub(paneFiles) != panes.Preview {
+	if m.ctl.Nav.Sub(paneFiles) != panes.Preview {
 		t.Error("Z moved the focus")
 	}
 }

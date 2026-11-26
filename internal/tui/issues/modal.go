@@ -149,8 +149,7 @@ type detailModal struct {
 
 	// nav is the focused pane, zoom whether it fills the area, narrow whether
 	// the app asks for one pane at a time, and frames draws the boxes.
-	nav    panes.Nav
-	zoom   panes.Zoom
+	ctl    panes.Controller
 	narrow bool
 	frames panes.Styles
 	// dividers are the dividers shared with the other views, or nil.
@@ -202,7 +201,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 		pics:     s.avatars,
 	}
 	m.voice.Icons = &m.icons
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
 	if s.previews != nil {
 		m.side.previews = dev.NewPreviews(dev.ServiceReader(s.previews), dev.WithContext(ctx))
@@ -289,11 +288,10 @@ func (m *detailModal) Selected() (ui.Selection, bool) {
 // SetSize implements ui.Modal.
 func (m *detailModal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.zoom.SetNarrow(m.narrow || m.width < wideMin)
+	m.ctl.SetNarrow(m.narrow || m.width < wideMin)
 	m.settleDividers()
-	if !m.nav.InPreview(m.paneLayout()) {
+	if m.ctl.Settle(m.paneLayout()) {
 		// A preview that a resize took away must not keep the focus.
-		m.nav.Reset()
 		m.resetPreviews()
 	}
 	m.layout()
@@ -643,15 +641,15 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openComposer(nil)
 	case keymap.Matches(msg, k.Label):
 		return m.openLabels()
-	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneConversation:
+	case keymap.Matches(msg, k.Edit) && m.ctl.Nav.Focus() == paneConversation:
 		return m.editComment()
-	case keymap.Matches(msg, k.Edit) && m.nav.Focus() == paneDescription:
+	case keymap.Matches(msg, k.Edit) && m.ctl.Nav.Focus() == paneDescription:
 		return m.openDescEdit()
-	case keymap.Matches(msg, k.Delete) && m.nav.Focus() == paneConversation:
+	case keymap.Matches(msg, k.Delete) && m.ctl.Nav.Focus() == paneConversation:
 		return m.deleteComment()
-	case keymap.Matches(msg, k.ConvFilter) && m.nav.Focus() == paneConversation:
+	case keymap.Matches(msg, k.ConvFilter) && m.ctl.Nav.Focus() == paneConversation:
 		return m.openConvFilter()
-	case keymap.Matches(msg, k.React) && m.nav.Focus() == paneConversation:
+	case keymap.Matches(msg, k.React) && m.ctl.Nav.Focus() == paneConversation:
 		return m.openReact()
 	case keymap.Matches(msg, k.Close):
 		return m.setState(core.StateClosed)
@@ -665,10 +663,10 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if cmd, ok := m.pressOther(l, msg); ok {
 		return cmd
 	}
-	if m.nav.InPreview(l) {
+	if m.ctl.Nav.InPreview(l) {
 		// The preview is read-only: the moves scroll it and no key reaches the
 		// list beside it.
-		p := m.nav.Focus()
+		p := m.ctl.Nav.Focus()
 		if cmd, ok := m.slots.PressPreview(m, p, msg); ok {
 			return cmd
 		}
@@ -680,7 +678,7 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	if cmd, ok := m.pressSide(msg); ok {
 		return cmd
 	}
-	if m.nav.Focus() != paneConversation {
+	if m.ctl.Nav.Focus() != paneConversation {
 		return nil
 	}
 	return m.convUpdate(msg)

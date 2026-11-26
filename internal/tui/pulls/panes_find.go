@@ -41,7 +41,7 @@ func (m *panesModal) openFind() tea.Cmd {
 		finder.WithErrorText(m.findErr),
 	)
 	f.Focus()
-	o := &finderOverlay{m: m, f: f, head: head, from: m.nav.Focus(), stop: stop}
+	o := &finderOverlay{m: m, f: f, head: head, from: m.ctl.Nav.Focus(), stop: stop}
 	m.open(o)
 	return o.f.Init()
 }
@@ -141,7 +141,7 @@ func (m *panesModal) chooseFile(path string, from panes.Pane) {
 	// The pane is drawn again to select it, even when it had the focus.
 	m.files.seq++
 	m.findFrom = &from
-	m.nav.SetFocus(paneFiles)
+	m.ctl.Nav.SetFocus(paneFiles)
 }
 
 // openFound shows the file the finder chose in the Files pane, and its diff

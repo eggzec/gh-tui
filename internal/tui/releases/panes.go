@@ -105,7 +105,7 @@ func (k keyMap) digit(msg tea.KeyPressMsg) (panes.Pane, bool) {
 }
 
 func (m *Modal) paneLayout() panes.Layout {
-	return releaseLayout(m.width, m.areaHeight(), m.nav.Focus(), m.zoom.Zoomed(), m.dividers)
+	return releaseLayout(m.width, m.areaHeight(), m.ctl.Nav.Focus(), m.ctl.Zoom.Zoomed(), m.dividers)
 }
 
 // areaHeight is the height of the panes: the modal's, less the header.
@@ -130,18 +130,17 @@ func (m *Modal) pressPane(msg tea.KeyPressMsg) bool {
 	case keymap.Matches(msg, k.DividerReset) && d != nil && d.Moved():
 		d.Reset()
 	case keymap.Matches(msg, k.Next):
-		m.nav.Step(l, 1)
+		m.ctl.Tab(l, 1)
 	case keymap.Matches(msg, k.Prev):
-		m.nav.Step(l, -1)
+		m.ctl.Tab(l, -1)
 	case keymap.Matches(msg, k.Zoom):
-		m.zoom.Toggle()
-		m.nav.Reset()
+		m.ctl.Toggle()
 	default:
 		p, ok := k.digit(msg)
 		if !ok {
 			return false
 		}
-		m.nav.SetFocus(p)
+		m.ctl.Digit(l, p)
 	}
 	m.resize()
 	return true
@@ -155,7 +154,7 @@ func (m *Modal) canStack() bool {
 // growPane grows the focused pane by dir presses, or shrinks it.
 func (m *Modal) growPane(dir int) {
 	h := m.areaHeight()
-	_, sign := panes.Grow(int(m.nav.Focus())-1, 2)
+	_, sign := panes.Grow(int(m.ctl.Nav.Focus())-1, 2)
 	m.dividers.Move(&m.dividers.Info[0], dir*sign, h*3/5, panes.MinHeight, h-panes.MinHeight)
 }
 
@@ -201,7 +200,7 @@ func (m *Modal) paneBody(b panes.Box) string {
 	if b.Pane == paneNotes {
 		m.notes.SetSize(in.W, in.H)
 		m.buildNotes(in.W)
-		if m.nav.Focus() == paneNotes {
+		if m.ctl.Nav.Focus() == paneNotes {
 			m.notes.Focus()
 		} else {
 			m.notes.Blur()
@@ -209,7 +208,7 @@ func (m *Modal) paneBody(b panes.Box) string {
 		return m.notes.View()
 	}
 	m.files.SetSize(in.W, in.H)
-	if m.nav.Focus() == paneFiles {
+	if m.ctl.Nav.Focus() == paneFiles {
 		m.files.Focus()
 	} else {
 		m.files.Blur()

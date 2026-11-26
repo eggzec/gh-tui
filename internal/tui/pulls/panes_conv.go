@@ -227,7 +227,7 @@ type convWant struct {
 // jumpConv focuses the Conversation, zoomed as the modal is, and puts its
 // cursor on w as soon as the timeline has it: now, or when its page arrives.
 func (m *panesModal) jumpConv(w convWant) tea.Cmd {
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	m.syncConvFocus()
 	m.conv.want = &w
 	cmd := m.seekConv()
@@ -296,7 +296,7 @@ func (m *panesModal) refreshConv() {
 // syncConvFocus gives the conversation the focus while its pane has it.
 func (m *panesModal) syncConvFocus() {
 	c := &m.conv
-	want := m.nav.Focus() == paneConversation
+	want := m.ctl.Nav.Focus() == paneConversation
 	if !c.started || c.focused == want {
 		return
 	}

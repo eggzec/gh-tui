@@ -553,22 +553,52 @@ func TestReleaseDate(t *testing.T) {
 func pressKey(m *Modal, msg tea.KeyPressMsg) { m.Update(msg) }
 
 // The digits and tab move the focus, and z shows the focused pane alone.
+func TestZoomedKeysAndBackspace(t *testing.T) {
+	m := newModal(&fakeService{}, 100, 30)
+	run(t, m, m.Init())
+	press(m, "z")
+	if !m.paneLayout().Zoomed {
+		t.Fatal("z didn't zoom")
+	}
+	press(m, "2")
+	if m.ctl.Nav.Focus() != paneFiles || !m.paneLayout().Zoomed {
+		t.Errorf("digit zoomed: focus %d zoomed %v; want the files, still zoomed", m.ctl.Nav.Focus(), m.paneLayout().Zoomed)
+	}
+	pane := m.ctl.Nav.Focus()
+	l := m.paneLayout()
+	before := m.ctl.Nav.InPreview(l)
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.ctl.Nav.Focus() != pane {
+		t.Errorf("zoomed tab moved focus to %d, want it kept on %d", m.ctl.Nav.Focus(), pane)
+	}
+	if m.ctl.Nav.CanStep(l) && m.ctl.Nav.InPreview(m.paneLayout()) == before {
+		t.Error("zoomed tab didn't flip list and preview")
+	}
+	if _, ok := m.Act("back"); !ok || m.paneLayout().Zoomed {
+		t.Errorf("back: handled %v, zoomed %v; want it handled and unzoomed", ok, m.paneLayout().Zoomed)
+	}
+	pressKey(m, tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.ctl.Nav.Focus() == pane {
+		t.Error("unzoomed tab kept the focus on the same pane")
+	}
+}
+
 func TestPaneFocusAndZoom(t *testing.T) {
 	m := newModal(&fakeService{}, 100, 30)
 	run(t, m, m.Init())
-	if got := m.nav.Focus(); got != paneNotes {
+	if got := m.ctl.Nav.Focus(); got != paneNotes {
 		t.Fatalf("first focus = %d, want the notes", got)
 	}
 	press(m, "2")
-	if got := m.nav.Focus(); got != paneFiles {
+	if got := m.ctl.Nav.Focus(); got != paneFiles {
 		t.Errorf("focus after 2 = %d, want the files", got)
 	}
 	press(m, "1")
-	if got := m.nav.Focus(); got != paneNotes {
+	if got := m.ctl.Nav.Focus(); got != paneNotes {
 		t.Errorf("focus after 1 = %d, want the notes", got)
 	}
 	pressKey(m, tea.KeyPressMsg{Code: tea.KeyTab})
-	if got := m.nav.Focus(); got != paneFiles {
+	if got := m.ctl.Nav.Focus(); got != paneFiles {
 		t.Errorf("focus after tab = %d, want the files", got)
 	}
 	if m.paneLayout().Zoomed {

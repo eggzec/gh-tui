@@ -19,7 +19,7 @@ func jumpModal(t *testing.T) *panesModal {
 	t.Helper()
 	h, m := convModal(t, convService())
 	modalScreen(t, h)
-	m.nav.SetFocus(paneDescription)
+	m.ctl.Nav.SetFocus(paneDescription)
 	m.syncConvFocus()
 	return m
 }
@@ -37,8 +37,8 @@ func TestJumpPersonLatest(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	run(m, m.jumpConv(convWant{login: "bob"}))
-	if m.nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
-		t.Errorf("focus %v, cursor %q; want the Conversation on bob's review r:R1", m.nav.Focus(), convCursor(t, m))
+	if m.ctl.Nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
+		t.Errorf("focus %v, cursor %q; want the Conversation on bob's review r:R1", m.ctl.Nav.Focus(), convCursor(t, m))
 	}
 	run(m, m.jumpConv(convWant{login: "dee"}))
 	if got := convCursor(t, m); got != "p:T1-a" && got != "t:T1" {
@@ -131,8 +131,8 @@ func TestJumpBeforeLoad(t *testing.T) {
 	r := lateModal(t, convService())
 	m := r.m
 	r.queue = append(r.queue, m.jumpConv(convWant{login: "ann"}))
-	if m.conv.want == nil || m.nav.Focus() != paneConversation {
-		t.Fatalf("want %v, focus %v; want the jump kept until the timeline loads, with the Conversation focused", m.conv.want, m.nav.Focus())
+	if m.conv.want == nil || m.ctl.Nav.Focus() != paneConversation {
+		t.Fatalf("want %v, focus %v; want the jump kept until the timeline loads, with the Conversation focused", m.conv.want, m.ctl.Nav.Focus())
 	}
 	for r.step() {
 		if !m.conv.model.Ready() && m.conv.want == nil {
@@ -198,20 +198,20 @@ func TestMergeFocusReviewLandsOnReview(t *testing.T) {
 	}}}
 	h, m := convModal(t, svc)
 	modalScreen(t, h)
-	m.nav.SetFocus(paneMerge)
+	m.ctl.Nav.SetFocus(paneMerge)
 	run(m, m.mergeUpdate(merge.FocusReviewMsg{Login: "bob"}))
-	if m.nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
-		t.Errorf("focus %v, cursor %q; want the Conversation on the review r:R1, not bob's later comment", m.nav.Focus(), convCursor(t, m))
+	if m.ctl.Nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
+		t.Errorf("focus %v, cursor %q; want the Conversation on the review r:R1, not bob's later comment", m.ctl.Nav.Focus(), convCursor(t, m))
 	}
 }
 
 func TestJumpKeepsZoom(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
-	m.zoom.SetZoom(true)
+	m.ctl.Zoom.SetZoom(true)
 	run(m, m.jumpConv(convWant{login: "ann"}))
-	if !m.zoom.Zoomed() || m.nav.Focus() != paneConversation {
-		t.Errorf("zoom %v, focus %v; want the Conversation, zoomed", m.zoom.Zoomed(), m.nav.Focus())
+	if !m.ctl.Zoom.Zoomed() || m.ctl.Nav.Focus() != paneConversation {
+		t.Errorf("zoom %v, focus %v; want the Conversation, zoomed", m.ctl.Zoom.Zoomed(), m.ctl.Nav.Focus())
 	}
 }
 
@@ -219,18 +219,18 @@ func TestShowReview(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	run(m, m.showReview("R1"))
-	if m.nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
-		t.Errorf("focus %v, cursor %q; want the Conversation on r:R1", m.nav.Focus(), convCursor(t, m))
+	if m.ctl.Nav.Focus() != paneConversation || convCursor(t, m) != "r:R1" {
+		t.Errorf("focus %v, cursor %q; want the Conversation on r:R1", m.ctl.Nav.Focus(), convCursor(t, m))
 	}
 }
 
 func TestEnterCommitShowsFiles(t *testing.T) {
 	t.Parallel()
 	_, m, _ := commitPanes(t, sampleCommits(nil))
-	m.nav.SetFocus(paneConversation)
+	m.ctl.Nav.SetFocus(paneConversation)
 	m.Update(conv.EnterMsg{Kind: conv.KindCommit, SHA: "ccc3333"})
-	if m.nav.Focus() != paneFiles || m.files.rng.First != 2 || m.files.rng.Last != 2 {
-		t.Errorf("focus %v, range %+v; want Files with only the third commit", m.nav.Focus(), m.files.rng)
+	if m.ctl.Nav.Focus() != paneFiles || m.files.rng.First != 2 || m.files.rng.Last != 2 {
+		t.Errorf("focus %v, range %+v; want Files with only the third commit", m.ctl.Nav.Focus(), m.files.rng)
 	}
 }
 
@@ -238,7 +238,7 @@ func TestEnterCIFocusesMerge(t *testing.T) {
 	t.Parallel()
 	m := jumpModal(t)
 	m.Update(conv.EnterMsg{Kind: conv.KindCI, SHA: "ccc3333"})
-	if m.nav.Focus() != paneMerge {
-		t.Errorf("focus %v, want Merge", m.nav.Focus())
+	if m.ctl.Nav.Focus() != paneMerge {
+		t.Errorf("focus %v, want Merge", m.ctl.Nav.Focus())
 	}
 }

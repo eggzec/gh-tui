@@ -202,7 +202,7 @@ func (m *detailModal) depsBody(b panes.Box) string {
 	t := &m.side.deps
 	in := b.Rect.Inner()
 	t.SetSize(in.W, in.H)
-	if m.nav.Focus() == b.Pane {
+	if m.ctl.Nav.Focus() == b.Pane {
 		t.Focus()
 	} else {
 		t.Blur()

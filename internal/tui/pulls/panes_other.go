@@ -24,7 +24,7 @@ func newOtherKeys(keys config.Keymap) map[string]ui.OtherKeys {
 // work only where pressOther takes them, in a split of the focused pane.
 func (m *panesModal) otherHelp(ctx string, l panes.Layout) []key.Binding {
 	o := m.keys.other[ctx]
-	p := m.nav.Focus()
+	p := m.ctl.Nav.Focus()
 	_, split := l.Box(p, panes.Preview)
 	on := split && p != paneFiles
 	o.Down.SetEnabled(o.Down.Enabled() && on)
@@ -36,7 +36,7 @@ func (m *panesModal) otherHelp(ctx string, l panes.Layout) []key.Binding {
 // preview, J and K scroll the preview from the list, and move the list from
 // the preview. ok is false for any other key or pane.
 func (m *panesModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.Cmd, ok bool) {
-	p := m.nav.Focus()
+	p := m.ctl.Nav.Focus()
 	slot := m.slots.Slot(p)
 	b, has := l.Box(p, panes.Preview)
 	// The Files pane keeps J and K to step the files.
@@ -47,7 +47,7 @@ func (m *panesModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.Cm
 	if !has {
 		return nil, false
 	}
-	return m.slots.PressOther(m, p, b, m.nav.InPreview(l), m.keys.scroll, o, slot.Context, msg, func(press tea.KeyPressMsg) tea.Cmd {
+	return m.slots.PressOther(m, p, b, m.ctl.Nav.InPreview(l), m.keys.scroll, o, slot.Context, msg, func(press tea.KeyPressMsg) tea.Cmd {
 		return m.slots.Press(m, p, press)
 	})
 }

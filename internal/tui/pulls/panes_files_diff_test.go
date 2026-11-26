@@ -25,7 +25,7 @@ func zoomedFiles(t *testing.T, fs []core.CommitFile, setup func(*fakeService), o
 		}
 	}, opts...)
 	press(t, h, "z")
-	if !m.zoom.Zoomed() {
+	if !m.ctl.Zoom.Zoomed() {
 		t.Fatal("z didn't zoom the pane")
 	}
 	return h, m, svc
@@ -132,8 +132,8 @@ func TestFilesDiffTabFocusesIt(t *testing.T) {
 	hoverFile(t, h, m)
 	path := m.files.pv.path
 	press(t, h, "tab")
-	if m.nav.Sub(paneFiles) != panes.Preview || !m.files.pv.o.d.Focused() {
-		t.Fatalf("tab left box %v, diff focused %v", m.nav.Sub(paneFiles), m.files.pv.o.d.Focused())
+	if m.ctl.Nav.Sub(paneFiles) != panes.Preview || !m.files.pv.o.d.Focused() {
+		t.Fatalf("tab left box %v, diff focused %v", m.ctl.Nav.Sub(paneFiles), m.files.pv.o.d.Focused())
 	}
 	at := m.files.pv.o.d.Cursor()
 	press(t, h, "j")
@@ -144,8 +144,8 @@ func TestFilesDiffTabFocusesIt(t *testing.T) {
 		t.Errorf("j changed the file to %q", m.files.pv.path)
 	}
 	press(t, h, "tab")
-	if m.nav.Sub(paneFiles) != panes.List || m.files.pv.o.d.Focused() {
-		t.Errorf("tab left box %v, diff focused %v", m.nav.Sub(paneFiles), m.files.pv.o.d.Focused())
+	if m.ctl.Nav.Sub(paneFiles) != panes.List || m.files.pv.o.d.Focused() {
+		t.Errorf("tab left box %v, diff focused %v", m.ctl.Nav.Sub(paneFiles), m.files.pv.o.d.Focused())
 	}
 }
 
@@ -193,7 +193,7 @@ func TestFilesDiffView(t *testing.T) {
 				var m *panesModal
 				if loading {
 					_, m, _ = rangePanes(t, sampleCommits(nil), func(svc *fakeService) { svc.changed = patched() })
-					m.zoom.SetZoom(true)
+					m.ctl.Zoom.SetZoom(true)
 					m.syncFilesDiff()
 				} else {
 					_, m, _ = zoomedFiles(t, patched(), nil)

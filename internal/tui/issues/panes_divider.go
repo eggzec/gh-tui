@@ -59,7 +59,7 @@ func (m *detailModal) stack() (st stackDivider, ok bool) {
 		return stackDivider{}, false
 	}
 	h := max(m.height-m.headerRows(), 0)
-	f := m.nav.Focus()
+	f := m.ctl.Nav.Focus()
 	if f == paneDescription || f == paneConversation {
 		_, st.sign = panes.Grow(int(f-paneDescription), 2)
 		st.s, st.def, st.lo, st.hi, ok = m.descDivider(h)
