@@ -40,6 +40,10 @@ func (m *Modal) Title() string {
 	return m.Section.Title()
 }
 
+// Discard implements ui.Discarder: the page is gone, so its requests in
+// flight stop.
+func (m *Modal) Discard() { m.cancel() }
+
 // Init reads the page on view.
 func (m *Modal) Init() tea.Cmd { return m.start }
 
@@ -50,8 +54,9 @@ func (m *Modal) Commands() []string { return []string{ui.CommandCopy} }
 // Act implements ui.Actor. The quit and dismiss keys close the modal. The
 // back key drops a zoom, then goes back through the pages the modal showed,
 // and otherwise leaves the app to return to the modal this one replaced. The
-// owner and repo keys close the modal, then show the page or repository
-// under the cursor. Every other intent is the app's to refuse while it is
+// owner key opens the page of the account under the cursor over this one,
+// and the repo key closes the modal, then shows the repository under the
+// cursor. Every other intent is the app's to refuse while it is
 // open.
 func (m *Modal) Act(action string) (tea.Cmd, bool) {
 	if m.Capturing() {
@@ -72,7 +77,9 @@ func (m *Modal) Act(action string) (tea.Cmd, bool) {
 		if !ok || sel.Owner == "" || strings.EqualFold(sel.Owner, m.Login()) {
 			return nil, true
 		}
-		return tea.Sequence(ui.CloseModal(m), ui.ShowOwner(sel.Owner)), true
+		// The page opened over this one replaces it at the same rank, so back
+		// returns here, and the modal held under this page stays held.
+		return ui.ShowOwner(sel.Owner), true
 	case "repo":
 		sel, ok := m.Selected()
 		if !ok || sel.Repo.Name == "" {

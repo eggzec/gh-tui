@@ -139,7 +139,7 @@ func (f *fakeOwnerModal) Act(action string) (tea.Cmd, bool) {
 		if !ok || sel.Owner == "" || strings.EqualFold(sel.Owner, f.login) {
 			return nil, true
 		}
-		return tea.Sequence(ui.CloseModal(f), ui.ShowOwner(sel.Owner)), true
+		return ui.ShowOwner(sel.Owner), true
 	}
 	return nil, false
 }
