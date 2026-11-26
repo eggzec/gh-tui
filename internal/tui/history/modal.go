@@ -79,7 +79,7 @@ type Modal struct {
 	// seq counts the moves of the graph's cursor, so that only the last
 	// rest reads.
 	seq int
-	// zoom shows the focused pane alone, by the user's choice or because
+	// ctl owns the zoom, which shows the focused pane alone, by the user's choice or because
 	// the terminal or the modal is narrow; narrow is the terminal's part.
 	ctl    panes.Controller
 	narrow bool

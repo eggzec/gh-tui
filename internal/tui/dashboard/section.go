@@ -239,7 +239,8 @@ type Section struct {
 	// split is the width of the repositories column the root asked for, 0 for
 	// the default.
 	split int
-	// zoom shows the focused pane alone, as a narrow dashboard does.
+	// ctl owns the zoom, which shows the focused pane alone as a narrow
+	// dashboard does, and the preview focus of the panes.
 	ctl panes.Controller
 	// head is the profile above the panes, boxes are the sizes of the
 	// panes, and frames the panes rendered in their frames.

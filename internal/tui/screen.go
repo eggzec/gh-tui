@@ -577,7 +577,7 @@ func (m *Model) paneLayout(height int) panes.Layout {
 	defs := make([]panes.Def, len(m.panes))
 	for i, q := range m.panes {
 		_, splits := q.section.(ui.Splitter)
-		defs[i] = panes.Def{Name: q.label, Short: q.label, Split: i == m.focus && splits}
+		defs[i] = panes.Def{Name: q.label, Short: q.label, Split: i == m.focus && splits && !m.narrow()}
 	}
 	return panes.Compute(panes.Spec{
 		Width: m.width, Height: height, Panes: defs, Focus: panes.Pane(m.focus + 1),
@@ -774,7 +774,22 @@ func (m *Model) canGoBack() bool {
 	if b := m.ownerPages(); b != nil && m.screen == ownerScreen && b.CanGoBack() {
 		return true
 	}
-	return len(m.back) > 0 || m.screen == repoScreen && m.zoomed()
+	return len(m.back) > 0 || m.screen == repoScreen && m.zoomed() || m.dashZoomed()
+}
+
+// zoomUndoer is a section whose back key drops the user's zoom first.
+type zoomUndoer interface {
+	UndoZoom() bool
+	HasUserZoom() bool
+}
+
+// dashZoomed reports whether the dashboard is shown with a zoom to drop.
+func (m *Model) dashZoomed() bool {
+	if m.screen != dashScreen || m.dash == nil {
+		return false
+	}
+	z, ok := m.dash.section.(zoomUndoer)
+	return ok && z.HasUserZoom()
 }
 
 // ownerPages returns the owner section's pages to go back through, or nil.
@@ -798,6 +813,11 @@ func (m *Model) goBack() tea.Cmd {
 	if m.screen == repoScreen && m.ctl.UndoZoom() {
 		m.layout()
 		return nil
+	}
+	if m.screen == dashScreen && m.dash != nil {
+		if z, ok := m.dash.section.(zoomUndoer); ok && z.UndoZoom() {
+			return nil
+		}
 	}
 	if len(m.back) == 0 {
 		return nil

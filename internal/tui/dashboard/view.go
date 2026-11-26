@@ -72,6 +72,20 @@ func (s *Section) layout() {
 // when the panes don't fit, or while it is zoomed.
 func (s *Section) onePane() bool { return s.ctl.Zoom.Zoomed() }
 
+// UndoZoom drops the user's zoom and reports whether there was one, for the
+// root's back key.
+func (s *Section) UndoZoom() bool {
+	if !s.ctl.UndoZoom() {
+		return false
+	}
+	s.layout()
+	s.render()
+	return true
+}
+
+// HasUserZoom reports whether back has a zoom to drop.
+func (s *Section) HasUserZoom() bool { return s.zoomed() }
+
 // zoomed reports whether the zoom shows. A dashboard too small for every
 // pane shows one anyway, so there the back key keeps its other uses.
 func (s *Section) zoomed() bool { return s.ctl.Zoom.User() && s.ctl.Zoom.CanZoom() }

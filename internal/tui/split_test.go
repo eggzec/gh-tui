@@ -168,6 +168,27 @@ func TestSplitTabCyclesPanes(t *testing.T) {
 	if m.focus != 1 {
 		t.Errorf("narrow: 2 left focus = %d, want 1", m.focus)
 	}
+	// Wide but short is narrow too: no preview shows, so Tab has none to flip to.
+	m, _ = newSplitApp(t, 160, 24)
+	pane = m.focus
+	run(m, m.key(press("tab")))
+	if m.focus != pane || m.previewFocused() {
+		t.Errorf("wide and short: tab left focus = %d (was %d), preview focused = %v", m.focus, pane, m.previewFocused())
+	}
+}
+
+// Backspace drops the user's zoom before it goes back.
+func TestSplitBackDropsZoom(t *testing.T) {
+	t.Parallel()
+	m, _ := newSplitApp(t, 120, 40)
+	run(m, m.key(press("z")))
+	if !m.zoomed() {
+		t.Fatal("z didn't zoom")
+	}
+	run(m, m.key(press("backspace")))
+	if m.zoomed() {
+		t.Error("backspace left the zoom on")
+	}
 }
 
 // A digit zoomed beside a preview focuses its pane's list, and Tab does nothing

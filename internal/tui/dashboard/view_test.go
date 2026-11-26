@@ -133,6 +133,24 @@ func TestZoomedDigitsUnbound(t *testing.T) {
 	}
 }
 
+// TestUndoZoom checks that the root's back key drops the user's zoom, and only
+// that.
+func TestUndoZoom(t *testing.T) {
+	s := newSection(t, newFake(), nil, 140, 38)
+	s.Focus()
+	run(t, s, s.Init())
+	if s.UndoZoom() || s.HasUserZoom() {
+		t.Fatal("UndoZoom reported a zoom that was never made")
+	}
+	press(t, s, "z")
+	if !s.HasUserZoom() {
+		t.Fatal("z didn't zoom")
+	}
+	if !s.UndoZoom() || s.HasUserZoom() {
+		t.Error("UndoZoom left the zoom on")
+	}
+}
+
 func TestLayout(t *testing.T) {
 	tests := []struct {
 		name          string

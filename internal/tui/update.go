@@ -419,8 +419,9 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 	case m.fileFinder() != nil && keymap.Matches(msg, m.keys.FindFile):
 		return m.findFile()
 	case m.canZoom() && keymap.Matches(msg, m.keys.Zoom):
-		m.ctl.Toggle()
-		m.layout()
+		if m.ctl.Toggle() {
+			m.layout()
+		}
 		return nil
 	case m.canDivide() && keymap.Matches(msg, m.keys.DividerLeft):
 		m.moveDivider(-1)
