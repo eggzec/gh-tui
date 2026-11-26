@@ -2,13 +2,12 @@ package main
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/cli/go-gh/v2/pkg/repository"
 
 	"github.com/eggzec/gh-tui/internal/core"
+	"github.com/eggzec/gh-tui/internal/target"
 )
 
 // start is where the app starts. Host is the GitHub host of the session,
@@ -57,12 +56,7 @@ func startRepos(hostname string, current func() (repository.Repository, bool), d
 // normalizeHostname reads a host as gh does: without a scheme or a
 // trailing slash, in lowercase, and with the hosts of github.com's
 // subdomains taken for github.com.
-func normalizeHostname(h string) string {
-	if _, rest, ok := strings.Cut(h, "://"); ok {
-		h = rest
-	}
-	return auth.NormalizeHostname(strings.TrimRight(strings.TrimSpace(h), "/"))
-}
+func normalizeHostname(h string) string { return target.NormalizeHost(h) }
 
 // checkHostname returns why hostname, the value of --hostname, names no
 // host, or nil if it does: a host with its port, if it has one, and a
@@ -70,10 +64,7 @@ func normalizeHostname(h string) string {
 // such as an Enterprise Server's /api/v3, nor a user or a query, which
 // would otherwise fail later as a host gh has no token for.
 func checkHostname(hostname string) error {
-	host := normalizeHostname(hostname)
-	u, err := url.Parse("//" + host)
-	if host == "" || err != nil || u.Host != host || u.Path != "" || u.RawQuery != "" || u.Fragment != "" ||
-		strings.ContainsAny(host, "@/ ") {
+	if !target.ValidHost(hostname) {
 		return fmt.Errorf("--hostname %q names no host; give the host alone, such as github.com or ghe.example.com", hostname)
 	}
 	return nil

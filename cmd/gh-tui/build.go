@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -60,13 +61,14 @@ import (
 // build wires the client, the services, the sync engine and the sections
 // into the app. The app talks to the host startRepos picks from hostname,
 // the value of --hostname, if set, with the config file resolves for that
-// host and the account of its token, at logLevel, the level the log was
+// host and the account of its token, which is user's, the value of --user,
+// if set, at logLevel, the level the log was
 // opened at, and shows logWarning and configWarning, if any, once it
 // starts. The token may still be on its way when build returns, as when
 // gh reads it from the system keyring, which takes tens of milliseconds the
 // app can start in; found then says whether it came, and is closed or sends
 // nil once it did. The account is known before, from gh's hosts file.
-func build(ctx context.Context, file *config.File, logLevel, hostname, logWarning, configWarning string) (app *tui.Model, found <-chan error, err error) {
+func build(ctx context.Context, file *config.File, logLevel, hostname, user, logWarning, configWarning string) (app *tui.Model, found <-chan error, err error) {
 	st := startRepos(hostname, currentRepo, defaultHost)
 	logHost(st.Host)
 	here := st.Here
@@ -74,7 +76,34 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// too. The access service learns what the token may do from the
 	// client's answers, and reads the token again from where it was found
 	// after a refresh.
-	token, later := quickToken(st.Host)
+	var (
+		token  accesssvc.Token
+		later  bool
+		lookup = findToken
+	)
+	if user == "" {
+		token, later = quickToken(st.Host)
+	} else {
+		// A chosen account's token is read without making it gh's active
+		// one, and is read the same way after a refresh.
+		accounts := github.NewAccounts()
+		value, err := accounts.ResolveAccount(ctx, st.Host, user)
+		if err != nil {
+			return nil, nil, err
+		}
+		// gh refreshes only its active account, and none while an
+		// environment token is set.
+		_, source, active := github.QuickToken(st.Host)
+		inactive := !strings.EqualFold(active, user) || (source != "oauth_token" && source != "gh")
+		token = userToken(value, user, inactive)
+		lookup = func(host string) accesssvc.Token {
+			v, err := accounts.Token(context.Background(), host, user)
+			if err != nil {
+				return accesssvc.Token{}
+			}
+			return userToken(v, user, inactive)
+		}
+	}
 	// The login of a token from the environment is kept in the disk cache
 	// of the host, as the host's settings place it.
 	hostCfg, _, err := file.Resolve(st.Host, "")
@@ -99,7 +128,7 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 	// and every page and modal shares the slots of those in flight.
 	obs.SetPrefetchBudget(cfg.Prefetch.Budget)
 	slots := ui.NewSlots(cfg.Prefetch.Parallel)
-	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(findToken), accesssvc.WithChecks(cfg.Auth.Check))
+	access := accesssvc.New(st.Host, token, accesssvc.WithLookup(lookup), accesssvc.WithChecks(cfg.Auth.Check))
 	// The app tells once of an Enterprise Server older than supported.
 	oldEnterprise := make(chan string, 1)
 	tokenOpt := github.WithTokenSource(token.Value, token.Source)
@@ -531,6 +560,12 @@ func authorize(host string, client *github.Client, access *accesssvc.Service, lo
 func findToken(host string) accesssvc.Token {
 	token, source, login := github.FindToken(host)
 	return accesssvc.Token{Value: token, Source: source, Login: login}
+}
+
+// userToken names the token gh gave for user, which gh stores for that
+// login.
+func userToken(value, user string, inactive bool) accesssvc.Token {
+	return accesssvc.Token{Value: value, Source: "gh", Login: user, Inactive: inactive}
 }
 
 // syncEvents turns the engine's events into the app's sync messages.

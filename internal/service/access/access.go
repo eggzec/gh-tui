@@ -32,6 +32,10 @@ type Token struct {
 	// Login is the account gh stores the token for, or "" for a token
 	// from elsewhere, which may be anyone's.
 	Login string
+	// Inactive says that the account is not the one gh refreshes, which is
+	// its active one: gh-tui was told to sign in as another login, or an
+	// environment token is set. gh then can't refresh this token.
+	Inactive bool
 }
 
 // Lookup finds the token of host again, such as after gh refreshed it.

@@ -75,6 +75,8 @@ internal/service/search/search.go:maxPageSize  keep: an API limit
 internal/service/access/access.go:quiet  keep: a mechanism, how long startup waits for an answer before asking about the token
 
 # The GitHub client.
+internal/github/account.go:ghTimeout  keep: a mechanism, how long one gh auth token run may take before the account is refused
+internal/github/account.go:verifyTimeout  keep: a mechanism, how long the one check of a token may take before the account is refused
 internal/github/actions_logs.go:DefaultLogLimit  keep: a safety bound on how much of a job log is read
 internal/github/actions_logs.go:logURLTTL  keep: an API limit, GitHub's log links expire after a minute
 internal/github/budget.go:maxGuard  keep: a mechanism of the rate-limit budget

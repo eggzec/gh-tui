@@ -41,6 +41,9 @@ func (s *Service) Refresh(needs ...core.Need) Plan {
 		known:  a.Known || a.Kind != core.TokenClassic,
 		pat:    strings.HasPrefix(tok.Value, "ghp_"),
 		sso:    len(a.SSO) > 0,
+
+		login:    tok.Login,
+		inactive: tok.Inactive,
 	}
 	for _, n := range needs {
 		if m := a.Missing(n); m != "" {
@@ -70,6 +73,10 @@ type situation struct {
 	pat bool
 	// gh is where gh is, or "" if it isn't installed.
 	gh string
+	// login is the account the token is of, and inactive says that gh
+	// would not refresh that account's token.
+	login    string
+	inactive bool
 	// missing are the scopes to grant, and refused says that no token of
 	// this kind may do something.
 	missing []string
@@ -113,6 +120,13 @@ func plan(st situation) Plan {
 		}
 		p.Why = "Give the token " + scopes + " on GitHub, then check again."
 		return p
+	case st.inactive:
+		// gh-tui never runs gh auth switch, which would change the account
+		// that gh and every other program uses.
+		return Plan{
+			Why:    "gh refreshes only its active account: run gh auth switch --hostname " + st.host + " --user " + st.login + ", then gh auth refresh, and switch back.",
+			Scopes: st.missing,
+		}
 	case st.gh == "":
 		if len(st.missing) == 0 {
 			return Plan{Why: "Install GitHub CLI and run gh auth refresh to authorize the organizations' SSO."}

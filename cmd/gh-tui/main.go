@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	gh-tui [--debug] [--hostname HOST] [--version]
+//	gh-tui [--debug] [--hostname HOST] [--user USER] [--version]
 //
 // It opens on the dashboard, which shows the repository of the current
 // directory first; :goto opens another repository, pull request or issue.
@@ -23,10 +23,18 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/target"
 )
 
 func main() {
-	if err := run(); err != nil {
+	again, err := run()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gh-tui:", err)
+		os.Exit(1)
+	}
+	// run has unwound by now: the log is closed and the images are cleared.
+	if again != nil {
+		err := restart(*again)
 		fmt.Fprintln(os.Stderr, "gh-tui:", err)
 		os.Exit(1)
 	}
@@ -36,7 +44,7 @@ func main() {
 // and gh spell them, with two dashes.
 func usage() {
 	out := flag.CommandLine.Output()
-	fmt.Fprintln(out, "usage: gh-tui [--debug] [--hostname HOST] [--version]")
+	fmt.Fprintln(out, "usage: gh-tui [--debug] [--hostname HOST] [--user USER] [--version]")
 	flag.VisitAll(func(f *flag.Flag) {
 		arg, text := flag.UnquoteUsage(f)
 		if arg != "" {
@@ -46,33 +54,43 @@ func usage() {
 	})
 }
 
-func run() error {
+// run runs the program until it quits. It returns the identity to start
+// again as when the app quit to switch to it, else nil.
+func run() (again *target.Target, err error) {
 	debugLog := flag.Bool("debug", false, "log at debug level for this run, as GH_DEBUG does")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	hostname := flag.String("hostname", "", "use the GitHub host `HOST`, in place of the current repository's or gh's default")
+	user := flag.String("user", "", "sign in as the GitHub login `USER`, in place of the account gh uses on the host")
 	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() > 0 {
 		flag.Usage()
-		return fmt.Errorf("unexpected argument %q: gh-tui takes no arguments; use :goto owner/name inside the app", flag.Arg(0))
+		return nil, fmt.Errorf("unexpected argument %q: gh-tui takes no arguments; use :goto owner/name inside the app", flag.Arg(0))
 	}
 	if *hostname != "" {
 		if err := checkHostname(*hostname); err != nil {
-			return err
+			return nil, err
 		}
+	}
+	if *user != "" {
+		t, err := target.Parse("user "+*user, "", "github.com")
+		if err != nil {
+			return nil, fmt.Errorf("--user %q is not a GitHub login", *user)
+		}
+		*user = t.User
 	}
 	if *showVersion {
 		fmt.Println("gh-tui", version())
-		return nil
+		return nil, nil
 	}
 
 	path, err := config.Path()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	file, err := config.Load(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// The log opens before the host is known, on the settings of the top
 	// level of the file, which are the same for every host and account.
@@ -95,10 +113,10 @@ func run() error {
 	// The last summary covers the whole session.
 	defer obs.Default().Log(context.Background())
 
-	app, found, err := build(ctx, file, cfg.Log.Level, *hostname, warning, config.RenamedWarning(renamed))
+	app, found, err := build(ctx, file, cfg.Log.Level, *hostname, *user, warning, config.RenamedWarning(renamed))
 	if err != nil {
 		slog.Error("start failed", "err", err.Error())
-		return err
+		return nil, err
 	}
 	// The app deletes the images it sent before the program quits.
 	p := tea.NewProgram(app, tea.WithFilter(app.Filter))
@@ -120,13 +138,17 @@ func run() error {
 	select {
 	case err := <-failed:
 		slog.Error("start failed", "err", err.Error())
-		return err
+		return nil, err
 	default:
 	}
 	if err != nil {
 		slog.Error("exit", "err", err.Error())
-	} else {
-		slog.Info("exit")
+		return nil, err
 	}
-	return err
+	if t, ok := app.Restart(); ok {
+		slog.Info("exit to restart", "to", t.String())
+		return &t, nil
+	}
+	slog.Info("exit")
+	return nil, nil
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
+	"github.com/eggzec/gh-tui/internal/target"
 	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/search"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
@@ -238,6 +239,9 @@ type Model struct {
 	waking bool
 	// login is the account's, for the status bar.
 	login string
+	// restart is the identity the app quit to start again as, once a
+	// RestartMsg came.
+	restart *target.Target
 	// voice words what went wrong in the app's toasts and the modals it
 	// opens.
 	voice ui.Voice

@@ -512,12 +512,15 @@ reacts to messages. Concretely:
   `set`, `raw`, `images`, `q`, `auth`, `references`, `n` or `p`. An action outside the
   focused chain is refused with the places it works in, and the line
   completes the focused chain's actions before the rest.
-- The only command-line flags are `--debug`, `--hostname` and
+- The only command-line flags are `--debug`, `--hostname`, `--user` and
   `--version`; gh-tui takes no arguments, and `:goto` opens a repository,
   pull request or issue, or the page of a user or organization
   (`:goto @login`). The host is `--hostname`, else the current repository's
   (`GH_REPO` or the git remotes), else `GH_HOST` or gh's default host, as
-  gh picks it, and one session talks to one host.
+  gh picks it, and one session talks to one host. `--user` picks the login
+  on that host, read from gh's stored tokens without changing gh's active
+  account; the app switches account by quitting and starting itself again
+  with both flags.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.
 - Themes are named palettes that each have a light and a dark variant. They
   are resolved once after `tea.BackgroundColorMsg` and applied through
