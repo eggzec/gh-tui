@@ -14,7 +14,7 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/obs"
-	"github.com/eggzec/gh-tui/internal/tui/owner"
+	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/toast"
 	"github.com/eggzec/gh-tui/pkg/termtext"
@@ -377,10 +377,12 @@ func (m *Model) gotOwner(msg gotoOwnerMsg) tea.Cmd {
 }
 
 // showDash shows the dashboard, the viewer's page, closing the page of a
-// user or organization that is open first so that the change shows.
+// content modal that is open first, such as the page of a user or the pull
+// request that asked for it, so that the change shows.
 func (m *Model) showDash() tea.Cmd {
 	show := m.showScreen(dashScreen, m.focus)
-	if top, ok := m.modals.Top().(*owner.Modal); ok {
+	top := m.modals.Top()
+	if prio, _ := m.priorityOf(top); top != nil && prio == modals.PriorityContent {
 		return tea.Sequence(ui.CloseModal(top), show)
 	}
 	return show

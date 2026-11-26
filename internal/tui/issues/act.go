@@ -39,11 +39,11 @@ func (m *detailModal) Act(action string) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// author closes the modal and shows the page of the author of the issue,
-// which shows in place of the screen behind it.
+// author shows the page of the author of the issue over the modal, which
+// stays in the trail so that back returns to it.
 func (m *detailModal) author() tea.Cmd {
 	if ui.Author(m.issue.Author) == "" {
 		return nil
 	}
-	return tea.Sequence(m.close(), ui.ShowOwner(m.issue.Author.Login))
+	return ui.ShowOwner(m.issue.Author.Login)
 }

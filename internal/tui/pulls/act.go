@@ -84,11 +84,11 @@ func (m *panesModal) Act(action string) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// author closes the modal and shows the page of the author of the pull
-// request, which shows in place of the screen behind it.
+// author shows the page of the author of the pull request over the modal,
+// which stays in the trail so that back returns to it.
 func (m *panesModal) author() tea.Cmd {
 	if ui.Author(m.detail.Author) == "" {
 		return nil
 	}
-	return tea.Sequence(m.close(), ui.ShowOwner(m.detail.Author.Login))
+	return ui.ShowOwner(m.detail.Author.Login)
 }
