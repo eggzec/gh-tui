@@ -29,6 +29,37 @@ type Preview struct {
 	Nothing string
 }
 
+// Peek draws a conversation narrowed to a person: the text, and ok false when
+// the conversation has nothing of them to draw.
+type Peek func(key string, narrow conv.Narrow, width int) (string, bool)
+
+// Draw draws pv width cells wide: its Body, or its Head over the conversation
+// narrowed to the person, which peek draws once ready says it is read. dim
+// styles the words that stand in for a conversation that is not there. final
+// is false while the conversation isn't read, so that the text is drawn again
+// once it is.
+func Draw(pv Preview, ready bool, peek Peek, dim func(string) string, width int) (body string, final bool) {
+	if len(pv.Head) == 0 {
+		return pv.Body, true
+	}
+	lines := slices.Clone(pv.Head)
+	switch {
+	case pv.Key == "":
+		lines = append(lines, pv.Nothing)
+	case !ready:
+		return strings.Join(append(lines, dim("loading")), "\n"), false
+	default:
+		if view, ok := peek(pv.Key, pv.Narrow, width); ok {
+			lines = append(lines, view)
+		} else if conv.TooNarrow(width) {
+			lines = append(lines, dim("too narrow"))
+		} else {
+			lines = append(lines, pv.Nothing)
+		}
+	}
+	return strings.Join(lines, "\n"), true
+}
+
 // PreviewOf returns the preview of the row with the ID id, as [Rows] names it,
 // with the width and styles of o. ok is false for an ID that no row of d has.
 // It does no I/O and reads only d.
