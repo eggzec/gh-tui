@@ -11,6 +11,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/graph"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // Update handles the modal's keys and its reads, and passes everything else
@@ -126,22 +127,20 @@ func (m *Modal) press(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	switch {
 	case keymap.Matches(msg, m.keys.Next):
-		m.setFocus((m.focus + 1) % numPanes)
-		return m.focused()
+		return m.tab(1)
 	case keymap.Matches(msg, m.keys.Prev):
-		m.setFocus((m.focus + numPanes - 1) % numPanes)
-		return m.focused()
+		return m.tab(-1)
 	case m.keys.focusOf(msg) >= 0:
-		m.setFocus(m.keys.focusOf(msg))
-		return m.focused()
+		return m.digit(m.keys.focusOf(msg))
 	case keymap.Matches(msg, m.keys.ResetBase):
 		if m.base.Ref == "" {
 			return nil
 		}
 		return m.useBase(ui.BaseMsg{Repo: m.repo})
-	case m.zoom.CanZoom() && keymap.Matches(msg, m.keys.Zoom):
-		m.zoom.Toggle()
-		m.layout()
+	case keymap.Matches(msg, m.keys.Zoom):
+		if m.ctl.Toggle() {
+			m.layout()
+		}
 		return nil
 	case keymap.Matches(msg, m.keys.Dismiss):
 		return m.dismiss()
@@ -166,6 +165,39 @@ func (m *Modal) updatePager(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	m.commit.pager, cmd = m.commit.pager.Update(msg)
 	return cmd
+}
+
+// paneLayout is the panes as the controller steps through them. None has a
+// preview, so zoomed, tab has nothing to flip.
+func (m *Modal) paneLayout() panes.Layout {
+	defs := make([]panes.Def, numPanes)
+	for i, t := range paneTitles {
+		defs[i] = panes.Def{Name: t, Short: t}
+	}
+	return panes.Compute(panes.Spec{
+		Width: m.width, Height: m.height, Panes: defs,
+		Focus: panes.Pane(m.focus) + 1, Zoom: m.ctl.Zoom.Zoomed(),
+	})
+}
+
+// tab moves to the next or previous pane, unzoomed only.
+func (m *Modal) tab(delta int) tea.Cmd {
+	m.ctl.Nav.SetFocus(panes.Pane(m.focus) + 1)
+	p, ok := m.ctl.Tab(m.paneLayout(), delta)
+	if !ok {
+		return nil
+	}
+	m.setFocus(pane(p - 1))
+	return m.focused()
+}
+
+// digit focuses pane n, zoomed or not.
+func (m *Modal) digit(n pane) tea.Cmd {
+	if !m.ctl.Digit(m.paneLayout(), panes.Pane(n)+1) {
+		return nil
+	}
+	m.setFocus(n)
+	return m.focused()
 }
 
 // setFocus focuses pane p, and blurs the others.
@@ -202,9 +234,13 @@ func (m *Modal) focused() tea.Cmd {
 }
 
 // back steps back from the patch to the files, from the files to the graph
-// and from the graph to the branches. It does nothing on the branches, and
-// never undoes the zoom: only the zoom key does.
+// and from the graph to the branches. It does nothing on the branches. A zoom
+// the user asked for goes first.
 func (m *Modal) back() tea.Cmd {
+	if m.ctl.UndoZoom() {
+		m.layout()
+		return nil
+	}
 	switch {
 	case m.focus == commitPane && m.commit.patch:
 		m.closePatch()

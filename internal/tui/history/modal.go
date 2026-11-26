@@ -81,7 +81,7 @@ type Modal struct {
 	seq int
 	// zoom shows the focused pane alone, by the user's choice or because
 	// the terminal or the modal is narrow; narrow is the terminal's part.
-	zoom   panes.Zoom
+	ctl    panes.Controller
 	narrow bool
 
 	spin ui.Spinner
@@ -192,7 +192,9 @@ func (m *Modal) Title() string {
 // SetSize sizes the panes to the room inside the frame.
 func (m *Modal) SetSize(width, height int) {
 	m.width, m.height = max(width, 0), max(height, 0)
-	m.zoom.SetNarrow(m.narrow || m.width < narrowWidth)
+	m.ctl.SetNarrow(m.narrow || m.width < narrowWidth)
+	// No pane has a preview, so a resize never has one to keep.
+	m.ctl.Settle(m.paneLayout())
 	m.layout()
 }
 
@@ -267,8 +269,8 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
-	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.zoom.CanZoom())
-	if m.zoom.User() {
+	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
+	if m.ctl.Zoom.User() {
 		k.Zoom = named(k.Zoom, "unzoom")
 	}
 	switch {

@@ -23,7 +23,7 @@ func (m *Modal) View() string {
 		return ""
 	}
 	h := m.bodyHeight()
-	if m.zoom.Zoomed() {
+	if m.ctl.Zoom.Zoomed() {
 		lines := make([]string, 0, m.height)
 		lines = append(lines, m.paneTitle(m.focus, m.width))
 		return strings.Join(append(lines, m.paneLines(m.focus, m.width, h)...), "\n")
@@ -57,7 +57,7 @@ func (m *Modal) bodyHeight() int {
 // widths returns the widths of the branch, graph and commit panes. On a
 // narrow terminal, or zoomed, each takes the whole width, one at a time.
 func (m *Modal) widths() (branches, graph, commit int) {
-	if m.zoom.Zoomed() {
+	if m.ctl.Zoom.Zoomed() {
 		return m.width, m.width, m.width
 	}
 	branches = min(max(m.width/5, 16), 26)
@@ -145,7 +145,7 @@ func (m *Modal) commitGeom() commitGeom {
 	// With a patch below them, the header and the files take half the
 	// pane at most; without, the header leaves the files a third.
 	most := max(3, h/2)
-	if !m.zoom.CanZoom() {
+	if !m.ctl.Zoom.CanZoom() {
 		most = max(3, h-min(len(c.files)+1, max(3, h/3)))
 	}
 	g := commitGeom{header: min(header, most, h)}
@@ -154,7 +154,7 @@ func (m *Modal) commitGeom() commitGeom {
 	}
 	rest := h - g.header
 	rows := len(c.files) + 1
-	if !m.zoom.CanZoom() || !c.loaded || len(c.files) == 0 || rest < 12 {
+	if !m.ctl.Zoom.CanZoom() || !c.loaded || len(c.files) == 0 || rest < 12 {
 		g.files = rest
 		return g
 	}
