@@ -357,12 +357,6 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 			notifications.WithIcons(icons), notifications.WithDates(dates)),
 		Search:    searchpage.New(ctx, searchSvc, cfg.Keys, searchOpts...),
 		Dashboard: dashboard.New(ctx, dashSvc, cfg.Keys, dashOpts...),
-		Owner: owner.New(ctx, ownerSvc, cfg.Keys,
-			owner.WithVoice(voice), owner.WithIcons(icons), owner.WithDates(dates), owner.WithAvatars(pics),
-			owner.WithHost(webHost), owner.WithAutolinks(links), owner.WithDefaultTab(cfg.Owner.DefaultTab),
-			owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(cfg.Prefetch), owner.WithSlots(slots),
-			// goto opens the dashboard for this login, not its page.
-			owner.WithViewer(login.login)),
 	}
 
 	dl := newDownloads(cfg.Actions.DownloadDir, os.Getenv("GH_TUI_FAKE_RELEASES") == "1")
@@ -407,6 +401,18 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 				releases.WithAutolinks(links), releases.WithDownloader(releaseDownloads{dl}), releases.WithAvatars(pics),
 			}
 			return releases.Opener(releaseSvc, cfg.Keys, o...)(ctx, repo, id, url)
+		}),
+		// Each page of an owner is a modal of its own, with a section made
+		// for it.
+		tui.WithOwnerModal(func(ctx context.Context, name string) (ui.Modal, tea.Cmd) {
+			s := owner.New(ctx, ownerSvc, cfg.Keys,
+				owner.WithVoice(voice), owner.WithIcons(ui.NewIcons(live.cfg.UI.Icons)), owner.WithDates(ui.NewDates(live.cfg.UI.DateFormat)), owner.WithAvatars(pics),
+				owner.WithHost(webHost), owner.WithAutolinks(links), owner.WithDefaultTab(live.cfg.Owner.DefaultTab),
+				owner.WithLanding(landing{repos: repoSvc, files: fileSvc}), owner.WithPrefetch(live.cfg.Prefetch), owner.WithSlots(slots),
+				// goto opens the dashboard for this login, not its page.
+				owner.WithViewer(login.login))
+			mod := owner.NewModal(s, name)
+			return mod, mod.Init()
 		}),
 		tui.WithRateStatus(client),
 		// The status bar names the account the token is for, once gh or an

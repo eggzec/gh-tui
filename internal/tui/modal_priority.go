@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/tui/issues"
 	"github.com/eggzec/gh-tui/internal/tui/modals"
 	"github.com/eggzec/gh-tui/internal/tui/notifications"
+	"github.com/eggzec/gh-tui/internal/tui/owner"
 	"github.com/eggzec/gh-tui/internal/tui/pulls"
 	"github.com/eggzec/gh-tui/internal/tui/releases"
 	"github.com/eggzec/gh-tui/internal/tui/search"
@@ -34,6 +35,7 @@ var modalPriorities = map[reflect.Type]modals.Priority{
 	reflect.TypeFor[*pulls.Panes]():    modals.PriorityContent,
 	reflect.TypeFor[*issues.Detail]():  modals.PriorityContent,
 	reflect.TypeFor[*releases.Modal](): modals.PriorityContent,
+	reflect.TypeFor[*owner.Modal]():    modals.PriorityContent,
 	reflect.TypeFor[*history.Modal]():  modals.PriorityContent,
 	reflect.TypeFor[*actions.Modal]():  modals.PriorityContent,
 

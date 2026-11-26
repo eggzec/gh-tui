@@ -52,12 +52,6 @@ type Layout struct {
 	// Search fills the search modal, which the search key shows from any
 	// screen. It draws its own frames too.
 	Search ui.Section
-	// Owner fills the page of a user or an organization, which goto
-	// shows, given a ui.OwnerMsg for the account first. It draws its own
-	// frames, and handles the keys that move between its panes. If it is
-	// an OwnerPage, the header names the account on view, and if it is a
-	// PageBacker, the back key goes back through the pages it showed.
-	Owner ui.Section
 }
 
 // Model is the root model of the program.
@@ -100,7 +94,6 @@ type Model struct {
 	splitOf *pane
 	dash    *pane
 	srch    *pane
-	own     *pane
 	// all holds the panes of every screen.
 	all []*pane
 	// screen is the screen on view, and focus the focused pane of the
@@ -202,10 +195,9 @@ type Model struct {
 	// hereHost is the host of that repository when it is not the session's.
 	hereHost string
 	// owners checks that a user or organization exists before goto
-	// opens its page, and ownerLogin is the login of the page on view,
-	// for the header.
-	owners     Owners
-	ownerLogin string
+	// opens its page, and owner opens the page in a modal.
+	owners Owners
+	owner  OwnerModal
 	// recall is what the command line completes from, with recent, the
 	// repositories selected in this session, the latest first.
 	recall Recall
@@ -353,6 +345,17 @@ func WithRelease(open Release) Option {
 	return func(m *Model) { m.release = open }
 }
 
+// OwnerModal returns the modal of the page of the user or organization login,
+// and the command that reads it once it is open.
+type OwnerModal func(ctx context.Context, login string) (ui.Modal, tea.Cmd)
+
+// WithOwnerModal sets the function that opens the page of a user or an
+// organization, which goto and a ui.OwnerMsg ask for. Without it they show a
+// warning.
+func WithOwnerModal(open OwnerModal) Option {
+	return func(m *Model) { m.owner = open }
+}
+
 // Downloader saves a file from a URL, in the background and beyond the life
 // of the app.
 type Downloader interface {
@@ -462,10 +465,6 @@ func New(ctx context.Context, cfg config.Config, layout Layout, opts ...Option) 
 		m.srch = &pane{section: layout.Search, bare: true}
 		m.all = append(m.all, m.srch)
 	}
-	if layout.Owner != nil {
-		m.own = &pane{section: layout.Owner, bare: true}
-		m.all = append(m.all, m.own)
-	}
 	for _, opt := range opts {
 		opt(m)
 	}
@@ -536,8 +535,6 @@ func (m *Model) startScreen() tea.Cmd {
 	switch m.screen {
 	case dashScreen:
 		return m.dash.start()
-	case ownerScreen:
-		return m.own.start()
 	case repoScreen:
 	}
 	cmds := make([]tea.Cmd, 0, len(m.panes))
@@ -611,12 +608,10 @@ func (m *Model) applyTheme(dark bool) {
 	m.drawHeader()
 }
 
-// updateBadges takes the badge of the notifications and the login of the
-// owner page, for the header, and the chips of the panes, for their
-// titles.
+// updateBadges takes the badge of the notifications, for the header, and the
+// chips of the panes, for their titles.
 func (m *Model) updateBadges() {
 	m.updateChips()
-	m.updateOwner()
 	if m.notif == nil {
 		return
 	}
@@ -626,39 +621,6 @@ func (m *Model) updateBadges() {
 	}
 	if badge := b.Badge(); badge != m.badge {
 		m.badge = badge
-		m.drawHeader()
-	}
-}
-
-// OwnerPage is the section of the page of a user or an organization,
-// which names the account it shows.
-type OwnerPage interface {
-	// Login returns the login of the account on view, or "" before one
-	// is.
-	Login() string
-}
-
-// PageBacker is the section of the pages of owners, when it keeps the
-// pages it showed, to go back through.
-type PageBacker interface {
-	// CanGoBack reports whether there is a page to go back to.
-	CanGoBack() bool
-	// GoBack shows the page the one on view was opened from.
-	GoBack() tea.Cmd
-}
-
-// updateOwner takes the login of the page of an owner, which changes as
-// it goes back through the pages it showed, for the header.
-func (m *Model) updateOwner() {
-	if m.own == nil {
-		return
-	}
-	o, ok := m.own.section.(OwnerPage)
-	if !ok {
-		return
-	}
-	if login := o.Login(); login != m.ownerLogin {
-		m.ownerLogin = login
 		m.drawHeader()
 	}
 }
