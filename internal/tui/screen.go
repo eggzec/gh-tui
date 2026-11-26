@@ -273,8 +273,7 @@ func (m *Model) drawHeader() {
 		}
 	}
 	left := m.st.repo.Render(name)
-	switch {
-	case name == m.repo.String():
+	if name == m.repo.String() {
 		// The repository links to its page, after its owner's avatar,
 		// which stands for its icon, as on GitHub; the avatar stays out
 		// of the link's style.
@@ -791,10 +790,9 @@ func (m *Model) goBack() tea.Cmd {
 	p := m.back[len(m.back)-1]
 	m.back = m.back[:len(m.back)-1]
 	var cmds []tea.Cmd
-	switch {
 	// A repository gone back to opens as selecting it does, on its default
 	// branch, whatever base or branch it was left on.
-	case p.screen == repoScreen && p.repo != (core.RepoRef{}) && !p.repo.Same(m.repo):
+	if p.screen == repoScreen && p.repo != (core.RepoRef{}) && !p.repo.Same(m.repo) {
 		cmds = append(cmds, m.openRepo(ui.RepoMsg{Repo: p.repo}, p.focus))
 	}
 	return tea.Batch(append(cmds, m.reveal(p.screen, p.focus))...)

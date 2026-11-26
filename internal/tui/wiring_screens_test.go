@@ -104,7 +104,8 @@ func (b brokenOwners) Readme(ctx context.Context, q ownersvc.ReadmeQuery) (owner
 func ownerOpener(ctx context.Context, svc owner.Service, keys config.Keymap, opts ...owner.Option) Option {
 	return WithOwnerModal(func(_ context.Context, login string) (ui.Modal, tea.Cmd) {
 		m := owner.NewModal(owner.New(ctx, svc, keys, opts...), login)
-		return m, m.Init()
+		load := m.Init()
+		return m, load
 	})
 }
 

@@ -13,8 +13,8 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/owner"
-	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 )
 
 // fakeOwners knows the users and organizations in cached, in memory, and
@@ -73,7 +73,8 @@ type fakeOwnerPage struct {
 // opener is the option that opens owner modals that the page records.
 func (p *fakeOwnerPage) opener() Option {
 	return WithOwnerModal(func(_ context.Context, login string) (ui.Modal, tea.Cmd) {
-		mod := &fakeOwnerModal{fakeModal: fakeModal{title: login}, login: login, page: p}
+		mod := &fakeOwnerModal{login: login, page: p}
+		mod.title = login
 		p.mods = append(p.mods, mod)
 		return mod, nil
 	})
@@ -81,7 +82,7 @@ func (p *fakeOwnerPage) opener() Option {
 
 // opened returns the logins of the modals opened.
 func (p *fakeOwnerPage) opened() []string {
-	var logins []string
+	logins := make([]string, 0, len(p.mods))
 	for _, mod := range p.mods {
 		logins = append(logins, mod.login)
 	}

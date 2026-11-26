@@ -412,7 +412,8 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, logWarnin
 				// goto opens the dashboard for this login, not its page.
 				owner.WithViewer(login.login))
 			mod := owner.NewModal(s, name)
-			return mod, mod.Init()
+			load := mod.Init()
+			return mod, load
 		}),
 		tui.WithRateStatus(client),
 		// The status bar names the account the token is for, once gh or an

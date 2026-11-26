@@ -339,8 +339,7 @@ func (m *Model) selectedOwner() string {
 	if !ok && m.screen == repoScreen {
 		owner = m.repo.Owner
 	}
-	switch {
-	case m.screen == dashScreen && m.isViewer(owner):
+	if m.screen == dashScreen && m.isViewer(owner) {
 		return ""
 	}
 	return owner
