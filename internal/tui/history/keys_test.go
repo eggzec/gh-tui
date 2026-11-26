@@ -11,6 +11,29 @@ func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, newKeyMap(testKeys()))
 }
 
+// Help lists only the keys that work: the digit of the focused pane does
+// nothing, and zoomed, where no pane has a preview, tab has nothing to flip.
+func TestHelpListsOnlyWorkingPaneKeys(t *testing.T) {
+	m, h := newModal(t, newFake(), 108, 30)
+	listed := func(k string) bool {
+		_, _, ok := uitest.Winner(m.KeyLayers(), k)
+		return ok
+	}
+	if !listed("tab") || !listed("shift+tab") || !listed("1") || listed("2") {
+		t.Errorf("unzoomed on the graph: tab %v, shift+tab %v, 1 %v, 2 %v; want true, true, true, false",
+			listed("tab"), listed("shift+tab"), listed("1"), listed("2"))
+	}
+	h.keys("z")
+	if listed("tab") || listed("shift+tab") || !listed("1") || listed("2") {
+		t.Errorf("zoomed: tab %v, shift+tab %v, 1 %v, 2 %v; want false, false, true, false",
+			listed("tab"), listed("shift+tab"), listed("1"), listed("2"))
+	}
+	m, _ = newModal(t, newFake(), 80, 30)
+	if listed("tab") || listed("z") {
+		t.Errorf("narrow: tab %v, z %v; want neither", listed("tab"), listed("z"))
+	}
+}
+
 // The layers take a key in the order the modal does: its own keys before
 // the focused pane's, the pager's back in a patch, and a search of the
 // patch alone while it is open.

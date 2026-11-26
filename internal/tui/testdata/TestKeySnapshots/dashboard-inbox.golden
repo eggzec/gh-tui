@@ -22,7 +22,7 @@ global
   dashboard | 0 | 0 | off
   next pane | tab | tab | on
   previous pane | shift+tab | shift+tab | on
-  focus pane | 1 2 3 4 5 | 1-5 | on
+  focus pane | 1 2 3 4 | 1-4 | on
 
 Dashboard
 

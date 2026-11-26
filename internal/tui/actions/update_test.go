@@ -1236,6 +1236,26 @@ func TestKeyMapComplete(t *testing.T) {
 	keytest.Complete(t, newKeyMap(config.Default().Keys))
 }
 
+// Help lists only the keys that work: the digit of the focused pane does
+// nothing, and zoomed, where the boxes have no preview, tab has nothing to
+// flip.
+func TestHelpListsOnlyWorkingPaneKeys(t *testing.T) {
+	m, h := newModal(t, newFake(), wideW, wideH)
+	listed := func(k string) bool {
+		_, _, ok := uitest.Winner(m.KeyLayers(), k)
+		return ok
+	}
+	if !listed("tab") || !listed("shift+tab") || listed("1") || !listed("2") {
+		t.Errorf("unzoomed on the runs: tab %v, shift+tab %v, 1 %v, 2 %v; want true, true, false, true",
+			listed("tab"), listed("shift+tab"), listed("1"), listed("2"))
+	}
+	h.keys("z")
+	if listed("tab") || listed("shift+tab") || listed("1") || !listed("2") {
+		t.Errorf("zoomed: tab %v, shift+tab %v, 1 %v, 2 %v; want false, false, false, true",
+			listed("tab"), listed("shift+tab"), listed("1"), listed("2"))
+	}
+}
+
 // The layers take a key in the order the modal does: its own keys before
 // the pane's, the tabs' ] rather than the next pane's, and the log's
 // enter, which folds, rather than the drill of the other panes.
