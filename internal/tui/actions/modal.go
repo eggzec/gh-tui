@@ -368,6 +368,15 @@ func (k KeyMap) state(m *Modal) KeyMap {
 		k.Back.SetEnabled(true)
 		k.Back = relabel(k.Back, paneTitles[runsPane])
 	}
+	steps := m.ctl.Nav.CanStep(m.paneLayout())
+	k.Next.SetEnabled(k.Next.Enabled() && steps)
+	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
+	// Pressing the digit of the focused pane does nothing, so help doesn't
+	// list it.
+	if f := int(m.ctl.Nav.Focus()) - 1; f >= 0 && f < numPanes {
+		k.Panes[f].SetEnabled(false)
+	}
+	k.Jump = ui.Jump(k.Panes[:]...)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
 	can := m.canDivide()
 	k.DividerLeft.SetEnabled(k.DividerLeft.Enabled() && can)

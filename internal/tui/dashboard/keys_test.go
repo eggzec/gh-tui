@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -67,6 +68,27 @@ func TestKeyLayersOrder(t *testing.T) {
 		if msgs := press(t, s, tt.key); !tt.did(s, b, msgs) {
 			t.Errorf("after %q, %s didn't do what %q says", tt.to, tt.key, tt.want)
 		}
+	}
+}
+
+// Help lists only the keys that work: the digit of the focused pane does
+// nothing, and zoomed on a pane with no preview, tab has nothing to flip.
+func TestHelpListsOnlyWorkingPaneKeys(t *testing.T) {
+	s := newSection(t, newFake(), nil, 180, 44)
+	listed := func(k string) bool {
+		_, _, ok := uitest.Winner(s.KeyLayers(), k)
+		return ok
+	}
+	own := strconv.Itoa(int(s.focus) + 1)
+	if !listed("tab") || !listed("shift+tab") || listed(own) {
+		t.Errorf("unzoomed: tab %v, shift+tab %v, %s %v; want true, true, false", listed("tab"), listed("shift+tab"), own, listed(own))
+	}
+	press(t, s, "z")
+	if !s.zoomed() {
+		t.Fatal("z didn't zoom")
+	}
+	if s.ctl.Nav.CanStep(s.paneLayout()) != listed("tab") {
+		t.Errorf("zoomed: tab listed %v, but it works %v", listed("tab"), s.ctl.Nav.CanStep(s.paneLayout()))
 	}
 }
 

@@ -13,9 +13,9 @@ global
 Actions
   tab | ] | ] | on
   previous tab | [ | [ | on
-  pane | tab | tab | on
-  previous pane | shift+tab | shift+tab | on
-  focus pane | 1 2 | 1/2 | on
+  pane | tab | tab | off
+  previous pane | shift+tab | shift+tab | off
+  focus pane | 2 | 2 | on
   zoom | z | z | off
   divider left | ctrl+left | ^left | off
   divider right | ctrl+right | ^right | off

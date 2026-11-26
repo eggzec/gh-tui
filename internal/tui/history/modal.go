@@ -269,6 +269,14 @@ func (m *Modal) KeyLayers() []keyhelp.Layer {
 func (k KeyMap) state(m *Modal) KeyMap {
 	patch := m.focus == commitPane && m.commit.patch
 	k.ResetBase.SetEnabled(k.ResetBase.Enabled() && m.base.Ref != "")
+	m.ctl.Nav.SetFocus(panes.Pane(m.focus) + 1)
+	steps := m.ctl.Nav.CanStep(m.paneLayout())
+	k.Next.SetEnabled(k.Next.Enabled() && steps)
+	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
+	// Pressing the digit of the focused pane does nothing, so help doesn't
+	// list it.
+	k.Panes[m.focus].SetEnabled(false)
+	k.Jump = ui.Jump(k.Panes[:]...)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && m.ctl.Zoom.CanZoom())
 	if m.ctl.Zoom.User() {
 		k.Zoom = named(k.Zoom, "unzoom")

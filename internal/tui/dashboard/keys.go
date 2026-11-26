@@ -14,6 +14,7 @@ import (
 	"github.com/eggzec/gh-tui/pkg/bubbles/keyhelp"
 	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/orderpick"
+	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
 // KeyMap holds the keys of the dashboard.
@@ -242,6 +243,16 @@ func (k KeyMap) state(s *Section) KeyMap {
 		k.ToggleGroups.SetEnabled(k.ToggleGroups.Enabled() && len(s.repos.grouping.Levels) > 0)
 	default:
 	}
+	s.ctl.Nav.SetFocus(panes.Pane(s.focus) + 1)
+	steps := s.ctl.Nav.CanStep(s.paneLayout())
+	k.Next.SetEnabled(k.Next.Enabled() && steps)
+	k.Prev.SetEnabled(k.Prev.Enabled() && steps)
+	// Pressing the digit of the focused pane does nothing, so help doesn't
+	// list it.
+	if f := int(s.focus); f >= 0 && f < len(k.Panes) {
+		k.Panes[f].SetEnabled(false)
+	}
+	k.Jump = ui.Jump(k.Panes[:]...)
 	k.Zoom.SetEnabled(k.Zoom.Enabled() && s.ctl.Zoom.CanZoom())
 	if s.zoomed() {
 		k.Zoom.SetHelp(k.Zoom.Help().Key, "unzoom")
