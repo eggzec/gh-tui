@@ -7,10 +7,9 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 )
 
-// fakeDev is a dev.Service that answers from what the test sets.
+// fakeDev is a DevService that answers from what the test sets.
 type fakeDev struct {
 	mu    sync.Mutex
 	links core.PullLinks
@@ -24,7 +23,7 @@ type fakeDev struct {
 	body                  int
 }
 
-var _ dev.Service = (*fakeDev)(nil)
+var _ DevService = (*fakeDev)(nil)
 
 func (f *fakeDev) CachedLinks(pulls.LinksQuery) (core.PullLinks, bool) {
 	f.mu.Lock()
