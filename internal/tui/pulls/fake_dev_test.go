@@ -53,6 +53,14 @@ func (f *fakeDev) IssuePreview(_ context.Context, q pulls.PreviewQuery) (core.Is
 	}, nil
 }
 
+func (f *fakeDev) CachedComments(pulls.CommentsQuery) (core.Page[core.Comment], bool) {
+	return core.Page[core.Comment]{}, false
+}
+
+func (f *fakeDev) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	return core.Page[core.Comment]{}, nil
+}
+
 func (f *fakeDev) CachedPullPreview(pulls.PreviewQuery) (core.PullPreview, bool) {
 	return core.PullPreview{}, false
 }

@@ -45,6 +45,7 @@ type sidePanes struct {
 	// rows, or is nil without a service. devHov and depHov are the rows they
 	// follow, which the last row with something to preview stays.
 	previews       *dev.Previews
+	zoom           *dev.Zoom
 	devHov, depHov dev.Item
 }
 
@@ -117,6 +118,10 @@ func (m *detailModal) refreshSide() {
 	p.dev.SetStyles(p.devSt)
 	if p.previews != nil {
 		p.previews.Retry()
+	}
+	if p.zoom != nil {
+		p.zoom.SetStyles(m.theme, m.icons)
+		p.zoom.Retry()
 	}
 	if m.refSvc != nil {
 		if pg, ok := m.refSvc.CachedMentions(m.mentionsQuery(false)); ok {

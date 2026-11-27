@@ -144,6 +144,31 @@ func TestEdit(t *testing.T) {
 	}
 }
 
+// A source set after the content was rendered is what the editor gets, and
+// the place stays.
+func TestEditSetSource(t *testing.T) {
+	var got ran
+	m := fresh(t, WithSize(40, 6), WithEditor("vim"))
+	m.Focus()
+	m.exec, m.tempDir = fakeExec(t, &got, nil), t.TempDir()
+	m.SetRendered("preview", "", func(int) string { return numbered(50) })
+	m, _ = keys(t, m, "j", "j", "j")
+	top := m.Position().Top
+	m.SetSource("body\n\ncomment")
+	m.Rerender()
+	if m.Position().Top != top || m.Source() != "body\n\ncomment" {
+		t.Errorf("top %d source %q; want %d and the new source", m.Position().Top, m.Source(), top)
+	}
+	m, cmd := m.Update(press("v"))
+	if cmd == nil {
+		t.Fatal("v ran nothing")
+	}
+	m.Update(cmd())
+	if got.content != "body\n\ncomment" {
+		t.Errorf("the editor got %q", got.content)
+	}
+}
+
 // A patch opens as a diff, for the editor to tell.
 func TestEditSyntax(t *testing.T) {
 	var got ran

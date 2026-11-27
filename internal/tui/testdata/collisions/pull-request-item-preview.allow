@@ -1,0 +1,2 @@
+# context | key | loser | winner | reason
+pull request: item preview | esc | Item: close | Pull request: close | the zoomed preview is a step of the modal, so esc leaves the modal as it does from any other pane

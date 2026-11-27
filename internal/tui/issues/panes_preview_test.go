@@ -11,7 +11,6 @@ import (
 
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/service/pulls"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 )
 
 // fakePreviews answers every preview with a body of body lines, and counts
@@ -35,6 +34,14 @@ func (f *fakePreviews) IssuePreview(_ context.Context, q pulls.PreviewQuery) (co
 		Target: core.Target{Repo: q.Repo, Number: q.Number, Kind: core.KindIssue}, Title: "Issue title",
 		Author: "ada", Body: strings.Repeat("a line of the body\n", f.body),
 	}, nil
+}
+
+func (f *fakePreviews) CachedComments(pulls.CommentsQuery) (core.Page[core.Comment], bool) {
+	return core.Page[core.Comment]{}, false
+}
+
+func (f *fakePreviews) Comments(context.Context, pulls.CommentsQuery) (core.Page[core.Comment], error) {
+	return core.Page[core.Comment]{}, nil
 }
 
 func (f *fakePreviews) CachedPullPreview(pulls.PreviewQuery) (core.PullPreview, bool) {
@@ -100,18 +107,24 @@ func TestBlockersPreviewScrolls(t *testing.T) {
 	if id == "" {
 		t.Fatal("no row hovered")
 	}
-	key := slots.Key{Pane: paneBlockers, ID: id}
 	press(t, h, "tab")
+	m.View()
 	if !m.ctl.Nav.InPreview(m.paneLayout()) {
 		t.Fatal("tab didn't reach the preview")
 	}
-	press(t, h, "j", "j")
-	if got := m.slots.Previews().Get(key); got != 2 {
+	press(t, h, "j")
+	m.View()
+	press(t, h, "j")
+	m.View()
+	if got := m.side.zoom.Top(); got != 2 {
 		t.Fatalf("offset = %d after two j, want 2", got)
 	}
 	press(t, h, "tab")
+	m.View()
 	press(t, h, "tab")
-	if got := m.slots.Previews().Get(key); got != 2 {
+	m.View()
+	m.View()
+	if got := m.side.zoom.Top(); got != 2 {
 		t.Errorf("offset = %d after leaving and coming back, want 2", got)
 	}
 }

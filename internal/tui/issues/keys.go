@@ -9,6 +9,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
@@ -288,6 +289,12 @@ func (m *detailModal) KeyLayers() []keyhelp.Layer {
 	// The conversation is the one pane of the modal. Its actions that the
 	// config has no key for here, such as marking a row, are left out.
 	tree := keyhelp.FromHelp("", m.keys.tree, false)
+	if z := m.zoomed(l); z != nil && inPreview {
+		if z.Capturing() {
+			return []keyhelp.Layer{ui.PagerLayer(dev.ZoomContext, z.Pager())}
+		}
+		return []keyhelp.Layer{ui.MergeLayers(ctxModal, own, ui.PagerLayer(dev.ZoomContext, z.Pager()))}
+	}
 	if inPreview {
 		// The preview is read-only: only the moves, which scroll it, work there.
 		tree = keyhelp.FromHelp("", m.keys.panes.scroll, false)

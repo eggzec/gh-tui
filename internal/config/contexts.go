@@ -124,6 +124,9 @@ var contexts = []Context{
 	{Name: "actions_log", Title: "Log", Reach: ReachScreen, Modal: true},
 
 	{Name: "preview", Title: "File", Reach: ReachScreen, Modal: true},
+	// The zoomed preview of a linked item stands in for the modal's panes, so
+	// its keys are a layer of their own, as the links' are.
+	{Name: "item_preview", Title: "Item", Reach: ReachScreen, Modal: true, Step: true},
 	{Name: "text", Title: "Text", Reach: ReachScreen, Modal: true},
 	{Name: "filter", Title: "Filter", Reach: ReachScreen, Modal: true},
 

@@ -12,6 +12,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/service/pulls"
 	refssvc "github.com/eggzec/gh-tui/internal/service/refs"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 	"github.com/eggzec/gh-tui/internal/tui/refs"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
@@ -44,6 +45,8 @@ type devPane struct {
 	hov dev.Item
 	// previews reads and draws the preview of the hovered row.
 	previews *dev.Previews
+	// zoom shows the same row in a pager when the split is zoomed.
+	zoom *dev.Zoom
 }
 
 // devRefsMsg is what a read of what a pull request names brought.
@@ -102,6 +105,7 @@ func (m *panesModal) openDev(svc DevService, refSvc refs.Service, keys config.Ke
 		svc: svc, refSvc: refSvc, model: dev.New(dev.Options{Repo: m.repo, Styles: st, HideClosedBy: true}), styles: st,
 		previews: dev.NewPreviews(dev.ServiceReader(svc), dev.WithContext(m.ctx)),
 	}
+	p.zoom = dev.NewZoom(p.previews, keys, m.theme, m.icons)
 	p.model.SetKeyMap(km)
 	m.dev = p
 	m.cachedDev()
@@ -236,7 +240,7 @@ func (m *panesModal) devVersion() int {
 	if m.dev == nil {
 		return 0
 	}
-	return m.dev.model.Version() + m.dev.previews.Version()
+	return m.dev.model.Version() + m.dev.previews.Version() + m.dev.zoom.Version()
 }
 
 // restyleDev draws the pane again after a change of theme or icons.
@@ -244,6 +248,7 @@ func (m *panesModal) restyleDev() {
 	if m.dev != nil {
 		m.dev.styles = dev.NewStyles(m.theme, m.icons)
 		m.dev.model.SetStyles(m.dev.styles)
+		m.dev.zoom.SetStyles(m.theme, m.icons)
 	}
 }
 
@@ -272,6 +277,7 @@ func (m *panesModal) refreshDev() {
 		return
 	}
 	m.dev.previews.Retry()
+	m.dev.zoom.Retry()
 	m.cachedDev()
 	m.follow()
 }
@@ -295,10 +301,44 @@ func (m *panesModal) loadPreview() tea.Cmd {
 	if p == nil || m.ctl.Nav.Focus() != paneDevelopment {
 		return nil
 	}
-	if _, ok := m.layout().Box(paneDevelopment, panes.Preview); !ok {
+	l := m.layout()
+	if _, ok := l.Box(paneDevelopment, panes.Preview); !ok {
 		return nil
 	}
-	return p.previews.Load(m.slots.Hover(paneDevelopment).ID, p.hov)
+	id := m.slots.Hover(paneDevelopment).ID
+	return tea.Batch(p.previews.Load(id, p.hov), m.showZoom(l, id))
+}
+
+// showZoom points the pager of the zoomed preview at the hovered row, and takes
+// it away when the split is not zoomed.
+func (m *panesModal) showZoom(l panes.Layout, id string) tea.Cmd {
+	p := m.dev
+	if !l.Zoomed {
+		return p.zoom.Show("", dev.Item{}, dev.PreviewOptions{})
+	}
+	if !p.zoom.Shown() || p.zoom.Key() != id {
+		m.slots.Previews().Reset(slots.Key{Pane: paneDevelopment, ID: id})
+	}
+	return p.zoom.Show(id, p.hov, m.devOptions())
+}
+
+func (m *panesModal) devOptions() dev.PreviewOptions {
+	return dev.PreviewOptions{Repo: m.repo, Styles: m.dev.styles, Now: m.clock()}
+}
+
+// zoomed returns the pager of the zoomed preview when it shows the row of the
+// focused pane, which takes the keys of the preview.
+func (m *panesModal) zoomed(l panes.Layout) *dev.Zoom {
+	p := m.dev
+	if p == nil || !p.zoom.Shown() {
+		return nil
+	}
+	if !l.Zoomed || m.ctl.Nav.Focus() != paneDevelopment {
+		// Its comments stop being read until the row is shown again.
+		p.zoom.Show("", dev.Item{}, dev.PreviewOptions{})
+		return nil
+	}
+	return p.zoom
 }
 
 // devPreview is the body of the preview of the hovered row.
@@ -308,6 +348,11 @@ func (m *panesModal) devPreview(b panes.Box) string {
 		return m.placeholderPreview(b)
 	}
 	o := dev.PreviewOptions{Repo: m.repo, Styles: p.styles, Now: m.clock(), Width: b.Rect.Inner().W}
+	if z := m.zoomed(m.layout()); z != nil && z.Key() == m.slots.Hover(b.Pane).ID {
+		z.Focus(m.ctl.Nav.InPreview(m.layout()))
+		in := b.Rect.Inner()
+		return z.Draw(in.W, in.H)
+	}
 	return p.previews.View(dev.Row{
 		Key: m.slots.Hover(b.Pane).ID, Item: p.hov, Refs: p.model.Group(p.hov.Group),
 		Loaded: p.model.Loaded(), Stamp: p.model.Version(),

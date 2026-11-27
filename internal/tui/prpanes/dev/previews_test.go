@@ -44,15 +44,35 @@ type fakeReader struct {
 	cached bool
 	err    error
 	reads  int
+	// pages are the comment pages by cursor, cached when warmPages is set.
+	pages        map[string]core.Page[core.Comment]
+	warmPages    bool
+	commentErr   error
+	commentReads []string
+	// body is the description of the issues read.
+	body string
 }
 
 func (f *fakeReader) CachedIssue(core.Target) (core.IssuePreview, bool) {
-	return core.IssuePreview{Reference: issue(self, 1, "cached", core.StateOpen)}, f.cached
+	return core.IssuePreview{Reference: issue(self, 1, "cached", core.StateOpen), Body: f.body}, f.cached
 }
 
 func (f *fakeReader) Issue(context.Context, core.Target) (core.IssuePreview, error) {
 	f.reads++
-	return core.IssuePreview{Reference: issue(self, 1, "read", core.StateOpen)}, f.err
+	return core.IssuePreview{Reference: issue(self, 1, "read", core.StateOpen), Body: f.body}, f.err
+}
+
+func (f *fakeReader) CachedComments(_ core.Target, cursor string) (core.Page[core.Comment], bool) {
+	p, ok := f.pages[cursor]
+	return p, ok && f.warmPages
+}
+
+func (f *fakeReader) Comments(ctx context.Context, _ core.Target, cursor string) (core.Page[core.Comment], error) {
+	f.commentReads = append(f.commentReads, cursor)
+	if err := ctx.Err(); err != nil {
+		return core.Page[core.Comment]{}, err
+	}
+	return f.pages[cursor], f.commentErr
 }
 
 func (f *fakeReader) CachedPull(core.Target) (core.PullPreview, bool) {

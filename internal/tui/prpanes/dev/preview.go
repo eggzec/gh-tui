@@ -74,6 +74,38 @@ func HeaderPreview(refs []core.Reference, o PreviewOptions) string {
 // IssuePreview is the preview of an issue, or of one that blocks another.
 func IssuePreview(p core.IssuePreview, o PreviewOptions) string {
 	st := o.Styles
+	out := issueHeader(p, o)
+	if body := wrapText(p.Body, o.Width); len(body) > 0 {
+		out = append(out, "")
+		out = append(out, body...)
+	}
+	out = append(out, "", st.dim.Render(strings.Repeat(st.Glyphs.Rule, max(o.Width, 0))),
+		st.bold.Render(plural(p.CommentsTotal, "comment")))
+	comments := p.Comments
+	if len(comments) > shownComments {
+		comments = comments[len(comments)-shownComments:]
+	}
+	for _, c := range comments {
+		out = append(out, "", commentHead(c.Author, c.CreatedAt, o))
+		out = append(out, st.cut(wrapText(c.Body, o.Width), commentBodyLines)...)
+	}
+	return strings.Join(out, "\n")
+}
+
+// commentHead is the dim line over a comment: who wrote it, and when.
+func commentHead(author string, at time.Time, o PreviewOptions) string {
+	st := o.Styles
+	head := ui.OneLine(author)
+	if !at.IsZero() {
+		head += " " + st.Glyphs.Separator + " " + ui.AgoProse(at, o.Now)
+	}
+	return st.dim.Render(termtext.Truncate(head, o.Width, st.Glyphs.Ellipsis))
+}
+
+// issueHeader is the lines of an issue's preview above its body: the title,
+// who opened it, its labels and what blocks it.
+func issueHeader(p core.IssuePreview, o PreviewOptions) []string {
+	st := o.Styles
 	b := builder{o: Options{Repo: o.Repo, Styles: st}, st: st}
 	out := st.titleLines(b.ident(p.Reference)+" "+ui.OneLine(p.Title), st.stateWord(p.Reference), o.Width)
 	meta := b.glyph(p.Reference) + " " + st.stateWord(p.Reference)
@@ -95,29 +127,23 @@ func IssuePreview(p core.IssuePreview, o PreviewOptions) string {
 			out = append(out, st.warn.Render(termtext.Truncate(line, o.Width, st.Glyphs.Ellipsis)))
 		}
 	}
-	if body := wrapText(p.Body, o.Width); len(body) > 0 {
-		out = append(out, "")
-		out = append(out, body...)
-	}
-	out = append(out, "", st.dim.Render(strings.Repeat(st.Glyphs.Rule, max(o.Width, 0))),
-		st.bold.Render(plural(p.CommentsTotal, "comment")))
-	comments := p.Comments
-	if len(comments) > shownComments {
-		comments = comments[len(comments)-shownComments:]
-	}
-	for _, c := range comments {
-		head := ui.OneLine(c.Author)
-		if !c.CreatedAt.IsZero() {
-			head += " " + st.Glyphs.Separator + " " + ui.AgoProse(c.CreatedAt, o.Now)
-		}
-		out = append(out, "", st.dim.Render(termtext.Truncate(head, o.Width, st.Glyphs.Ellipsis)))
-		out = append(out, st.cut(wrapText(c.Body, o.Width), commentBodyLines)...)
-	}
-	return strings.Join(out, "\n")
+	return out
 }
 
 // PullPreview is the preview of a linked pull request.
 func PullPreview(p core.PullPreview, o PreviewOptions) string {
+	st := o.Styles
+	out := pullHeader(p, o)
+	if body := wrapText(p.Body, o.Width); len(body) > 0 {
+		out = append(out, st.dim.Render(strings.Repeat(st.Glyphs.Rule, max(o.Width, 0))))
+		out = append(out, st.cut(body, pullBodyLines)...)
+	}
+	return strings.Join(out, "\n")
+}
+
+// pullHeader is the lines of a pull request's preview above its body: the
+// title, who opened it, its checks, reviews, size and labels.
+func pullHeader(p core.PullPreview, o PreviewOptions) []string {
 	st := o.Styles
 	b := builder{o: Options{Repo: o.Repo, Styles: st}, st: st}
 	var out []string
@@ -162,11 +188,7 @@ func PullPreview(p core.PullPreview, o PreviewOptions) string {
 			out = append(out, l)
 		}
 	}
-	if body := wrapText(p.Body, o.Width); len(body) > 0 {
-		out = append(out, st.dim.Render(strings.Repeat(st.Glyphs.Rule, max(o.Width, 0))))
-		out = append(out, st.cut(body, pullBodyLines)...)
-	}
-	return strings.Join(out, "\n")
+	return out
 }
 
 // reviewLine says what the reviews of a pull request amount to, or is empty

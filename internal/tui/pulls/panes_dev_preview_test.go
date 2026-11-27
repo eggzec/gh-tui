@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 )
 
 func TestDevelopmentPreviewReadOnce(t *testing.T) {
@@ -63,20 +62,23 @@ func TestDevelopmentPreviewScrollKept(t *testing.T) {
 	m := h.modal()
 	press(t, h, "z")
 	press(t, h, "down")
-	key := slots.Key{Pane: paneDevelopment, ID: "issue:" + core.RefKey(devRef(core.KindIssue, 12, "").Target)}
+	m.View()
 	// Into the preview, scrolled, and back to the list.
 	press(t, h, "tab")
 	for range 5 {
 		press(t, h, "down")
+		m.View()
 	}
 	press(t, h, "tab")
-	want := m.slots.Previews().Get(key)
+	want := m.dev.zoom.Top()
 	if want == 0 {
 		t.Fatal("the preview didn't scroll")
 	}
 	press(t, h, "down")
+	m.View()
 	press(t, h, "up")
-	if got := m.slots.Previews().Get(key); got != want {
+	m.View()
+	if got := m.dev.zoom.Top(); got != want {
 		t.Fatalf("the offset of the preview is %d after hovering away and back, want %d", got, want)
 	}
 }

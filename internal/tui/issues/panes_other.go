@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -21,6 +22,17 @@ func (m *detailModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.C
 		ctx = dev.Context
 	}
 	k := m.keys.panes
+	if z := m.zoomed(l); z != nil && !m.ctl.Nav.InPreview(l) {
+		// The preview is a pager, which scrolls itself.
+		switch {
+		case keymap.Matches(msg, k.other.Down):
+			z.Scroll(true)
+			return nil, true
+		case keymap.Matches(msg, k.other.Up):
+			z.Scroll(false)
+			return nil, true
+		}
+	}
 	return m.slots.PressOther(m, p, b, m.ctl.Nav.InPreview(l), k.scroll, k.other, ctx, msg, func(press tea.KeyPressMsg) tea.Cmd {
 		// The press that reached this modal follows the hover afterwards.
 		cmd, _ := m.pressSide(press)

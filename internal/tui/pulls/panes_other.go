@@ -7,6 +7,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
+	"github.com/eggzec/gh-tui/pkg/bubbles/keymap"
 	"github.com/eggzec/gh-tui/pkg/bubbles/panes"
 )
 
@@ -46,6 +47,17 @@ func (m *panesModal) pressOther(l panes.Layout, msg tea.KeyPressMsg) (cmd tea.Cm
 	o, has := m.keys.other[m.context(l)]
 	if !has {
 		return nil, false
+	}
+	if z := m.zoomed(l); z != nil && !m.ctl.Nav.InPreview(l) {
+		// The preview is a pager, which scrolls itself.
+		switch {
+		case keymap.Matches(msg, o.Down):
+			z.Scroll(true)
+			return nil, true
+		case keymap.Matches(msg, o.Up):
+			z.Scroll(false)
+			return nil, true
+		}
 	}
 	return m.slots.PressOther(m, p, b, m.ctl.Nav.InPreview(l), m.keys.scroll, o, slot.Context, msg, func(press tea.KeyPressMsg) tea.Cmd {
 		return m.slots.Press(m, p, press)

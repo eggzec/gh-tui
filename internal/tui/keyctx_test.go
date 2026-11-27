@@ -358,6 +358,36 @@ func (keyRefs) Mentions(context.Context, refssvc.MentionsQuery) (core.Page[core.
 }
 func (keyRefs) Invalidate(core.RepoRef, int) {}
 
+// keyDev serves the Development pane of a pull request: one issue it closes,
+// which the zoomed preview shows.
+type keyDev struct{}
+
+func (keyDev) CachedLinks(pullsvc.LinksQuery) (core.PullLinks, bool) { return core.PullLinks{}, false }
+func (keyDev) Links(context.Context, pullsvc.LinksQuery) (core.PullLinks, error) {
+	return core.PullLinks{
+		Closes:      []core.LinkedIssue{{Issue: keyLink(11, "Keys collide", core.RefOrigin{Group: core.RefClosing, Where: "closes"})}},
+		ClosesTotal: 1,
+	}, nil
+}
+func (keyDev) CachedIssuePreview(pullsvc.PreviewQuery) (core.IssuePreview, bool) {
+	return core.IssuePreview{}, false
+}
+func (keyDev) IssuePreview(_ context.Context, q pullsvc.PreviewQuery) (core.IssuePreview, error) {
+	return core.IssuePreview{Reference: keyLink(q.Number, "Keys collide", core.RefOrigin{}), Author: "ada", Body: "A body.\n"}, nil
+}
+func (keyDev) CachedComments(pullsvc.CommentsQuery) (core.Page[core.Comment], bool) {
+	return core.Page[core.Comment]{}, false
+}
+func (keyDev) Comments(context.Context, pullsvc.CommentsQuery) (core.Page[core.Comment], error) {
+	return core.Page[core.Comment]{}, nil
+}
+func (keyDev) CachedPullPreview(pullsvc.PreviewQuery) (core.PullPreview, bool) {
+	return core.PullPreview{}, false
+}
+func (keyDev) PullPreview(_ context.Context, q pullsvc.PreviewQuery) (core.PullPreview, error) {
+	return core.PullPreview{Reference: keyLink(q.Number, "Keys collide", core.RefOrigin{}), Author: "ada"}, nil
+}
+
 // keyFiles serves a tree of a directory holding a file and of a file, and
 // the file.
 type keyFiles struct{ files.Service }
@@ -1188,7 +1218,7 @@ func newKeysAppPulls(t *testing.T, repo bool, edit func(*config.Config), inbox k
 	layout := Layout{
 		Files: files.New(ctx, keyFiles{}, cfg.Keys, files.WithVoice(v), files.WithIcons(ic)),
 		Pulls: pulls.New(ctx, keyPulls{}, cfg.Keys, append([]pulls.Option{pulls.WithVoice(v), pulls.WithIcons(ic),
-			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}),
+			pulls.WithChecks(keyActions{}), pulls.WithCommitChecks(keyActions{}), pulls.WithDevelopment(keyDev{}),
 			pulls.WithReviewDrafts(keyReviewDrafts())}, pullOpts...)...),
 		Issues:        issues.New(ctx, keyIssues{}, cfg.Keys, issues.WithVoice(v), issues.WithIcons(ic), issues.WithReferences(keyRefs{})),
 		Releases:      releaselist.New(ctx, keyReleaseList{}, cfg.Keys),
@@ -1335,6 +1365,7 @@ func keyContexts() []keyContext {
 		{name: "pull request: merge", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_3"}, context: "pull_merge", want: "global, pull_modal, pull_merge"},
 		{name: "pull request: involved", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_4"}, context: "pull_involved", want: "global, pull_modal, pull_involved"},
 		{name: "pull request: development", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5"}, context: "pull_development", want: "global, pull_modal, pull_development"},
+		{name: "pull request: item preview", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_5", "global.zoom", "pull_development.down", "global.next_pane"}, wide: true, chain: []string{"global", "pull_modal", "item_preview"}, context: "item_preview", want: "global, pull_modal, item_preview"},
 		{name: "pull request: files", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6"}, context: "pull_files", want: "global, pull_modal, pull_files"},
 		{name: "pull request: diff", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6", "pull_files.down", "pull_files.down", "pull_files.down", "global.select"}, after: []string{"pull_diff.next_file", "pull_diff.next_hunk", "pull_diff.next_hunk"}, context: "pull_diff", want: "global, pull_modal, pull_diff"},
 		{name: "pull request: diff option", repo: true, steps: []string{"global.pane_2", "global.select", "global.pane_6", "pull_files.down", "pull_files.down", "pull_files.down", "global.select", "pull_diff.option"}, context: "diff_option", want: "always, diff_option (types)"},

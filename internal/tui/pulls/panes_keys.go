@@ -10,6 +10,7 @@ import (
 	"github.com/eggzec/gh-tui/internal/config"
 	"github.com/eggzec/gh-tui/internal/core"
 	"github.com/eggzec/gh-tui/internal/tui/prpanes"
+	"github.com/eggzec/gh-tui/internal/tui/prpanes/dev"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/composer"
 	"github.com/eggzec/gh-tui/pkg/bubbles/confirm"
@@ -236,6 +237,12 @@ func (m *panesModal) KeyLayers() []keyhelp.Layer {
 			return layers
 		}
 		return []keyhelp.Layer{own, layers[len(layers)-1]}
+	}
+	if z := m.zoomed(l); z != nil && ctx == ctxPreview {
+		if z.Capturing() {
+			return []keyhelp.Layer{ui.PagerLayer(dev.ZoomContext, z.Pager())}
+		}
+		return []keyhelp.Layer{own, ui.PagerLayer(dev.ZoomContext, z.Pager(), m.otherHelp(ctx, l)...)}
 	}
 	if ctx == ctxPreview {
 		var all []key.Binding

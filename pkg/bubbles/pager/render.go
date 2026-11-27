@@ -45,6 +45,16 @@ func (m *Model) SetRendered(name, source string, render Render) {
 // another width.
 func (m *Model) SetReserve(extra func() int) { m.reserve = extra }
 
+// SetSource replaces the source of rendered content, which the editor gets
+// and Source returns, keeping the place, the search and the filter. It
+// shows nothing new by itself: Rerender does, when what the render
+// function makes follows the source.
+func (m *Model) SetSource(source string) { m.raw = source }
+
+// Source is the content as it was given, before it was rendered, cleaned
+// or decoded.
+func (m Model) Source() string { return m.raw }
+
 // Rendered reports whether the pager shows rendered content, as
 // SetRendered gives it.
 func (m Model) Rendered() bool { return m.render != nil }

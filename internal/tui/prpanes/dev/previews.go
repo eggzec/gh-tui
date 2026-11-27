@@ -15,6 +15,10 @@ type Reader interface {
 	Issue(ctx context.Context, t core.Target) (core.IssuePreview, error)
 	CachedPull(t core.Target) (core.PullPreview, bool)
 	Pull(ctx context.Context, t core.Target) (core.PullPreview, error)
+	// CachedComments and Comments read the page of the comments of an issue or
+	// pull request after cursor, "" for the first.
+	CachedComments(t core.Target, cursor string) (core.Page[core.Comment], bool)
+	Comments(ctx context.Context, t core.Target, cursor string) (core.Page[core.Comment], error)
 }
 
 var previewIDs atomic.Int64
@@ -156,6 +160,17 @@ func (p *Previews) Update(msg tea.Msg) {
 		}
 	}
 	p.reads++
+}
+
+// issue and pull return the preview read under key, if it has landed.
+func (p *Previews) issue(key string) (core.IssuePreview, bool) {
+	v, ok := p.issues[key]
+	return v, ok
+}
+
+func (p *Previews) pull(key string) (core.PullPreview, bool) {
+	v, ok := p.pulls[key]
+	return v, ok
 }
 
 // Retry forgets the reads that failed, so that they are made again.
