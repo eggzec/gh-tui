@@ -4,7 +4,6 @@ global
   help | ? | ? | on
   command | : | : | on
   menu | menu x | menu/x | on
-  switch account | P | P | off
   quit | q ctrl+c | q | on
   search | S | S | on
   find file | ctrl+p | ^p | off

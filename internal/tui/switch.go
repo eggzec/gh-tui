@@ -28,9 +28,6 @@ func WithSwitcher(s Switcher) Option {
 	return func(m *Model) { m.switcher = s }
 }
 
-// switchPrefix is what the switch key types into the command line.
-const switchPrefix = "switch "
-
 // switchCheckedMsg reports that the check of a switch to target ended.
 type switchCheckedMsg struct {
 	seq    int
@@ -38,14 +35,8 @@ type switchCheckedMsg struct {
 	err    error
 }
 
-// canSwitch reports whether the switch command and its key do something.
+// canSwitch reports whether the switch command does something.
 func (m *Model) canSwitch() bool { return m.switcher != nil }
-
-// openSwitch opens the command line with the switch command typed, for the
-// user to say which account.
-func (m *Model) openSwitch() tea.Cmd {
-	return m.openLineWith(switchPrefix)
-}
 
 // switchCommand checks the account that arg names, then asks whether to
 // start the program again as it. A name that is the current account's, or

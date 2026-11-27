@@ -100,7 +100,7 @@ func TestComplete(t *testing.T) {
 		{name: "search", line: "sea", want: []string{"search "}},
 		{name: "after search", line: "search c"},
 		{name: "find_file", line: "f", want: []string{"fork_switch", "find_file"}},
-		{name: "search and set", line: "s", want: []string{"star", "search ", "set ", "switch ", "switch_account"}},
+		{name: "search and set", line: "s", want: []string{"star", "search ", "set ", "switch "}},
 		{name: "open", line: "op", want: []string{"open "}},
 		{name: "open completes as goto", line: "open CLI/", want: []string{"cli/cli"}},
 		{name: "open completes numbers", line: "open #13", want: []string{"#131", "#130", "#13"}},

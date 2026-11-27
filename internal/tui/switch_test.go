@@ -165,24 +165,6 @@ func TestSwitchConfirmCancel(t *testing.T) {
 	}
 }
 
-func TestSwitchKeyOpensLine(t *testing.T) {
-	t.Parallel()
-	m, _ := switchApp(t, nil)
-	drive(m, m.key(press("P")))
-	if !m.line.Focused() || m.line.Value() != "switch " {
-		t.Fatalf("focused %v, line %q", m.line.Focused(), m.line.Value())
-	}
-}
-
-func TestSwitchWithoutSwitcher(t *testing.T) {
-	t.Parallel()
-	m, _ := newTestApp(t)
-	drive(m, m.key(press("P")))
-	if m.line.Focused() {
-		t.Fatal("the key opened the line with nothing to switch with")
-	}
-}
-
 func TestSwitchCompletion(t *testing.T) {
 	t.Parallel()
 	m, _ := switchApp(t, nil)
