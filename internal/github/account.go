@@ -66,11 +66,24 @@ func (e *AccountError) Error() string {
 
 func (e *AccountError) Unwrap() error { return e.Err }
 
+// Canonical returns the login gh stores on host that is user in any letter
+// case, since GitHub logins are case-insensitive but gh matches them
+// exactly. It returns user as given when no stored login matches.
+func (a *Accounts) Canonical(host, user string) string {
+	for _, l := range a.gh.hostUsers(host) {
+		if strings.EqualFold(l, user) {
+			return l
+		}
+	}
+	return user
+}
+
 // Token returns the token gh holds for user on host, by gh auth token. gh
 // runs with the environment of this process and GH_HOST set to host.
 func (a *Accounts) Token(ctx context.Context, host, user string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, ghTimeout)
 	defer cancel()
+	user = a.Canonical(host, user)
 	cmd := a.command(ctx, "auth", "token", "--hostname", host, "--user", user)
 	cmd.Env = append(os.Environ(), "GH_HOST="+host)
 	var stderr strings.Builder

@@ -1,8 +1,11 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,9 +19,11 @@ func switchApp(t *testing.T, err error) (*Model, *[]target.Target) {
 	t.Helper()
 	var asked []target.Target
 	m, _ := newTestApp(t, WithLogin("me"), WithHost("github.com"),
-		WithSwitcher(func(_ context.Context, tg target.Target) error {
+		WithSwitcher(func(_ context.Context, tg target.Target) (target.Target, error) {
 			asked = append(asked, tg)
-			return err
+			// gh stores logins in the case the account was made with.
+			tg.User = strings.ToUpper(tg.User[:1]) + tg.User[1:]
+			return tg, err
 		}))
 	return m, &asked
 }
@@ -65,8 +70,27 @@ func TestSwitchConfirmAccept(t *testing.T) {
 	}
 	drive(m, m.key(press("y")))
 	got, ok := m.Restart()
-	if !ok || got != (target.Target{User: "you", Host: "github.com"}) {
+	if !ok || got != (target.Target{User: "You", Host: "github.com"}) {
 		t.Fatalf("Restart = %v, %v", got, ok)
+	}
+}
+
+// TestSwitchLogged checks that a switch logs its request, and why a refusal
+// was one.
+func TestSwitchLogged(t *testing.T) {
+	// Not parallel: it replaces the default logger, which the whole process shares.
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	m, _ := switchApp(t, errors.New("gh is not logged in to github.com"))
+	runCommand(t, m, "switch user you")
+	out := buf.String()
+	for _, want := range []string{`"msg":"switch requested"`, `"msg":"switch refused"`, `"level":"WARN"`, `gh is not logged in`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log lacks %s:\n%s", want, out)
+		}
 	}
 }
 

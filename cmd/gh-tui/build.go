@@ -451,9 +451,14 @@ func build(ctx context.Context, file *config.File, logLevel, hostname, user, log
 		tui.WithLogin(login.login),
 		// :switch checks that gh has a token for the account, and that the
 		// token works, before the app starts again as it.
-		tui.WithSwitcher(func(ctx context.Context, t target.Target) error {
-			_, err := github.NewAccounts().ResolveAccount(ctx, t.Host, t.User)
-			return err
+		tui.WithSwitcher(func(ctx context.Context, t target.Target) (target.Target, error) {
+			accounts := github.NewAccounts()
+			if _, err := accounts.ResolveAccount(ctx, t.Host, t.User); err != nil {
+				return t, err
+			}
+			// The restart carries the login as gh stores it.
+			t.User = accounts.Canonical(t.Host, t.User)
+			return t, nil
 		}),
 		// The app tells what the token can't do, and :auth grants it more.
 		tui.WithAccess(access),
