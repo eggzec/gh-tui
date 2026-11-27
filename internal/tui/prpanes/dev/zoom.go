@@ -259,7 +259,12 @@ func (z *Zoom) Update(msg tea.Msg) tea.Cmd {
 // refresh renders the pager again, and gives it the source that the editor
 // opens, after what it shows changed.
 func (z *Zoom) refresh() {
+	// A text that fits has its end in view, and the pager follows the end it
+	// finds in view when it renders again. Comments that land under the
+	// description must not take the reader down to them.
+	at := z.pg.Position()
 	z.pg.Rerender()
+	z.pg.SetPosition(at)
 	z.pg.SetSource(z.source())
 }
 
