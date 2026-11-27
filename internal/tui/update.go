@@ -415,8 +415,6 @@ func (m *Model) pressKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.openLine()
 	case keymap.Matches(msg, m.keys.Menu):
 		return m.openMenu()
-	case m.canSwitch() && keymap.Matches(msg, m.keys.SwitchAccount):
-		return m.openSwitch()
 	case keymap.Matches(msg, m.keys.Quit):
 		return m.quitNow()
 	case keymap.Matches(msg, m.keys.Search):

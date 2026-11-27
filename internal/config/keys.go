@@ -68,9 +68,6 @@ const (
 	ActionCommand = "global.command"
 	// ActionMenu opens the menu of the actions of the selected item.
 	ActionMenu = "global.menu"
-	// ActionSwitchAccount opens the command line with switch typed in it, to
-	// start the program again as another login or host.
-	ActionSwitchAccount = "global.switch_account"
 	// ActionSelect opens or chooses what is under the cursor, and
 	// ActionDismiss clears what is transient and then closes what is
 	// open.

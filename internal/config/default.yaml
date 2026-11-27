@@ -577,11 +577,6 @@ keys:
     # on a list only, since a modal, the command line and an input take it
     # first.
     menu: [menu, x]
-    # Open the command line with switch typed in it, to start again as
-    # another login or host: user NAME, host NAME or USER@HOST. It asks
-    # first, since the history, filters and unsaved drafts reset. It works on
-    # a screen only, not over a modal.
-    switch_account: [P]
     refresh: [r]
     # Show the dashboard, from any screen. 0 sits before the pane keys,
     # as the dashboard comes before the repository.

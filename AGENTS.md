@@ -527,9 +527,7 @@ reacts to messages. Concretely:
   toasts why an account can't be used, and otherwise asks to confirm that
   history, filters and unsaved drafts reset before it sends `RestartMsg`.
   It is refused over a modal, and completes `user`, `host` and the session's
-  login and host without the network. The `global.switch_account` action
-  (`P`) opens the line with `switch ` typed; the help and hints list it on
-  the screens only, and only when a switcher is set.
+  login and host without the network.
 - Hex colors must be quoted in YAML, since an unquoted `#` starts a comment.
 - Themes are named palettes that each have a light and a dark variant. They
   are resolved once after `tea.BackgroundColorMsg` and applied through
