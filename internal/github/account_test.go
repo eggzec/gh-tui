@@ -53,6 +53,27 @@ func TestResolveAccount(t *testing.T) {
 	}
 }
 
+// TestResolveAccountCase checks that a login typed in another case is given
+// to gh as gh stores it, since gh matches logins exactly.
+func TestResolveAccountCase(t *testing.T) {
+	a := scriptAccounts(t, `[ "$6" = a ] && echo tok || { echo "got $6" >&2; exit 1; }`, userHandler("a"))
+	tok, err := a.ResolveAccount(t.Context(), "github.com", "A")
+	if err != nil || tok != "tok" {
+		t.Fatalf("ResolveAccount = %q, %v; want tok", tok, err)
+	}
+	if got := a.Canonical("github.com", "B"); got != "b" {
+		t.Errorf("Canonical(B) = %q, want b", got)
+	}
+	if got := a.Canonical("github.com", "zed"); got != "zed" {
+		t.Errorf("Canonical(zed) = %q, want zed", got)
+	}
+	_, err = a.Token(t.Context(), "github.com", "ZED")
+	var ae *AccountError
+	if !errors.As(err, &ae) || len(ae.Logins) != 2 || ae.User != "ZED" {
+		t.Fatalf("Token(ZED) error = %v, want an AccountError listing the logins", err)
+	}
+}
+
 func TestResolveAccountGHError(t *testing.T) {
 	a := scriptAccounts(t, `echo "no oauth token found for a" >&2; exit 1`, userHandler("a"))
 	_, err := a.ResolveAccount(t.Context(), "github.com", "c")

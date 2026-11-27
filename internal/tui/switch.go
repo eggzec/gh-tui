@@ -2,10 +2,12 @@ package tui
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/eggzec/gh-tui/internal/obs"
 	"github.com/eggzec/gh-tui/internal/target"
 	"github.com/eggzec/gh-tui/internal/tui/ui"
 	"github.com/eggzec/gh-tui/pkg/bubbles/cmdline"
@@ -14,9 +16,10 @@ import (
 )
 
 // Switcher checks that the program can run as t, whose login and host are
-// both known, and says why it can't. The app calls it in a command, so it
-// may wait on the network; it never reads or changes what the app shows.
-type Switcher func(ctx context.Context, t target.Target) error
+// both known, and says why it can't. It returns t with the login spelled as
+// gh stores it. The app calls it in a command, so it may wait on the
+// network; it never reads or changes what the app shows.
+type Switcher func(ctx context.Context, t target.Target) (target.Target, error)
 
 // WithSwitcher sets what checks an account before the switch command starts
 // the program again as it. Without it, the command and its key say there is
@@ -64,7 +67,15 @@ func (m *Model) switchCommand(arg string) tea.Cmd {
 	m.switchSeq++
 	seq, check, ctx := m.switchSeq, m.switcher, m.ctx
 	run := func() tea.Msg {
-		return switchCheckedMsg{seq: seq, target: t, err: check(ctx, t)}
+		ctx := obs.WithTrace(ctx, "switch")
+		slog.InfoContext(ctx, "switch requested", "span", "tui.switch", "to_host", t.Host, "to_user", t.User)
+		got, err := check(ctx, t)
+		if err != nil {
+			slog.WarnContext(ctx, "switch refused", "span", "tui.switch", "to_host", t.Host, "to_user", t.User, "err", err)
+			return switchCheckedMsg{seq: seq, target: t, err: err}
+		}
+		slog.InfoContext(ctx, "switch allowed", "span", "tui.switch", "to_host", got.Host, "to_user", got.User)
+		return switchCheckedMsg{seq: seq, target: got}
 	}
 	return tea.Batch(m.toast.Push(toast.Info, "Checking "+t.String()+m.icons.Ellipsis), run)
 }
