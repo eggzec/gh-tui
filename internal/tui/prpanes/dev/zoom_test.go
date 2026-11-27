@@ -187,3 +187,70 @@ func TestZoomStaleGenerationIgnored(t *testing.T) {
 		t.Errorf("a stale page changed the thread: %+v", z.threads["a"])
 	}
 }
+
+// longBody is a description of many short paragraphs.
+func longBody(n int) string {
+	var b strings.Builder
+	for i := range n {
+		fmt.Fprintf(&b, "paragraph %d\n\n", i)
+	}
+	return b.String()
+}
+
+// manyComments is a page of n comments.
+func manyComments(n int) core.Page[core.Comment] {
+	items := make([]core.Comment, 0, n)
+	for i := range n {
+		items = append(items, comment("remark "+strconv.Itoa(i)))
+	}
+	return core.Page[core.Comment]{Items: items}
+}
+
+// A row opens at its first line, whether its text is long at once or grows as
+// the comments land, and a row that comes back takes up the place it was left
+// at.
+func TestZoomStartsAtTop(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		body string
+	}{{"short body, comments land", "short"}, {"long body, comments land", longBody(40)}} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &fakeReader{body: tc.body}
+			z := newZoom(f)
+			shown(t, z, "a")
+			z.Show("a", zoomItem(), previewOpts("unicode"))
+			z.Draw(60, 10)
+			if top := z.Top(); top != 0 {
+				t.Fatalf("top before the comments = %d", top)
+			}
+			z.Update(commentsMsg{id: z.id, key: "a", gen: z.threads["a"].gen, page: manyComments(40)})
+			z.Draw(60, 10)
+			if top := z.Top(); top != 0 {
+				t.Fatalf("top after the comments landed = %d", top)
+			}
+			if !strings.Contains(z.Pager().Source(), "remark 39") {
+				t.Error("the source lacks the comments that landed")
+			}
+
+			// Scroll, leave for another row, and come back.
+			for range 7 {
+				z.Scroll(true)
+			}
+			at := z.Top()
+			if at == 0 {
+				t.Fatal("the pager did not scroll")
+			}
+			shown(t, z, "b")
+			z.Show("b", zoomItem(), previewOpts("unicode"))
+			z.Draw(60, 10)
+			if top := z.Top(); top != 0 {
+				t.Errorf("a new row opened at %d", top)
+			}
+			z.Show("a", zoomItem(), previewOpts("unicode"))
+			z.Draw(60, 10)
+			if top := z.Top(); top != at {
+				t.Errorf("a returned to %d, want %d", top, at)
+			}
+		})
+	}
+}
