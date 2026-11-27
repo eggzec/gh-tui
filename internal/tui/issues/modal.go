@@ -205,6 +205,7 @@ func (s *Section) openDetail(repo core.RepoRef, number int, it *core.Issue, show
 	m.side, m.refSvc = newSide(s.rawKeys), s.refs
 	if s.previews != nil {
 		m.side.previews = dev.NewPreviews(dev.ServiceReader(s.previews), dev.WithContext(ctx))
+		m.side.zoom = dev.NewZoom(m.side.previews, s.rawKeys, m.theme, m.icons)
 	}
 	m.slots = slots.New(paneSlots[:], func(title string, b panes.Box) []string {
 		return titleForms(title, b, m.icons.Ellipsis)
@@ -441,7 +442,7 @@ func (m *detailModal) Update(msg tea.Msg) tea.Cmd {
 		m.side.previews.Update(msg)
 		return nil
 	}
-	cmd := tea.Batch(m.update(msg), m.follow())
+	cmd := tea.Batch(m.update(msg), m.follow(), m.zoomMsg(msg))
 	if m.pagesRead.Load() != m.pages {
 		// A page of the timeline came in after the issue: its commenters.
 		m.refreshInvolved()
@@ -627,6 +628,16 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		return m.refs.Update(msg)
 	}
 	k := m.keys
+	l := m.paneLayout()
+	z := m.zoomed(l)
+	if z != nil && z.Capturing() {
+		// The search or filter prompt of the pager takes every key.
+		return z.Press(msg)
+	}
+	pk := k.panes
+	if z != nil && m.ctl.Nav.InPreview(l) && z.Wants(msg) && !keymap.Matches(msg, pk.next, pk.prev, pk.zoom, k.Back) {
+		return z.Press(msg)
+	}
 	if m.pressPane(msg) {
 		return nil
 	}
@@ -659,7 +670,6 @@ func (m *detailModal) press(msg tea.KeyPressMsg) tea.Cmd {
 		m.svc.Invalidate(m.repo)
 		return tea.Batch(m.buildConv(), m.get())
 	}
-	l := m.paneLayout()
 	if cmd, ok := m.pressOther(l, msg); ok {
 		return cmd
 	}

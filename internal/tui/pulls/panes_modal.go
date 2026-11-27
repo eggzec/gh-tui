@@ -469,6 +469,9 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// under the question of a re-request.
 		return msg.o.Update(msg)
 	default:
+		if m.dev != nil && m.dev.zoom.Handles(msg) {
+			return m.dev.zoom.Update(msg)
+		}
 		// Several panes have a tree, and each enter carries the ID of its tree.
 		if enter, ok := msg.(treeview.OpenMsg); ok {
 			if enter.Tree == m.inv.tree.ID() {
@@ -481,6 +484,11 @@ func (m *panesModal) Update(msg tea.Msg) (cmd tea.Cmd) {
 		// The loaders of the checks take their answers whatever is open over
 		// the pane, and ignore the other messages.
 		cmd := m.filesDiffUpdate(msg)
+		if m.dev != nil && m.dev.zoom.Shown() {
+			// The pager's own searches and highlights, which it ignores unless
+			// they are its own.
+			cmd = tea.Batch(cmd, m.dev.zoom.Update(msg))
+		}
 		if m.files.loader.Handles(msg) {
 			cmd = tea.Batch(cmd, m.checksMsg(msg))
 		}
@@ -522,7 +530,15 @@ func (m *panesModal) receive(msg panesDetailMsg) tea.Cmd {
 func (m *panesModal) press(msg tea.KeyPressMsg) tea.Cmd {
 	k := m.keys
 	l := m.layout()
+	z := m.zoomed(l)
+	if z != nil && z.Capturing() {
+		// The search or filter prompt of the pager takes every key.
+		return z.Press(msg)
+	}
+	inZoom := z != nil && m.ctl.Nav.InPreview(l)
 	switch p, isDigit := k.digit(msg); {
+	case inZoom && z.Wants(msg) && !keymap.Matches(msg, k.next, k.prev, k.zoom, k.back, k.cancel):
+		return z.Press(msg)
 	case keymap.Matches(msg, k.next):
 		m.ctl.Tab(l, 1)
 	case keymap.Matches(msg, k.prev):

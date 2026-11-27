@@ -1,0 +1,62 @@
+# label | keys | help key | on or off
+
+global
+  quit | ctrl+c | ^c | on
+  command | : | : | on
+  maximize | Z | Z | on
+  dashboard | 0 | 0 | off
+  notifications | I | I | off
+  this repo | . | . | off
+  help | ? | ? | on
+
+Pull request
+  switch split | tab | tab | on
+  switch split | shift+tab | shift+tab | on
+  Description | 1 | 1 | on
+  Conversation | 2 | 2 | on
+  Merge | 3 | 3 | on
+  Involved | 4 | 4 | on
+  Development | 5 | 5 | off
+  Files | 6 | 6 | on
+  unzoom | z | z | on
+  divider left | ctrl+left | ^left | on
+  divider right | ctrl+right | ^right | on
+  grow pane | ctrl+up | ^up | off
+  shrink pane | ctrl+down | ^down | off
+  reset dividers | = | = | off
+  close | esc | esc | on
+  author | @ | @ | on
+  review |  |  | off
+  merge | M | M | on
+  labels | L | L | on
+  find file | ctrl+p | ^p | on
+
+Item
+  other split down | J | J | on
+  other split up | K | K | on
+  up | up k | ↑/k | on
+  down | down j | ↓/j | on
+  page up | b ctrl+b pgup | b/^b/pgup | on
+  page down | space ctrl+f pgdown | space/^f/pgdn | on
+  ½ page up | ctrl+u | ^u | on
+  ½ page down | ctrl+d | ^d | on
+  top | g g home | gg/home | on
+  bottom | G end | G/end | on
+  left | left h | ←/h | on
+  right | right l | →/l | on
+  option: S N s i I | - | - | on
+  chop or wrap long lines | S | S | off
+  line numbers | N | N | off
+  squeeze blank lines | s | s | off
+  smart case | i | i | off
+  ignore case | I | I | off
+  cancel | esc | esc | off
+  search | / | / | on
+  filter | & | & | on
+  search | enter | ↵ | off
+  cancel | esc | esc | off
+  cancel | backspace ctrl+h | backspace/^h | off
+  next match | n | n | off
+  prev match | N | N | off
+  edit | v | v | on
+  close | q esc | q/esc | on

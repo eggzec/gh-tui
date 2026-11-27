@@ -5,20 +5,22 @@ import (
 	"testing"
 
 	"github.com/eggzec/gh-tui/internal/core"
-	"github.com/eggzec/gh-tui/internal/tui/prpanes/slots"
 )
 
 func TestOtherKeysScrollThePreviewFromTheList(t *testing.T) {
 	t.Parallel()
 	h, m := openedBlockers(t, &fakePreviews{body: 80})
 	m.View()
-	key := slots.Key{Pane: paneBlockers, ID: m.slots.Hover(paneBlockers).ID}
-	press(t, h, "J", "J")
-	if got := m.slots.Previews().Get(key); got != 2 {
+	press(t, h, "J")
+	m.View()
+	press(t, h, "J")
+	m.View()
+	if got := m.side.zoom.Top(); got != 2 {
 		t.Fatalf("offset = %d after two J, want 2", got)
 	}
 	press(t, h, "K")
-	if got := m.slots.Previews().Get(key); got != 1 {
+	m.View()
+	if got := m.side.zoom.Top(); got != 1 {
 		t.Fatalf("offset = %d after K, want 1", got)
 	}
 	if m.ctl.Nav.InPreview(m.paneLayout()) {
@@ -64,8 +66,12 @@ func TestOtherKeysMoveTheListFromThePreview(t *testing.T) {
 	m.View()
 	first := m.slots.Hover(paneBlockers).ID
 	press(t, h, "tab")
-	press(t, h, "j", "j", "j")
-	if m.slots.Previews().Get(slots.Key{Pane: paneBlockers, ID: first}) != 3 {
+	m.View()
+	for range 3 {
+		press(t, h, "j")
+		m.View()
+	}
+	if m.side.zoom.Top() != 3 {
 		t.Fatal("the preview didn't scroll")
 	}
 	press(t, h, "J")
@@ -73,7 +79,8 @@ func TestOtherKeysMoveTheListFromThePreview(t *testing.T) {
 	if next == first {
 		t.Fatalf("J from the preview left the list on %q", first)
 	}
-	if got := m.slots.Previews().Get(slots.Key{Pane: paneBlockers, ID: next}); got != 0 {
+	m.View()
+	if got := m.side.zoom.Top(); got != 0 {
 		t.Fatalf("the preview of the row under the cursor starts at %d, want 0", got)
 	}
 	if !m.ctl.Nav.InPreview(m.paneLayout()) {
@@ -85,12 +92,65 @@ func TestOtherKeysMoveTheListFromThePreview(t *testing.T) {
 	}
 	// The group row above has no preview, so the hover stays on the blocker
 	// and the place read in its preview is kept.
-	press(t, h, "j", "j")
+	m.View()
+	before := m.side.zoom.Top()
+	press(t, h, "j")
+	m.View()
+	press(t, h, "j")
+	m.View()
 	press(t, h, "K")
+	m.View()
 	if got := m.slots.Hover(paneBlockers).ID; got != first {
 		t.Fatalf("K onto the group row hovers %q, want %q", got, first)
 	}
-	if got := m.slots.Previews().Get(slots.Key{Pane: paneBlockers, ID: first}); got != 2 {
-		t.Fatalf("K that kept the hover moved the preview to %d, want 2", got)
+	if got := m.side.zoom.Top(); got != before+2 {
+		t.Fatalf("K that kept the hover moved the preview to %d, want %d", got, before+2)
+	}
+}
+
+func TestZoomedPreviewRouting(t *testing.T) {
+	t.Parallel()
+	h, m := openedBlockers(t, &fakePreviews{body: 80})
+	m.View()
+	press(t, h, "tab")
+	m.View()
+	z := m.side.zoom
+	if !m.ctl.Nav.InPreview(m.paneLayout()) || !z.Pager().Focused() {
+		t.Fatal("tab didn't give the pager the keys")
+	}
+	if !z.Wants(keyMsg("j")) || z.Wants(keyMsg("tab")) {
+		t.Error("Wants is wrong for j or tab")
+	}
+	helps := func() (pager, capturing bool) {
+		for _, l := range m.KeyLayers() {
+			capturing = capturing || l.Context == "search_prompt"
+			for _, b := range l.Bindings {
+				pager = pager || b.Help().Desc == "down" && b.Enabled()
+			}
+		}
+		return pager, capturing
+	}
+	if pager, capturing := helps(); !pager || capturing {
+		t.Errorf("help in the preview: pager keys %v, prompt %v", pager, capturing)
+	}
+	press(t, h, "/")
+	if !z.Capturing() {
+		t.Fatal("/ didn't open the search of the pager")
+	}
+	if _, capturing := helps(); !capturing {
+		t.Error("help doesn't show the search prompt while it is open")
+	}
+	press(t, h, "tab")
+	if !m.ctl.Nav.InPreview(m.paneLayout()) {
+		t.Error("tab left the preview while the prompt was open")
+	}
+	press(t, h, "esc")
+	if z.Capturing() || h.modal() == nil {
+		t.Fatal("esc didn't close just the prompt")
+	}
+	press(t, h, "tab")
+	m.View()
+	if m.ctl.Nav.InPreview(m.paneLayout()) || z.Pager().Focused() {
+		t.Error("tab didn't flip back to the list")
 	}
 }

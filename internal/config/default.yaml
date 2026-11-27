@@ -1206,6 +1206,26 @@ keys:
     next_match: [n]
     prev_match: [N]
     edit: [v]
+  # The description and comments of an item, in the zoomed preview of the
+  # Development, Blockers and Involved panes of the pull request and issue
+  # modals. It is read only.
+  item_preview:
+    up: [up, k]
+    down: [down, j]
+    left: [left, h]
+    right: [right, l]
+    page_up: [b, ctrl+b, pgup]
+    page_down: [space, ctrl+f, pgdown]
+    half_page_up: [ctrl+u]
+    half_page_down: [ctrl+d]
+    top: ["g g", home]
+    bottom: [G, end]
+    option: ["-"]
+    find: [/]
+    quick_filter: ["&"]
+    next_match: [n]
+    prev_match: [N]
+    edit: [v]
   # The text that :config and :images show.
   text:
     up: [up, k]

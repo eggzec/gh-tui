@@ -151,6 +151,11 @@ func (m *detailModal) hoverPreview(b panes.Box, it dev.Item, tree bool) string {
 		return m.theme.Muted.Render("no preview")
 	}
 	o := dev.PreviewOptions{Repo: m.repo, Styles: p.devSt, Now: m.now(), Width: b.Rect.Inner().W}
+	if z := m.zoomed(m.paneLayout()); z != nil && z.Key() == m.slots.Hover(b.Pane).ID {
+		z.Focus(m.ctl.Nav.InPreview(m.paneLayout()))
+		in := b.Rect.Inner()
+		return z.Draw(in.W, in.H)
+	}
 	return p.previews.View(dev.Row{
 		Key: m.slots.Hover(b.Pane).ID, Item: it, Refs: p.dev.Group(it.Group),
 		Loaded: !tree || p.dev.Loaded(), Stamp: p.dev.Version(),
@@ -183,10 +188,53 @@ func (m *detailModal) follow() tea.Cmd {
 	if id == "" {
 		return nil
 	}
-	if _, ok := m.paneLayout().Box(f, panes.Preview); !ok {
+	l := m.paneLayout()
+	if _, ok := l.Box(f, panes.Preview); !ok {
 		return nil
 	}
-	return p.previews.Load(id, it)
+	return tea.Batch(p.previews.Load(id, it), m.showZoom(l, f, id, it))
+}
+
+// showZoom points the pager of the zoomed preview at the hovered row, and takes
+// it away when the split is not zoomed.
+func (m *detailModal) showZoom(l panes.Layout, f panes.Pane, id string, it dev.Item) tea.Cmd {
+	z := m.side.zoom
+	if !l.Zoomed {
+		return z.Show("", dev.Item{}, dev.PreviewOptions{})
+	}
+	if z.Key() != id {
+		m.slots.Previews().Reset(slots.Key{Pane: f, ID: id})
+	}
+	return z.Show(id, it, dev.PreviewOptions{Repo: m.repo, Styles: m.side.devSt, Now: m.now()})
+}
+
+// zoomed returns the pager of the zoomed preview when it shows the row of the
+// focused pane.
+func (m *detailModal) zoomed(l panes.Layout) *dev.Zoom {
+	if m.side == nil || m.side.zoom == nil || !m.side.zoom.Shown() {
+		return nil
+	}
+	if f := m.ctl.Nav.Focus(); !l.Zoomed || f != paneDevelopment && f != paneBlockers {
+		// Its comments stop being read until the row is shown again.
+		m.side.zoom.Show("", dev.Item{}, dev.PreviewOptions{})
+		return nil
+	}
+	return m.side.zoom
+}
+
+// zoomMsg gives the pager the messages that are its own: the pages of comments
+// it asked for, and its searches.
+func (m *detailModal) zoomMsg(msg tea.Msg) tea.Cmd {
+	if m.side == nil || m.side.zoom == nil {
+		return nil
+	}
+	if _, ok := msg.(tea.KeyPressMsg); ok {
+		return nil
+	}
+	if z := m.side.zoom; z.Handles(msg) || z.Shown() {
+		return z.Update(msg)
+	}
+	return nil
 }
 
 // resetPreviews scrolls the previews back to their tops.

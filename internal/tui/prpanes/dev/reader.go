@@ -14,6 +14,10 @@ type PreviewService interface {
 	IssuePreview(ctx context.Context, q pulls.PreviewQuery) (core.IssuePreview, error)
 	CachedPullPreview(q pulls.PreviewQuery) (core.PullPreview, bool)
 	PullPreview(ctx context.Context, q pulls.PreviewQuery) (core.PullPreview, error)
+	// CachedComments and Comments page the comments of an issue as well as
+	// of a pull request, since both are comments of an issue to GitHub.
+	CachedComments(q pulls.CommentsQuery) (core.Page[core.Comment], bool)
+	Comments(ctx context.Context, q pulls.CommentsQuery) (core.Page[core.Comment], error)
 }
 
 var _ PreviewService = (*pulls.Service)(nil)
@@ -25,6 +29,18 @@ type serviceReader struct{ s PreviewService }
 
 func previewQuery(t core.Target) pulls.PreviewQuery {
 	return pulls.PreviewQuery{Repo: t.Repo, Number: t.Number}
+}
+
+func commentsQuery(t core.Target, cursor string) pulls.CommentsQuery {
+	return pulls.CommentsQuery{Repo: t.Repo, Number: t.Number, Cursor: cursor}
+}
+
+func (r serviceReader) CachedComments(t core.Target, cursor string) (core.Page[core.Comment], bool) {
+	return r.s.CachedComments(commentsQuery(t, cursor))
+}
+
+func (r serviceReader) Comments(ctx context.Context, t core.Target, cursor string) (core.Page[core.Comment], error) {
+	return r.s.Comments(ctx, commentsQuery(t, cursor))
 }
 
 func (r serviceReader) CachedIssue(t core.Target) (core.IssuePreview, bool) {
